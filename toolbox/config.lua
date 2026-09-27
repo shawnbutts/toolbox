@@ -93,6 +93,10 @@ function C.VitalsSection()
         tooltip = "A dark or light panel behind the numbers, in your UI theme's colours",
         onChange = function(_, value) V.SetBackground(value) end },
     } },
+    UI.Toggle{ id = "vitals_flash", text = "Flash when low", value = V.GetFlash(),
+      style = { marginTop = 6 }, onChange = function(_, v) V.SetFlash(v) end },
+    slider("vitals_flash_below", "Flash below (%)", V.FLASH_MIN, V.FLASH_MAX, 1, V.GetFlashBelow(),
+      "Health or focus under this percentage flashes", function(n) V.SetFlashBelow(n) end),
     C.PositionRows("vitals", V),
   } }
 end
@@ -124,7 +128,7 @@ local function build()
   local W = T.Window
   win = UI.Window{
     id = WINDOW_ID, title = "Toolbox Settings",
-    width = 280, height = 560, minWidth = 220, minHeight = 120,
+    width = 280, height = 600, minWidth = 220, minHeight = 120,
     escCloses = true,
     style = { paddingTop = 6, paddingBottom = 6 },
     children = { UI.Scroll{ style = { flexGrow = 1 }, children = {
@@ -186,7 +190,8 @@ local function build()
                 "show_buffs", "buff_size", "buff_size_value", "expire_alert", "expire_seconds",
                 "expire_seconds_value", "debuff_alert", "volume", "volume_value", "buff_pos",
                 "show_vitals", "vitals_width", "vitals_width_value", "vitals_scale", "vitals_scale_value",
-                "vitals_pos", "vitals_show_bars", "vitals_show_text", "vitals_bg" }
+                "vitals_pos", "vitals_show_bars", "vitals_show_text", "vitals_bg",
+                "vitals_flash", "vitals_flash_below", "vitals_flash_below_value" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -264,6 +269,9 @@ function C.Sync()
   el.vitals_show_bars:SetValue(T.Vitals.GetShowBars())
   el.vitals_show_text:SetValue(T.Vitals.GetShowText())
   el.vitals_bg:SetValue(T.Vitals.GetBackground())
+  el.vitals_flash:SetValue(T.Vitals.GetFlash())
+  el.vitals_flash_below:SetValue(T.Vitals.GetFlashBelow())
+  el.vitals_flash_below_value:SetText(fontLabel(T.Vitals.GetFlashBelow()))
   C.SyncLive()
 end
 

@@ -285,7 +285,7 @@ function T.StatLines(filter)
   return lines
 end
 
-add("vitals", "show/hide health & focus bars (size <n>; text|bars on|off; bg none|dark|light; move; debug)",
+add("vitals", "health & focus bars (size <n>; text|bars on|off; bg none|dark|light; flash <%>|off; move)",
     function(rest)
   local word, args = T.ParseArgs(rest)
   local V = T.Vitals
@@ -296,6 +296,20 @@ add("vitals", "show/hide health & focus bars (size <n>; text|bars on|off; bg non
     else
       T.Print("Use /" .. T.commands[1] .. " vitals " .. word .. " on|off.")
     end
+    return
+  end
+  if word == "flash" then
+    local a = args:lower()
+    if a == "on" or a == "off" then
+      V.SetFlash(a == "on")
+    elseif a ~= "" then
+      if not V.SetFlashBelow(tonumber(a)) then
+        T.Print("Use /" .. T.commands[1] .. " vitals flash <" .. V.FLASH_MIN .. "-" .. V.FLASH_MAX .. "> or on / off.")
+        return
+      end
+      V.SetFlash(true)
+    end
+    T.Print("Flash when low: " .. (V.GetFlash() and ("on, below " .. V.GetFlashBelow() .. "%") or "off") .. ".")
     return
   end
   if word == "bg" then

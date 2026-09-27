@@ -174,7 +174,7 @@ including the "no character" sentinel.
 | `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { buff_expiring = "...", debuff_landed = "..." } }` |
 | `buff_timers` | `{ v = 2, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload |
-| `vitals` | `{ show, width = 100..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", x, y }` |
+| `vitals` | `{ show, width = 100..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, x, y }` |
 | `buff_durations` | `{ [rune name] = seconds }`: full durations learned from casts |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
@@ -286,7 +286,9 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     gold never counts. Asked the owner 2026-09-27 to check and run `/toolbox stats gold` for a fallback.
     `ShroudServerTime` is only the daily reset's fallback clock (os.date is used first).
 29. Theme classes `inset` / `card`: the docs say they "apply the game's own look" but not which is darker.
-    The vitals number background maps Dark -> inset, Light -> card (`V.BACKGROUNDS`); swap if wrong in game.
+    In game (2026-09-27) `inset` gives a dark panel behind a label, `card` shows NOTHING. So Light is a panel
+    in the theme colour `@text` on a wrapper Row (a colour set on the label can't be unset and would cover
+    the inset class), with `V.DARK_TEXT` numbers (the theme has no dark text token).
 30. HUD drag grip size: not documented. REPORTED 2026-09-27: it covered the first number of the vitals
     strip. HUD strips now wrap their contents in a Column with `paddingLeft = Toolbox.Window.GRIP` (14 px,
     an estimate; adjust if the grip still overlaps or the gap looks too big). Add-ons can't tell whether

@@ -88,7 +88,7 @@ return function(t)
     for _, key in ipairs({ "health", "focus" }) do
       local text, bar = H.vitals():Find(key .. "_text"), H.vitals():Find(key .. "_bar")
       t.eq(text.style.textAlign, "left")
-      t.eq(text.style.marginLeft, m.gap)
+      t.eq(H.vitals():Find(key .. "_wrap").style.marginLeft, m.gap, "the gap sits on the number's wrapper")
       t.ok(m.gap <= 4, "small gap at 100%: " .. m.gap)
       t.eq(text.style.width, m.textW, "same number box on both rows")
       t.eq(bar.style.width, m.barW)
@@ -206,7 +206,7 @@ return function(t)
     H.boot()
     H.chat("/tbx vitals")
     H.chat("/tbx vitals text off")
-    t.eq(H.vitals():Find("focus_text").visible, false)
+    t.eq(H.vitals():Find("focus_wrap").visible, false)
     t.eq(H.vitals().width, V().Metrics().frameW)
     H.clearLogs()
     H.chat("/tbx vitals bars off")
@@ -222,7 +222,7 @@ return function(t)
     H.chat("/tbx vitals text off")
     H.reload()
     t.eq(V().GetShowText(), false, "remembered")
-    t.eq(H.vitals():Find("focus_text").visible, false)
+    t.eq(H.vitals():Find("focus_wrap").visible, false)
   end)
 
   t.test("dark / light backgrounds use the theme's inset / card classes", function()
@@ -234,13 +234,19 @@ return function(t)
     t.ok(label():Classes().inset)
     t.ok(label():Classes().text, "keeps the text class")
     t.ok(label().style.paddingLeft > 0, "room around the text")
+    local wrap = function() return H.vitals():Find("health_wrap") end
+    t.eq(wrap().style.backgroundColor, "#00000000", "Dark uses the class, not a panel colour")
     H.chat("/tbx vitals bg LIGHT")
-    t.ok(label():Classes().card)
-    t.no(label():Classes().inset, "the previous one is removed")
+    t.no(label():Classes().inset, "the Dark class is removed")
+    t.eq(wrap().style.backgroundColor, "@text", "a panel in the theme's light text colour")
+    t.eq(label().style.color, Toolbox.Vitals.DARK_TEXT, "dark numbers on it")
     H.reload()
-    t.ok(label():Classes().card, "remembered and built with it")
+    t.eq(wrap().style.backgroundColor, "@text", "remembered and built with it")
+    H.chat("/tbx vitals bg dark")
+    t.eq(wrap().style.backgroundColor, "#00000000", "the panel is cleared again")
+    t.ok(label():Classes().inset)
     H.chat("/tbx vitals bg none")
-    t.no(label():Classes().card)
+    t.no(label():Classes().inset)
     t.eq(label().style.paddingLeft, 0)
     H.clearLogs()
     H.chat("/tbx vitals bg purple")
@@ -271,5 +277,74 @@ return function(t)
     local m = V().Metrics()
     t.eq(m.frameW, Toolbox.Window.GRIP + m.textW + 2 * m.pad + 8)
     t.eq(H.frame().children[1].style.paddingLeft, Toolbox.Window.GRIP, "the buff bar too")
+  end)
+
+  -- flash when low -------------------------------------------------------------
+
+  -- The health bar's colour over `seconds`, sampled every tick.
+  local function colours(seconds)
+    local seen = {}
+    for _ = 1, math.floor(seconds / 0.2 + 0.5) do
+      H.advance(0.2, 0.2)
+      seen[H.vitals():Find("health_bar").color or "?"] = true
+    end
+    return seen
+  end
+
+  t.test("below the threshold the bar and number swap colours; above, they don't", function()
+    H.boot()
+    withStats()
+    H.chat("/tbx vitals")
+    H.S.char.hp = 150                                  -- 16% of 942
+    local seen = colours(2)
+    t.ok(seen["@red"] and seen[Toolbox.Vitals.FLASH_COLOR], "alternates")
+    local texts = {}
+    for _ = 1, 10 do
+      H.advance(0.2, 0.2)
+      texts[H.vitals():Find("health_text").style.color] = true
+    end
+    t.ok(texts["@text"] and texts["@red"], "the number flashes too")
+    H.S.char.hp = 900
+    H.advance(1, 0.2)
+    seen = colours(2)
+    t.ok(seen["@red"] and not seen[Toolbox.Vitals.FLASH_COLOR], "steady when healthy again")
+    t.eq(H.vitals():Find("focus_bar").color == Toolbox.Vitals.FLASH_COLOR, false, "focus (full) never flashed")
+  end)
+
+  t.test("flash threshold and off switch", function()
+    H.boot()
+    withStats()
+    H.chat("/tbx vitals")
+    H.S.char.hp = 300                                  -- 32%
+    t.no(colours(2)[Toolbox.Vitals.FLASH_COLOR], "not below 20%")
+    H.chat("/tbx vitals flash 40")
+    t.ok(colours(2)[Toolbox.Vitals.FLASH_COLOR], "below 40%")
+    H.chat("/tbx vitals flash off")
+    H.advance(0.4, 0.2)
+    t.no(colours(2)[Toolbox.Vitals.FLASH_COLOR], "off")
+    H.clearLogs()
+    H.chat("/tbx vitals flash 99")
+    t.ok(H.logged("flash <1%-95>"))
+    H.chat("/tbx config")
+    H.change("toolbox_config", "vitals_flash_below", 25)
+    t.eq(V().GetFlashBelow(), 25)
+    H.change("toolbox_config", "vitals_flash", true)
+    t.eq(V().GetFlash(), true)
+    H.reload()
+    t.eq(V().GetFlashBelow(), 25, "remembered")
+  end)
+
+  t.test("flash colours suit each display: numbers only, and the Light panel", function()
+    H.boot()
+    local bar = Toolbox.Vitals.BARS[1]
+    H.chat("/tbx vitals bars off")
+    local _, normal = V().Colors(bar, false)
+    local _, flash = V().Colors(bar, true)
+    t.eq(normal, "@red"); t.eq(flash, Toolbox.Vitals.FLASH_COLOR)
+    H.chat("/tbx vitals bars on")
+    H.chat("/tbx vitals bg light")
+    _, normal = V().Colors(bar, false)
+    _, flash = V().Colors(bar, true)
+    t.eq(normal, Toolbox.Vitals.DARK_TEXT); t.eq(flash, "@red", "readable on the light panel")
   end)
 end

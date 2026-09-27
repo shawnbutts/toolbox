@@ -23,14 +23,24 @@ V.WIDTH_MIN, V.WIDTH_MAX, V.WIDTH_DEFAULT = 100, 400, 220   -- bar length at 100
 V.SCALE_MIN, V.SCALE_MAX, V.SCALE_DEFAULT = 75, 250, 100    -- percent
 V.BASE_FONT = 12                                             -- text size at 100%
 
--- Backgrounds for the numbers, from the game's theme so they follow the player's skin:
--- theme classes that "apply the game's own look". The docs don't say which is darker;
--- inset is taken as the dark one and card as the light one (swap here if it's the other way).
+-- Backgrounds for the numbers, from the game's theme so they follow the player's skin.
+-- Dark is the theme class `inset` (works in game). Light was the class `card`, which showed
+-- nothing behind a label in game, so it is a panel in the theme colour @text (the skin's
+-- light text colour) with dark text on it (the theme has no dark text colour). The Light
+-- panel sits on a wrapper around the number: a colour set on the label itself can't be
+-- unset later and would hide the Dark class's panel.
 V.BACKGROUNDS = {
   { name = "None" },
   { name = "Dark", class = "inset" },
-  { name = "Light", class = "card" },
+  { name = "Light", color = "@text", darkText = true },
 }
+V.DARK_TEXT = "#1a1a1a"
+
+-- Flashing when low: below `flashBelow` % the bar and its number swap colours every
+-- FLASH_TICKS ticks (0.4 s), to the theme's bright text colour.
+V.FLASH_COLOR = "@text-bright"
+V.FLASH_TICKS = 2
+V.FLASH_MIN, V.FLASH_MAX, V.FLASH_DEFAULT = 1, 95, 20
 V.HOME = { 40, 300 }
 V.NUDGE = 10
 -- `current` reads the per-frame global directly: reaching a global through a name built at
@@ -95,9 +105,14 @@ local function background()
   return V.BACKGROUNDS[1]
 end
 
--- The theme class for the current background, or nil for none.
+-- The theme class for the current background, or nil.
 function V.BackgroundClass()
   return background().class
+end
+
+-- The panel colour for the current background (on the wrapper), or nil.
+function V.BackgroundPanel()
+  return background().color
 end
 
 -- Everything's size from one factor (Shroud.UI has no zoom): text, line height, bar
@@ -115,7 +130,8 @@ function V.Metrics()
     textW = math.ceil(font * 5.2),        -- room for "9999 / 9999"
     rowGap = math.max(1, math.floor(2 * f + 0.5)),
   }
-  m.pad = V.BackgroundClass() and math.max(2, math.floor(3 * f + 0.5)) or 0   -- room around the text on a background
+  local hasBg = V.BackgroundClass() or V.BackgroundPanel()
+  m.pad = hasBg and math.max(2, math.floor(3 * f + 0.5)) or 0   -- room around the text on a background
   if not showBars() then m.barW, m.gap = 0, 0 end
   if not showText() then m.textW, m.gap, m.pad = 0, 0, 0 end
   m.frameW = T.Window.GRIP + m.barW + m.gap + m.textW + 2 * m.pad + 8
@@ -124,18 +140,34 @@ function V.Metrics()
 end
 
 local function barStyle(m) return { width = m.barW, height = m.barH } end
--- Text colour: the bar's colour when the bars are hidden (so health and focus can still be
--- told apart); otherwise the theme's (the "text" class, or the background class's own).
-local function textColor(bar)
-  if not showBars() then return bar.color end
-  return nil
+-- Colours for a bar and its number, normal or in the "flash" half of a low-value flash.
+-- Numbers: dark on the Light panel; the bar's colour when the bars are hidden (so health and
+-- focus can still be told apart); otherwise the theme's text colour.
+function V.Colors(bar, flashing)
+  local dark = background().darkText
+  local text
+  if dark then
+    text = flashing and bar.color or V.DARK_TEXT
+  elseif not showBars() then
+    text = flashing and V.FLASH_COLOR or bar.color
+  else
+    text = flashing and bar.color or "@text"
+  end
+  return flashing and V.FLASH_COLOR or bar.color, text
 end
 
 local function textStyle(m, bar)
+  local _, color = V.Colors(bar, false)
   return { fontSize = m.font, height = m.line, minHeight = m.line, maxHeight = m.line, marginTop = 0,
-           marginBottom = 0, paddingTop = 0, paddingBottom = 0, marginLeft = m.gap,
+           marginBottom = 0, paddingTop = 0, paddingBottom = 0,
            width = m.textW + 2 * m.pad, paddingLeft = m.pad, paddingRight = m.pad, textAlign = "left",
-           color = textColor(bar) or "@text" }
+           color = color }
+end
+
+-- The wrapper around a number: the gap after the bar, and the Light panel.
+local function wrapStyle(m)
+  local panel = V.BackgroundPanel()
+  return { marginLeft = m.gap, backgroundColor = panel or "#00000000", borderRadius = panel and 3 or 0 }
 end
 
 local function build()
@@ -145,9 +177,10 @@ local function build()
     rows[#rows + 1] = UI.Row{ style = { alignItems = "center", marginBottom = m.rowGap }, children = {
       UI.Bar{ id = bar.key .. "_bar", value = 0, color = bar.color, tooltip = bar.label, style = barStyle(m),
         visible = showBars() },
-      UI.Label{ id = bar.key .. "_text", text = "", class = V.BackgroundClass() and { "text", V.BackgroundClass() }
-        or "text", style = textStyle(m, bar),
-        visible = showText(), tooltip = bar.label },
+      UI.Row{ id = bar.key .. "_wrap", style = wrapStyle(m), visible = showText(), children = {
+        UI.Label{ id = bar.key .. "_text", text = "", class = V.BackgroundClass() and { "text", V.BackgroundClass() }
+          or "text", style = textStyle(m, bar), tooltip = bar.label },
+      } },
     } }
   end
   frame = UI.HudFrame{ id = FRAME_ID, x = prefs.x or V.HOME[1], y = prefs.y or V.HOME[2],
@@ -158,21 +191,37 @@ local function build()
   for _, bar in ipairs(V.BARS) do
     el[bar.key .. "_bar"] = frame:Find(bar.key .. "_bar")
     el[bar.key .. "_text"] = frame:Find(bar.key .. "_text")
+    el[bar.key .. "_wrap"] = frame:Find(bar.key .. "_wrap")
   end
 end
 
 local mover = T.Window.HudMover(function() return frame end, V.HOME)
 V.GetPosition, V.MoveTo, V.Nudge, V.ResetPosition = mover.Get, mover.MoveTo, mover.Nudge, mover.Reset
 
+local ticks = 0
+
+-- True while a value is below the flash threshold (and flashing is on).
+function V.IsLow(current, value)
+  return prefs.flash ~= false and type(current) == "number" and value < (prefs.flashBelow or V.FLASH_DEFAULT) / 100
+end
+
 function V.Tick()
+  ticks = ticks + 1
+  local phase = math.floor(ticks / V.FLASH_TICKS) % 2 == 1
   if frame and prefs.show then
     for _, bar in ipairs(V.BARS) do
       local current, max = V.Read(bar)
       local value, text = V.Format(current, max)
+      local flashing = V.IsLow(current, value) and phase
       local last = shown[bar.key] or {}
       if value ~= last.value then el[bar.key .. "_bar"]:SetValue(value) end
       if text ~= last.text then el[bar.key .. "_text"]:SetText(text) end
-      shown[bar.key] = { value = value, text = text }
+      if flashing ~= last.flashing then
+        local barColor, textColor = V.Colors(bar, flashing)
+        el[bar.key .. "_bar"]:SetColor(barColor)
+        el[bar.key .. "_text"]:SetStyle{ color = textColor }
+      end
+      shown[bar.key] = { value = value, text = text, flashing = flashing }
     end
   end
   -- Remember where the player put it (grip drag or buttons), as the buff bar does.
@@ -198,6 +247,10 @@ function V.Init()
     prefs.showBars = saved.showBars ~= false
     if not prefs.showText and not prefs.showBars then prefs.showText = true end
     if type(saved.bg) == "string" then prefs.bg = saved.bg end
+    prefs.flash = saved.flash ~= false
+    if type(saved.flashBelow) == "number" and saved.flashBelow >= V.FLASH_MIN and saved.flashBelow <= V.FLASH_MAX then
+      prefs.flashBelow = math.floor(saved.flashBelow)
+    end
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
   build()
@@ -247,7 +300,8 @@ local function applySize()
     el[bar.key .. "_bar"]:SetStyle(barStyle(m))
     el[bar.key .. "_bar"]:SetVisible(showBars())
     el[bar.key .. "_text"]:SetStyle(textStyle(m, bar))
-    el[bar.key .. "_text"]:SetVisible(showText())
+    el[bar.key .. "_wrap"]:SetStyle(wrapStyle(m))
+    el[bar.key .. "_wrap"]:SetVisible(showText())
     -- swap the background's theme class
     for _, bg in ipairs(V.BACKGROUNDS) do
       if bg.class then el[bar.key .. "_text"]:RemoveClass(bg.class) end
@@ -255,6 +309,7 @@ local function applySize()
     if V.BackgroundClass() then el[bar.key .. "_text"]:AddClass(V.BackgroundClass()) end
   end
   pcall(function() frame:SetSize(m.frameW, m.frameH) end)   -- refused past the HUD area limit: keep the old size
+  shown = {}                                -- colours were reset: re-apply on the next tick
 end
 
 local function inRange(n, lo, hi) return type(n) == "number" and n == math.floor(n) and n >= lo and n <= hi end
@@ -321,6 +376,26 @@ function V.SetBackground(name)
 end
 
 function V.GetBackground() return background().name end
+
+-- Flash when low: on/off, and the threshold in percent.
+function V.SetFlash(on)
+  prefs.flash = on == true
+  T.Save("vitals", prefs)
+  shown = {}
+  T.Config.Sync()
+end
+
+function V.GetFlash() return prefs.flash ~= false end
+
+function V.SetFlashBelow(n)
+  if not inRange(n, V.FLASH_MIN, V.FLASH_MAX) then return false end
+  prefs.flashBelow = n
+  T.Save("vitals", prefs)
+  T.Config.Sync()
+  return true
+end
+
+function V.GetFlashBelow() return prefs.flashBelow or V.FLASH_DEFAULT end
 
 function V.BackgroundNames()
   local out = {}

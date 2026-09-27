@@ -6,6 +6,9 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Health & focus bars flash when low: below a threshold (default 20%, `/toolbox vitals flash <n>`
+  or the settings slider; can be turned off) the bar and its number swap to the theme's bright
+  text colour every 0.4 s.
 - Health & focus bars: show or hide the bars and the numbers separately (not both), and a
   None / Dark / Light background behind the numbers from the UI theme (`inset` / `card`
   classes). Settings has checkboxes and a dropdown; `/toolbox vitals text|bars on|off` and
@@ -79,6 +82,9 @@ store submission needs a higher version than any submitted before (rejected ones
 - `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
 
 ### Fixed
+- The Light number background showed nothing in game (the theme's `card` class draws no panel
+  behind a label). Light is now a panel in the theme colour `@text` with dark numbers, on a
+  wrapper so switching back to Dark still shows the `inset` panel.
 - The drag grip at a HUD strip's top-left corner covered the first number (health & focus bars)
   or icon (buff bar): both strips now keep ~14 px free for it (`Toolbox.Window.GRIP`).
 - Health & focus bars showed "--" and stayed empty in game: when the per-frame current value

@@ -349,6 +349,7 @@ function Element:AddClass(name)
 end
 function Element:RemoveClass(name) self:Classes()[name] = nil end
 function Element:SetTexture(id) self.texture = id end
+function Element:SetColor(c) self.color = c end
 function Element:SetUV(x, y, w, h) self.uv = { x, y, w, h } end
 function Element:SetSize(w, h) self.width, self.height = w, h end
 -- Laid-out size. Models a theme class with a minimum height (H.S.themeMinHeight):
