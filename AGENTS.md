@@ -303,6 +303,6 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 31. HUD frames are kept on screen by the game using their FULL size, including empty space. A buff strip
     sized for all 20 slots couldn't be dragged near the right edge (reported 2026-09-27). Size HUD strips
     to what they show (`fitFrame` in buffbar.lua) and re-fit when that changes.
-32. Glued HUD: destroying HUD frames and rebuilding them (with the same ids when unglued again) on
-    `Hud.SetGlued` is assumed to be fine (docs: "Destroy() Remove the element and everything in it").
-    Hiding a module's content inside the shared strip uses `SetVisible` (hidden elements take no space).
+32. Glued HUD. CONFIRMED in game 2026-09-27: destroying HUD frames and rebuilding them (same ids when
+    unglued again) on `Hud.SetGlued` works, and the shared strip lays out and moves as one. Hiding a
+    module's content inside it uses `SetVisible` (hidden elements take no space).
