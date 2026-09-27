@@ -403,3 +403,4 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 39. Label side margins: labels carry side margins from the theme unless set. FOUND in game 2026-09-27
     (`/toolbox combat debug`): a combat row laid out ~8 px wider than name + value + padding, so the values
     sat on the panel's right edge. Set `marginLeft`/`marginRight` = 0 on labels whose widths must add up.
+    CONFIRMED 2026-09-27 (build 7dd58a5): with both at 0 the combat values sit inside the panel.
