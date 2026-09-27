@@ -240,7 +240,11 @@ The owner's agreed plans (2026-09-27). UPDATE, same day: the client now reports 
 went BACK to describing API 17 and dropped the whole crafting / gathering / friends / guild group (the
 "API 18" part below). So the docs no longer say what 18-20 contain. `/toolbox api` probes whether each
 planned function exists in the client; run it before building anything below, and treat a function
-missing from the docs as unconfirmed even when the probe finds it. Feature-detect each function (`type(ShroudX) == "function"`) and keep
+missing from the docs as unconfirmed even when the probe finds it.
+PROBED in game 2026-09-27 (build 17884de, API 20): all 5 buff bar functions, both crafting getters
+(`ShroudGetRecipe`, `ShroudGetCraftingState`) and all 3 friends/guild getters exist. The result callbacks
+(`ShroudOnCraftResults`, `ShroudOnGatherResults`, ...) can't be probed by existence; only by defining them
+and seeing whether they are called. Feature-detect each function (`type(ShroudX) == "function"`) and keep
 `min_api_version` at 14 unless a step below says otherwise. Add the new names to `.luacheckrc` and stub
 them in the harness with their documented behaviour.
 
@@ -393,6 +397,8 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     New: `MoonlightWatch` read a constant 9870 s left for 10 s (it counted down smoothly before). Maybe
     only that effect (an old doc said the moon indicator reports seconds to the next moon edge); pending
     a trace of an ordinary cast buff. The bar's own end-time clock covers a stale value either way.
+    Second trace, 18 min later: 6270 (was 9870), constant again for 10 s. It dropped 3600 in ~1100 real
+    seconds, so it moves in coarse steps and/or not in real seconds: a moon-phase timer, not a normal buff.
     `buff_timers` is `{ v = 2, timers = ... }` holding trusted totals only; unversioned (v1) saves are
     ignored because they could hold wrong totals. Vanished buffs keep their timer for `GRACE` seconds.
 23. Sounds: `ShroudLoadSound`'s path base ("the addon's Lua folder" vs the Lua root) and what clip names
