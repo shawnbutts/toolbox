@@ -8,7 +8,8 @@ store submission needs a higher version than any submitted before (rejected ones
 ### Added
 - Health & focus bars flash when low: below a threshold (default 20%, `/toolbox vitals flash <n>`
   or the settings slider; can be turned off) the bar and its number swap to the theme's bright
-  text colour every 0.4 s.
+  text colour every 0.4 s. A Test flash button (and `/toolbox vitals flash test`) flashes both
+  bars for 5 s to preview it.
 - Health & focus bars: show or hide the bars and the numbers separately (not both), and a
   None / Dark / Light background behind the numbers from the UI theme (`inset` / `card`
   classes). Settings has checkboxes and a dropdown; `/toolbox vitals text|bars on|off` and

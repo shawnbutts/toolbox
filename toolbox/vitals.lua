@@ -199,6 +199,20 @@ local mover = T.Window.HudMover(function() return frame end, V.HOME)
 V.GetPosition, V.MoveTo, V.Nudge, V.ResetPosition = mover.Get, mover.MoveTo, mover.Nudge, mover.Reset
 
 local ticks = 0
+local previewUntil = -math.huge
+V.PREVIEW_SECONDS = 5
+
+-- Flashes both bars for V.PREVIEW_SECONDS whatever the values, to see what it looks like.
+-- Returns false (and says why) when the strip is hidden.
+function V.PreviewFlash()
+  if not prefs.show then
+    T.Print("Show the health & focus bars first (/" .. T.commands[1] .. " vitals), then test the flash.")
+    return false
+  end
+  previewUntil = T.Now() + V.PREVIEW_SECONDS
+  T.Print("Flashing the bars for " .. V.PREVIEW_SECONDS .. " s...")
+  return true
+end
 
 -- True while a value is below the flash threshold (and flashing is on).
 function V.IsLow(current, value)
@@ -212,7 +226,7 @@ function V.Tick()
     for _, bar in ipairs(V.BARS) do
       local current, max = V.Read(bar)
       local value, text = V.Format(current, max)
-      local flashing = V.IsLow(current, value) and phase
+      local flashing = (V.IsLow(current, value) or T.Now() < previewUntil) and phase
       local last = shown[bar.key] or {}
       if value ~= last.value then el[bar.key .. "_bar"]:SetValue(value) end
       if text ~= last.text then el[bar.key .. "_text"]:SetText(text) end

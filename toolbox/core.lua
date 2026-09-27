@@ -300,11 +300,16 @@ add("vitals", "health & focus bars (size <n>; text|bars on|off; bg none|dark|lig
   end
   if word == "flash" then
     local a = args:lower()
+    if a == "test" then
+      V.PreviewFlash()
+      return
+    end
     if a == "on" or a == "off" then
       V.SetFlash(a == "on")
     elseif a ~= "" then
       if not V.SetFlashBelow(tonumber(a)) then
-        T.Print("Use /" .. T.commands[1] .. " vitals flash <" .. V.FLASH_MIN .. "-" .. V.FLASH_MAX .. "> or on / off.")
+        T.Print("Use /" .. T.commands[1] .. " vitals flash <" .. V.FLASH_MIN .. "-" .. V.FLASH_MAX
+          .. ">, on, off or test.")
         return
       end
       V.SetFlash(true)

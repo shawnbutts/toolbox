@@ -97,6 +97,11 @@ function C.VitalsSection()
       style = { marginTop = 6 }, onChange = function(_, v) V.SetFlash(v) end },
     slider("vitals_flash_below", "Flash below (%)", V.FLASH_MIN, V.FLASH_MAX, 1, V.GetFlashBelow(),
       "Health or focus under this percentage flashes", function(n) V.SetFlashBelow(n) end),
+    UI.Row{ style = { justifyContent = "end", marginTop = 2 }, children = {
+      UI.Button{ id = "vitals_flash_test", text = "Test flash",
+        tooltip = "Flash both bars for " .. V.PREVIEW_SECONDS .. " seconds to see what it looks like",
+        onClick = function() V.PreviewFlash() end },
+    } },
     C.PositionRows("vitals", V),
   } }
 end

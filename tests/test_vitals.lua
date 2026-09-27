@@ -347,4 +347,42 @@ return function(t)
     _, flash = V().Colors(bar, true)
     t.eq(normal, Toolbox.Vitals.DARK_TEXT); t.eq(flash, "@red", "readable on the light panel")
   end)
+
+  t.test("test flash: both bars flash for a few seconds at full health, even with flash off", function()
+    H.boot()
+    withStats()
+    H.chat("/tbx vitals")
+    H.chat("/tbx vitals flash off")
+    H.chat("/tbx config")
+    H.clearLogs()
+    H.click("toolbox_config", "vitals_flash_test")
+    t.ok(H.logged("Flashing the bars for 5 s"))
+    local healthSeen, focusSeen = {}, {}
+    for _ = 1, 20 do
+      H.advance(0.2, 0.2)
+      healthSeen[H.vitals():Find("health_bar").color] = true
+      focusSeen[H.vitals():Find("focus_bar").color] = true
+    end
+    t.ok(healthSeen[Toolbox.Vitals.FLASH_COLOR] and healthSeen["@red"], "health flashed")
+    t.ok(focusSeen[Toolbox.Vitals.FLASH_COLOR] and focusSeen["@blue"], "focus flashed")
+    H.advance(2, 0.2)
+    local after = {}
+    for _ = 1, 10 do
+      H.advance(0.2, 0.2)
+      after[H.vitals():Find("health_bar").color] = true
+    end
+    t.no(after[Toolbox.Vitals.FLASH_COLOR], "stops after the preview")
+    t.eq(V().GetFlash(), false, "the setting is untouched")
+  end)
+
+  t.test("test flash from chat, and a hint when the strip is hidden", function()
+    H.boot()
+    H.clearLogs()
+    H.chat("/tbx vitals flash test")
+    t.ok(H.logged("Show the health & focus bars first"))
+    H.chat("/tbx vitals")
+    H.clearLogs()
+    H.chat("/tbx vitals flash test")
+    t.ok(H.logged("Flashing the bars"))
+  end)
 end
