@@ -13,6 +13,10 @@ Guidance for AI coding agents (and humans) working on Toolbox, a Shroud of the A
   `//`, no bitwise operators, no `utf8` library, no `math.tointeger`/`math.type`, no `<const>`/`<close>`.
   Also avoid `goto` and `table.unpack`/`unpack` so the tests run on LuaJIT too. Pass whole numbers to
   `%d` (use `math.floor`); `string.format("%d", 1.5)` errors on 5.3+.
+- **The released client can lag the docs.** Twice now a documented value was missing in game (buff
+  `TotalDuration`/`CurrentDuration` are nil; `ShroudPlayerCurrentHealth`/`Focus` aren't numbers). Read
+  documented values defensively, keep a fallback that was confirmed in game, and add a `debug`
+  subcommand that prints raw values so the owner can check without guessing.
 - **Don't guess at API behaviour.** If the docs are unclear, pick the conservative option, write
   down the assumption (README or a comment), and add it to "Unconfirmed API behaviour" below.
 - **One global.** Everything lives in the `Toolbox` table or is `local`. The only other globals are
@@ -269,4 +273,6 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     `Focus` are taken as the maximums (unconfirmed while damaged: `CurrentHealth` should drop while `Health`
     stays). No stat matches "vigor" by name or label, so no vigor bar. REPORTED 2026-09-27: the bars
     showed "--" (seen as "~") and stayed empty, i.e. the per-frame globals weren't numbers; the bars now
-    fall back to the `CurrentHealth` / `CurrentFocus` stats. Pending: `/toolbox vitals debug` output.
+    fall back to the `CurrentHealth` / `CurrentFocus` stats. CONFIRMED in game 2026-09-27: with the
+    fallback the bars show. Keep both sources: the globals are documented and may start working when
+    the client catches up with the docs.
