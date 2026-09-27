@@ -243,9 +243,20 @@ function T.MoveCommand(m, cmd, what, args)
     .. " (to see the grip, untick Options > Interface > Nameplates & Chat Bubbles > Lock Status Movement).")
 end
 
-add("buffs", "show or hide the buff bar (move [x y]; group [add|remove <name>|reset]; debug; trace [name])",
-    function(rest)
+add("buffs", "show or hide the buff bar (move [x y]; group [add|remove <name>|reset]; replace on|off; "
+    .. "dismiss on|off; debug; trace [name])", function(rest)
   local word, name = T.ParseArgs(rest)
+  if word == "replace" or word == "dismiss" then
+    local B, arg = T.BuffBar, name:lower()
+    local set = word == "replace" and B.SetReplace or B.SetClickDismiss
+    local get = word == "replace" and B.GetReplace or B.GetClickDismiss
+    if (arg == "on" or arg == "off") and not set(arg == "on") then
+      T.Print("This game client can't do that (needs Lua API 16; it has " .. tostring(ShroudLuaApiVersion) .. ").")
+    end
+    local what = word == "replace" and "Replace the game's buff bar" or "Click a buff to dismiss it"
+    T.Print(what .. ": " .. (get() and "on" or "off") .. ".")
+    return
+  end
   if word == "group" then
     local B, c = T.BuffBar, "/" .. T.commands[1] .. " buffs group"
     local verb, part = T.ParseArgs(name)

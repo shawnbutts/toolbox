@@ -48,7 +48,11 @@ D.SECTIONS = {
     "Long-lasting buffs (the Obsidian potions, BlessingOf...) share one slot at the end of the row, showing how "
       .. "many there are; hover it for each one and its time left. They're picked by name: "
       .. "/toolbox buffs group add <part of a name> adds more, remove takes one off, and "
-      .. "/toolbox buffs group lists them." },
+      .. "/toolbox buffs group lists them.",
+    "Two settings on newer game clients: Replace the game's buff bar hides the game's own bar while "
+      .. "this one is showing (it comes back whenever this one is off), and Click a buff to dismiss it "
+      .. "works like the game's right-click Dismiss. Chat: /toolbox buffs replace on|off, "
+      .. "/toolbox buffs dismiss on|off." },
   { "Health & focus bars",
     "/toolbox vitals: your health and focus with \"current / max\".",
     "Options: size (75-250%), bar length, show bars and/or numbers, a dark or light panel "

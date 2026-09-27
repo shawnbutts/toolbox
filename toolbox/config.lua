@@ -156,6 +156,16 @@ function C.BuffBarSection()
       "How long before a buff ends to play the alert", function(n) B.SetExpireSeconds(n) end),
     UI.Toggle{ id = "debuff_alert", text = "Sound when a debuff lands", value = B.GetDebuffAlert(),
       style = { marginTop = 6 }, onChange = function(_, v) B.SetDebuffAlert(v) end },
+    UI.Toggle{ id = "buff_replace", text = "Replace the game's buff bar", value = B.GetReplace(),
+      enabled = B.CanReplace(), style = { marginTop = 6 },
+      tooltip = B.CanReplace() and "Hides the game's own buff bar while this one is showing"
+        or "Needs a newer game client (Lua API 16)",
+      onChange = function(_, v) C.OnReplace(v) end },
+    UI.Toggle{ id = "buff_dismiss", text = "Click a buff to dismiss it", value = B.GetClickDismiss(),
+      enabled = B.CanDismiss(),
+      tooltip = B.CanDismiss() and "Like the game's right-click Dismiss; only buffs the game lets you dismiss"
+        or "Needs a newer game client (Lua API 16)",
+      onChange = function(_, v) C.OnDismiss(v) end },
     UI.Label{ id = "buff_group", text = "", class = "text", style = { whiteSpace = "wrap", marginTop = 4 },
       tooltip = "Buffs whose names contain these are shown as one slot with a count; hover it for the list" },
     UI.Label{ text = "Change it with /toolbox buffs group add <name> or remove <name>.",
@@ -259,7 +269,8 @@ local function build()
                 "vitals_pos", "vitals_show_bars", "vitals_show_text", "vitals_bg",
                 "vitals_flash", "vitals_flash_below", "vitals_flash_below_value", "vitals_glue",
                 "show_combat", "combat_pet", "combat_scale", "combat_scale_value", "combat_stats", "combat_pos",
-                "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "guild_motd", "buff_group" }
+                "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "guild_motd", "buff_group",
+                "buff_replace", "buff_dismiss" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -299,6 +310,15 @@ function C.OnShowDaily(value)
   end
 end
 
+-- The buff bar's API 16 options: refused on an older client, so put the box back.
+function C.OnReplace(value)
+  if not T.BuffBar.SetReplace(value == true) then el.buff_replace:SetValue(T.BuffBar.GetReplace()) end
+end
+
+function C.OnDismiss(value)
+  if not T.BuffBar.SetClickDismiss(value == true) then el.buff_dismiss:SetValue(T.BuffBar.GetClickDismiss()) end
+end
+
 function C.OnShowDailyDetail(value)
   if not T.DailyDetail.SetOpen(value == true) then
     el.show_daily_detail:SetValue(T.DailyDetail.IsOpen())
@@ -331,6 +351,8 @@ function C.Sync()
   end
   el.expire_alert:SetValue(B.GetExpireAlert())
   el.debuff_alert:SetValue(B.GetDebuffAlert())
+  el.buff_replace:SetValue(B.GetReplace())
+  el.buff_dismiss:SetValue(B.GetClickDismiss())
   local parts = B.GroupParts()
   el.buff_group:SetText("Grouped into one slot: " .. (#parts > 0 and table.concat(parts, ", ") or "nothing"))
   el.show_vitals:SetValue(T.Vitals.IsShown())

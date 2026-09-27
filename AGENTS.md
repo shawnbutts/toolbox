@@ -104,7 +104,11 @@ Run all three before calling a change done.
     count label over the first one's icon, list + time left in the tooltip. By name because the API has
     no long-lasting flag and no full duration (owner's choice, 2026-09-27); they still get expiry alerts.
     CONFIRMED in game 2026-09-27 (build bca2d21): the seven potions collapse into one slot with the count,
-    and the hover list shows. The clock overlay is a second `Image` over the icon via a
+    and the hover list shows.
+    API 16 (feature-detected, `CanReplace`/`CanDismiss`): `replaceStock` hides the game's bar only while ours
+    is shown and built (`applyStock`, end of every tick; the game releases a hide on reload), and restores it
+    otherwise. `clickDismiss`: a slot's icon `onClick` re-finds the index by name, then `ShroudDismissBuff`;
+    refusals go to chat; dismissable buffs get a "Click to dismiss" tooltip line. The clock overlay is a second `Image` over the icon via a
     negative left margin, showing one `SetUV` frame of `clock.png` (`CLOCK` must match `art/clock.py`).
   - `vitals.lua`: `Toolbox.Vitals`, the health & focus bars (HUD). `V.Format` is pure. Every size comes
     from `V.Metrics()` (one scale factor; Shroud.UI has no zoom), applied at build and by `applySize`. Reads the
@@ -221,7 +225,7 @@ including the "no character" sentinel.
 | `daily` | see the header comment of `daily.lua` (format `v = 1`) |
 | `daily_window` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, hx, hy }` |
 | `daily_detail` | `{ open = bool, x = number, y = number }` |
-| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, group = { "BlessingOfStamina", ... }, x, y }` |
+| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, group = { "BlessingOfStamina", ... }, replaceStock, clickDismiss, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { buff_expiring = "...", debuff_landed = "..." } }` |
 | `buff_timers` | `{ v = 2, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload |
 | `vitals` | `{ show, width = 100..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, x, y }` |
@@ -274,7 +278,7 @@ them in the harness with their documented behaviour.
 6. Memory isn't a concern. All add-ons share a 256 MB decoded-sound budget, and our two short alerts
    use a few hundred KB. A refused load is logged, so the loader just moves to the next candidate.
 
-**API 16: replacing the game's buff bar** (`buffbar.lua`). The point: ours can be moved anywhere, while
+**API 16: replacing the game's buff bar** (`buffbar.lua`). BUILT 2026-09-27 (items 1-3); 5 is still open. The point: ours can be moved anywhere, while
 the game's is tied to the player frame. Don't follow the game's bar position: no `ShroudGetBuffBarRect`
 docking, no `ShroudOnBuffBarMoved`.
 
@@ -538,3 +542,8 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     never treated as new, so a late load just shows on a later tick. Also whether the text carries markup
     (shown as plain text) and whether `ShroudOnSocialChanged` fires when the data first loads (the 1 s tick
     checks too, so it doesn't matter).
+42. Replacing the game's buff bar and click to dismiss (API 16, built 2026-09-27). Unconfirmed in game:
+    that `ShroudSetBuffBarVisible(false)` from the 0.5 s tick holds (we re-assert it when
+    `ShroudIsBuffBarVisible()` says showing), and that a click on a HUD strip's `Image` counts as the
+    gesture `ShroudDismissBuff` needs (the docs list "clickable images"). If dismissing says "it needs a
+    click", that's the place to look.

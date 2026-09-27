@@ -68,6 +68,9 @@ local api_functions = {
   "ShroudUIImage", "ShroudUIInput", "ShroudUIPanel", "ShroudUIText", "ShroudUIToggle", "ShroudUnsetClickListener",
   "ShroudUnsetDragguable", "ShroudUnsetInOutListener", "ShroudUnsetMask", "ShroudUseLuaConsoleForPrint",
   "ShroudWorldToScreenPoint",
+  -- API 16 custom buff bars (documented; probed present in game 2026-09-27)
+  "ShroudSetBuffBarVisible", "ShroudIsBuffBarVisible", "ShroudGetBuffBarRect", "ShroudCanDismissBuff",
+  "ShroudDismissBuff",
 }
 
 -- Per-frame values, set-once constants and registered enum/helper types.
@@ -79,13 +82,11 @@ local api_values = {
   "UI", "ButtonMode", "Transition", "ContentType", "AudioType", "TextAnchor", "LuaVector2", "LuaVector3",
 }
 
--- Functions from newer APIs, only probed with type() by /toolbox api. The buff bar group is
--- documented (API 16); the crafting and social group was documented as API 18 on 2026-09-27 and
+-- Functions from newer APIs, only probed with type() by /toolbox api. The crafting and social
+-- group was documented as API 18 on 2026-09-27 and
 -- then withdrawn from the docs, while the client reports API 20. Move a name up to api_functions
 -- once the docs (or a probe in game) settle it.
 local api_probed = {
-  "ShroudSetBuffBarVisible", "ShroudIsBuffBarVisible", "ShroudGetBuffBarRect", "ShroudCanDismissBuff",
-  "ShroudDismissBuff",
   "ShroudGetRecipe", "ShroudGetCraftingState", "ShroudGetFriends", "ShroudGetGuildMembers", "ShroudGetGuildMotd",
 }
 

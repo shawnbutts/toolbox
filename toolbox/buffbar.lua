@@ -7,7 +7,11 @@
 --   * a debuff landed: fires when a debuff you didn't have appears (the API doesn't say
 --     who applied it).
 --
--- The game's own buff bar can't be hidden from Lua; this one sits alongside it.
+-- From API 16 two opt-in settings: "Replace the game's buff bar" hides the game's own bar
+-- (ShroudSetBuffBarVisible; never saved by the game and released on reload, so it's asserted
+-- again every tick while wanted), but only while this bar is actually showing; and "Click to
+-- dismiss" makes a click on an icon dismiss that buff (ShroudDismissBuff, which needs the
+-- player's click: never from a timer). Both are feature-detected.
 --
 -- Long-lasting buffs (Obsidian potions last days, and several can run at once) are grouped
 -- into one slot at the end of the buff row: a count over the first one's icon, with each
@@ -224,12 +228,13 @@ local slots = { buffs = {}, debuffs = {} }
 local clockTex = -1
 local group = nil         -- the long-lasting buffs' slot { row, icon, count, ... }
 local groupedCache = {}   -- rune name -> grouped? (a rune's displayed name doesn't change)
+local stockHidden = false -- we asked the game to hide its own buff bar
 
 local function defaults()
   local parts = {}
   for i, p in ipairs(BB.GROUP_DEFAULT) do parts[i] = p end
   return { show = false, size = BB.SIZE_DEFAULT, expire = true, expireSeconds = BB.ALERT_DEFAULT, debuff = true,
-           group = parts }
+           group = parts, replaceStock = false, clickDismiss = false }
 end
 
 local function savePrefs()
@@ -311,6 +316,69 @@ function readEffects()
 end
 
 -- ---------------------------------------------------------------------------
+-- The game's buff bar and dismissing (API 16)
+-- ---------------------------------------------------------------------------
+
+function BB.CanReplace()
+  return type(ShroudSetBuffBarVisible) == "function" and type(ShroudIsBuffBarVisible) == "function"
+end
+
+function BB.CanDismiss()
+  return type(ShroudCanDismissBuff) == "function" and type(ShroudDismissBuff) == "function"
+end
+
+-- Hides the game's bar while "replace" is on and ours is showing; shows it otherwise, so the
+-- player is never left without one. Runs every tick: the game forgets a hide on reload.
+local function applyStock()
+  if not BB.CanReplace() then return end
+  local want = prefs.replaceStock == true and prefs.show == true and content ~= nil
+  if want then
+    if not stockHidden or ShroudIsBuffBarVisible() == true then
+      ShroudSetBuffBarVisible(false)
+      stockHidden = true
+    end
+  elseif stockHidden then
+    ShroudSetBuffBarVisible(true)
+    stockHidden = false
+  end
+end
+
+local DISMISS_REASONS = {
+  notDismissable = "that buff can't be dismissed",
+  notNow = "not right now (loading, talking, crafting, looting or in a menu)",
+  needsGesture = "it needs a click",
+  gestureSpent = "too many actions from one click",
+  tooOften = "too many dismissals in a short time; wait a few seconds",
+  badIndex = "the buff is gone",
+}
+
+-- The flat index of the buff called `name` now (indices shift as buffs come and go), or nil.
+local function indexOf(name)
+  local n = ShroudGetBuffCount() or 0
+  for i = 0, n - 1 do
+    if ShroudGetBuffName(i) == name then return i end
+  end
+  return nil
+end
+
+-- A click on an icon: dismiss that buff if "click to dismiss" is on. The slot's name is from the
+-- last tick, so its index is looked up again now.
+local function clickSlot(slot)
+  if not prefs.clickDismiss or not BB.CanDismiss() or not slot.name then return end
+  local i = indexOf(slot.name)
+  if not i then return end
+  if not ShroudCanDismissBuff(i) then
+    T.Print("Can't dismiss " .. (slot.label or slot.name) .. ": that buff can't be dismissed.")
+    return
+  end
+  local ok, reason = ShroudDismissBuff(i)
+  if not ok then
+    T.Print("Can't dismiss " .. (slot.label or slot.name) .. ": "
+      .. (DISMISS_REASONS[reason] or tostring(reason)) .. ".")
+  end
+end
+
+-- ---------------------------------------------------------------------------
 -- HUD frame
 -- ---------------------------------------------------------------------------
 
@@ -343,8 +411,9 @@ local function makeSlot(debuff)
   local s = size()
   -- The clock texture is a placeholder until a buff's icon is set. It's left out, not set to
   -- nil, when it didn't load: the game's Lua passes a nil entry on to the UI.
-  local iconSpec = { width = s, height = s,
-    onClick = function() end }         -- an Image only takes the pointer (tooltip) with a click handler
+  local slotRef = {}
+  local iconSpec = { width = s, height = s,  -- an Image only takes the pointer (tooltip) with a click handler
+    onClick = function() clickSlot(slotRef) end }
   local overlaySpec = { width = s, height = s, visible = false,
     style = { marginLeft = -s } }      -- no absolute positioning: overlap by a negative margin
   if clockTex >= 0 then iconSpec.texture, overlaySpec.texture = clockTex, clockTex end
@@ -353,7 +422,8 @@ local function makeSlot(debuff)
   local slot = UI.Row{ visible = false, children = { icon, overlay },
     style = { width = s, height = s, marginRight = BB.GAP, backgroundColor = "#00000066",
               borderWidth = debuff and 2 or 0, borderColor = "@red" } }
-  return { row = slot, icon = icon, overlay = overlay, used = false }
+  slotRef.row, slotRef.icon, slotRef.overlay, slotRef.used = slot, icon, overlay, false
+  return slotRef
 end
 
 -- The count text's size for an icon of s pixels.
@@ -414,11 +484,12 @@ end
 local function fill(slot, e, fraction, warn)
   if not e then
     if slot.used then slot.row:SetVisible(false) end
-    slot.used, slot.name, slot.k, slot.warn = false, nil, nil, nil
+    slot.used, slot.name, slot.label, slot.k, slot.warn = false, nil, nil, nil, nil
     return
   end
   if not slot.used then slot.row:SetVisible(true) end
   slot.used = true
+  if slot.name ~= e.name then slot.name, slot.label = e.name, plainLabel(e.index, e.name) end
   local rune = runes[e.name] or {}
   local tex = (type(rune.icon) == "number" and rune.icon >= 0) and rune.icon or ShroudGetBuffIcon(e.index)
   if tex ~= slot.tex then
@@ -431,6 +502,9 @@ local function fill(slot, e, fraction, warn)
     end
   end
   local tip = ShroudGetBuffTooltip(e.index)
+  if prefs.clickDismiss and BB.CanDismiss() and ShroudCanDismissBuff(e.index) then
+    tip = (tip ~= "" and tip or e.name) .. "\nClick to dismiss"
+  end
   if tip ~= slot.tip then
     slot.tip = tip
     slot.icon:SetTooltip(tip ~= "" and tip or e.name)
@@ -530,6 +604,7 @@ function BB.Tick()
   end
   if expiring and prefs.expire then T.Sounds.Play("buff_expiring") end
   if T.Now() - lastTimerSave >= BB.TIMER_SAVE then BB.SaveTimers() end
+  applyStock()
 end
 
 -- One chat line per current effect, for checking durations in game:
@@ -558,6 +633,10 @@ function BB.DebugLines()
       num(fx.CurrentDuration), st and (num(st.total) .. " s") or "?", source)
   end
   if #lines == 0 then lines[1] = "No buffs or debuffs right now." end
+  if BB.CanReplace() then
+    lines[#lines + 1] = "Game's buff bar: " .. (ShroudIsBuffBarVisible() and "showing" or "hidden")
+      .. " (Toolbox is " .. (stockHidden and "hiding it" or "not hiding it") .. ")."
+  end
   return lines
 end
 
@@ -650,6 +729,8 @@ function BB.Init()
       prefs.expireSeconds = math.floor(saved.expireSeconds)
     end
     prefs.debuff = saved.debuff ~= false
+    prefs.replaceStock = saved.replaceStock == true
+    prefs.clickDismiss = saved.clickDismiss == true
     -- { "Obsidian" } alone was the first default, which matches no potion's name: take it as unset.
     local old = type(saved.group) == "table" and #saved.group == 1 and saved.group[1] == "Obsidian"
     if type(saved.group) == "table" and not old then
@@ -662,7 +743,7 @@ function BB.Init()
     end
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
-  timers, debuffs, runes, groupedCache = {}, {}, {}, {}
+  timers, debuffs, runes, groupedCache, stockHidden = {}, {}, {}, {}, false
   T.Hud.Register("buffs", BB)
   local savedTimers = T.Load("buff_timers")
   remembered = (type(savedTimers) == "table" and savedTimers.v == 2 and type(savedTimers.timers) == "table")
@@ -690,6 +771,7 @@ function BB.SetShown(on)
   savePrefs()
   T.Hud.Refresh()
   if prefs.show then BB.Tick() end
+  applyStock()                       -- off: the game's bar comes back at once
   T.Config.Sync()
 end
 
@@ -750,6 +832,32 @@ function BB.SetDebuffAlert(on)
 end
 
 function BB.GetDebuffAlert() return prefs.debuff end
+
+function BB.GetReplace() return prefs.replaceStock == true end
+
+-- Returns false when this client can't hide the game's bar.
+function BB.SetReplace(on)
+  if on and not BB.CanReplace() then return false end
+  prefs.replaceStock = on == true
+  savePrefs()
+  applyStock()
+  T.Config.Sync()
+  return true
+end
+
+function BB.GetClickDismiss() return prefs.clickDismiss == true end
+
+function BB.SetClickDismiss(on)
+  if on and not BB.CanDismiss() then return false end
+  prefs.clickDismiss = on == true
+  savePrefs()
+  for _, pool in pairs(slots) do
+    for _, slot in ipairs(pool) do slot.tip = nil end   -- redo tooltips (the "Click to dismiss" line)
+  end
+  if content and prefs.show then BB.Tick() end
+  T.Config.Sync()
+  return true
+end
 
 -- The name parts of the grouped (long-lasting) buffs.
 function BB.GroupParts()

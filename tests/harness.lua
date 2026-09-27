@@ -105,6 +105,33 @@ local function install_api()
     if not S.char.present then return "INVALID" end
     return S.char.name
   end
+  -- API 16 buff bar (H.S.noApi16 = true: an older client without it). Hiding is per add-on and
+  -- released on reload (see H.reload); dismissing needs a gesture (H.clickSlot).
+  if S.noApi16 then
+    ShroudSetBuffBarVisible, ShroudIsBuffBarVisible, ShroudCanDismissBuff, ShroudDismissBuff = nil, nil, nil, nil
+  else
+    ShroudSetBuffBarVisible = function(v)
+      S.stockCalls = (S.stockCalls or 0) + 1
+      S.stockHidden = v == false
+    end
+    ShroudIsBuffBarVisible = function() return not S.stockHidden and not S.otherHides end
+    ShroudCanDismissBuff = function(i)
+      local e = S.char.present and S.buffs[i + 1]
+      return e ~= nil and e ~= false and e.dismissable == true
+    end
+    ShroudDismissBuff = function(i)
+      local e = S.char.present and S.buffs[i + 1]
+      if type(i) ~= "number" or not e then return false, "badIndex" end
+      if not e.dismissable then return false, "notDismissable" end
+      if not S.gesture then return false, "needsGesture" end
+      S.dismissed = S.dismissed or {}
+      S.dismissed[#S.dismissed + 1] = e.name
+      local kept = {}
+      for _, b in ipairs(S.buffs) do if b.name ~= e.name then kept[#kept + 1] = b end end
+      S.buffs = kept                       -- every effect of that rune
+      return true, "ok"
+    end
+  end
   ShroudGetSocialSummary = function()
     if not S.char.present then return nil end
     return copy(S.social)
@@ -575,6 +602,7 @@ end
 -- and timers, then loads the files again. Engine time keeps running.
 function H.reload()
   ShroudFlushSavedVars()
+  S.stockHidden = false                -- the game releases an add-on's hide on reload
   S.commands, S.periodics, S.windows, S.keybinds = {}, {}, {}, {}
   local now = ShroudTime
   install_api()
@@ -685,6 +713,16 @@ function H.addBuffs(list)
     S.buffs[#S.buffs + 1] = b
   end
   return H.callback("ShroudOnBuffsChanged")
+end
+
+-- The player clicks the n-th visible icon of a bar row: a gesture while the handler runs.
+function H.clickSlot(row, n)
+  local slot = H.slots(row)[n]
+  assert(slot, "no visible slot " .. n .. " in " .. row)
+  S.gesture = true
+  local ok, err = pcall(H.call, slot.children[1].onClick, slot.children[1])
+  S.gesture = false
+  if not ok then error(err, 2) end
 end
 
 function H.removeBuff(name)

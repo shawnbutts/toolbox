@@ -255,6 +255,8 @@ return function(t)
 
   t.test("api lists which newer functions exist", function()
     H.boot()
+    H.S.noApi16 = true                 -- an older client
+    H.reload()
     H.clearLogs()
     H.chat("/tbx api")
     t.ok(H.logged("Lua API 14"))

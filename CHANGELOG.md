@@ -13,6 +13,9 @@ store submission needs a higher version than any submitted before (rejected ones
 - Buff bar: long-lasting buffs (the seven Obsidian potion blessings, by default) share one slot at the end of the row
   with a count; hover it to see each one and its time left. Picked by name, since the game doesn't
   mark long buffs: /toolbox buffs group add <name>, remove <name>, reset.
+- Buff bar: "Replace the game's buff bar" hides the game's own bar while Toolbox's is showing, and
+  "Click a buff to dismiss it" works like the game's right-click Dismiss. Both off by default, and
+  only on game clients with Lua API 16 (/toolbox buffs replace on|off, dismiss on|off).
 - /toolbox api lists which newer game functions this client has (buff bar, crafting, friends and
   guild), to check the client against the docs.
 
