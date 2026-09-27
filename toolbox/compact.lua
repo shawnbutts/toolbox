@@ -4,6 +4,10 @@
 -- Shares the text size with the XP Detailed window; has its own open state and position.
 --
 -- Hovering it pops up the XP Detailed window (see hover.lua).
+--
+-- It can also be shown as a HUD strip instead of a window (prefs.hud; /toolbox xp hud): no
+-- title bar or frame, moved by its grip like the other strips (Toolbox.Hud.TextStrip). The
+-- strip keeps its own position (prefs.hx / hy); the window's (x / y) is left alone.
 
 local T = Toolbox
 local C = {}
@@ -15,7 +19,9 @@ local GUTTER = 8
 
 local win = nil
 local el = {}
-local prefs = { open = false, hover = true }
+local prefs = { open = false, hover = true, hud = false }
+local strip = nil                     -- the HUD strip form (Toolbox.Hud.TextStrip), made in Init
+C.HOME = { 40, 120 }
 
 -- Hover pop-up of the XP Detailed window (Toolbox.Window).
 local hover = T.Hover.New{
@@ -88,19 +94,32 @@ function C.SavePrefs()
 end
 
 function C.IsShown()
+  if prefs.hud then return prefs.open == true and strip ~= nil end
   return win ~= nil and win:IsShown()
+end
+
+-- The labels of the form in use (window or HUD strip).
+local function active()
+  if prefs.hud then return strip and strip.el or {} end
+  return el
 end
 
 function C.Init()
   local saved = T.Load("compact")
-  prefs = { open = false, hover = true }
+  prefs = { open = false, hover = true, hud = false }
   if type(saved) == "table" then
     prefs.open = saved.open == true
     prefs.hover = saved.hover ~= false
+    prefs.hud = saved.hud == true
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
+    if type(saved.hx) == "number" and type(saved.hy) == "number" then prefs.hx, prefs.hy = saved.hx, saved.hy end
   end
+  strip = T.Hud.TextStrip{ key = "xp", FRAME_ID = "toolbox_xp_hud", HOME = C.HOME, titleId = "elapsed",
+    lines = LINES, hover = hover, prefs = prefs, save = C.SavePrefs,
+    isShown = function() return prefs.hud and prefs.open == true end }
+  T.Hud.Register("xp", strip)          -- built by Toolbox.Hud.Init, after this
   build()
-  if prefs.open and not win:Show() then
+  if prefs.open and not prefs.hud and not win:Show() then
     T.Print("XP window could not reopen yet; use /toolbox xp.")
   end
   C.Refresh()
@@ -115,6 +134,8 @@ function C.SetOpen(open)
     win:Hide()
     prefs.open = false
     hover:Clear("t:")
+  elseif prefs.hud then
+    prefs.open = true
   elseif win:IsShown() or win:Show() then
     prefs.open = true
     C.Refresh()
@@ -123,6 +144,8 @@ function C.SetOpen(open)
     ok = false
   end
   C.SavePrefs()
+  T.Hud.Refresh()
+  C.Refresh()
   T.Config.Sync()
   return ok
 end
@@ -130,6 +153,42 @@ end
 function C.Toggle()
   return C.SetOpen(not C.IsShown())
 end
+
+-- Shows the XP window as a HUD strip (true) or a window (false); open or closed stays as it was.
+-- Returns false when the window can't reopen yet (the game refuses a Show soon after a close).
+function C.SetHud(on)
+  on = on == true
+  if on == prefs.hud then return true end
+  local open = C.IsShown()
+  hover:Clear("t:")
+  prefs.hud = on
+  local ok = true
+  if on then
+    if win then win:Hide() end
+    prefs.open = open
+  elseif open then
+    if not win then build() end
+    ok = win:IsShown() or win:Show()
+    if not ok then T.Print("The XP window can't reopen right now; try again in a few seconds.") end
+    prefs.open = ok
+  end
+  C.SavePrefs()
+  T.Hud.Refresh()
+  C.Refresh()
+  T.Config.Sync()
+  return ok
+end
+
+function C.GetHud()
+  return prefs.hud
+end
+
+-- The strip's position (for /toolbox xp move); nil while it isn't laid out.
+function C.GetPosition()
+  if not strip then return nil end
+  return strip.GetPosition()          -- both numbers ("strip and ..." would keep only x)
+end
+function C.MoveTo(x, y) return strip ~= nil and strip.MoveTo(x, y) end
 
 -- ---------------------------------------------------------------------------
 -- Hover pop-up
@@ -158,13 +217,14 @@ end
 
 -- Follows the XP Detailed window's text size and line spacing (called from Toolbox.Window.ApplyText).
 function C.ApplyText()
+  if strip then strip.ApplyText() end
   if not win then return end
   local style = T.Window.LineStyle()
   for _, id in ipairs(TEXT_IDS) do el[id]:SetStyle(style) end
 end
 
 function C.SampleLabel()
-  return C.IsShown() and el.elapsed or nil
+  return C.IsShown() and active().elapsed or nil
 end
 
 function C.Track()
@@ -179,19 +239,20 @@ local function pool(fn)
 end
 
 function C.Refresh()
-  if not C.IsShown() then return end
+  local e = active()
+  if not C.IsShown() or not e.elapsed then return end
   local s = T.session
   if not s then
-    el.elapsed:SetText("Waiting for character...")
+    e.elapsed:SetText("Waiting for character...")
     return
   end
   local now = T.Now()
-  el.elapsed:SetText("Session " .. T.FormatDuration(T.XP.Elapsed(s, now)))
+  e.elapsed:SetText("Session " .. T.FormatDuration(T.XP.Elapsed(s, now)))
 
   local adv = pool(ShroudGetPooledAdventurerExperience)
   local prod = pool(ShroudGetPooledProducerExperience)
-  el.a_pool:SetText(adv and T.FormatNumber(adv) or "--")
-  el.p_pool:SetText(prod and T.FormatNumber(prod) or "--")
-  el.a_hour:SetText("+" .. T.FormatNumber(T.XP.LastHour(s, "a", now)))
-  el.p_hour:SetText("+" .. T.FormatNumber(T.XP.LastHour(s, "p", now)))
+  e.a_pool:SetText(adv and T.FormatNumber(adv) or "--")
+  e.p_pool:SetText(prod and T.FormatNumber(prod) or "--")
+  e.a_hour:SetText("+" .. T.FormatNumber(T.XP.LastHour(s, "a", now)))
+  e.p_hour:SetText("+" .. T.FormatNumber(T.XP.LastHour(s, "p", now)))
 end

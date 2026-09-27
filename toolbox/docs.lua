@@ -25,11 +25,15 @@ D.SECTIONS = {
       .. "in the last hour. Rest the pointer on it and XP Detailed pops up.",
     "XP Detailed (/toolbox xpdetailed): per track, XP gained, XP per hour (session and last "
       .. "10 minutes), level, progress, XP needed and time to the next level, and a Reset button. "
-      .. "A session starts when you log in or press Reset, and survives /lua reload." },
+      .. "A session starts when you log in or press Reset, and survives /lua reload.",
+    "Smaller: /toolbox xp hud (or \"As a HUD strip\" in settings) shows the XP window as a HUD strip, "
+      .. "with no title bar or frame. Move it by its grip or /toolbox xp move <x> <y>; hovering still "
+      .. "pops up XP Detailed. /toolbox xp window turns it back into a window." },
   { "Today",
     "Today (/toolbox daily): gold picked up, kills by you or your pet, and adventurer and "
       .. "producer XP since midnight. Rest the pointer on it for Today Detailed: every item that "
-      .. "arrived in your bags today, with counts." },
+      .. "arrived in your bags today, with counts.",
+    "Like XP, it can be a HUD strip: /toolbox daily hud (and daily window, daily move <x> <y>)." },
   { "Buff bar",
     "/toolbox buffs: your buffs and debuffs (outlined red) as their skill icons. A darkening "
       .. "sweep shows the time left; it turns red when a buff is about to run out. Hover an icon "

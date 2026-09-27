@@ -114,6 +114,9 @@ Run all three before calling a change done.
     one strip per module, or one shared "toolbox_hud" strip in `Hud.ORDER` when glued (rebuilt on
     `Hud.SetGlued`); only modules in `Hud.GLUE` share it, others (combat) keep their own strip. Call `Hud.Refresh()` when a module's content size or shown state changes; `Hud.Tick()`
     (1 s) remembers positions (per module unglued, `hud.x/y` glued). Movers: `Hud.MoverFor(key, home)`.
+    `Hud.TextStrip(spec)` is the HUD form of the XP and Today windows (`prefs.hud`, `/toolbox xp hud`):
+    a module registered from `Compact.Init` / `Daily.InitWindow` (they load before hud.lua, so never at
+    top level), with labels under the window's ids; those modules write to `active()`, whichever form is in use.
   - HUD strips share `Toolbox.Window.HudMover(getFrame, home, homeFn)` (Get/MoveTo/Nudge/Reset),
     `Toolbox.Config.PositionRows(prefix, module)` and `Toolbox.MoveCommand(module, cmd, name, args)`.
   - `docs.lua`: `Toolbox.Docs`, the Docs window. `D.SECTIONS` is the player guide (update it with every
@@ -199,9 +202,9 @@ including the "no character" sentinel.
 | --- | --- |
 | `session` | see the header comment of `xp.lua` (format `v = 1`; bump and handle old data if it changes) |
 | `window` | `{ open = bool, x = number, y = number, font = 9..32, spacing = 0..12 }` |
-| `compact` | `{ open = bool, x = number, y = number, hover = bool }` |
+| `compact` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, hx, hy }` (hx/hy: the HUD strip) |
 | `daily` | see the header comment of `daily.lua` (format `v = 1`) |
-| `daily_window` | `{ open = bool, x = number, y = number, hover = bool }` |
+| `daily_window` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, hx, hy }` |
 | `daily_detail` | `{ open = bool, x = number, y = number }` |
 | `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { buff_expiring = "...", debuff_landed = "..." } }` |
@@ -404,3 +407,7 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     (`/toolbox combat debug`): a combat row laid out ~8 px wider than name + value + padding, so the values
     sat on the panel's right edge. Set `marginLeft`/`marginRight` = 0 on labels whose widths must add up.
     CONFIRMED 2026-09-27 (build 7dd58a5): with both at 0 the combat values sit inside the panel.
+40. Hover on HUD strips: the docs list `onHover` for every element and say a HudFrame's empty parts pass
+    clicks through, but not whether hover reaches a strip's panel and rows. The XP / Today strips report
+    hover on their panel and each row (`t:hud`, `t:hud_<id>`). Unconfirmed in game: if the pop-up never
+    appears over a strip, this is the place to look.

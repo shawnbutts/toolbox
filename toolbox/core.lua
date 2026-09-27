@@ -142,16 +142,38 @@ add("docs", "open or close the Docs window (same as help)", function()
   T.Docs.Toggle()
 end)
 
-add("xp", "show or hide the XP window (session time, pools, XP in the last hour)", function()
-  T.Compact.Toggle()
+-- /toolbox xp and /toolbox daily: toggle, or "hud" / "window" to pick the form, or "move [x y]"
+-- for the HUD strip.
+local function formCommand(m, cmd, name, rest)
+  local word, args = T.ParseArgs(rest)
+  if word == "hud" or word == "window" then
+    if m.SetHud(word == "hud") then
+      T.Print(name .. " shows as a " .. (word == "hud" and "HUD strip" or "window") .. ".")
+    end
+  elseif word == "move" then
+    if not m.GetHud() then
+      T.Print("Move the " .. name .. " window by its title bar; move only applies to the HUD strip (/"
+        .. T.commands[1] .. " " .. cmd .. " hud).")
+      return
+    end
+    T.MoveCommand(m, cmd, name .. " strip", args)
+  else
+    m.Toggle()
+  end
+end
+
+add("xp", "show or hide the XP window (session time, pools, XP in the last hour; hud / window; move [x y])",
+    function(rest)
+  formCommand(T.Compact, "xp", "XP", rest)
 end)
 
 add("xpdetailed", "show or hide the XP Detailed window (levels, rates, Reset)", function()
   T.Window.Toggle()
 end, { "xpd" })
 
-add("daily", "show or hide today's stats (gold, kills, XP; resets at midnight)", function()
-  T.Daily.Toggle()
+add("daily", "show or hide today's stats (gold, kills, XP; resets at midnight; hud / window; move [x y])",
+    function(rest)
+  formCommand(T.Daily, "daily", "Today", rest)
 end)
 
 add("dailydetailed", "show or hide Today Detailed (every item gained today, with counts)", function()

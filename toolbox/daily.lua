@@ -223,7 +223,9 @@ end
 
 local win = nil
 local el = {}
-local prefs = { open = false, hover = true }
+local prefs = { open = false, hover = true, hud = false }
+local strip = nil                     -- the HUD strip form (Toolbox.Hud.TextStrip; see compact.lua)
+D.HOME = { 40, 200 }
 
 -- Hover pop-up of the Today Detailed window (Toolbox.DailyDetail).
 local hover = T.Hover.New{
@@ -291,21 +293,34 @@ function D.SavePrefs()
 end
 
 function D.IsShown()
+  if prefs.hud then return prefs.open == true and strip ~= nil end
   return win ~= nil and win:IsShown()
+end
+
+-- The labels of the form in use (window or HUD strip).
+local function active()
+  if prefs.hud then return strip and strip.el or {} end
+  return el
 end
 
 -- Builds the window (after Toolbox.Window.Init, whose text settings it uses).
 -- The data is loaded earlier, by D.Load from ShroudOnStart.
 function D.InitWindow()
   local saved = T.Load("daily_window")
-  prefs = { open = false, hover = true }
+  prefs = { open = false, hover = true, hud = false }
   if type(saved) == "table" then
     prefs.open = saved.open == true
     prefs.hover = saved.hover ~= false
+    prefs.hud = saved.hud == true
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
+    if type(saved.hx) == "number" and type(saved.hy) == "number" then prefs.hx, prefs.hy = saved.hx, saved.hy end
   end
+  strip = T.Hud.TextStrip{ key = "daily", FRAME_ID = "toolbox_daily_hud", HOME = D.HOME, titleId = "date",
+    lines = LINES, hover = hover, prefs = prefs, save = D.SavePrefs,
+    isShown = function() return prefs.hud and prefs.open == true end }
+  T.Hud.Register("daily", strip)       -- built by Toolbox.Hud.Init, after this
   build()
-  if prefs.open and not win:Show() then
+  if prefs.open and not prefs.hud and not win:Show() then
     T.Print("Daily stats window could not reopen yet; use /toolbox daily.")
   end
   D.Refresh()
@@ -318,14 +333,17 @@ function D.SetOpen(open)
     win:Hide()
     prefs.open = false
     hover:Clear("t:")
+  elseif prefs.hud then
+    prefs.open = true
   elseif win:IsShown() or win:Show() then
     prefs.open = true
-    D.Refresh()
   else
     T.Print("The daily stats window can't reopen right now; try again in a few seconds.")
     ok = false
   end
   D.SavePrefs()
+  T.Hud.Refresh()
+  D.Refresh()
   T.Config.Sync()
   return ok
 end
@@ -334,14 +352,51 @@ function D.Toggle()
   return D.SetOpen(not D.IsShown())
 end
 
+-- Shows today's stats as a HUD strip (true) or a window (false); open or closed stays as it was.
+-- Returns false when the window can't reopen yet.
+function D.SetHud(on)
+  on = on == true
+  if on == prefs.hud then return true end
+  local open = D.IsShown()
+  hover:Clear("t:")
+  prefs.hud = on
+  local ok = true
+  if on then
+    if win then win:Hide() end
+    prefs.open = open
+  elseif open then
+    if not win then build() end
+    ok = win:IsShown() or win:Show()
+    if not ok then T.Print("The daily stats window can't reopen right now; try again in a few seconds.") end
+    prefs.open = ok
+  end
+  D.SavePrefs()
+  T.Hud.Refresh()
+  D.Refresh()
+  T.Config.Sync()
+  return ok
+end
+
+function D.GetHud()
+  return prefs.hud
+end
+
+-- The strip's position (for /toolbox daily move); nil while it isn't laid out.
+function D.GetPosition()
+  if not strip then return nil end
+  return strip.GetPosition()          -- both numbers ("strip and ..." would keep only x)
+end
+function D.MoveTo(x, y) return strip ~= nil and strip.MoveTo(x, y) end
+
 function D.ApplyText()
+  if strip then strip.ApplyText() end
   if not win then return end
   local style = T.Window.LineStyle()
   for _, id in ipairs(TEXT_IDS) do el[id]:SetStyle(style) end
 end
 
 function D.SampleLabel()
-  return D.IsShown() and el.date or nil
+  return D.IsShown() and active().date or nil
 end
 
 function D.Track()
@@ -376,12 +431,13 @@ function D.DateText()
 end
 
 function D.Refresh()
-  if not D.IsShown() or not D.day then return end
+  local e = active()
+  if not D.IsShown() or not D.day or not e.date then return end
   local date, tip = D.DateText()
-  el.date:SetText(date)
-  el.date:SetTooltip(tip)
-  el.gold:SetText(T.FormatNumber(D.day.gold))
-  el.kills:SetText(T.FormatNumber(D.day.kills))
-  el.adv:SetText(T.FormatNumber(D.day.a))
-  el.prod:SetText(T.FormatNumber(D.day.p))
+  e.date:SetText(date)
+  e.date:SetTooltip(tip)
+  e.gold:SetText(T.FormatNumber(D.day.gold))
+  e.kills:SetText(T.FormatNumber(D.day.kills))
+  e.adv:SetText(T.FormatNumber(D.day.a))
+  e.prod:SetText(T.FormatNumber(D.day.p))
 end

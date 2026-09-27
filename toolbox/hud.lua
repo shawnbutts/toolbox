@@ -21,7 +21,7 @@ Toolbox.Hud = Hud
 
 Hud.GLUED_ID = "toolbox_hud"
 Hud.GLUED_HOME = { 40, 260 }
-Hud.ORDER = { "vitals", "buffs", "combat" }   -- every HUD module, in build order
+Hud.ORDER = { "vitals", "buffs", "combat", "xp", "daily" }   -- every HUD module, in build order
 Hud.GLUE = { vitals = true, buffs = true }     -- the ones that share a strip when glued (left to right as in ORDER)
 Hud.GAP = 6                           -- between the parts of the glued strip
 Hud.PAD = 8                           -- the strip's own padding
@@ -208,4 +208,100 @@ function Hud.Init()
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
   Hud.Build()
+end
+
+-- ---------------------------------------------------------------------------
+-- Text strips: the XP and Today windows' "HUD strip" form
+-- ---------------------------------------------------------------------------
+
+-- A HUD module showing a title line and "label ..... value" rows on the theme's dark panel,
+-- sized from the text size and line spacing settings (Toolbox.Window). Hovering it reports to
+-- the owner's hover controller, so the detail pop-up works as it does over the window.
+--
+-- spec = {
+--   key, FRAME_ID, HOME = { x, y },
+--   titleId = "elapsed",                               -- the title line's element key
+--   lines = { { id, label, indent = bool, tooltip }, ... },   -- elements <id>_label and <id>
+--   isShown = function() -> bool,
+--   hover = a Toolbox.Hover controller,
+--   prefs = the owner's prefs table (the strip keeps hx / hy there), save = function(),
+-- }
+-- strip.el holds the labels by id (empty until built). Every label's side margins are zeroed:
+-- the theme's defaults made combat rows wider than their panel in game.
+Hud.STRIP_PAD = 5
+Hud.STRIP_INDENT = 10
+
+function Hud.TextStrip(spec)
+  local strip = { FRAME_ID = spec.FRAME_ID, HOME = spec.HOME, el = {} }
+  local styled = {}                   -- { element, function() -> style }, re-applied by ApplyText
+
+  function strip.Metrics()
+    local font = T.Window.GetFont()
+    local labelW, valueW = math.ceil(font * 8), math.ceil(font * 6)
+    return { labelW = labelW, valueW = valueW, w = labelW + valueW, line = T.Window.LineHeight(),
+             pad = Hud.STRIP_PAD }
+  end
+
+  local function style(width, align, indent)
+    return function()
+      return T.Window.TextStyle{ width = width() - indent, marginLeft = indent, marginRight = 0,
+        paddingLeft = 0, paddingRight = 0, textAlign = align }
+    end
+  end
+
+  local function label(key, text, class, fn)
+    local e = UI.Label{ id = key, text = text, class = class, style = fn() }   -- ids as in the window form
+    strip.el[key] = e
+    styled[#styled + 1] = { e, fn }
+    return e
+  end
+
+  function strip.BuildContent()
+    local m = strip.Metrics()
+    strip.el, styled = {}, {}
+    local function full() return strip.Metrics().w end
+    local function names() return strip.Metrics().labelW end
+    local function values() return strip.Metrics().valueW end
+    local rows = { label(spec.titleId, "", "title", style(full, "left", 0)) }
+    for _, line in ipairs(spec.lines) do
+      local indent = line.indent and Hud.STRIP_INDENT or 0
+      rows[#rows + 1] = UI.Row{ tooltip = line.tooltip or line.label,
+        onHover = function(_, over) spec.hover:Report("t:hud_" .. line.id, over) end,
+        children = {
+          label(line.id .. "_label", line.label, "text", style(names, "left", indent)),
+          label(line.id, "", "text", style(values, "right", 0)),
+        } }
+    end
+    return UI.Column{ id = "strip", class = "inset",
+      onHover = function(_, over) spec.hover:Report("t:hud", over) end,
+      style = { paddingLeft = m.pad, paddingRight = m.pad, paddingTop = m.pad, paddingBottom = m.pad,
+                marginLeft = 0, marginRight = 0, marginTop = 0, marginBottom = 0 },
+      children = rows }
+  end
+
+  function strip.ContentSize()
+    local m = strip.Metrics()
+    return m.w + 2 * m.pad, (1 + #spec.lines) * m.line + 2 * m.pad
+  end
+
+  function strip.IsShown() return spec.isShown() end
+
+  function strip.GetSavedPosition() return spec.prefs.hx, spec.prefs.hy end
+  function strip.SavePosition(x, y)
+    if x ~= spec.prefs.hx or y ~= spec.prefs.hy then
+      spec.prefs.hx, spec.prefs.hy = x, y
+      spec.save()
+    end
+  end
+
+  -- Follows text size and line spacing changes.
+  function strip.ApplyText()
+    for _, pair in ipairs(styled) do pair[1]:SetStyle(pair[2]()) end
+    Hud.Refresh()
+  end
+
+  local mover = Hud.MoverFor(spec.key, spec.HOME)
+  strip.GetPosition, strip.MoveTo, strip.Nudge, strip.ResetPosition = mover.Get, mover.MoveTo, mover.Nudge,
+    mover.Reset
+  return strip
 end

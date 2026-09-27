@@ -5,6 +5,11 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Added
+- The XP and Today windows can show as HUD strips instead (`/tbx xp hud`, `/tbx daily hud`, or
+  "As a HUD strip" in settings): no title bar or frame, on the theme's dark panel, moved by the grip
+  or `/tbx xp move <x> <y>`; the hover pop-ups work as over the windows. `window` switches back.
+
 ### Fixed
 - Combat stats HUD: the values now have the same padding on the right as the names on the left.
 

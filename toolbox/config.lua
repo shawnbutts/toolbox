@@ -205,12 +205,22 @@ local function build()
           onChange = function(_, value) C.OnShowCompact(value) end,
         },
         UI.Toggle{
+          id = "xp_hud", text = "As a HUD strip", value = T.Compact.GetHud(), style = { marginLeft = 16 },
+          tooltip = "No title bar or frame: a small panel moved by its grip, like the buff bar",
+          onChange = function(_, value) T.Compact.SetHud(value) end,
+        },
+        UI.Toggle{
           id = "show_xp", text = "Show XP Detailed window", value = W.IsOpen(),
           onChange = function(_, value) C.OnShowXP(value) end,
         },
         UI.Toggle{
           id = "show_daily", text = "Show daily stats window", value = T.Daily.IsShown(),
           onChange = function(_, value) C.OnShowDaily(value) end,
+        },
+        UI.Toggle{
+          id = "daily_hud", text = "As a HUD strip", value = T.Daily.GetHud(), style = { marginLeft = 16 },
+          tooltip = "No title bar or frame: a small panel moved by its grip, like the buff bar",
+          onChange = function(_, value) T.Daily.SetHud(value) end,
         },
         UI.Toggle{
           id = "show_daily_detail", text = "Show Today Detailed window", value = T.DailyDetail.IsOpen(),
@@ -234,7 +244,7 @@ local function build()
   }
   el = {}
   local ids = { "font", "font_value", "spacing", "spacing_value", "show_xp", "show_compact", "show_daily",
-                "show_daily_detail", "hover_popup", "hover_daily",
+                "show_daily_detail", "hover_popup", "hover_daily", "xp_hud", "daily_hud",
                 "show_buffs", "buff_size", "buff_size_value", "expire_alert", "expire_seconds",
                 "expire_seconds_value", "debuff_alert", "volume", "volume_value", "buff_pos",
                 "show_vitals", "vitals_width", "vitals_width_value", "vitals_scale", "vitals_scale_value",
@@ -303,6 +313,8 @@ function C.Sync()
   el.show_daily_detail:SetValue(T.DailyDetail.IsOpen())
   el.hover_popup:SetValue(T.Compact.GetHover())
   el.hover_daily:SetValue(T.Daily.GetHover())
+  el.xp_hud:SetValue(T.Compact.GetHud())
+  el.daily_hud:SetValue(T.Daily.GetHud())
   local B, S = T.BuffBar, T.Sounds
   el.show_buffs:SetValue(B.IsShown())
   for id, v in pairs({ buff_size = B.GetSize(), expire_seconds = B.GetExpireSeconds(), volume = S.GetVolume() }) do
