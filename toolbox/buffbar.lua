@@ -240,7 +240,7 @@ local function size() return prefs.size or BB.SIZE_DEFAULT end
 
 local function frameSize()
   local cell = size() + BB.GAP
-  return BB.BUFF_SLOTS * cell + 8, 2 * cell + 8
+  return T.Window.GRIP + BB.BUFF_SLOTS * cell + 8, 2 * cell + 8
 end
 
 local function makeSlot(debuff)
@@ -273,10 +273,11 @@ local function build()
   -- memory of a HUD frame's position after a reload.
   frame = UI.HudFrame{ id = FRAME_ID, x = prefs.x or BB.HOME[1], y = prefs.y or BB.HOME[2],
     width = w, height = h, visible = prefs.show,
-    children = {
+    -- start the icons past the drag grip
+    children = { UI.Column{ style = { paddingLeft = T.Window.GRIP }, children = {
       UI.Row{ id = "buffs", style = { marginBottom = BB.GAP }, children = buffRow },
       UI.Row{ id = "debuffs", children = debuffRow },
-    } }
+    } } } }
 end
 
 -- Puts entry e (or nothing) into a slot, touching only what changed. `warn` shows the

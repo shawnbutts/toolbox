@@ -261,4 +261,15 @@ return function(t)
     H.chat("/tbx vitals bg light")
     t.eq(H.config():Find("vitals_bg").value, "Light", "dropdown follows the command")
   end)
+
+  t.test("contents start past the drag grip, and the strip is wide enough for it", function()
+    H.boot()
+    H.chat("/tbx vitals")
+    H.chat("/tbx vitals bars off")
+    local inner = H.vitals().children[1]
+    t.eq(inner.style.paddingLeft, Toolbox.Window.GRIP)
+    local m = V().Metrics()
+    t.eq(m.frameW, Toolbox.Window.GRIP + m.textW + 2 * m.pad + 8)
+    t.eq(H.frame().children[1].style.paddingLeft, Toolbox.Window.GRIP, "the buff bar too")
+  end)
 end

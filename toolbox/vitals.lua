@@ -118,7 +118,7 @@ function V.Metrics()
   m.pad = V.BackgroundClass() and math.max(2, math.floor(3 * f + 0.5)) or 0   -- room around the text on a background
   if not showBars() then m.barW, m.gap = 0, 0 end
   if not showText() then m.textW, m.gap, m.pad = 0, 0, 0 end
-  m.frameW = m.barW + m.gap + m.textW + 2 * m.pad + 8
+  m.frameW = T.Window.GRIP + m.barW + m.gap + m.textW + 2 * m.pad + 8
   m.frameH = #V.BARS * (line + m.rowGap) + 8
   return m
 end
@@ -151,7 +151,9 @@ local function build()
     } }
   end
   frame = UI.HudFrame{ id = FRAME_ID, x = prefs.x or V.HOME[1], y = prefs.y or V.HOME[2],
-    width = m.frameW, height = m.frameH, visible = prefs.show, children = rows }
+    width = m.frameW, height = m.frameH, visible = prefs.show,
+    -- start the contents past the drag grip
+    children = { UI.Column{ style = { paddingLeft = T.Window.GRIP }, children = rows } } }
   el, shown = {}, {}
   for _, bar in ipairs(V.BARS) do
     el[bar.key .. "_bar"] = frame:Find(bar.key .. "_bar")

@@ -287,3 +287,7 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     `ShroudServerTime` is only the daily reset's fallback clock (os.date is used first).
 29. Theme classes `inset` / `card`: the docs say they "apply the game's own look" but not which is darker.
     The vitals number background maps Dark -> inset, Light -> card (`V.BACKGROUNDS`); swap if wrong in game.
+30. HUD drag grip size: not documented. REPORTED 2026-09-27: it covered the first number of the vitals
+    strip. HUD strips now wrap their contents in a Column with `paddingLeft = Toolbox.Window.GRIP` (14 px,
+    an estimate; adjust if the grip still overlaps or the gap looks too big). Add-ons can't tell whether
+    the grip is shown (Lock Status Movement), so the room is always kept.

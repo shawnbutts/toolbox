@@ -79,6 +79,8 @@ store submission needs a higher version than any submitted before (rejected ones
 - `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
 
 ### Fixed
+- The drag grip at a HUD strip's top-left corner covered the first number (health & focus bars)
+  or icon (buff bar): both strips now keep ~14 px free for it (`Toolbox.Window.GRIP`).
 - Health & focus bars showed "--" and stayed empty in game: when the per-frame current value
   isn't a number they now read the `CurrentHealth` / `CurrentFocus` stats. `/toolbox vitals debug`
   shows each source.

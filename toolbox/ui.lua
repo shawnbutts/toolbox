@@ -270,6 +270,12 @@ function W.Toggle()
   return W.SetOpen(not W.IsOpen())
 end
 
+-- Room left of a HUD strip's contents for the drag grip at its top-left corner, which
+-- otherwise covers the first number / icon. The docs don't give the grip's size; 14 px is an
+-- estimate. Add-ons can't tell whether the grip is showing (Lock Status Movement), so the
+-- room is always kept.
+W.GRIP = 14
+
 -- Moves a HUD frame from settings or chat (its own grip is hidden while the game's "Lock
 -- Status Movement" is on). getFrame() returns the frame or nil; home = { x, y } for Reset.
 -- Returns { Get, MoveTo, Nudge, Reset }. The game keeps HUD frames on screen, and
