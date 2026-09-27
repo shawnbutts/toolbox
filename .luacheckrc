@@ -7,6 +7,7 @@
 
 std = "lua52"
 max_line_length = 120
+exclude_files = { "dist/" }   -- build output; the sources in toolbox/ are checked
 
 -- Functions and values the host provides (read-only for add-ons).
 local api_functions = {

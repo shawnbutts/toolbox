@@ -35,7 +35,7 @@ local S   -- current host state
 
 local function fresh(disk)
   S = {
-    char = { name = "Tester", adv = 1000000, prod = 500000, present = true,
+    char = { name = "Tester", adv = 1000000, prod = 500000, advPool = 25000, prodPool = 4000, present = true,
              progress = {
                adventurer = { level = 50, experience = 1000000, intoLevel = 20000, forLevel = 100000, percent = 0.2 },
                producer = { level = 40, experience = 500000, intoLevel = 5000, forLevel = 50000, percent = 0.1 },
@@ -83,6 +83,8 @@ local function install_api()
   end
   ShroudGetTotalAdventurerExperience = function() return S.char.present and S.char.adv or 0 end
   ShroudGetTotalProducerExperience = function() return S.char.present and S.char.prod or 0 end
+  ShroudGetPooledAdventurerExperience = function() return S.char.present and S.char.advPool or 0 end
+  ShroudGetPooledProducerExperience = function() return S.char.present and S.char.prodPool or 0 end
   ShroudGetLevelProgress = function()
     if not S.char.present then return nil end
     return copy(S.char.progress)
@@ -173,6 +175,8 @@ local FIELDS = {
   Label = { text = 1 },
   Button = { text = 1, onClick = 1, enabled = 1 },
   Bar = { value = 1, color = 1 },
+  Slider = { min = 1, max = 1, step = 1, value = 1, onChange = 1, enabled = 1 },
+  Toggle = { text = 1, value = 1, onChange = 1, enabled = 1 },
 }
 
 local Element = {}
@@ -218,6 +222,7 @@ function H.makeUI()
       e.children = spec.children     -- keep the real child objects
       e.onClose = spec.onClose
       e.onClick = spec.onClick
+      e.onChange = spec.onChange
       if kind == "Window" then
         assert(type(spec.id) == "string", "Window id required")
         e.x, e.y = spec.x or 200, spec.y or 120
@@ -240,6 +245,21 @@ end
 -- The player drags a window.
 function H.moveWindow(id, x, y)
   S.windows[id].x, S.windows[id].y = x, y
+end
+
+-- The player changes a slider, toggle, ... (fires onChange; our own SetValue never does).
+function H.change(windowId, elementId, value)
+  local c = S.windows[windowId]:Find(elementId)
+  c.value = value
+  H.call(function() c.onChange(c, value) end)
+end
+
+-- The pointer enters (over = true) or leaves an element; nil elementId = the window itself.
+function H.hover(windowId, elementId, over)
+  local w = S.windows[windowId]
+  local e = elementId and w:Find(elementId) or w
+  assert(e.onHover, "no onHover on " .. windowId .. "/" .. tostring(elementId))
+  H.call(function() e.onHover(e, over) end)
 end
 
 function H.click(windowId, elementId)
@@ -316,12 +336,18 @@ function H.restart(time, flushFirst)
   H.load()
 end
 
--- Advance engine time second by second, firing due periodics.
-function H.advance(seconds)
-  for _ = 1, seconds do
-    ShroudTime = ShroudTime + 1
-    for name, p in pairs(S.periodics) do
-      if ShroudTime >= p.due then
+-- Advance engine time in steps (default 1 s), firing due periodics.
+function H.advance(seconds, step)
+  step = step or 1
+  local target = ShroudTime + seconds
+  while ShroudTime < target - 1e-9 do
+    ShroudTime = math.min(target, ShroudTime + step)
+    local due = {}
+    for name in pairs(S.periodics) do due[#due + 1] = name end
+    table.sort(due)
+    for _, name in ipairs(due) do
+      local p = S.periodics[name]
+      if p and ShroudTime >= p.due - 1e-9 then
         p.due = p.due + p.period
         if not p.repeating then S.periodics[name] = nil end
         H.call(p.fn)
@@ -330,9 +356,12 @@ function H.advance(seconds)
   end
 end
 
+-- Gained XP lands in both the total and the pool.
 function H.gain(adv, prod, fireCallback)
   S.char.adv = S.char.adv + (adv or 0)
   S.char.prod = S.char.prod + (prod or 0)
+  S.char.advPool = S.char.advPool + (adv or 0)
+  S.char.prodPool = S.char.prodPool + (prod or 0)
   if fireCallback ~= false then
     if (adv or 0) > 0 then H.callback("ShroudOnExperienceGain", "Adventurer", adv) end
     if (prod or 0) > 0 then H.callback("ShroudOnExperienceGain", "Producer", prod) end
@@ -353,6 +382,9 @@ function H.saved(key, scope)
 end
 
 function H.window() return S.windows.toolbox_xp end
+function H.config() return S.windows.toolbox_config end
+function H.compact() return S.windows.toolbox_compact end
+function H.compactText(id) return H.compact():Find(id).text end
 function H.text(id) return H.window():Find(id).text end
 
 return H

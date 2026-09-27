@@ -11,13 +11,15 @@
 --   samples  = { { t = s, a = n, p = n }, ... },  -- ascending t; last one = current
 --   ended    = true|nil,          -- set at logout
 -- }
--- Samples are kept only for the rolling window (plus one anchor older than it).
+-- Samples are kept only for the longest rolling window, XP.KEEP (plus one anchor older than it).
 
 local XP = {}
 Toolbox.XP = XP
 
 XP.FORMAT = 1
-XP.WINDOW = 600        -- rolling window, seconds (10 minutes)
+XP.WINDOW = 600        -- rolling rate window, seconds (10 minutes)
+XP.HOUR = 3600         -- "last hour" window, seconds
+XP.KEEP = XP.HOUR      -- sample history kept: the longest window in use
 XP.BUCKET = 10         -- samples closer together than this are merged
 XP.MIN_RATE_SPAN = 1   -- no rate is reported over less than this many seconds
 XP.TRACKS = {
@@ -59,10 +61,10 @@ function XP.Current(s)
   return s.samples[#s.samples]
 end
 
--- Drops samples that are no longer needed for the window, keeping the newest
--- sample at or before the window start as the anchor.
+-- Drops samples that no window needs any more, keeping the newest sample at or
+-- before the oldest window start as the anchor.
 function XP.Prune(s, now)
-  local cutoff = now - XP.WINDOW
+  local cutoff = now - XP.KEEP
   local samples = s.samples
   while #samples >= 2 and samples[2].t <= cutoff do
     table.remove(samples, 1)
@@ -107,11 +109,11 @@ function XP.SessionRate(s, key, now)
   return XP.PerHour(XP.Gained(s, key), XP.Elapsed(s, now))
 end
 
--- Rate over the last XP.WINDOW seconds (or the whole session while it is
--- younger than that). The value at the window start is the newest sample at or
--- before it; totals only change at samples.
-function XP.WindowRate(s, key, now)
-  local cutoff = now - XP.WINDOW
+-- XP gained on one track over the last `seconds` (at most XP.KEEP), and the
+-- span it covers: the whole session while it is younger than that. The value at
+-- the window start is the newest sample at or before it; totals only change at samples.
+function XP.WindowGain(s, key, now, seconds)
+  local cutoff = now - seconds
   local fromT, fromV
   if cutoff <= s.start then
     fromT, fromV = s.start, s.base[key]
@@ -123,8 +125,17 @@ function XP.WindowRate(s, key, now)
       fromV = x[key]
     end
   end
-  local gained = math.max(0, XP.Current(s)[key] - fromV)
-  return XP.PerHour(gained, now - fromT)
+  return math.max(0, XP.Current(s)[key] - fromV), now - fromT
+end
+
+-- XP/hour over the last XP.WINDOW seconds (or the whole session while it is younger).
+function XP.WindowRate(s, key, now)
+  return XP.PerHour(XP.WindowGain(s, key, now, XP.WINDOW))
+end
+
+-- XP gained over the last hour (or the whole session while it is younger).
+function XP.LastHour(s, key, now)
+  return (XP.WindowGain(s, key, now, XP.HOUR))
 end
 
 -- Where the next level stands, from one side of ShroudGetLevelProgress()

@@ -1,0 +1,142 @@
+-- The settings window (/toolbox config).
+local H = require("harness")
+
+return function(t)
+  local function open()
+    H.boot()
+    H.chat("/tbx config")
+    return H.config()
+  end
+  local function find(id) return H.config():Find(id) end
+
+  t.test("config toggles the settings window", function()
+    H.boot()
+    t.eq(H.config(), nil, "built on first use")
+    H.chat("/tbx config")
+    t.ok(H.config():IsShown())
+    H.chat("/toolbox CONFIG")
+    t.no(H.config():IsShown())
+  end)
+
+  t.test("controls start from the current settings", function()
+    H.boot()
+    H.chat("/tbx font 14")
+    H.chat("/tbx xp")
+    H.chat("/tbx config")
+    t.eq(find("font").value, 14)
+    t.eq(find("font_value").text, "14")
+    t.eq(find("show_xp").value, true)
+  end)
+
+  t.test("slider sets the text size live and saves it", function()
+    open()
+    H.change("toolbox_config", "font", 17.0)
+    t.eq(Toolbox.Window.GetFont(), 17)
+    t.eq(H.window():Find("a_gain").style.fontSize, 17, "XP window updated")
+    t.eq(find("font_value").text, "17")
+    t.eq(H.saved("window").font, 17)
+  end)
+
+  t.test("slider values are rounded to whole sizes", function()
+    open()
+    H.change("toolbox_config", "font", 10.6)
+    t.eq(Toolbox.Window.GetFont(), 11)
+  end)
+
+  t.test("checkbox opens and closes the Session XP window", function()
+    open()
+    H.change("toolbox_config", "show_xp", true)
+    t.ok(H.window():IsShown())
+    t.eq(H.saved("window").open, true)
+    H.change("toolbox_config", "show_xp", false)
+    t.no(H.window():IsShown())
+    t.eq(H.saved("window").open, false)
+  end)
+
+  t.test("checkbox follows /tbx xp and the close button", function()
+    open()
+    H.chat("/tbx xp")
+    t.eq(find("show_xp").value, true)
+    H.closeWindow("toolbox_xp")
+    t.eq(find("show_xp").value, false)
+  end)
+
+  t.test("a refused Show() puts the checkbox back", function()
+    open()
+    H.S.showRefused = true
+    H.change("toolbox_config", "show_xp", true)
+    t.eq(find("show_xp").value, false)
+    t.no(H.window():IsShown())
+  end)
+
+  t.test("/tbx font updates an open settings window", function()
+    open()
+    H.chat("/tbx font 9")
+    t.eq(find("font").value, 9)
+    t.eq(find("font_value").text, "9")
+  end)
+
+  t.test("labels get a fixed line height and no vertical margins", function()
+    H.boot()
+    H.chat("/tbx compact")
+    local lh = math.ceil(12 * 1.15) + 2           -- default font 12, spacing 2
+    t.eq(Toolbox.Window.LineHeight(), lh)
+    for _, pair in ipairs({ { H.window, "a_gain" }, { H.window, "elapsed" }, { H.compact, "p_hour" },
+                            { H.compact, "a_pool_label" } }) do
+      local style = pair[1]():Find(pair[2]).style
+      t.eq(style.height, lh, pair[2])
+      t.eq(style.marginTop, 0, pair[2])
+      t.eq(style.paddingBottom, 0, pair[2])
+    end
+    t.eq(H.compact():Find("a_hour_label").style.paddingLeft, 10, "indent kept")
+  end)
+
+  t.test("/tbx spacing changes both windows live and is saved", function()
+    H.boot()
+    H.chat("/tbx compact")
+    H.chat("/tbx font 9")
+    H.clearLogs()
+    H.chat("/tbx spacing 0")
+    t.ok(H.logged("set to 0"))
+    local lh = math.ceil(9 * 1.15)
+    t.eq(H.window():Find("a_eta").style.height, lh)
+    t.eq(H.compact():Find("a_pool").style.height, lh)
+    t.eq(H.saved("window").spacing, 0)
+    H.reload()
+    t.eq(H.compact():Find("a_pool").style.height, lh, "rebuilt with saved spacing")
+    H.clearLogs()
+    H.chat("/tbx spacing")
+    t.ok(H.logged("spacing is 0"))
+  end)
+
+  t.test("font changes also update the line height", function()
+    H.boot()
+    H.chat("/tbx font 20")
+    t.eq(H.window():Find("a_head").style.height, math.ceil(20 * 1.15) + 2)
+  end)
+
+  t.test("bad spacing values are refused", function()
+    H.boot()
+    for _, bad in ipairs({ "-1", "13", "1.5", "wide" }) do
+      H.clearLogs()
+      H.chat("/tbx spacing " .. bad)
+      t.ok(H.logged("whole number from 0 to 12"), bad)
+    end
+    t.eq(Toolbox.Window.GetSpacing(), 2)
+  end)
+
+  t.test("spacing slider in settings", function()
+    open()
+    t.eq(find("spacing").value, 2)
+    H.change("toolbox_config", "spacing", 5.2)
+    t.eq(Toolbox.Window.GetSpacing(), 5)
+    t.eq(find("spacing_value").text, "5")
+    H.chat("/tbx spacing 1")
+    t.eq(find("spacing").value, 1, "slider follows the command")
+  end)
+
+  t.test("a corrupt saved spacing falls back to the default", function()
+    H.boot({ ["character:Tester"] = { window = { spacing = 40 } } })
+    t.eq(Toolbox.Window.GetSpacing(), 2)
+  end)
+end

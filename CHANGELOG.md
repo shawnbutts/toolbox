@@ -6,9 +6,21 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Line spacing setting (`/toolbox spacing <0-12>` and a slider in settings). Text lines now have
+  a fixed height that follows the text size, so smaller text makes the windows shorter.
+- Hovering the compact XP window pops up the Session XP window after a short delay; it stays
+  while the pointer is over either window. Can be turned off in settings.
+- Compact XP window (`/toolbox compact`, also in settings): session time, current adventurer
+  and producer pools, and XP earned on each in the last hour.
+- `/toolbox config` opens a Toolbox Settings window: a text-size slider for the Session XP
+  window and a checkbox to show or hide it.
 - `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
 
 ### Changed
+- Lower minimum window heights (Session XP 60, compact 50) now that lines can be tighter.
+- "Next level" and "Last hour" lines use the normal text colour instead of the dimmed one.
+- Sample history now covers the last hour (was 10 minutes); the session is stored in saved
+  vars once per tick instead of on every XP event.
 - More compact Session XP window: level and % share the track heading, gains and rates share
   one line, and elapsed time sits beside Reset. Smaller default text (12), a smaller default
   size, and a lower minimum size (160x100). Content scrolls when the window is made smaller.

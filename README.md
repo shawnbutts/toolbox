@@ -21,6 +21,9 @@ Built clean-room from the official docs only:
 | `/toolbox help` (or no argument) | list commands |
 | `/toolbox xp` | show or hide the Session XP window |
 | `/toolbox reset` | start a new XP session |
+| `/toolbox compact` | show or hide the compact XP window |
+| `/toolbox config` | open or close the settings window |
+| `/toolbox spacing <0-12>` | set the extra space between lines in pixels (no number: show it; default 2) |
 | `/toolbox font <9-32>` | set the window text size (no number: show the current size; default 12) |
 
 If the game refuses a command name (another add-on has it, or it is too close to a chat
@@ -47,7 +50,7 @@ totals, so nothing depends on the callback.
 
 - A session starts when the add-on starts for a character (login, or enabling it) and on
   `/toolbox reset` or the window's Reset button.
-- It survives `/lua reload`: the start time, baseline and last 10 minutes of samples are kept in
+- It survives `/lua reload`: the start time, baseline and last hour of samples are kept in
   character-scope saved vars and resumed.
 - A new login starts a new session. At logout (`ShroudOnLogOut`) the session is marked ended;
   if the client crashed instead, the engine clock (`ShroudTime`) restarting from zero shows it
@@ -57,8 +60,41 @@ totals, so nothing depends on the callback.
 - A reading lower than the previous one (for example a 0 while a scene loads) is ignored.
 
 **Cost.** Nothing runs in `ShroudOnUpdate`. A 1-second periodic reads two totals, updates the
-window only while it is open, and flushes saved vars at most every 30 seconds when something
-changed.
+windows only while they are open, stores a changed session in saved vars once a tick (not per XP
+event: it holds up to an hour of samples) and flushes to disk at most every 30 seconds.
+
+## Compact XP window
+
+`/toolbox compact` opens a small window you can keep open alongside (or instead of) Session XP:
+
+```
+Session 1h 02m 03s
+Adv pool          37,000
+  Last hour      +12,000
+Prod pool          4,300
+  Last hour         +300
+```
+
+- **Adv pool / Prod pool**: your current unspent pooled XP, exactly as the game reports it
+  (`ShroudGetPooled{Adventurer,Producer}Experience()`); it drops when you train skills with it.
+- **Last hour**: XP earned on that track in the past 60 minutes, from the totals (so spending pool
+  doesn't reduce it). While the session is younger than an hour it is the whole session.
+
+It uses the same text size as Session XP and remembers its own open state and position.
+
+**Hover for details.** Rest the pointer on the compact window for half a second and the Session XP
+window pops up (with the progress bars and Reset). It stays while the pointer is over either
+window and closes about ¾ s after it leaves both, so you can move over and click Reset. Passing
+over the compact window quickly does nothing. A popped-up window isn't remembered as open; use
+`/toolbox xp` to pin it (running it while the window is popped up keeps it open). Turn hover off
+with "Show Session XP on hover" in `/toolbox config`.
+
+`/toolbox config` opens a **Toolbox Settings** window with a text-size slider (applied as you
+drag), a line-spacing slider, and checkboxes to show the Session XP and compact XP windows.
+
+Shroud.UI has no line-height style, so every text line gets a fixed height of about
+1.15 × the text size plus the line spacing, with no margins above or below. Shrinking the text
+therefore shrinks the lines too, and both windows can then be dragged smaller. It writes the same settings as the chat commands.
 
 The window remembers whether it is open, where it is and its text size (character-scope saved var
 `window`). Drag its corner to resize it. The game remembers the size you drag it to, so the
@@ -84,10 +120,12 @@ image limits, size caps, and no runtime code loading or `io`/`os` use in package
 
 ```
 toolbox/            the package (what ships)
-  manifest.json     files load in this order: core.lua, xp.lua, ui.lua
+  manifest.json     files load in this order: core.lua, xp.lua, ui.lua, compact.lua, config.lua
   core.lua          Toolbox namespace, commands, saved-var helpers, session lifecycle, callbacks
   xp.lua            pure session XP model (rates, rolling window, time to level)
   ui.lua            the Session XP window (Shroud.UI)
+  compact.lua       the compact XP window (/toolbox compact)
+  config.lua        the Toolbox Settings window (/toolbox config)
   README.md         player-facing store readme
 tests/              headless tests with a stubbed host (harness.lua)
 tools/build.py      validator + packager

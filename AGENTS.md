@@ -42,14 +42,25 @@ Run all three before calling a change done.
 
 - `toolbox/`: the shipped package. Flat folder: `manifest.json`, `*.lua`, `README.md` (store readme),
   optional `icon.png` and pictures. Nothing else, or the build fails.
-  - `manifest.json` `files` is the load order: `core.lua`, `xp.lua`, `ui.lua`. A new `.lua` file must be
+  - `manifest.json` `files` is the load order: `core.lua`, `xp.lua`, `ui.lua`, `compact.lua`, `config.lua`. A new `.lua` file must be
     added there. Later files may use globals from earlier ones at top level; earlier files may only use
     later ones inside functions (callbacks run after every file has loaded).
   - `core.lua`: `Toolbox` namespace, chat output (`Toolbox.Print`), saved-var helpers (`Load`/`Save`/`Flush`,
     which deep-copy), formatting, the command table and dispatcher, session lifecycle, all callbacks.
   - `xp.lua`: `Toolbox.XP`, a pure model over a plain-data session table. No API calls, so it is
     storable in saved vars and trivially testable. Time is always passed in.
-  - `ui.lua`: `Toolbox.Window`, the Session XP window.
+  - `ui.lua`: `Toolbox.Window`, the Session XP window. Build every text label's style with
+    `Toolbox.Window.TextStyle{...}` (font size + fixed line height, no vertical margins) so font and
+    spacing changes reach it; `ApplyText()` re-applies both to both windows. `SetOpen`/`SetFont` are the only writers of its prefs.
+  - `compact.lua`: `Toolbox.Compact`, the compact XP window. Own open/position prefs; text style comes
+    from `Toolbox.Window.TextStyle()` and is re-applied via `Toolbox.Compact.ApplyText()`. It also owns
+    the hover pop-up: elements of both windows report hover keys to `PopupHover`, and one-shot
+    periodics (`toolbox_hover_show`/`_hide`) apply the delays. The Session XP window distinguishes
+    pinned (`IsOpen`, persisted) from popped up (`IsPopup`, never persisted).
+  - `config.lua`: `Toolbox.Config`, the settings window. Controls call the owning module's setters; the
+    setters call `Toolbox.Config.Sync()` so the controls follow chat commands and the close button.
+    To add a setting: a setter + getter on the owning module (persisted there), a control here, a line
+    in `Sync()`, and tests in `tests/test_config.lua`.
 - `tests/`: `harness.lua` is a fake host (see below); `test_*.lua` suites; `run.lua` the runner.
 - `tools/build.py`: validates the store packaging rules and writes `dist/toolbox/` + zip.
 - `tools/install.py`: copies `dist/toolbox/` into a client's Lua folder.
@@ -82,7 +93,8 @@ in chat.
 - `H.reload()` = `/lua reload`: flush, tear down UI/commands/timers, reload files, `ShroudTime` continues;
 - `H.restart()` = client relaunch: only flushed data survives, `ShroudTime` restarts;
 - `H.advance(n)` runs the periodics second by second; `H.gain(a, p)` adds XP (and fires the callback);
-- `H.chat("/tbx reset")`, `H.click(window, id)`, `H.closeWindow(id)`, `H.moveWindow(id, x, y)`.
+- `H.chat("/tbx reset")`, `H.click(window, id)`, `H.change(window, id, value)` (player input on a
+  slider/toggle), `H.closeWindow(id)`, `H.moveWindow(id, x, y)`.
 
 If you rely on a new API function, stub it in `install_api()` with the documented return values,
 including the "no character" sentinel.
@@ -92,7 +104,8 @@ including the "no character" sentinel.
 | Key | Shape |
 | --- | --- |
 | `session` | see the header comment of `xp.lua` (format `v = 1`; bump and handle old data if it changes) |
-| `window` | `{ open = bool, x = number, y = number, font = 9..32 }` |
+| `window` | `{ open = bool, x = number, y = number, font = 9..32, spacing = 0..12 }` |
+| `compact` | `{ open = bool, x = number, y = number, hover = bool }` |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
 you read back (`Toolbox.XP.IsValid`) and fall back to defaults.
@@ -110,8 +123,8 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 1. Whether `ShroudOnExperienceGain`'s amount tracks total or pooled XP, and whether it fires for
    producer XP from every source. We only use it as a trigger to re-read totals.
 2. Whether `/lua reload` calls `ShroudOnDisableScript`, and whether it keeps the in-memory saved-var
-   cache or re-reads the files. We store every change immediately (in memory) and don't end the
-   session on disable, so either way works.
+   cache or re-reads the files. We store a changed session once per tick (in memory), re-read the
+   totals in `ShroudOnStart`, and don't end the session on disable, so either way no XP is lost.
 3. When `ShroudOnStart` runs relative to character login (at client start before a character exists?
    again after each login?). We wait for `ShroudGetLevelProgress()` to return non-nil before starting,
    and start a new session on the next tick after a logout.
@@ -131,3 +144,15 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     Also whether a `Bar` honours a `height` style (we set it to half the font size, min 4).
 11. Whether the window's `width`/`height` apply once the host has remembered a size. We assume
     they don't (docs: size is "saved per add-on and window id"), so the player resizes by dragging.
+12. How often a `Slider`'s `onChange` fires during a drag, and whether its value arrives as a float.
+    We round it and apply each change (cheap: a few `SetStyle` calls).
+13. What exactly `ShroudGetPooled*Experience()` reports ("unspent pooled XP" per the docs): the
+    compact window shows it as-is and never uses it for "earned" numbers, which come from totals.
+14. `onHover` on containers: whether entering a child reports "left" on the parent, and whether a
+    window's title bar counts as the window. We register hover on each window and its sections and
+    treat "any over" as hovering; the show/hide delays absorb flicker. If the pop-up flickers or
+    won't close, this is the place to look.
+15. Line height: there is no line-height style, so labels get an explicit `height` of
+    `ceil(1.15 * fontSize) + spacing`. Whether a height below the glyph box clips text (spacing 0 at
+    large sizes) is untested; also whether class styles (`heading`, `title`) add margins that the
+    inline zero margins override.

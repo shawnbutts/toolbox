@@ -9,6 +9,9 @@ A small toolbox of quality-of-life features. The first one is **Session XP**.
 - `/toolbox help`: list commands
 - `/toolbox xp`: show or hide the Session XP window
 - `/toolbox reset`: start a new XP session
+- `/toolbox compact`: show or hide the compact XP window (session time, pools, XP in the last hour)
+- `/toolbox config`: open the settings window (text size, show/hide the XP windows)
+- `/toolbox spacing <0-12>`: set the space between lines (default 2)
 - `/toolbox font <9-32>`: set the window text size (default 12)
 
 ## Session XP

@@ -1,6 +1,7 @@
 -- Toolbox: core.lua
 -- Namespace, chat output, saved-variable helpers, slash commands and callback wiring.
--- Loaded first (see manifest.json). Later files add Toolbox.XP and Toolbox.Window.
+-- Loaded first (see manifest.json). Later files add Toolbox.XP, Toolbox.Window,
+-- Toolbox.Compact and Toolbox.Config.
 
 Toolbox = {
   name = "Toolbox",
@@ -96,6 +97,14 @@ add("xp", "show or hide the Session XP window", function()
   T.Window.Toggle()
 end)
 
+add("compact", "show or hide the compact XP window", function()
+  T.Compact.Toggle()
+end)
+
+add("config", "open or close the settings window", function()
+  T.Config.Toggle()
+end)
+
 add("reset", "start a new XP session", function()
   if T.StartSession("reset") then
     T.Print("New XP session started.")
@@ -111,6 +120,16 @@ add("font", "set the window text size, 9-32 (no number: show the current size)",
     T.Print("Window text size set to " .. T.Window.GetFont() .. ".")
   else
     T.Print("Text size must be a whole number from 9 to 32.")
+  end
+end)
+
+add("spacing", "set the extra space between lines, 0-12 (no number: show the current value)", function(rest)
+  if rest == "" then
+    T.Print("Line spacing is " .. T.Window.GetSpacing() .. ". Use /" .. T.commands[1] .. " spacing <0-12>.")
+  elseif T.Window.SetSpacing(tonumber(rest)) then
+    T.Print("Line spacing set to " .. T.Window.GetSpacing() .. ".")
+  else
+    T.Print("Line spacing must be a whole number from 0 to 12.")
   end
 end)
 
@@ -156,6 +175,7 @@ end
 
 T.session = nil       -- live session table (see xp.lua), nil until character data exists
 T.lastFlush = 0       -- T.Now() of the last flush of a session save
+T.unsaved = false     -- session changed since it was last stored in saved vars
 T.unflushed = false   -- session stored but not yet written to disk
 
 -- Reads the character's totals, or nil when there is no character yet.
@@ -173,6 +193,7 @@ function T.SaveSession(flush)
   if not T.session then return end
   T.session.clock = T.Now()
   T.Save("session", T.session)
+  T.unsaved = false
   if flush then
     T.Flush()
     T.lastFlush = T.Now()
@@ -190,7 +211,7 @@ function T.StartSession(why)
   T.session = T.XP.NewSession(T.Now(), adv, prod, ShroudGetPlayerName())
   T.session.reason = why
   T.SaveSession(true)
-  T.Window.Refresh()
+  T.RefreshViews()
   return true
 end
 
@@ -216,8 +237,13 @@ function T.Sample()
   if not T.session or T.session.ended then return end
   local adv, prod = T.ReadTotals()
   if not adv then return end
-  -- Store every change (in memory, cheap) so a reload loses nothing.
-  if T.XP.Record(T.session, T.Now(), adv, prod) then T.SaveSession(false) end
+  if T.XP.Record(T.session, T.Now(), adv, prod) then T.unsaved = true end
+end
+
+-- Every window that shows session data.
+function T.RefreshViews()
+  T.Window.Refresh()
+  T.Compact.Refresh()
 end
 
 function T.Tick()
@@ -232,13 +258,17 @@ function T.Tick()
     T.Sample()
   end
   T.Window.Track()
-  -- Write a changed session to disk at most every flushSeconds.
+  T.Compact.Track()
+  -- Store a changed session once a tick (in memory; copying up to an hour of
+  -- samples per XP event would be wasteful), and write it to disk at most
+  -- every flushSeconds. A reload re-reads the totals, so it loses no XP.
+  if T.unsaved then T.SaveSession(false) end
   if T.unflushed and T.Now() - T.lastFlush >= T.flushSeconds then
     T.Flush()
     T.lastFlush = T.Now()
     T.unflushed = false
   end
-  T.Window.Refresh()
+  T.RefreshViews()
 end
 
 -- ---------------------------------------------------------------------------
@@ -248,7 +278,9 @@ end
 function ShroudOnStart()
   T.RegisterCommands()
   T.ResumeOrStart()
+  T.Sample()                         -- XP gained since the last save (e.g. across a reload)
   T.Window.Init()
+  T.Compact.Init()
   ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
 end
 
@@ -265,6 +297,7 @@ function ShroudOnLogOut()
     T.SaveSession(false)
   end
   T.Window.SavePrefs()
+  T.Compact.SavePrefs()
   T.Flush()
 end
 
@@ -272,5 +305,6 @@ function ShroudOnDisableScript()
   -- Not marked ended: it is not documented whether /lua reload goes through here.
   if T.session then T.SaveSession(false) end
   T.Window.SavePrefs()
+  T.Compact.SavePrefs()
   T.Flush()
 end
