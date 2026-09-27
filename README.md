@@ -33,7 +33,9 @@ The "Session XP" window shows elapsed time and, for adventurer and producer:
 - XP gained this session
 - XP/hour over the whole session and over the last 10 minutes
 - level and % through it (from `ShroudGetLevelProgress()`)
-- estimated time to the next level at the **session** rate (steadier than the 10-minute rate)
+- XP still needed for the next level, and the estimated time at the **session** rate (steadier
+  than the 10-minute rate). With no XP gained yet on a track it says so instead of guessing;
+  at the level cap it shows "max level"
 
 **Source of truth.** Gains are the difference between `ShroudGetTotal{Adventurer,Producer}Experience()`
 now and at the session start. `ShroudOnExperienceGain` is used only as a prompt to re-read the

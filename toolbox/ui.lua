@@ -151,6 +151,20 @@ local function rateText(n)
   return T.FormatNumber(n) .. "/h"
 end
 
+-- "Next level: 80,000 XP (~1h 06m 40s at 72,000/h)", or why there is no estimate.
+function W.NextLevelText(progress, ratePerHour)
+  local status, remaining, seconds = T.XP.NextLevel(progress, ratePerHour)
+  if status == "eta" then
+    return "Next level: " .. T.FormatNumber(remaining) .. " XP (~" .. T.FormatDuration(seconds)
+      .. " at " .. rateText(ratePerHour) .. ")"
+  elseif status == "norate" then
+    return "Next level: " .. T.FormatNumber(remaining) .. " XP (no XP gained yet)"
+  elseif status == "cap" then
+    return "Next level: max level"
+  end
+  return "Next level: --"
+end
+
 function W.Refresh()
   if not W.IsShown() then return end
   local s = T.session
@@ -173,12 +187,11 @@ function W.Refresh()
       local pct = math.max(0, math.min(1, tonumber(p.percent) or 0))
       el[k .. "_head"]:SetText(string.format("%s  Lv %d  %.1f%%", track.name, math.floor(p.level), pct * 100))
       el[k .. "_bar"]:SetValue(pct)
-      local eta = T.XP.TimeToLevel(p, sessionRate)
-      el[k .. "_eta"]:SetText("Next level " .. (eta and ("~" .. T.FormatDuration(eta)) or "--"))
+      el[k .. "_eta"]:SetText(W.NextLevelText(p, sessionRate))
     else
       el[k .. "_head"]:SetText(track.name .. "  Lv --")
       el[k .. "_bar"]:SetValue(0)
-      el[k .. "_eta"]:SetText("Next level --")
+      el[k .. "_eta"]:SetText(W.NextLevelText(nil, 0))
     end
   end
 end

@@ -12,6 +12,8 @@ store submission needs a higher version than any submitted before (rejected ones
 - More compact Session XP window: level and % share the track heading, gains and rates share
   one line, and elapsed time sits beside Reset. Smaller default text (12), a smaller default
   size, and a lower minimum size (160x100). Content scrolls when the window is made smaller.
+- The "Next level" line always shows the XP still needed, and says why there is no time
+  estimate ("no XP gained yet", "max level") instead of a bare `--`.
 - 10px left/right gutter in the Session XP window so the progress bars no longer touch the edge.
 
 ## [0.1.0] - 2026-09-27

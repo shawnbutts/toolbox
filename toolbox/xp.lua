@@ -127,16 +127,21 @@ function XP.WindowRate(s, key, now)
   return XP.PerHour(gained, now - fromT)
 end
 
--- Seconds until the next level at ratePerHour, from one side of
--- ShroudGetLevelProgress() ({ level, experience, intoLevel, forLevel, percent }).
--- nil when it cannot be estimated (no rate, no data, or at the level cap).
-function XP.TimeToLevel(progress, ratePerHour)
-  if type(progress) ~= "table" then return nil end
+-- Where the next level stands, from one side of ShroudGetLevelProgress()
+-- ({ level, experience, intoLevel, forLevel, percent }) and an XP/hour rate.
+-- Returns status, remaining XP, seconds:
+--   "eta",     remaining, seconds  -- estimate available
+--   "norate",  remaining, nil      -- XP still needed is known, but no XP gained to estimate from
+--   "cap",     nil, nil            -- at the level cap
+--   "unknown", nil, nil            -- no usable level data
+function XP.NextLevel(progress, ratePerHour)
+  if type(progress) ~= "table" then return "unknown" end
   local into, span = progress.intoLevel, progress.forLevel
-  if not (isNum(into) and isNum(span)) or span <= 0 then return nil end
+  if not (isNum(into) and isNum(span)) or span <= 0 then return "unknown" end
   -- percent "reads 0 at the level cap"; 0% with XP into the level can only be the cap.
-  if progress.percent == 0 and into > 0 then return nil end
+  if progress.percent == 0 and into > 0 then return "cap" end
   local remaining = span - into
-  if remaining <= 0 or not isNum(ratePerHour) or ratePerHour <= 0 then return nil end
-  return remaining / ratePerHour * 3600
+  if remaining <= 0 then return "unknown" end
+  if not isNum(ratePerHour) or ratePerHour <= 0 then return "norate", remaining end
+  return "eta", remaining, remaining / ratePerHour * 3600
 end

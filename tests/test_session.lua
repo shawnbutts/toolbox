@@ -157,7 +157,7 @@ return function(t)
     t.eq(H.text("p_gain"), "+1,800  3,600/h  (10m 0/h)")
     t.near(H.window():Find("a_bar").value, 0.2)
     -- 80,000 to go at 72,000/h = 1h 06m 40s
-    t.eq(H.text("a_eta"), "Next level ~1h 06m 40s")
+    t.eq(H.text("a_eta"), "Next level: 80,000 XP (~1h 06m 40s at 72,000/h)")
   end)
 
   t.test("sections have a side gutter so bars don't touch the window edge", function()
@@ -173,13 +173,26 @@ return function(t)
     end
   end)
 
+  t.test("next level line explains a missing estimate", function()
+    H.boot()
+    H.chat("/tbx xp")
+    H.gain(3600, 0)
+    H.advance(10)
+    t.eq(H.text("p_eta"), "Next level: 45,000 XP (no XP gained yet)", "producer, no gains")
+    t.ok(H.text("a_eta"):find("^Next level: 80,000 XP %(~"), H.text("a_eta"))
+    H.S.char.progress.adventurer = { level = 100, intoLevel = 5000, forLevel = 100000, percent = 0 }
+    H.advance(1)
+    t.eq(H.text("a_eta"), "Next level: max level")
+    t.eq(H.text("a_head"), "Adventurer  Lv 100  0.0%")
+  end)
+
   t.test("window without level data", function()
     H.boot()
     H.chat("/tbx xp")
     H.S.char.progress = { adventurer = {}, producer = {} }
     H.advance(1)
     t.eq(H.text("a_head"), "Adventurer  Lv --")
-    t.eq(H.text("a_eta"), "Next level --")
+    t.eq(H.text("a_eta"), "Next level: --")
   end)
 
   t.test("font size: default, set, persisted, applied after reload", function()
