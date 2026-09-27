@@ -19,6 +19,7 @@ Toolbox.Sounds = S
 
 S.LOAD_TIMEOUT = 2          -- seconds to wait for a candidate to appear (local files load fast)
 S.VOLUME_DEFAULT = 70
+S.MISSING_PROBE = "toolbox/no_such_sound.ogg"   -- /toolbox sounds debug asks the game to load this
 S.DEFS = {
   { key = "buff_expiring", file = "buff_expiring.ogg", label = "Buff expiring" },
   { key = "debuff_landed", file = "debuff_landed.ogg", label = "Debuff landed" },
@@ -288,6 +289,13 @@ function S.DebugLines()
     lines[#lines + 1] = "  (" .. shown .. " keys in all)"
   end
   lines[#lines + 1] = "Names used: " .. table.concat(listSounds(), ", ")
+  -- From API 15 the game checks a file before loading it and answers false for a missing one; on
+  -- API 14 it answered true to every path. So this says whether the newer loader is in the client.
+  local okMissing, missing = pcall(ShroudLoadSound, S.MISSING_PROBE, AudioType.OGGVORBIS)
+  lines[#lines + 1] = "A file that doesn't exist (" .. S.MISSING_PROBE .. ") -> "
+    .. (okMissing and tostring(missing) or ("error " .. tostring(missing)))
+    .. (okMissing and missing == false and " (good: the game checks files before loading)"
+      or okMissing and missing == true and " (the game accepts any path: no file check in this client)" or "")
   for _, def in ipairs(S.DEFS) do
     local st = state[def.key] or {}
     lines[#lines + 1] = string.format("%s: status %s, path %s, recorded clip %s (%s), tried %s of %s",

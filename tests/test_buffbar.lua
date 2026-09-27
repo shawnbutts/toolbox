@@ -1061,4 +1061,15 @@ return function(t)
     H.chat("/tbx buffs debug")
     t.ok(H.logged("Game's buff bar: hidden %(Toolbox is hiding it%)"))
   end)
+
+  t.test("sounds debug: asks the game to load a file that doesn't exist", function()
+    H.boot()
+    H.clearLogs()
+    H.chat("/tbx sounds debug")
+    t.ok(H.logged("no_such_sound.ogg%) %-> false %(good"), "a client with the file check")
+    H.S.acceptMissing = true
+    H.clearLogs()
+    H.chat("/tbx sounds debug")
+    t.ok(H.logged("%-> true %(the game accepts any path"), "a client without it")
+  end)
 end
