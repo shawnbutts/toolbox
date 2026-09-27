@@ -177,10 +177,11 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     treat "any over" as hovering; the show/hide delays absorb flicker. If the pop-up flickers or
     won't close, this is the place to look.
 15. Line height: there is no line-height style, so labels get `height`, `minHeight` and `maxHeight`
-    of `ceil(1.15 * fontSize) + spacing` (`Toolbox.Window.LineStyle()`). Setting only `height` did
-    nothing in game (reported 2026-09-27); the suspected cause is a theme class minimum height, hence
-    the pinning. `/toolbox spacing` (no number) compares the requested height with `GetSize()`; if they
-    differ, the game is still overriding it. Unconfirmed: whether a height below the glyph box clips text.
+    of `ceil(1.15 * fontSize) + spacing` (`Toolbox.Window.LineStyle()`). CONFIRMED in game 2026-09-27:
+    `height` alone does nothing (a theme class minimum height wins); pinning `minHeight`/`maxHeight`
+    works, including live on open windows. Always size text through `LineStyle`/`TextStyle`.
+    `/toolbox spacing` (no number) compares the requested height with `GetSize()`.
+    Still unconfirmed: whether a height below the glyph box clips text.
 16. Combat `death` lines: which of `source`/`target` is the killer, and whether `fromYou` is set on a
     death line for a kill you made. Kills count `kind == "death"` with `fromYou` or `fromYourPet` and
     neither `toYou` nor `toYourPet`. If kills stay at 0 in game, log the death events to check.
