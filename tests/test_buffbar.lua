@@ -768,4 +768,25 @@ return function(t)
     t.ok(H.logged("^Buff expiring: status ready, path toolbox_buff_expiring.ogg, "
       .. "recorded clip toolbox_buff_expiring %(string%)"))
   end)
+
+  for _, shape in ipairs({ "tables", "wrapped" }) do
+    t.test("sounds: load and play when the game's list holds " .. shape, function()
+      H.boot()
+      H.S.soundListShape = shape
+      H.S.files["toolbox_buff_expiring.ogg"] = true
+      H.S.files["toolbox_debuff_landed.ogg"] = true
+      H.reload()
+      H.advance(2)
+      local status, path = Toolbox.Sounds.Status("debuff_landed")
+      t.eq(status, "ready")
+      t.eq(path, "toolbox_debuff_landed.ogg")
+      t.ok(Toolbox.Sounds.Play("debuff_landed"))
+      t.eq(H.S.played[#H.S.played].name, "toolbox_debuff_landed", "the right clip id")
+      t.ok(Toolbox.Sounds.Play("buff_expiring"))
+      t.eq(H.S.played[#H.S.played].name, "toolbox_buff_expiring")
+      H.clearLogs()
+      H.chat("/tbx sounds debug")
+      t.ok(H.logged("Names used: toolbox_"), H.lastLog())
+    end)
+  end
 end

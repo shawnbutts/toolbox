@@ -275,6 +275,11 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 23. Sounds: `ShroudLoadSound`'s path base ("the addon's Lua folder" vs the Lua root) and what clip names
     `ShroudListSound` reports. `Toolbox.Sounds` tries both bases and matches the file stem, falling back
     to "the one new clip". `/toolbox sounds` shows what was found.
+23c. FOUND in game 2026-09-27 (`/toolbox sounds debug`): `ShroudListSound()` entries are TABLES, not the
+    documented strings; both alerts had recorded the same table as their clip. `Sounds` now reads names
+    via `listSounds()` (strings, a table's name/Name/clip field, or a list wrapped in one table). The exact
+    shape is still unknown (the first debug lines weren't captured); the harness covers both guesses
+    (`H.S.soundListShape`). Clip ids are assumed to be positions in that flattened list.
 23b. REPORTED 2026-09-27: both sounds reported "ready", but Test said "the game's sound list was cleared":
     the recorded clip name wasn't in `ShroudListSound()` at play time. Either the reported name changes
     after loading, or something (the game, or another add-on's `ShroudListSoundReset`) clears the list.

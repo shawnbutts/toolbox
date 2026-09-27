@@ -96,6 +96,11 @@ store submission needs a higher version than any submitted before (rejected ones
 - `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
 
 ### Fixed
+- Alert sounds never played in game: `ShroudListSound()` entries came back as tables, not the
+  documented name strings, so the add-on recorded a table as the clip (the same one for both
+  sounds) and could never find it again. Clip names are now read from strings, from a table's
+  name field, or from a list wrapped in one more table; `/toolbox sounds debug` shows what the
+  game returns, one level deep.
 - Sound Test reported "the game's sound list was cleared" in game: the clip recorded at load time
   wasn't found by its exact name at play time. Playing now also matches any clip whose name contains
   the file's base name (as loading does). `/toolbox sounds debug` prints the game's raw sound list

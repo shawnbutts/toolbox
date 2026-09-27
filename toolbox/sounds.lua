@@ -30,10 +30,30 @@ S.DEFS = {
 local state = {}
 local prefs = { volume = S.VOLUME_DEFAULT, paths = {} }
 
+-- A clip's name from one list entry: the docs say entries are name strings, but in game they
+-- came back as tables, so a table's name / Name / clip field is used too.
+local function entryName(v)
+  if type(v) == "string" then return v end
+  if type(v) == "table" then
+    for _, k in ipairs({ "name", "Name", "clip", "Clip", "clipName" }) do
+      if type(v[k]) == "string" then return v[k] end
+    end
+  end
+  return nil
+end
+
+-- The game's loaded clips as a flat list of names, in clip-id order (the id is the 1-based
+-- position). Handles the documented list of strings, entries that are tables with a name,
+-- and a list wrapped in one more table (in game every entry looked like the same table).
 local function listSounds()
-  local ok, list = pcall(ShroudListSound)
-  if not ok or type(list) ~= "table" then return {} end
-  return list
+  local ok, raw = pcall(ShroudListSound)
+  if not ok or type(raw) ~= "table" then return {} end
+  if #raw == 1 and type(raw[1]) == "table" and not entryName(raw[1]) then
+    raw = raw[1]                       -- wrapped: { { "a", "b" } }, or { {} } before any load
+  end
+  local out = {}
+  for i, v in ipairs(raw) do out[i] = entryName(v) or "" end
+  return out
 end
 
 local function audioType(path)
@@ -86,7 +106,7 @@ function S.Poll()
       for i = st.before + 1, #list do
         if type(list[i]) == "string" and list[i]:find(stem, 1, true) then found = list[i] end
       end
-      if not found and #list == st.before + 1 then found = list[#list] end   -- name didn't say
+      if not found and #list == st.before + 1 and list[#list] ~= "" then found = list[#list] end   -- name didn't say
       if found then
         st.status, st.clip, st.path = "ready", found, st.candidates[st.at]
       elseif T.Now() - st.since >= S.LOAD_TIMEOUT then
@@ -236,11 +256,24 @@ function S.DebugLines()
   local n = type(raw) == "table" and #raw or 0
   local kind = ok and type(raw) or ("error " .. tostring(raw))
   lines[#lines + 1] = "ShroudListSound(): " .. kind .. ", " .. n .. " entries"
+  -- What a value holds, one level deep: "string abc", "table {name=abc, 2 items: x, y}".
+  local function describe(v)
+    if type(v) ~= "table" then return type(v) .. " " .. tostring(v) end
+    local fields = {}
+    for k, x in pairs(v) do
+      if type(k) ~= "number" and #fields < 6 then fields[#fields + 1] = tostring(k) .. "=" .. tostring(x) end
+    end
+    local items = {}
+    for i = 1, math.min(#v, 6) do items[#items + 1] = tostring(v[i]) end
+    return "table {" .. table.concat(fields, ", ") .. (#v > 0 and ((#fields > 0 and "; " or "") .. #v
+      .. " items: " .. table.concat(items, ", ")) or "") .. "}"
+  end
   if type(raw) == "table" then
     for i = 1, math.min(n, 20) do
-      lines[#lines + 1] = "  " .. i .. ": " .. type(raw[i]) .. " " .. tostring(raw[i])
+      lines[#lines + 1] = "  " .. i .. ": " .. describe(raw[i])
     end
   end
+  lines[#lines + 1] = "Names used: " .. table.concat(listSounds(), ", ")
   for _, def in ipairs(S.DEFS) do
     local st = state[def.key] or {}
     lines[#lines + 1] = string.format("%s: status %s, path %s, recorded clip %s (%s), tried %s of %s",
