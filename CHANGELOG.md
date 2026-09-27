@@ -6,6 +6,9 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Documentation for adding combat HUD stats on the fly: `/toolbox combat help` (every combat
+  option, with the find / add / remove steps and examples), a clearer `/toolbox combat stats`, a
+  visible hint in settings, and a step-by-step section in the store readme.
 - Combat stats background: a Dark (theme `inset`) or Light (theme `@text`) panel behind the whole
   strip, or None, with its own opacity (default Dark at 70%) that doesn't fade the text
   (`/toolbox combat bg`, settings). Row names use normal text instead of dim, values bright.

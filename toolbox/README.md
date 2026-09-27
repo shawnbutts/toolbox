@@ -50,3 +50,30 @@ with every item that arrived in your bags today and how many.
 the time left. It can sound an alert a set number of seconds before a buff runs out, and when a
 debuff lands. For the sounds, put `toolbox_buff_expiring.ogg` and `toolbox_debuff_landed.ogg` in
 your Lua folder, or choose your own files in `/toolbox config`.
+
+## Combat stats
+
+`/toolbox combat` shows a small HUD with your fight timer, DPS (last few seconds and fight
+average), damage taken and healing per second, crit % and the share of attacks you avoided, plus
+any **character stats you choose**. `/toolbox combat help` lists every option.
+
+### Choosing your stats (you can do this mid-fight)
+
+The HUD can show up to 8 of your character's stats, such as magic resistance, and you can change
+them at any time without reloading:
+
+1. **Find the stat's name.** Type `/toolbox stats` and a word, for example:
+   - `/toolbox stats resist`
+   - `/toolbox stats absorb`
+   - `/toolbox stats dodge` (or `block`, `parry`, `crit`, `regen`, `speed`)
+
+   Each line shows a stat's name and its current value, e.g. `11 CombatHealthRegen (Combat Health
+   Regen) = 0.1`. The name is the word right after the number: `CombatHealthRegen`.
+2. **Add it:** `/toolbox combat stat add CombatHealthRegen`. It appears on the HUD straight away.
+3. **Remove it:** `/toolbox combat stat remove CombatHealthRegen`.
+4. **See what's shown:** `/toolbox combat stats`.
+
+Good ones to start with: `MagicResistance` (shown by default), `CombatHealthRegen`,
+`CombatFocusRegen`, and whatever `/toolbox stats resist`, `absorb`, `dodge` and `crit` turn up
+for you. Your choices are saved per character. A stat the game doesn't let add-ons read shows
+"n/a"; remove it and pick another.

@@ -129,8 +129,10 @@ function C.CombatSection()
     slider("combat_bg_opacity", "Background opacity (%)", M.OPACITY_MIN, M.OPACITY_MAX, 5,
       select(2, M.GetBackground()), "How solid the panel is; the text stays solid",
       function(n) M.SetBackground((M.GetBackground()), n) end),
-    UI.Label{ id = "combat_stats", text = "", class = "dim", style = { whiteSpace = "wrap" },
-      tooltip = "Add a stat with /toolbox combat stat add <Name>; find names with /toolbox stats <word>" },
+    UI.Label{ id = "combat_stats", text = "", class = "text", style = { whiteSpace = "wrap", marginTop = 4 } },
+    UI.Label{ text = "Add a stat while playing: /toolbox stats <word> finds its name, then "
+      .. "/toolbox combat stat add <Name>. /toolbox combat help lists every option.",
+      class = "dim", style = { whiteSpace = "wrap" } },
     UI.Row{ style = { justifyContent = "end", marginTop = 2 }, children = {
       UI.Button{ id = "combat_reset", text = "Reset fight", onClick = function() M.Reset() end },
     } },
@@ -315,7 +317,8 @@ function C.Sync()
   el.combat_pet:SetValue(T.Combat.GetPet())
   el.combat_scale:SetValue(T.Combat.GetScale())
   el.combat_scale_value:SetText(fontLabel(T.Combat.GetScale()))
-  el.combat_stats:SetText("Stats: " .. table.concat(T.Combat.Stats(), ", "))
+  local shownStats = T.Combat.Stats()
+  el.combat_stats:SetText("Stats shown: " .. (#shownStats > 0 and table.concat(shownStats, ", ") or "none"))
   local cbg, cop = T.Combat.GetBackground()
   el.combat_bg:SetValue(cbg)
   el.combat_bg_opacity:SetValue(cop)

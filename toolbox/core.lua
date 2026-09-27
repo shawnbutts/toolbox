@@ -355,7 +355,26 @@ add("vitals", "health & focus bars (size; text|bars on|off; bg; flash <%>|off|te
   T.Vitals.Toggle()
 end)
 
-add("combat", "combat stats HUD (reset; size <n>; bg dark|light|none [%]; pet; stat add|remove <Name>; move)",
+-- /toolbox combat help: every combat command, with the "add a stat on the fly" steps.
+function T.CombatHelp()
+  local c = "/" .. T.commands[1] .. " "
+  return {
+    "Combat stats HUD:",
+    "  " .. c .. "combat - show or hide it",
+    "  " .. c .. "combat reset - clear the fight numbers",
+    "  " .. c .. "combat size 150 - scale it (75-250%)",
+    "  " .. c .. "combat bg dark 70 - background: dark, light or none, with opacity 10-100%",
+    "  " .. c .. "combat pet on|off - count your pet's damage in DPS",
+    "  " .. c .. "combat move 600 300 - place it (or drag its grip, or use settings)",
+    "Adding stats while playing (up to " .. Toolbox.Combat.MAX_STATS .. ", saved per character):",
+    "  1. Find a stat's name: " .. c .. "stats resist  (any word: absorb, dodge, block, crit, regen...)",
+    "  2. Add it by the name shown: " .. c .. "combat stat add CombatHealthRegen",
+    "  3. Remove it: " .. c .. "combat stat remove CombatHealthRegen",
+    "  List what's shown: " .. c .. "combat stats   (a stat the game hides shows \"n/a\")",
+  }
+end
+
+add("combat", "combat stats HUD; add stats while playing: /toolbox combat help",
     function(rest)
   local C = T.Combat
   local word, args = T.ParseArgs(rest)
@@ -396,8 +415,13 @@ add("combat", "combat stats HUD (reset; size <n>; bg dark|light|none [%]; pet; s
     local bg, o = C.GetBackground()
     T.Print("Combat stats background: " .. bg .. (bg ~= "None" and (", " .. o .. "%") or "") .. ".")
   elseif word == "stats" then
-    T.Print("Stats shown: " .. table.concat(C.Stats(), ", ") .. ". Find more with /" .. T.commands[1]
-      .. " stats <word>, add with /" .. T.commands[1] .. " combat stat add <Name>.")
+    local list = C.Stats()
+    T.Print("Stats on the combat HUD (" .. #list .. " of " .. C.MAX_STATS .. "): "
+      .. (#list > 0 and table.concat(list, ", ") or "none") .. ".")
+    T.Print("Add one while playing: /" .. T.commands[1] .. " stats <word> to find its name, then /"
+      .. T.commands[1] .. " combat stat add <Name>. /" .. T.commands[1] .. " combat help for more.")
+  elseif word == "help" then
+    for _, line in ipairs(T.CombatHelp()) do T.Print(line) end
   else
     T.Print("Unknown: /" .. T.commands[1] .. " combat " .. word .. ". Try /" .. T.commands[1] .. " help.")
   end

@@ -446,6 +446,7 @@ function C.AddStat(name)
   save()
   shownText = {}
   C.Tick()
+  T.Config.Sync()                      -- an open settings window shows the new list
   return true, "Added " .. name .. "."
 end
 
@@ -459,5 +460,6 @@ function C.RemoveStat(name)
   save()
   shownText = {}
   C.Tick()
+  T.Config.Sync()                      -- an open settings window shows the new list
   return true, "Removed " .. name .. "."
 end

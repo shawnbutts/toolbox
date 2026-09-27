@@ -258,9 +258,17 @@ combat chat shows. A fight starts when you enter combat or the first damage line
 ends when combat ends (or after 12 quiet seconds); its numbers stay until the next fight.
 `/toolbox combat reset` (or the settings button) clears them.
 
-**Stats.** The docs name few stats, so the list is yours: find names with `/toolbox stats resist`
-(or `absorb`, `avoid`, `armor`, ...) and add them with `/toolbox combat stat add <Name>` (up to 8;
-`stat remove <Name>` to drop one). Unreadable ones show "n/a". The strip has its own Size and
+**Choosing the stats, on the fly.** The docs name few stats, so the list is the player's, and it can
+be changed at any time, mid-fight included, without a reload (up to 8, saved per character):
+
+1. Find a name: `/toolbox stats resist` (any word: `absorb`, `dodge`, `block`, `crit`, `regen`,
+   `speed` ...). Each line is `index Name (Display name) = value`; the name is the word after the index.
+2. Add it: `/toolbox combat stat add CombatHealthRegen`.
+3. Remove it: `/toolbox combat stat remove CombatHealthRegen`; list: `/toolbox combat stats`.
+
+Unreadable stats show "n/a". `/toolbox combat help` prints all of this in game, and the settings
+window's Combat stats section shows the current list with the same hint. The store readme
+(`toolbox/README.md`) has the player-facing version. The strip has its own Size and
 position, and stays separate when the health & focus bars are glued to the buff bar.
 
 **Background.** A panel behind the whole strip: Dark (the UI theme's `inset` look, the default) or
