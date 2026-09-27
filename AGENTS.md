@@ -392,3 +392,5 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     docs' examples ("Minus", "Comma", "Slash"...); an unusable key raises, so `T.RegisterKeybind` retries
     without a suggestion and `/toolbox key` explains. Unconfirmed in game: the name, and whether the game
     already uses Ctrl+;. The player changes keys in the add-on manager (Toolbox's row, "Keys").
+    REPORTED 2026-09-27: shown as bound in the add-on manager, but Ctrl+; did nothing. `/toolbox key` now
+    counts presses (0 = never delivered); asked the owner to try another key (Ctrl+O / F10). Pending.

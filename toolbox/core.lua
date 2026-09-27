@@ -488,8 +488,14 @@ T.KEY_DEFAULT = "Ctrl+Semicolon"
 
 function T.RegisterKeybind()
   if not ShroudLuaApiVersion or ShroudLuaApiVersion < 14 then return end
+  -- Presses are counted so /toolbox key can tell "the key never arrives" from "it arrives but
+  -- nothing happens" (in game, Ctrl+; showed as bound but did nothing).
+  T.keyPresses = 0
   local spec = { id = T.KEY_ID, label = "Open Toolbox settings", key = T.KEY_DEFAULT,
-                 onPress = function() T.Config.Toggle() end }
+                 onPress = function()
+                   T.keyPresses = T.keyPresses + 1
+                   T.Config.Toggle()
+                 end }
   local ok, err = pcall(Shroud.Keybind, spec)
   if not ok then
     spec.key = nil
@@ -515,6 +521,8 @@ end
 add("key", "show the shortcut that opens the settings (change it in the add-on manager, under Keys)", function()
   T.Print("Settings shortcut: " .. T.KeyStatus() .. ". Change it in the add-on manager, on Toolbox's row"
     .. " under Keys." .. (T.keyNote and (" Note: " .. T.keyNote .. ".") or ""))
+  T.Print("Pressed " .. tostring(T.keyPresses or 0) .. " time(s) since load"
+    .. ((T.keyPresses or 0) == 0 and " (0 means the game hasn't delivered the key to Toolbox)." or "."))
 end)
 
 -- Parses "  XP  extra " -> "xp", "extra".
