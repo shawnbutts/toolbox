@@ -6,6 +6,8 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Store icon: a carpenter's tool tote on a leather tile with a bronze frame (`toolbox/icon.png`,
+  source in `art/icon.svg`).
 - Today Detailed window (`/toolbox dailydetailed`, alias `dd`; pops up when hovering Today): the
   day's gold and kills plus every item gained today with its count. Settings has checkboxes to
   show it and to turn its hover pop-up off.

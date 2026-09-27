@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <radialGradient id="leather" cx="50%" cy="42%" r="70%">
+      <stop offset="0" stop-color="#4a3522"/>
+      <stop offset="0.6" stop-color="#2b1d12"/>
+      <stop offset="1" stop-color="#140d08"/>
+    </radialGradient>
+    <linearGradient id="bronze" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f0cf7a"/>
+      <stop offset="0.35" stop-color="#b8862b"/>
+      <stop offset="0.65" stop-color="#e2b95c"/>
+      <stop offset="1" stop-color="#7a5418"/>
+    </linearGradient>
+    <linearGradient id="woodBody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a86e38"/>
+      <stop offset="1" stop-color="#5a3517"/>
+    </linearGradient>
+    <linearGradient id="woodEnd" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8a5a2c"/>
+      <stop offset="1" stop-color="#b98244"/>
+    </linearGradient>
+    <linearGradient id="dowel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e6b77a"/>
+      <stop offset="0.5" stop-color="#b8804a"/>
+      <stop offset="1" stop-color="#7b4c22"/>
+    </linearGradient>
+    <linearGradient id="handleWood" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7b4c22"/>
+      <stop offset="0.5" stop-color="#c48a4e"/>
+      <stop offset="1" stop-color="#6a3f1b"/>
+    </linearGradient>
+    <linearGradient id="iron" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a3a9b1"/>
+      <stop offset="0.5" stop-color="#6d7279"/>
+      <stop offset="1" stop-color="#3f4348"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fbe39a"/>
+      <stop offset="0.5" stop-color="#d9a441"/>
+      <stop offset="1" stop-color="#8f6118"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#f3c96a" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#f3c96a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- leather tile with bronze bevel (unchanged style) -->
+  <rect x="6" y="6" width="244" height="244" rx="40" fill="url(#bronze)"/>
+  <rect x="14" y="14" width="228" height="228" rx="33" fill="#1d130b"/>
+  <rect x="18" y="18" width="220" height="220" rx="30" fill="url(#leather)"/>
+  <rect x="26" y="26" width="204" height="204" rx="24" fill="none" stroke="#c9a257" stroke-opacity="0.35"
+        stroke-width="2" stroke-dasharray="6 5"/>
+  <ellipse cx="128" cy="130" rx="100" ry="86" fill="url(#glow)"/>
+  <ellipse cx="128" cy="208" rx="84" ry="9" fill="#000" fill-opacity="0.45"/>
+
+  <!-- tall end boards (behind everything) -->
+  <path d="M50 206 L50 118 Q50 92 66 84 L74 84 Q84 92 84 118 L84 206 Z" fill="url(#woodEnd)"
+        stroke="#2a170a" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M206 206 L206 118 Q206 92 190 84 L182 84 Q172 92 172 118 L172 206 Z" fill="url(#woodEnd)"
+        stroke="#2a170a" stroke-width="4" stroke-linejoin="round"/>
+
+  <path d="M56 200 V118 Q56 98 67 90" fill="none" stroke="#e0a868" stroke-opacity="0.5" stroke-width="3" stroke-linecap="round"/>
+  <path d="M200 200 V118 Q200 98 189 90" fill="none" stroke="#e0a868" stroke-opacity="0.5" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- tools sticking out of the tray -->
+  <!-- hammer: wooden handle, iron head -->
+  <g transform="rotate(-18 110 120)">
+    <rect x="104" y="58" width="12" height="96" rx="5" fill="url(#handleWood)" stroke="#2a170a" stroke-width="3"/>
+    <path d="M88 48 H128 Q134 48 134 54 V64 Q134 70 128 70 H88 Q82 70 82 64 V54 Q82 48 88 48 Z"
+          fill="url(#iron)" stroke="#1f2124" stroke-width="3"/>
+    <rect x="82" y="52" width="8" height="14" fill="#50555b"/>
+  </g>
+  <!-- chisel: wooden handle, steel blade -->
+  <g transform="rotate(14 150 120)">
+    <path d="M144 68 L156 68 L156 42 L144 38 Z" fill="url(#iron)" stroke="#1f2124" stroke-width="2.5"
+          stroke-linejoin="round"/>
+    <path d="M145 40 L155 43" stroke="#e3e7ec" stroke-width="2" stroke-linecap="round"/>
+    <rect x="143" y="66" width="14" height="8" rx="2" fill="url(#gold)" stroke="#5a3a0c" stroke-width="2"/>
+    <rect x="142" y="72" width="16" height="70" rx="6" fill="url(#handleWood)" stroke="#2a170a" stroke-width="3"/>
+  </g>
+
+  <!-- carry handle (dowel between the end boards) -->
+  <rect x="62" y="90" width="132" height="13" rx="6.5" fill="url(#dowel)" stroke="#2a170a" stroke-width="3.5"/>
+  <circle cx="67" cy="96.5" r="4" fill="#3b220e"/>
+  <circle cx="189" cy="96.5" r="4" fill="#3b220e"/>
+
+  <!-- open tray front -->
+  <path d="M46 134 H210 V200 Q210 206 204 206 H52 Q46 206 46 200 Z" fill="url(#woodBody)"
+        stroke="#2a170a" stroke-width="4" stroke-linejoin="round"/>
+  <line x1="48" y1="170" x2="208" y2="170" stroke="#3b220e" stroke-width="3"/>
+  <path d="M56 140 H200" stroke="#e0a868" stroke-opacity="0.45" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- iron corner brackets -->
+  <g fill="url(#iron)" stroke="#1f2124" stroke-width="2.5" stroke-linejoin="round">
+    <path d="M44 132 H70 V142 H56 V156 H44 Z"/>
+    <path d="M212 132 H186 V142 H200 V156 H212 Z"/>
+    <path d="M44 208 H70 V198 H56 V184 H44 Z"/>
+    <path d="M212 208 H186 V198 H200 V184 H212 Z"/>
+  </g>
+  <g fill="#c8ccd2" stroke="#2a2c30" stroke-width="1.2">
+    <circle cx="50" cy="138" r="2.6"/><circle cx="206" cy="138" r="2.6"/>
+    <circle cx="50" cy="202" r="2.6"/><circle cx="206" cy="202" r="2.6"/>
+  </g>
+
+  <!-- brass nameplate -->
+  <rect x="104" y="160" width="48" height="22" rx="4" fill="url(#gold)" stroke="#5a3a0c" stroke-width="3"/>
+  <circle cx="110" cy="171" r="2.4" fill="#5a3a0c"/>
+  <circle cx="146" cy="171" r="2.4" fill="#5a3a0c"/>
+  <path d="M116 166 H140" stroke="#fff3c4" stroke-opacity="0.7" stroke-width="2" stroke-linecap="round"/>
+</svg>

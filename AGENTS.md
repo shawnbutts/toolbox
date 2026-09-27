@@ -80,6 +80,8 @@ Run all three before calling a change done.
     To add a setting: a setter + getter on the owning module (persisted there), a control here, a line
     in `Sync()`, and tests in `tests/test_config.lua`.
 - `tests/`: `harness.lua` is a fake host (see below); `test_*.lua` suites; `run.lua` the runner.
+- `art/icon.svg`: source of `toolbox/icon.png`. Re-render with
+  `rsvg-convert -w 256 -h 256 art/icon.svg -o toolbox/icon.png` (keep it 256x256, well under 256 KiB).
 - `tools/build.py`: validates the store packaging rules and writes `dist/toolbox/` + zip.
 - `tools/install.py`: copies `dist/toolbox/` into a client's Lua folder.
 - `.luacheckrc`: std `lua52` plus every global documented for API 14. If the docs add a function,

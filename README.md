@@ -181,6 +181,8 @@ toolbox/            the package (what ships)
   dailydetail.lua   the Today Detailed window (/toolbox dailydetailed, dd)
   config.lua        the Toolbox Settings window (/toolbox config)
   README.md         player-facing store readme
+  icon.png          store / add-on manager icon (256x256)
+art/icon.svg        editable source of the icon (not shipped)
 tests/              headless tests with a stubbed host (harness.lua)
 tools/build.py      validator + packager
 tools/install.py    copies dist/toolbox/ into a game client's Lua folder
