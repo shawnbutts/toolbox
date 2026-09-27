@@ -366,6 +366,8 @@ add("combat", "combat stats HUD (reset; size <n>; bg dark|light|none [%]; pet; s
     T.Print("Combat stats reset.")
   elseif word == "move" then
     T.MoveCommand(C, "combat", "Combat stats", args)
+  elseif word == "debug" then
+    T.Print(T.Hud.Debug("combat"))
   elseif word == "size" then
     if args ~= "" and not C.SetScale(tonumber(args)) then
       T.Print("Size is a whole percent from " .. C.SCALE_MIN .. " to " .. C.SCALE_MAX .. ".")

@@ -93,6 +93,9 @@ store submission needs a higher version than any submitted before (rejected ones
 - `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
 
 ### Fixed
+- A HUD strip that fails to build no longer stops the others from building and showing; the error
+  is reported in chat. `/toolbox combat debug` describes the combat strip (shown setting, build
+  error, strip visibility, size, position). The combat rows no longer repeat an element id.
 - The combat stats strip disappeared once it got a background: its rows were laid over the panel
   with a margin of minus the strip's width, but the game clamps margins to -64..256, so the rows
   were pushed out of the strip. The panel is now per-row slabs one line tall, with each row pulled

@@ -126,4 +126,31 @@ return function(t)
     H.chat("/tbx vitals glue maybe")
     t.ok(H.logged("glue on|off"))
   end)
+
+  t.test("a strip that fails to build is reported and doesn't stop the others", function()
+    H.boot()
+    H.chat("/tbx buffs")
+    H.chat("/tbx vitals")
+    H.chat("/tbx combat")
+    local real = Toolbox.Combat.BuildContent
+    Toolbox.Combat.BuildContent = function() error("boom") end
+    H.clearLogs()
+    H.call(Toolbox.Hud.Build)                          -- as from a callback
+    Toolbox.Combat.BuildContent = real
+    t.ok(H.logged("Couldn't build the combat HUD: .*boom"), H.lastLog())
+    t.eq(H.frame().visible, true, "the buff bar still shows")
+    t.eq(H.vitals().visible, true, "the vitals still show")
+    H.clearLogs()
+    H.chat("/tbx combat debug")
+    t.ok(H.logged("combat: shown setting true; build error: .*boom; content missing; no strip"), H.lastLog())
+  end)
+
+  t.test("/tbx combat debug describes a working strip", function()
+    H.boot()
+    H.chat("/tbx combat")
+    H.clearLogs()
+    H.chat("/tbx combat debug")
+    t.ok(H.logged("^combat: shown setting true; content built; strip own, visible true, size %d+ x %d+, at 40, 380"),
+      H.lastLog())
+  end)
 end

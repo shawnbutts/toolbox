@@ -264,7 +264,7 @@ function C.BuildContent()
     local name = UI.Label{ text = "", class = "text", style = labelStyle(m, m.labelW, "left") }
     local value = UI.Label{ text = "", class = "bright", style = labelStyle(m, m.valueW, "right") }
     local dark, light = slabs(m.line)
-    local line = UI.Row{ id = "line", children = { name, value } }
+    local line = UI.Row{ children = { name, value } }     -- no id: ids repeated per row may not be allowed
     local group = UI.Column{ visible = false, children = { dark, light, line } }
     groups[#groups + 1] = group
     el[i] = { row = group, name = name, value = value, dark = dark, light = light, line = line }

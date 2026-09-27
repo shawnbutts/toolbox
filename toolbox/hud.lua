@@ -32,6 +32,7 @@ local frames = {}                     -- key -> HudFrame (unglued), or [GLUED_ID
 local contents = {}                   -- key -> content element
 local sized = {}                      -- frame id -> "w,h" last applied
 local prefs = { glued = false }
+Hud.errors = {}                       -- key -> error text from the last build, for debug
 
 function Hud.Register(key, module)
   modules[key] = module
@@ -49,6 +50,16 @@ local function gluedHere(key) return prefs.glued and Hud.GLUE[key] end
 
 local function present(key) return modules[key] ~= nil end
 
+-- A module's content, or nil when building it raised (reported in chat, so one broken strip
+-- doesn't stop the others from being built and shown).
+local function build(key)
+  local ok, result = pcall(modules[key].BuildContent)
+  if ok then return result end
+  T.Print("Couldn't build the " .. key .. " HUD: " .. tostring(result))
+  Hud.errors[key] = tostring(result)
+  return nil
+end
+
 local function destroyAll()
   for _, frame in pairs(frames) do pcall(function() frame:Destroy() end) end
   frames, contents, sized = {}, {}, {}
@@ -57,11 +68,12 @@ end
 -- (Re)builds every strip for the current glue setting.
 function Hud.Build()
   destroyAll()
+  Hud.errors = {}
   if prefs.glued then
     local parts = {}
     for _, key in ipairs(Hud.ORDER) do
       if present(key) and Hud.GLUE[key] then
-        contents[key] = modules[key].BuildContent()
+        contents[key] = build(key)
         parts[#parts + 1] = contents[key]
       end
     end
@@ -72,8 +84,10 @@ function Hud.Build()
   end
   for _, key in ipairs(Hud.ORDER) do
     if present(key) and not gluedHere(key) then
+      contents[key] = build(key)
+    end
+    if contents[key] and not gluedHere(key) then
       local m = modules[key]
-      contents[key] = m.BuildContent()
       local x, y = m.GetSavedPosition()
       frames[key] = UI.HudFrame{ id = m.FRAME_ID, x = x or m.HOME[1], y = y or m.HOME[2],
         width = 100, height = 40, visible = false,
@@ -111,7 +125,7 @@ function Hud.Refresh()
     if any then setSize(frame, T.Window.GRIP + w + Hud.PAD, h + Hud.PAD) end
   end
   for key, own in pairs(frames) do
-    if modules[key] then
+    if modules[key] and contents[key] then
       local shown = modules[key].IsShown()
       own:SetVisible(shown)
       if shown then
@@ -151,6 +165,29 @@ function Hud.MoverFor(key, home)
   return T.Window.HudMover(function() return Hud.FrameFor(key) end, home, function()
     return gluedHere(key) and Hud.GLUED_HOME or home
   end)
+end
+
+-- One chat line about module `key`'s strip, for /toolbox <module> debug.
+function Hud.Debug(key)
+  local m = modules[key]
+  if not m then return key .. ": not registered" end
+  local frame = Hud.FrameFor(key)
+  local parts = { key .. ": shown setting " .. tostring(m.IsShown()) }
+  if Hud.errors[key] then parts[#parts + 1] = "build error: " .. Hud.errors[key] end
+  parts[#parts + 1] = "content " .. (contents[key] and "built" or "missing")
+  if frame then
+    local ok, vis = pcall(frame.IsVisible, frame)
+    local okS, w, h = pcall(frame.GetSize, frame)
+    local x, y = Hud.Position(frame)
+    parts[#parts + 1] = string.format("strip %s, visible %s, size %s x %s, at %s, %s",
+      frame == frames[Hud.GLUED_ID] and "shared (glued)" or "own", ok and tostring(vis) or "?",
+      okS and tostring(w) or "?", okS and tostring(h) or "?", tostring(x), tostring(y))
+  else
+    parts[#parts + 1] = "no strip"
+  end
+  local cw, ch = m.ContentSize()
+  parts[#parts + 1] = "content size " .. tostring(cw) .. " x " .. tostring(ch)
+  return table.concat(parts, "; ")
 end
 
 function Hud.SetGlued(on)

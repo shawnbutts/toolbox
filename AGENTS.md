@@ -325,3 +325,7 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     range"). An overlap by negative margin only works up to 64 px: a whole-strip panel overlapped by
     -width pushed the combat rows out of view in game (2026-09-27). Overlap per line/icon instead. The
     harness clamps the same way (`clampStyle`), so such layouts fail the tests.
+36. Element ids: the docs give the allowed characters but not whether ids must be unique within a window
+    or frame. Don't repeat ids (the combat rows briefly used "line" 14 times while the strip was missing
+    in game; unconfirmed whether that was a cause). `Hud.Build` builds each module in a pcall and reports
+    failures, so one broken strip can't hide the others; `Hud.Debug(key)` backs `/toolbox combat debug`.
