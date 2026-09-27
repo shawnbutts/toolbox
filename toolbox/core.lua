@@ -1,7 +1,8 @@
 -- Toolbox: core.lua
 -- Namespace, chat output, saved-variable helpers, slash commands and callback wiring.
 -- Loaded first (see manifest.json). Later files add Toolbox.XP, Toolbox.Window,
--- Toolbox.Hover, Toolbox.Compact, Toolbox.Daily, Toolbox.DailyDetail and Toolbox.Config.
+-- Toolbox.Hover, Toolbox.Compact, Toolbox.Daily, Toolbox.DailyDetail, Toolbox.Sounds,
+-- Toolbox.BuffBar and Toolbox.Config.
 
 Toolbox = {
   name = "Toolbox",
@@ -185,6 +186,39 @@ add("spacing", "set the extra space between lines, 0-12 (no number: show and mea
   end
 end)
 
+add("buffs", "show or hide the buff bar", function()
+  T.BuffBar.Toggle()
+end)
+
+add("buffalert", "sound N seconds before a buff runs out, 1-60 (on / off; no argument: show)", function(rest)
+  local B, word = T.BuffBar, rest:lower()
+  if word == "on" or word == "off" then
+    B.SetExpireAlert(word == "on")
+  elseif word ~= "" and not B.SetExpireSeconds(tonumber(word)) then
+    T.Print("Use a whole number of seconds from " .. B.ALERT_MIN .. " to " .. B.ALERT_MAX .. ", or on / off.")
+    return
+  elseif word ~= "" then
+    B.SetExpireAlert(true)
+  end
+  local state = B.GetExpireAlert() and ("on, " .. B.GetExpireSeconds() .. " s before") or "off"
+  T.Print("Buff expiring alert: " .. state .. ".")
+end)
+
+add("debuffalert", "sound when a debuff lands (on / off; no argument: show)", function(rest)
+  local B, word = T.BuffBar, rest:lower()
+  if word == "on" or word == "off" then B.SetDebuffAlert(word == "on")
+  elseif word ~= "" then T.Print("Use on or off.") return end
+  T.Print("Debuff alert: " .. (B.GetDebuffAlert() and "on" or "off") .. ".")
+end)
+
+add("sounds", "show which sound files the alerts use; /toolbox sounds <0-100> sets the volume", function(rest)
+  if rest ~= "" and not T.Sounds.SetVolume(tonumber(rest)) then
+    T.Print("Volume must be a whole number from 0 to 100.")
+    return
+  end
+  for _, line in ipairs(T.Sounds.Report()) do T.Print(line) end
+end)
+
 -- Parses "  XP  extra " -> "xp", "extra".
 function T.ParseArgs(args)
   args = tostring(args or "")
@@ -327,6 +361,8 @@ function T.Tick()
     T.lastFlush = T.Now()
     T.unflushed = false
   end
+  T.Sounds.Poll()
+  T.Config.SyncSounds()
   T.RefreshViews()
 end
 
@@ -343,6 +379,8 @@ function ShroudOnStart()
   T.Compact.Init()
   T.Daily.InitWindow()
   T.DailyDetail.Init()
+  T.Sounds.Init()
+  T.BuffBar.Init()
   ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
 end
 
@@ -355,6 +393,20 @@ end
 -- Kills for the daily stats (combat chat lines about you, your party or your pet).
 function ShroudOnCombatEvents(events, _)
   T.Daily.OnCombat(events)
+end
+
+-- Buff bar and the debuff alert.
+function ShroudOnBuffsChanged()
+  T.BuffBar.OnBuffsChanged()
+end
+
+-- A scene change rebuilds the buff list: don't alert for debuffs that were already there.
+function ShroudOnSceneUnloaded()
+  T.BuffBar.Quiet()
+end
+
+function ShroudOnSceneLoaded(_)
+  T.BuffBar.Quiet()
 end
 
 -- Items for the daily stats (anything that arrives in your bags).

@@ -45,6 +45,10 @@ local function fresh(disk)
     disk = copy(disk or {}),
     date = "2026-09-27",               -- what os.date("%Y-%m-%d") returns
     serverTime = "2026-09-27 12:00:00",
+    files = { ["toolbox/clock.png"] = true },   -- files that exist, relative to the Lua folder
+    clips = {}, pendingClips = {}, played = {},
+    buffs = {},                        -- { name, remaining, icon, debuff, tooltip } per effect
+    frames = {},
     logs = {},
     commands = {},
     taken = {},
@@ -140,6 +144,60 @@ local function install_api()
     return had
   end
 
+  -- Textures and sound (async load: a clip shows up in ShroudListSound after a moment).
+  AudioType = { WAV = "WAV", OGGVORBIS = "OGGVORBIS", MPEG = "MPEG" }
+  ShroudLoadTexture = function(path) return S.files[path] and 7 or -1 end
+  ShroudLoadSound = function(path, _)
+    if type(path) ~= "string" or path:find("%.%.") then return false end
+    if not S.files[path] and not S.acceptMissing then return false end
+    if S.files[path] then
+      S.pendingClips[#S.pendingClips + 1] = { name = path:match("([^/\\]+)%.%w+$"), due = ShroudTime + 0.5 }
+    end
+    return true
+  end
+  ShroudListSound = function()
+    local out = {}
+    for i, c in ipairs(S.clips) do out[i] = c end
+    return out
+  end
+  ShroudListSoundReset = function()
+    local had = #S.clips > 0
+    S.clips = {}
+    return had
+  end
+  ShroudPlaySoundChannel = function(id, volume)
+    if type(id) ~= "number" or id < 1 or id > #S.clips then return -1 end
+    S.played[#S.played + 1] = { name = S.clips[id], volume = volume }
+    return 1
+  end
+
+  -- Buffs: one flat entry per effect; grouped by name for ShroudGetPlayerBuff.
+  local function effect(i) return S.char.present and S.buffs[i + 1] or nil end
+  ShroudGetBuffCount = function() return S.char.present and #S.buffs or 0 end
+  ShroudGetBuffName = function(i) local e = effect(i); return e and e.name or "Invalid" end
+  ShroudGetBuffTimeRemaining = function(i) local e = effect(i); return e and e.remaining or -1 end
+  ShroudGetBuffIcon = function(i) local e = effect(i); return e and (e.icon or -1) or -1 end
+  ShroudGetBuffTooltip = function(i)
+    local e = effect(i)
+    if not e then return "" end
+    return e.tooltip or (e.name .. "\n" .. math.floor(e.remaining or 0) .. "s")
+  end
+  ShroudGetPlayerBuff = function()
+    if not S.char.present then return nil end
+    local out, by = {}, {}
+    for _, e in ipairs(S.buffs) do
+      local r = by[e.name]
+      if not r then
+        r = { RuneName = e.name, RuneId = #out + 1, IsDebuff = e.debuff == true, IconId = e.icon or -1,
+              StackCount = 0, Effects = {} }
+        by[e.name] = r
+        out[#out + 1] = r
+      end
+      r.StackCount = r.StackCount + 1
+    end
+    return out
+  end
+
   Shroud = { UI = H.makeUI(), Command = H.command, RemoveCommand = function(name)
     local had = S.commands[name] ~= nil
     S.commands[name] = nil
@@ -186,6 +244,9 @@ local FIELDS = {
   Grid = { columns = 1, children = 1 },
   Label = { text = 1 },
   Button = { text = 1, onClick = 1, enabled = 1 },
+  Image = { texture = 1, width = 1, height = 1, onClick = 1, tint = 1, uv = 1, rotation = 1 },
+  HudFrame = { x = 1, y = 1, width = 1, height = 1, children = 1 },
+  TextField = { text = 1, placeholder = 1, maxLength = 1, onChange = 1, onSubmit = 1, enabled = 1 },
   Bar = { value = 1, color = 1 },
   Slider = { min = 1, max = 1, step = 1, value = 1, onChange = 1, enabled = 1 },
   Toggle = { text = 1, value = 1, onChange = 1, enabled = 1 },
@@ -217,6 +278,9 @@ function Element:Clear()
   self.children = {}
 end
 function Element:SetVisible(v) self.visible = v end
+function Element:SetTexture(id) self.texture = id end
+function Element:SetUV(x, y, w, h) self.uv = { x, y, w, h } end
+function Element:SetSize(w, h) self.width, self.height = w, h end
 -- Laid-out size. Models a theme class with a minimum height (H.S.themeMinHeight):
 -- an explicit minHeight overrides it; maxHeight caps the result.
 function Element:GetSize()
@@ -251,12 +315,17 @@ function H.makeUI()
       for k in pairs(spec) do
         if not COMMON[k] and not fields[k] then error("UI." .. kind .. ": unknown field " .. k, 2) end
       end
+      S.constructed = (S.constructed or 0) + 1
       local e = setmetatable(copy(spec), Element)
       e.kind = kind
       e.children = spec.children     -- keep the real child objects
       e.onClose = spec.onClose
       e.onClick = spec.onClick
       e.onChange = spec.onChange
+      if kind == "HudFrame" then
+        assert(type(spec.id) == "string", "HudFrame id required")
+        S.frames[spec.id] = e
+      end
       if kind == "Window" then
         assert(type(spec.id) == "string", "Window id required")
         e.x, e.y = spec.x or 200, spec.y or 120
@@ -284,6 +353,7 @@ end
 -- The player changes a slider, toggle, ... (fires onChange; our own SetValue never does).
 function H.change(windowId, elementId, value)
   local c = S.windows[windowId]:Find(elementId)
+  assert(c, "no element " .. elementId)
   c.value = value
   H.call(function() c.onChange(c, value) end)
 end
@@ -294,6 +364,13 @@ function H.hover(windowId, elementId, over)
   local e = elementId and w:Find(elementId) or w
   assert(e.onHover, "no onHover on " .. windowId .. "/" .. tostring(elementId))
   H.call(function() e.onHover(e, over) end)
+end
+
+-- The player presses Enter in a text field.
+function H.submit(windowId, elementId, text)
+  local f = S.windows[windowId]:Find(elementId)
+  f.text = text
+  H.call(function() f.onSubmit(f, text) end)
 end
 
 function H.click(windowId, elementId)
@@ -378,6 +455,20 @@ function H.advance(seconds, step)
     ShroudTime = math.min(target, ShroudTime + step)
     ShroudPlayerGold = S.char.present and S.char.gold or 0   -- per-frame global
     ShroudServerTime = S.serverTime
+    -- async sound loads finish
+    local still = {}
+    for _, c in ipairs(S.pendingClips) do
+      if ShroudTime >= c.due then S.clips[#S.clips + 1] = c.name else still[#still + 1] = c end
+    end
+    S.pendingClips = still
+    -- buffs count down; expired ones drop off and the change callback fires
+    local kept, changed = {}, false
+    for _, b in ipairs(S.buffs) do
+      if b.remaining and b.remaining > 0 then b.remaining = b.remaining - step end
+      if b.remaining and b.remaining <= 0 and not b.permanent then changed = true else kept[#kept + 1] = b end
+    end
+    S.buffs = kept
+    if changed then H.callback("ShroudOnBuffsChanged") end
     local due = {}
     for name in pairs(S.periodics) do due[#due + 1] = name end
     table.sort(due)
@@ -435,6 +526,34 @@ function H.detailRows()
     out[#out + 1] = { row.children[1].text, row.children[2].text }
   end
   return out
+end
+
+-- Adds effects ({ name = , remaining = , debuff = , icon = , permanent = }) and fires the callback.
+function H.addBuffs(list)
+  for _, b in ipairs(list) do S.buffs[#S.buffs + 1] = b end
+  return H.callback("ShroudOnBuffsChanged")
+end
+
+function H.removeBuff(name)
+  local kept = {}
+  for _, b in ipairs(S.buffs) do if b.name ~= name then kept[#kept + 1] = b end end
+  S.buffs = kept
+  return H.callback("ShroudOnBuffsChanged")
+end
+
+function H.frame() return S.frames.toolbox_buffs end
+-- Visible slots of a bar row ("buffs" / "debuffs") as their slot tables.
+function H.slots(row)
+  local out = {}
+  for _, slot in ipairs(H.frame():Find(row).children) do
+    if slot.visible ~= false then out[#out + 1] = slot end
+  end
+  return out
+end
+function H.playedNames()
+  local out = {}
+  for _, p in ipairs(S.played) do out[#out + 1] = p.name end
+  return table.concat(out, ",")
 end
 
 function H.daily() return S.windows.toolbox_daily end

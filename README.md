@@ -6,6 +6,8 @@ A Shroud of the Avatar Lua add-on (API 14). Features so far:
   the last hour. Hover it for **XP Detailed**: levels, progress bars, XP/hour, time to next level.
 - **Today**: gold picked up, kills, and XP gained since midnight. Hover it for **Today Detailed**:
   every item gained today, with counts.
+- **Buff bar**: your buffs and debuffs as their skill icons, with a clock-style sweep instead of a
+  countdown, plus sound alerts when a buff is about to run out and when a debuff lands.
 
 - Store slug and package folder: `toolbox`
 - Author: shawn butts
@@ -28,6 +30,10 @@ Built clean-room from the official docs only:
 | `/toolbox reset` | start a new XP session |
 | `/toolbox daily` | show or hide today's stats (gold, kills, XP) |
 | `/toolbox dailydetailed` (or `dd`) | show or hide Today Detailed (every item gained today) |
+| `/toolbox buffs` | show or hide the buff bar |
+| `/toolbox buffalert <1-60>` / `on` / `off` | alert this many seconds before a buff runs out (default 10) |
+| `/toolbox debuffalert on` / `off` | alert when a debuff lands |
+| `/toolbox sounds [0-100]` | show which sound files the alerts use; with a number, set the volume |
 | `/toolbox config` | open or close the settings window |
 | `/toolbox spacing <0-12>` | set the extra space between lines in pixels (no number: show and measure it; default 2) |
 | `/toolbox font <9-32>` | set the window text size (no number: show the current size; default 12) |
@@ -150,7 +156,34 @@ the day's gold and kills and a list of every item gained today with its count, h
   under "(other items)".
 - Hover can be turned off with "Show Today Detailed on hover" in `/toolbox config`.
 
-## Development
+## Buff bar
+
+`/toolbox buffs` shows a HUD strip (move it by its corner grip; the game remembers where) with
+your buffs on the top row and debuffs, outlined in red, below. Each icon is the skill's real icon
+with the game's own tooltip. Time left is shown as a darkening clockwise sweep from 12 o'clock
+(the `toolbox/clock.png` sprite sheet), not as text; permanent effects have no sweep.
+
+The game's own buff bar can't be hidden from an add-on, so this one sits alongside it. Icons are a
+fixed pool (20 buffs, 10 debuffs) built once, so buff changes never create UI elements.
+
+**Alerts** (they work with the bar hidden):
+
+- **Buff about to run out**: plays once when a buff's remaining time crosses your setting (1 to
+  60 s, default 10). A buff that starts with less time than that never alerts, and a recast buff
+  re-arms. Debuffs don't trigger it.
+- **Debuff landed**: plays when a debuff you didn't have appears, at most once a second. The API
+  doesn't say who applied an effect, so this is any new debuff. It stays quiet for 3 s after you
+  log in or change scene, when the game rebuilds the buff list.
+
+**Sounds.** Audio files can't be part of a store package yet, so each alert looks, in order, for:
+
+1. a custom path you set in `/toolbox config` (any `.ogg`/`.wav`/`.mp3` inside your Lua folder);
+2. `Lua/toolbox_buff_expiring.ogg` / `Lua/toolbox_debuff_landed.ogg` (the default place; store
+   updates don't touch loose files);
+3. the package folder (for when audio can ship).
+
+Missing files are fine: that alert is just silent. `/toolbox sounds` says which file each alert
+uses. The sounds are in `art/`; `tools/install.py` copies them to the default place for you.
 
 Requirements: Lua 5.2+ or LuaJIT, [luacheck](https://github.com/lunarmodules/luacheck), Python 3.9+.
 
@@ -171,7 +204,7 @@ image limits, size caps, no runtime code loading, and no `io`/`os` use in packag
 ```
 toolbox/            the package (what ships)
   manifest.json     files load in this order: core.lua, xp.lua, hover.lua, ui.lua, compact.lua, daily.lua,
-                    dailydetail.lua, config.lua
+                    dailydetail.lua, sounds.lua, buffbar.lua, config.lua
   core.lua          Toolbox namespace, commands, saved-var helpers, session lifecycle, callbacks
   xp.lua            pure session XP model (rates, rolling window, time to level)
   ui.lua            the XP Detailed window (/toolbox xpdetailed; Toolbox.Window, id toolbox_xp)
@@ -179,10 +212,15 @@ toolbox/            the package (what ships)
   hover.lua         shared hover pop-up controller (XP -> XP Detailed, Today -> Today Detailed)
   daily.lua         daily stats and the Today window (/toolbox daily)
   dailydetail.lua   the Today Detailed window (/toolbox dailydetailed, dd)
+  sounds.lua        alert sound loading (custom path, then defaults) and playback
+  buffbar.lua       the buff bar HUD, clock overlay, expiry and debuff alerts
+  clock.png         the clock overlay sprite sheet (24 frames, from art/clock.py)
   config.lua        the Toolbox Settings window (/toolbox config)
   README.md         player-facing store readme
   icon.png          store / add-on manager icon (256x256)
 art/icon.svg        editable source of the icon (not shipped)
+art/clock.py        generates toolbox/clock.png (and art/clock.svg)
+art/alerts.py       generates the alert sounds art/*.ogg (not shipped; see Buff bar)
 tests/              headless tests with a stubbed host (harness.lua)
 tools/build.py      validator + packager
 tools/install.py    copies dist/toolbox/ into a game client's Lua folder
@@ -200,7 +238,8 @@ tools/install.py    copies dist/toolbox/ into a game client's Lua folder
    python3 tools/install.py --lua-dir "/path/to/Lua"
    # or: export SOTA_LUA_DIR="/path/to/Lua"; make install
    ```
-   The folder name must be exactly `toolbox`, and there must be no loose `toolbox.lua` in the Lua
+   The installer also copies the alert sounds to `Lua/toolbox_*.ogg`. The folder name must be
+   exactly `toolbox`, and there must be no loose `toolbox.lua` in the Lua
    folder (it would block the package). Re-installing replaces `Lua/toolbox/` only; saved vars in
    `Lua/SavedVariables/` are kept.
 4. In game: `/lua reload`.

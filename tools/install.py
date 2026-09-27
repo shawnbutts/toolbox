@@ -7,7 +7,9 @@
 
 Find the Lua folder in game with `/lua path` or the add-on manager's Open Folder
 button. This replaces <Lua>/toolbox/ only; saved variables live in
-<Lua>/SavedVariables/ and are left alone. Standard library only.
+<Lua>/SavedVariables/ and are left alone. It also copies the alert sounds from art/
+to <Lua>/toolbox_<name>.ogg, where the add-on looks for them (audio files can't ship
+in a store package yet). Existing sound files there are replaced. Standard library only.
 """
 
 from __future__ import annotations
@@ -52,6 +54,10 @@ def main() -> int:
         shutil.rmtree(dest)
     shutil.copytree(src, dest)
     print(f"Installed {len(list(dest.iterdir()))} files to {dest}")
+    for sound in sorted((ROOT / "art").glob("*.ogg")):
+        target = lua_dir / f"{slug}_{sound.name}"
+        shutil.copy2(sound, target)
+        print(f"Copied alert sound to {target}")
     print("In game: /lua reload, enable Toolbox in the add-on manager, /lua check toolbox, then /toolbox xp")
     return 0
 

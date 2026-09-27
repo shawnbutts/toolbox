@@ -18,14 +18,66 @@ local function fontLabel(n)
   return string.format("%d", n)
 end
 
+-- A labelled slider: "Label ........ value" then the slider.
+local function slider(id, label, lo, hi, step, value, tooltip, onChange)
+  return UI.Column{ style = { marginTop = 4 }, children = {
+    UI.Row{ style = { alignItems = "center" }, children = {
+      UI.Label{ text = label, class = "text", style = { flexGrow = 1 } },
+      UI.Label{ id = id .. "_value", text = fontLabel(value), class = "dim" },
+    } },
+    UI.Slider{ id = id, min = lo, max = hi, step = step, value = value, tooltip = tooltip,
+      onChange = function(_, v) onChange(math.floor((tonumber(v) or value) + 0.5)) end },
+  } }
+end
+
+local function soundRows(def)
+  local S = T.Sounds
+  return UI.Column{ style = { marginTop = 4 }, children = {
+    UI.Label{ id = "snd_" .. def.key .. "_status", text = "", class = "dim" },
+    UI.Row{ style = { alignItems = "center" }, children = {
+      UI.TextField{ id = "snd_" .. def.key .. "_path", text = S.GetPath(def.key),
+        placeholder = "custom file in your Lua folder", maxLength = 200, style = { flexGrow = 1, flexShrink = 1 },
+        tooltip = "A .ogg/.wav/.mp3 path inside your Lua folder; press Enter to use it, clear it for the default",
+        onSubmit = function(_, text) S.SetPath(def.key, text) end },
+      UI.Button{ id = "snd_" .. def.key .. "_test", text = "Test", style = { marginLeft = 4 },
+        tooltip = "Play " .. def.label:lower(),
+        onClick = function()
+          if not S.Play(def.key) then T.Print(def.label .. ": no sound loaded (see /toolbox sounds).") end
+        end },
+    } },
+  } }
+end
+
+-- The "Buff bar" part of the settings (built inside build()).
+function C.BuffBarSection()
+  local B, S = T.BuffBar, T.Sounds
+  local children = {
+    UI.Label{ text = "Buff bar", class = "heading", style = { marginTop = 8 } },
+    UI.Toggle{ id = "show_buffs", text = "Show buff bar", value = B.IsShown(),
+      onChange = function(_, v) B.SetShown(v) end },
+    slider("buff_size", "Icon size", B.SIZE_MIN, B.SIZE_MAX, 1, B.GetSize(),
+      "Buff icon size in pixels", function(n) B.SetSize(n) end),
+    UI.Toggle{ id = "expire_alert", text = "Sound when a buff is about to run out", value = B.GetExpireAlert(),
+      style = { marginTop = 6 }, onChange = function(_, v) B.SetExpireAlert(v) end },
+    slider("expire_seconds", "Seconds before it runs out", B.ALERT_MIN, B.ALERT_MAX, 1, B.GetExpireSeconds(),
+      "How long before a buff ends to play the alert", function(n) B.SetExpireSeconds(n) end),
+    UI.Toggle{ id = "debuff_alert", text = "Sound when a debuff lands", value = B.GetDebuffAlert(),
+      style = { marginTop = 6 }, onChange = function(_, v) B.SetDebuffAlert(v) end },
+    slider("volume", "Alert volume", 0, 100, 5, S.GetVolume(), "0 mutes the alerts",
+      function(n) S.SetVolume(n) end),
+  }
+  for _, def in ipairs(S.DEFS) do children[#children + 1] = soundRows(def) end
+  return UI.Column{ children = children }
+end
+
 local function build()
   local W = T.Window
   win = UI.Window{
     id = WINDOW_ID, title = "Toolbox Settings",
-    width = 260, height = 330, minWidth = 200, minHeight = 120,
+    width = 280, height = 460, minWidth = 220, minHeight = 120,
     escCloses = true,
     style = { paddingTop = 6, paddingBottom = 6 },
-    children = {
+    children = { UI.Scroll{ style = { flexGrow = 1 }, children = {
       UI.Column{ style = { paddingLeft = GUTTER, paddingRight = GUTTER }, children = {
         UI.Label{ text = "XP windows", class = "heading" },
         UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
@@ -73,12 +125,19 @@ local function build()
           tooltip = "Hovering the Today window pops up the Today Detailed window",
           onChange = function(_, value) T.Daily.SetHover(value) end,
         },
+        C.BuffBarSection(),
       } },
-    },
+    } } },
   }
   el = {}
   local ids = { "font", "font_value", "spacing", "spacing_value", "show_xp", "show_compact", "show_daily",
-                "show_daily_detail", "hover_popup", "hover_daily" }
+                "show_daily_detail", "hover_popup", "hover_daily",
+                "show_buffs", "buff_size", "buff_size_value", "expire_alert", "expire_seconds",
+                "expire_seconds_value", "debuff_alert", "volume", "volume_value" }
+  for _, def in ipairs(T.Sounds.DEFS) do
+    ids[#ids + 1] = "snd_" .. def.key .. "_status"
+    ids[#ids + 1] = "snd_" .. def.key .. "_path"
+  end
   for _, id in ipairs(ids) do el[id] = win:Find(id) end
 end
 
@@ -136,6 +195,26 @@ function C.Sync()
   el.show_daily_detail:SetValue(T.DailyDetail.IsOpen())
   el.hover_popup:SetValue(T.Compact.GetHover())
   el.hover_daily:SetValue(T.Daily.GetHover())
+  local B, S = T.BuffBar, T.Sounds
+  el.show_buffs:SetValue(B.IsShown())
+  for id, v in pairs({ buff_size = B.GetSize(), expire_seconds = B.GetExpireSeconds(), volume = S.GetVolume() }) do
+    el[id]:SetValue(v)
+    el[id .. "_value"]:SetText(fontLabel(v))
+  end
+  el.expire_alert:SetValue(B.GetExpireAlert())
+  el.debuff_alert:SetValue(B.GetDebuffAlert())
+  C.SyncSounds()
+end
+
+-- Sound status lines ("Buff expiring: playing toolbox_buff_expiring.ogg"); called from Sync
+-- and once a tick while loads settle. Path fields are left alone so typing isn't overwritten.
+function C.SyncSounds()
+  if not win then return end
+  for _, def in ipairs(T.Sounds.DEFS) do
+    local status, path = T.Sounds.Status(def.key)
+    local text = def.label .. ": " .. (status == "ready" and path or status == "loading" and "looking..." or "no file")
+    el["snd_" .. def.key .. "_status"]:SetText(text)
+  end
 end
 
 function C.IsShown()
