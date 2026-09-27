@@ -547,3 +547,4 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     `ShroudIsBuffBarVisible()` says showing), and that a click on a HUD strip's `Image` counts as the
     gesture `ShroudDismissBuff` needs (the docs list "clickable images"). If dismissing says "it needs a
     click", that's the place to look.
+    CONFIRMED in game 2026-09-27 (build 7fe0014): both work as built.
