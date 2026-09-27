@@ -2,7 +2,7 @@
 -- Namespace, chat output, saved-variable helpers, slash commands and callback wiring.
 -- Loaded first (see manifest.json). Later files add Toolbox.XP, Toolbox.Window,
 -- Toolbox.Hover, Toolbox.Compact, Toolbox.Daily, Toolbox.DailyDetail, Toolbox.Sounds,
--- Toolbox.BuffBar and Toolbox.Config.
+-- Toolbox.BuffBar, Toolbox.Vitals and Toolbox.Config.
 
 Toolbox = {
   name = "Toolbox",
@@ -186,20 +186,25 @@ add("spacing", "set the extra space between lines, 0-12 (no number: show and mea
   end
 end)
 
+-- "/toolbox <cmd> move [x y]" for a HUD strip `m` (GetPosition / MoveTo).
+function T.MoveCommand(m, cmd, what, args)
+  local x, y = args:match("^(%-?%d+)[%s,]+(%-?%d+)$")
+  if x then
+    m.MoveTo(tonumber(x), tonumber(y))
+  elseif args ~= "" then
+    T.Print("Use /" .. T.commands[1] .. " " .. cmd .. " move <x> <y>, e.g. 40 220.")
+    return
+  end
+  local px, py = m.GetPosition()
+  T.Print(what .. " at " .. (px and (px .. ", " .. py) or "(not laid out yet)")
+    .. ". Move it with /" .. T.commands[1] .. " " .. cmd .. " move <x> <y>, the buttons in settings, or its grip"
+    .. " (to see the grip, untick Options > Interface > Nameplates & Chat Bubbles > Lock Status Movement).")
+end
+
 add("buffs", "show or hide the buff bar (move [x y]; debug; trace [name])", function(rest)
   local word, name = T.ParseArgs(rest)
   if word == "move" then
-    local x, y = name:match("^(%-?%d+)[%s,]+(%-?%d+)$")
-    if x then
-      T.BuffBar.MoveTo(tonumber(x), tonumber(y))
-    elseif name ~= "" then
-      T.Print("Use /" .. T.commands[1] .. " buffs move <x> <y>, e.g. 40 220.")
-      return
-    end
-    local px, py = T.BuffBar.GetPosition()
-    T.Print("Buff bar at " .. (px and (px .. ", " .. py) or "(not laid out yet)")
-      .. ". Move it with /" .. T.commands[1] .. " buffs move <x> <y>, the buttons in settings, or its grip"
-      .. " (to see the grip, untick Options > Interface > Nameplates & Chat Bubbles > Lock Status Movement).")
+    T.MoveCommand(T.BuffBar, "buffs", "Buff bar", name)
     return
   end
   if word == "debug" then
@@ -279,6 +284,15 @@ function T.StatLines(filter)
     filter ~= "" and (" matching '" .. filter .. "'") or "", count)
   return lines
 end
+
+add("vitals", "show or hide the health & focus bars (move [x y])", function(rest)
+  local word, args = T.ParseArgs(rest)
+  if word == "move" then
+    T.MoveCommand(T.Vitals, "vitals", "Health & focus bars", args)
+    return
+  end
+  T.Vitals.Toggle()
+end)
 
 add("stats", "list character stats matching a word, e.g. /toolbox stats health", function(rest)
   for _, line in ipairs(T.StatLines(rest)) do T.Print(line) end
@@ -446,6 +460,7 @@ function ShroudOnStart()
   T.DailyDetail.Init()
   T.Sounds.Init()
   T.BuffBar.Init()
+  T.Vitals.Init()
   ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
 end
 

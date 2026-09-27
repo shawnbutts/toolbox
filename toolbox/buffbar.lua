@@ -599,30 +599,5 @@ function BB.GetDebuffAlert() return prefs.debuff end
 -- the player's"; its Reset Positions button puts it back).
 -- ---------------------------------------------------------------------------
 
--- Left and top as laid out, or nil before the first layout.
-function BB.GetPosition()
-  if not frame then return nil end
-  local ok, x, y = pcall(frame.GetPosition, frame)
-  if not ok or type(x) ~= "number" or type(y) ~= "number" then return nil end
-  return math.floor(x + 0.5), math.floor(y + 0.5)
-end
-
-local function finite(n) return type(n) == "number" and n == n and n > -math.huge and n < math.huge end
-
--- Moves the bar (the game keeps it on screen). Returns true when it was moved.
-function BB.MoveTo(x, y)
-  if not frame or not finite(x) or not finite(y) then return false end
-  local ok = pcall(frame.SetPosition, frame, math.floor(x + 0.5), math.floor(y + 0.5))
-  T.Config.SyncLive()
-  return ok
-end
-
-function BB.Nudge(dx, dy)
-  local x, y = BB.GetPosition()
-  if not x then x, y = BB.HOME[1], BB.HOME[2] end
-  return BB.MoveTo(x + dx, y + dy)
-end
-
-function BB.ResetPosition()
-  return BB.MoveTo(BB.HOME[1], BB.HOME[2])
-end
+local mover = T.Window.HudMover(function() return frame end, BB.HOME)
+BB.GetPosition, BB.MoveTo, BB.Nudge, BB.ResetPosition = mover.Get, mover.MoveTo, mover.Nudge, mover.Reset

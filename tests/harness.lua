@@ -36,6 +36,7 @@ local S   -- current host state
 local function fresh(disk)
   S = {
     char = { name = "Tester", adv = 1000000, prod = 500000, advPool = 25000, prodPool = 4000, gold = 5000,
+             hp = 943, focus = 700,
              present = true,
              progress = {
                adventurer = { level = 50, experience = 1000000, intoLevel = 20000, forLevel = 100000, percent = 0.2 },
@@ -82,6 +83,7 @@ local function install_api()
   InvalidStatResult = -999
   ShroudTime = S.time or 100
   ShroudPlayerGold = S.char.gold
+  ShroudPlayerCurrentHealth, ShroudPlayerCurrentFocus = S.char.hp, S.char.focus
   ShroudServerTime = S.serverTime
   -- The local clock the add-on reads for the daily reset.
   os.date = function(fmt, ...)
@@ -505,7 +507,8 @@ function H.advance(seconds, step)
   local target = ShroudTime + seconds
   while ShroudTime < target - 1e-9 do
     ShroudTime = math.min(target, ShroudTime + step)
-    ShroudPlayerGold = S.char.present and S.char.gold or 0   -- per-frame global
+    ShroudPlayerGold = S.char.present and S.char.gold or 0   -- per-frame globals
+    ShroudPlayerCurrentHealth, ShroudPlayerCurrentFocus = S.char.hp, S.char.focus
     ShroudServerTime = S.serverTime
     -- async sound loads finish
     local still = {}
@@ -597,6 +600,7 @@ function H.removeBuff(name)
 end
 
 function H.frame() return S.frames.toolbox_buffs end
+function H.vitals() return S.frames.toolbox_vitals end
 -- Visible slots of a bar row ("buffs" / "debuffs") as their slot tables.
 function H.slots(row)
   local out = {}

@@ -185,6 +185,7 @@ function W.ApplyText()
   T.Compact.ApplyText()
   T.Daily.ApplyText()
   T.DailyDetail.ApplyText()
+  T.Vitals.ApplyText()
   T.Config.Sync()
 end
 
@@ -267,6 +268,44 @@ end
 
 function W.Toggle()
   return W.SetOpen(not W.IsOpen())
+end
+
+-- Moves a HUD frame from settings or chat (its own grip is hidden while the game's "Lock
+-- Status Movement" is on). getFrame() returns the frame or nil; home = { x, y } for Reset.
+-- Returns { Get, MoveTo, Nudge, Reset }. The game keeps HUD frames on screen, and
+-- SetPosition "remembers the new spot as the player's".
+function W.HudMover(getFrame, home)
+  local m = {}
+  local function finite(n) return type(n) == "number" and n == n and n > -math.huge and n < math.huge end
+
+  -- Left and top as laid out, or nil before the first layout.
+  function m.Get()
+    local frame = getFrame()
+    if not frame then return nil end
+    local ok, x, y = pcall(frame.GetPosition, frame)
+    if not ok or type(x) ~= "number" or type(y) ~= "number" then return nil end
+    return math.floor(x + 0.5), math.floor(y + 0.5)
+  end
+
+  function m.MoveTo(x, y)
+    local frame = getFrame()
+    if not frame or not finite(x) or not finite(y) then return false end
+    local ok = pcall(frame.SetPosition, frame, math.floor(x + 0.5), math.floor(y + 0.5))
+    T.Config.SyncLive()
+    return ok
+  end
+
+  function m.Nudge(dx, dy)
+    local x, y = m.Get()
+    if not x then x, y = home[1], home[2] end
+    return m.MoveTo(x + dx, y + dy)
+  end
+
+  function m.Reset()
+    return m.MoveTo(home[1], home[2])
+  end
+
+  return m
 end
 
 -- Copies a shown window's position into prefs.x/y. Returns true when it moved.

@@ -6,6 +6,7 @@ A Shroud of the Avatar Lua add-on (API 14). Features so far:
   the last hour. Hover it for **XP Detailed**: levels, progress bars, XP/hour, time to next level.
 - **Today**: gold picked up, kills, and XP gained since midnight. Hover it for **Today Detailed**:
   every item gained today, with counts.
+- **Health & focus bars**: your own health and focus on a movable HUD strip.
 - **Buff bar**: your buffs and debuffs as their skill icons, with a clock-style sweep instead of a
   countdown, plus sound alerts when a buff is about to run out and when a debuff lands.
 
@@ -35,6 +36,7 @@ Built clean-room from the official docs only:
 | `/toolbox buffalert <1-60>` / `on` / `off` | alert this many seconds before a buff runs out (default 10) |
 | `/toolbox debuffalert on` / `off` | alert when a debuff lands |
 | `/toolbox sounds [0-100]` | show which sound files the alerts use; with a number, set the volume |
+| `/toolbox vitals` (`move [x y]`) | show or hide the health & focus bars (or place them) |
 | `/toolbox stats [word]` | list character stats whose name contains the word (for finding stat names) |
 | `/toolbox config` | open or close the settings window |
 | `/toolbox spacing <0-12>` | set the extra space between lines in pixels (no number: show and measure it; default 2) |

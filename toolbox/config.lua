@@ -46,6 +46,45 @@ local function soundRows(def)
   } }
 end
 
+-- "Position  x, y" and < ^ v > Reset buttons for a HUD strip. `m` has GetPosition, Nudge,
+-- ResetPosition and NUDGE; ids are <prefix>_pos, _left, _up, _down, _right, _reset.
+C.NUDGE = 10
+function C.PositionRows(prefix, m)
+  local n = C.NUDGE
+  local function button(id, text, tip, fn, gap)
+    return UI.Button{ id = prefix .. "_" .. id, text = text, tooltip = tip, style = { marginLeft = gap },
+      onClick = fn }
+  end
+  return UI.Column{ children = {
+    UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
+      UI.Label{ text = "Position", class = "text", style = { flexGrow = 1 },
+        tooltip = "Or drag the grip at its top-left corner. To see the grip, untick Lock Status Movement"
+          .. " (Options > Interface > Nameplates & Chat Bubbles)." },
+      UI.Label{ id = prefix .. "_pos", text = "", class = "dim" },
+    } },
+    UI.Row{ style = { marginTop = 2 }, children = {
+      button("left", "<", "Move left " .. n .. " px", function() m.Nudge(-n, 0) end, 0),
+      button("up", "^", "Move up " .. n .. " px", function() m.Nudge(0, -n) end, 2),
+      button("down", "v", "Move down " .. n .. " px", function() m.Nudge(0, n) end, 2),
+      button("right", ">", "Move right " .. n .. " px", function() m.Nudge(n, 0) end, 2),
+      button("reset", "Reset", "Put it back where it started", function() m.ResetPosition() end, 6),
+    } },
+  } }
+end
+
+-- The "Health & focus bars" part of the settings.
+function C.VitalsSection()
+  local V = T.Vitals
+  return UI.Column{ children = {
+    UI.Label{ text = "Health & focus bars", class = "heading", style = { marginTop = 8 } },
+    UI.Toggle{ id = "show_vitals", text = "Show health & focus bars", value = V.IsShown(),
+      onChange = function(_, v) V.SetShown(v) end },
+    slider("vitals_width", "Bar width", V.WIDTH_MIN, V.WIDTH_MAX, 10, V.GetWidth(),
+      "Width of the bars in pixels", function(n) V.SetWidth(n) end),
+    C.PositionRows("vitals", V),
+  } }
+end
+
 -- The "Buff bar" part of the settings (built inside build()).
 function C.BuffBarSection()
   local B, S = T.BuffBar, T.Sounds
@@ -53,24 +92,7 @@ function C.BuffBarSection()
     UI.Label{ text = "Buff bar", class = "heading", style = { marginTop = 8 } },
     UI.Toggle{ id = "show_buffs", text = "Show buff bar", value = B.IsShown(),
       onChange = function(_, v) B.SetShown(v) end },
-    UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
-      UI.Label{ text = "Position", class = "text", style = { flexGrow = 1 },
-        tooltip = "Or drag the grip at its top-left corner. To see the grip, untick Lock Status Movement"
-          .. " (Options > Interface > Nameplates & Chat Bubbles)." },
-      UI.Label{ id = "buff_pos", text = "", class = "dim" },
-    } },
-    UI.Row{ style = { marginTop = 2 }, children = {
-      UI.Button{ id = "buff_left", text = "<", tooltip = "Move left " .. B.NUDGE .. " px",
-        onClick = function() B.Nudge(-B.NUDGE, 0) end },
-      UI.Button{ id = "buff_up", text = "^", tooltip = "Move up " .. B.NUDGE .. " px",
-        style = { marginLeft = 2 }, onClick = function() B.Nudge(0, -B.NUDGE) end },
-      UI.Button{ id = "buff_down", text = "v", tooltip = "Move down " .. B.NUDGE .. " px",
-        style = { marginLeft = 2 }, onClick = function() B.Nudge(0, B.NUDGE) end },
-      UI.Button{ id = "buff_right", text = ">", tooltip = "Move right " .. B.NUDGE .. " px",
-        style = { marginLeft = 2 }, onClick = function() B.Nudge(B.NUDGE, 0) end },
-      UI.Button{ id = "buff_reset", text = "Reset", tooltip = "Put the bar back where it started",
-        style = { marginLeft = 6 }, onClick = function() B.ResetPosition() end },
-    } },
+    C.PositionRows("buff", B),
     slider("buff_size", "Icon size", B.SIZE_MIN, B.SIZE_MAX, 1, B.GetSize(),
       "Buff icon size in pixels", function(n) B.SetSize(n) end),
     UI.Toggle{ id = "expire_alert", text = "Sound when a buff is about to run out", value = B.GetExpireAlert(),
@@ -90,7 +112,7 @@ local function build()
   local W = T.Window
   win = UI.Window{
     id = WINDOW_ID, title = "Toolbox Settings",
-    width = 280, height = 460, minWidth = 220, minHeight = 120,
+    width = 280, height = 520, minWidth = 220, minHeight = 120,
     escCloses = true,
     style = { paddingTop = 6, paddingBottom = 6 },
     children = { UI.Scroll{ style = { flexGrow = 1 }, children = {
@@ -142,6 +164,7 @@ local function build()
           onChange = function(_, value) T.Daily.SetHover(value) end,
         },
         C.BuffBarSection(),
+        C.VitalsSection(),
       } },
     } } },
   }
@@ -149,7 +172,8 @@ local function build()
   local ids = { "font", "font_value", "spacing", "spacing_value", "show_xp", "show_compact", "show_daily",
                 "show_daily_detail", "hover_popup", "hover_daily",
                 "show_buffs", "buff_size", "buff_size_value", "expire_alert", "expire_seconds",
-                "expire_seconds_value", "debuff_alert", "volume", "volume_value", "buff_pos" }
+                "expire_seconds_value", "debuff_alert", "volume", "volume_value", "buff_pos",
+                "show_vitals", "vitals_width", "vitals_width_value", "vitals_pos" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -219,6 +243,9 @@ function C.Sync()
   end
   el.expire_alert:SetValue(B.GetExpireAlert())
   el.debuff_alert:SetValue(B.GetDebuffAlert())
+  el.show_vitals:SetValue(T.Vitals.IsShown())
+  el.vitals_width:SetValue(T.Vitals.GetWidth())
+  el.vitals_width_value:SetText(fontLabel(T.Vitals.GetWidth()))
   C.SyncLive()
 end
 
@@ -227,8 +254,10 @@ end
 function C.SyncLive()
   if not win then return end
   C.SyncSounds()
-  local x, y = T.BuffBar.GetPosition()
-  el.buff_pos:SetText(x and (x .. ", " .. y) or "")
+  for prefix, m in pairs({ buff = T.BuffBar, vitals = T.Vitals }) do
+    local x, y = m.GetPosition()
+    el[prefix .. "_pos"]:SetText(x and (x .. ", " .. y) or "")
+  end
 end
 
 -- Sound status lines ("Buff expiring: playing toolbox_buff_expiring.ogg"). Path fields are
