@@ -102,7 +102,9 @@ Run all three before calling a change done.
     (never create elements per change). Buffs whose rune or displayed name contains a `prefs.group` part
     (default: the 7 Obsidian potion runes, `BlessingOf...` by full name) go into one extra "group" slot:
     count label over the first one's icon, list + time left in the tooltip. By name because the API has
-    no long-lasting flag and no full duration (owner's choice, 2026-09-27); they still get expiry alerts. The clock overlay is a second `Image` over the icon via a
+    no long-lasting flag and no full duration (owner's choice, 2026-09-27); they still get expiry alerts.
+    CONFIRMED in game 2026-09-27 (build bca2d21): the seven potions collapse into one slot with the count,
+    and the hover list shows. The clock overlay is a second `Image` over the icon via a
     negative left margin, showing one `SetUV` frame of `clock.png` (`CLOCK` must match `art/clock.py`).
   - `vitals.lua`: `Toolbox.Vitals`, the health & focus bars (HUD). `V.Format` is pure. Every size comes
     from `V.Metrics()` (one scale factor; Shroud.UI has no zoom), applied at build and by `applySize`. Reads the
