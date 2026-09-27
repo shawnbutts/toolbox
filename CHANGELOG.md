@@ -93,6 +93,11 @@ store submission needs a higher version than any submitted before (rejected ones
 - `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
 
 ### Fixed
+- The combat stats strip disappeared once it got a background: its rows were laid over the panel
+  with a margin of minus the strip's width, but the game clamps margins to -64..256, so the rows
+  were pushed out of the strip. The panel is now per-row slabs one line tall, with each row pulled
+  up by its line height (well inside the limit). The test harness now clamps margins and paddings
+  like the game.
 - The buff bar couldn't be dragged past about two-thirds of the screen: its strip was always 20
   icon slots wide (invisible when empty), and the game keeps HUD frames on screen. The strip is
   now sized to the icons showing (one row without debuffs) and re-fits as buffs come and go.

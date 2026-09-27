@@ -29,9 +29,13 @@ C.MAX_STATS = 8
 
 -- A panel behind the whole strip, for readability. There is no documented theme background
 -- colour, so, as for the health & focus numbers: Dark is the theme's `inset` look, Light a
--- panel in the theme colour @text with dark text on it. The panel is its own element under
--- the rows (overlapped with a negative margin), so its opacity doesn't fade the text; Dark
--- and Light are separate panels because a colour set on an element can't be unset.
+-- panel in the theme colour @text with dark text on it.
+-- The panel must not be the rows' parent (its opacity would fade the text too), so it is
+-- built from slabs under the rows: each row has a full-width slab one line tall, and the row
+-- is pulled up onto it by one line height. (One big panel with the rows shifted across it by
+-- the strip's width doesn't work: the game clamps margins to -64..256, which pushed the rows
+-- out of the strip in game.) Dark and Light are separate slabs because a colour set on an
+-- element can't be unset.
 C.BACKGROUNDS = { "None", "Dark", "Light" }
 C.BG_DEFAULT, C.OPACITY_DEFAULT = "Dark", 70
 C.OPACITY_MIN, C.OPACITY_MAX = 10, 100
@@ -217,40 +221,56 @@ local function labelStyle(m, width, align)
 end
 
 local shownRows = 0
-local panels = {}            -- Dark / Light panel elements
-local rowsBox = nil          -- the column holding the rows, laid over the panel
+local pads = {}              -- top and bottom padding slabs: { dark, light, group }
 
--- Sizes, shows and fades the background panel, and pads the rows inside it.
+-- Shows, sizes and fades the panel slabs for the current background and size.
 local function applyBackground()
   if not content then return end
   local m = C.Metrics()
-  local w, h = m.w + 2 * m.pad, math.max(1, shownRows) * m.line + 2 * m.pad
   local bg = background()
-  for name, panel in pairs(panels) do
-    panel:SetVisible(name == bg)
-    panel:SetStyle{ width = w, height = h, opacity = opacity() / 100 }
+  local w = m.w + 2 * m.pad
+  local function slab(dark, light, h)
+    dark:SetVisible(bg == "Dark")
+    light:SetVisible(bg == "Light")
+    for _, e in ipairs({ dark, light }) do e:SetStyle{ width = w, height = h, opacity = opacity() / 100 } end
   end
-  rowsBox:SetStyle{ marginLeft = bg ~= "None" and -w or 0, paddingLeft = m.pad, paddingTop = m.pad }
+  for _, slot in ipairs(el) do
+    slab(slot.dark, slot.light, m.line)
+    slot.line:SetStyle{ marginTop = bg ~= "None" and -m.line or 0, paddingLeft = m.pad }
+  end
+  for _, p in ipairs(pads) do
+    slab(p.dark, p.light, m.pad)
+    p.group:SetVisible(bg ~= "None")
+  end
+end
+
+local function slabs(h)
+  return UI.Column{ class = "inset", visible = false, style = { height = h } },
+         UI.Column{ visible = false, style = { backgroundColor = "@text", height = h } }
 end
 
 function C.BuildContent()
   local m = C.Metrics()
-  local rows = {}
-  el, shownText, shownRows = {}, {}, 0
+  local groups = {}
+  el, shownText, shownRows, pads = {}, {}, 0, {}
+  for _, where in ipairs({ "top", "bottom" }) do
+    local dark, light = slabs(m.pad)
+    pads[#pads + 1] = { dark = dark, light = light,
+      group = UI.Column{ id = "pad_" .. where, visible = false, children = { dark, light } } }
+  end
+  groups[1] = pads[1].group
   for i = 1, 6 + C.MAX_STATS do
     -- names in the normal text colour and values bright (the dim names were hard to read)
     local name = UI.Label{ text = "", class = "text", style = labelStyle(m, m.labelW, "left") }
     local value = UI.Label{ text = "", class = "bright", style = labelStyle(m, m.valueW, "right") }
-    rows[i] = UI.Row{ visible = false, children = { name, value } }
-    el[i] = { row = rows[i], name = name, value = value }
+    local dark, light = slabs(m.line)
+    local line = UI.Row{ id = "line", children = { name, value } }
+    local group = UI.Column{ visible = false, children = { dark, light, line } }
+    groups[#groups + 1] = group
+    el[i] = { row = group, name = name, value = value, dark = dark, light = light, line = line }
   end
-  panels = {
-    Dark = UI.Column{ id = "combat_bg_dark", class = "inset", visible = false, style = { borderRadius = 4 } },
-    Light = UI.Column{ id = "combat_bg_light", visible = false,
-      style = { backgroundColor = "@text", borderRadius = 4 } },
-  }
-  rowsBox = UI.Column{ id = "combat_rows", children = rows }
-  content = UI.Row{ id = "combat", style = { alignItems = "start" }, children = { panels.Dark, panels.Light, rowsBox } }
+  groups[#groups + 1] = pads[2].group
+  content = UI.Column{ id = "combat_rows", children = groups }
   C.Tick()
   applyBackground()
   return content

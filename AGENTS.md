@@ -319,5 +319,9 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 34. Theme backgrounds: no theme background colour is documented (`@name` tokens are the theme's
     `--sota-name` colours, but only text-type names are listed; `ShroudGetClientInfo().theme` is just a
     name). Panels use the `inset` class (dark) or `@text` (light). A panel's opacity must not fade the
-    text, so it is its own element under the content (negative margin), and Dark/Light are separate
-    panels (an inline colour can't be unset). See combat.lua's `applyBackground`.
+    text, so it is built from per-row slabs under the content, and Dark/Light are separate slabs (an
+    inline colour can't be unset). See combat.lua's `applyBackground`.
+35. MARGINS ARE CLAMPED to -64..256 and paddings to 0..256 (docs: "every value is clamped to a sensible
+    range"). An overlap by negative margin only works up to 64 px: a whole-strip panel overlapped by
+    -width pushed the combat rows out of view in game (2026-09-27). Overlap per line/icon instead. The
+    harness clamps the same way (`clampStyle`), so such layouts fail the tests.

@@ -310,6 +310,20 @@ local FIELDS = {
 local Element = {}
 Element.__index = Element
 
+-- The game clamps margins to -64..256 and paddings to 0..256 (docs: "every value is clamped to
+-- a sensible range"); do the same so layouts that rely on a bigger overlap fail here too.
+local CLAMP = { margin = { -64, 256 }, marginLeft = { -64, 256 }, marginRight = { -64, 256 },
+                marginTop = { -64, 256 }, marginBottom = { -64, 256 }, padding = { 0, 256 },
+                paddingLeft = { 0, 256 }, paddingRight = { 0, 256 }, paddingTop = { 0, 256 },
+                paddingBottom = { 0, 256 } }
+local function clampStyle(style)
+  for k, range in pairs(CLAMP) do
+    local v = style[k]
+    if type(v) == "number" then style[k] = math.max(range[1], math.min(range[2], v)) end
+  end
+  return style
+end
+
 function Element:Find(id)
   for _, c in ipairs(self.children or {}) do
     if c.id == id then return c end
@@ -321,6 +335,7 @@ end
 function Element:SetStyle(style)
   self.style = self.style or {}
   for k, v in pairs(style) do self.style[k] = v end
+  clampStyle(self.style)
 end
 function Element:Add(child)
   self.children = self.children or {}
@@ -393,6 +408,7 @@ function H.makeUI()
       end
       S.constructed = (S.constructed or 0) + 1
       local e = setmetatable(copy(spec), Element)
+      if type(e.style) == "table" then clampStyle(e.style) end
       e.kind = kind
       e.children = spec.children     -- keep the real child objects
       e.onClose = spec.onClose
@@ -629,10 +645,23 @@ function H.combatHud() return S.frames.toolbox_combat end
 -- The combat HUD's shown rows as "label=value" strings.
 function H.combatRows()
   local out = {}
-  for _, row in ipairs(S.frames.toolbox_combat:Find("combat_rows").children) do
-    if row.visible ~= false then out[#out + 1] = row.children[1].text .. "=" .. row.children[2].text end
+  for _, group in ipairs(S.frames.toolbox_combat:Find("combat_rows").children) do
+    local line = group.children[3]                     -- { dark slab, light slab, the row }
+    if line and group.visible ~= false then
+      out[#out + 1] = line.children[1].text .. "=" .. line.children[2].text
+    end
   end
   return out
+end
+-- The first shown combat row's group: { dark slab, light slab, line }.
+function H.combatGroup(n)
+  local k = 0
+  for _, group in ipairs(S.frames.toolbox_combat:Find("combat_rows").children) do
+    if group.children[3] and group.visible ~= false then
+      k = k + 1
+      if k == (n or 1) then return group end
+    end
+  end
 end
 function H.setCombat(on)
   S.combat = on
