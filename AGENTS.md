@@ -387,3 +387,8 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     style validation rejects them. (Window x/y = nil happened to be accepted, but specs now use
     `Toolbox.Window.DEFAULT_X/Y`.) The earlier "combat strip missing" reports were this error, first
     after the background change; the -64 margin clamp (item 35) was a real but separate problem.
+38. Key binding: `Shroud.Keybind{ id = "settings", ... key = "Ctrl+Semicolon" }` toggles the settings window.
+    Shift is never a modifier (docs), so the owner's Ctrl+Shift+; became Ctrl+;. "Semicolon" isn't in the
+    docs' examples ("Minus", "Comma", "Slash"...); an unusable key raises, so `T.RegisterKeybind` retries
+    without a suggestion and `/toolbox key` explains. Unconfirmed in game: the name, and whether the game
+    already uses Ctrl+;. The player changes keys in the add-on manager (Toolbox's row, "Keys").

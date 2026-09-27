@@ -53,6 +53,7 @@ local function fresh(disk)
     frames = {},
     logs = {},
     commands = {},
+    keybinds = {},
     taken = {},
     periodics = {},
     windows = {},
@@ -255,7 +256,8 @@ local function install_api()
     return out
   end
 
-  Shroud = { UI = H.makeUI(), Command = H.command, RemoveCommand = function(name)
+  Shroud = { UI = H.makeUI(), Command = H.command,
+    Keybind = H.keybind, GetKeybind = H.getKeybind, RemoveCommand = function(name)
     local had = S.commands[name] ~= nil
     S.commands[name] = nil
     return had
@@ -279,6 +281,38 @@ function H.command(spec)
   if S.taken[name] then return false, S.taken[name] end
   S.commands[name] = spec.run
   return true, "ok"
+end
+
+-- Key bindings. H.S.badKeys[key] = true makes a suggested key unusable (raises, as the docs
+-- say for "a key it cannot use"); H.S.gameKeys[key] = true makes it a game key.
+function H.keybind(spec)
+  need_callback("Shroud.Keybind")
+  for k in pairs(spec) do
+    if k ~= "id" and k ~= "label" and k ~= "key" and k ~= "onPress" then
+      error("Shroud.Keybind: unknown field " .. k, 2)
+    end
+  end
+  if type(spec.label) ~= "string" or spec.label == "" or #spec.label > 48 then error("Shroud.Keybind: bad label", 2) end
+  if type(spec.onPress) ~= "function" then error("Shroud.Keybind: onPress must be a function", 2) end
+  local badKey = type(spec.key) ~= "string" or spec.key:find("Shift", 1, true) or (S.badKeys or {})[spec.key]
+  if spec.key ~= nil and badKey then error("Shroud.Keybind: can't use key " .. tostring(spec.key), 2) end
+  S.keybinds[spec.id] = { key = spec.key or "", onPress = spec.onPress }
+  return true, "ok"
+end
+
+function H.getKeybind(id)
+  local b = S.keybinds[id]
+  if not b then return nil end
+  if b.key == "" then return "", "unbound" end
+  if (S.gameKeys or {})[b.key] then return b.key, "gameKey" end
+  return b.key, "bound"
+end
+
+-- The player presses a binding's key.
+function H.press(id)
+  local b = S.keybinds[id]
+  assert(b and b.key ~= "", "no key for " .. id)
+  return H.call(b.onPress)
 end
 
 -- Types a chat command, e.g. H.chat("/tbx reset").
@@ -531,7 +565,7 @@ end
 -- and timers, then loads the files again. Engine time keeps running.
 function H.reload()
   ShroudFlushSavedVars()
-  S.commands, S.periodics, S.windows = {}, {}, {}
+  S.commands, S.periodics, S.windows, S.keybinds = {}, {}, {}, {}
   local now = ShroudTime
   install_api()
   ShroudTime = now

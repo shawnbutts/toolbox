@@ -475,6 +475,48 @@ add("stats", "list character stats matching a word, e.g. /toolbox stats health",
   for _, line in ipairs(T.StatLines(rest)) do T.Print(line) end
 end)
 
+-- ---------------------------------------------------------------------------
+-- Shortcut key
+-- ---------------------------------------------------------------------------
+-- Shroud.Keybind: the player sees and changes it in the add-on manager, on Toolbox's row
+-- under "Keys". Shift is not a modifier (as in the game's key settings), so the owner's
+-- "Ctrl+Shift+;" can't be; Ctrl+; is suggested instead. The docs list punctuation key names
+-- only by example ("Minus", "Comma", "Slash"...) and an unusable key raises, so if
+-- "Semicolon" is refused the binding is registered without a suggestion.
+T.KEY_ID = "settings"
+T.KEY_DEFAULT = "Ctrl+Semicolon"
+
+function T.RegisterKeybind()
+  if not ShroudLuaApiVersion or ShroudLuaApiVersion < 14 then return end
+  local spec = { id = T.KEY_ID, label = "Open Toolbox settings", key = T.KEY_DEFAULT,
+                 onPress = function() T.Config.Toggle() end }
+  local ok, err = pcall(Shroud.Keybind, spec)
+  if not ok then
+    spec.key = nil
+    T.keyNote = "the suggested key " .. T.KEY_DEFAULT .. " wasn't accepted (" .. tostring(err) .. ")"
+    ok, err = pcall(Shroud.Keybind, spec)
+    if not ok then T.Print("Couldn't add the settings shortcut: " .. tostring(err)) end
+  end
+end
+
+-- "Ctrl+Semicolon (bound)" style description of the shortcut, and how to change it.
+function T.KeyStatus()
+  local ok, key, state = pcall(Shroud.GetKeybind, T.KEY_ID)
+  if not ok or key == nil then return "no shortcut" end
+  local what = {
+    bound = key,
+    unbound = "none set",
+    gameKey = key .. " (the game uses it, so it doesn't reach Toolbox)",
+    conflict = key .. " (another binding has it)",
+  }
+  return (what[state] or (tostring(key) .. " (" .. tostring(state) .. ")"))
+end
+
+add("key", "show the shortcut that opens the settings (change it in the add-on manager, under Keys)", function()
+  T.Print("Settings shortcut: " .. T.KeyStatus() .. ". Change it in the add-on manager, on Toolbox's row"
+    .. " under Keys." .. (T.keyNote and (" Note: " .. T.keyNote .. ".") or ""))
+end)
+
 -- Parses "  XP  extra " -> "xp", "extra".
 function T.ParseArgs(args)
   args = tostring(args or "")
@@ -642,6 +684,7 @@ end
 
 function ShroudOnStart()
   T.RegisterCommands()
+  T.RegisterKeybind()
   T.Daily.Load()                     -- before the session: a new login re-bases daily gold
   T.ResumeOrStart()
   T.Sample()                         -- XP gained since the last save (e.g. across a reload)

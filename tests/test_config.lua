@@ -219,4 +219,40 @@ return function(t)
     end
     t.eq(select(2, H.detail():Find("list").children[1].children[1]:GetSize()), lh, "item row")
   end)
+
+  -- shortcut key -------------------------------------------------------------
+
+  t.test("a shortcut (Ctrl+; suggested) toggles the settings window", function()
+    H.boot()
+    t.eq(H.S.keybinds.settings.key, "Ctrl+Semicolon", "Shift can't be a modifier, so Ctrl+;")
+    H.press("settings")
+    t.ok(H.config():IsShown())
+    H.press("settings")
+    t.no(H.config():IsShown())
+  end)
+
+  t.test("the settings window and /tbx key show the shortcut and where to change it", function()
+    H.boot()
+    H.chat("/tbx")
+    H.advance(1)
+    t.eq(find("shortcut").text, "Shortcut: Ctrl+Semicolon")
+    H.clearLogs()
+    H.chat("/tbx key")
+    t.ok(H.logged("Settings shortcut: Ctrl%+Semicolon%. Change it in the add%-on manager, "
+      .. "on Toolbox's row under Keys%."), H.lastLog())
+    H.S.gameKeys = { ["Ctrl+Semicolon"] = true }
+    H.advance(1)
+    t.eq(find("shortcut").text, "Shortcut: Ctrl+Semicolon (the game uses it, so it doesn't reach Toolbox)")
+  end)
+
+  t.test("if the suggested key is refused, the binding is added without one and says why", function()
+    H.boot()
+    H.S.badKeys = { ["Ctrl+Semicolon"] = true }
+    H.reload()
+    t.eq(H.S.keybinds.settings.key, "", "no suggestion")
+    H.clearLogs()
+    H.chat("/tbx key")
+    t.ok(H.logged("Settings shortcut: none set%."), H.lastLog())
+    t.ok(H.logged("wasn't accepted"), H.lastLog())
+  end)
 end

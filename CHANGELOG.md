@@ -6,6 +6,10 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- A shortcut key for the settings window (`Shroud.Keybind`), suggested as Ctrl+; (Shift can't be a
+  modifier, so the requested Ctrl+Shift+; isn't possible). Players change it in the add-on manager
+  under Keys. The settings window and `/toolbox key` show the current key and whether the game or
+  another binding has it; if the game refuses the suggested key, the binding is added without one.
 - Docs window (`/toolbox docs`, or the Docs button that replaces "Chat commands" in settings):
   getting started, a short guide to each feature and its options, tips (moving HUD strips, the
   Lock Status Movement setting, adding combat stats on the fly, sounds), and every command, listed

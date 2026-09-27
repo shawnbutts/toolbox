@@ -174,7 +174,9 @@ local function build()
       UI.Column{ style = { paddingLeft = GUTTER, paddingRight = GUTTER }, children = {
         UI.Label{ text = "Tick what you want on screen and tune it here. Everything is saved per character.",
           class = "text", style = { whiteSpace = "wrap" } },
-        UI.Row{ style = { justifyContent = "end", marginTop = 2, marginBottom = 4 }, children = {
+        UI.Row{ style = { alignItems = "center", marginTop = 2, marginBottom = 4 }, children = {
+          UI.Label{ id = "shortcut", text = "", class = "dim", style = { flexGrow = 1, whiteSpace = "wrap" },
+            tooltip = "Change it in the add-on manager, on Toolbox's row under Keys" },
           UI.Button{ id = "docs", text = "Docs", tooltip = "How everything works, and every command",
             onClick = function() T.Docs.Open() end },
         } },
@@ -239,7 +241,7 @@ local function build()
                 "vitals_pos", "vitals_show_bars", "vitals_show_text", "vitals_bg",
                 "vitals_flash", "vitals_flash_below", "vitals_flash_below_value", "vitals_glue",
                 "show_combat", "combat_pet", "combat_scale", "combat_scale_value", "combat_stats", "combat_pos",
-                "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value" }
+                "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -339,6 +341,7 @@ end
 function C.SyncLive()
   if not win then return end
   C.SyncSounds()
+  el.shortcut:SetText("Shortcut: " .. T.KeyStatus())
   for prefix, m in pairs({ buff = T.BuffBar, vitals = T.Vitals, combat = T.Combat }) do
     local x, y = m.GetPosition()
     el[prefix .. "_pos"]:SetText(x and (x .. ", " .. y) or "")
