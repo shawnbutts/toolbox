@@ -294,7 +294,9 @@ function H.keybind(spec)
   end
   if type(spec.label) ~= "string" or spec.label == "" or #spec.label > 48 then error("Shroud.Keybind: bad label", 2) end
   if type(spec.onPress) ~= "function" then error("Shroud.Keybind: onPress must be a function", 2) end
-  local badKey = type(spec.key) ~= "string" or spec.key:find("Shift", 1, true) or (S.badKeys or {})[spec.key]
+  -- (The docs say Shift is never a modifier, but a player-set Ctrl+Shift+; works in game, so
+  -- only keys listed in H.S.badKeys are refused here.)
+  local badKey = type(spec.key) ~= "string" or (S.badKeys or {})[spec.key]
   if spec.key ~= nil and badKey then error("Shroud.Keybind: can't use key " .. tostring(spec.key), 2) end
   S.keybinds[spec.id] = { key = spec.key or "", onPress = spec.onPress }
   return true, "ok"

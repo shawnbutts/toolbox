@@ -18,7 +18,7 @@ D.SECTIONS = {
     "Type /toolbox (or /tbx) to open the settings window and tick what you want on screen. "
       .. "Everything is saved per character. /toolbox help opens this guide; /toolbox commands "
       .. "lists the commands in chat.",
-    "Shortcut: Ctrl+; opens the settings (if the game isn't using it). Change it, or pick one, in the "
+    "Shortcut: Ctrl+Shift+; opens the settings (if the game isn't using it). Change it, or pick one, in the "
       .. "add-on manager on Toolbox's row under Keys. /toolbox key shows the current one." },
   { "XP",
     "XP (/toolbox xp): session time, your adventurer and producer pools, and the XP you earned "

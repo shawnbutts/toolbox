@@ -222,9 +222,9 @@ return function(t)
 
   -- shortcut key -------------------------------------------------------------
 
-  t.test("a shortcut (Ctrl+; suggested) toggles the settings window", function()
+  t.test("a shortcut (Ctrl+Shift+; suggested) toggles the settings window", function()
     H.boot()
-    t.eq(H.S.keybinds.settings.key, "Ctrl+Semicolon", "Shift can't be a modifier, so Ctrl+;")
+    t.eq(H.S.keybinds.settings.key, "Ctrl+Shift+Semicolon")
     H.press("settings")
     t.ok(H.config():IsShown())
     H.press("settings")
@@ -235,25 +235,31 @@ return function(t)
     H.boot()
     H.chat("/tbx")
     H.advance(1)
-    t.eq(find("shortcut").text, "Shortcut: Ctrl+Semicolon")
+    t.eq(find("shortcut").text, "Shortcut: Ctrl+Shift+Semicolon")
     H.clearLogs()
     H.chat("/tbx key")
-    t.ok(H.logged("Settings shortcut: Ctrl%+Semicolon%. Change it in the add%-on manager, "
+    t.ok(H.logged("Settings shortcut: Ctrl%+Shift%+Semicolon%. Change it in the add%-on manager, "
       .. "on Toolbox's row under Keys%."), H.lastLog())
-    H.S.gameKeys = { ["Ctrl+Semicolon"] = true }
+    H.S.gameKeys = { ["Ctrl+Shift+Semicolon"] = true }
     H.advance(1)
-    t.eq(find("shortcut").text, "Shortcut: Ctrl+Semicolon (the game uses it, so it doesn't reach Toolbox)")
+    t.eq(find("shortcut").text, "Shortcut: Ctrl+Shift+Semicolon (the game uses it, so it doesn't reach Toolbox)")
   end)
 
-  t.test("if the suggested key is refused, the binding is added without one and says why", function()
+  t.test("a refused suggestion falls back to the next, then to none, and says why", function()
     H.boot()
-    H.S.badKeys = { ["Ctrl+Semicolon"] = true }
+    H.S.badKeys = { ["Ctrl+Shift+Semicolon"] = true }
+    H.reload()
+    t.eq(H.S.keybinds.settings.key, "Ctrl+Semicolon", "the next suggestion")
+    H.clearLogs()
+    H.chat("/tbx key")
+    t.ok(H.logged("not accepted: Ctrl%+Shift%+Semicolon"), H.lastLog())
+    H.S.badKeys = { ["Ctrl+Shift+Semicolon"] = true, ["Ctrl+Semicolon"] = true }
     H.reload()
     t.eq(H.S.keybinds.settings.key, "", "no suggestion")
     H.clearLogs()
     H.chat("/tbx key")
     t.ok(H.logged("Settings shortcut: none set%."), H.lastLog())
-    t.ok(H.logged("wasn't accepted"), H.lastLog())
+    t.ok(H.logged("no suggested key was accepted"), H.lastLog())
   end)
 
   t.test("/tbx key counts presses, to tell a key that never arrives from one that does", function()

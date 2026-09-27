@@ -107,6 +107,9 @@ store submission needs a higher version than any submitted before (rejected ones
 - `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
 
 ### Fixed
+- The settings shortcut suggested Ctrl+; ("Ctrl+Semicolon"), which showed as bound but never reached
+  the add-on (0 presses), while a player-set Ctrl+Shift+; works despite the docs saying Shift is never
+  a modifier. The suggestion is now Ctrl+Shift+; as first asked, then Ctrl+;, then none.
 - In game no alert sound loaded from any path (all timed out). The sound docs say paths are relative
   to "the addon's Lua folder", which for a package may be `Lua/toolbox/`: each alert now also tries
   `.ogg` and `.wav` inside the package folder, `tools/install.py` copies them there for local testing

@@ -6,7 +6,7 @@ focus bars and combat stats.
 **Getting started:** type `/toolbox` (or `/tbx`) to open the settings window and tick what you
 want on screen. Its **Docs** button (or `/toolbox docs`) opens a guide to every feature, option and
 command (`/toolbox help` opens it too); `/toolbox commands` lists the commands in chat.
-**Ctrl+;** opens the settings too; change or set the key in the add-on manager, on Toolbox's row
+**Ctrl+Shift+;** opens the settings too; change or set the key in the add-on manager, on Toolbox's row
 under **Keys**.
 
 ## Commands

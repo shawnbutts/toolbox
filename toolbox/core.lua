@@ -479,12 +479,11 @@ end)
 -- Shortcut key
 -- ---------------------------------------------------------------------------
 -- Shroud.Keybind: the player sees and changes it in the add-on manager, on Toolbox's row
--- under "Keys". Shift is not a modifier (as in the game's key settings), so the owner's
--- "Ctrl+Shift+;" can't be; Ctrl+; is suggested instead. The docs list punctuation key names
--- only by example ("Minus", "Comma", "Slash"...) and an unusable key raises, so if
--- "Semicolon" is refused the binding is registered without a suggestion.
+-- under "Keys". The docs say Shift is never a modifier, but in game a player-set Ctrl+Shift+;
+-- works while the suggested "Ctrl+Semicolon" showed as bound yet never arrived. So the
+-- owner's Ctrl+Shift+; is suggested first, then Ctrl+;, then none: an unusable key raises.
 T.KEY_ID = "settings"
-T.KEY_DEFAULT = "Ctrl+Semicolon"
+T.KEY_SUGGESTIONS = { "Ctrl+Shift+Semicolon", "Ctrl+Semicolon" }
 
 function T.RegisterKeybind()
   if not ShroudLuaApiVersion or ShroudLuaApiVersion < 14 then return end
@@ -496,13 +495,21 @@ function T.RegisterKeybind()
                    T.keyPresses = T.keyPresses + 1
                    T.Config.Toggle()
                  end }
-  local ok, err = pcall(Shroud.Keybind, spec)
-  if not ok then
-    spec.key = nil
-    T.keyNote = "the suggested key " .. T.KEY_DEFAULT .. " wasn't accepted (" .. tostring(err) .. ")"
-    ok, err = pcall(Shroud.Keybind, spec)
-    if not ok then T.Print("Couldn't add the settings shortcut: " .. tostring(err)) end
+  local refused = {}
+  for _, key in ipairs(T.KEY_SUGGESTIONS) do
+    spec.key = key
+    local ok, err = pcall(Shroud.Keybind, spec)
+    if ok then
+      T.keySuggested = key
+      if #refused > 0 then T.keyNote = "not accepted: " .. table.concat(refused, ", ") end
+      return
+    end
+    refused[#refused + 1] = key .. " (" .. tostring(err) .. ")"
   end
+  spec.key = nil
+  T.keyNote = "no suggested key was accepted: " .. table.concat(refused, ", ")
+  local ok, err = pcall(Shroud.Keybind, spec)
+  if not ok then T.Print("Couldn't add the settings shortcut: " .. tostring(err)) end
 end
 
 -- "Ctrl+Semicolon (bound)" style description of the shortcut, and how to change it.
