@@ -421,6 +421,14 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     (pictures, read directly, load fine). Toolbox keeps trying and stays silent; re-test after a client
     update with `/toolbox sounds test` / `try 1`. ON HOLD until then.
     RE-TESTED 2026-09-27 on API 20 (build 9c0ea28): still no clip (`try 1` -> -1). Still on hold.
+    ROOT CAUSE FOUND 2026-09-27 (API 20, build dc237c4, macOS): the client's API 15 file check works (a
+    missing path -> false; our six files -> true), but the game's Player.log
+    (`~/Library/Logs/Catnip Games/Shroud of the Avatar(DEV)/Player.log`) has, for every load:
+    `[Lua] ShroudLoadSound could not load toolbox_buff_expiring.ogg: Cannot connect to destination host`.
+    A web-request NETWORK error: the client's loader turns the local path into a bad URL (no `file://`,
+    or the spaces / parentheses in the macOS path). A client bug; an add-on can only pass a path relative
+    to the Lua folder, so there is no workaround. Reported to the owner to pass on. Windows unconfirmed
+    (may work). Check Player.log first whenever sounds are re-tested.
 23g. FOUND 2026-09-27 (build ac17b29): `ShroudLoadSound` returned TRUE for every path, even ones that can't
     exist, so "true" only means "request accepted" (the docs say "path exists"). After 12 accepted loads
     (.ogg and .wav, Lua root and package folder) `ShroudListSound()` stayed empty (0 keys). Either every
