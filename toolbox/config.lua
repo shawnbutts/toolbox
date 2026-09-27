@@ -55,7 +55,8 @@ function C.BuffBarSection()
       onChange = function(_, v) B.SetShown(v) end },
     UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
       UI.Label{ text = "Position", class = "text", style = { flexGrow = 1 },
-        tooltip = "Or drag the grip at the bar's top-left corner (unlock the HUD in the game's settings to see it)" },
+        tooltip = "Or drag the grip at its top-left corner. To see the grip, untick Lock Status Movement"
+          .. " (Options > Interface > Nameplates & Chat Bubbles)." },
       UI.Label{ id = "buff_pos", text = "", class = "dim" },
     } },
     UI.Row{ style = { marginTop = 2 }, children = {

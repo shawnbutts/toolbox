@@ -199,7 +199,7 @@ add("buffs", "show or hide the buff bar (move [x y]; debug; trace [name])", func
     local px, py = T.BuffBar.GetPosition()
     T.Print("Buff bar at " .. (px and (px .. ", " .. py) or "(not laid out yet)")
       .. ". Move it with /" .. T.commands[1] .. " buffs move <x> <y>, the buttons in settings, or its grip"
-      .. " (unlock the HUD to see the grip).")
+      .. " (to see the grip, untick Options > Interface > Nameplates & Chat Bubbles > Lock Status Movement).")
     return
   end
   if word == "debug" then

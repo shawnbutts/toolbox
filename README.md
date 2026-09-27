@@ -164,8 +164,9 @@ your buffs on the top row and debuffs, outlined in red, below. Each icon is the 
 with the game's own tooltip. Time left is shown as a darkening clockwise sweep from 12 o'clock
 (the `toolbox/clock.png` sprite sheet), not as text; permanent effects have no sweep.
 
-**Moving it.** Drag the small grip at its top-left corner (the game hides the grip while the HUD
-is locked: unlock it in the game's settings), use the Position buttons in `/toolbox config`
+**Moving it.** Drag the small grip at its top-left corner. The game hides the grip while the HUD
+is locked: untick **Lock Status Movement** under **Nameplates & Chat Bubbles** on the game's
+**Interface** options page to see it. Or use the Position buttons in `/toolbox config`
 (10 px nudges and Reset), or type `/toolbox buffs move 600 40`. The bar remembers where it is.
 
 The game's own buff bar can't be hidden from an add-on, so this one sits alongside it. Icons are a

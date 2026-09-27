@@ -252,7 +252,9 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     ~1 s per second). An earlier "stale value" theory for the lagging sweep was wrong; the cause was the
     unknown full duration (item 22). `BuffBar.Track`'s own end-time clock stays (harmless: it resyncs
     every tick when the value changes), and `H.S.staleEvery` still tests it.
-26. HUD frame position: docs say a HudFrame is moved by a grip (hidden while the HUD is locked), is
+26. HUD frame position: docs say a HudFrame is moved by a grip (hidden while the HUD is locked; in game
+    the lock is Options > Interface > Nameplates & Chat Bubbles > "Lock Status Movement", found by the
+    owner 2026-09-27), is
     "remembered where the player put it", and `SetPosition` "remembers the new spot as the player's". Not
     said: whether the constructor's x/y override that memory after a reload. So the buff bar also keeps
     `buffbar.x/y` (polled every tick) and builds at them; either way it comes back where it was.
