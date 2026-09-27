@@ -5,6 +5,9 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Fixed
+- Combat stats HUD: the values now have the same padding on the right as the names on the left.
+
 ## [0.2.0] - 2026-09-27 (beta 1)
 
 First beta for hand-installing testers (`make beta`; see BETA.md). Highlights since 0.1.0: the XP

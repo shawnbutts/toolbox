@@ -220,7 +220,8 @@ local function labelStyle(m, width, align)
   local color = align == "left" and "@text" or "@text-bright"   -- names normal, values bright
   if background() == "Light" then color = C.DARK_TEXT end
   return { fontSize = m.font, height = m.line, minHeight = m.line, maxHeight = m.line, width = width,
-           marginTop = 0, marginBottom = 0, paddingTop = 0, paddingBottom = 0, textAlign = align,
+           marginTop = 0, marginBottom = 0, paddingTop = 0, paddingBottom = 0,
+           paddingLeft = 0, paddingRight = 0, textAlign = align,
            color = color }
 end
 
@@ -240,7 +241,8 @@ local function applyBackground()
   end
   for _, slot in ipairs(el) do
     slab(slot.dark, slot.light, m.line)
-    slot.line:SetStyle{ marginTop = bg ~= "None" and -m.line or 0, paddingLeft = m.pad }
+    -- the same inset both sides, so the right-aligned values sit off the panel's edge like the names
+    slot.line:SetStyle{ marginTop = bg ~= "None" and -m.line or 0, paddingLeft = m.pad, paddingRight = m.pad }
   end
   for _, p in ipairs(pads) do
     slab(p.dark, p.light, m.pad)
