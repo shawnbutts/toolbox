@@ -244,6 +244,10 @@ add("sounds", "show the alert sound files; <0-100> sets the volume, test plays t
     for _, def in ipairs(T.Sounds.DEFS) do T.Sounds.Test(def.key) end
     return
   end
+  if rest:lower() == "debug" then
+    for _, line in ipairs(T.Sounds.DebugLines()) do T.Print(line) end
+    return
+  end
   if rest ~= "" and not T.Sounds.SetVolume(tonumber(rest)) then
     T.Print("Volume must be a whole number from 0 to 100.")
     return

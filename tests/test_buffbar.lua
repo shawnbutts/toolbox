@@ -750,4 +750,22 @@ return function(t)
     B().SetSize(40)
     t.eq(H.frame().width, Toolbox.Window.GRIP + 2 * (40 + B().GAP) + 8)
   end)
+
+  t.test("sounds: a clip whose reported name changed after loading still plays", function()
+    bootWithSounds()
+    for i, name in ipairs(H.S.clips) do H.S.clips[i] = "Sounds/" .. name .. " (AudioClip)" end
+    H.clearLogs()
+    t.ok(Toolbox.Sounds.Play("buff_expiring"), "found by its file's base name")
+    t.eq(H.S.played[#H.S.played].name, "Sounds/toolbox_buff_expiring (AudioClip)")
+  end)
+
+  t.test("sounds: /tbx sounds debug shows the game's list and what was recorded", function()
+    bootWithSounds()
+    H.clearLogs()
+    H.chat("/tbx sounds debug")
+    t.ok(H.logged("^ShroudListSound%(%): table, 2 entries$"), H.logs()[1])
+    t.ok(H.logged("^  1: string toolbox_"))
+    t.ok(H.logged("^Buff expiring: status ready, path toolbox_buff_expiring.ogg, "
+      .. "recorded clip toolbox_buff_expiring %(string%)"))
+  end)
 end

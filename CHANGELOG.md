@@ -96,6 +96,10 @@ store submission needs a higher version than any submitted before (rejected ones
 - `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
 
 ### Fixed
+- Sound Test reported "the game's sound list was cleared" in game: the clip recorded at load time
+  wasn't found by its exact name at play time. Playing now also matches any clip whose name contains
+  the file's base name (as loading does). `/toolbox sounds debug` prints the game's raw sound list
+  and what each alert recorded.
 - The combat stats strip failed to build in game ("style color takes a number or a string"): a
   label style had `color = ... or nil`, and the game's Lua (MoonSharp) passes a nil table entry on
   to the UI, unlike standard Lua. Labels now always get a theme colour. The same kind of nil was

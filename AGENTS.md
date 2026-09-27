@@ -275,6 +275,10 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 23. Sounds: `ShroudLoadSound`'s path base ("the addon's Lua folder" vs the Lua root) and what clip names
     `ShroudListSound` reports. `Toolbox.Sounds` tries both bases and matches the file stem, falling back
     to "the one new clip". `/toolbox sounds` shows what was found.
+23b. REPORTED 2026-09-27: both sounds reported "ready", but Test said "the game's sound list was cleared":
+    the recorded clip name wasn't in `ShroudListSound()` at play time. Either the reported name changes
+    after loading, or something (the game, or another add-on's `ShroudListSoundReset`) clears the list.
+    `Sounds.Play` now falls back to a base-name match; pending: `/toolbox sounds debug` output.
 24. The alert .ogg files come from ffmpeg's built-in (experimental) Vorbis encoder, since libvorbis isn't
     available here. First in-game report (2026-09-27): `/toolbox sounds` found both, but Test was silent.
     Test now reports channel and whether `ShroudIsChannelPlaying` still sees it; "already silent" points

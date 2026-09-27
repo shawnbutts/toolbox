@@ -119,28 +119,45 @@ end
 
 -- Plays a sound by key. Returns true when it started, and a table saying what happened:
 -- { reason = "ok" | "notLoaded" | "muted" | "cleared" | "refused", clip, index, channel }.
+-- The clip's position in the game's list: the recorded name exactly, else any clip whose name
+-- contains the file's base name (loads match that way; in game the exact name went missing).
+local function findClip(st, def)
+  local list = listSounds()
+  for i, name in ipairs(list) do
+    if name == st.clip then return i, name end
+  end
+  local stem = def.file:gsub("%.%w+$", "")
+  for i, name in ipairs(list) do
+    if type(name) == "string" and name:find(stem, 1, true) then return i, name end
+  end
+  return nil
+end
+
+local function defFor(key)
+  for _, def in ipairs(S.DEFS) do if def.key == key then return def end end
+end
+
 function S.Play(key)
   local st = state[key]
   if not st or st.status ~= "ready" then return false, { reason = "notLoaded" } end
   if prefs.volume <= 0 then return false, { reason = "muted" } end
-  for i, name in ipairs(listSounds()) do
-    if name == st.clip then
-      local ok, channel = pcall(ShroudPlaySoundChannel, i, prefs.volume)
-      local info = { clip = name, index = i }
-      if ok then info.channel = channel end
-      if ok and type(channel) == "number" and channel > 0 then
-        info.reason = "ok"
-        return true, info
-      end
-      info.reason = "refused"
-      return false, info
-    end
+  local index, name = findClip(st, defFor(key))
+  if not index then
+    -- Not in the game's list any more (ShroudListSoundReset, from any add-on, clears it):
+    -- load it again for next time.
+    startLoad(defFor(key))
+    return false, { reason = "cleared" }
   end
-  -- The clip list was cleared (ShroudListSoundReset): load it again for next time.
-  for _, def in ipairs(S.DEFS) do
-    if def.key == key then startLoad(def) end
+  st.clip = name
+  local ok, channel = pcall(ShroudPlaySoundChannel, index, prefs.volume)
+  local info = { clip = name, index = index }
+  if ok then info.channel = channel end
+  if ok and type(channel) == "number" and channel > 0 then
+    info.reason = "ok"
+    return true, info
   end
-  return false, { reason = "cleared" }
+  info.reason = "refused"
+  return false, info
 end
 
 -- Plays a sound and reports in chat what happened, then checks a moment later whether the
@@ -210,6 +227,27 @@ end
 
 function S.GetPath(key)
   return prefs.paths[key] or ""
+end
+
+-- /toolbox sounds debug: the game's raw sound list and what each alert recorded.
+function S.DebugLines()
+  local lines = {}
+  local ok, raw = pcall(ShroudListSound)
+  local n = type(raw) == "table" and #raw or 0
+  local kind = ok and type(raw) or ("error " .. tostring(raw))
+  lines[#lines + 1] = "ShroudListSound(): " .. kind .. ", " .. n .. " entries"
+  if type(raw) == "table" then
+    for i = 1, math.min(n, 20) do
+      lines[#lines + 1] = "  " .. i .. ": " .. type(raw[i]) .. " " .. tostring(raw[i])
+    end
+  end
+  for _, def in ipairs(S.DEFS) do
+    local st = state[def.key] or {}
+    lines[#lines + 1] = string.format("%s: status %s, path %s, recorded clip %s (%s), tried %s of %s",
+      def.label, tostring(st.status), tostring(st.path), tostring(st.clip), type(st.clip),
+      tostring(st.at), st.candidates and #st.candidates or 0)
+  end
+  return lines
 end
 
 -- One line per sound for /toolbox sounds.
