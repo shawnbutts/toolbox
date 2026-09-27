@@ -429,6 +429,11 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     or the spaces / parentheses in the macOS path). A client bug; an add-on can only pass a path relative
     to the Lua folder, so there is no workaround. Reported to the owner to pass on. Windows unconfirmed
     (may work). Check Player.log first whenever sounds are re-tested.
+    Each failed load is preceded by `Curl error 7: Failed to connect to localhost port 443`: the client
+    passes the absolute macOS path ("/Users/...") to UnityWebRequest without `file://`, and Unity resolves a
+    scheme-less URL against https://localhost/. (On Windows "C:\..." parses as an absolute file URI, so it
+    probably works there.) Client fix: `"file://" + path` / `new System.Uri(path).AbsoluteUri`. Passing
+    "file://..." from Lua can't help: the client prefixes the Lua root itself.
 23g. FOUND 2026-09-27 (build ac17b29): `ShroudLoadSound` returned TRUE for every path, even ones that can't
     exist, so "true" only means "request accepted" (the docs say "path exists"). After 12 accepted loads
     (.ogg and .wav, Lua root and package folder) `ShroudListSound()` stayed empty (0 keys). Either every
