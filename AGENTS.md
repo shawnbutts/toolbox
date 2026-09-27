@@ -252,6 +252,8 @@ them in the harness with their documented behaviour.
    plain strings), `/toolbox sounds try`, and settled notes 23b to 23h.
 5. Never call `ShroudListSoundReset`: the clip list is shared, and it clears every add-on's clips. A
    reload or scene change frees clips anyway, and `ShroudOnStart` loads them again.
+6. Memory isn't a concern. All add-ons share a 256 MB decoded-sound budget, and our two short alerts
+   use a few hundred KB. A refused load is logged, so the loader just moves to the next candidate.
 
 **API 16: replacing the game's buff bar** (`buffbar.lua`). The point: ours can be moved anywhere, while
 the game's is tied to the player frame. Don't follow the game's bar position: no `ShroudGetBuffBarRect`
