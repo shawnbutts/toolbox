@@ -60,7 +60,7 @@ Run all three before calling a change done.
 
 - `toolbox/`: the shipped package. Flat folder: `manifest.json`, `*.lua`, `README.md` (store readme),
   optional `icon.png` and pictures. Nothing else, or the build fails.
-  - `manifest.json` `files` is the load order: `core.lua`, `xp.lua`, `hover.lua`, `ui.lua`, `compact.lua`, `daily.lua`, `dailydetail.lua`, `sounds.lua`, `hud.lua`, `buffbar.lua`, `vitals.lua`, `combat.lua`, `config.lua`. A new `.lua` file must be
+  - `manifest.json` `files` is the load order: `core.lua`, `xp.lua`, `hover.lua`, `ui.lua`, `compact.lua`, `daily.lua`, `dailydetail.lua`, `sounds.lua`, `hud.lua`, `buffbar.lua`, `vitals.lua`, `combat.lua`, `docs.lua`, `config.lua`. A new `.lua` file must be
     added there. Later files may use globals from earlier ones at top level; earlier files may only use
     later ones inside functions (callbacks run after every file has loaded).
   - `core.lua`: `Toolbox` namespace, chat output (`Toolbox.Print`), saved-var helpers (`Load`/`Save`/`Flush`,
@@ -116,6 +116,8 @@ Run all three before calling a change done.
     (1 s) remembers positions (per module unglued, `hud.x/y` glued). Movers: `Hud.MoverFor(key, home)`.
   - HUD strips share `Toolbox.Window.HudMover(getFrame, home, homeFn)` (Get/MoveTo/Nudge/Reset),
     `Toolbox.Config.PositionRows(prefix, module)` and `Toolbox.MoveCommand(module, cmd, name, args)`.
+  - `docs.lua`: `Toolbox.Docs`, the Docs window. `D.SECTIONS` is the player guide (update it with every
+    user-facing change); the Commands part comes from `Toolbox.CommandList()`. Built on first open.
   - `config.lua`: `Toolbox.Config`, the settings window. Controls call the owning module's setters; the
     setters call `Toolbox.Config.Sync()` so the controls follow chat commands and the close button.
     To add a setting: a setter + getter on the owning module (persisted there), a control here, a line

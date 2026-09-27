@@ -175,8 +175,8 @@ local function build()
         UI.Label{ text = "Tick what you want on screen and tune it here. Everything is saved per character.",
           class = "text", style = { whiteSpace = "wrap" } },
         UI.Row{ style = { justifyContent = "end", marginTop = 2, marginBottom = 4 }, children = {
-          UI.Button{ id = "help", text = "Chat commands", tooltip = "List every /toolbox command in chat",
-            onClick = function() T.Dispatch("help") end },
+          UI.Button{ id = "docs", text = "Docs", tooltip = "How everything works, and every command",
+            onClick = function() T.Docs.Open() end },
         } },
         UI.Label{ text = "XP windows", class = "heading" },
         UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {

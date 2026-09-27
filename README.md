@@ -29,6 +29,7 @@ Built clean-room from the official docs only:
 | --- | --- |
 | `/toolbox` (no argument) | open or close the settings window, the hub for everything |
 | `/toolbox help` | list commands |
+| `/toolbox docs` | open the Docs window: a guide to every feature and option, and every command |
 | `/toolbox xp` | show or hide the XP window |
 | `/toolbox xpdetailed` (or `xpd`) | show or hide the XP Detailed window |
 | `/toolbox reset` | start a new XP session |
@@ -308,7 +309,7 @@ image limits, size caps, no runtime code loading, and no `io`/`os` use in packag
 ```
 toolbox/            the package (what ships)
   manifest.json     files load in this order: core.lua, xp.lua, hover.lua, ui.lua, compact.lua, daily.lua,
-                    dailydetail.lua, sounds.lua, hud.lua, buffbar.lua, vitals.lua, combat.lua,
+                    dailydetail.lua, sounds.lua, hud.lua, buffbar.lua, vitals.lua, combat.lua, docs.lua,
                     config.lua
   core.lua          Toolbox namespace, commands, saved-var helpers, session lifecycle, callbacks
   xp.lua            pure session XP model (rates, rolling window, time to level)
@@ -322,6 +323,7 @@ toolbox/            the package (what ships)
   buffbar.lua       the buff bar HUD, clock overlay, expiry and debuff alerts
   vitals.lua        the health & focus bars HUD
   combat.lua        the combat stats HUD
+  docs.lua          the Docs window (/toolbox docs, Docs button in settings)
   clock.png         the clock overlay sprite sheet (2 x 120 frames, from art/clock.py)
   config.lua        the Toolbox Settings window (/toolbox config)
   README.md         player-facing store readme

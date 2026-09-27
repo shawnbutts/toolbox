@@ -4,7 +4,8 @@ A small toolbox of quality-of-life features: XP tracking, daily stats, a buff ba
 focus bars and combat stats.
 
 **Getting started:** type `/toolbox` (or `/tbx`) to open the settings window and tick what you
-want on screen. `/toolbox help` lists every chat command.
+want on screen. Its **Docs** button (or `/toolbox docs`) opens a guide to every feature, option and
+command; `/toolbox help` lists the commands in chat.
 
 ## Commands
 

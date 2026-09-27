@@ -50,7 +50,7 @@ return function(t)
     t.no(H.config():IsShown(), "and closed again")
     H.chat("/tbx help")
     t.ok(H.logged("/toolbox reset"))
-    t.ok(H.logged("/toolbox help %- list commands %(/toolbox alone opens the settings%)"))
+    t.ok(H.logged("/toolbox help %- list commands %(/toolbox alone opens the settings; /toolbox docs for the guide%)"))
   end)
 
   t.test("a one-time welcome line per account", function()
@@ -62,12 +62,39 @@ return function(t)
     t.eq(H.saved("welcomed", "account"), true)
   end)
 
-  t.test("the settings window explains itself and has a chat-commands button", function()
+  t.test("the settings window's Docs button opens the Docs window", function()
     H.boot()
+    t.eq(H.S.windows.toolbox_docs, nil, "not built until first opened")
     H.chat("/tbx")
-    H.clearLogs()
-    H.click("toolbox_config", "help")
-    t.ok(H.logged("/toolbox xpdetailed"), "the help went to chat")
+    H.click("toolbox_config", "docs")
+    t.ok(H.S.windows.toolbox_docs:IsShown())
+    H.click("toolbox_config", "docs")
+    t.ok(H.S.windows.toolbox_docs:IsShown(), "the button opens (doesn't toggle it closed)")
+  end)
+
+  t.test("the Docs window: sections, and every registered command", function()
+    H.boot()
+    H.chat("/tbx docs")
+    local docs = H.S.windows.toolbox_docs
+    t.ok(docs:IsShown())
+    t.eq(docs.title, "Toolbox Docs")
+    local texts = {}
+    for _, label in ipairs(docs:Find("docs_body").children) do texts[#texts + 1] = label.text end
+    local all = table.concat(texts, "\n")
+    for _, heading in ipairs({ "Getting started", "XP", "Today", "Buff bar", "Health & focus bars",
+                               "Combat stats", "Moving the HUD strips", "Sounds", "Commands" }) do
+      t.ok(all:find("\n" .. heading .. "\n", 1, true) or all:find("^" .. heading .. "\n"), "section " .. heading)
+    end
+    for _, cmd in ipairs(Toolbox.CommandList()) do
+      t.ok(all:find("/toolbox " .. cmd.name, 1, true), "command " .. cmd.name .. " is listed")
+    end
+    t.ok(all:find("/toolbox xpdetailed (or xpd) - ", 1, true), "aliases shown")
+    t.ok(all:find("Lock Status Movement", 1, true), "the HUD lock tip")
+    H.chat("/tbx docs")
+    t.no(docs:IsShown(), "the command toggles it")
+    local total = 0
+    for _, text in ipairs(texts) do total = total + #text end
+    t.ok(total < 20000, "well inside the 64 KiB text budget: " .. total)
   end)
 
   t.test("/tbx xp opens the XP window; xpdetailed and xpd open XP Detailed", function()

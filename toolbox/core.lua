@@ -119,12 +119,23 @@ local function add(name, help, fn, aliases)
   order[#order + 1] = { name = name, help = help, aliases = aliases }
 end
 
-add("help", "list commands (/toolbox alone opens the settings)", function()
+-- The registered commands in order: { name, help, aliases } (for the Docs window).
+function T.CommandList()
+  local out = {}
+  for _, c in ipairs(order) do out[#out + 1] = { name = c.name, help = c.help, aliases = c.aliases } end
+  return out
+end
+
+add("help", "list commands (/toolbox alone opens the settings; /toolbox docs for the guide)", function()
   T.Print("Commands (/" .. table.concat(T.commands, " or /") .. "):")
   for _, c in ipairs(order) do
     local also = c.aliases and (" (or " .. table.concat(c.aliases, ", ") .. ")") or ""
     T.Print("  /" .. T.commands[1] .. " " .. c.name .. also .. " - " .. c.help)
   end
+end)
+
+add("docs", "open or close the Docs window: how everything works, and every command", function()
+  T.Docs.Toggle()
 end)
 
 add("xp", "show or hide the XP window (session time, pools, XP in the last hour)", function()
@@ -616,7 +627,7 @@ end
 function T.Welcome()
   if ShroudGetSavedVar("welcomed", "account") then return end
   T.Print("Toolbox is ready: type /" .. T.commands[1] .. " to open its settings, or /" .. T.commands[1]
-    .. " help for commands.")
+    .. " docs for a guide to everything.")
   ShroudSetSavedVar("welcomed", true, "account")
 end
 

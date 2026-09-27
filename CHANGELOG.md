@@ -6,6 +6,10 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Docs window (`/toolbox docs`, or the Docs button that replaces "Chat commands" in settings):
+  getting started, a short guide to each feature and its options, tips (moving HUD strips, the
+  Lock Status Movement setting, adding combat stats on the fly, sounds), and every command, listed
+  from the command registry so it stays current. The first-run welcome points to it.
 - `/toolbox version`: version, build (the git commit, stamped into `dist/` by `tools/build.py`,
   with `+` for uncommitted changes), API version, and how many copies of Toolbox are loaded (a
   second copy left in the Lua folder would share and tangle the global `Toolbox` table).
