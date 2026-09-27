@@ -106,25 +106,28 @@ end
 local handlers = {}
 local order = {}
 
-local function add(name, help, fn)
+-- aliases: other names that run the same command (shown in help after the name).
+local function add(name, help, fn, aliases)
   handlers[name] = fn
-  order[#order + 1] = { name = name, help = help }
+  for _, alias in ipairs(aliases or {}) do handlers[alias] = fn end
+  order[#order + 1] = { name = name, help = help, aliases = aliases }
 end
 
 add("help", "list commands", function()
   T.Print("Commands (/" .. table.concat(T.commands, " or /") .. "):")
   for _, c in ipairs(order) do
-    T.Print("  /" .. T.commands[1] .. " " .. c.name .. " - " .. c.help)
+    local also = c.aliases and (" (or " .. table.concat(c.aliases, ", ") .. ")") or ""
+    T.Print("  /" .. T.commands[1] .. " " .. c.name .. also .. " - " .. c.help)
   end
 end)
 
-add("xp", "show or hide the Session XP window", function()
-  T.Window.Toggle()
-end)
-
-add("compact", "show or hide the compact XP window", function()
+add("xp", "show or hide the XP window (session time, pools, XP in the last hour)", function()
   T.Compact.Toggle()
 end)
+
+add("xpdetailed", "show or hide the XP Detailed window (levels, rates, Reset)", function()
+  T.Window.Toggle()
+end, { "xpd" })
 
 add("daily", "show or hide today's stats (gold, kills, XP; resets at midnight)", function()
   T.Daily.Toggle()

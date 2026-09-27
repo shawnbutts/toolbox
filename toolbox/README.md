@@ -1,29 +1,36 @@
 # Toolbox
 
-A small toolbox of quality-of-life features. The first one is **Session XP**.
+A small toolbox of quality-of-life features: XP tracking and daily stats.
 
 ## Commands
 
 `/toolbox` and `/tbx` do the same thing.
 
 - `/toolbox help`: list commands
-- `/toolbox xp`: show or hide the Session XP window
+- `/toolbox xp`: show or hide the XP window (session time, pools, XP in the last hour)
+- `/toolbox xpdetailed` (or `xpd`): show or hide the XP Detailed window (levels, progress, XP per hour, Reset)
 - `/toolbox reset`: start a new XP session
-- `/toolbox compact`: show or hide the compact XP window (session time, pools, XP in the last hour)
 - `/toolbox daily`: show or hide today's stats: gold picked up, kills, adventurer and producer XP (resets at midnight)
-- `/toolbox config`: open the settings window (text size, show/hide the XP windows)
+- `/toolbox config`: open the settings window (text size, line spacing, which windows to show)
 - `/toolbox spacing <0-12>`: set the space between lines (default 2)
 - `/toolbox font <9-32>`: set the window text size (default 12)
 
-## Session XP
+## XP
 
-The window shows, for adventurer and producer XP:
+The **XP** window shows the session time, your adventurer and producer pools, and the XP you
+earned on each in the last hour. Rest the pointer on it and **XP Detailed** pops up with, for
+adventurer and producer XP:
 
-- how long the session has run
 - XP gained this session
 - XP per hour over the whole session and over the last 10 minutes
-- your level, how far through it you are, and an estimate of the time to the next level at your session rate
+- your level, how far through it you are, the XP still needed and an estimate of the time to the
+  next level at your session rate
 
 A session starts when you log in (or turn the add-on on) and when you press **Reset**.
-It survives `/lua reload`. The window can be resized by dragging its corner. Settings, text size
-and the window's open state are saved per character.
+It survives `/lua reload`. Windows can be resized by dragging their corner. Settings, text size
+and which windows are open are saved per character.
+
+## Today
+
+`/toolbox daily` shows gold picked up, kills by you or your pet, and adventurer and producer XP
+gained today. It resets at local midnight.

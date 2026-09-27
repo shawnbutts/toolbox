@@ -51,13 +51,16 @@ Run all three before calling a change done.
     which deep-copy), formatting, the command table and dispatcher, session lifecycle, all callbacks.
   - `xp.lua`: `Toolbox.XP`, a pure model over a plain-data session table. No API calls, so it is
     storable in saved vars and trivially testable. Time is always passed in.
-  - `ui.lua`: `Toolbox.Window`, the Session XP window. Build every text label's style with
+  - `ui.lua`: `Toolbox.Window`, the **XP Detailed** window (`/toolbox xpdetailed`, `xpd`). Internal names
+    (`Toolbox.Window`, id `toolbox_xp`, saved var `window`) predate the rename; keep them so players keep
+    their positions and settings. Build every text label's style with
     `Toolbox.Window.TextStyle{...}` (font size + fixed line height, no vertical margins) so font and
     spacing changes reach it; `ApplyText()` re-applies both to both windows. `SetOpen`/`SetFont` are the only writers of its prefs.
-  - `compact.lua`: `Toolbox.Compact`, the compact XP window. Own open/position prefs; text style comes
+  - `compact.lua`: `Toolbox.Compact`, the **XP** window (`/toolbox xp`; id `toolbox_compact`, saved var
+    `compact`). Own open/position prefs; text style comes
     from `Toolbox.Window.TextStyle()` and is re-applied via `Toolbox.Compact.ApplyText()`. It also owns
     the hover pop-up: elements of both windows report hover keys to `PopupHover`, and one-shot
-    periodics (`toolbox_hover_show`/`_hide`) apply the delays. The Session XP window distinguishes
+    periodics (`toolbox_hover_show`/`_hide`) apply the delays. XP Detailed distinguishes
     pinned (`IsOpen`, persisted) from popped up (`IsPopup`, never persisted).
   - `daily.lua`: `Toolbox.Daily`, daily stats (model functions at the top are pure and tested) and the
     Today window. Fed by `Toolbox.Sample` (XP totals), `Toolbox.Tick` (gold, day rollover, saving) and

@@ -1,7 +1,10 @@
 # Toolbox
 
-A Shroud of the Avatar Lua add-on (API 14). The first feature is **Session XP**: adventurer and
-producer XP gained this session, XP/hour, level progress and time to the next level.
+A Shroud of the Avatar Lua add-on (API 14). Features so far:
+
+- **XP**: a small window with session time, your adventurer and producer pools, and XP earned in
+  the last hour. Hover it for **XP Detailed**: levels, progress bars, XP/hour, time to next level.
+- **Today**: gold picked up, kills, and XP gained since midnight.
 
 - Store slug and package folder: `toolbox`
 - Author: shawn butts
@@ -19,9 +22,9 @@ Built clean-room from the official docs only:
 | Command | What it does |
 | --- | --- |
 | `/toolbox help` (or no argument) | list commands |
-| `/toolbox xp` | show or hide the Session XP window |
+| `/toolbox xp` | show or hide the XP window |
+| `/toolbox xpdetailed` (or `xpd`) | show or hide the XP Detailed window |
 | `/toolbox reset` | start a new XP session |
-| `/toolbox compact` | show or hide the compact XP window |
 | `/toolbox daily` | show or hide today's stats (gold, kills, XP) |
 | `/toolbox config` | open or close the settings window |
 | `/toolbox spacing <0-12>` | set the extra space between lines in pixels (no number: show it; default 2) |
@@ -30,9 +33,10 @@ Built clean-room from the official docs only:
 If the game refuses a command name (another add-on has it, or it is too close to a chat
 command), the add-on says why in chat, e.g. `Could not register /tbx: taken`.
 
-## Session XP
+## XP Detailed window
 
-The "Session XP" window shows elapsed time and, for adventurer and producer:
+`/toolbox xpdetailed` (or `/toolbox xpd`) opens **XP Detailed**, which also pops up when you hover
+the XP window (below). It shows the session time, a Reset button and, for adventurer and producer:
 
 - XP gained this session
 - XP/hour over the whole session and over the last 10 minutes
@@ -64,9 +68,9 @@ totals, so nothing depends on the callback.
 windows only while they are open, stores a changed session in saved vars once a tick (not per XP
 event: it holds up to an hour of samples) and flushes to disk at most every 30 seconds.
 
-## Compact XP window
+## XP window
 
-`/toolbox compact` opens a small window you can keep open alongside (or instead of) Session XP:
+`/toolbox xp` opens **XP**, a small window to keep on screen:
 
 ```
 Session 1h 02m 03s
@@ -81,18 +85,17 @@ Prod pool          4,300
 - **Last hour**: XP earned on that track in the past 60 minutes, from the totals (so spending pool
   doesn't reduce it). While the session is younger than an hour it is the whole session.
 
-It uses the same text size as Session XP and remembers its own open state and position.
+It uses the same text size as XP Detailed and remembers its own open state and position.
 
-**Hover for details.** Rest the pointer on the compact window for half a second and the Session XP
-window pops up (with the progress bars and Reset). It stays while the pointer is over either
-window and closes about ¾ s after it leaves both, so you can move over and click Reset. Passing
-over the compact window quickly does nothing. A popped-up window isn't remembered as open; use
-`/toolbox xp` to pin it (running it while the window is popped up keeps it open). Turn hover off
-with "Show Session XP on hover" in `/toolbox config`.
+**Hover for details.** Rest the pointer on the XP window for half a second and XP Detailed pops up
+(with the progress bars and Reset). It stays while the pointer is over either window and closes
+about ¾ s after it leaves both, so you can move over and click Reset. Passing over the XP window
+quickly does nothing. A popped-up window isn't remembered as open; use `/toolbox xpdetailed` to
+pin it (running it while the window is popped up keeps it open). Turn hover off with
+"Show XP Detailed on hover" in `/toolbox config`.
 
 `/toolbox config` opens a **Toolbox Settings** window with a text-size slider (applied as you
-drag), a line-spacing slider, and checkboxes to show the Session XP, compact XP and daily stats
-windows.
+drag), a line-spacing slider, and checkboxes to show the XP, XP Detailed and daily stats windows.
 
 Shroud.UI has no line-height style, so every text line gets a fixed height of about
 1.15 × the text size plus the line spacing, with no margins above or below. Shrinking the text
@@ -149,8 +152,8 @@ toolbox/            the package (what ships)
   manifest.json     files load in this order: core.lua, xp.lua, ui.lua, compact.lua, daily.lua, config.lua
   core.lua          Toolbox namespace, commands, saved-var helpers, session lifecycle, callbacks
   xp.lua            pure session XP model (rates, rolling window, time to level)
-  ui.lua            the Session XP window (Shroud.UI)
-  compact.lua       the compact XP window (/toolbox compact)
+  ui.lua            the XP Detailed window (/toolbox xpdetailed; Toolbox.Window, id toolbox_xp)
+  compact.lua       the XP window (/toolbox xp; Toolbox.Compact, id toolbox_compact)
   daily.lua         daily stats and the Today window (/toolbox daily)
   config.lua        the Toolbox Settings window (/toolbox config)
   README.md         player-facing store readme
@@ -177,7 +180,7 @@ tools/install.py    copies dist/toolbox/ into a game client's Lua folder
 4. In game: `/lua reload`.
 5. Enable **Toolbox** in the add-on manager (new add-ons load disabled).
 6. `/lua check toolbox` should report nothing blocking.
-7. `/toolbox xp` opens the window. Try `/tbx help`, `/tbx reset`, `/lua reload` (the session should
+7. `/toolbox xp` opens the XP window; hover it for XP Detailed. Try `/tbx help`, `/tbx reset`, `/lua reload` (the session should
    carry on), and closing/moving the window then reloading.
 
 ## Releasing

@@ -1,5 +1,7 @@
 -- Toolbox: ui.lua
--- The "Session XP" window, built with Shroud.UI. Updated from the 1-second
+-- The "XP Detailed" window (/toolbox xpdetailed), built with Shroud.UI. Internally
+-- Toolbox.Window with id "toolbox_xp" and saved var "window" (kept from when it was
+-- the only XP window, so players keep their position and settings). Updated from the 1-second
 -- periodic in core.lua, never per frame.
 
 local T = Toolbox
@@ -11,8 +13,8 @@ local WINDOW_ID = "toolbox_xp"
 
 local win = nil        -- window handle, rebuilt in ShroudOnStart after every reload
 local el = {}          -- element handles by id
-local prefs = { open = false }   -- open = pinned by the player (/toolbox xp, settings)
-local popup = false              -- shown only because the compact window is hovered
+local prefs = { open = false }   -- open = pinned by the player (/toolbox xpdetailed, settings)
+local popup = false              -- shown only because the XP (compact) window is hovered
 
 W.FONT_MIN, W.FONT_MAX, W.FONT_DEFAULT = 9, 32, 12   -- fontSize range from the Shroud.UI docs
 -- Shroud.UI has no line-height style, so each text line gets an explicit height:
@@ -78,7 +80,7 @@ local function build()
   for _, track in ipairs(T.XP.TRACKS) do rows[#rows + 1] = trackRows(track) end
 
   win = UI.Window{
-    id = WINDOW_ID, title = "Session XP",
+    id = WINDOW_ID, title = "XP Detailed",
     -- Only the first open uses width/height: the host remembers the size the player drags it to.
     width = 250, height = 200, minWidth = 160, minHeight = 60,
     x = prefs.x, y = prefs.y,
@@ -204,7 +206,7 @@ function W.Init()
   end
   build()
   if prefs.open then
-    if not win:Show() then T.Print("Session XP window could not reopen yet; use /toolbox xp.") end
+    if not win:Show() then T.Print("XP Detailed window could not reopen yet; use /toolbox xpdetailed.") end
   end
   W.Refresh()
 end
@@ -224,7 +226,7 @@ function W.SetOpen(open)
     W.Refresh()
   else
     -- Show() is refused within 3 s of the player closing it, or more than 5 times in 10 s.
-    T.Print("The window can't reopen right now; try again in a few seconds.")
+    T.Print("The XP Detailed window can't reopen right now; try again in a few seconds.")
     ok = false
   end
   W.SavePrefs()

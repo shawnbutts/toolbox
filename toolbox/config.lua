@@ -47,21 +47,21 @@ local function build()
           onChange = function(_, value) C.OnSpacing(value) end,
         },
         UI.Toggle{
-          id = "show_xp", text = "Show Session XP window", value = W.IsOpen(),
+          id = "show_compact", text = "Show XP window", value = T.Compact.IsShown(),
           style = { marginTop = 6 },
-          onChange = function(_, value) C.OnShowXP(value) end,
+          onChange = function(_, value) C.OnShowCompact(value) end,
         },
         UI.Toggle{
-          id = "show_compact", text = "Show compact XP window", value = T.Compact.IsShown(),
-          onChange = function(_, value) C.OnShowCompact(value) end,
+          id = "show_xp", text = "Show XP Detailed window", value = W.IsOpen(),
+          onChange = function(_, value) C.OnShowXP(value) end,
         },
         UI.Toggle{
           id = "show_daily", text = "Show daily stats window", value = T.Daily.IsShown(),
           onChange = function(_, value) C.OnShowDaily(value) end,
         },
         UI.Toggle{
-          id = "hover_popup", text = "Show Session XP on hover", value = T.Compact.GetHover(),
-          tooltip = "Hovering the compact window pops up the Session XP window",
+          id = "hover_popup", text = "Show XP Detailed on hover", value = T.Compact.GetHover(),
+          tooltip = "Hovering the XP window pops up the XP Detailed window",
           onChange = function(_, value) T.Compact.SetHover(value) end,
         },
       } },

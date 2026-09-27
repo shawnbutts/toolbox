@@ -5,7 +5,7 @@ return function(t)
   local SHOW, HIDE = 0.5, 0.75
   local function setup()
     H.boot()
-    H.chat("/tbx compact")
+    H.chat("/tbx xp")
     SHOW, HIDE = Toolbox.Compact.HOVER_SHOW_DELAY, Toolbox.Compact.HOVER_HIDE_DELAY
   end
   local function xpShown() return H.window():IsShown() end
@@ -81,7 +81,7 @@ return function(t)
 
   t.test("a pinned Session XP window is left alone", function()
     setup()
-    H.chat("/tbx xp")
+    H.chat("/tbx xpdetailed")
     H.hover("toolbox_compact", nil, true)
     H.advance(1, 0.1)
     H.hover("toolbox_compact", nil, false)
@@ -90,17 +90,17 @@ return function(t)
     t.eq(H.saved("window").open, true)
   end)
 
-  t.test("/tbx xp pins a popped-up window", function()
+  t.test("/tbx xpdetailed pins a popped-up window", function()
     setup()
     H.hover("toolbox_compact", nil, true)
     H.advance(1, 0.1)
-    H.chat("/tbx xp")
+    H.chat("/tbx xpdetailed")
     t.eq(H.saved("window").open, true)
     H.hover("toolbox_compact", nil, false)
     H.advance(2, 0.1)
     t.ok(xpShown(), "pinned, so it stays")
-    H.chat("/tbx xp")
-    t.no(xpShown(), "and /tbx xp closes it again")
+    H.chat("/tbx xpdetailed")
+    t.no(xpShown(), "and /tbx xpdetailed closes it again")
   end)
 
   t.test("the settings checkbox turns hover off and it is remembered", function()
@@ -153,7 +153,7 @@ return function(t)
     setup()
     H.hover("toolbox_compact", nil, true)
     H.advance(1, 0.1)
-    H.chat("/tbx compact")                  -- closed while the pointer was on it
+    H.chat("/tbx xp")                  -- closed while the pointer was on it
     H.advance(2, 0.1)
     t.no(xpShown(), "pop-up closed too")
   end)

@@ -20,6 +20,9 @@ store submission needs a higher version than any submitted before (rejected ones
 - `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
 
 ### Changed
+- Window names and commands: the compact window is now **XP** (`/toolbox xp`), and the old
+  Session XP window is **XP Detailed** (`/toolbox xpdetailed`, alias `xpd`). `/toolbox compact`
+  is gone. Window positions and settings carry over.
 - The build allows `os.date` / `os.time` (for the daily reset); other `os` and all `io` use is
   still refused.
 - Lower minimum window heights (Session XP 60, compact 50) now that lines can be tighter.

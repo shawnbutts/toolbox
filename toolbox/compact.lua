@@ -1,9 +1,9 @@
 -- Toolbox: compact.lua
--- The compact XP window (/toolbox compact): session time, the current adventurer
--- and producer pools, and the XP earned on each over the last hour.
--- Shares the text size with the Session XP window; has its own open state and position.
+-- The "XP" window (/toolbox xp; internally the compact window): session time, the
+-- current adventurer and producer pools, and the XP earned on each over the last hour.
+-- Shares the text size with the XP Detailed window; has its own open state and position.
 --
--- Hovering it pops up the Session XP window after C.HOVER_SHOW_DELAY seconds. The
+-- Hovering it pops up the XP Detailed window after C.HOVER_SHOW_DELAY seconds. The
 -- pop-up stays while the pointer is over either window (so its Reset button can be
 -- used) and closes C.HOVER_HIDE_DELAY seconds after the pointer has left both.
 
@@ -55,7 +55,7 @@ local function build()
   for _, spec in ipairs(LINES) do rows[#rows + 1] = line(spec) end
 
   win = UI.Window{
-    id = WINDOW_ID, title = "Compact XP",
+    id = WINDOW_ID, title = "XP",
     width = 190, height = 130, minWidth = 140, minHeight = 50,
     x = prefs.x, y = prefs.y,
     escCloses = true,
@@ -99,7 +99,7 @@ function C.Init()
   end
   build()
   if prefs.open and not win:Show() then
-    T.Print("Compact XP window could not reopen yet; use /toolbox compact.")
+    T.Print("XP window could not reopen yet; use /toolbox xp.")
   end
   C.Refresh()
 end
@@ -117,7 +117,7 @@ function C.SetOpen(open)
     prefs.open = true
     C.Refresh()
   else
-    T.Print("The compact window can't reopen right now; try again in a few seconds.")
+    T.Print("The XP window can't reopen right now; try again in a few seconds.")
     ok = false
   end
   C.SavePrefs()
@@ -186,7 +186,7 @@ function C.ClearHover(prefix)
   update()
 end
 
--- The Session XP window was closed by the player.
+-- The XP Detailed window was closed by the player.
 function C.PopupClosed()
   C.ClearHover("xp_")
 end
@@ -206,7 +206,7 @@ function C.GetHover()
   return prefs.hover
 end
 
--- Follows the Session XP window's text size and line spacing (called from Toolbox.Window.ApplyText).
+-- Follows the XP Detailed window's text size and line spacing (called from Toolbox.Window.ApplyText).
 function C.ApplyText()
   if not win then return end
   local style = { fontSize = T.Window.GetFont(), height = T.Window.LineHeight() }
