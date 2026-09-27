@@ -159,7 +159,7 @@ return function(t)
     H.chat("/tbx vitals")
     t.eq(H.config():Find("show_vitals").value, false, "follows the command")
     H.clearLogs()
-    H.chat("/tbx help")
+    H.chat("/tbx commands")
     t.ok(H.logged("/toolbox vitals"))
   end)
 

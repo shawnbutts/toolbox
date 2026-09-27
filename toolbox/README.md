@@ -5,14 +5,15 @@ focus bars and combat stats.
 
 **Getting started:** type `/toolbox` (or `/tbx`) to open the settings window and tick what you
 want on screen. Its **Docs** button (or `/toolbox docs`) opens a guide to every feature, option and
-command; `/toolbox help` lists the commands in chat.
+command (`/toolbox help` opens it too); `/toolbox commands` lists the commands in chat.
 
 ## Commands
 
 `/toolbox` and `/tbx` do the same thing.
 
 - `/toolbox`: open the settings window (tick what you want on screen)
-- `/toolbox help`: list commands
+- `/toolbox help` (or `/toolbox docs`): open the Docs window, a guide to everything
+- `/toolbox commands`: list every command in chat
 - `/toolbox xp`: show or hide the XP window (session time, pools, XP in the last hour)
 - `/toolbox xpdetailed` (or `xpd`): show or hide the XP Detailed window (levels, progress, XP per hour, Reset)
 - `/toolbox reset`: start a new XP session

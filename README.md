@@ -28,8 +28,8 @@ Built clean-room from the official docs only:
 | Command | What it does |
 | --- | --- |
 | `/toolbox` (no argument) | open or close the settings window, the hub for everything |
-| `/toolbox help` | list commands |
-| `/toolbox docs` | open the Docs window: a guide to every feature and option, and every command |
+| `/toolbox help` / `/toolbox docs` | open the Docs window: a guide to every feature and option, and every command |
+| `/toolbox commands` | list every command in chat |
 | `/toolbox xp` | show or hide the XP window |
 | `/toolbox xpdetailed` (or `xpd`) | show or hide the XP Detailed window |
 | `/toolbox reset` | start a new XP session |

@@ -408,7 +408,7 @@ return function(t)
   t.test("help lists the buff commands", function()
     H.boot()
     H.clearLogs()
-    H.chat("/tbx help")
+    H.chat("/tbx commands")
     for _, c in ipairs({ "buffs", "buffalert", "debuffalert", "sounds" }) do
       t.ok(H.logged("/toolbox " .. c), c)
     end

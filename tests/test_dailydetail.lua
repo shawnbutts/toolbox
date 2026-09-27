@@ -239,7 +239,7 @@ return function(t)
   t.test("help lists dailydetailed and its dd alias", function()
     H.boot()
     H.clearLogs()
-    H.chat("/tbx help")
+    H.chat("/tbx commands")
     t.ok(H.logged("/toolbox dailydetailed %(or dd%)"))
   end)
 end

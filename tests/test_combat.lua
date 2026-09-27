@@ -256,7 +256,7 @@ return function(t)
     t.ok(H.logged("Stats on the combat HUD %(1 of 8%): MagicResistance%."))
     t.ok(H.logged("Add one while playing: /toolbox stats <word>"))
     H.clearLogs()
-    H.chat("/tbx help")
+    H.chat("/tbx commands")
     t.ok(H.logged("/toolbox combat %- combat stats HUD; add stats while playing: /toolbox combat help"))
   end)
 

@@ -16,7 +16,8 @@ local win = nil
 D.SECTIONS = {
   { "Getting started",
     "Type /toolbox (or /tbx) to open the settings window and tick what you want on screen. "
-      .. "Everything is saved per character. /toolbox help lists the commands in chat." },
+      .. "Everything is saved per character. /toolbox help opens this guide; /toolbox commands "
+      .. "lists the commands in chat." },
   { "XP",
     "XP (/toolbox xp): session time, your adventurer and producer pools, and the XP you earned "
       .. "in the last hour. Rest the pointer on it and XP Detailed pops up.",

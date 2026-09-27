@@ -126,7 +126,11 @@ function T.CommandList()
   return out
 end
 
-add("help", "list commands (/toolbox alone opens the settings; /toolbox docs for the guide)", function()
+add("help", "open the Docs window: a guide to everything (/toolbox alone opens the settings)", function()
+  T.Docs.Open()
+end)
+
+add("commands", "list every command in chat", function()
   T.Print("Commands (/" .. table.concat(T.commands, " or /") .. "):")
   for _, c in ipairs(order) do
     local also = c.aliases and (" (or " .. table.concat(c.aliases, ", ") .. ")") or ""
@@ -134,7 +138,7 @@ add("help", "list commands (/toolbox alone opens the settings; /toolbox docs for
   end
 end)
 
-add("docs", "open or close the Docs window: how everything works, and every command", function()
+add("docs", "open or close the Docs window (same as help)", function()
   T.Docs.Toggle()
 end)
 
@@ -498,7 +502,7 @@ function T.RegisterCommands()
   for _, name in ipairs(T.commands) do
     local ok, reason = Shroud.Command{
       name = name,
-      help = "Toolbox: session XP and more. /" .. name .. " help lists commands.",
+      help = "Toolbox: XP, daily stats, buff bar, health bars, combat stats. /" .. name .. " help: guide.",
       run = T.Dispatch,
     }
     if not ok then
