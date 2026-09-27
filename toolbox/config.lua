@@ -123,7 +123,7 @@ function C.CombatSection()
     UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
       UI.Label{ text = "Background", class = "text", style = { flexGrow = 1 } },
       UI.Dropdown{ id = "combat_bg", choices = M.BACKGROUNDS, value = (M.GetBackground()),
-        tooltip = "A dark or light panel behind the combat stats, in your UI theme's colours",
+        tooltip = "A dark panel, or a light one in your UI theme's text colour, behind the combat stats",
         onChange = function(_, value) M.SetBackground(value) end },
     } },
     slider("combat_bg_opacity", "Background opacity (%)", M.OPACITY_MIN, M.OPACITY_MAX, 5,

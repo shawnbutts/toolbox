@@ -692,18 +692,18 @@ function H.combatHud() return S.frames.toolbox_combat end
 function H.combatRows()
   local out = {}
   for _, group in ipairs(S.frames.toolbox_combat:Find("combat_rows").children) do
-    local line = group.children[3]                     -- { dark slab, light slab, the row }
+    local line = group.children[2]                     -- { light slab, the row }
     if line and group.visible ~= false then
       out[#out + 1] = line.children[1].text .. "=" .. line.children[2].text
     end
   end
   return out
 end
--- The first shown combat row's group: { dark slab, light slab, line }.
+-- The first shown combat row's group: { light slab, line }.
 function H.combatGroup(n)
   local k = 0
   for _, group in ipairs(S.frames.toolbox_combat:Find("combat_rows").children) do
-    if group.children[3] and group.visible ~= false then
+    if group.children[2] and group.visible ~= false then
       k = k + 1
       if k == (n or 1) then return group end
     end

@@ -28,14 +28,15 @@ C.DEFAULT_STATS = { "MagicResistance" }
 C.MAX_STATS = 8
 
 -- A panel behind the whole strip, for readability. There is no documented theme background
--- colour, so, as for the health & focus numbers: Dark is the theme's `inset` look, Light a
--- panel in the theme colour @text with dark text on it.
--- The panel must not be the rows' parent (its opacity would fade the text too), so it is
--- built from slabs under the rows: each row has a full-width slab one line tall, and the row
--- is pulled up onto it by one line height. (One big panel with the rows shifted across it by
--- the strip's width doesn't work: the game clamps margins to -64..256, which pushed the rows
--- out of the strip in game.) Dark and Light are separate slabs because a colour set on an
--- element can't be unset.
+-- colour.
+--   Dark: the rows' parent gets a flat black background whose alpha is the opacity
+--   ("#000000b3"). A colour's own alpha doesn't fade the children (the opacity style would).
+--   It was the theme's `inset` look, built from per-row slabs, but that look has shaded edges,
+--   which showed as a line between every row in game (2026-09-27).
+--   Light: a panel in the theme colour @text with dark text on it. A token carries no alpha, so
+--   it is built from slabs under the rows: each row has a full-width slab one line tall, and the
+--   row is pulled up onto it by one line height. (One big panel with the rows shifted across it
+--   by the strip's width doesn't work: the game clamps margins to -64..256.)
 C.BACKGROUNDS = { "None", "Dark", "Light" }
 C.BG_DEFAULT, C.OPACITY_DEFAULT = "Dark", 70
 C.OPACITY_MIN, C.OPACITY_MAX = 10, 100
@@ -228,27 +229,34 @@ local function labelStyle(m, width, align)
 end
 
 local shownRows = 0
-local pads = {}              -- top and bottom padding slabs: { dark, light, group }
+local pads = {}              -- top and bottom Light padding slabs: { light, group }
 
--- Shows, sizes and fades the panel slabs for the current background and size.
+-- "#000000b3": black at the opacity setting, for the Dark panel.
+function C.DarkColour()
+  return string.format("#000000%02x", math.floor(opacity() / 100 * 255 + 0.5))
+end
+
+-- Shows, sizes and fades the panel for the current background and size.
 local function applyBackground()
   if not content then return end
   local m = C.Metrics()
   local bg = background()
   local w = m.w + 2 * m.pad
-  local function slab(dark, light, h)
-    dark:SetVisible(bg == "Dark")
-    light:SetVisible(bg == "Light")
-    for _, e in ipairs({ dark, light }) do e:SetStyle{ width = w, height = h, opacity = opacity() / 100 } end
+  local dark, light = bg == "Dark", bg == "Light"
+  content:SetStyle{ backgroundColor = dark and C.DarkColour() or "#00000000",
+    paddingTop = dark and m.pad or 0, paddingBottom = dark and m.pad or 0 }
+  local function slab(e, h)
+    e:SetVisible(light)
+    e:SetStyle{ width = w, height = h, opacity = opacity() / 100 }
   end
   for _, slot in ipairs(el) do
-    slab(slot.dark, slot.light, m.line)
+    slab(slot.light, m.line)
     -- the same inset both sides, so the right-aligned values sit off the panel's edge like the names
-    slot.line:SetStyle{ marginTop = bg ~= "None" and -m.line or 0, paddingLeft = m.pad, paddingRight = m.pad }
+    slot.line:SetStyle{ marginTop = light and -m.line or 0, paddingLeft = m.pad, paddingRight = m.pad }
   end
   for _, p in ipairs(pads) do
-    slab(p.dark, p.light, m.pad)
-    p.group:SetVisible(bg ~= "None")
+    slab(p.light, m.pad)
+    p.group:SetVisible(light)
   end
 end
 
@@ -260,10 +268,10 @@ local function flush(style)
   return style
 end
 
-local function slabs(h)
-  return UI.Column{ class = "inset", visible = false, style = flush{ height = h, borderWidth = 0, borderRadius = 0 } },
-         UI.Column{ visible = false, style = flush{ backgroundColor = "@text", height = h, borderWidth = 0,
-           borderRadius = 0 } }
+-- A Light panel slab (see the note on C.BACKGROUNDS).
+local function slab(h)
+  return UI.Column{ visible = false, style = flush{ backgroundColor = "@text", height = h, borderWidth = 0,
+    borderRadius = 0 } }
 end
 
 function C.BuildContent()
@@ -271,21 +279,21 @@ function C.BuildContent()
   local groups = {}
   el, shownText, shownRows, pads = {}, {}, 0, {}
   for _, where in ipairs({ "top", "bottom" }) do
-    local dark, light = slabs(m.pad)
-    pads[#pads + 1] = { dark = dark, light = light,
-      group = UI.Column{ id = "pad_" .. where, visible = false, style = flush{}, children = { dark, light } } }
+    local light = slab(m.pad)
+    pads[#pads + 1] = { light = light,
+      group = UI.Column{ id = "pad_" .. where, visible = false, style = flush{}, children = { light } } }
   end
   groups[1] = pads[1].group
   for i = 1, 6 + C.MAX_STATS do
     -- names in the normal text colour and values bright (the dim names were hard to read)
     local name = UI.Label{ text = "", class = "text", style = labelStyle(m, m.labelW, "left") }
     local value = UI.Label{ text = "", class = "bright", style = labelStyle(m, m.valueW, "right") }
-    local dark, light = slabs(m.line)
+    local light = slab(m.line)
     -- no id: ids repeated per row may not be allowed
     local line = UI.Row{ style = flush{}, children = { name, value } }
-    local group = UI.Column{ visible = false, style = flush{}, children = { dark, light, line } }
+    local group = UI.Column{ visible = false, style = flush{}, children = { light, line } }
     groups[#groups + 1] = group
-    el[i] = { row = group, name = name, value = value, dark = dark, light = light, line = line }
+    el[i] = { row = group, name = name, value = value, light = light, line = line }
   end
   groups[#groups + 1] = pads[2].group
   content = UI.Column{ id = "combat_rows", style = flush{}, children = groups }
@@ -312,7 +320,7 @@ function C.LayoutDebug()
   end
   return string.format("layout: bg %s, pad %d, name %d + value %d = %d wide; "
     .. "laid out: slab %s, row %s, name %s, value %s",
-    background(), m.pad, m.labelW, m.valueW, m.w + 2 * m.pad, size(slot and slot.dark), size(slot and slot.line),
+    background(), m.pad, m.labelW, m.valueW, m.w + 2 * m.pad, size(slot and slot.light), size(slot and slot.line),
     size(slot and slot.name), size(slot and slot.value))
 end
 
