@@ -253,6 +253,11 @@ add("sounds", "show the alert sound files; <0-100> sets the volume, test plays t
     for _, line in ipairs(T.Sounds.DebugLines()) do T.Print(line) end
     return
   end
+  local tryN = rest:lower():match("^try%s+(%d+)$")
+  if tryN then
+    T.Sounds.TryClip(tonumber(tryN))
+    return
+  end
   if rest ~= "" and not T.Sounds.SetVolume(tonumber(rest)) then
     T.Print("Volume must be a whole number from 0 to 100.")
     return

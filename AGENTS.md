@@ -281,6 +281,11 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 23. Sounds: `ShroudLoadSound`'s path base ("the addon's Lua folder" vs the Lua root) and what clip names
     `ShroudListSound` reports. `Toolbox.Sounds` tries both bases and matches the file stem, falling back
     to "the one new clip". `/toolbox sounds` shows what was found.
+23g. FOUND 2026-09-27 (build ac17b29): `ShroudLoadSound` returned TRUE for every path, even ones that can't
+    exist, so "true" only means "request accepted" (the docs say "path exists"). After 12 accepted loads
+    (.ogg and .wav, Lua root and package folder) `ShroudListSound()` stayed empty (0 keys). Either every
+    load fails or the list doesn't work in this client. `/toolbox sounds try <n>` plays clip id n directly
+    (id > loaded count returns -1 per docs) to tell which; the debug shows ShroudLuaPath / ShroudDataPath.
 23f. 2026-09-27, build 52094c3: nothing loaded from any candidate (.ogg or .wav in Lua/). Suspect the path
     base: for sounds, "relative to the addon's Lua folder" may mean Lua/toolbox/ for a package (textures
     are Lua-root-relative; clock.png loads as "toolbox/clock.png"). Candidates now include .ogg/.wav in

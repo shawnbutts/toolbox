@@ -261,7 +261,8 @@ end
 
 -- /toolbox sounds debug: the game's raw sound list and what each alert recorded.
 function S.DebugLines()
-  local lines = { "Toolbox build " .. T.build .. ", copies loaded: " .. tostring(ToolboxCopies) }
+  local lines = { "Toolbox build " .. T.build .. ", copies loaded: " .. tostring(ToolboxCopies),
+    "ShroudLuaPath = " .. tostring(ShroudLuaPath) .. "; ShroudDataPath = " .. tostring(ShroudDataPath) }
   local ok, raw = pcall(ShroudListSound)
   local n = type(raw) == "table" and #raw or 0
   local kind = ok and type(raw) or ("error " .. tostring(raw))
@@ -296,6 +297,30 @@ function S.DebugLines()
     for _, entry in ipairs(st.log or {}) do lines[#lines + 1] = "    tried " .. entry end
   end
   return lines
+end
+
+-- /toolbox sounds try <n>: play clip id n directly, without ShroudListSound(), and report what
+-- happened. The docs: an id above the number of loaded clips is rejected (-1). So a channel
+-- for id 1 means clips did load even when the list shows none.
+function S.TryClip(n)
+  if type(n) ~= "number" or n < 1 or n ~= math.floor(n) then
+    T.Print("Use /" .. T.commands[1] .. " sounds try <clip number>, e.g. 1.")
+    return
+  end
+  local ok, channel = pcall(ShroudPlaySoundChannel, n, prefs.volume > 0 and prefs.volume or 70)
+  if not ok then
+    T.Print("Clip " .. n .. ": ShroudPlaySoundChannel raised: " .. tostring(channel))
+    return
+  end
+  T.Print("Clip " .. n .. ": ShroudPlaySoundChannel returned " .. tostring(channel)
+    .. (channel == -1 and " (no such clip, or all channels busy)" or ""))
+  if type(channel) == "number" and channel > 0 then
+    ShroudRegisterPeriodic("toolbox_soundtry", function()
+      local now = ShroudIsChannelPlaying(channel)
+      T.Print("Clip " .. n .. ": channel " .. channel .. " is playing '" .. tostring(now) .. "'"
+        .. ((now == "" or now == nil) and " (nothing: it stopped at once or never started)" or ""))
+    end, 0.15, false)
+  end
 end
 
 -- One line per sound for /toolbox sounds.
