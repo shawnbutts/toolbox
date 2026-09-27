@@ -412,7 +412,13 @@ def build(manifest: dict, entries: list[Path], report: Report) -> Path:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--check", action="store_true", help="validate only; write nothing")
+    parser.add_argument("--changelog", action="store_true",
+                        help="only regenerate toolbox/changelog.lua (make runs this before lint and tests)")
     args = parser.parse_args()
+    if args.changelog:
+        report = Report()
+        sync_changelog(report, check_only=False)
+        return 0
 
     report = Report()
     sync_changelog(report, args.check)

@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "version", "0.2.1 - 2026-09-27 (beta 2)" },
+  { "para", "Second beta: the XP and Today windows can be HUD strips, /tbx version opens a changelog window, and fixes for the combat stats padding and the Docs command colours. Only the .ogg alert sounds ship now." },
   { "section", "Added" },
   { "item", "/tbx version also opens a version window: the same version line as in chat, then this changelog (newest first). tools/build.py bakes CHANGELOG.md into toolbox/changelog.lua, since the add-on can't read files; --check fails when it is out of date." },
   { "item", "The XP and Today windows can show as HUD strips instead (/tbx xp hud, /tbx daily hud, or \"As a HUD strip\" in settings): no title bar or frame, on the theme's dark panel, moved by the grip or /tbx xp move <x> <y>; the hover pop-ups work as over the windows. window switches back." },

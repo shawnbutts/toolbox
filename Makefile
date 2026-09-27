@@ -1,14 +1,18 @@
 # Convenience targets. Everything also runs directly; see README.md.
 LUA ?= lua
 
-.PHONY: check lint test build beta install clean
+.PHONY: check changelog lint test build beta install clean
 
 check: lint test build
 
-lint:
+# toolbox/changelog.lua is generated from CHANGELOG.md; refresh it before anything reads it.
+changelog:
+	python3 tools/build.py --changelog
+
+lint: changelog
 	luacheck .
 
-test:
+test: changelog
 	$(LUA) tests/run.lua
 
 build:

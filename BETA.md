@@ -47,7 +47,7 @@ folder: two copies tangle each other. /tbx version says "copies loaded: 1" when 
   /tbx            open or close the settings window (tick what you want on screen)
   /tbx help       open the Docs window: a guide to every feature, option and command
   /tbx commands   list every command in chat
-  /tbx version    the version and build you have (please include it in reports)
+  /tbx version    the version and build you have (please include it in reports), plus what changed
 
 /toolbox works everywhere /tbx does.
 
@@ -68,6 +68,10 @@ row under "Keys".
 --------------
 
 Anything you like, but especially:
+  * New in this beta: the XP and Today windows as HUD strips. Tick "As a HUD strip" in settings
+    (or /tbx xp hud, /tbx daily hud). Does hovering the strip still pop up XP Detailed / Today
+    Detailed? Do long numbers fit?
+  * /tbx version opens a window with what changed in each version.
   * The settings window and the Docs window: is anything unclear or missing?
   * XP and XP Detailed while you fight or craft: do the numbers look right?
   * Today: kills, gold and items. Does it reset at your local midnight?

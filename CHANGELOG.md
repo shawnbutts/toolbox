@@ -5,6 +5,12 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-27 (beta 2)
+
+Second beta: the XP and Today windows can be HUD strips, /tbx version opens a changelog window,
+and fixes for the combat stats padding and the Docs command colours. Only the .ogg alert sounds
+ship now.
+
 ### Added
 - `/tbx version` also opens a version window: the same version line as in chat, then this
   changelog (newest first). `tools/build.py` bakes CHANGELOG.md into `toolbox/changelog.lua`,
