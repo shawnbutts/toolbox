@@ -32,6 +32,7 @@ return function(t)
     t.ok(H.logged("help"))
     t.ok(H.logged("/toolbox xp"))
     t.ok(H.logged("/toolbox reset"))
+    t.ok(H.logged("/toolbox font"))
     t.ok(H.logged("/tbx"), "mentions the alias")
   end)
 

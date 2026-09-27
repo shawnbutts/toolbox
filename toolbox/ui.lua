@@ -13,47 +13,86 @@ local win = nil        -- window handle, rebuilt in ShroudOnStart after every re
 local el = {}          -- element handles by id
 local prefs = { open = false }
 
+W.FONT_MIN, W.FONT_MAX, W.FONT_DEFAULT = 9, 32, 12   -- fontSize range from the Shroud.UI docs
+
+-- Elements whose text size follows prefs.font.
+local TEXT_IDS = { "elapsed", "reset" }
+for _, track in ipairs(T.XP.TRACKS) do
+  for _, suffix in ipairs({ "_head", "_gain", "_eta" }) do TEXT_IDS[#TEXT_IDS + 1] = track.key .. suffix end
+end
+
+-- Side gutter, set on each section rather than relying on the window body's padding
+-- reaching inside the Scroll (the progress bars ran to the window edge without it).
+W.GUTTER = 10
+
+local function fontSize()
+  return prefs.font or W.FONT_DEFAULT
+end
+
+local function barHeight()
+  return math.max(4, math.floor(fontSize() / 2))
+end
+
 local function trackRows(track)
   local k = track.key
-  return UI.Column{ style = { marginBottom = 6 }, children = {
-    UI.Label{ id = k .. "_head", text = track.name, class = "heading" },
-    UI.Label{ id = k .. "_gain", text = "", class = "text" },
-    UI.Label{ id = k .. "_rate", text = "", class = "dim" },
-    UI.Label{ id = k .. "_level", text = "", class = "text" },
-    UI.Bar{ id = k .. "_bar", value = 0, color = "@gold" },
-    UI.Label{ id = k .. "_eta", text = "", class = "dim" },
+  local f = fontSize()
+  return UI.Column{ style = { marginTop = 4, paddingLeft = W.GUTTER, paddingRight = W.GUTTER }, children = {
+    UI.Label{ id = k .. "_head", text = track.name, class = "heading", style = { fontSize = f } },
+    UI.Bar{ id = k .. "_bar", value = 0, color = "@gold", style = { height = barHeight() } },
+    UI.Label{ id = k .. "_gain", text = "", class = "text", style = { fontSize = f } },
+    UI.Label{ id = k .. "_eta", text = "", class = "dim", style = { fontSize = f } },
   } }
 end
 
 local function build()
-  local children = { UI.Label{ id = "elapsed", text = "", class = "title" } }
-  for _, track in ipairs(T.XP.TRACKS) do children[#children + 1] = trackRows(track) end
-  children[#children + 1] = UI.Row{ style = { justifyContent = "end" }, children = {
-    UI.Button{ id = "reset", text = "Reset", tooltip = "Start a new XP session",
-      onClick = function() T.Dispatch("reset") end },
-  } }
+  local f = fontSize()
+  local rows = {}
+  for _, track in ipairs(T.XP.TRACKS) do rows[#rows + 1] = trackRows(track) end
 
   win = UI.Window{
     id = WINDOW_ID, title = "Session XP",
-    width = 320, height = 360, minWidth = 260, minHeight = 300,
+    -- Only the first open uses width/height: the host remembers the size the player drags it to.
+    width = 250, height = 200, minWidth = 160, minHeight = 100,
     x = prefs.x, y = prefs.y,
     escCloses = true,
     onClose = function()
       prefs.open = false
       W.SavePrefs()
     end,
-    style = { padding = 8 },
-    children = children,
+    style = { paddingTop = 6, paddingBottom = 6 },
+    children = {
+      UI.Row{
+        style = { alignItems = "center", paddingLeft = W.GUTTER, paddingRight = W.GUTTER },
+        children = {
+          UI.Label{ id = "elapsed", text = "", class = "title", style = { fontSize = f, flexGrow = 1 } },
+          UI.Button{ id = "reset", text = "Reset", tooltip = "Start a new XP session", style = { fontSize = f },
+            onClick = function() T.Dispatch("reset") end },
+        },
+      },
+      -- Scrolls when the player makes the window smaller than its content.
+      UI.Scroll{ style = { flexGrow = 1 }, children = rows },
+    },
   }
 
   el = {}
-  local ids = { "elapsed", "reset" }
-  for _, track in ipairs(T.XP.TRACKS) do
-    for _, suffix in ipairs({ "_gain", "_rate", "_level", "_bar", "_eta" }) do
-      ids[#ids + 1] = track.key .. suffix
-    end
+  for _, id in ipairs(TEXT_IDS) do el[id] = win:Find(id) end
+  for _, track in ipairs(T.XP.TRACKS) do el[track.key .. "_bar"] = win:Find(track.key .. "_bar") end
+end
+
+-- Sets the text size (W.FONT_MIN..W.FONT_MAX) and remembers it. Returns false when out of range.
+function W.SetFont(n)
+  if type(n) ~= "number" or n ~= math.floor(n) or n < W.FONT_MIN or n > W.FONT_MAX then return false end
+  prefs.font = n
+  W.SavePrefs()
+  if win then
+    for _, id in ipairs(TEXT_IDS) do el[id]:SetStyle{ fontSize = n } end
+    for _, track in ipairs(T.XP.TRACKS) do el[track.key .. "_bar"]:SetStyle{ height = barHeight() } end
   end
-  for _, id in ipairs(ids) do el[id] = win:Find(id) end
+  return true
+end
+
+function W.GetFont()
+  return fontSize()
 end
 
 function W.SavePrefs()
@@ -70,6 +109,9 @@ function W.Init()
   if type(saved) == "table" then
     prefs.open = saved.open == true
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
+    if type(saved.font) == "number" and saved.font >= W.FONT_MIN and saved.font <= W.FONT_MAX then
+      prefs.font = math.floor(saved.font)
+    end
   end
   build()
   if prefs.open then
@@ -113,31 +155,30 @@ function W.Refresh()
   if not W.IsShown() then return end
   local s = T.session
   if not s then
-    el.elapsed:SetText("Waiting for character data...")
+    el.elapsed:SetText("Waiting for character...")
     return
   end
   local now = T.Now()
-  el.elapsed:SetText("Session: " .. T.FormatDuration(T.XP.Elapsed(s, now)))
+  el.elapsed:SetText("Session " .. T.FormatDuration(T.XP.Elapsed(s, now)))
 
   local progress = ShroudGetLevelProgress()
   for _, track in ipairs(T.XP.TRACKS) do
     local k = track.key
     local sessionRate = T.XP.SessionRate(s, k, now)
-    el[k .. "_gain"]:SetText("Gained: " .. T.FormatNumber(T.XP.Gained(s, k)))
-    el[k .. "_rate"]:SetText("Session " .. rateText(sessionRate)
-      .. "  |  Last 10m " .. rateText(T.XP.WindowRate(s, k, now)))
+    el[k .. "_gain"]:SetText("+" .. T.FormatNumber(T.XP.Gained(s, k)) .. "  " .. rateText(sessionRate)
+      .. "  (10m " .. rateText(T.XP.WindowRate(s, k, now)) .. ")")
 
     local p = progress and progress[track.progress]
     if type(p) == "table" and type(p.level) == "number" then
       local pct = math.max(0, math.min(1, tonumber(p.percent) or 0))
-      el[k .. "_level"]:SetText(string.format("Level %d  |  %.1f%%", math.floor(p.level), pct * 100))
+      el[k .. "_head"]:SetText(string.format("%s  Lv %d  %.1f%%", track.name, math.floor(p.level), pct * 100))
       el[k .. "_bar"]:SetValue(pct)
       local eta = T.XP.TimeToLevel(p, sessionRate)
-      el[k .. "_eta"]:SetText("Next level: " .. (eta and ("~" .. T.FormatDuration(eta)) or "--"))
+      el[k .. "_eta"]:SetText("Next level " .. (eta and ("~" .. T.FormatDuration(eta)) or "--"))
     else
-      el[k .. "_level"]:SetText("Level: --")
+      el[k .. "_head"]:SetText(track.name .. "  Lv --")
       el[k .. "_bar"]:SetValue(0)
-      el[k .. "_eta"]:SetText("Next level: --")
+      el[k .. "_eta"]:SetText("Next level --")
     end
   end
 end

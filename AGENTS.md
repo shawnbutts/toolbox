@@ -92,7 +92,7 @@ including the "no character" sentinel.
 | Key | Shape |
 | --- | --- |
 | `session` | see the header comment of `xp.lua` (format `v = 1`; bump and handle old data if it changes) |
-| `window` | `{ open = bool, x = number, y = number }` |
+| `window` | `{ open = bool, x = number, y = number, font = 9..32 }` |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
 you read back (`Toolbox.XP.IsValid`) and fall back to defaults.
@@ -127,3 +127,7 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 8. The shape of `ShroudGetLevelProgress()` at the level cap (docs: `percent` reads 0). We treat
    `percent == 0` with `intoLevel > 0` as capped and show no ETA.
 9. Whether total XP can ever go down. Lower readings are treated as bad reads and ignored.
+10. Whether `fontSize` is inherited from a container. We set it on every label and button.
+    Also whether a `Bar` honours a `height` style (we set it to half the font size, min 4).
+11. Whether the window's `width`/`height` apply once the host has remembered a size. We assume
+    they don't (docs: size is "saved per add-on and window id"), so the player resizes by dragging.

@@ -104,6 +104,16 @@ add("reset", "start a new XP session", function()
   end
 end)
 
+add("font", "set the window text size, 9-32 (no number: show the current size)", function(rest)
+  if rest == "" then
+    T.Print("Window text size is " .. T.Window.GetFont() .. ". Use /" .. T.commands[1] .. " font <9-32>.")
+  elseif T.Window.SetFont(tonumber(rest)) then
+    T.Print("Window text size set to " .. T.Window.GetFont() .. ".")
+  else
+    T.Print("Text size must be a whole number from 9 to 32.")
+  end
+end)
+
 -- Parses "  XP  extra " -> "xp", "extra".
 function T.ParseArgs(args)
   args = tostring(args or "")

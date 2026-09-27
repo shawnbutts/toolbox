@@ -21,6 +21,7 @@ Built clean-room from the official docs only:
 | `/toolbox help` (or no argument) | list commands |
 | `/toolbox xp` | show or hide the Session XP window |
 | `/toolbox reset` | start a new XP session |
+| `/toolbox font <9-32>` | set the window text size (no number: show the current size; default 12) |
 
 If the game refuses a command name (another add-on has it, or it is too close to a chat
 command), the add-on says why in chat, e.g. `Could not register /tbx: taken`.
@@ -57,7 +58,10 @@ totals, so nothing depends on the callback.
 window only while it is open, and flushes saved vars at most every 30 seconds when something
 changed.
 
-The window remembers whether it is open and where it is (character-scope saved var `window`).
+The window remembers whether it is open, where it is and its text size (character-scope saved var
+`window`). Drag its corner to resize it. The game remembers the size you drag it to, so the
+size set in code only applies the first time the window opens. Content scrolls when the window
+is smaller than it.
 
 ## Development
 

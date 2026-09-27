@@ -150,14 +150,27 @@ return function(t)
     H.chat("/tbx xp")
     H.gain(36000, 1800)
     H.advance(1800)
-    t.eq(H.text("elapsed"), "Session: 30m 00s")
-    t.eq(H.text("a_gain"), "Gained: 36,000")
-    t.eq(H.text("a_rate"), "Session 72,000/h  |  Last 10m 0/h")
-    t.eq(H.text("p_gain"), "Gained: 1,800")
-    t.eq(H.text("a_level"), "Level 50  |  20.0%")
+    t.eq(H.text("elapsed"), "Session 30m 00s")
+    t.eq(H.text("a_head"), "Adventurer  Lv 50  20.0%")
+    t.eq(H.text("a_gain"), "+36,000  72,000/h  (10m 0/h)")
+    t.eq(H.text("p_head"), "Producer  Lv 40  10.0%")
+    t.eq(H.text("p_gain"), "+1,800  3,600/h  (10m 0/h)")
     t.near(H.window():Find("a_bar").value, 0.2)
     -- 80,000 to go at 72,000/h = 1h 06m 40s
-    t.eq(H.text("a_eta"), "Next level: ~1h 06m 40s")
+    t.eq(H.text("a_eta"), "Next level ~1h 06m 40s")
+  end)
+
+  t.test("sections have a side gutter so bars don't touch the window edge", function()
+    H.boot()
+    local w = H.window()
+    local header = w.children[1]
+    local scroll = w.children[2]
+    t.eq(header.style.paddingLeft, Toolbox.Window.GUTTER)
+    t.eq(header.style.paddingRight, Toolbox.Window.GUTTER)
+    for _, column in ipairs(scroll.children) do
+      t.eq(column.style.paddingLeft, Toolbox.Window.GUTTER)
+      t.eq(column.style.paddingRight, Toolbox.Window.GUTTER)
+    end
   end)
 
   t.test("window without level data", function()
@@ -165,8 +178,40 @@ return function(t)
     H.chat("/tbx xp")
     H.S.char.progress = { adventurer = {}, producer = {} }
     H.advance(1)
-    t.eq(H.text("a_level"), "Level: --")
-    t.eq(H.text("a_eta"), "Next level: --")
+    t.eq(H.text("a_head"), "Adventurer  Lv --")
+    t.eq(H.text("a_eta"), "Next level --")
+  end)
+
+  t.test("font size: default, set, persisted, applied after reload", function()
+    H.boot()
+    local label = function() return H.window():Find("a_gain") end
+    t.eq(label().style.fontSize, 12, "default")
+    H.clearLogs()
+    H.chat("/tbx font 10")
+    t.ok(H.logged("set to 10"))
+    t.eq(label().style.fontSize, 10, "applied live")
+    t.eq(H.window():Find("reset").style.fontSize, 10, "button too")
+    t.eq(H.saved("window").font, 10)
+    H.reload()
+    t.eq(label().style.fontSize, 10, "rebuilt with saved size")
+    H.clearLogs()
+    H.chat("/tbx font")
+    t.ok(H.logged("size is 10"))
+  end)
+
+  t.test("font size: out of range or not a number is refused", function()
+    H.boot()
+    for _, bad in ipairs({ "8", "33", "11.5", "big" }) do
+      H.clearLogs()
+      H.chat("/tbx font " .. bad)
+      t.ok(H.logged("whole number from 9 to 32"), bad)
+    end
+    t.eq(Toolbox.Window.GetFont(), 12)
+  end)
+
+  t.test("a corrupt saved font size falls back to the default", function()
+    H.boot({ ["character:Tester"] = { window = { open = true, font = 99 } } })
+    t.eq(Toolbox.Window.GetFont(), 12)
   end)
 
   t.test("reset button starts a new session", function()

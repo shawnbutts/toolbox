@@ -5,6 +5,15 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Added
+- `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
+
+### Changed
+- More compact Session XP window: level and % share the track heading, gains and rates share
+  one line, and elapsed time sits beside Reset. Smaller default text (12), a smaller default
+  size, and a lower minimum size (160x100). Content scrolls when the window is made smaller.
+- 10px left/right gutter in the Session XP window so the progress bars no longer touch the edge.
+
 ## [0.1.0] - 2026-09-27
 
 ### Added

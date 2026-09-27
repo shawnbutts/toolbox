@@ -186,6 +186,10 @@ function Element:Find(id)
   end
   return nil
 end
+function Element:SetStyle(style)
+  self.style = self.style or {}
+  for k, v in pairs(style) do self.style[k] = v end
+end
 function Element:SetText(t) self.text = t end
 function Element:GetText() return self.text end
 function Element:SetValue(v) self.value = v end

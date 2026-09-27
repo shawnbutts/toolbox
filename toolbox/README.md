@@ -9,6 +9,7 @@ A small toolbox of quality-of-life features. The first one is **Session XP**.
 - `/toolbox help`: list commands
 - `/toolbox xp`: show or hide the Session XP window
 - `/toolbox reset`: start a new XP session
+- `/toolbox font <9-32>`: set the window text size (default 12)
 
 ## Session XP
 
@@ -20,4 +21,5 @@ The window shows, for adventurer and producer XP:
 - your level, how far through it you are, and an estimate of the time to the next level at your session rate
 
 A session starts when you log in (or turn the add-on on) and when you press **Reset**.
-It survives `/lua reload`. Settings and the window's open state are saved per character.
+It survives `/lua reload`. The window can be resized by dragging its corner. Settings, text size
+and the window's open state are saved per character.
