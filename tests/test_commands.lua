@@ -98,6 +98,9 @@ return function(t)
     end
     t.ok(all:find("/toolbox xpdetailed (or xpd) - ", 1, true), "aliases shown")
     t.ok(all:find("Lock Status Movement", 1, true), "the HUD lock tip")
+    for _, label in ipairs(docs:Find("docs_body").children) do
+      t.ok(label.class == "text" or label.class == "heading", "one text colour: " .. label.text)
+    end
     H.chat("/tbx docs")
     t.no(docs:IsShown(), "the command toggles it")
     local total = 0

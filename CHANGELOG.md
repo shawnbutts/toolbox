@@ -11,6 +11,7 @@ store submission needs a higher version than any submitted before (rejected ones
   or `/tbx xp move <x> <y>`; the hover pop-ups work as over the windows. `window` switches back.
 
 ### Fixed
+- Docs: the command list is in the same text colour as the rest (it was dimmer than its first line).
 - Combat stats HUD: the values now have the same padding on the right as the names on the left.
 
 ## [0.2.0] - 2026-09-27 (beta 1)

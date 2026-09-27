@@ -91,7 +91,7 @@ local function build()
   children[#children + 1] = heading("Commands")
   children[#children + 1] = para("/" .. T.commands[1] .. " and /" .. T.commands[2] .. " do the same thing.")
   for _, line in ipairs(D.CommandLines()) do
-    children[#children + 1] = UI.Label{ text = line, class = "dim", style = { whiteSpace = "wrap", marginTop = 2 } }
+    children[#children + 1] = para(line)    -- same colour as the rest (dim was hard to read)
   end
   win = UI.Window{
     id = WINDOW_ID, title = "Toolbox Docs",
