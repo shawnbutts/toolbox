@@ -224,13 +224,12 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 20. Container `Add`/`Clear` and the element-creation rate cap (~500 burst, ~200/s): the Today Detailed
     list keeps rebuilds to at most 3 x `MAX_ROWS` elements and one per `RESORT_SECONDS`. If a rebuild
     ever raises, lower `MAX_ROWS`.
-21. Buff bar layout: an `Image` overlapping another via `marginLeft = -size` (no absolute positioning
-    exists), and a hover tooltip on an `Image` only when it has an `onClick` (docs: an Image "takes the
-    pointer only while it has a click handler"). If the sweep draws beside the icon, or tooltips don't
-    show, look here.
-22. Buff timers: `ShroudGetBuffTimeRemaining` for a permanent effect is assumed to be <= 0 (no sweep,
-    no alert). The sweep's total is the largest remaining time seen for the current run (the grouped
-    `CurrentDuration`/`TotalDuration` fields' units aren't documented, so they're unused).
+21. Buff bar layout. CONFIRMED in game 2026-09-27: an `Image` overlapping another via
+    `marginLeft = -size` draws on top of it (there is no absolute positioning), and an `Image` with an
+    `onClick` shows its tooltip on hover (docs: it "takes the pointer only while it has a click handler").
+22. Buff timers. CONFIRMED in game 2026-09-27: permanent effects report no positive time remaining (no
+    sweep, no alert). The sweep's total is the largest remaining time seen for the current run (the
+    grouped `CurrentDuration`/`TotalDuration` fields' units aren't documented, so they're unused).
 23. Sounds: `ShroudLoadSound`'s path base ("the addon's Lua folder" vs the Lua root) and what clip names
     `ShroudListSound` reports. `Toolbox.Sounds` tries both bases and matches the file stem, falling back
     to "the one new clip". `/toolbox sounds` shows what was found.
