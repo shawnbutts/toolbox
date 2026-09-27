@@ -154,6 +154,7 @@ function W.ApplyText()
   end
   T.Compact.ApplyText()
   T.Daily.ApplyText()
+  T.DailyDetail.ApplyText()
   T.Config.Sync()
 end
 

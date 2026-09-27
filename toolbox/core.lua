@@ -1,7 +1,7 @@
 -- Toolbox: core.lua
 -- Namespace, chat output, saved-variable helpers, slash commands and callback wiring.
 -- Loaded first (see manifest.json). Later files add Toolbox.XP, Toolbox.Window,
--- Toolbox.Compact, Toolbox.Daily and Toolbox.Config.
+-- Toolbox.Hover, Toolbox.Compact, Toolbox.Daily, Toolbox.DailyDetail and Toolbox.Config.
 
 Toolbox = {
   name = "Toolbox",
@@ -132,6 +132,10 @@ end, { "xpd" })
 add("daily", "show or hide today's stats (gold, kills, XP; resets at midnight)", function()
   T.Daily.Toggle()
 end)
+
+add("dailydetailed", "show or hide Today Detailed (every item gained today, with counts)", function()
+  T.DailyDetail.Toggle()
+end, { "dd" })
 
 add("config", "open or close the settings window", function()
   T.Config.Toggle()
@@ -279,6 +283,7 @@ function T.RefreshViews()
   T.Window.Refresh()
   T.Compact.Refresh()
   T.Daily.Refresh()
+  T.DailyDetail.Refresh()
 end
 
 function T.Tick()
@@ -296,6 +301,7 @@ function T.Tick()
   T.Window.Track()
   T.Compact.Track()
   T.Daily.Track()
+  T.DailyDetail.Track()
   -- Store a changed session once a tick (in memory; copying up to an hour of
   -- samples per XP event would be wasteful), and write it to disk at most
   -- every flushSeconds. A reload re-reads the totals, so it loses no XP.
@@ -320,6 +326,7 @@ function ShroudOnStart()
   T.Window.Init()
   T.Compact.Init()
   T.Daily.InitWindow()
+  T.DailyDetail.Init()
   ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
 end
 
@@ -334,6 +341,11 @@ function ShroudOnCombatEvents(events, _)
   T.Daily.OnCombat(events)
 end
 
+-- Items for the daily stats (anything that arrives in your bags).
+function ShroudOnItemsGained(items, dropped)
+  T.Daily.OnItems(items, dropped)
+end
+
 function ShroudOnLogOut()
   if T.session then
     T.Sample()
@@ -344,6 +356,7 @@ function ShroudOnLogOut()
   T.Window.SavePrefs()
   T.Compact.SavePrefs()
   T.Daily.SavePrefs()
+  T.DailyDetail.SavePrefs()
   T.Flush()
 end
 
@@ -354,5 +367,6 @@ function ShroudOnDisableScript()
   T.Window.SavePrefs()
   T.Compact.SavePrefs()
   T.Daily.SavePrefs()
+  T.DailyDetail.SavePrefs()
   T.Flush()
 end

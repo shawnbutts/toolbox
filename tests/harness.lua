@@ -206,6 +206,18 @@ function Element:SetStyle(style)
   self.style = self.style or {}
   for k, v in pairs(style) do self.style[k] = v end
 end
+function Element:Add(child)
+  self.children = self.children or {}
+  self.children[#self.children + 1] = child
+  S.created = (S.created or 0) + 1
+  return child
+end
+function Element:Clear()
+  S.destroyed = (S.destroyed or 0) + #(self.children or {})
+  self.children = {}
+end
+function Element:SetVisible(v) self.visible = v end
+function Element:IsVisible() return self.visible ~= false end
 function Element:SetText(t) self.text = t end
 function Element:SetTooltip(t) self.tooltip = t end
 function Element:GetText() return self.text end
@@ -397,6 +409,23 @@ function H.combat(events)
     e.source, e.target, e.amount, e.skill = e.source or "", e.target or "", e.amount or 0, e.skill or ""
   end
   return H.callback("ShroudOnCombatEvents", events, 0)
+end
+
+-- Items arrive in the bags: H.items({ { "Iron Ore", 5 }, { "Wolf Pelt", 1 } }, dropped).
+function H.items(list, dropped)
+  local items = {}
+  for _, it in ipairs(list) do items[#items + 1] = { name = it[1], quantity = it[2], icon = -1 } end
+  return H.callback("ShroudOnItemsGained", items, dropped or 0)
+end
+
+function H.detail() return S.windows.toolbox_daily_detail end
+-- The Today Detailed item list as { { name, count }, ... } in display order.
+function H.detailRows()
+  local out = {}
+  for _, row in ipairs(H.detail():Find("list").children or {}) do
+    out[#out + 1] = { row.children[1].text, row.children[2].text }
+  end
+  return out
 end
 
 function H.daily() return S.windows.toolbox_daily end

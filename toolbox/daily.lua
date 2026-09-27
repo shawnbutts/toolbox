@@ -7,6 +7,8 @@
 --   v     = 1,
 --   key   = "local:2026-09-27",   -- Toolbox.Today() key the counts belong to
 --   gold  = n, kills = n, a = n, p = n,   -- today's counts
+--   items = { [name] = n },  -- items gained today, by name (at most D.MAX_KINDS names)
+--   dropped = n,             -- item kinds the game didn't itemise (past 20 in one call)
 --   last  = { gold = n|nil, a = n|nil, p = n|nil },  -- last readings, to diff against
 -- }
 
@@ -18,13 +20,15 @@ local UI = Shroud.UI
 local WINDOW_ID = "toolbox_daily"
 local GUTTER = 8
 D.FORMAT = 1
+D.MAX_KINDS = 250                 -- distinct item names kept per day (saved-var size)
+D.OTHER = "(other items)"         -- where kinds past D.MAX_KINDS are counted
 
 -- ---------------------------------------------------------------------------
 -- Model (plain data, no API calls)
 -- ---------------------------------------------------------------------------
 
 function D.New(key)
-  return { v = D.FORMAT, key = key, gold = 0, kills = 0, a = 0, p = 0, last = {} }
+  return { v = D.FORMAT, key = key, gold = 0, kills = 0, a = 0, p = 0, items = {}, dropped = 0, last = {} }
 end
 
 local function isCount(x) return type(x) == "number" and x == x and x >= 0 end
@@ -36,7 +40,55 @@ function D.IsValid(d)
   for _, k in ipairs({ "gold", "kills", "a", "p" }) do
     if not isCount(d[k]) then return false end
   end
+  -- items / dropped arrived after v1 shipped: absent is fine (D.Upgrade fills them in).
+  if d.items ~= nil then
+    if type(d.items) ~= "table" then return false end
+    for name, n in pairs(d.items) do
+      if type(name) ~= "string" or not isCount(n) then return false end
+    end
+  end
+  if d.dropped ~= nil and not isCount(d.dropped) then return false end
   return true
+end
+
+-- Fills in fields added after the first v1 saves.
+function D.Upgrade(d)
+  d.items = d.items or {}
+  d.dropped = d.dropped or 0
+  return d
+end
+
+-- Adds one ShroudOnItemsGained batch. Returns true when anything was counted.
+function D.AddItems(d, items, dropped)
+  local changed = false
+  for _, item in ipairs(type(items) == "table" and items or {}) do
+    local name, qty = type(item) == "table" and item.name, type(item) == "table" and item.quantity
+    if type(name) == "string" and name ~= "" and isCount(qty) and qty > 0 then
+      if d.items[name] == nil then
+        local kinds = 0
+        for _ in pairs(d.items) do kinds = kinds + 1 end
+        if kinds >= D.MAX_KINDS then name = D.OTHER end
+      end
+      d.items[name] = (d.items[name] or 0) + qty
+      changed = true
+    end
+  end
+  if isCount(dropped) and dropped > 0 then
+    d.dropped = d.dropped + dropped
+    changed = true
+  end
+  return changed
+end
+
+-- Item names sorted by count (highest first), then name.
+function D.SortedItems(d)
+  local names = {}
+  for name in pairs(d.items) do names[#names + 1] = name end
+  table.sort(names, function(x, y)
+    if d.items[x] ~= d.items[y] then return d.items[x] > d.items[y] end
+    return x < y
+  end)
+  return names
 end
 
 -- Starts a new day when the key changed. Keeps the last readings so gains
@@ -44,6 +96,7 @@ end
 function D.Roll(d, key)
   if key == nil or d.key == key then return false end
   d.key, d.gold, d.kills, d.a, d.p = key, 0, 0, 0, 0
+  d.items, d.dropped = {}, 0
   return true
 end
 
@@ -111,7 +164,7 @@ function D.Load()
   local saved = T.Load("daily")
   local key = today()
   if D.IsValid(saved) then
-    D.day = saved
+    D.day = D.Upgrade(saved)
   else
     D.day = D.New(key or "none")
   end
@@ -150,6 +203,10 @@ function D.OnLogin(adv, prod)
   D.unsaved = true
 end
 
+function D.OnItems(items, dropped)
+  if D.day and D.AddItems(D.day, items, dropped) then D.unsaved = true end
+end
+
 function D.OnCombat(events)
   if not D.day or type(events) ~= "table" then return end
   for _, e in ipairs(events) do
@@ -166,7 +223,20 @@ end
 
 local win = nil
 local el = {}
-local prefs = { open = false }
+local prefs = { open = false, hover = true }
+
+-- Hover pop-up of the Today Detailed window (Toolbox.DailyDetail).
+local hover = T.Hover.New{
+  name = "daily",
+  enabled = function() return prefs.hover end,
+  trigger = function() return D.IsShown() end,
+  popup = {
+    IsShown = function() return T.DailyDetail.IsShown() end,
+    IsPopup = function() return T.DailyDetail.IsPopup() end,
+    ShowPopup = function() return T.DailyDetail.ShowPopup() end,
+    HidePopup = function() return T.DailyDetail.HidePopup() end,
+  },
+}
 
 local LINES = {
   { id = "gold", label = "Gold picked up",
@@ -200,11 +270,14 @@ local function build()
     onClose = function()
       prefs.open = false
       D.SavePrefs()
+      hover:Clear("t:")
       T.Config.Sync()
     end,
+    onHover = function(_, over) hover:Report("t:window", over) end,
     style = { paddingTop = 4, paddingBottom = 4 },
     children = {
-      UI.Scroll{ style = { flexGrow = 1 }, children = {
+      UI.Scroll{ id = "body", style = { flexGrow = 1 },
+        onHover = function(_, over) hover:Report("t:body", over) end, children = {
         UI.Column{ style = { paddingLeft = GUTTER, paddingRight = GUTTER }, children = rows },
       } },
     },
@@ -225,9 +298,10 @@ end
 -- The data is loaded earlier, by D.Load from ShroudOnStart.
 function D.InitWindow()
   local saved = T.Load("daily_window")
-  prefs = { open = false }
+  prefs = { open = false, hover = true }
   if type(saved) == "table" then
     prefs.open = saved.open == true
+    prefs.hover = saved.hover ~= false
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
   build()
@@ -243,6 +317,7 @@ function D.SetOpen(open)
   if not open then
     win:Hide()
     prefs.open = false
+    hover:Clear("t:")
   elseif win:IsShown() or win:Show() then
     prefs.open = true
     D.Refresh()
@@ -269,18 +344,38 @@ function D.Track()
   if T.Window.TrackPosition(win, prefs) then D.SavePrefs() end
 end
 
+-- Hover reports from the Today Detailed window (key without prefix).
+function D.PopupHover(key, over)
+  hover:Report("p:" .. key, over)
+end
+
+function D.PopupClosed()
+  hover:Clear("p:")
+end
+
+function D.SetHover(on)
+  prefs.hover = on == true
+  D.SavePrefs()
+  if not prefs.hover then hover:Cancel() end
+  T.Config.Sync()
+end
+
+function D.GetHover()
+  return prefs.hover
+end
+
+-- "Today 2026-09-27", and a tooltip saying which clock resets it.
+function D.DateText()
+  if D.source == "local" then return "Today " .. D.label, "Resets at local midnight" end
+  if D.source == "utc" then return "Today " .. D.label, "Local clock unavailable: resets at midnight UTC" end
+  return "Today (no clock)", "No usable clock: these counts will not reset by themselves"
+end
+
 function D.Refresh()
   if not D.IsShown() or not D.day then return end
-  if D.source == "local" then
-    el.date:SetText("Today " .. D.label)
-    el.date:SetTooltip("Resets at local midnight")
-  elseif D.source == "utc" then
-    el.date:SetText("Today " .. D.label)
-    el.date:SetTooltip("Local clock unavailable: resets at midnight UTC")
-  else
-    el.date:SetText("Today (no clock)")
-    el.date:SetTooltip("No usable clock: these counts will not reset by themselves")
-  end
+  local date, tip = D.DateText()
+  el.date:SetText(date)
+  el.date:SetTooltip(tip)
   el.gold:SetText(T.FormatNumber(D.day.gold))
   el.kills:SetText(T.FormatNumber(D.day.kills))
   el.adv:SetText(T.FormatNumber(D.day.a))

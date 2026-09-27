@@ -6,6 +6,9 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Today Detailed window (`/toolbox dailydetailed`, alias `dd`; pops up when hovering Today): the
+  day's gold and kills plus every item gained today with its count. Settings has checkboxes to
+  show it and to turn its hover pop-up off.
 - Daily stats window (`/toolbox daily`, also in settings): gold picked up, kills by you or your
   pet, and adventurer / producer XP gained today. Resets at local midnight (midnight UTC if the
   local clock is unavailable); kept per character across reloads and relogs.
@@ -19,7 +22,12 @@ store submission needs a higher version than any submitted before (rejected ones
   window and a checkbox to show or hide it.
 - `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
 
+### Fixed
+- The "Show daily stats window" checkbox in settings now follows `/toolbox daily` and the
+  window's close button (it only worked in one direction).
+
 ### Changed
+- The hover pop-up logic is shared (`hover.lua`) between XP / XP Detailed and Today / Today Detailed.
 - Window names and commands: the compact window is now **XP** (`/toolbox xp`), and the old
   Session XP window is **XP Detailed** (`/toolbox xpdetailed`, alias `xpd`). `/toolbox compact`
   is gone. Window positions and settings carry over.

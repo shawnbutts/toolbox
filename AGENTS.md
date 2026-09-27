@@ -44,7 +44,7 @@ Run all three before calling a change done.
 
 - `toolbox/`: the shipped package. Flat folder: `manifest.json`, `*.lua`, `README.md` (store readme),
   optional `icon.png` and pictures. Nothing else, or the build fails.
-  - `manifest.json` `files` is the load order: `core.lua`, `xp.lua`, `ui.lua`, `compact.lua`, `daily.lua`, `config.lua`. A new `.lua` file must be
+  - `manifest.json` `files` is the load order: `core.lua`, `xp.lua`, `hover.lua`, `ui.lua`, `compact.lua`, `daily.lua`, `dailydetail.lua`, `config.lua`. A new `.lua` file must be
     added there. Later files may use globals from earlier ones at top level; earlier files may only use
     later ones inside functions (callbacks run after every file has loaded).
   - `core.lua`: `Toolbox` namespace, chat output (`Toolbox.Print`), saved-var helpers (`Load`/`Save`/`Flush`,
@@ -62,10 +62,19 @@ Run all three before calling a change done.
     the hover pop-up: elements of both windows report hover keys to `PopupHover`, and one-shot
     periodics (`toolbox_hover_show`/`_hide`) apply the delays. XP Detailed distinguishes
     pinned (`IsOpen`, persisted) from popped up (`IsPopup`, never persisted).
+  - `hover.lua`: `Toolbox.Hover.New{ name, enabled, trigger, popup }` returns a controller for one
+    trigger window and one pop-up. Trigger elements report `hover:Report("t:<el>", over)`, pop-up
+    elements `"p:<el>"`; `Clear(prefix)` when a window closes, `Cancel()` when hover is turned off.
+    A pop-up window needs `IsShown`, `IsPopup`, `ShowPopup`, `HidePopup`, and must keep "pinned"
+    (`IsOpen`, persisted) apart from "popped up" (never persisted). Copy `dailydetail.lua` for a new one.
   - `daily.lua`: `Toolbox.Daily`, daily stats (model functions at the top are pure and tested) and the
     Today window. Fed by `Toolbox.Sample` (XP totals), `Toolbox.Tick` (gold, day rollover, saving) and
     `ShroudOnCombatEvents` (kills). `OnLogin` is called for every new session except a reset, and
     re-bases gold/XP so offline changes don't count. The day key comes from `Toolbox.Today()`.
+  - `dailydetail.lua`: `Toolbox.DailyDetail`, the Today Detailed window. Item rows are never rebuilt on a
+    timer (element-creation cap; no reorder API): new names are appended, and a sorted rebuild happens
+    only when the window is shown, the rows are out of order, and `RESORT_SECONDS` have passed.
+    Rows have no ids (item names aren't valid ids); handles are kept in a Lua table.
   - `config.lua`: `Toolbox.Config`, the settings window. Controls call the owning module's setters; the
     setters call `Toolbox.Config.Sync()` so the controls follow chat commands and the close button.
     To add a setting: a setter + getter on the owning module (persisted there), a control here, a line
@@ -104,6 +113,7 @@ in chat.
 - `H.advance(n)` runs the periodics second by second; `H.gain(a, p)` adds XP (and fires the callback);
 - `H.S.date = "2026-09-28"` changes what `os.date("%Y-%m-%d")` returns; `H.S.serverTime` sets
   `ShroudServerTime`; `H.goldChange(n)`; `H.combat{ { kind = "death", fromYou = true } }`;
+  `H.items({ { "Iron Ore", 5 } }, dropped)`; `H.detailRows()`; `H.S.created` counts `Add` calls;
 - `H.chat("/tbx reset")`, `H.click(window, id)`, `H.change(window, id, value)` (player input on a
   slider/toggle), `H.closeWindow(id)`, `H.moveWindow(id, x, y)`.
 
@@ -118,7 +128,8 @@ including the "no character" sentinel.
 | `window` | `{ open = bool, x = number, y = number, font = 9..32, spacing = 0..12 }` |
 | `compact` | `{ open = bool, x = number, y = number, hover = bool }` |
 | `daily` | see the header comment of `daily.lua` (format `v = 1`) |
-| `daily_window` | `{ open = bool, x = number, y = number }` |
+| `daily_window` | `{ open = bool, x = number, y = number, hover = bool }` |
+| `daily_detail` | `{ open = bool, x = number, y = number }` |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
 you read back (`Toolbox.XP.IsValid`) and fall back to defaults.
@@ -177,3 +188,8 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     stripped with a pattern and the rest used as the key).
 18. `ShroudPlayerGold` before a character is loaded or during a scene change: a 0 from a positive
     balance is ignored as a bad read, so spending exactly down to 0 under-counts the next pickup.
+19. `ShroudOnItemsGained` item names as keys: assumed stable, plain display names (localized). Two
+    different items with the same display name are counted together.
+20. Container `Add`/`Clear` and the element-creation rate cap (~500 burst, ~200/s): the Today Detailed
+    list keeps rebuilds to at most 3 x `MAX_ROWS` elements and one per `RESORT_SECONDS`. If a rebuild
+    ever raises, lower `MAX_ROWS`.

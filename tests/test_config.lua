@@ -139,4 +139,31 @@ return function(t)
     H.boot({ ["character:Tester"] = { window = { spacing = 40 } } })
     t.eq(Toolbox.Window.GetSpacing(), 2)
   end)
+
+  t.test("every checkbox follows its window when changed outside settings", function()
+    H.boot()
+    H.chat("/tbx config")
+    local cases = {
+      { "show_compact", "/tbx xp", "toolbox_compact" },
+      { "show_xp", "/tbx xpdetailed", "toolbox_xp" },
+      { "show_daily", "/tbx daily", "toolbox_daily" },
+      { "show_daily_detail", "/tbx dailydetailed", "toolbox_daily_detail" },
+    }
+    for _, c in ipairs(cases) do
+      H.chat(c[2])
+      t.eq(find(c[1]).value, true, c[1] .. " after " .. c[2])
+      H.closeWindow(c[3])
+      t.eq(find(c[1]).value, false, c[1] .. " after closing")
+    end
+  end)
+
+  t.test("a refused Show() only resets its own checkbox", function()
+    H.boot()
+    H.chat("/tbx daily")
+    H.chat("/tbx config")
+    H.S.showRefused = true
+    H.change("toolbox_config", "show_compact", true)
+    t.eq(find("show_compact").value, false)
+    t.eq(find("show_daily").value, true, "daily checkbox untouched")
+  end)
 end

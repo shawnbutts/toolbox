@@ -5,7 +5,10 @@ local ROOT = (arg and arg[0] and arg[0]:match("^(.*)[/\\]tests[/\\]")) or "."
 package.path = ROOT .. "/tests/?.lua;" .. package.path
 
 local filter = arg and arg[1]
-local suites = { "test_xp", "test_commands", "test_session", "test_config", "test_compact", "test_hover", "test_daily" }
+local suites = {
+  "test_xp", "test_commands", "test_session", "test_config", "test_compact", "test_hover",
+  "test_daily", "test_dailydetail",
+}
 
 local tests = {}
 local current_suite

@@ -4,7 +4,8 @@ A Shroud of the Avatar Lua add-on (API 14). Features so far:
 
 - **XP**: a small window with session time, your adventurer and producer pools, and XP earned in
   the last hour. Hover it for **XP Detailed**: levels, progress bars, XP/hour, time to next level.
-- **Today**: gold picked up, kills, and XP gained since midnight.
+- **Today**: gold picked up, kills, and XP gained since midnight. Hover it for **Today Detailed**:
+  every item gained today, with counts.
 
 - Store slug and package folder: `toolbox`
 - Author: shawn butts
@@ -26,6 +27,7 @@ Built clean-room from the official docs only:
 | `/toolbox xpdetailed` (or `xpd`) | show or hide the XP Detailed window |
 | `/toolbox reset` | start a new XP session |
 | `/toolbox daily` | show or hide today's stats (gold, kills, XP) |
+| `/toolbox dailydetailed` (or `dd`) | show or hide Today Detailed (every item gained today) |
 | `/toolbox config` | open or close the settings window |
 | `/toolbox spacing <0-12>` | set the extra space between lines in pixels (no number: show it; default 2) |
 | `/toolbox font <9-32>` | set the window text size (no number: show the current size; default 12) |
@@ -95,7 +97,7 @@ pin it (running it while the window is popped up keeps it open). Turn hover off 
 "Show XP Detailed on hover" in `/toolbox config`.
 
 `/toolbox config` opens a **Toolbox Settings** window with a text-size slider (applied as you
-drag), a line-spacing slider, and checkboxes to show the XP, XP Detailed and daily stats windows.
+drag), a line-spacing slider, and checkboxes to show each window and to turn each hover pop-up on or off.
 
 Shroud.UI has no line-height style, so every text line gets a fixed height of about
 1.15 × the text size plus the line spacing, with no margins above or below. Shrinking the text
@@ -129,6 +131,23 @@ Producer XP            4,567
 - **XP** is the rise in your total adventurer / producer XP today.
 - Per character, and kept across `/lua reload`, relogs and client restarts on the same day.
 
+### Today Detailed
+
+Rest the pointer on **Today** and **Today Detailed** pops up (same rules as XP Detailed: it stays
+while the pointer is over either window, and `/toolbox dailydetailed` or `dd` pins it). It shows
+the day's gold and kills and a list of every item gained today with its count, highest first.
+
+- Items come from `ShroudOnItemsGained`: anything that arrives in your bags from outside them.
+  That is loot, but also purchases, crafting results, harvests, mail and trades, and items taken
+  from your bank or a chest, so the list is "items gained", not strictly "looted".
+- The game reports at most 20 kinds of item per event; kinds past that are counted as
+  "kinds the game didn't itemise".
+- The list shows up to 60 rows. Shroud.UI can't reorder rows and caps how fast elements are
+  created, so new items are appended as they arrive and the list is re-sorted only when the window
+  opens (at most every 10 seconds). Up to 250 item names are kept per day; the rest are counted
+  under "(other items)".
+- Hover can be turned off with "Show Today Detailed on hover" in `/toolbox config`.
+
 ## Development
 
 Requirements: Lua 5.2+ or LuaJIT, [luacheck](https://github.com/lunarmodules/luacheck), Python 3.9+.
@@ -149,12 +168,15 @@ image limits, size caps, no runtime code loading, and no `io`/`os` use in packag
 
 ```
 toolbox/            the package (what ships)
-  manifest.json     files load in this order: core.lua, xp.lua, ui.lua, compact.lua, daily.lua, config.lua
+  manifest.json     files load in this order: core.lua, xp.lua, hover.lua, ui.lua, compact.lua, daily.lua,
+                    dailydetail.lua, config.lua
   core.lua          Toolbox namespace, commands, saved-var helpers, session lifecycle, callbacks
   xp.lua            pure session XP model (rates, rolling window, time to level)
   ui.lua            the XP Detailed window (/toolbox xpdetailed; Toolbox.Window, id toolbox_xp)
   compact.lua       the XP window (/toolbox xp; Toolbox.Compact, id toolbox_compact)
+  hover.lua         shared hover pop-up controller (XP -> XP Detailed, Today -> Today Detailed)
   daily.lua         daily stats and the Today window (/toolbox daily)
+  dailydetail.lua   the Today Detailed window (/toolbox dailydetailed, dd)
   config.lua        the Toolbox Settings window (/toolbox config)
   README.md         player-facing store readme
 tests/              headless tests with a stubbed host (harness.lua)

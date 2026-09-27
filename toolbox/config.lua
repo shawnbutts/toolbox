@@ -22,7 +22,7 @@ local function build()
   local W = T.Window
   win = UI.Window{
     id = WINDOW_ID, title = "Toolbox Settings",
-    width = 260, height = 290, minWidth = 200, minHeight = 120,
+    width = 260, height = 330, minWidth = 200, minHeight = 120,
     escCloses = true,
     style = { paddingTop = 6, paddingBottom = 6 },
     children = {
@@ -60,16 +60,25 @@ local function build()
           onChange = function(_, value) C.OnShowDaily(value) end,
         },
         UI.Toggle{
+          id = "show_daily_detail", text = "Show Today Detailed window", value = T.DailyDetail.IsOpen(),
+          onChange = function(_, value) C.OnShowDailyDetail(value) end,
+        },
+        UI.Toggle{
           id = "hover_popup", text = "Show XP Detailed on hover", value = T.Compact.GetHover(),
           tooltip = "Hovering the XP window pops up the XP Detailed window",
           onChange = function(_, value) T.Compact.SetHover(value) end,
+        },
+        UI.Toggle{
+          id = "hover_daily", text = "Show Today Detailed on hover", value = T.Daily.GetHover(),
+          tooltip = "Hovering the Today window pops up the Today Detailed window",
+          onChange = function(_, value) T.Daily.SetHover(value) end,
         },
       } },
     },
   }
   el = {}
   local ids = { "font", "font_value", "spacing", "spacing_value", "show_xp", "show_compact", "show_daily",
-                "hover_popup" }
+                "show_daily_detail", "hover_popup", "hover_daily" }
   for _, id in ipairs(ids) do el[id] = win:Find(id) end
 end
 
@@ -96,13 +105,18 @@ end
 function C.OnShowCompact(value)
   if not T.Compact.SetOpen(value == true) then
     el.show_compact:SetValue(T.Compact.IsShown())
-  el.show_daily:SetValue(T.Daily.IsShown())
   end
 end
 
 function C.OnShowDaily(value)
   if not T.Daily.SetOpen(value == true) then
     el.show_daily:SetValue(T.Daily.IsShown())
+  end
+end
+
+function C.OnShowDailyDetail(value)
+  if not T.DailyDetail.SetOpen(value == true) then
+    el.show_daily_detail:SetValue(T.DailyDetail.IsOpen())
   end
 end
 
@@ -118,7 +132,10 @@ function C.Sync()
   el.spacing_value:SetText(fontLabel(spacing))
   el.show_xp:SetValue(T.Window.IsOpen())
   el.show_compact:SetValue(T.Compact.IsShown())
+  el.show_daily:SetValue(T.Daily.IsShown())
+  el.show_daily_detail:SetValue(T.DailyDetail.IsOpen())
   el.hover_popup:SetValue(T.Compact.GetHover())
+  el.hover_daily:SetValue(T.Daily.GetHover())
 end
 
 function C.IsShown()
