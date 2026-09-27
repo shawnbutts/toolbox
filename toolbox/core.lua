@@ -489,9 +489,15 @@ add("welcome", "show the first-run welcome again (reset: show it at the next /lu
   T.Welcome()
 end)
 
-add("version", "show the installed Toolbox version and build", function()
-  T.Print("Toolbox " .. T.version .. ", build " .. T.build .. "; API " .. tostring(ShroudLuaApiVersion)
-    .. "; copies loaded: " .. tostring(ToolboxCopies) .. (ToolboxCopies > 1 and " (remove the extra one)" or ""))
+-- "Toolbox 0.2.0, build a52051c; API 14; copies loaded: 1" (chat and the version window).
+function T.VersionLine()
+  return "Toolbox " .. T.version .. ", build " .. T.build .. "; API " .. tostring(ShroudLuaApiVersion)
+    .. "; copies loaded: " .. tostring(ToolboxCopies) .. (ToolboxCopies > 1 and " (remove the extra one)" or "")
+end
+
+add("version", "show the installed version and build, and open the changelog", function()
+  T.Print(T.VersionLine())
+  T.Docs.OpenVersion()
 end)
 
 add("stats", "list character stats matching a word, e.g. /toolbox stats health", function(rest)

@@ -2,6 +2,9 @@
 -- The Docs window (/toolbox docs, or the Docs button in settings): getting started, each
 -- feature and its main options, tips, and every chat command (listed from the same table the
 -- commands are registered from, so it can't go out of date). Built on first open.
+--
+-- Also the version window (/toolbox version): the version line and the changelog, which
+-- tools/build.py bakes into changelog.lua (Toolbox.CHANGELOG) from CHANGELOG.md.
 
 local T = Toolbox
 local D = {}
@@ -123,4 +126,61 @@ function D.Open()
   if not win:IsShown() and not win:Show() then
     T.Print("The Docs window can't reopen right now; try again in a few seconds.")
   end
+end
+
+-- ---------------------------------------------------------------------------
+-- Version window
+-- ---------------------------------------------------------------------------
+
+local VERSION_ID = "toolbox_version"
+local vwin = nil
+
+-- Labels for the changelog entries ({ kind, text }; see changelog.lua).
+function D.ChangelogLabels()
+  local out = {}
+  for _, entry in ipairs(T.CHANGELOG or {}) do
+    local kind, text = entry[1], entry[2]
+    if kind == "version" then
+      if text == "Unreleased" then text = "Unreleased (newer than " .. T.version .. ")" end
+      out[#out + 1] = UI.Label{ text = text, class = "heading", style = { marginTop = 10 } }
+    elseif kind == "section" then
+      out[#out + 1] = UI.Label{ text = text, class = "bright", style = { marginTop = 4 } }
+    elseif kind == "item" then
+      out[#out + 1] = UI.Label{ text = "- " .. text, class = "text",
+        style = { whiteSpace = "wrap", marginTop = 2, paddingLeft = 8 } }
+    else
+      out[#out + 1] = para(text)
+    end
+  end
+  return out
+end
+
+local function buildVersion()
+  local children = {
+    UI.Label{ id = "version_line", text = T.VersionLine(), class = "text", style = { whiteSpace = "wrap" } },
+  }
+  for _, label in ipairs(D.ChangelogLabels()) do children[#children + 1] = label end
+  vwin = UI.Window{
+    id = VERSION_ID, title = "Toolbox " .. T.version,
+    width = 460, height = 480, minWidth = 300, minHeight = 160,
+    x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y,
+    escCloses = true,
+    style = { paddingTop = 6, paddingBottom = 6 },
+    children = { UI.Scroll{ style = { flexGrow = 1 }, children = {
+      UI.Column{ id = "version_body", style = { paddingLeft = GUTTER, paddingRight = GUTTER }, children = children },
+    } } },
+  }
+end
+
+-- Opens the version window (leaves it open if it already is), with the version line current.
+function D.OpenVersion()
+  if not vwin then buildVersion() end
+  vwin:Find("version_line"):SetText(T.VersionLine())
+  if not vwin:IsShown() and not vwin:Show() then
+    T.Print("The version window can't reopen right now; try again in a few seconds.")
+  end
+end
+
+function D.IsVersionShown()
+  return vwin ~= nil and vwin:IsShown()
 end

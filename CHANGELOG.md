@@ -6,6 +6,9 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- `/tbx version` also opens a version window: the same version line as in chat, then this
+  changelog (newest first). `tools/build.py` bakes CHANGELOG.md into `toolbox/changelog.lua`,
+  since the add-on can't read files; `--check` fails when it is out of date.
 - The XP and Today windows can show as HUD strips instead (`/tbx xp hud`, `/tbx daily hud`, or
   "As a HUD strip" in settings): no title bar or frame, on the theme's dark panel, moved by the grip
   or `/tbx xp move <x> <y>`; the hover pop-ups work as over the windows. `window` switches back.
@@ -152,10 +155,10 @@ Full detail below.
   the file's base name (as loading does). `/toolbox sounds debug` prints the game's raw sound list
   and what each alert recorded.
 - The combat stats strip failed to build in game ("style color takes a number or a string"): a
-  label style had `color = ... or nil`, and the game's Lua (MoonSharp) passes a nil table entry on
+  label style's colour could be nil, and the game's Lua (MoonSharp) passes a nil table entry on
   to the UI, unlike standard Lua. Labels now always get a theme colour. The same kind of nil was
   removed from buff icon textures, window positions and a Today row's tooltip, and the build now
-  refuses `name = ... or nil` table entries.
+  refuses table entries that end in "or nil".
 - A HUD strip that fails to build no longer stops the others from building and showing; the error
   is reported in chat. `/toolbox combat debug` describes the combat strip (shown setting, build
   error, strip visibility, size, position). The combat rows no longer repeat an element id.

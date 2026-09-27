@@ -207,6 +207,35 @@ return function(t)
     t.ok(H.logged("copies loaded: 2 %(remove the extra one%)"), H.lastLog())
   end)
 
+  t.test("/tbx version also opens the version window with the changelog", function()
+    H.boot()
+    H.chat("/tbx version")
+    local w = H.S.windows.toolbox_version
+    t.ok(w and w:IsShown(), "version window open")
+    t.eq(w.title, "Toolbox " .. Toolbox.version)
+    t.eq(w:Find("version_line").text, Toolbox.VersionLine())
+    local texts = {}
+    for _, label in ipairs(w:Find("version_body").children) do texts[#texts + 1] = label.text end
+    local all = table.concat(texts, "\n")
+    t.ok(all:find("\n" .. Toolbox.version:gsub("%.", "%%.") .. " "), "this version's heading")
+    t.ok(all:find("\nAdded\n", 1, true), "sections")
+    t.ok(all:find("\n%- "), "items")
+    t.no(all:find("`", 1, true), "no markdown left")
+    H.chat("/tbx version")
+    t.ok(w:IsShown(), "running it again leaves it open")
+  end)
+
+  t.test("the baked-in changelog starts with the newest entries", function()
+    H.boot()
+    local first = Toolbox.CHANGELOG[1]
+    t.eq(first[1], "version")
+    local seen = false
+    for _, e in ipairs(Toolbox.CHANGELOG) do
+      if e[1] == "version" and e[2]:find("^" .. Toolbox.version:gsub("%.", "%%.")) then seen = true end
+    end
+    t.ok(seen, "has an entry for " .. Toolbox.version)
+  end)
+
   t.test("/tbx welcome shows it now; welcome reset shows it at the next load", function()
     H.boot()
     t.no(H.logged("Toolbox is ready"), "a returning player isn't welcomed")

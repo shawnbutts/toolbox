@@ -126,3 +126,6 @@ files["tests/"] = {
   globals = concat({ "Toolbox", "ToolboxCopies", "Shroud" }, api_functions, api_values, api_callbacks),
   ignore = { "122" },   -- the harness replaces os.date to control the local date
 }
+
+-- Generated from CHANGELOG.md by tools/build.py: one entry per line, however long.
+files["toolbox/changelog.lua"] = { max_line_length = false }
