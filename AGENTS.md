@@ -180,7 +180,9 @@ in chat.
   `H.S.files[path] = true` makes a texture/sound exist; `H.S.acceptMissing` makes `ShroudLoadSound`
   accept paths it can't load; `H.S.played` / `H.playedNames()`; `H.frame()` / `H.vitals()` / `H.hud()` (the glued strip); `H.combatHud()`, `H.combatRows()`,
   `H.setCombat(on)` (combat mode + callback); `H.submit(win, id, text)`;
-- The first run on an account prints a one-time welcome (account-scope saved var `welcomed`).
+- The first run on an account prints a one-time welcome and opens the settings window (account-scope
+  saved var `welcomed`; `T.Welcome()` runs last in `ShroudOnStart`). Test boots are returning players;
+  use `H.firstBoot()` for a first run.
   `/toolbox` with no argument opens the settings window (`/toolbox help` lists commands).
 - `H.chat("/tbx reset")`, `H.click(window, id)`, `H.change(window, id, value)` (player input on a
   slider/toggle), `H.closeWindow(id)`, `H.moveWindow(id, x, y)`.

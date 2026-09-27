@@ -155,6 +155,7 @@ store submission needs a higher version than any submitted before (rejected ones
   window's close button (it only worked in one direction).
 
 ### Changed
+- The first run also opens the settings window, after the welcome line (`/toolbox welcome` does both).
 - `/toolbox help` opens the Docs window; the chat list of commands moved to `/toolbox commands`.
 - `/toolbox` (or `/tbx`) with no argument opens the settings window instead of printing help;
   a one-time welcome line on first run says so, and the settings window opens with a short intro

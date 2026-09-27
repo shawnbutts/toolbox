@@ -266,7 +266,7 @@ return function(t)
   end)
 
   t.test("window prefs are per character scope", function()
-    H.boot()
+    H.firstBoot()
     H.chat("/tbx xpdetailed")
     t.eq(H.S.memory["character:Tester"].window.open, true)
     local account = H.S.memory.account or {}

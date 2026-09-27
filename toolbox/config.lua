@@ -360,6 +360,17 @@ function C.IsShown()
   return win ~= nil and win:IsShown()
 end
 
+-- Opens the settings window (leaves it open if it already is).
+function C.Open()
+  if not win then build() end
+  if win:IsShown() then return end
+  if win:Show() then
+    C.Sync()
+  else
+    T.Print("The settings window can't open right now; type /" .. T.commands[1] .. " to try again.")
+  end
+end
+
 function C.Toggle()
   if not win then build() end
   if win:IsShown() then

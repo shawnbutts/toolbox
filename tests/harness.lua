@@ -513,8 +513,14 @@ function H.load()
   H.callback("ShroudOnStart")
 end
 
--- Fresh client with a character in the world. `disk` seeds saved-var files.
-function H.boot(disk, time)
+-- Fresh client with a character in the world. `disk` seeds saved-var files. Boots as a
+-- returning player (already welcomed) unless `firstRun` is true.
+function H.boot(disk, time, firstRun)
+  disk = copy(disk or {})
+  if not firstRun then
+    disk.account = disk.account or {}
+    if disk.account.welcomed == nil then disk.account.welcomed = true end
+  end
   fresh(disk)
   S.time = time or 100
   install_api()
@@ -688,6 +694,9 @@ end
 
 function H.daily() return S.windows.toolbox_daily end
 function H.dailyText(id) return H.daily():Find(id).text end
+
+-- A brand-new player: nothing saved, not welcomed yet.
+function H.firstBoot(time) return H.boot(nil, time, true) end
 
 function H.logs() return S.logs end
 function H.clearLogs() S.logs = {} end

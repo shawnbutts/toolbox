@@ -628,16 +628,20 @@ end
 -- ---------------------------------------------------------------------------
 
 -- A one-time line the first time Toolbox runs on this account.
+-- A one-time welcome the first time Toolbox runs on this account: a chat line, and the
+-- settings window opened. Call after everything is initialised (the settings window reads
+-- every module's settings). Returns true when it showed.
 function T.Welcome()
-  if ShroudGetSavedVar("welcomed", "account") then return end
+  if ShroudGetSavedVar("welcomed", "account") then return false end
   T.Print("Toolbox is ready: type /" .. T.commands[1] .. " to open its settings, or /" .. T.commands[1]
     .. " docs for a guide to everything.")
   ShroudSetSavedVar("welcomed", true, "account")
+  T.Config.Open()
+  return true
 end
 
 function ShroudOnStart()
   T.RegisterCommands()
-  T.Welcome()
   T.Daily.Load()                     -- before the session: a new login re-bases daily gold
   T.ResumeOrStart()
   T.Sample()                         -- XP gained since the last save (e.g. across a reload)
@@ -653,6 +657,7 @@ function ShroudOnStart()
   T.BuffBar.Tick()
   T.Vitals.Tick()
   ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
+  T.Welcome()                        -- first run only: a chat line and the settings window
 end
 
 -- Only a trigger: the amount's relation to pooled vs total XP is not documented,
