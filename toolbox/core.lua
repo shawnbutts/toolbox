@@ -243,8 +243,25 @@ function T.MoveCommand(m, cmd, what, args)
     .. " (to see the grip, untick Options > Interface > Nameplates & Chat Bubbles > Lock Status Movement).")
 end
 
-add("buffs", "show or hide the buff bar (move [x y]; debug; trace [name])", function(rest)
+add("buffs", "show or hide the buff bar (move [x y]; group [add|remove <name>|reset]; debug; trace [name])",
+    function(rest)
   local word, name = T.ParseArgs(rest)
+  if word == "group" then
+    local B, c = T.BuffBar, "/" .. T.commands[1] .. " buffs group"
+    local verb, part = T.ParseArgs(name)
+    if verb == "add" or verb == "remove" then
+      local _, msg = (verb == "add" and B.AddGroupPart or B.RemoveGroupPart)(part)
+      T.Print(msg)
+    elseif verb == "reset" then
+      B.ResetGroup()
+    elseif verb ~= "" then
+      T.Print("Use " .. c .. " add <name>, remove <name> or reset.")
+      return
+    end
+    local parts = B.GroupParts()
+    T.Print("Grouped into one slot (by name): " .. (#parts > 0 and table.concat(parts, ", ") or "nothing") .. ".")
+    return
+  end
   if word == "move" then
     T.MoveCommand(T.BuffBar, "buffs", "Buff bar", name)
     return

@@ -9,6 +9,11 @@
 --
 -- The game's own buff bar can't be hidden from Lua; this one sits alongside it.
 --
+-- Long-lasting buffs (Obsidian potions last a week, and several can run at once) are grouped
+-- into one slot at the end of the buff row: a count over the first one's icon, with each
+-- buff and its time left in the tooltip. The API has no "long-lasting" flag and doesn't give
+-- a buff's full duration, so they are picked by name (BB.GROUP_DEFAULT; /toolbox buffs group).
+--
 -- Data: ShroudGetPlayerBuff() (grouped by rune: IsDebuff, IconId) is read when
 -- ShroudOnBuffsChanged fires; the flat per-effect list (names, time remaining, tooltips)
 -- every BB.TICK seconds. Icons are a fixed pool of slots built once: changes only update
@@ -27,6 +32,9 @@ BB.BUFF_SLOTS, BB.DEBUFF_SLOTS = 20, 10
 BB.SIZE_MIN, BB.SIZE_MAX, BB.SIZE_DEFAULT = 20, 48, 32
 BB.ALERT_MIN, BB.ALERT_MAX, BB.ALERT_DEFAULT = 1, 60, 10
 BB.GAP = 3
+BB.GROUP_DEFAULT = { "Obsidian" }  -- name parts of the buffs grouped by default
+BB.GROUP_MAX = 20                  -- name parts kept
+BB.GROUP_LEN = 40                  -- characters per name part
 BB.HOME = { 40, 220 }         -- where the bar starts, and where Reset puts it
 BB.NUDGE = 10                 -- pixels per nudge button press
 BB.DEBUFF_SUPPRESS = 3        -- seconds after start / a scene change with no debuff alerts
@@ -148,6 +156,46 @@ function BB.NewNames(before, now)
   return out
 end
 
+-- True when the rune name or the displayed name contains one of the name parts (any case).
+function BB.Grouped(name, label, parts)
+  local a, b = (name or ""):lower(), (label or ""):lower()
+  for _, part in ipairs(parts or {}) do
+    local p = part:lower()
+    if p ~= "" and (a:find(p, 1, true) or b:find(p, 1, true)) then return true end
+  end
+  return false
+end
+
+-- Time left in the two biggest units: 612000 -> "7d 2h", 7260 -> "2h 1m", 245 -> "4m 5s", 9 -> "9s".
+-- Nothing known (nil, negative, 0 for a permanent effect) -> "".
+function BB.ShortTime(s)
+  if type(s) ~= "number" or s <= 0 then return "" end
+  s = math.floor(s)
+  local d, h, m = math.floor(s / 86400), math.floor(s % 86400 / 3600), math.floor(s % 3600 / 60)
+  if d > 0 then return string.format("%dd %dh", d, h) end
+  if h > 0 then return string.format("%dh %dm", h, m) end
+  if m > 0 then return string.format("%dm %ds", m, s % 60) end
+  return string.format("%ds", s)
+end
+
+-- The group slot's tooltip: a heading line, then "name: time left" per buff, longest first.
+-- `list` is { { label, remaining } }.
+function BB.GroupTooltip(list)
+  local sorted = {}
+  for i, g in ipairs(list) do sorted[i] = g end
+  table.sort(sorted, function(x, y)
+    local a, b = x[2] or 0, y[2] or 0
+    if a ~= b then return a > b end
+    return x[1] < y[1]
+  end)
+  local lines = { "Long-lasting buffs (" .. #sorted .. ")" }
+  for _, g in ipairs(sorted) do
+    local left = BB.ShortTime(g[2])
+    lines[#lines + 1] = g[1] .. (left ~= "" and (": " .. left) or "")
+  end
+  return table.concat(lines, "\n")
+end
+
 -- ---------------------------------------------------------------------------
 -- Live state
 -- ---------------------------------------------------------------------------
@@ -169,9 +217,14 @@ local content = nil       -- the icon rows (in a strip owned by Toolbox.Hud)
 local contentW, contentH = 0, 0
 local slots = { buffs = {}, debuffs = {} }
 local clockTex = -1
+local group = nil         -- the long-lasting buffs' slot { row, icon, count, ... }
+local groupedCache = {}   -- rune name -> grouped? (a rune's displayed name doesn't change)
 
 local function defaults()
-  return { show = false, size = BB.SIZE_DEFAULT, expire = true, expireSeconds = BB.ALERT_DEFAULT, debuff = true }
+  local parts = {}
+  for i, p in ipairs(BB.GROUP_DEFAULT) do parts[i] = p end
+  return { show = false, size = BB.SIZE_DEFAULT, expire = true, expireSeconds = BB.ALERT_DEFAULT, debuff = true,
+           group = parts }
 end
 
 local function savePrefs()
@@ -179,6 +232,25 @@ local function savePrefs()
 end
 
 local readEffects = nil
+
+-- A buff's displayed name without the game's colour markup ([c][27E833]...[-][/c]).
+local function plainLabel(index, fallback)
+  local label = ShroudGetBuffDescription(index)
+  if type(label) ~= "string" or label == "Invalid" then return fallback end
+  label = label:gsub("%[%x%x%x%x%x%x%x?%x?%]", ""):gsub("%[%-%]", ""):gsub("%[/?%a%]", "")
+  label = label:match("^%s*(.-)%s*$")
+  return label ~= "" and label or fallback
+end
+
+-- Whether a buff goes in the long-lasting group (debuffs never do).
+local function isGrouped(e)
+  local g = groupedCache[e.name]
+  if g == nil then
+    g = BB.Grouped(e.name, plainLabel(e.index, e.name), prefs.group)
+    groupedCache[e.name] = g
+  end
+  return g
+end
 
 -- Re-reads the grouped list (debuff flags, icons, full durations) and raises the debuff alert.
 function BB.OnBuffsChanged()
@@ -244,13 +316,14 @@ local function size() return prefs.size or BB.SIZE_DEFAULT end
 -- so a strip as wide as 20 empty slots couldn't be dragged near the right edge (reported).
 local function contentSize(used, rows)
   local cell = size() + BB.GAP
-  used = math.max(1, math.min(BB.BUFF_SLOTS, used or 1))
+  used = math.max(1, math.min(BB.BUFF_SLOTS + 1, used or 1))
   return used * cell, (rows or 1) * cell
 end
 
 local sizedFor = nil          -- "used,rows,size" the content was last sized for
 
--- Re-fits the strip to the icons showing (only when that changes).
+-- Re-fits the strip to the icons showing (only when that changes). buffsShown counts the
+-- group slot.
 local function fitFrame(buffsShown, debuffsShown)
   local used = math.max(buffsShown, debuffsShown)
   local rows = debuffsShown > 0 and 2 or 1
@@ -278,6 +351,26 @@ local function makeSlot(debuff)
   return { row = slot, icon = icon, overlay = overlay, used = false }
 end
 
+-- The count text's size for an icon of s pixels.
+local function countFont(s) return math.max(9, math.min(32, math.floor(s * 0.5))) end
+
+-- The long-lasting buffs' slot: the first one's icon with the count over it (the same overlap
+-- by negative margin as the clock). Both take the pointer so the tooltip shows anywhere on it.
+local function makeGroupSlot()
+  local s = size()
+  local f = countFont(s)
+  local iconSpec = { width = s, height = s, onClick = function() end }
+  if clockTex >= 0 then iconSpec.texture = clockTex end
+  local icon = UI.Image(iconSpec)
+  local count = UI.Label{ text = "", class = "bright",
+    style = { width = s, height = s, minHeight = s, maxHeight = s, marginLeft = -s, marginRight = 0,
+              marginTop = 0, marginBottom = 0, paddingTop = math.max(0, math.floor((s - f * 1.2) / 2)),
+              fontSize = f, fontStyle = "bold", textAlign = "center" } }
+  local row = UI.Row{ visible = false, children = { icon, count },
+    style = { width = s, height = s, marginRight = BB.GAP, backgroundColor = "#00000066" } }
+  return { row = row, icon = icon, count = count, used = false }
+end
+
 -- Builds the icon rows (a fixed slot pool) and returns them; Toolbox.Hud puts them in a strip.
 function BB.BuildContent()
   clockTex = ShroudLoadTexture(BB.CLOCK.path)
@@ -287,6 +380,8 @@ function BB.BuildContent()
     slots.buffs[i] = makeSlot(false)
     buffRow[i] = slots.buffs[i].row
   end
+  group = makeGroupSlot()
+  buffRow[#buffRow + 1] = group.row
   for i = 1, BB.DEBUFF_SLOTS do
     slots.debuffs[i] = makeSlot(true)
     debuffRow[i] = slots.debuffs[i].row
@@ -348,13 +443,40 @@ local function fill(slot, e, fraction, warn)
   end
 end
 
+-- Shows the long-lasting buffs' slot for `list` ({ { label, remaining, icon } }), or hides it.
+local function fillGroup(list)
+  if not group then return end
+  if #list == 0 then
+    if group.used then group.row:SetVisible(false) end
+    group.used, group.n, group.tip, group.tex = false, nil, nil, nil
+    return
+  end
+  if not group.used then group.row:SetVisible(true) end
+  group.used = true
+  local tex = list[1][3]
+  if tex ~= group.tex then
+    group.tex = tex
+    if type(tex) == "number" and tex >= 0 then group.icon:SetTexture(tex) end
+  end
+  if #list ~= group.n then
+    group.n = #list
+    group.count:SetText(tostring(#list))
+  end
+  local tip = BB.GroupTooltip(list)
+  if tip ~= group.tip then
+    group.tip = tip
+    group.icon:SetTooltip(tip)
+    group.count:SetTooltip(tip)
+  end
+end
+
 -- ---------------------------------------------------------------------------
 -- Tick: timers, alerts, and the bar
 -- ---------------------------------------------------------------------------
 
 function BB.Tick()
   local effects = readEffects()
-  local seen, bi, di = {}, 0, 0
+  local seen, bi, di, grouped = {}, 0, 0, {}
   local threshold = prefs.expireSeconds or BB.ALERT_DEFAULT
   local expiring = false
   for _, e in ipairs(effects) do
@@ -376,6 +498,9 @@ function BB.Tick()
       if rune.debuff then
         di = di + 1
         if slots.debuffs[di] then fill(slots.debuffs[di], e, fraction) end
+      elseif isGrouped(e) then
+        local tex = (type(rune.icon) == "number" and rune.icon >= 0) and rune.icon or ShroudGetBuffIcon(e.index)
+        grouped[#grouped + 1] = { plainLabel(e.index, e.name), e.remaining, tex }
       else
         bi = bi + 1
         if slots.buffs[bi] then fill(slots.buffs[bi], e, fraction, st and st.warned) end
@@ -395,7 +520,8 @@ function BB.Tick()
   if content and prefs.show then
     for i = bi + 1, BB.BUFF_SLOTS do fill(slots.buffs[i], nil) end
     for i = di + 1, BB.DEBUFF_SLOTS do fill(slots.debuffs[i], nil) end
-    fitFrame(math.min(bi, BB.BUFF_SLOTS), math.min(di, BB.DEBUFF_SLOTS))
+    fillGroup(grouped)
+    fitFrame(math.min(bi, BB.BUFF_SLOTS) + (#grouped > 0 and 1 or 0), math.min(di, BB.DEBUFF_SLOTS))
   end
   if expiring and prefs.expire then T.Sounds.Play("buff_expiring") end
   if T.Now() - lastTimerSave >= BB.TIMER_SAVE then BB.SaveTimers() end
@@ -403,15 +529,6 @@ end
 
 -- One chat line per current effect, for checking durations in game:
 -- "Light: 9.5 s left; TotalDuration 40, CurrentDuration 30.5; full duration 40 s (from the game)".
--- A buff's displayed name without the game's colour markup ([c][27E833]...[-][/c]).
-local function plainLabel(index, fallback)
-  local label = ShroudGetBuffDescription(index)
-  if type(label) ~= "string" or label == "Invalid" then return fallback end
-  label = label:gsub("%[%x%x%x%x%x%x%x?%x?%]", ""):gsub("%[%-%]", ""):gsub("%[/?%a%]", "")
-  label = label:match("^%s*(.-)%s*$")
-  return label ~= "" and label or fallback
-end
-
 -- %g: the same text on every Lua (5.3+ would print 39.0 where MoonSharp prints 39).
 local function num(x) return type(x) == "number" and string.format("%g", x) or tostring(x) end
 
@@ -528,9 +645,17 @@ function BB.Init()
       prefs.expireSeconds = math.floor(saved.expireSeconds)
     end
     prefs.debuff = saved.debuff ~= false
+    if type(saved.group) == "table" then
+      prefs.group = {}
+      for _, p in ipairs(saved.group) do
+        if type(p) == "string" and p ~= "" and #prefs.group < BB.GROUP_MAX then
+          prefs.group[#prefs.group + 1] = p:sub(1, BB.GROUP_LEN)
+        end
+      end
+    end
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
-  timers, debuffs, runes = {}, {}, {}
+  timers, debuffs, runes, groupedCache = {}, {}, {}, {}
   T.Hud.Register("buffs", BB)
   local savedTimers = T.Load("buff_timers")
   remembered = (type(savedTimers) == "table" and savedTimers.v == 2 and type(savedTimers.timers) == "table")
@@ -570,13 +695,20 @@ function BB.SetSize(n)
   prefs.size = n
   savePrefs()
   if content then
-    for _, group in pairs(slots) do
-      for _, slot in ipairs(group) do
+    for _, pool in pairs(slots) do
+      for _, slot in ipairs(pool) do
         slot.row:SetStyle{ width = n, height = n }
         slot.icon:SetSize(n, n)
         slot.overlay:SetSize(n, n)
         slot.overlay:SetStyle{ marginLeft = -n }
       end
+    end
+    if group then
+      local f = countFont(n)
+      group.row:SetStyle{ width = n, height = n }
+      group.icon:SetSize(n, n)
+      group.count:SetStyle{ width = n, height = n, minHeight = n, maxHeight = n, marginLeft = -n, fontSize = f,
+                            paddingTop = math.max(0, math.floor((n - f * 1.2) / 2)) }
     end
     BB.Tick()                                  -- re-fits the strip for the new icon size
   end
@@ -611,6 +743,53 @@ function BB.SetDebuffAlert(on)
 end
 
 function BB.GetDebuffAlert() return prefs.debuff end
+
+-- The name parts of the grouped (long-lasting) buffs.
+function BB.GroupParts()
+  local out = {}
+  for i, p in ipairs(prefs.group or {}) do out[i] = p end
+  return out
+end
+
+local function setGroup(parts)
+  prefs.group = parts
+  groupedCache = {}
+  savePrefs()
+  if content and prefs.show then BB.Tick() end
+  T.Config.Sync()
+end
+
+-- Returns ok, message (for chat).
+function BB.AddGroupPart(part)
+  part = (part or ""):match("^%s*(.-)%s*$")
+  if part == "" then return false, "Give part of a buff's name, e.g. Obsidian." end
+  if #part > BB.GROUP_LEN then return false, "Keep it under " .. BB.GROUP_LEN .. " characters." end
+  local parts = BB.GroupParts()
+  for _, p in ipairs(parts) do
+    if p:lower() == part:lower() then return false, "'" .. p .. "' is already grouped." end
+  end
+  if #parts >= BB.GROUP_MAX then return false, "At most " .. BB.GROUP_MAX .. " names; remove one first." end
+  parts[#parts + 1] = part
+  setGroup(parts)
+  return true, "Buffs with '" .. part .. "' in their name are now grouped."
+end
+
+function BB.RemoveGroupPart(part)
+  part = (part or ""):match("^%s*(.-)%s*$"):lower()
+  local parts, kept, found = BB.GroupParts(), {}, nil
+  for _, p in ipairs(parts) do
+    if p:lower() == part then found = p else kept[#kept + 1] = p end
+  end
+  if not found then return false, "'" .. part .. "' isn't in the list." end
+  setGroup(kept)
+  return true, "Buffs with '" .. found .. "' in their name show on the bar again."
+end
+
+function BB.ResetGroup()
+  local parts = {}
+  for i, p in ipairs(BB.GROUP_DEFAULT) do parts[i] = p end
+  setGroup(parts)
+end
 
 -- ---------------------------------------------------------------------------
 -- Position. A HUD frame can also be dragged by the grip at its top-left corner, but the

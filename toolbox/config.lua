@@ -156,6 +156,10 @@ function C.BuffBarSection()
       "How long before a buff ends to play the alert", function(n) B.SetExpireSeconds(n) end),
     UI.Toggle{ id = "debuff_alert", text = "Sound when a debuff lands", value = B.GetDebuffAlert(),
       style = { marginTop = 6 }, onChange = function(_, v) B.SetDebuffAlert(v) end },
+    UI.Label{ id = "buff_group", text = "", class = "text", style = { whiteSpace = "wrap", marginTop = 4 },
+      tooltip = "Buffs whose names contain these are shown as one slot with a count; hover it for the list" },
+    UI.Label{ text = "Change it with /toolbox buffs group add <name> or remove <name>.",
+      class = "dim", style = { whiteSpace = "wrap" } },
     slider("volume", "Alert volume", 0, 100, 5, S.GetVolume(), "0 mutes the alerts",
       function(n) S.SetVolume(n) end),
   }
@@ -255,7 +259,7 @@ local function build()
                 "vitals_pos", "vitals_show_bars", "vitals_show_text", "vitals_bg",
                 "vitals_flash", "vitals_flash_below", "vitals_flash_below_value", "vitals_glue",
                 "show_combat", "combat_pet", "combat_scale", "combat_scale_value", "combat_stats", "combat_pos",
-                "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "guild_motd" }
+                "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "guild_motd", "buff_group" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -327,6 +331,8 @@ function C.Sync()
   end
   el.expire_alert:SetValue(B.GetExpireAlert())
   el.debuff_alert:SetValue(B.GetDebuffAlert())
+  local parts = B.GroupParts()
+  el.buff_group:SetText("Grouped into one slot: " .. (#parts > 0 and table.concat(parts, ", ") or "nothing"))
   el.show_vitals:SetValue(T.Vitals.IsShown())
   el.vitals_width:SetValue(T.Vitals.GetWidth())
   el.vitals_width_value:SetText(fontLabel(T.Vitals.GetWidth()))

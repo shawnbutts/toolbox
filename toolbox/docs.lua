@@ -44,7 +44,11 @@ D.SECTIONS = {
       .. "sweep shows the time left; it turns red when a buff is about to run out. Hover an icon "
       .. "for its tooltip.",
     "Options: icon size; a sound before a buff runs out (/toolbox buffalert 10 = ten seconds "
-      .. "before); a sound when a debuff lands (/toolbox debuffalert on/off)." },
+      .. "before); a sound when a debuff lands (/toolbox debuffalert on/off).",
+    "Long-lasting buffs such as Obsidian potions share one slot at the end of the row, showing how "
+      .. "many there are; hover it for each one and its time left. They're picked by name: "
+      .. "/toolbox buffs group add <part of a name> adds more, remove takes one off, and "
+      .. "/toolbox buffs group lists them." },
   { "Health & focus bars",
     "/toolbox vitals: your health and focus with \"current / max\".",
     "Options: size (75-250%), bar length, show bars and/or numbers, a dark or light panel "
