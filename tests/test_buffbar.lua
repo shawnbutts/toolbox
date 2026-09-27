@@ -421,4 +421,95 @@ return function(t)
     Toolbox.Sounds.Test("buff_expiring")
     t.ok(H.logged("list was cleared; reloading"))
   end)
+
+  -- buffs already running when the add-on starts ------------------------------
+
+  t.test("full duration: trusted only when it agrees with the time remaining", function()
+    H.boot()
+    local F = B().TotalFromEffects
+    t.eq(F(15, { { TotalDuration = 60, CurrentDuration = 45 } }), 60, "current = elapsed, seconds")
+    t.eq(F(15, { { TotalDuration = 60, CurrentDuration = 15 } }), 60, "current = remaining, seconds")
+    t.eq(F(15, { { TotalDuration = 60000, CurrentDuration = 45000 } }), 60, "milliseconds")
+    t.eq(F(15, { { TotalDuration = 60, CurrentDuration = 30 } }), nil, "disagrees: not trusted")
+    t.eq(F(15, { { TotalDuration = 10, CurrentDuration = 0 } }), nil, "shorter than what's left")
+    t.eq(F(15, { { TotalDuration = 0, CurrentDuration = 0 } }), nil)
+    t.eq(F(-1, { { TotalDuration = 60, CurrentDuration = 45 } }), nil, "permanent")
+    t.eq(F(15, nil), nil)
+  end)
+
+  -- A 40 s buff with 10 s left (75 % done) when the add-on starts.
+  local function startMidBuff(mode)
+    H.boot()
+    H.S.durationMode = mode
+    H.S.buffs = { { name = "Light", remaining = 10, total = 40, icon = 5 } }
+    local saved = H.S.memory["character:Tester"]
+    saved.buffbar = { show = true }
+    H.reload()
+    H.advance(0.5, 0.5)
+    return H.slots("buffs")[1].children[2]
+  end
+
+  for _, mode in ipairs({ "elapsed", "remaining", "ms" }) do
+    t.test("a buff already running at start shows its real progress (durations as " .. mode .. ")", function()
+      local overlay = startMidBuff(mode)
+      t.eq(overlay.visible, true)
+      -- 9.5 of 40 s left: frame floor((1 - 9.5/40) * 24) = 18
+      t.near(overlay.uv[1], (18 % 6) / 6)
+      t.near(overlay.uv[2], math.floor(18 / 6) / 8)
+    end)
+  end
+
+  t.test("unusable durations fall back to treating the buff as new", function()
+    local overlay = startMidBuff("nonsense")
+    -- 9.5 of an assumed 10 s: frame 1, the first sliver
+    t.near(overlay.uv[1], 1 / 6, 1e-6, "shown as nearly full")
+    t.near(overlay.uv[2], 0)
+  end)
+
+  t.test("without durations, a /lua reload keeps each buff's progress", function()
+    H.boot()                                         -- no durations reported (mode nil)
+    H.chat("/tbx buffs")
+    H.addBuffs({ { name = "Light", remaining = 40, icon = 5 } })
+    H.advance(30, 0.5)                               -- 10 s left, 75 % done
+    H.reload()
+    H.advance(0.5, 0.5)
+    local overlay = H.slots("buffs")[1].children[2]
+    t.near(overlay.uv[1], (18 % 6) / 6)
+    t.near(overlay.uv[2], math.floor(18 / 6) / 8)
+  end)
+
+  t.test("a remembered duration is ignored when the buff doesn't line up (recast meanwhile)", function()
+    H.boot()
+    H.chat("/tbx buffs")
+    H.addBuffs({ { name = "Light", remaining = 40, icon = 5 } })
+    H.advance(30, 0.5)
+    H.S.buffs[1].remaining = 20                      -- recast to a different length during the reload
+    H.reload()
+    H.advance(0.5, 0.5)
+    t.eq(H.slots("buffs")[1].children[2].visible, false, "treated as a fresh 20 s buff")
+  end)
+
+  t.test("after a restart remembered durations are not used", function()
+    H.boot()
+    H.addBuffs({ { name = "Light", remaining = 40, icon = 5 } })
+    H.advance(40)                                    -- flushed; Light ran out
+    H.addBuffs({ { name = "Light", remaining = 40, icon = 5 } })
+    H.advance(30, 0.5)
+    ShroudFlushSavedVars()
+    H.restart(5)                                     -- the clock starts again
+    t.eq(Toolbox.BuffBar.Recall("Light", 10), nil)
+  end)
+
+  t.test("/tbx buffs debug lists each buff's timing data", function()
+    H.boot()
+    H.S.durationMode = "elapsed"
+    H.addBuffs({ { name = "Light", remaining = 40, icon = 5 }, { name = "Bleed", remaining = 8, debuff = true } })
+    H.advance(1, 0.5)
+    H.clearLogs()
+    H.chat("/tbx buffs debug")
+    t.ok(H.logged("^Light: 39 s left; TotalDuration 40, CurrentDuration 1; full duration 40 s %(from the game%)$"),
+      H.logs()[1])
+    t.ok(H.logged("^Bleed %(debuff%): 7 s left"), H.logs()[2])
+    t.eq(H.frame().visible, false, "debug doesn't toggle the bar")
+  end)
 end

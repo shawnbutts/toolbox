@@ -30,7 +30,7 @@ Built clean-room from the official docs only:
 | `/toolbox reset` | start a new XP session |
 | `/toolbox daily` | show or hide today's stats (gold, kills, XP) |
 | `/toolbox dailydetailed` (or `dd`) | show or hide Today Detailed (every item gained today) |
-| `/toolbox buffs` | show or hide the buff bar |
+| `/toolbox buffs` (`debug`) | show or hide the buff bar (`debug`: list each buff's timing data) |
 | `/toolbox buffalert <1-60>` / `on` / `off` | alert this many seconds before a buff runs out (default 10) |
 | `/toolbox debuffalert on` / `off` | alert when a debuff lands |
 | `/toolbox sounds [0-100]` | show which sound files the alerts use; with a number, set the volume |
@@ -188,6 +188,11 @@ game is really playing them. The sounds are in `art/`; `tools/install.py` copies
 default place for you, plus `.wav` copies to try as a custom path if an `.ogg` plays silently.
 
 When a buff's expiry alert fires, its sweep turns from dark to red for the rest of that run.
+
+To draw the sweep the bar needs each buff's full duration, which matters for buffs that were
+already running when the add-on started. It uses the game's `TotalDuration`/`CurrentDuration`
+only when they agree with the time remaining (their units aren't documented), and otherwise its
+own record, kept across `/lua reload`. `/toolbox buffs debug` prints what it has for each buff.
 
 Requirements: Lua 5.2+ or LuaJIT, [luacheck](https://github.com/lunarmodules/luacheck), Python 3.9+.
 

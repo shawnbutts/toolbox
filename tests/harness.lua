@@ -200,6 +200,14 @@ local function install_api()
         out[#out + 1] = r
       end
       r.StackCount = r.StackCount + 1
+      -- Durations as the game might report them (H.S.durationMode): unknown to the add-on.
+      local total, rem, cur, tot = e.total or e.remaining or 0, e.remaining or 0, 0, 0
+      if S.durationMode == "elapsed" then tot, cur = total, total - rem
+      elseif S.durationMode == "remaining" then tot, cur = total, rem
+      elseif S.durationMode == "ms" then tot, cur = total * 1000, (total - rem) * 1000
+      elseif S.durationMode == "nonsense" then tot, cur = 7, 3 end
+      r.Effects[#r.Effects + 1] = { Description = "", Value = 0, CurrentDuration = cur, TotalDuration = tot,
+                                    TotalTick = 0 }
     end
     return out
   end
@@ -536,7 +544,10 @@ end
 
 -- Adds effects ({ name = , remaining = , debuff = , icon = , permanent = }) and fires the callback.
 function H.addBuffs(list)
-  for _, b in ipairs(list) do S.buffs[#S.buffs + 1] = b end
+  for _, b in ipairs(list) do
+    b.total = b.total or b.remaining             -- full duration (for H.S.durationMode)
+    S.buffs[#S.buffs + 1] = b
+  end
   return H.callback("ShroudOnBuffsChanged")
 end
 

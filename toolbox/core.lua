@@ -186,7 +186,11 @@ add("spacing", "set the extra space between lines, 0-12 (no number: show and mea
   end
 end)
 
-add("buffs", "show or hide the buff bar", function()
+add("buffs", "show or hide the buff bar (debug: list each buff's timing data)", function(rest)
+  if rest:lower() == "debug" then
+    for _, line in ipairs(T.BuffBar.DebugLines()) do T.Print(line) end
+    return
+  end
   T.BuffBar.Toggle()
 end)
 
@@ -425,6 +429,7 @@ function ShroudOnLogOut()
     T.SaveSession(false)
   end
   T.Daily.Save()
+  T.BuffBar.SaveTimers()
   T.Window.SavePrefs()
   T.Compact.SavePrefs()
   T.Daily.SavePrefs()
@@ -436,6 +441,7 @@ function ShroudOnDisableScript()
   -- Not marked ended: it is not documented whether /lua reload goes through here.
   if T.session then T.SaveSession(false) end
   T.Daily.Save()
+  T.BuffBar.SaveTimers()
   T.Window.SavePrefs()
   T.Compact.SavePrefs()
   T.Daily.SavePrefs()

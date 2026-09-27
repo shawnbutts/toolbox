@@ -16,6 +16,10 @@ store submission needs a higher version than any submitted before (rejected ones
   Test buttons.
 - `tools/install.py` copies the alert sounds to `Lua/toolbox_<name>.ogg` (and `.wav` copies, when
   generated, to try as a custom path).
+- The sweep now shows a buff's real progress when it was already running as the add-on started or
+  reloaded (it used to treat every such buff as brand new). The full duration comes from the
+  game's `TotalDuration`/`CurrentDuration` when they agree with the time remaining, otherwise from
+  the add-on's own record kept across `/lua reload`. `/toolbox buffs debug` lists the timing data.
 - The sweep turns red the moment a buff's expiry alert fires (a second, red set of frames in
   `clock.png`); a recast turns it back. The normal sweep is darker (82% instead of 62%).
 - Sound Test buttons and `/toolbox sounds test` report the clip, channel and volume, then check

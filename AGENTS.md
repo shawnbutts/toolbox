@@ -138,7 +138,8 @@ in chat.
   `ShroudServerTime`; `H.goldChange(n)`; `H.combat{ { kind = "death", fromYou = true } }`;
   `H.items({ { "Iron Ore", 5 } }, dropped)`; `H.detailRows()`; `H.S.created` counts `Add` calls,
   `H.S.constructed` every constructor call; `H.addBuffs{...}` / `H.removeBuff(name)` (buffs count down
-  in `H.advance`, expired ones fire `ShroudOnBuffsChanged`); `H.frame()`, `H.slots("buffs")`;
+  in `H.advance`, expired ones fire `ShroudOnBuffsChanged`; `H.S.durationMode` = nil / "elapsed" /
+  "remaining" / "ms" / "nonsense" sets what the grouped `TotalDuration`/`CurrentDuration` hold); `H.frame()`, `H.slots("buffs")`;
   `H.S.files[path] = true` makes a texture/sound exist; `H.S.acceptMissing` makes `ShroudLoadSound`
   accept paths it can't load; `H.S.played` / `H.playedNames()`; `H.submit(win, id, text)`;
 - `H.chat("/tbx reset")`, `H.click(window, id)`, `H.change(window, id, value)` (player input on a
@@ -159,6 +160,7 @@ including the "no character" sentinel.
 | `daily_detail` | `{ open = bool, x = number, y = number }` |
 | `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff }` |
 | `sounds` | `{ volume = 0..100, paths = { buff_expiring = "...", debuff_landed = "..." } }` |
+| `buff_timers` | `{ [rune name] = { total, remaining, at = T.Now() } }`, for picking timers up after a reload |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
 you read back (`Toolbox.XP.IsValid`) and fall back to defaults.
@@ -228,8 +230,13 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     `marginLeft = -size` draws on top of it (there is no absolute positioning), and an `Image` with an
     `onClick` shows its tooltip on hover (docs: it "takes the pointer only while it has a click handler").
 22. Buff timers. CONFIRMED in game 2026-09-27: permanent effects report no positive time remaining (no
-    sweep, no alert). The sweep's total is the largest remaining time seen for the current run (the
-    grouped `CurrentDuration`/`TotalDuration` fields' units aren't documented, so they're unused).
+    sweep, no alert). REPORTED 2026-09-27: the sweep disagreed with the game's bar (e.g. 25% vs 75% left)
+    because a buff running when the add-on started was taken as brand new. Now the full duration comes
+    from `BuffBar.TotalFromEffects` (the grouped `TotalDuration`/`CurrentDuration`, used only when they
+    agree with `ShroudGetBuffTimeRemaining` as seconds or ms, elapsed or remaining), else from the
+    `buff_timers` saved var written every 5 s and recalled after a reload if the remaining time lines up.
+    Pending: `/toolbox buffs debug` output from the game to see what those fields really hold. If a
+    fresh cast (after a reload) still disagrees, the sweep's direction is inverted relative to the game.
 23. Sounds: `ShroudLoadSound`'s path base ("the addon's Lua folder" vs the Lua root) and what clip names
     `ShroudListSound` reports. `Toolbox.Sounds` tries both bases and matches the file stem, falling back
     to "the one new clip". `/toolbox sounds` shows what was found.
