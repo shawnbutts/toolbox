@@ -51,7 +51,7 @@ Run all three before calling a change done.
 
 - `toolbox/`: the shipped package. Flat folder: `manifest.json`, `*.lua`, `README.md` (store readme),
   optional `icon.png` and pictures. Nothing else, or the build fails.
-  - `manifest.json` `files` is the load order: `core.lua`, `xp.lua`, `hover.lua`, `ui.lua`, `compact.lua`, `daily.lua`, `dailydetail.lua`, `sounds.lua`, `buffbar.lua`, `vitals.lua`, `config.lua`. A new `.lua` file must be
+  - `manifest.json` `files` is the load order: `core.lua`, `xp.lua`, `hover.lua`, `ui.lua`, `compact.lua`, `daily.lua`, `dailydetail.lua`, `sounds.lua`, `hud.lua`, `buffbar.lua`, `vitals.lua`, `config.lua`. A new `.lua` file must be
     added there. Later files may use globals from earlier ones at top level; earlier files may only use
     later ones inside functions (callbacks run after every file has loaded).
   - `core.lua`: `Toolbox` namespace, chat output (`Toolbox.Print`), saved-var helpers (`Load`/`Save`/`Flush`,
@@ -96,7 +96,13 @@ Run all three before calling a change done.
     from `V.Metrics()` (one scale factor; Shroud.UI has no zoom), applied at build and by `applySize`. Reads the
     per-frame globals directly (never through a name built at runtime: review treats that like code
     loading) and the `Health` / `Focus` stats as maximums.
-  - HUD strips share `Toolbox.Window.HudMover(getFrame, home)` (Get/MoveTo/Nudge/Reset),
+  - `hud.lua`: `Toolbox.Hud` owns every HUD strip. A HUD module registers (`Hud.Register(key, module)`)
+    and implements `FRAME_ID`, `HOME`, `BuildContent()`, `ContentSize()`, `IsShown()`,
+    `GetSavedPosition()` / `SavePosition(x, y)`; it never creates a HudFrame itself. `Hud.Build()` makes
+    one strip per module, or one shared "toolbox_hud" strip in `Hud.ORDER` when glued (rebuilt on
+    `Hud.SetGlued`). Call `Hud.Refresh()` when a module's content size or shown state changes; `Hud.Tick()`
+    (1 s) remembers positions (per module unglued, `hud.x/y` glued). Movers: `Hud.MoverFor(key, home)`.
+  - HUD strips share `Toolbox.Window.HudMover(getFrame, home, homeFn)` (Get/MoveTo/Nudge/Reset),
     `Toolbox.Config.PositionRows(prefix, module)` and `Toolbox.MoveCommand(module, cmd, name, args)`.
   - `config.lua`: `Toolbox.Config`, the settings window. Controls call the owning module's setters; the
     setters call `Toolbox.Config.Sync()` so the controls follow chat commands and the close button.
@@ -154,7 +160,7 @@ in chat.
   in `H.advance`, expired ones fire `ShroudOnBuffsChanged`; `H.S.durationMode` = nil / "elapsed" /
   "remaining" / "ms" / "nonsense" / "absent" (as in game: no fields) sets what the grouped `TotalDuration`/`CurrentDuration` hold); `H.frame()`, `H.slots("buffs")`;
   `H.S.files[path] = true` makes a texture/sound exist; `H.S.acceptMissing` makes `ShroudLoadSound`
-  accept paths it can't load; `H.S.played` / `H.playedNames()`; `H.submit(win, id, text)`;
+  accept paths it can't load; `H.S.played` / `H.playedNames()`; `H.frame()` / `H.vitals()` / `H.hud()` (the glued strip); `H.submit(win, id, text)`;
 - `H.chat("/tbx reset")`, `H.click(window, id)`, `H.change(window, id, value)` (player input on a
   slider/toggle), `H.closeWindow(id)`, `H.moveWindow(id, x, y)`.
 
@@ -175,6 +181,7 @@ including the "no character" sentinel.
 | `sounds` | `{ volume = 0..100, paths = { buff_expiring = "...", debuff_landed = "..." } }` |
 | `buff_timers` | `{ v = 2, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload |
 | `vitals` | `{ show, width = 100..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, x, y }` |
+| `hud` | `{ glued = bool, x, y }` (the glued strip's position) |
 | `buff_durations` | `{ [rune name] = seconds }`: full durations learned from casts |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
@@ -296,3 +303,6 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 31. HUD frames are kept on screen by the game using their FULL size, including empty space. A buff strip
     sized for all 20 slots couldn't be dragged near the right edge (reported 2026-09-27). Size HUD strips
     to what they show (`fitFrame` in buffbar.lua) and re-fit when that changes.
+32. Glued HUD: destroying HUD frames and rebuilding them (with the same ids when unglued again) on
+    `Hud.SetGlued` is assumed to be fine (docs: "Destroy() Remove the element and everything in it").
+    Hiding a module's content inside the shared strip uses `SetVisible` (hidden elements take no space).

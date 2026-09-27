@@ -36,7 +36,7 @@ Built clean-room from the official docs only:
 | `/toolbox buffalert <1-60>` / `on` / `off` | alert this many seconds before a buff runs out (default 10) |
 | `/toolbox debuffalert on` / `off` | alert when a debuff lands |
 | `/toolbox sounds [0-100]` | show which sound files the alerts use; with a number, set the volume |
-| `/toolbox vitals` (`size <75-250>` / `text on\|off` / `bars on\|off` / `bg none\|dark\|light` / `flash <1-95>\|on\|off\|test` / `move [x y]` / `debug`) | show or hide the health & focus bars (or place them) |
+| `/toolbox vitals` (`size <75-250>` / `text on\|off` / `bars on\|off` / `bg none\|dark\|light` / `flash <1-95>\|on\|off\|test` / `glue on\|off` / `move [x y]` / `debug`) | show or hide the health & focus bars (or place them) |
 | `/toolbox stats [word]` | list character stats whose name contains the word (for finding stat names) |
 | `/toolbox config` | open or close the settings window |
 | `/toolbox spacing <0-12>` | set the extra space between lines in pixels (no number: show and measure it; default 2) |
@@ -221,6 +221,11 @@ red and blue when the bars are off), and the numbers can sit on a **Dark** or **
 your UI theme, so they follow your skin: Dark is the theme's `inset` look, Light a panel in the
 theme's text colour with dark numbers on it.
 
+**Glue to the buff bar**: "Glue to the buff bar (one HUD)" in settings, or
+`/toolbox vitals glue on`, puts the health & focus bars and the buffs in a single HUD strip
+(health & focus on the left, buffs on the right) with one grip and one position; either section's
+Position buttons or `move` command move it. Glued and unglued positions are remembered separately.
+
 **Flash when low**: while health or focus is below a threshold (default 20%, 1-95%), its bar and
 number swap to the theme's bright text colour every 0.4 s. On by default; a checkbox and slider
 in settings, or `/toolbox vitals flash 30` / `off`. **Test flash** (in settings) or
@@ -252,7 +257,7 @@ image limits, size caps, no runtime code loading, and no `io`/`os` use in packag
 ```
 toolbox/            the package (what ships)
   manifest.json     files load in this order: core.lua, xp.lua, hover.lua, ui.lua, compact.lua, daily.lua,
-                    dailydetail.lua, sounds.lua, buffbar.lua, vitals.lua,
+                    dailydetail.lua, sounds.lua, hud.lua, buffbar.lua, vitals.lua,
                     config.lua
   core.lua          Toolbox namespace, commands, saved-var helpers, session lifecycle, callbacks
   xp.lua            pure session XP model (rates, rolling window, time to level)
@@ -262,6 +267,7 @@ toolbox/            the package (what ships)
   daily.lua         daily stats and the Today window (/toolbox daily)
   dailydetail.lua   the Today Detailed window (/toolbox dailydetailed, dd)
   sounds.lua        alert sound loading (custom path, then defaults) and playback
+  hud.lua           the HUD strips: one per module, or one shared strip when glued
   buffbar.lua       the buff bar HUD, clock overlay, expiry and debuff alerts
   vitals.lua        the health & focus bars HUD
   clock.png         the clock overlay sprite sheet (2 x 120 frames, from art/clock.py)

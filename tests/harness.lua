@@ -332,6 +332,10 @@ function Element:Clear()
   self.children = {}
 end
 function Element:SetVisible(v) self.visible = v end
+function Element:Destroy()
+  self.destroyed = true
+  for id, f in pairs(S.frames) do if f == self then S.frames[id] = nil end end
+end
 -- Theme classes, as a set (the class field may be a name or a list).
 local KNOWN_CLASSES = { button = 1, heading = 1, inset = 1, card = 1, badge = 1, warning = 1, good = 1, bad = 1,
                         bodycopy = 1, text = 1, dim = 1, bright = 1, title = 1, link = 1 }
@@ -619,10 +623,12 @@ end
 
 function H.frame() return S.frames.toolbox_buffs end
 function H.vitals() return S.frames.toolbox_vitals end
+function H.hud() return S.frames.toolbox_hud end
 -- Visible slots of a bar row ("buffs" / "debuffs") as their slot tables.
 function H.slots(row)
   local out = {}
-  for _, slot in ipairs(H.frame():Find(row).children) do
+  local frame = S.frames.toolbox_buffs or S.frames.toolbox_hud     -- own strip, or glued
+  for _, slot in ipairs(frame:Find(row).children) do
     if slot.visible ~= false then out[#out + 1] = slot end
   end
   return out

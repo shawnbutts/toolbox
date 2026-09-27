@@ -277,10 +277,11 @@ end
 W.GRIP = 14
 
 -- Moves a HUD frame from settings or chat (its own grip is hidden while the game's "Lock
--- Status Movement" is on). getFrame() returns the frame or nil; home = { x, y } for Reset.
+-- Status Movement" is on). getFrame() returns the frame or nil; home = { x, y } for Reset
+-- (or homeFn() returning one, when it depends on the layout).
 -- Returns { Get, MoveTo, Nudge, Reset }. The game keeps HUD frames on screen, and
 -- SetPosition "remembers the new spot as the player's".
-function W.HudMover(getFrame, home)
+function W.HudMover(getFrame, home, homeFn)
   local m = {}
   local function finite(n) return type(n) == "number" and n == n and n > -math.huge and n < math.huge end
 
@@ -301,14 +302,16 @@ function W.HudMover(getFrame, home)
     return ok
   end
 
+  local function where() return homeFn and homeFn() or home end
+
   function m.Nudge(dx, dy)
     local x, y = m.Get()
-    if not x then x, y = home[1], home[2] end
+    if not x then x, y = where()[1], where()[2] end
     return m.MoveTo(x + dx, y + dy)
   end
 
   function m.Reset()
-    return m.MoveTo(home[1], home[2])
+    return m.MoveTo(where()[1], where()[2])
   end
 
   return m

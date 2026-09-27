@@ -2,7 +2,7 @@
 -- Namespace, chat output, saved-variable helpers, slash commands and callback wiring.
 -- Loaded first (see manifest.json). Later files add Toolbox.XP, Toolbox.Window,
 -- Toolbox.Hover, Toolbox.Compact, Toolbox.Daily, Toolbox.DailyDetail, Toolbox.Sounds,
--- Toolbox.BuffBar, Toolbox.Vitals and Toolbox.Config.
+-- Toolbox.Hud, Toolbox.BuffBar, Toolbox.Vitals and Toolbox.Config.
 
 Toolbox = {
   name = "Toolbox",
@@ -285,7 +285,7 @@ function T.StatLines(filter)
   return lines
 end
 
-add("vitals", "health & focus bars (size <n>; text|bars on|off; bg none|dark|light; flash <%>|off; move)",
+add("vitals", "health & focus bars (size; text|bars on|off; bg; flash <%>|off|test; glue on|off; move)",
     function(rest)
   local word, args = T.ParseArgs(rest)
   local V = T.Vitals
@@ -296,6 +296,17 @@ add("vitals", "health & focus bars (size <n>; text|bars on|off; bg none|dark|lig
     else
       T.Print("Use /" .. T.commands[1] .. " vitals " .. word .. " on|off.")
     end
+    return
+  end
+  if word == "glue" then
+    local a = args:lower()
+    if a == "on" or a == "off" then
+      T.Hud.SetGlued(a == "on")
+    elseif a ~= "" then
+      T.Print("Use /" .. T.commands[1] .. " vitals glue on|off.")
+      return
+    end
+    T.Print("Health & focus bars " .. (T.Hud.IsGlued() and "glued to the buff bar (one HUD)." or "on their own."))
     return
   end
   if word == "flash" then
@@ -491,6 +502,7 @@ function T.Tick()
     T.unflushed = false
   end
   T.Sounds.Poll()
+  T.Hud.Tick()                       -- remember where the HUD strips are
   T.Config.SyncLive()
   T.RefreshViews()
 end
@@ -511,6 +523,9 @@ function ShroudOnStart()
   T.Sounds.Init()
   T.BuffBar.Init()
   T.Vitals.Init()
+  T.Hud.Init()                       -- builds the HUD strips (glued or not) for both
+  T.BuffBar.Tick()
+  T.Vitals.Tick()
   ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
 end
 
@@ -551,6 +566,7 @@ function ShroudOnLogOut()
     T.SaveSession(false)
   end
   T.Daily.Save()
+  T.Hud.Tick()
   T.BuffBar.SaveTimers()
   T.Window.SavePrefs()
   T.Compact.SavePrefs()
@@ -563,6 +579,7 @@ function ShroudOnDisableScript()
   -- Not marked ended: it is not documented whether /lua reload goes through here.
   if T.session then T.SaveSession(false) end
   T.Daily.Save()
+  T.Hud.Tick()
   T.BuffBar.SaveTimers()
   T.Window.SavePrefs()
   T.Compact.SavePrefs()

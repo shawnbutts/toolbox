@@ -79,6 +79,9 @@ function C.VitalsSection()
     UI.Label{ text = "Health & focus bars", class = "heading", style = { marginTop = 8 } },
     UI.Toggle{ id = "show_vitals", text = "Show health & focus bars", value = V.IsShown(),
       onChange = function(_, v) V.SetShown(v) end },
+    UI.Toggle{ id = "vitals_glue", text = "Glue to the buff bar (one HUD)", value = T.Hud.IsGlued(),
+      tooltip = "Health & focus on the left, buffs on the right, moved as one",
+      onChange = function(_, v) T.Hud.SetGlued(v) end },
     slider("vitals_scale", "Size (%)", V.SCALE_MIN, V.SCALE_MAX, 5, V.GetScale(),
       "Scales the bars, their text and the gap together", function(n) V.SetScale(n) end),
     slider("vitals_width", "Bar length", V.WIDTH_MIN, V.WIDTH_MAX, 10, V.GetWidth(),
@@ -196,7 +199,7 @@ local function build()
                 "expire_seconds_value", "debuff_alert", "volume", "volume_value", "buff_pos",
                 "show_vitals", "vitals_width", "vitals_width_value", "vitals_scale", "vitals_scale_value",
                 "vitals_pos", "vitals_show_bars", "vitals_show_text", "vitals_bg",
-                "vitals_flash", "vitals_flash_below", "vitals_flash_below_value" }
+                "vitals_flash", "vitals_flash_below", "vitals_flash_below_value", "vitals_glue" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -275,6 +278,7 @@ function C.Sync()
   el.vitals_show_text:SetValue(T.Vitals.GetShowText())
   el.vitals_bg:SetValue(T.Vitals.GetBackground())
   el.vitals_flash:SetValue(T.Vitals.GetFlash())
+  el.vitals_glue:SetValue(T.Hud.IsGlued())
   el.vitals_flash_below:SetValue(T.Vitals.GetFlashBelow())
   el.vitals_flash_below_value:SetText(fontLabel(T.Vitals.GetFlashBelow()))
   C.SyncLive()

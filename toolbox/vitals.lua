@@ -55,7 +55,7 @@ V.BARS = {
 }
 
 local prefs = { show = false }
-local frame = nil
+local content = nil       -- the bar rows (in a strip owned by Toolbox.Hud)
 local el = {}
 local shown = {}          -- key -> { value = bar fill, text = label text } last set
 
@@ -134,8 +134,10 @@ function V.Metrics()
   m.pad = hasBg and math.max(2, math.floor(3 * f + 0.5)) or 0   -- room around the text on a background
   if not showBars() then m.barW, m.gap = 0, 0 end
   if not showText() then m.textW, m.gap, m.pad = 0, 0, 0 end
-  m.frameW = T.Window.GRIP + m.barW + m.gap + m.textW + 2 * m.pad + 8
-  m.frameH = #V.BARS * (line + m.rowGap) + 8
+  m.contentW = m.barW + m.gap + m.textW + 2 * m.pad
+  m.contentH = #V.BARS * (line + m.rowGap)
+  m.frameW = T.Window.GRIP + m.contentW + 8        -- when in its own strip
+  m.frameH = m.contentH + 8
   return m
 end
 
@@ -170,7 +172,8 @@ local function wrapStyle(m)
   return { marginLeft = m.gap, backgroundColor = panel or "#00000000", borderRadius = panel and 3 or 0 }
 end
 
-local function build()
+-- Builds the bar rows and returns them; Toolbox.Hud puts them in a strip.
+function V.BuildContent()
   local m = V.Metrics()
   local rows = {}
   for _, bar in ipairs(V.BARS) do
@@ -183,19 +186,30 @@ local function build()
       } },
     } }
   end
-  frame = UI.HudFrame{ id = FRAME_ID, x = prefs.x or V.HOME[1], y = prefs.y or V.HOME[2],
-    width = m.frameW, height = m.frameH, visible = prefs.show,
-    -- start the contents past the drag grip
-    children = { UI.Column{ style = { paddingLeft = T.Window.GRIP }, children = rows } } }
+  content = UI.Column{ id = "vitals", children = rows }
   el, shown = {}, {}
   for _, bar in ipairs(V.BARS) do
-    el[bar.key .. "_bar"] = frame:Find(bar.key .. "_bar")
-    el[bar.key .. "_text"] = frame:Find(bar.key .. "_text")
-    el[bar.key .. "_wrap"] = frame:Find(bar.key .. "_wrap")
+    el[bar.key .. "_bar"] = content:Find(bar.key .. "_bar")
+    el[bar.key .. "_text"] = content:Find(bar.key .. "_text")
+    el[bar.key .. "_wrap"] = content:Find(bar.key .. "_wrap")
+  end
+  return content
+end
+
+function V.ContentSize()
+  local m = V.Metrics()
+  return m.contentW, m.contentH
+end
+function V.GetSavedPosition() return prefs.x, prefs.y end
+function V.SavePosition(x, y)
+  if x ~= prefs.x or y ~= prefs.y then
+    prefs.x, prefs.y = x, y
+    T.Save("vitals", prefs)
   end
 end
 
-local mover = T.Window.HudMover(function() return frame end, V.HOME)
+V.FRAME_ID = FRAME_ID
+local mover = T.Hud.MoverFor("vitals", V.HOME)
 V.GetPosition, V.MoveTo, V.Nudge, V.ResetPosition = mover.Get, mover.MoveTo, mover.Nudge, mover.Reset
 
 local ticks = 0
@@ -222,7 +236,7 @@ end
 function V.Tick()
   ticks = ticks + 1
   local phase = math.floor(ticks / V.FLASH_TICKS) % 2 == 1
-  if frame and prefs.show then
+  if content and prefs.show then
     for _, bar in ipairs(V.BARS) do
       local current, max = V.Read(bar)
       local value, text = V.Format(current, max)
@@ -237,12 +251,6 @@ function V.Tick()
       end
       shown[bar.key] = { value = value, text = text, flashing = flashing }
     end
-  end
-  -- Remember where the player put it (grip drag or buttons), as the buff bar does.
-  local x, y = V.GetPosition()
-  if x and (x ~= prefs.x or y ~= prefs.y) then
-    prefs.x, prefs.y = x, y
-    T.Save("vitals", prefs)
   end
 end
 
@@ -267,9 +275,8 @@ function V.Init()
     end
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
-  build()
+  T.Hud.Register("vitals", V)
   ShroudRegisterPeriodic(PERIODIC, V.Tick, V.TICK, true)
-  V.Tick()
 end
 
 -- ---------------------------------------------------------------------------
@@ -296,11 +303,9 @@ function V.IsShown() return prefs.show == true end
 function V.SetShown(on)
   prefs.show = on == true
   T.Save("vitals", prefs)
-  if frame then
-    frame:SetVisible(prefs.show)
-    shown = {}
-    V.Tick()
-  end
+  shown = {}
+  T.Hud.Refresh()
+  V.Tick()
   T.Config.Sync()
 end
 
@@ -308,7 +313,7 @@ function V.Toggle() V.SetShown(not prefs.show) end
 
 -- Re-applies the sizes to every element and the strip (after a width or size change).
 local function applySize()
-  if not frame then return end
+  if not content then return end
   local m = V.Metrics()
   for _, bar in ipairs(V.BARS) do
     el[bar.key .. "_bar"]:SetStyle(barStyle(m))
@@ -322,7 +327,7 @@ local function applySize()
     end
     if V.BackgroundClass() then el[bar.key .. "_text"]:AddClass(V.BackgroundClass()) end
   end
-  pcall(function() frame:SetSize(m.frameW, m.frameH) end)   -- refused past the HUD area limit: keep the old size
+  T.Hud.Refresh()
   shown = {}                                -- colours were reset: re-apply on the next tick
 end
 

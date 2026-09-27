@@ -6,6 +6,9 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Glue the health & focus bars to the buff bar (`/toolbox vitals glue on` or the settings
+  checkbox): one HUD strip with health & focus on the left and buffs on the right, one grip and
+  one remembered position, sized to what's showing. Unglued positions are kept for switching back.
 - Health & focus bars flash when low: below a threshold (default 20%, `/toolbox vitals flash <n>`
   or the settings slider; can be turned off) the bar and its number swap to the theme's bright
   text colour every 0.4 s. A Test flash button (and `/toolbox vitals flash test`) flashes both
@@ -102,6 +105,9 @@ store submission needs a higher version than any submitted before (rejected ones
   window's close button (it only worked in one direction).
 
 ### Changed
+- HUD strips are owned by `hud.lua` (`Toolbox.Hud`): the buff bar and the health & focus bars build
+  only their content, and the HUD puts it in one strip each or a shared glued strip, sizes it and
+  remembers its position.
 - HUD position controls (settings rows and the `move` command) are shared by the buff bar and the
   health & focus bars (`Toolbox.Window.HudMover`, `Toolbox.Config.PositionRows`, `Toolbox.MoveCommand`).
 - The hover pop-up logic is shared (`hover.lua`) between XP / XP Detailed and Today / Today Detailed.

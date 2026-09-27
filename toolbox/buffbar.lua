@@ -165,7 +165,8 @@ local debuffs = {}        -- debuff names seen at the last change (set)
 local timers = {}         -- rune name -> BB.Track state
 local quietUntil = 0      -- no debuff alerts before this T.Now()
 local lastDebuffSound = -math.huge
-local frame = nil
+local content = nil       -- the icon rows (in a strip owned by Toolbox.Hud)
+local contentW, contentH = 0, 0
 local slots = { buffs = {}, debuffs = {} }
 local clockTex = -1
 
@@ -238,26 +239,26 @@ end
 
 local function size() return prefs.size or BB.SIZE_DEFAULT end
 
--- The strip's size for `used` icons across (the busier row) and `rows` rows. It is sized to
--- what is showing, not to the whole slot pool: the game keeps HUD frames on screen, so a strip
--- as wide as 20 empty slots couldn't be dragged near the right edge (reported in game).
-local function frameSize(used, rows)
+-- The content's size for `used` icons across (the busier row) and `rows` rows. The strip is
+-- sized to what is showing, not to the whole slot pool: the game keeps HUD frames on screen,
+-- so a strip as wide as 20 empty slots couldn't be dragged near the right edge (reported).
+local function contentSize(used, rows)
   local cell = size() + BB.GAP
   used = math.max(1, math.min(BB.BUFF_SLOTS, used or 1))
-  return T.Window.GRIP + used * cell + 8, (rows or 1) * cell + 8
+  return used * cell, (rows or 1) * cell
 end
 
-local sizedFor = nil          -- "used,rows" the frame was last sized for
+local sizedFor = nil          -- "used,rows,size" the content was last sized for
 
--- Resizes the strip to the icons showing (only when that changes).
+-- Re-fits the strip to the icons showing (only when that changes).
 local function fitFrame(buffsShown, debuffsShown)
   local used = math.max(buffsShown, debuffsShown)
   local rows = debuffsShown > 0 and 2 or 1
   local key = used .. "," .. rows .. "," .. size()
-  if key == sizedFor or not frame then return end
+  if key == sizedFor or not content then return end
   sizedFor = key
-  local w, h = frameSize(used, rows)
-  pcall(function() frame:SetSize(w, h) end)   -- refused past the HUD area limit: keep the old size
+  contentW, contentH = contentSize(used, rows)
+  T.Hud.Refresh()
 end
 
 local function makeSlot(debuff)
@@ -273,7 +274,8 @@ local function makeSlot(debuff)
   return { row = slot, icon = icon, overlay = overlay, used = false }
 end
 
-local function build()
+-- Builds the icon rows (a fixed slot pool) and returns them; Toolbox.Hud puts them in a strip.
+function BB.BuildContent()
   clockTex = ShroudLoadTexture(BB.CLOCK.path)
   local buffRow, debuffRow = {}, {}
   slots = { buffs = {}, debuffs = {} }
@@ -285,17 +287,22 @@ local function build()
     slots.debuffs[i] = makeSlot(true)
     debuffRow[i] = slots.debuffs[i].row
   end
-  local w, h = frameSize(1, 1)
   sizedFor = nil
-  -- Our own remembered spot too: the docs don't say whether x/y here override the game's
-  -- memory of a HUD frame's position after a reload.
-  frame = UI.HudFrame{ id = FRAME_ID, x = prefs.x or BB.HOME[1], y = prefs.y or BB.HOME[2],
-    width = w, height = h, visible = prefs.show,
-    -- start the icons past the drag grip
-    children = { UI.Column{ style = { paddingLeft = T.Window.GRIP }, children = {
-      UI.Row{ id = "buffs", style = { marginBottom = BB.GAP }, children = buffRow },
-      UI.Row{ id = "debuffs", children = debuffRow },
-    } } } }
+  contentW, contentH = contentSize(1, 1)
+  content = UI.Column{ id = "buffbar", children = {
+    UI.Row{ id = "buffs", style = { marginBottom = BB.GAP }, children = buffRow },
+    UI.Row{ id = "debuffs", children = debuffRow },
+  } }
+  return content
+end
+
+function BB.ContentSize() return contentW, contentH end
+function BB.GetSavedPosition() return prefs.x, prefs.y end
+function BB.SavePosition(x, y)
+  if x ~= prefs.x or y ~= prefs.y then
+    prefs.x, prefs.y = x, y
+    savePrefs()
+  end
 end
 
 -- Puts entry e (or nothing) into a slot, touching only what changed. `warn` shows the
@@ -361,7 +368,7 @@ function BB.Tick()
     if st then st.missingSince = nil end
     timers[e.name] = st
     if fire and not rune.debuff then expiring = true end
-    if frame and prefs.show then
+    if content and prefs.show then
       if rune.debuff then
         di = di + 1
         if slots.debuffs[di] then fill(slots.debuffs[di], e, fraction) end
@@ -381,18 +388,12 @@ function BB.Tick()
       end
     end
   end
-  if frame and prefs.show then
+  if content and prefs.show then
     for i = bi + 1, BB.BUFF_SLOTS do fill(slots.buffs[i], nil) end
     for i = di + 1, BB.DEBUFF_SLOTS do fill(slots.debuffs[i], nil) end
     fitFrame(math.min(bi, BB.BUFF_SLOTS), math.min(di, BB.DEBUFF_SLOTS))
   end
   if expiring and prefs.expire then T.Sounds.Play("buff_expiring") end
-  -- Remember where the player put the bar (dragged by its grip, or moved from settings).
-  local x, y = BB.GetPosition()
-  if x and (x ~= prefs.x or y ~= prefs.y) then
-    prefs.x, prefs.y = x, y
-    savePrefs()
-  end
   if T.Now() - lastTimerSave >= BB.TIMER_SAVE then BB.SaveTimers() end
 end
 
@@ -526,6 +527,7 @@ function BB.Init()
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
   timers, debuffs, runes = {}, {}, {}
+  T.Hud.Register("buffs", BB)
   local savedTimers = T.Load("buff_timers")
   remembered = (type(savedTimers) == "table" and savedTimers.v == 2 and type(savedTimers.timers) == "table")
     and savedTimers.timers or {}
@@ -536,11 +538,9 @@ function BB.Init()
   end
   preexisting, sceneQuietUntil = {}, 0
   for _, e in ipairs(readEffects()) do preexisting[e.name] = true end
-  build()
   BB.Quiet()
   BB.OnBuffsChanged()                  -- the change callback only fires on changes
   ShroudRegisterPeriodic(PERIODIC, BB.Tick, BB.TICK, true)
-  BB.Tick()
 end
 
 -- ---------------------------------------------------------------------------
@@ -552,10 +552,8 @@ function BB.IsShown() return prefs.show == true end
 function BB.SetShown(on)
   prefs.show = on == true
   savePrefs()
-  if frame then
-    frame:SetVisible(prefs.show)
-    if prefs.show then BB.Tick() end
-  end
+  T.Hud.Refresh()
+  if prefs.show then BB.Tick() end
   T.Config.Sync()
 end
 
@@ -567,7 +565,7 @@ function BB.SetSize(n)
   if not inRange(n, BB.SIZE_MIN, BB.SIZE_MAX) then return false end
   prefs.size = n
   savePrefs()
-  if frame then
+  if content then
     for _, group in pairs(slots) do
       for _, slot in ipairs(group) do
         slot.row:SetStyle{ width = n, height = n }
@@ -617,5 +615,6 @@ function BB.GetDebuffAlert() return prefs.debuff end
 -- the player's"; its Reset Positions button puts it back).
 -- ---------------------------------------------------------------------------
 
-local mover = T.Window.HudMover(function() return frame end, BB.HOME)
+BB.FRAME_ID = FRAME_ID
+local mover = T.Hud.MoverFor("buffs", BB.HOME)
 BB.GetPosition, BB.MoveTo, BB.Nudge, BB.ResetPosition = mover.Get, mover.MoveTo, mover.Nudge, mover.Reset
