@@ -11,3 +11,6 @@ __pycache__/
 .vscode/
 *.swp
 *~
+
+# Generated audio intermediates (the .ogg is the deliverable)
+/art/*.wav
