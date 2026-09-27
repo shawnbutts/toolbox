@@ -45,7 +45,7 @@ D.SECTIONS = {
       .. "for its tooltip.",
     "Options: icon size; a sound before a buff runs out (/toolbox buffalert 10 = ten seconds "
       .. "before); a sound when a debuff lands (/toolbox debuffalert on/off).",
-    "Long-lasting buffs such as Obsidian potions share one slot at the end of the row, showing how "
+    "Long-lasting buffs (the Obsidian potions, BlessingOf...) share one slot at the end of the row, showing how "
       .. "many there are; hover it for each one and its time left. They're picked by name: "
       .. "/toolbox buffs group add <part of a name> adds more, remove takes one off, and "
       .. "/toolbox buffs group lists them." },

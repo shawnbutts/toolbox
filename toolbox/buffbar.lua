@@ -9,7 +9,7 @@
 --
 -- The game's own buff bar can't be hidden from Lua; this one sits alongside it.
 --
--- Long-lasting buffs (Obsidian potions last a week, and several can run at once) are grouped
+-- Long-lasting buffs (Obsidian potions last days, and several can run at once) are grouped
 -- into one slot at the end of the buff row: a count over the first one's icon, with each
 -- buff and its time left in the tooltip. The API has no "long-lasting" flag and doesn't give
 -- a buff's full duration, so they are picked by name (BB.GROUP_DEFAULT; /toolbox buffs group).
@@ -32,7 +32,12 @@ BB.BUFF_SLOTS, BB.DEBUFF_SLOTS = 20, 10
 BB.SIZE_MIN, BB.SIZE_MAX, BB.SIZE_DEFAULT = 20, 48, 32
 BB.ALERT_MIN, BB.ALERT_MAX, BB.ALERT_DEFAULT = 1, 60, 10
 BB.GAP = 3
-BB.GROUP_DEFAULT = { "Obsidian" }  -- name parts of the buffs grouped by default
+-- Name parts of the buffs grouped by default: the Obsidian potions' rune names (seen in game
+-- 2026-09-27; ~3.5 days each). Listed one by one: other "BlessingOf" runes may not be potions.
+BB.GROUP_DEFAULT = {
+  "BlessingOfCapacity", "BlessingOfConservation", "BlessingOfExpedience", "BlessingOfPrecision",
+  "BlessingOfPrevention", "BlessingOfReclamation", "BlessingOfStamina",
+}
 BB.GROUP_MAX = 20                  -- name parts kept
 BB.GROUP_LEN = 40                  -- characters per name part
 BB.HOME = { 40, 220 }         -- where the bar starts, and where Reset puts it
@@ -645,7 +650,9 @@ function BB.Init()
       prefs.expireSeconds = math.floor(saved.expireSeconds)
     end
     prefs.debuff = saved.debuff ~= false
-    if type(saved.group) == "table" then
+    -- { "Obsidian" } alone was the first default, which matches no potion's name: take it as unset.
+    local old = type(saved.group) == "table" and #saved.group == 1 and saved.group[1] == "Obsidian"
+    if type(saved.group) == "table" and not old then
       prefs.group = {}
       for _, p in ipairs(saved.group) do
         if type(p) == "string" and p ~= "" and #prefs.group < BB.GROUP_MAX then
@@ -762,7 +769,7 @@ end
 -- Returns ok, message (for chat).
 function BB.AddGroupPart(part)
   part = (part or ""):match("^%s*(.-)%s*$")
-  if part == "" then return false, "Give part of a buff's name, e.g. Obsidian." end
+  if part == "" then return false, "Give part of a buff's name, e.g. BlessingOfStamina." end
   if #part > BB.GROUP_LEN then return false, "Keep it under " .. BB.GROUP_LEN .. " characters." end
   local parts = BB.GroupParts()
   for _, p in ipairs(parts) do

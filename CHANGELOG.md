@@ -10,7 +10,7 @@ store submission needs a higher version than any submitted before (rejected ones
   shows it at login, after a reload, or as soon as it changes while you play. An unchanged message
   stays hidden. /toolbox motd shows it any time; /toolbox motd off, or the new Guild setting,
   stops it opening by itself.
-- Buff bar: long-lasting buffs (Obsidian potions, by default) share one slot at the end of the row
+- Buff bar: long-lasting buffs (the seven Obsidian potion blessings, by default) share one slot at the end of the row
   with a count; hover it to see each one and its time left. Picked by name, since the game doesn't
   mark long buffs: /toolbox buffs group add <name>, remove <name>, reset.
 - /toolbox api lists which newer game functions this client has (buff bar, crafting, friends and

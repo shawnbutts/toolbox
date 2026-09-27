@@ -100,7 +100,7 @@ Run all three before calling a change done.
     `OnBuffsChanged` reads `ShroudGetPlayerBuff()` (debuff flags, icons) and raises the debuff alert;
     its own 0.5 s periodic reads the flat effect list, runs the expiry alert and fills a fixed slot pool
     (never create elements per change). Buffs whose rune or displayed name contains a `prefs.group` part
-    (default "Obsidian": week-long potions) go into one extra "group" slot at the end of the buff row:
+    (default: the 7 Obsidian potion runes, `BlessingOf...` by full name) go into one extra "group" slot:
     count label over the first one's icon, list + time left in the tooltip. By name because the API has
     no long-lasting flag and no full duration (owner's choice, 2026-09-27); they still get expiry alerts. The clock overlay is a second `Image` over the icon via a
     negative left margin, showing one `SetUV` frame of `clock.png` (`CLOCK` must match `art/clock.py`).
@@ -219,7 +219,7 @@ including the "no character" sentinel.
 | `daily` | see the header comment of `daily.lua` (format `v = 1`) |
 | `daily_window` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, hx, hy }` |
 | `daily_detail` | `{ open = bool, x = number, y = number }` |
-| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, group = { "Obsidian", ... }, x, y }` |
+| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, group = { "BlessingOfStamina", ... }, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { buff_expiring = "...", debuff_landed = "..." } }` |
 | `buff_timers` | `{ v = 2, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload |
 | `vitals` | `{ show, width = 100..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, x, y }` |
