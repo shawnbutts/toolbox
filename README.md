@@ -202,7 +202,7 @@ alert takes the first that loads of:
 1. a custom path you set in `/toolbox config` (any `.ogg`/`.wav`/`.mp3` inside your Lua folder);
 2. a replacement beside the add-on: `Lua/toolbox_buff_expiring.ogg` / `Lua/toolbox_debuff_landed.ogg`
    (or `.wav`), which store updates don't touch;
-3. the default in the add-on's folder, `Lua/toolbox/<name>.ogg` (or `.wav`).
+3. the default in the add-on's folder, `Lua/toolbox/<name>.ogg`.
 
 Audio files can't be part of a store package yet, so for now `tools/install.py` puts the defaults
 there; paths are relative to the Lua folder (`ShroudLuaPath`).
@@ -213,7 +213,7 @@ client problem; the alerts are silent until that is fixed, but the red sweep sti
 buffs. `/toolbox sounds` says which file each alert
 uses; `/toolbox sounds test` (or the Test buttons in settings) plays them and reports whether the
 game is really playing them. The sounds are in `art/`; `tools/install.py` copies them to the
-add-on's folder for you (with `.wav` copies), and never writes to the Lua folder itself.
+add-on's folder for you (only the `.ogg` files), and never writes to the Lua folder itself.
 
 When a buff's expiry alert fires, its sweep turns from dark to red for the rest of that run.
 

@@ -54,12 +54,10 @@ def main() -> int:
         shutil.rmtree(dest)
     shutil.copytree(src, dest)
     print(f"Installed {len(list(dest.iterdir()))} files to {dest}")
-    # .ogg is what the add-on looks for; .wav copies (made by art/alerts.py, not committed) are
-    # there to try as a custom path if an .ogg won't play.
     # The default alert sounds go in the package folder (Lua/toolbox/). The Lua folder itself is
     # where a player's replacements go (Lua/toolbox_<name>.ogg), so nothing is written there.
     # (Not part of the store package: audio files aren't allowed in packages yet.)
-    for sound in sorted((ROOT / "art").glob("*.ogg")) + sorted((ROOT / "art").glob("*.wav")):
+    for sound in sorted((ROOT / "art").glob("*.ogg")):     # the defaults are .ogg (no .wav copies)
         shutil.copy2(sound, dest / sound.name)
         print(f"Copied default alert sound to {dest / sound.name}")
     old = [p for p in lua_dir.glob(f"{slug}_*") if p.suffix in (".ogg", ".wav")]

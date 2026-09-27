@@ -3,7 +3,7 @@
 --   1. the player's custom path (settings), anywhere inside the Lua folder;
 --   2. a replacement "Lua/toolbox_<file>" beside the package (store updates replace the package
 --      folder, not loose files), as .ogg then .wav;
---   3. the default "Lua/toolbox/<file>" in the package folder, as .ogg then .wav.
+--   3. the default "Lua/toolbox/<file>" in the package folder (.ogg only: that's what ships).
 -- Paths are relative to the Lua root (ShroudLuaPath is the Lua folder in game).
 -- The first that loads is used; if none do, the sound stays silent.
 --
@@ -68,10 +68,10 @@ local function candidates(def)
   if type(custom) == "string" and custom ~= "" then list[#list + 1] = custom end
   -- Paths are relative to the Lua root (in game ShroudLuaPath is the Lua folder itself).
   -- A player's replacement sits in the Lua folder, beside the package, and wins; the defaults
-  -- ship in the package folder. Each as .ogg, then .wav.
+  -- ship in the package folder as .ogg. A replacement may also be a .wav.
   local wav = def.file:gsub("%.ogg$", ".wav")
   for _, name in ipairs({ "toolbox_" .. def.file, "toolbox_" .. wav,     -- replacement: Lua/toolbox_<name>
-                          "toolbox/" .. def.file, "toolbox/" .. wav }) do  -- default: Lua/toolbox/<name>
+                          "toolbox/" .. def.file }) do                     -- default: Lua/toolbox/<name>
     list[#list + 1] = name
   end
   return list

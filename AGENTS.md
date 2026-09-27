@@ -334,6 +334,8 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     available here. First in-game report (2026-09-27): `/toolbox sounds` found both, but Test was silent.
     Test now reports channel and whether `ShroudIsChannelPlaying` still sees it; "already silent" points
     at decoding (try the .wav), "playing" at volume. Pending that result.
+    2026-09-27: .wav defaults are no longer shipped or looked for (no clip loads in either format, so they
+    told us nothing); only a player's replacement may be a .wav. `art/alerts.py` still writes them locally.
 25. `ShroudGetBuffTimeRemaining` refresh rate: CONFIRMED smooth in game (the trace showed it dropping
     ~1 s per second). An earlier "stale value" theory for the lagging sweep was wrong; the cause was the
     unknown full duration (item 22). `BuffBar.Track`'s own end-time clock stays (harmless: it resyncs

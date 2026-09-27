@@ -7,8 +7,7 @@ Runs tools/build.py (every store check still applies), then writes
 dist/toolbox-<version>-beta.zip holding:
 
     toolbox/        the add-on as built (dist/toolbox/), plus the default alert sounds
-                    (art/*.ogg and art/*.wav; fine for a hand install, not allowed in a store
-                    package yet)
+                    (art/*.ogg only; fine for a hand install, not allowed in a store package yet)
     INSTALL.txt     BETA.md: install steps, what to test, known issues, how to report
 
 Testers extract it and copy the "toolbox" folder into their Lua folder. The build is stamped
@@ -42,9 +41,7 @@ def main() -> int:
         print("warning: the build isn't from a clean commit (" + stamp_line.strip() + "); testers' "
               "/toolbox version won't map to an exact commit. Commit first for a real beta.")
 
-    sounds = sorted((ROOT / "art").glob("*.ogg")) + sorted((ROOT / "art").glob("*.wav"))
-    if not any(p.suffix == ".wav" for p in sounds):
-        print("warning: no .wav sounds in art/ (python3 art/alerts.py makes them); only .ogg included.")
+    sounds = sorted((ROOT / "art").glob("*.ogg"))    # the defaults; the add-on doesn't look for .wav ones
 
     out = ROOT / "dist" / f"{slug}-{version}-beta.zip"
     with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zf:

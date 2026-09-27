@@ -816,16 +816,16 @@ return function(t)
 
   t.test("sounds: debug lists every path tried and what the game answered", function()
     H.boot()
-    H.S.files["toolbox/buff_expiring.wav"] = true     -- only the default, and only as .wav
+    H.S.files["toolbox_buff_expiring.wav"] = true     -- only a replacement, and only as .wav
     H.reload()
-    H.advance(4 * Toolbox.Sounds.LOAD_TIMEOUT + 2)
+    H.advance(2 * Toolbox.Sounds.LOAD_TIMEOUT + 2)
     local status, path = Toolbox.Sounds.Status("buff_expiring")
     t.eq(status, "ready")
-    t.eq(path, "toolbox/buff_expiring.wav")
+    t.eq(path, "toolbox_buff_expiring.wav")
     H.clearLogs()
     H.chat("/tbx sounds debug")
     t.ok(H.logged("^    tried toolbox_buff_expiring%.ogg %-> false$"), "paths the game refused")
-    t.ok(H.logged("^    tried toolbox/buff_expiring%.wav %-> true$"), "and the one it accepted")
+    t.ok(H.logged("^    tried toolbox_buff_expiring%.wav %-> true$"), "and the one it accepted")
   end)
 
   t.test("sounds: try <n> plays a clip id directly and reports", function()

@@ -10,6 +10,10 @@ store submission needs a higher version than any submitted before (rejected ones
   "As a HUD strip" in settings): no title bar or frame, on the theme's dark panel, moved by the grip
   or `/tbx xp move <x> <y>`; the hover pop-ups work as over the windows. `window` switches back.
 
+### Changed
+- Only the `.ogg` alert sounds are shipped (beta zip, `tools/install.py`); the add-on no longer looks
+  for a default `.wav`. A player's replacement (`Lua/toolbox_<name>.wav`) or custom path still can be one.
+
 ### Fixed
 - Docs: the command list is in the same text colour as the rest (it was dimmer than its first line).
 - Combat stats HUD: the values now have the same padding on the right as the names on the left.
