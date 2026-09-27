@@ -30,7 +30,7 @@ Built clean-room from the official docs only:
 | `/toolbox reset` | start a new XP session |
 | `/toolbox daily` | show or hide today's stats (gold, kills, XP) |
 | `/toolbox dailydetailed` (or `dd`) | show or hide Today Detailed (every item gained today) |
-| `/toolbox buffs` (`debug` / `trace`) | show or hide the buff bar (`debug`: each buff's timing data; `trace`: log it once a second for 10 s) |
+| `/toolbox buffs` (`debug` / `trace [name]`) | show or hide the buff bar (`debug`: each buff's timing data; `trace light`: log the buffs whose name contains "light" once a second for 10 s) |
 | `/toolbox buffalert <1-60>` / `on` / `off` | alert this many seconds before a buff runs out (default 10) |
 | `/toolbox debuffalert on` / `off` | alert when a debuff lands |
 | `/toolbox sounds [0-100]` | show which sound files the alerts use; with a number, set the volume |

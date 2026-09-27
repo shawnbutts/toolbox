@@ -23,7 +23,8 @@ store submission needs a higher version than any submitted before (rejected ones
 - Buff timers count down on the add-on's own clock and follow the game's time remaining only
   when that value actually changes (a value jumping up is a recast). In game the sweep stalled
   and then jumped, which is what a value refreshed only now and then produces; the expiry alert
-  was late for the same reason. `/toolbox buffs trace` logs the game's raw values for 10 s.
+  was late for the same reason. `/toolbox buffs trace [name]` logs the game's raw values for 10 s, for the buffs whose rune or
+  displayed name contains `name` (up to 8 without one); `debug` and `trace` show both names.
 - The sweep has 120 steps (3 degrees each) instead of 24: with 24, a long buff such as a
   20-minute Light spell moved only every 50 s and looked frozen. `clock.png` is now 960 x 576
   (48 px frames, 88 KiB).

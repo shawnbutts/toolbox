@@ -329,9 +329,10 @@ end
 
 -- One chat line per current effect, for checking durations in game:
 -- "Light: 9.5 s left; TotalDuration 40, CurrentDuration 30.5; full duration 40 s (from the game)".
+-- %g: the same text on every Lua (5.3+ would print 39.0 where MoonSharp prints 39).
+local function num(x) return type(x) == "number" and string.format("%g", x) or tostring(x) end
+
 function BB.DebugLines()
-  -- %g: the same text on every Lua (5.3+ would print 39.0 where MoonSharp prints 39)
-  local function num(x) return type(x) == "number" and string.format("%g", x) or tostring(x) end
   local lines = {}
   local list = ShroudGetPlayerBuff()
   local byName = {}
@@ -344,41 +345,54 @@ function BB.DebugLines()
     local fromGame = BB.TotalFromEffects(e.remaining, rune.Effects)
     local st = timers[e.name]
     local source = fromGame and "from the game" or (st and "observed or remembered") or "none yet"
+    local label = ShroudGetBuffDescription(e.index)
+    local hasLabel = type(label) == "string" and label ~= "Invalid" and label ~= e.name
+    local named = hasLabel and (label .. " [" .. e.name .. "]") or e.name
     lines[#lines + 1] = string.format("%s%s: %s s left; TotalDuration %s, CurrentDuration %s; full duration %s (%s)",
-      e.name, rune.IsDebuff and " (debuff)" or "", num(e.remaining), num(fx.TotalDuration),
+      named, rune.IsDebuff and " (debuff)" or "", num(e.remaining), num(fx.TotalDuration),
       num(fx.CurrentDuration), st and (num(st.total) .. " s") or "?", source)
   end
   if #lines == 0 then lines[1] = "No buffs or debuffs right now." end
   return lines
 end
 
--- /toolbox buffs trace: once a second for BB.TRACE_SECONDS, log each buff's raw game values
--- next to what the bar uses, to see how the game reports buff time.
+-- /toolbox buffs trace [name]: once a second for BB.TRACE_SECONDS, log buffs' raw game values
+-- next to what the bar uses, to see how the game reports buff time. With a name, only buffs
+-- whose rune name or displayed name contains it (any case); without, the first BB.TRACE_MAX.
 BB.TRACE_SECONDS = 10
-function BB.Trace()
+BB.TRACE_MAX = 8
+function BB.Trace(filter)
+  filter = (filter or ""):lower()
   local n = 0
-  local byName = {}
   ShroudRegisterPeriodic("toolbox_bufftrace", function()
     n = n + 1
+    local byName = {}
     local list = ShroudGetPlayerBuff()
     for _, rune in ipairs(type(list) == "table" and list or {}) do
       if type(rune) == "table" and type(rune.RuneName) == "string" then byName[rune.RuneName] = rune end
     end
     local shown = 0
     for _, e in ipairs(readEffects()) do
-      if shown < 3 then
+      local label = ShroudGetBuffDescription(e.index)
+      label = (type(label) == "string" and label ~= "Invalid") and label or e.name
+      local match = filter == "" or e.name:lower():find(filter, 1, true) or label:lower():find(filter, 1, true)
+      if match and shown < BB.TRACE_MAX then
         shown = shown + 1
         local fx = byName[e.name] and type(byName[e.name].Effects) == "table" and byName[e.name].Effects[1] or {}
         local st = timers[e.name]
+        local named = label == e.name and e.name or (label .. " [" .. e.name .. "]")
         T.Print(string.format("+%ds %s: game %s left (Total %s, Current %s) | bar %s of %s",
-          n, e.name, tostring(e.remaining), tostring(fx.TotalDuration), tostring(fx.CurrentDuration),
+          n, named, num(e.remaining), num(fx.TotalDuration), num(fx.CurrentDuration),
           st and string.format("%.1f", st.last or -1) or "?", st and string.format("%.1f", st.total) or "?"))
       end
     end
-    if shown == 0 then T.Print("+" .. n .. "s: no buffs") end
+    if shown == 0 then
+      T.Print("+" .. n .. "s: no buffs" .. (filter ~= "" and (" matching '" .. filter .. "'") or ""))
+    end
     if n >= BB.TRACE_SECONDS then ShroudRemovePeriodic("toolbox_bufftrace") end
   end, 1, true)
-  T.Print("Tracing up to 3 buffs for " .. BB.TRACE_SECONDS .. " s...")
+  local what = filter ~= "" and ("buffs matching '" .. filter .. "'") or ("up to " .. BB.TRACE_MAX .. " buffs")
+  T.Print("Tracing " .. what .. " for " .. BB.TRACE_SECONDS .. " s...")
 end
 
 -- Remembers the running timers so a /lua reload can pick them up (ShroudTime keeps running

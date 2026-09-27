@@ -194,6 +194,7 @@ local function install_api()
     return e.remaining
   end
   ShroudGetBuffIcon = function(i) local e = effect(i); return e and (e.icon or -1) or -1 end
+  ShroudGetBuffDescription = function(i) local e = effect(i); return e and (e.label or e.name) or "Invalid" end
   ShroudGetBuffTooltip = function(i)
     local e = effect(i)
     if not e then return "" end

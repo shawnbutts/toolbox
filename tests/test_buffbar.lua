@@ -592,4 +592,30 @@ return function(t)
     t.ok(H.logged("^%+10s Ward:"), "ten lines")
     t.no(H.logged("^%+11s"), "stops after ten")
   end)
+
+  t.test("/tbx buffs trace <name> follows one buff, matching its displayed name too", function()
+    H.boot()
+    local list = {}
+    for i = 1, 10 do list[#list + 1] = { name = "Rune" .. i, remaining = 600 } end
+    list[#list + 1] = { name = "LightRune", label = "Light", remaining = 120 }
+    H.addBuffs(list)
+    H.advance(1, 0.5)
+    H.clearLogs()
+    H.chat("/tbx buffs trace LIGHT")
+    H.advance(2)
+    t.ok(H.logged("^%+1s Light %[LightRune%]: game 11%d left"), H.logs()[2])
+    t.no(H.logged("Rune1:"), "only the match")
+    H.advance(Toolbox.BuffBar.TRACE_SECONDS)
+    H.clearLogs()
+    H.chat("/tbx buffs trace")
+    H.advance(1)
+    local lines = 0
+    for _, l in ipairs(H.logs()) do if l:find("^%+1s") then lines = lines + 1 end end
+    t.eq(lines, Toolbox.BuffBar.TRACE_MAX, "without a name: the first " .. Toolbox.BuffBar.TRACE_MAX)
+    H.advance(Toolbox.BuffBar.TRACE_SECONDS)
+    H.clearLogs()
+    H.chat("/tbx buffs trace nosuch")
+    H.advance(1)
+    t.ok(H.logged("no buffs matching 'nosuch'"))
+  end)
 end
