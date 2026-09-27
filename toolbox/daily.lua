@@ -253,7 +253,7 @@ end
 
 local function row(spec)
   local W = T.Window
-  return UI.Row{ style = { alignItems = "center" }, tooltip = spec.tooltip, children = {
+  return UI.Row{ style = { alignItems = "center" }, tooltip = spec.tooltip or spec.label, children = {
     UI.Label{ id = spec.id .. "_label", text = spec.label, class = "text", style = W.TextStyle{ flexGrow = 1 } },
     UI.Label{ id = spec.id, text = "0", class = "text", style = W.TextStyle{ textAlign = "right" } },
   } }
@@ -265,7 +265,7 @@ local function build()
   win = UI.Window{
     id = WINDOW_ID, title = "Today",
     width = 200, height = 130, minWidth = 150, minHeight = 50,
-    x = prefs.x, y = prefs.y,
+    x = prefs.x or T.Window.DEFAULT_X, y = prefs.y or T.Window.DEFAULT_Y,   -- never nil in a spec
     escCloses = true,
     onClose = function()
       prefs.open = false

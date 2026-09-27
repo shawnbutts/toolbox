@@ -91,7 +91,7 @@ local function build()
     id = WINDOW_ID, title = "XP Detailed",
     -- Only the first open uses width/height: the host remembers the size the player drags it to.
     width = 250, height = 200, minWidth = 160, minHeight = 60,
-    x = prefs.x, y = prefs.y,
+    x = prefs.x or T.Window.DEFAULT_X, y = prefs.y or T.Window.DEFAULT_Y,   -- never nil in a spec
     escCloses = true,
     onClose = function()
       prefs.open = false
@@ -275,6 +275,10 @@ end
 -- estimate. Add-ons can't tell whether the grip is showing (Lock Status Movement), so the
 -- room is always kept.
 W.GRIP = 14
+
+-- A window's position before the player has moved it (the documented Window defaults).
+-- Specs get these rather than nil: the game's Lua passes nil entries on to the UI.
+W.DEFAULT_X, W.DEFAULT_Y = 200, 120
 
 -- Moves a HUD frame from settings or chat (its own grip is hidden while the game's "Lock
 -- Status Movement" is on). getFrame() returns the frame or nil; home = { x, y } for Reset

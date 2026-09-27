@@ -214,10 +214,14 @@ function C.Metrics()
            w = labelW + valueW, h = (6 + C.MAX_STATS) * line }
 end
 
+-- Never a nil in a style table: the game's Lua passes a nil entry on to the UI, which
+-- rejects it ("style color takes a number or a string" hid the whole strip in game).
 local function labelStyle(m, width, align)
+  local color = align == "left" and "@text" or "@text-bright"   -- names normal, values bright
+  if background() == "Light" then color = C.DARK_TEXT end
   return { fontSize = m.font, height = m.line, minHeight = m.line, maxHeight = m.line, width = width,
            marginTop = 0, marginBottom = 0, paddingTop = 0, paddingBottom = 0, textAlign = align,
-           color = background() == "Light" and C.DARK_TEXT or nil }
+           color = color }
 end
 
 local shownRows = 0

@@ -55,6 +55,10 @@ DYNAMIC_CODE_RE = re.compile(
     r"\b(load|loadstring|loadfile|dofile|require|loadsafe)\s*[(\"'\[{]"
     r"|\bdynamic\.eval\b|\b_G\s*\[|\b_ENV\s*\["
 )
+# The game's Lua (MoonSharp) passes a nil table entry on to the UI, which rejects it: a
+# "color = ... or nil" in a style table hid a whole HUD strip in game. Refuse the pattern.
+NIL_ENTRY_RE = re.compile(r"\b\w+\s*=\s*[^=\n]*\bor\s+nil\s*[,}]")
+
 # Project rule: persistence goes through saved vars only; no file or OS access. The one
 # exception is reading the local clock (os.date / os.time) for the daily reset.
 FORBIDDEN_LIB_RE = re.compile(r"\bio\s*\.|\bos\s*\.(?!(date|time)\b)")
@@ -264,6 +268,10 @@ def check_sources(report: Report, manifest: dict) -> None:
             m = DYNAMIC_CODE_RE.search(line)
             if m:
                 report.error(f"{f}:{lineno}: runtime code loading '{m.group(0).strip()}' is not allowed")
+            m = NIL_ENTRY_RE.search(line)
+            if m and not line.lstrip().startswith("--"):
+                report.error(f"{f}:{lineno}: a table entry that can be nil ('{m.group(0).strip()}'); the game's"
+                             " Lua passes nil entries to the UI, which rejects them - use a real default")
             m = FORBIDDEN_LIB_RE.search(line)
             if m:
                 report.error(f"{f}:{lineno}: '{m.group(0)}' - use saved vars, not io/os (only os.date/os.time allowed)")

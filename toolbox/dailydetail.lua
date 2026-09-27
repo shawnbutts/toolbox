@@ -65,7 +65,7 @@ local function build()
   win = UI.Window{
     id = WINDOW_ID, title = "Today Detailed",
     width = 240, height = 260, minWidth = 170, minHeight = 60,
-    x = prefs.x, y = prefs.y,
+    x = prefs.x or T.Window.DEFAULT_X, y = prefs.y or T.Window.DEFAULT_Y,   -- never nil in a spec
     escCloses = true,
     onClose = function()
       prefs.open = false

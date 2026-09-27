@@ -93,6 +93,11 @@ store submission needs a higher version than any submitted before (rejected ones
 - `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
 
 ### Fixed
+- The combat stats strip failed to build in game ("style color takes a number or a string"): a
+  label style had `color = ... or nil`, and the game's Lua (MoonSharp) passes a nil table entry on
+  to the UI, unlike standard Lua. Labels now always get a theme colour. The same kind of nil was
+  removed from buff icon textures, window positions and a Today row's tooltip, and the build now
+  refuses `name = ... or nil` table entries.
 - A HUD strip that fails to build no longer stops the others from building and showing; the error
   is reported in chat. `/toolbox combat debug` describes the combat strip (shown setting, build
   error, strip visibility, size, position). The combat rows no longer repeat an element id.

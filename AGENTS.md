@@ -19,6 +19,11 @@ Guidance for AI coding agents (and humans) working on Toolbox, a Shroud of the A
   subcommand that prints raw values so the owner can check without guessing.
 - **Use the UI theme for colours** (owner's preference): theme classes (`inset`, `card`, `text`, ...) and
   `@` tokens follow the player's skin; avoid hard-coded `#rrggbb` except where the theme has nothing.
+- **Never put a possibly-nil value in a table passed to the UI** (spec, style, `SetStyle`). Unlike
+  standard Lua, the game's MoonSharp passes a nil entry on, and the UI rejects it ("style color takes a
+  number or a string" hid the whole combat strip). Use a real default, or add the key only when set.
+  The tests can't see this (a nil entry doesn't exist in standard Lua); `tools/build.py` refuses
+  `name = ... or nil` table entries.
 - **Avoid `a and b or c` when `b` can be false/nil**; it has already caused a bug (vitals "not both off").
 - **Don't guess at API behaviour.** If the docs are unclear, pick the conservative option, write
   down the assumption (README or a comment), and add it to "Unconfirmed API behaviour" below.
@@ -329,3 +334,7 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     or frame. Don't repeat ids (the combat rows briefly used "line" 14 times while the strip was missing
     in game; unconfirmed whether that was a cause). `Hud.Build` builds each module in a pcall and reports
     failures, so one broken strip can't hide the others; `Hud.Debug(key)` backs `/toolbox combat debug`.
+37. CONFIRMED in game 2026-09-27: MoonSharp passes explicit nil table entries to the host; `Shroud.UI`
+    style validation rejects them. (Window x/y = nil happened to be accepted, but specs now use
+    `Toolbox.Window.DEFAULT_X/Y`.) The earlier "combat strip missing" reports were this error, first
+    after the background change; the -64 margin clamp (item 35) was a real but separate problem.

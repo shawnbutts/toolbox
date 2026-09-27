@@ -263,11 +263,15 @@ end
 
 local function makeSlot(debuff)
   local s = size()
-  local tex = clockTex >= 0 and clockTex or nil  -- a placeholder until a buff's icon is set
-  local icon = UI.Image{ texture = tex, width = s, height = s,
+  -- The clock texture is a placeholder until a buff's icon is set. It's left out, not set to
+  -- nil, when it didn't load: the game's Lua passes a nil entry on to the UI.
+  local iconSpec = { width = s, height = s,
     onClick = function() end }         -- an Image only takes the pointer (tooltip) with a click handler
-  local overlay = UI.Image{ texture = tex, width = s, height = s, visible = false,
+  local overlaySpec = { width = s, height = s, visible = false,
     style = { marginLeft = -s } }      -- no absolute positioning: overlap by a negative margin
+  if clockTex >= 0 then iconSpec.texture, overlaySpec.texture = clockTex, clockTex end
+  local icon = UI.Image(iconSpec)
+  local overlay = UI.Image(overlaySpec)
   local slot = UI.Row{ visible = false, children = { icon, overlay },
     style = { width = s, height = s, marginRight = BB.GAP, backgroundColor = "#00000066",
               borderWidth = debuff and 2 or 0, borderColor = "@red" } }

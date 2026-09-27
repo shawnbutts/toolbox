@@ -126,7 +126,8 @@ function S.Play(key)
   for i, name in ipairs(listSounds()) do
     if name == st.clip then
       local ok, channel = pcall(ShroudPlaySoundChannel, i, prefs.volume)
-      local info = { clip = name, index = i, channel = ok and channel or nil }
+      local info = { clip = name, index = i }
+      if ok then info.channel = channel end
       if ok and type(channel) == "number" and channel > 0 then
         info.reason = "ok"
         return true, info
