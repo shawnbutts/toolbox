@@ -120,6 +120,15 @@ function C.CombatSection()
       onChange = function(_, v) M.SetPet(v) end },
     slider("combat_scale", "Size (%)", M.SCALE_MIN, M.SCALE_MAX, 5, M.GetScale(),
       "Scales the combat stats text", function(n) M.SetScale(n) end),
+    UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
+      UI.Label{ text = "Background", class = "text", style = { flexGrow = 1 } },
+      UI.Dropdown{ id = "combat_bg", choices = M.BACKGROUNDS, value = (M.GetBackground()),
+        tooltip = "A dark or light panel behind the combat stats, in your UI theme's colours",
+        onChange = function(_, value) M.SetBackground(value) end },
+    } },
+    slider("combat_bg_opacity", "Background opacity (%)", M.OPACITY_MIN, M.OPACITY_MAX, 5,
+      select(2, M.GetBackground()), "How solid the panel is; the text stays solid",
+      function(n) M.SetBackground((M.GetBackground()), n) end),
     UI.Label{ id = "combat_stats", text = "", class = "dim", style = { whiteSpace = "wrap" },
       tooltip = "Add a stat with /toolbox combat stat add <Name>; find names with /toolbox stats <word>" },
     UI.Row{ style = { justifyContent = "end", marginTop = 2 }, children = {
@@ -156,7 +165,7 @@ local function build()
   local W = T.Window
   win = UI.Window{
     id = WINDOW_ID, title = "Toolbox Settings",
-    width = 280, height = 640, minWidth = 220, minHeight = 120,
+    width = 280, height = 680, minWidth = 220, minHeight = 120,
     escCloses = true,
     style = { paddingTop = 6, paddingBottom = 6 },
     children = { UI.Scroll{ style = { flexGrow = 1 }, children = {
@@ -221,7 +230,8 @@ local function build()
                 "show_vitals", "vitals_width", "vitals_width_value", "vitals_scale", "vitals_scale_value",
                 "vitals_pos", "vitals_show_bars", "vitals_show_text", "vitals_bg",
                 "vitals_flash", "vitals_flash_below", "vitals_flash_below_value", "vitals_glue",
-                "show_combat", "combat_pet", "combat_scale", "combat_scale_value", "combat_stats", "combat_pos" }
+                "show_combat", "combat_pet", "combat_scale", "combat_scale_value", "combat_stats", "combat_pos",
+                "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -306,6 +316,10 @@ function C.Sync()
   el.combat_scale:SetValue(T.Combat.GetScale())
   el.combat_scale_value:SetText(fontLabel(T.Combat.GetScale()))
   el.combat_stats:SetText("Stats: " .. table.concat(T.Combat.Stats(), ", "))
+  local cbg, cop = T.Combat.GetBackground()
+  el.combat_bg:SetValue(cbg)
+  el.combat_bg_opacity:SetValue(cop)
+  el.combat_bg_opacity_value:SetText(fontLabel(cop))
   el.vitals_flash_below:SetValue(T.Vitals.GetFlashBelow())
   el.vitals_flash_below_value:SetText(fontLabel(T.Vitals.GetFlashBelow()))
   C.SyncLive()

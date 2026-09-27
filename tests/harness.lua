@@ -629,7 +629,7 @@ function H.combatHud() return S.frames.toolbox_combat end
 -- The combat HUD's shown rows as "label=value" strings.
 function H.combatRows()
   local out = {}
-  for _, row in ipairs(S.frames.toolbox_combat.children[1].children[1].children) do
+  for _, row in ipairs(S.frames.toolbox_combat:Find("combat_rows").children) do
     if row.visible ~= false then out[#out + 1] = row.children[1].text .. "=" .. row.children[2].text end
   end
   return out

@@ -39,7 +39,7 @@ Built clean-room from the official docs only:
 | `/toolbox debuffalert on` / `off` | alert when a debuff lands |
 | `/toolbox sounds [0-100]` | show which sound files the alerts use; with a number, set the volume |
 | `/toolbox vitals` (`size <75-250>` / `text on\|off` / `bars on\|off` / `bg none\|dark\|light` / `flash <1-95>\|on\|off\|test` / `glue on\|off` / `move [x y]` / `debug`) | show or hide the health & focus bars (or place them) |
-| `/toolbox combat` (`reset` / `size <n>` / `pet on\|off` / `stat add\|remove <Name>` / `stats` / `move [x y]`) | show or hide the combat stats HUD, and its options |
+| `/toolbox combat` (`reset` / `size <n>` / `bg dark\|light\|none [%]` / `pet on\|off` / `stat add\|remove <Name>` / `stats` / `move [x y]`) | show or hide the combat stats HUD, and its options |
 | `/toolbox stats [word]` | list character stats whose name contains the word (for finding stat names) |
 | `/toolbox config` | open or close the settings window |
 | `/toolbox spacing <0-12>` | set the extra space between lines in pixels (no number: show and measure it; default 2) |
@@ -262,6 +262,11 @@ ends when combat ends (or after 12 quiet seconds); its numbers stay until the ne
 (or `absorb`, `avoid`, `armor`, ...) and add them with `/toolbox combat stat add <Name>` (up to 8;
 `stat remove <Name>` to drop one). Unreadable ones show "n/a". The strip has its own Size and
 position, and stays separate when the health & focus bars are glued to the buff bar.
+
+**Background.** A panel behind the whole strip: Dark (the UI theme's `inset` look, the default) or
+Light (the theme's text colour, with dark text), or None, with its own opacity (10-100%, default
+70%) that doesn't fade the text. `/toolbox combat bg dark 70`, or the dropdown and slider in
+settings. The docs don't name a theme background colour, so these are the closest themed looks.
 
 ## Development
 

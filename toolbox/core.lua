@@ -355,7 +355,7 @@ add("vitals", "health & focus bars (size; text|bars on|off; bg; flash <%>|off|te
   T.Vitals.Toggle()
 end)
 
-add("combat", "combat stats HUD (reset; size <n>; pet on|off; stat add|remove <Name>; stats; move)",
+add("combat", "combat stats HUD (reset; size <n>; bg dark|light|none [%]; pet; stat add|remove <Name>; move)",
     function(rest)
   local C = T.Combat
   local word, args = T.ParseArgs(rest)
@@ -383,6 +383,16 @@ add("combat", "combat stats HUD (reset; size <n>; pet on|off; stat add|remove <N
     else msg = "Use /" .. T.commands[1] .. " combat stat add <Name> or remove <Name>." end
     T.Print(msg)
     return ok
+  elseif word == "bg" then
+    local name, pct = args:match("^(%a*)%s*(%d*)$")
+    if not name or (args ~= "" and not C.SetBackground(name ~= "" and name or (C.GetBackground()),
+        pct ~= "" and tonumber(pct) or nil)) then
+      T.Print("Use /" .. T.commands[1] .. " combat bg None, Dark, Light [opacity " .. C.OPACITY_MIN .. "-"
+        .. C.OPACITY_MAX .. "%], e.g. dark 70.")
+      return
+    end
+    local bg, o = C.GetBackground()
+    T.Print("Combat stats background: " .. bg .. (bg ~= "None" and (", " .. o .. "%") or "") .. ".")
   elseif word == "stats" then
     T.Print("Stats shown: " .. table.concat(C.Stats(), ", ") .. ". Find more with /" .. T.commands[1]
       .. " stats <word>, add with /" .. T.commands[1] .. " combat stat add <Name>.")

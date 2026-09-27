@@ -6,6 +6,9 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Combat stats background: a Dark (theme `inset`) or Light (theme `@text`) panel behind the whole
+  strip, or None, with its own opacity (default Dark at 70%) that doesn't fade the text
+  (`/toolbox combat bg`, settings). Row names use normal text instead of dim, values bright.
 - Combat stats HUD (`/toolbox combat`): fight timer, DPS (last 5 s and fight average, pet
   optional), damage taken and healing per second, crit % and avoided % from your combat chat
   lines, plus character stats you choose (`MagicResistance` by default; `/toolbox combat stat

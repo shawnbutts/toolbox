@@ -27,6 +27,16 @@ C.BASE_FONT = 12
 C.DEFAULT_STATS = { "MagicResistance" }
 C.MAX_STATS = 8
 
+-- A panel behind the whole strip, for readability. There is no documented theme background
+-- colour, so, as for the health & focus numbers: Dark is the theme's `inset` look, Light a
+-- panel in the theme colour @text with dark text on it. The panel is its own element under
+-- the rows (overlapped with a negative margin), so its opacity doesn't fade the text; Dark
+-- and Light are separate panels because a colour set on an element can't be unset.
+C.BACKGROUNDS = { "None", "Dark", "Light" }
+C.BG_DEFAULT, C.OPACITY_DEFAULT = "Dark", 70
+C.OPACITY_MIN, C.OPACITY_MAX = 10, 100
+C.DARK_TEXT = "#1a1a1a"
+
 C.DAMAGE_KINDS = { hit = true, critical = true, glancing = true, ultraslay = true }
 C.HEAL_KINDS = { heal = true, criticalHeal = true }
 C.AVOID_KINDS = { dodge = true, parry = true, block = true }
@@ -187,39 +197,68 @@ function C.Rows(now)
   return rows
 end
 
+local function background() return prefs.bg or C.BG_DEFAULT end
+local function opacity() return prefs.bgOpacity or C.OPACITY_DEFAULT end
+
 function C.Metrics()
   local f = scale() / 100
   local font = math.max(9, math.min(32, math.floor(C.BASE_FONT * f + 0.5)))
   local line = math.ceil(font * 1.15) + 1
   local labelW, valueW = math.ceil(font * 7.5), math.ceil(font * 9)
-  return { font = font, line = line, labelW = labelW, valueW = valueW,
+  local pad = background() ~= "None" and math.max(3, math.floor(5 * f + 0.5)) or 0
+  return { font = font, line = line, labelW = labelW, valueW = valueW, pad = pad,
            w = labelW + valueW, h = (6 + C.MAX_STATS) * line }
 end
 
 local function labelStyle(m, width, align)
   return { fontSize = m.font, height = m.line, minHeight = m.line, maxHeight = m.line, width = width,
-           marginTop = 0, marginBottom = 0, paddingTop = 0, paddingBottom = 0, textAlign = align }
+           marginTop = 0, marginBottom = 0, paddingTop = 0, paddingBottom = 0, textAlign = align,
+           color = background() == "Light" and C.DARK_TEXT or nil }
+end
+
+local shownRows = 0
+local panels = {}            -- Dark / Light panel elements
+local rowsBox = nil          -- the column holding the rows, laid over the panel
+
+-- Sizes, shows and fades the background panel, and pads the rows inside it.
+local function applyBackground()
+  if not content then return end
+  local m = C.Metrics()
+  local w, h = m.w + 2 * m.pad, math.max(1, shownRows) * m.line + 2 * m.pad
+  local bg = background()
+  for name, panel in pairs(panels) do
+    panel:SetVisible(name == bg)
+    panel:SetStyle{ width = w, height = h, opacity = opacity() / 100 }
+  end
+  rowsBox:SetStyle{ marginLeft = bg ~= "None" and -w or 0, paddingLeft = m.pad, paddingTop = m.pad }
 end
 
 function C.BuildContent()
   local m = C.Metrics()
   local rows = {}
-  el, shownText = {}, {}
+  el, shownText, shownRows = {}, {}, 0
   for i = 1, 6 + C.MAX_STATS do
-    local name = UI.Label{ text = "", class = "dim", style = labelStyle(m, m.labelW, "left") }
-    local value = UI.Label{ text = "", class = "text", style = labelStyle(m, m.valueW, "right") }
+    -- names in the normal text colour and values bright (the dim names were hard to read)
+    local name = UI.Label{ text = "", class = "text", style = labelStyle(m, m.labelW, "left") }
+    local value = UI.Label{ text = "", class = "bright", style = labelStyle(m, m.valueW, "right") }
     rows[i] = UI.Row{ visible = false, children = { name, value } }
     el[i] = { row = rows[i], name = name, value = value }
   end
-  content = UI.Column{ id = "combat", children = rows }
+  panels = {
+    Dark = UI.Column{ id = "combat_bg_dark", class = "inset", visible = false, style = { borderRadius = 4 } },
+    Light = UI.Column{ id = "combat_bg_light", visible = false,
+      style = { backgroundColor = "@text", borderRadius = 4 } },
+  }
+  rowsBox = UI.Column{ id = "combat_rows", children = rows }
+  content = UI.Row{ id = "combat", style = { alignItems = "start" }, children = { panels.Dark, panels.Light, rowsBox } }
   C.Tick()
+  applyBackground()
   return content
 end
 
-local shownRows = 0
 function C.ContentSize()
   local m = C.Metrics()
-  return m.w, math.max(1, shownRows) * m.line
+  return m.w + 2 * m.pad, math.max(1, shownRows) * m.line + 2 * m.pad
 end
 
 function C.GetSavedPosition() return prefs.x, prefs.y end
@@ -252,6 +291,7 @@ function C.Tick()
   end
   if #rows ~= shownRows then
     shownRows = #rows
+    applyBackground()
     T.Hud.Refresh()
   end
 end
@@ -275,6 +315,10 @@ function C.Init()
       end
     end
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
+    for _, b in ipairs(C.BACKGROUNDS) do if saved.bg == b then prefs.bg = b end end
+    if type(saved.bgOpacity) == "number" and saved.bgOpacity >= C.OPACITY_MIN and saved.bgOpacity <= C.OPACITY_MAX then
+      prefs.bgOpacity = math.floor(saved.bgOpacity)
+    end
   end
   inCombat = ShroudGetPlayerCombatMode() == true   -- change callbacks only fire on changes
   if inCombat then startFight() end
@@ -309,11 +353,42 @@ function C.SetScale(n)
       slot.name:SetStyle(labelStyle(m, m.labelW, "left"))
       slot.value:SetStyle(labelStyle(m, m.valueW, "right"))
     end
+    applyBackground()
     T.Hud.Refresh()
   end
   T.Config.Sync()
   return true
 end
+
+-- Background: "None" / "Dark" / "Light" (any case), and optionally its opacity in percent.
+function C.SetBackground(name, percent)
+  local found
+  for _, b in ipairs(C.BACKGROUNDS) do
+    if b:lower() == tostring(name or ""):lower() then found = b end
+  end
+  if not found then return false end
+  if percent ~= nil then
+    local ok = type(percent) == "number" and percent == math.floor(percent)
+      and percent >= C.OPACITY_MIN and percent <= C.OPACITY_MAX
+    if not ok then return false end
+  end
+  prefs.bg = found
+  if percent then prefs.bgOpacity = percent end
+  save()
+  if content then
+    local m = C.Metrics()
+    for _, slot in ipairs(el) do
+      slot.name:SetStyle(labelStyle(m, m.labelW, "left"))
+      slot.value:SetStyle(labelStyle(m, m.valueW, "right"))
+    end
+    applyBackground()
+    T.Hud.Refresh()
+  end
+  T.Config.Sync()
+  return true
+end
+
+function C.GetBackground() return background(), opacity() end
 
 function C.GetScale() return scale() end
 

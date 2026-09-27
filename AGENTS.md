@@ -186,7 +186,7 @@ including the "no character" sentinel.
 | `buff_timers` | `{ v = 2, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload |
 | `vitals` | `{ show, width = 100..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, x, y }` |
 | `hud` | `{ glued = bool, x, y }` (the glued strip's position) |
-| `combat` | `{ show, scale = 75..250, pet, stats = { "MagicResistance", ... }, x, y }` |
+| `combat` | `{ show, scale = 75..250, pet, stats = { "MagicResistance", ... }, bg = None/Dark/Light, bgOpacity = 10..100, x, y }` |
 | `buff_durations` | `{ [rune name] = seconds }`: full durations learned from casts |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
@@ -316,3 +316,8 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     block. Assumed: `amount` is the damage number for those kinds (docs: "the number the line prints").
     Player defensive stat names beyond `MagicResistance` aren't documented: the stat list is the player's
     (`/toolbox combat stat add`), found with `/toolbox stats`.
+34. Theme backgrounds: no theme background colour is documented (`@name` tokens are the theme's
+    `--sota-name` colours, but only text-type names are listed; `ShroudGetClientInfo().theme` is just a
+    name). Panels use the `inset` class (dark) or `@text` (light). A panel's opacity must not fade the
+    text, so it is its own element under the content (negative margin), and Dark/Light are separate
+    panels (an inline colour can't be unset). See combat.lua's `applyBackground`.
