@@ -116,4 +116,27 @@ return function(t)
     H.chat("/tbx help")
     t.ok(H.logged("/toolbox vitals"))
   end)
+
+  t.test("when the per-frame value isn't a number, the CurrentHealth / CurrentFocus stats are used", function()
+    H.boot()
+    withStats()
+    H.S.char.hp, H.S.char.focus = nil, nil
+    H.chat("/tbx vitals")
+    H.advance(1)
+    t.eq(H.vitals():Find("health_text").text, "943 / 943")
+    t.eq(H.vitals():Find("focus_text").text, "700 / 700")
+    t.near(H.vitals():Find("health_bar").value, 1)
+  end)
+
+  t.test("/tbx vitals debug shows each source", function()
+    H.boot()
+    withStats()
+    H.S.char.hp = nil
+    H.advance(0.2, 0.2)
+    H.clearLogs()
+    H.chat("/tbx vitals debug")
+    t.ok(H.logged('^Health: ShroudPlayerCurrentHealth = nil nil; stat CurrentHealth = 943; stat Health = 942.23; '
+      .. 'using stat %-> "943 / 943", fill 1.00$'), H.logs()[1])
+    t.ok(H.logged('^Focus: ShroudPlayerCurrentFocus = 700; .*using global'), H.logs()[2])
+  end)
 end

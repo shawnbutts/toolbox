@@ -285,8 +285,12 @@ function T.StatLines(filter)
   return lines
 end
 
-add("vitals", "show or hide the health & focus bars (move [x y])", function(rest)
+add("vitals", "show or hide the health & focus bars (move [x y]; debug)", function(rest)
   local word, args = T.ParseArgs(rest)
+  if word == "debug" then
+    for _, line in ipairs(T.Vitals.DebugLines()) do T.Print(line) end
+    return
+  end
   if word == "move" then
     T.MoveCommand(T.Vitals, "vitals", "Health & focus bars", args)
     return

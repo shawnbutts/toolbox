@@ -71,6 +71,9 @@ store submission needs a higher version than any submitted before (rejected ones
 - `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
 
 ### Fixed
+- Health & focus bars showed "--" and stayed empty in game: when the per-frame current value
+  isn't a number they now read the `CurrentHealth` / `CurrentFocus` stats. `/toolbox vitals debug`
+  shows each source.
 - README: the "Development" heading had been dropped when the Buff bar section was added.
 - Line spacing had no visible effect: label heights are now pinned with `minHeight`/`maxHeight`
   as well as `height`, so a theme class's minimum height can't override them. `/toolbox spacing`

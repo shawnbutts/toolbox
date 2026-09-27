@@ -267,5 +267,6 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 27. Player vitals. FOUND in game 2026-09-27 (`/toolbox stats health|focus|vigor`): readable stats
     `CurrentHealth` 943 / `Health` 942.23 and `CurrentFocus` 700 / `Focus` 700 at full, so `Health` and
     `Focus` are taken as the maximums (unconfirmed while damaged: `CurrentHealth` should drop while `Health`
-    stays). No stat matches "vigor" by name or label, so no vigor bar. Current values come from the
-    documented per-frame globals.
+    stays). No stat matches "vigor" by name or label, so no vigor bar. REPORTED 2026-09-27: the bars
+    showed "--" (seen as "~") and stayed empty, i.e. the per-frame globals weren't numbers; the bars now
+    fall back to the `CurrentHealth` / `CurrentFocus` stats. Pending: `/toolbox vitals debug` output.

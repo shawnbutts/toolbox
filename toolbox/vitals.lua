@@ -24,11 +24,13 @@ V.HOME = { 40, 300 }
 V.NUDGE = 10
 -- `current` reads the per-frame global directly: reaching a global through a name built at
 -- runtime is treated by review like runtime code loading (see AGENTS.md).
+-- In game the bars first showed "--" and stayed empty, so the current value falls back to the
+-- CurrentHealth / CurrentFocus stats when the per-frame global isn't a number.
 V.BARS = {
-  { key = "health", current = function() return ShroudPlayerCurrentHealth end, maxStat = "Health",
-    color = "@red", label = "Health" },
-  { key = "focus", current = function() return ShroudPlayerCurrentFocus end, maxStat = "Focus",
-    color = "@blue", label = "Focus" },
+  { key = "health", current = function() return ShroudPlayerCurrentHealth end, global = "ShroudPlayerCurrentHealth",
+    currentStat = "CurrentHealth", maxStat = "Health", color = "@red", label = "Health" },
+  { key = "focus", current = function() return ShroudPlayerCurrentFocus end, global = "ShroudPlayerCurrentFocus",
+    currentStat = "CurrentFocus", maxStat = "Focus", color = "@blue", label = "Focus" },
 }
 
 local prefs = { show = false }
@@ -52,12 +54,18 @@ function V.Format(current, max)
   return m > 0 and cur / m or 0, cur .. " / " .. m
 end
 
--- Current and max for one bar definition.
+-- A readable stat's value, or nil (unknown name: -999; hidden: reads 0).
+local function stat(name)
+  local v = ShroudGetStatValueByName(name)
+  if not readable(v) or (v == 0 and not ShroudIsStatVisible(name)) then return nil end
+  return v
+end
+
+-- Current and max for one bar definition, and where the current value came from.
 function V.Read(bar)
-  local current = bar.current()
-  local max = ShroudGetStatValueByName(bar.maxStat)
-  if max == 0 and not ShroudIsStatVisible(bar.maxStat) then max = nil end   -- hidden stat reads 0
-  return current, max
+  local current, source = bar.current(), "global"
+  if not readable(current) then current, source = stat(bar.currentStat), "stat" end
+  return current, stat(bar.maxStat), current ~= nil and source or nil
 end
 
 -- ---------------------------------------------------------------------------
@@ -96,7 +104,8 @@ V.GetPosition, V.MoveTo, V.Nudge, V.ResetPosition = mover.Get, mover.MoveTo, mov
 function V.Tick()
   if frame and prefs.show then
     for _, bar in ipairs(V.BARS) do
-      local value, text = V.Format(V.Read(bar))
+      local current, max = V.Read(bar)
+      local value, text = V.Format(current, max)
       local last = shown[bar.key] or {}
       if value ~= last.value then el[bar.key .. "_bar"]:SetValue(value) end
       if text ~= last.text then el[bar.key .. "_text"]:SetText(text) end
@@ -129,6 +138,21 @@ end
 -- ---------------------------------------------------------------------------
 -- Settings
 -- ---------------------------------------------------------------------------
+
+-- /toolbox vitals debug: what each source holds and what the bar shows.
+function V.DebugLines()
+  local lines = {}
+  for _, bar in ipairs(V.BARS) do
+    local g = bar.current()
+    local current, max, source = V.Read(bar)
+    local fill, text = V.Format(current, max)
+    local function show(v) return type(v) == "number" and string.format("%g", v) or (type(v) .. " " .. tostring(v)) end
+    lines[#lines + 1] = string.format("%s: %s = %s; stat %s = %s; stat %s = %s; using %s -> \"%s\", fill %.2f",
+      bar.label, bar.global, show(g), bar.currentStat, show(ShroudGetStatValueByName(bar.currentStat)),
+      bar.maxStat, show(ShroudGetStatValueByName(bar.maxStat)), source or "nothing readable", text, fill)
+  end
+  return lines
+end
 
 function V.IsShown() return prefs.show == true end
 
