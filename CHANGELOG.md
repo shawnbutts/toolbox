@@ -5,6 +5,10 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Fixed
+- Combat stats HUD: no more lines between the rows of the dark or light background (the panel's
+  per-row pieces had the theme's border and default margins).
+
 ## [0.2.1] - 2026-09-27 (beta 2)
 
 Second beta: the XP and Today windows can be HUD strips, /tbx version opens a changelog window,

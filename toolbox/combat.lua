@@ -252,9 +252,18 @@ local function applyBackground()
   end
 end
 
+-- Nothing between the slabs: the theme's border and default margins drew a line between every
+-- row in game (reported 2026-09-27), so the panel is flat.
+local FLUSH = { marginTop = 0, marginBottom = 0, marginLeft = 0, marginRight = 0 }
+local function flush(style)
+  for k, v in pairs(FLUSH) do if style[k] == nil then style[k] = v end end
+  return style
+end
+
 local function slabs(h)
-  return UI.Column{ class = "inset", visible = false, style = { height = h } },
-         UI.Column{ visible = false, style = { backgroundColor = "@text", height = h } }
+  return UI.Column{ class = "inset", visible = false, style = flush{ height = h, borderWidth = 0, borderRadius = 0 } },
+         UI.Column{ visible = false, style = flush{ backgroundColor = "@text", height = h, borderWidth = 0,
+           borderRadius = 0 } }
 end
 
 function C.BuildContent()
@@ -264,7 +273,7 @@ function C.BuildContent()
   for _, where in ipairs({ "top", "bottom" }) do
     local dark, light = slabs(m.pad)
     pads[#pads + 1] = { dark = dark, light = light,
-      group = UI.Column{ id = "pad_" .. where, visible = false, children = { dark, light } } }
+      group = UI.Column{ id = "pad_" .. where, visible = false, style = flush{}, children = { dark, light } } }
   end
   groups[1] = pads[1].group
   for i = 1, 6 + C.MAX_STATS do
@@ -272,13 +281,14 @@ function C.BuildContent()
     local name = UI.Label{ text = "", class = "text", style = labelStyle(m, m.labelW, "left") }
     local value = UI.Label{ text = "", class = "bright", style = labelStyle(m, m.valueW, "right") }
     local dark, light = slabs(m.line)
-    local line = UI.Row{ children = { name, value } }     -- no id: ids repeated per row may not be allowed
-    local group = UI.Column{ visible = false, children = { dark, light, line } }
+    -- no id: ids repeated per row may not be allowed
+    local line = UI.Row{ style = flush{}, children = { name, value } }
+    local group = UI.Column{ visible = false, style = flush{}, children = { dark, light, line } }
     groups[#groups + 1] = group
     el[i] = { row = group, name = name, value = value, dark = dark, light = light, line = line }
   end
   groups[#groups + 1] = pads[2].group
-  content = UI.Column{ id = "combat_rows", children = groups }
+  content = UI.Column{ id = "combat_rows", style = flush{}, children = groups }
   C.Tick()
   applyBackground()
   return content

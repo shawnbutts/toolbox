@@ -189,6 +189,12 @@ return function(t)
     t.eq(dark.style.width, m.w + 2 * m.pad, "full width")
     t.eq(line.style.marginTop, -m.line, "the row is pulled up onto its slab")
     t.ok(m.line <= 64, "within the game's -64 margin limit")
+    for _, e in ipairs({ dark, light, g }) do
+      t.eq(e.style.marginTop, 0, "no gap between rows")
+      t.eq(e.style.marginBottom, 0)
+    end
+    t.eq(dark.style.borderWidth, 0, "no border line on each slab")
+    t.eq(light.style.borderWidth, 0)
     t.eq(line.style.paddingLeft, m.pad)
     t.eq(line.style.paddingRight, m.pad, "values inset from the right edge like the names on the left")
     for _, label in ipairs(line.children) do

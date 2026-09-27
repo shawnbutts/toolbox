@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Fixed" },
+  { "item", "Combat stats HUD: no more lines between the rows of the dark or light background (the panel's per-row pieces had the theme's border and default margins)." },
   { "version", "0.2.1 - 2026-09-27 (beta 2)" },
   { "para", "Second beta: the XP and Today windows can be HUD strips, /tbx version opens a changelog window, and fixes for the combat stats padding and the Docs command colours. Only the .ogg alert sounds ship now." },
   { "section", "Added" },
