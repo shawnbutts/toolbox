@@ -510,6 +510,50 @@ add("motd", "show your guild's message of the day (on / off: open it by itself w
   T.Motd.OpenCurrent()
 end)
 
+-- /toolbox api: which functions from newer APIs this client really has. The docs (API 17 on
+-- 2026-09-27) lag the client (API 20), and a documented crafting/social group was withdrawn,
+-- so ask the game. Names are referenced directly: no lookup by a built name.
+function T.ApiLines()
+  local function has(f) return type(f) == "function" end
+  local groups = {
+    { "Buff bar (API 16)", {
+      { "ShroudSetBuffBarVisible", has(ShroudSetBuffBarVisible) },
+      { "ShroudIsBuffBarVisible", has(ShroudIsBuffBarVisible) },
+      { "ShroudGetBuffBarRect", has(ShroudGetBuffBarRect) },
+      { "ShroudCanDismissBuff", has(ShroudCanDismissBuff) },
+      { "ShroudDismissBuff", has(ShroudDismissBuff) } } },
+    { "Crafting (withdrawn from the docs)", {
+      { "ShroudGetRecipe", has(ShroudGetRecipe) },
+      { "ShroudGetCraftingState", has(ShroudGetCraftingState) } } },
+    { "Friends & guild (withdrawn from the docs)", {
+      { "ShroudGetFriends", has(ShroudGetFriends) },
+      { "ShroudGetGuildMembers", has(ShroudGetGuildMembers) },
+      { "ShroudGetGuildMotd", has(ShroudGetGuildMotd) } } },
+  }
+  local lines = { "Lua API " .. tostring(ShroudLuaApiVersion) .. " (the docs describe 17)." }
+  for _, g in ipairs(groups) do
+    local missing, count = {}, #g[2]
+    for _, fn in ipairs(g[2]) do
+      if not fn[2] then missing[#missing + 1] = fn[1] end
+    end
+    local state = nil
+    if #missing == 0 then
+      state = "all " .. count .. " present"
+    elseif #missing == count then
+      state = "none present"
+    else
+      state = (count - #missing) .. " of " .. count .. " present; missing " .. table.concat(missing, ", ")
+    end
+    lines[#lines + 1] = g[1] .. ": " .. state .. "."
+  end
+  lines[#lines + 1] = "Sounds (API 15) can't be probed: re-test with /" .. T.commands[1] .. " sounds test."
+  return lines
+end
+
+add("api", "list which newer game functions this client has (to check it against the docs)", function()
+  for _, line in ipairs(T.ApiLines()) do T.Print(line) end
+end)
+
 add("stats", "list character stats matching a word, e.g. /toolbox stats health", function(rest)
   for _, line in ipairs(T.StatLines(rest)) do T.Print(line) end
 end)

@@ -10,6 +10,8 @@ store submission needs a higher version than any submitted before (rejected ones
   shows it at login, after a reload, or as soon as it changes while you play. An unchanged message
   stays hidden. /toolbox motd shows it any time; /toolbox motd off, or the new Guild setting,
   stops it opening by itself.
+- /toolbox api lists which newer game functions this client has (buff bar, crafting, friends and
+  guild), to check the client against the docs.
 
 ### Fixed
 - Combat stats HUD: no more lines between the rows of the Dark background. It is now one flat

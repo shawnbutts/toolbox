@@ -236,8 +236,11 @@ Version numbers are single-use in the store, including rejected ones.
 
 ## Planned for newer APIs
 
-The docs describe API 18, but the client is on 14. These are the owner's agreed plans (2026-09-27) for
-when the client catches up. Feature-detect each function (`type(ShroudX) == "function"`) and keep
+The owner's agreed plans (2026-09-27). UPDATE, same day: the client now reports API 20, while the docs
+went BACK to describing API 17 and dropped the whole crafting / gathering / friends / guild group (the
+"API 18" part below). So the docs no longer say what 18-20 contain. `/toolbox api` probes whether each
+planned function exists in the client; run it before building anything below, and treat a function
+missing from the docs as unconfirmed even when the probe finds it. Feature-detect each function (`type(ShroudX) == "function"`) and keep
 `min_api_version` at 14 unless a step below says otherwise. Add the new names to `.luacheckrc` and stub
 them in the harness with their documented behaviour.
 

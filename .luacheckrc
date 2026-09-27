@@ -79,6 +79,16 @@ local api_values = {
   "UI", "ButtonMode", "Transition", "ContentType", "AudioType", "TextAnchor", "LuaVector2", "LuaVector3",
 }
 
+-- Functions from newer APIs, only probed with type() by /toolbox api. The buff bar group is
+-- documented (API 16); the crafting and social group was documented as API 18 on 2026-09-27 and
+-- then withdrawn from the docs, while the client reports API 20. Move a name up to api_functions
+-- once the docs (or a probe in game) settle it.
+local api_probed = {
+  "ShroudSetBuffBarVisible", "ShroudIsBuffBarVisible", "ShroudGetBuffBarRect", "ShroudCanDismissBuff",
+  "ShroudDismissBuff",
+  "ShroudGetRecipe", "ShroudGetCraftingState", "ShroudGetFriends", "ShroudGetGuildMembers", "ShroudGetGuildMotd",
+}
+
 -- Callbacks an add-on may define. Listed as writable globals.
 local api_callbacks = {
   "ShroudOnAchievementsChanged", "ShroudOnBuffsChanged", "ShroudOnCombatEvents", "ShroudOnCombatModeChanged",
@@ -114,7 +124,7 @@ local function concat(...)
   return out
 end
 
-read_globals = concat(api_functions, api_values)
+read_globals = concat(api_functions, api_values, api_probed)
 read_globals.Shroud = shroud_global
 
 -- The add-on's own namespace plus the callbacks it defines.
@@ -123,7 +133,7 @@ globals = concat({ "Toolbox", "ToolboxCopies" }, api_callbacks)
 -- Tests stub the whole API, so they may assign to any of it.
 files["tests/"] = {
   std = "+lua51",   -- the runner also supports LuaJIT (setfenv-free, but allow the 5.1 names)
-  globals = concat({ "Toolbox", "ToolboxCopies", "Shroud" }, api_functions, api_values, api_callbacks),
+  globals = concat({ "Toolbox", "ToolboxCopies", "Shroud" }, api_functions, api_values, api_probed, api_callbacks),
   ignore = { "122" },   -- the harness replaces os.date to control the local date
 }
 

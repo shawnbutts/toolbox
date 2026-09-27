@@ -252,4 +252,21 @@ return function(t)
     H.reload()
     t.no(H.logged("Toolbox is ready"), "and only once")
   end)
+
+  t.test("api lists which newer functions exist", function()
+    H.boot()
+    H.clearLogs()
+    H.chat("/tbx api")
+    t.ok(H.logged("Lua API 14"))
+    t.ok(H.logged("Buff bar %(API 16%): none present"))
+    H.clearLogs()
+    ShroudSetBuffBarVisible = function() end
+    ShroudGetBuffBarRect = function() end
+    ShroudGetGuildMotd = function() return "" end
+    H.chat("/tbx api")
+    t.ok(H.logged("Buff bar %(API 16%): 2 of 5 present; missing ShroudIsBuffBarVisible, ShroudCanDismissBuff"))
+    t.ok(H.logged("Friends & guild %(withdrawn from the docs%): 1 of 3 present"))
+    t.ok(H.logged("Crafting %(withdrawn from the docs%): none present"))
+    ShroudSetBuffBarVisible, ShroudGetBuffBarRect, ShroudGetGuildMotd = nil, nil, nil
+  end)
 end
