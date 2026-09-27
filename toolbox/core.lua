@@ -521,7 +521,7 @@ end
 add("key", "show the shortcut that opens the settings (change it in the add-on manager, under Keys)", function()
   T.Print("Settings shortcut: " .. T.KeyStatus() .. ". Change it in the add-on manager, on Toolbox's row"
     .. " under Keys." .. (T.keyNote and (" Note: " .. T.keyNote .. ".") or ""))
-  T.Print("Pressed " .. tostring(T.keyPresses or 0) .. " time(s) since load"
+  T.Print("Pressed " .. tostring(T.keyPresses or 0) .. " time(s) since the last reload"
     .. ((T.keyPresses or 0) == 0 and " (0 means the game hasn't delivered the key to Toolbox)." or "."))
 end)
 
