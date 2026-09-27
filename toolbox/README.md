@@ -18,6 +18,7 @@ A small toolbox of quality-of-life features: XP tracking and daily stats.
 - `/toolbox sounds`: show which sound files the alerts use (`/toolbox sounds 50` sets the volume)
 - `/toolbox vitals`: show or hide health & focus bars (`/toolbox vitals size 150` scales them,
   `/toolbox vitals move 40 300` places them, `/toolbox vitals glue on` joins them to the buff bar)
+- `/toolbox combat`: show or hide the combat stats HUD (DPS, damage taken, healing, crit and avoid rates, fight timer, chosen stats)
 - `/toolbox config`: open the settings window (text size, line spacing, which windows to show)
 - `/toolbox spacing <0-12>`: set the space between lines (default 2)
 - `/toolbox font <9-32>`: set the window text size (default 12)

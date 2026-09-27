@@ -6,6 +6,10 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Combat stats HUD (`/toolbox combat`): fight timer, DPS (last 5 s and fight average, pet
+  optional), damage taken and healing per second, crit % and avoided % from your combat chat
+  lines, plus character stats you choose (`MagicResistance` by default; `/toolbox combat stat
+  add <Name>`). Own Size and position; reset from chat or settings.
 - Glue the health & focus bars to the buff bar (`/toolbox vitals glue on` or the settings
   checkbox): one HUD strip with health & focus on the left and buffs on the right, one grip and
   one remembered position, sized to what's showing. Unglued positions are kept for switching back.

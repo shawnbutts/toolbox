@@ -109,6 +109,26 @@ function C.VitalsSection()
   } }
 end
 
+-- The "Combat stats" part of the settings.
+function C.CombatSection()
+  local M = T.Combat
+  return UI.Column{ children = {
+    UI.Label{ text = "Combat stats", class = "heading", style = { marginTop = 8 } },
+    UI.Toggle{ id = "show_combat", text = "Show combat stats", value = M.IsShown(),
+      onChange = function(_, v) M.SetShown(v) end },
+    UI.Toggle{ id = "combat_pet", text = "Count pet damage in DPS", value = M.GetPet(),
+      onChange = function(_, v) M.SetPet(v) end },
+    slider("combat_scale", "Size (%)", M.SCALE_MIN, M.SCALE_MAX, 5, M.GetScale(),
+      "Scales the combat stats text", function(n) M.SetScale(n) end),
+    UI.Label{ id = "combat_stats", text = "", class = "dim", style = { whiteSpace = "wrap" },
+      tooltip = "Add a stat with /toolbox combat stat add <Name>; find names with /toolbox stats <word>" },
+    UI.Row{ style = { justifyContent = "end", marginTop = 2 }, children = {
+      UI.Button{ id = "combat_reset", text = "Reset fight", onClick = function() M.Reset() end },
+    } },
+    C.PositionRows("combat", M),
+  } }
+end
+
 -- The "Buff bar" part of the settings (built inside build()).
 function C.BuffBarSection()
   local B, S = T.BuffBar, T.Sounds
@@ -136,7 +156,7 @@ local function build()
   local W = T.Window
   win = UI.Window{
     id = WINDOW_ID, title = "Toolbox Settings",
-    width = 280, height = 600, minWidth = 220, minHeight = 120,
+    width = 280, height = 640, minWidth = 220, minHeight = 120,
     escCloses = true,
     style = { paddingTop = 6, paddingBottom = 6 },
     children = { UI.Scroll{ style = { flexGrow = 1 }, children = {
@@ -189,6 +209,7 @@ local function build()
         },
         C.BuffBarSection(),
         C.VitalsSection(),
+        C.CombatSection(),
       } },
     } } },
   }
@@ -199,7 +220,8 @@ local function build()
                 "expire_seconds_value", "debuff_alert", "volume", "volume_value", "buff_pos",
                 "show_vitals", "vitals_width", "vitals_width_value", "vitals_scale", "vitals_scale_value",
                 "vitals_pos", "vitals_show_bars", "vitals_show_text", "vitals_bg",
-                "vitals_flash", "vitals_flash_below", "vitals_flash_below_value", "vitals_glue" }
+                "vitals_flash", "vitals_flash_below", "vitals_flash_below_value", "vitals_glue",
+                "show_combat", "combat_pet", "combat_scale", "combat_scale_value", "combat_stats", "combat_pos" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -279,6 +301,11 @@ function C.Sync()
   el.vitals_bg:SetValue(T.Vitals.GetBackground())
   el.vitals_flash:SetValue(T.Vitals.GetFlash())
   el.vitals_glue:SetValue(T.Hud.IsGlued())
+  el.show_combat:SetValue(T.Combat.IsShown())
+  el.combat_pet:SetValue(T.Combat.GetPet())
+  el.combat_scale:SetValue(T.Combat.GetScale())
+  el.combat_scale_value:SetText(fontLabel(T.Combat.GetScale()))
+  el.combat_stats:SetText("Stats: " .. table.concat(T.Combat.Stats(), ", "))
   el.vitals_flash_below:SetValue(T.Vitals.GetFlashBelow())
   el.vitals_flash_below_value:SetText(fontLabel(T.Vitals.GetFlashBelow()))
   C.SyncLive()
@@ -289,7 +316,7 @@ end
 function C.SyncLive()
   if not win then return end
   C.SyncSounds()
-  for prefix, m in pairs({ buff = T.BuffBar, vitals = T.Vitals }) do
+  for prefix, m in pairs({ buff = T.BuffBar, vitals = T.Vitals, combat = T.Combat }) do
     local x, y = m.GetPosition()
     el[prefix .. "_pos"]:SetText(x and (x .. ", " .. y) or "")
   end

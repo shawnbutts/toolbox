@@ -355,6 +355,42 @@ add("vitals", "health & focus bars (size; text|bars on|off; bg; flash <%>|off|te
   T.Vitals.Toggle()
 end)
 
+add("combat", "combat stats HUD (reset; size <n>; pet on|off; stat add|remove <Name>; stats; move)",
+    function(rest)
+  local C = T.Combat
+  local word, args = T.ParseArgs(rest)
+  if word == "" then
+    C.Toggle()
+  elseif word == "reset" then
+    C.Reset()
+    T.Print("Combat stats reset.")
+  elseif word == "move" then
+    T.MoveCommand(C, "combat", "Combat stats", args)
+  elseif word == "size" then
+    if args ~= "" and not C.SetScale(tonumber(args)) then
+      T.Print("Size is a whole percent from " .. C.SCALE_MIN .. " to " .. C.SCALE_MAX .. ".")
+      return
+    end
+    T.Print("Combat stats size: " .. C.GetScale() .. "%.")
+  elseif word == "pet" then
+    if args:lower() == "on" or args:lower() == "off" then C.SetPet(args:lower() == "on") end
+    T.Print("Pet damage counts toward DPS: " .. (C.GetPet() and "on" or "off") .. ".")
+  elseif word == "stat" then
+    local verb, name = T.ParseArgs(args)
+    local ok, msg
+    if verb == "add" then ok, msg = C.AddStat(name)
+    elseif verb == "remove" then ok, msg = C.RemoveStat(name)
+    else msg = "Use /" .. T.commands[1] .. " combat stat add <Name> or remove <Name>." end
+    T.Print(msg)
+    return ok
+  elseif word == "stats" then
+    T.Print("Stats shown: " .. table.concat(C.Stats(), ", ") .. ". Find more with /" .. T.commands[1]
+      .. " stats <word>, add with /" .. T.commands[1] .. " combat stat add <Name>.")
+  else
+    T.Print("Unknown: /" .. T.commands[1] .. " combat " .. word .. ". Try /" .. T.commands[1] .. " help.")
+  end
+end)
+
 add("stats", "list character stats matching a word, e.g. /toolbox stats health", function(rest)
   for _, line in ipairs(T.StatLines(rest)) do T.Print(line) end
 end)
@@ -523,7 +559,8 @@ function ShroudOnStart()
   T.Sounds.Init()
   T.BuffBar.Init()
   T.Vitals.Init()
-  T.Hud.Init()                       -- builds the HUD strips (glued or not) for both
+  T.Combat.Init()
+  T.Hud.Init()                       -- builds the HUD strips (glued or not) for all three
   T.BuffBar.Tick()
   T.Vitals.Tick()
   ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
@@ -536,8 +573,14 @@ function ShroudOnExperienceGain(_, _)
 end
 
 -- Kills for the daily stats (combat chat lines about you, your party or your pet).
-function ShroudOnCombatEvents(events, _)
+function ShroudOnCombatEvents(events, dropped)
   T.Daily.OnCombat(events)
+  T.Combat.OnEvents(events, dropped)
+end
+
+-- Fight start / end for the combat HUD.
+function ShroudOnCombatModeChanged(inCombat)
+  T.Combat.OnCombatMode(inCombat)
 end
 
 -- Buff bar and the debuff alert.

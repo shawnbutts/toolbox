@@ -7,6 +7,8 @@ A Shroud of the Avatar Lua add-on (API 14). Features so far:
 - **Today**: gold picked up, kills, and XP gained since midnight. Hover it for **Today Detailed**:
   every item gained today, with counts.
 - **Health & focus bars**: your own health and focus on a movable HUD strip.
+- **Combat stats**: DPS, damage taken and healing per second, crit and avoid rates, a fight
+  timer and chosen character stats, on a movable HUD strip.
 - **Buff bar**: your buffs and debuffs as their skill icons, with a clock-style sweep instead of a
   countdown, plus sound alerts when a buff is about to run out and when a debuff lands.
 
@@ -37,6 +39,7 @@ Built clean-room from the official docs only:
 | `/toolbox debuffalert on` / `off` | alert when a debuff lands |
 | `/toolbox sounds [0-100]` | show which sound files the alerts use; with a number, set the volume |
 | `/toolbox vitals` (`size <75-250>` / `text on\|off` / `bars on\|off` / `bg none\|dark\|light` / `flash <1-95>\|on\|off\|test` / `glue on\|off` / `move [x y]` / `debug`) | show or hide the health & focus bars (or place them) |
+| `/toolbox combat` (`reset` / `size <n>` / `pet on\|off` / `stat add\|remove <Name>` / `stats` / `move [x y]`) | show or hide the combat stats HUD, and its options |
 | `/toolbox stats [word]` | list character stats whose name contains the word (for finding stat names) |
 | `/toolbox config` | open or close the settings window |
 | `/toolbox spacing <0-12>` | set the extra space between lines in pixels (no number: show and measure it; default 2) |
@@ -236,6 +239,30 @@ The maximums have no documented getter: the readable stats `Health` and `Focus` 
 values at full health and focus, so they are used as the maximums (never shown below the current
 value). There is no vigor bar: no stat the game exposes to add-ons matches "vigor".
 
+## Combat stats
+
+`/toolbox combat` shows a HUD strip with:
+
+| Row | What |
+| --- | --- |
+| Fight | how long the current fight has run, or the last one ("ended") |
+| DPS | your damage per second over the last 5 s, and averaged over the fight (pet included; `/toolbox combat pet off` to leave it out) |
+| Taken /s | damage taken per second, the same two ways |
+| Healing /s | healing you did per second |
+| Crit | your critical hits as a share of your damaging hits this fight |
+| Avoided | attacks on you that were dodged, parried or blocked |
+| stats | character stats you choose: `MagicResistance` by default |
+
+The numbers come from your combat chat lines (`ShroudOnCombatEvents`), so they cover what your
+combat chat shows. A fight starts when you enter combat or the first damage line arrives, and
+ends when combat ends (or after 12 quiet seconds); its numbers stay until the next fight.
+`/toolbox combat reset` (or the settings button) clears them.
+
+**Stats.** The docs name few stats, so the list is yours: find names with `/toolbox stats resist`
+(or `absorb`, `avoid`, `armor`, ...) and add them with `/toolbox combat stat add <Name>` (up to 8;
+`stat remove <Name>` to drop one). Unreadable ones show "n/a". The strip has its own Size and
+position, and stays separate when the health & focus bars are glued to the buff bar.
+
 ## Development
 
 Requirements: Lua 5.2+ or LuaJIT, [luacheck](https://github.com/lunarmodules/luacheck), Python 3.9+.
@@ -257,7 +284,7 @@ image limits, size caps, no runtime code loading, and no `io`/`os` use in packag
 ```
 toolbox/            the package (what ships)
   manifest.json     files load in this order: core.lua, xp.lua, hover.lua, ui.lua, compact.lua, daily.lua,
-                    dailydetail.lua, sounds.lua, hud.lua, buffbar.lua, vitals.lua,
+                    dailydetail.lua, sounds.lua, hud.lua, buffbar.lua, vitals.lua, combat.lua,
                     config.lua
   core.lua          Toolbox namespace, commands, saved-var helpers, session lifecycle, callbacks
   xp.lua            pure session XP model (rates, rolling window, time to level)
@@ -270,6 +297,7 @@ toolbox/            the package (what ships)
   hud.lua           the HUD strips: one per module, or one shared strip when glued
   buffbar.lua       the buff bar HUD, clock overlay, expiry and debuff alerts
   vitals.lua        the health & focus bars HUD
+  combat.lua        the combat stats HUD
   clock.png         the clock overlay sprite sheet (2 x 120 frames, from art/clock.py)
   config.lua        the Toolbox Settings window (/toolbox config)
   README.md         player-facing store readme

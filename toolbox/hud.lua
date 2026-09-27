@@ -2,8 +2,9 @@
 -- The HUD strips (Toolbox.Hud). HUD modules (the buff bar, the health & focus bars) build
 -- only their content; this puts it in strips:
 --   * unglued: one HUD frame per module, as before;
---   * glued:   one shared HUD frame "[grip | health & focus | buffs]", moved and remembered
---              as one (the owner's "glue the health bars to the buff bar").
+--   * glued:   one shared HUD frame "[grip | health & focus | buffs]" for the modules in
+--              Hud.GLUE, moved and remembered as one (the owner's "glue the health bars to the
+--              buff bar"); other modules (the combat HUD) keep their own frame either way.
 -- Frames are sized to what they show (the game keeps HUD frames on screen by their full
 -- size), re-fitted when a module's content size changes, and hidden when nothing in them is.
 --
@@ -20,7 +21,8 @@ Toolbox.Hud = Hud
 
 Hud.GLUED_ID = "toolbox_hud"
 Hud.GLUED_HOME = { 40, 260 }
-Hud.ORDER = { "vitals", "buffs" }     -- left to right when glued
+Hud.ORDER = { "vitals", "buffs", "combat" }   -- every HUD module, in build order
+Hud.GLUE = { vitals = true, buffs = true }     -- the ones that share a strip when glued (left to right as in ORDER)
 Hud.GAP = 6                           -- between the parts of the glued strip
 Hud.PAD = 8                           -- the strip's own padding
 
@@ -39,9 +41,11 @@ function Hud.IsGlued() return prefs.glued == true end
 
 -- The frame that holds module `key` right now (its own, or the shared one), or nil.
 function Hud.FrameFor(key)
-  if prefs.glued then return frames[Hud.GLUED_ID] end
+  if prefs.glued and Hud.GLUE[key] then return frames[Hud.GLUED_ID] end
   return frames[key]
 end
+
+local function gluedHere(key) return prefs.glued and Hud.GLUE[key] end
 
 local function present(key) return modules[key] ~= nil end
 
@@ -56,7 +60,7 @@ function Hud.Build()
   if prefs.glued then
     local parts = {}
     for _, key in ipairs(Hud.ORDER) do
-      if present(key) then
+      if present(key) and Hud.GLUE[key] then
         contents[key] = modules[key].BuildContent()
         parts[#parts + 1] = contents[key]
       end
@@ -65,16 +69,15 @@ function Hud.Build()
       y = prefs.y or Hud.GLUED_HOME[2], width = 100, height = 40, visible = false,
       -- start past the drag grip; parts side by side, tops aligned
       children = { UI.Row{ style = { paddingLeft = T.Window.GRIP, alignItems = "start" }, children = parts } } }
-  else
-    for _, key in ipairs(Hud.ORDER) do
-      if present(key) then
-        local m = modules[key]
-        contents[key] = m.BuildContent()
-        local x, y = m.GetSavedPosition()
-        frames[key] = UI.HudFrame{ id = m.FRAME_ID, x = x or m.HOME[1], y = y or m.HOME[2],
-          width = 100, height = 40, visible = false,
-          children = { UI.Column{ style = { paddingLeft = T.Window.GRIP }, children = { contents[key] } } } }
-      end
+  end
+  for _, key in ipairs(Hud.ORDER) do
+    if present(key) and not gluedHere(key) then
+      local m = modules[key]
+      contents[key] = m.BuildContent()
+      local x, y = m.GetSavedPosition()
+      frames[key] = UI.HudFrame{ id = m.FRAME_ID, x = x or m.HOME[1], y = y or m.HOME[2],
+        width = 100, height = 40, visible = false,
+        children = { UI.Column{ style = { paddingLeft = T.Window.GRIP }, children = { contents[key] } } } }
     end
   end
   Hud.Refresh()
@@ -89,12 +92,11 @@ end
 
 -- Sizes and shows/hides the strips (call when a module's content size or shown state changes).
 function Hud.Refresh()
-  if prefs.glued then
-    local frame = frames[Hud.GLUED_ID]
-    if not frame then return end
+  local frame = prefs.glued and frames[Hud.GLUED_ID]
+  if frame then
     local w, h, any = 0, 0, false
     for _, key in ipairs(Hud.ORDER) do
-      local content = contents[key]
+      local content = Hud.GLUE[key] and contents[key]
       if content then
         local shown = modules[key].IsShown()
         content:SetVisible(shown)
@@ -107,13 +109,14 @@ function Hud.Refresh()
     end
     frame:SetVisible(any)
     if any then setSize(frame, T.Window.GRIP + w + Hud.PAD, h + Hud.PAD) end
-  else
-    for key, frame in pairs(frames) do
+  end
+  for key, own in pairs(frames) do
+    if modules[key] then
       local shown = modules[key].IsShown()
-      frame:SetVisible(shown)
+      own:SetVisible(shown)
       if shown then
         local cw, ch = modules[key].ContentSize()
-        setSize(frame, T.Window.GRIP + cw + Hud.PAD, ch + Hud.PAD)
+        setSize(own, T.Window.GRIP + cw + Hud.PAD, ch + Hud.PAD)
       end
     end
   end
@@ -127,8 +130,9 @@ function Hud.Tick()
       prefs.x, prefs.y = x, y
       T.Save("hud", prefs)
     end
-  else
-    for key, frame in pairs(frames) do
+  end
+  for key, frame in pairs(frames) do
+    if modules[key] then
       local x, y = Hud.Position(frame)
       if x then modules[key].SavePosition(x, y) end
     end
@@ -145,7 +149,7 @@ end
 -- A mover (Get / MoveTo / Nudge / Reset) for module `key`: it moves whichever strip holds it.
 function Hud.MoverFor(key, home)
   return T.Window.HudMover(function() return Hud.FrameFor(key) end, home, function()
-    return prefs.glued and Hud.GLUED_HOME or home
+    return gluedHere(key) and Hud.GLUED_HOME or home
   end)
 end
 

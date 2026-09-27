@@ -124,6 +124,7 @@ local function install_api()
   end
   ShroudGetPooledAdventurerExperience = function() return S.char.present and S.char.advPool or 0 end
   ShroudGetPooledProducerExperience = function() return S.char.present and S.char.prodPool or 0 end
+  ShroudGetPlayerCombatMode = function() return S.combat == true end
   ShroudGetLevelProgress = function()
     if not S.char.present then return nil end
     return copy(S.char.progress)
@@ -624,6 +625,19 @@ end
 function H.frame() return S.frames.toolbox_buffs end
 function H.vitals() return S.frames.toolbox_vitals end
 function H.hud() return S.frames.toolbox_hud end
+function H.combatHud() return S.frames.toolbox_combat end
+-- The combat HUD's shown rows as "label=value" strings.
+function H.combatRows()
+  local out = {}
+  for _, row in ipairs(S.frames.toolbox_combat.children[1].children[1].children) do
+    if row.visible ~= false then out[#out + 1] = row.children[1].text .. "=" .. row.children[2].text end
+  end
+  return out
+end
+function H.setCombat(on)
+  S.combat = on
+  return H.callback("ShroudOnCombatModeChanged", on)
+end
 -- Visible slots of a bar row ("buffs" / "debuffs") as their slot tables.
 function H.slots(row)
   local out = {}
