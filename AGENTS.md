@@ -1,0 +1,129 @@
+# AGENTS.md
+
+Guidance for AI coding agents (and humans) working on Toolbox, a Shroud of the Avatar Lua add-on.
+
+## Hard rules
+
+- **Clean-room.** Do not copy or adapt code from OCX Tools or any other existing add-on. Work only
+  from the official docs:
+  - https://catnipgames.net/lua/agent.html (dense API map; read first)
+  - https://catnipgames.net/lua/reference.html (full reference)
+  - https://catnipgames.net/lua/guide.html (packaging, sandbox, store)
+- **Target Lua API 14 on MoonSharp (Lua 5.2 semantics).** No 5.3+ features: no integer division
+  `//`, no bitwise operators, no `utf8` library, no `math.tointeger`/`math.type`, no `<const>`/`<close>`.
+  Also avoid `goto` and `table.unpack`/`unpack` so the tests run on LuaJIT too. Pass whole numbers to
+  `%d` (use `math.floor`); `string.format("%d", 1.5)` errors on 5.3+.
+- **Don't guess at API behaviour.** If the docs are unclear, pick the conservative option, write
+  down the assumption (README or a comment), and add it to "Unconfirmed API behaviour" below.
+- **One global.** Everything lives in the `Toolbox` table or is `local`. The only other globals are
+  the `ShroudOn*` callbacks. All add-ons share one global environment.
+- **No runtime code loading** (`load`, `loadstring`, `loadfile`, `dofile`, `require`, `_G[...]`,
+  `_ENV[...]`) in package files, not even in comments: the client matches source text.
+  `tools/build.py` refuses it.
+- **No `io.*` / `os.*`.** Persist with `ShroudSetSavedVar`/`ShroudGetSavedVar`, character scope.
+- **UI is `Shroud.UI` only.** No retained widgets (`ShroudUI*`), no immediate-mode GUI (`ShroudOnGUI`).
+- **No per-frame work.** Don't define `ShroudOnUpdate`. Use events and the 1-second periodic.
+- Constructors (`Shroud.UI.*`, `Shroud.Command`) raise at file top level. Call them from
+  `ShroudOnStart` or later. Reading `Shroud.UI` at top level is fine.
+
+## Commands
+
+```sh
+luacheck .                 # must be clean
+lua tests/run.lua          # must pass (also: luajit tests/run.lua; filter: lua tests/run.lua reload)
+python3 tools/build.py     # must succeed; --check validates only
+make check                 # all of the above
+python3 tools/install.py --lua-dir "<game Lua folder>"   # local in-game testing
+```
+
+Run all three before calling a change done.
+
+## Layout
+
+- `toolbox/`: the shipped package. Flat folder: `manifest.json`, `*.lua`, `README.md` (store readme),
+  optional `icon.png` and pictures. Nothing else, or the build fails.
+  - `manifest.json` `files` is the load order: `core.lua`, `xp.lua`, `ui.lua`. A new `.lua` file must be
+    added there. Later files may use globals from earlier ones at top level; earlier files may only use
+    later ones inside functions (callbacks run after every file has loaded).
+  - `core.lua`: `Toolbox` namespace, chat output (`Toolbox.Print`), saved-var helpers (`Load`/`Save`/`Flush`,
+    which deep-copy), formatting, the command table and dispatcher, session lifecycle, all callbacks.
+  - `xp.lua`: `Toolbox.XP`, a pure model over a plain-data session table. No API calls, so it is
+    storable in saved vars and trivially testable. Time is always passed in.
+  - `ui.lua`: `Toolbox.Window`, the Session XP window.
+- `tests/`: `harness.lua` is a fake host (see below); `test_*.lua` suites; `run.lua` the runner.
+- `tools/build.py`: validates the store packaging rules and writes `dist/toolbox/` + zip.
+- `tools/install.py`: copies `dist/toolbox/` into a client's Lua folder.
+- `.luacheckrc`: std `lua52` plus every global documented for API 14. If the docs add a function,
+  add it here; never add a name that isn't in the docs.
+
+## Adding a subcommand
+
+In `core.lua`, call `add(name, help, fn)` next to the existing ones. `fn(rest)` receives the text after
+the subcommand. Help text lists them in registration order. Add a test in `tests/test_commands.lua`.
+Command limits: 8 per add-on; `Shroud.Command` returns `ok, reason`, and a refusal must be reported
+in chat.
+
+## Adding a feature module
+
+1. New file in `toolbox/`, add it to `files` in `manifest.json` in the right order.
+2. Hang it off `Toolbox` (`Toolbox.Foo = {}`), keep everything else `local`.
+3. Pure logic in plain functions over plain data; API calls at the edges (core/ui).
+4. Hook into `ShroudOnStart` / `Toolbox.Tick` in `core.lua` instead of defining a second copy of a
+   callback (a later file's definition would silently replace the earlier one).
+5. Tests in a new `tests/test_foo.lua`, registered in `tests/run.lua`'s `suites` list.
+6. `CHANGELOG.md` entry under `[Unreleased]`.
+
+## The test harness
+
+`tests/harness.lua` models the documented host behaviour Toolbox relies on:
+
+- constructors and `Shroud.Command` raise outside a callback; constructors reject unknown fields;
+- saved vars have an in-memory cache and a "disk" copy updated on flush;
+- `H.reload()` = `/lua reload`: flush, tear down UI/commands/timers, reload files, `ShroudTime` continues;
+- `H.restart()` = client relaunch: only flushed data survives, `ShroudTime` restarts;
+- `H.advance(n)` runs the periodics second by second; `H.gain(a, p)` adds XP (and fires the callback);
+- `H.chat("/tbx reset")`, `H.click(window, id)`, `H.closeWindow(id)`, `H.moveWindow(id, x, y)`.
+
+If you rely on a new API function, stub it in `install_api()` with the documented return values,
+including the "no character" sentinel.
+
+## Saved vars (character scope)
+
+| Key | Shape |
+| --- | --- |
+| `session` | see the header comment of `xp.lua` (format `v = 1`; bump and handle old data if it changes) |
+| `window` | `{ open = bool, x = number, y = number }` |
+
+Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
+you read back (`Toolbox.XP.IsValid`) and fall back to defaults.
+
+## Releasing
+
+Bump `version` in `toolbox/manifest.json` **and** `Toolbox.version` in `core.lua` (the build checks they
+match), move `[Unreleased]` notes under the new version in `CHANGELOG.md`, `make check`, test in game.
+Version numbers are single-use in the store, including rejected ones.
+
+## Unconfirmed API behaviour
+
+Things the docs don't settle. Verify in game before depending on them more heavily:
+
+1. Whether `ShroudOnExperienceGain`'s amount tracks total or pooled XP, and whether it fires for
+   producer XP from every source. We only use it as a trigger to re-read totals.
+2. Whether `/lua reload` calls `ShroudOnDisableScript`, and whether it keeps the in-memory saved-var
+   cache or re-reads the files. We store every change immediately (in memory) and don't end the
+   session on disable, so either way works.
+3. When `ShroudOnStart` runs relative to character login (at client start before a character exists?
+   again after each login?). We wait for `ShroudGetLevelProgress()` to return non-nil before starting,
+   and start a new session on the next tick after a logout.
+4. Which character's scope `ShroudSetSavedVar` writes to inside `ShroudOnLogOut` (the docs say it fires
+   when the login scene loads).
+5. `ShroudTime` is `Time.time`: assumed continuous across `/lua reload` and logout/login within one
+   client run, and restarting near 0 on relaunch. `os.time` is not documented, so it is not used.
+6. `Window{ x, y }` versus the host's own per-window position memory (docs: "position and size are
+   saved per add-on and window id"). We pass the saved position as `x`/`y` and never call
+   `SetPosition`, to avoid fighting the host.
+7. `win:GetPosition()` returning two numbers (docs: "returns left and top as laid out"). Non-numbers
+   are ignored.
+8. The shape of `ShroudGetLevelProgress()` at the level cap (docs: `percent` reads 0). We treat
+   `percent == 0` with `intoLevel > 0` as capped and show no ETA.
+9. Whether total XP can ever go down. Lower readings are treated as bad reads and ignored.
