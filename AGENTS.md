@@ -389,6 +389,10 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     running. Untrusted runs get no sweep. `TotalFromEffects` stays in case the fields ever appear:
     the docs may be ahead of the released client. ON HOLD by the owner (2026-09-27): don't debug the
     missing fields further; re-check `/toolbox buffs trace` after a client update.
+    RE-TESTED 2026-09-27 on API 20: still `Total nil, Current nil`, and the trace says "no effects".
+    New: `MoonlightWatch` read a constant 9870 s left for 10 s (it counted down smoothly before). Maybe
+    only that effect (an old doc said the moon indicator reports seconds to the next moon edge); pending
+    a trace of an ordinary cast buff. The bar's own end-time clock covers a stale value either way.
     `buff_timers` is `{ v = 2, timers = ... }` holding trusted totals only; unversioned (v1) saves are
     ignored because they could hold wrong totals. Vanished buffs keep their timer for `GRACE` seconds.
 23. Sounds: `ShroudLoadSound`'s path base ("the addon's Lua folder" vs the Lua root) and what clip names
@@ -401,6 +405,7 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     Suspect the client: the docs say sounds load via a web request, and the path has spaces and parentheses
     (pictures, read directly, load fine). Toolbox keeps trying and stays silent; re-test after a client
     update with `/toolbox sounds test` / `try 1`. ON HOLD until then.
+    RE-TESTED 2026-09-27 on API 20 (build 9c0ea28): still no clip (`try 1` -> -1). Still on hold.
 23g. FOUND 2026-09-27 (build ac17b29): `ShroudLoadSound` returned TRUE for every path, even ones that can't
     exist, so "true" only means "request accepted" (the docs say "path exists"). After 12 accepted loads
     (.ogg and .wav, Lua root and package folder) `ShroudListSound()` stayed empty (0 keys). Either every
