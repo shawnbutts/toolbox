@@ -89,7 +89,8 @@ Run all three before calling a change done.
     its own 0.5 s periodic reads the flat effect list, runs the expiry alert and fills a fixed slot pool
     (never create elements per change). The clock overlay is a second `Image` over the icon via a
     negative left margin, showing one `SetUV` frame of `clock.png` (`CLOCK` must match `art/clock.py`).
-  - `vitals.lua`: `Toolbox.Vitals`, the health & focus bars (HUD). `V.Format` is pure. Reads the
+  - `vitals.lua`: `Toolbox.Vitals`, the health & focus bars (HUD). `V.Format` is pure. Every size comes
+    from `V.Metrics()` (one scale factor; Shroud.UI has no zoom), applied at build and by `applySize`. Reads the
     per-frame globals directly (never through a name built at runtime: review treats that like code
     loading) and the `Health` / `Focus` stats as maximums.
   - HUD strips share `Toolbox.Window.HudMover(getFrame, home)` (Get/MoveTo/Nudge/Reset),
@@ -170,7 +171,7 @@ including the "no character" sentinel.
 | `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { buff_expiring = "...", debuff_landed = "..." } }` |
 | `buff_timers` | `{ v = 2, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload |
-| `vitals` | `{ show, width = 100..400, x, y }` |
+| `vitals` | `{ show, width = 100..400 (bar length at 100%), scale = 75..250 (%), x, y }` |
 | `buff_durations` | `{ [rune name] = seconds }`: full durations learned from casts |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what

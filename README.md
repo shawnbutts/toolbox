@@ -36,7 +36,7 @@ Built clean-room from the official docs only:
 | `/toolbox buffalert <1-60>` / `on` / `off` | alert this many seconds before a buff runs out (default 10) |
 | `/toolbox debuffalert on` / `off` | alert when a debuff lands |
 | `/toolbox sounds [0-100]` | show which sound files the alerts use; with a number, set the volume |
-| `/toolbox vitals` (`move [x y]` / `debug`) | show or hide the health & focus bars (or place them) |
+| `/toolbox vitals` (`size <75-250>` / `move [x y]` / `debug`) | show or hide the health & focus bars (or place them) |
 | `/toolbox stats [word]` | list character stats whose name contains the word (for finding stat names) |
 | `/toolbox config` | open or close the settings window |
 | `/toolbox spacing <0-12>` | set the extra space between lines in pixels (no number: show and measure it; default 2) |
@@ -210,8 +210,10 @@ cast, rather than a wrong one. The expiry alert only needs the time left, so it 
 
 `/toolbox vitals` shows a red health bar and a blue focus bar with "current / max" on a HUD
 strip, moved like the buff bar (grip, Position buttons in `/toolbox config`, or
-`/toolbox vitals move x y`). Settings also has the bar width; the text follows the text size and
-line spacing. Current values are the documented `ShroudPlayerCurrentHealth` / `ShroudPlayerCurrentFocus`,
+`/toolbox vitals move x y`). Its **Size** (75-250%, `/toolbox vitals size 150` or the slider in
+settings) scales the text, bars, gap and strip together; **Bar length** sets the bars' length at
+100%. The numbers sit just after the bars. The strip has its own size, so the global text size
+doesn't change it. Current values are the documented `ShroudPlayerCurrentHealth` / `ShroudPlayerCurrentFocus`,
 or the `CurrentHealth` / `CurrentFocus` stats when those aren't numbers (`/toolbox vitals debug`
 shows which is used).
 The maximums have no documented getter: the readable stats `Health` and `Focus` equal the current

@@ -1,6 +1,6 @@
 -- Toolbox: vitals.lua
 -- Health & focus bars (/toolbox vitals): a movable HUD strip with a red health bar and a
--- blue focus bar, each with "current / max".
+-- blue focus bar, each with "current / max". A Size setting (75-250%) scales the whole strip.
 --
 -- Current values are the documented per-frame globals ShroudPlayerCurrentHealth and
 -- ShroudPlayerCurrentFocus. The player's maximums have no documented getter; in game
@@ -19,7 +19,9 @@ local FRAME_ID = "toolbox_vitals"
 local PERIODIC = "toolbox_vitals"
 
 V.TICK = 0.2
-V.WIDTH_MIN, V.WIDTH_MAX, V.WIDTH_DEFAULT = 100, 400, 220
+V.WIDTH_MIN, V.WIDTH_MAX, V.WIDTH_DEFAULT = 100, 400, 220   -- bar length at 100% size
+V.SCALE_MIN, V.SCALE_MAX, V.SCALE_DEFAULT = 75, 250, 100    -- percent
+V.BASE_FONT = 12                                             -- text size at 100%
 V.HOME = { 40, 300 }
 V.NUDGE = 10
 -- `current` reads the per-frame global directly: reaching a global through a name built at
@@ -73,24 +75,46 @@ end
 -- ---------------------------------------------------------------------------
 
 local function width() return prefs.width or V.WIDTH_DEFAULT end
+local function scale() return prefs.scale or V.SCALE_DEFAULT end
 
-local function frameSize()
-  return width() + 8, #V.BARS * (T.Window.LineHeight() + 4) + 8
+-- Everything's size from one factor (Shroud.UI has no zoom): text, line height, bar
+-- thickness and length, the gap and number box, and the strip itself. The number box has a
+-- fixed width so both bars line up; its text is left-aligned so it sits right after the bar.
+function V.Metrics()
+  local f = scale() / 100
+  local font = math.max(9, math.min(32, math.floor(V.BASE_FONT * f + 0.5)))   -- fontSize is 9..32
+  local line = math.ceil(font * 1.15) + 1
+  local m = {
+    font = font, line = line,
+    barH = math.max(4, math.floor(line * 0.7 + 0.5)),
+    barW = math.floor(width() * f + 0.5),
+    gap = math.max(2, math.floor(4 * f + 0.5)),
+    textW = math.ceil(font * 5.2),        -- room for "9999 / 9999"
+    rowGap = math.max(1, math.floor(2 * f + 0.5)),
+  }
+  m.frameW = m.barW + m.gap + m.textW + 8
+  m.frameH = #V.BARS * (line + m.rowGap) + 8
+  return m
+end
+
+local function barStyle(m) return { width = m.barW, height = m.barH } end
+local function textStyle(m)
+  return { fontSize = m.font, height = m.line, minHeight = m.line, maxHeight = m.line, marginTop = 0,
+           marginBottom = 0, paddingTop = 0, paddingBottom = 0, marginLeft = m.gap, width = m.textW,
+           textAlign = "left" }
 end
 
 local function build()
+  local m = V.Metrics()
   local rows = {}
   for _, bar in ipairs(V.BARS) do
-    rows[#rows + 1] = UI.Row{ style = { alignItems = "center", marginBottom = 2 }, children = {
-      UI.Bar{ id = bar.key .. "_bar", value = 0, color = bar.color, tooltip = bar.label,
-        style = { flexGrow = 1, height = math.max(6, T.Window.LineHeight() - 4) } },
-      UI.Label{ id = bar.key .. "_text", text = "", class = "text",
-        style = T.Window.TextStyle{ marginLeft = 6, minWidth = 72, textAlign = "right" } },
+    rows[#rows + 1] = UI.Row{ style = { alignItems = "center", marginBottom = m.rowGap }, children = {
+      UI.Bar{ id = bar.key .. "_bar", value = 0, color = bar.color, tooltip = bar.label, style = barStyle(m) },
+      UI.Label{ id = bar.key .. "_text", text = "", class = "text", style = textStyle(m) },
     } }
   end
-  local w, h = frameSize()
   frame = UI.HudFrame{ id = FRAME_ID, x = prefs.x or V.HOME[1], y = prefs.y or V.HOME[2],
-    width = w, height = h, visible = prefs.show, children = rows }
+    width = m.frameW, height = m.frameH, visible = prefs.show, children = rows }
   el, shown = {}, {}
   for _, bar in ipairs(V.BARS) do
     el[bar.key .. "_bar"] = frame:Find(bar.key .. "_bar")
@@ -127,6 +151,9 @@ function V.Init()
     prefs.show = saved.show == true
     if type(saved.width) == "number" and saved.width >= V.WIDTH_MIN and saved.width <= V.WIDTH_MAX then
       prefs.width = math.floor(saved.width)
+    end
+    if type(saved.scale) == "number" and saved.scale >= V.SCALE_MIN and saved.scale <= V.SCALE_MAX then
+      prefs.scale = math.floor(saved.scale)
     end
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
@@ -169,30 +196,42 @@ end
 
 function V.Toggle() V.SetShown(not prefs.show) end
 
-local function resize()
+-- Re-applies the sizes to every element and the strip (after a width or size change).
+local function applySize()
   if not frame then return end
-  local w, h = frameSize()
-  pcall(function() frame:SetSize(w, h) end)     -- refused past the HUD area limit: keep the old size
+  local m = V.Metrics()
+  for _, bar in ipairs(V.BARS) do
+    el[bar.key .. "_bar"]:SetStyle(barStyle(m))
+    el[bar.key .. "_text"]:SetStyle(textStyle(m))
+  end
+  pcall(function() frame:SetSize(m.frameW, m.frameH) end)   -- refused past the HUD area limit: keep the old size
 end
 
+local function inRange(n, lo, hi) return type(n) == "number" and n == math.floor(n) and n >= lo and n <= hi end
+
 function V.SetWidth(n)
-  if type(n) ~= "number" or n ~= math.floor(n) or n < V.WIDTH_MIN or n > V.WIDTH_MAX then return false end
+  if not inRange(n, V.WIDTH_MIN, V.WIDTH_MAX) then return false end
   prefs.width = n
   T.Save("vitals", prefs)
-  resize()
+  applySize()
   T.Config.Sync()
   return true
 end
 
 function V.GetWidth() return width() end
 
--- Follows the text size and line spacing (called from Toolbox.Window.ApplyText).
-function V.ApplyText()
-  if not frame then return end
-  local style = T.Window.LineStyle()
-  for _, bar in ipairs(V.BARS) do
-    el[bar.key .. "_text"]:SetStyle(style)
-    el[bar.key .. "_bar"]:SetStyle{ height = math.max(6, T.Window.LineHeight() - 4) }
-  end
-  resize()
+-- Size of the whole strip, in percent (V.SCALE_MIN..V.SCALE_MAX).
+function V.SetScale(n)
+  if not inRange(n, V.SCALE_MIN, V.SCALE_MAX) then return false end
+  prefs.scale = n
+  T.Save("vitals", prefs)
+  applySize()
+  T.Config.Sync()
+  return true
 end
+
+function V.GetScale() return scale() end
+
+-- The strip has its own Size setting, so the global text size and spacing don't change it.
+-- (Kept so Toolbox.Window.ApplyText can call every text user alike.)
+function V.ApplyText() end

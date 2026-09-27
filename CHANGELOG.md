@@ -6,6 +6,10 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Health & focus bars: a Size setting (75-250%, `/toolbox vitals size <n>` and a slider) that
+  scales the text, bars, gap and strip together. The numbers now sit just after the bars
+  (left-aligned, small gap) in a fixed-width box so both bars line up. The strip has its own size
+  and no longer follows the global text size.
 - Health & focus bars (`/toolbox vitals`): a movable HUD strip with health (red) and focus (blue)
   bars and "current / max", with width and position settings. Maximums come from the `Health` /
   `Focus` stats found with `/toolbox stats`; vigor isn't exposed to add-ons.

@@ -285,8 +285,17 @@ function T.StatLines(filter)
   return lines
 end
 
-add("vitals", "show or hide the health & focus bars (move [x y]; debug)", function(rest)
+add("vitals", "show or hide the health & focus bars (size <75-250>; move [x y]; debug)", function(rest)
   local word, args = T.ParseArgs(rest)
+  if word == "size" then
+    local V = T.Vitals
+    if args ~= "" and not V.SetScale(tonumber(args)) then
+      T.Print("Size is a whole percent from " .. V.SCALE_MIN .. " to " .. V.SCALE_MAX .. ".")
+      return
+    end
+    T.Print("Health & focus bars size: " .. V.GetScale() .. "%.")
+    return
+  end
   if word == "debug" then
     for _, line in ipairs(T.Vitals.DebugLines()) do T.Print(line) end
     return

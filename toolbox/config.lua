@@ -79,8 +79,10 @@ function C.VitalsSection()
     UI.Label{ text = "Health & focus bars", class = "heading", style = { marginTop = 8 } },
     UI.Toggle{ id = "show_vitals", text = "Show health & focus bars", value = V.IsShown(),
       onChange = function(_, v) V.SetShown(v) end },
-    slider("vitals_width", "Bar width", V.WIDTH_MIN, V.WIDTH_MAX, 10, V.GetWidth(),
-      "Width of the bars in pixels", function(n) V.SetWidth(n) end),
+    slider("vitals_scale", "Size (%)", V.SCALE_MIN, V.SCALE_MAX, 5, V.GetScale(),
+      "Scales the bars, their text and the gap together", function(n) V.SetScale(n) end),
+    slider("vitals_width", "Bar length", V.WIDTH_MIN, V.WIDTH_MAX, 10, V.GetWidth(),
+      "Length of the bars at 100% size, in pixels", function(n) V.SetWidth(n) end),
     C.PositionRows("vitals", V),
   } }
 end
@@ -173,7 +175,8 @@ local function build()
                 "show_daily_detail", "hover_popup", "hover_daily",
                 "show_buffs", "buff_size", "buff_size_value", "expire_alert", "expire_seconds",
                 "expire_seconds_value", "debuff_alert", "volume", "volume_value", "buff_pos",
-                "show_vitals", "vitals_width", "vitals_width_value", "vitals_pos" }
+                "show_vitals", "vitals_width", "vitals_width_value", "vitals_scale", "vitals_scale_value",
+                "vitals_pos" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -246,6 +249,8 @@ function C.Sync()
   el.show_vitals:SetValue(T.Vitals.IsShown())
   el.vitals_width:SetValue(T.Vitals.GetWidth())
   el.vitals_width_value:SetText(fontLabel(T.Vitals.GetWidth()))
+  el.vitals_scale:SetValue(T.Vitals.GetScale())
+  el.vitals_scale_value:SetText(fontLabel(T.Vitals.GetScale()))
   C.SyncLive()
 end
 
