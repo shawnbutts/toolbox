@@ -54,7 +54,9 @@ def main() -> int:
         shutil.rmtree(dest)
     shutil.copytree(src, dest)
     print(f"Installed {len(list(dest.iterdir()))} files to {dest}")
-    for sound in sorted((ROOT / "art").glob("*.ogg")):
+    # .ogg is what the add-on looks for; .wav copies (made by art/alerts.py, not committed) are
+    # there to try as a custom path if an .ogg won't play.
+    for sound in sorted((ROOT / "art").glob("*.ogg")) + sorted((ROOT / "art").glob("*.wav")):
         target = lua_dir / f"{slug}_{sound.name}"
         shutil.copy2(sound, target)
         print(f"Copied alert sound to {target}")

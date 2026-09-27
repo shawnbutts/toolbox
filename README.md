@@ -183,7 +183,11 @@ fixed pool (20 buffs, 10 debuffs) built once, so buff changes never create UI el
 3. the package folder (for when audio can ship).
 
 Missing files are fine: that alert is just silent. `/toolbox sounds` says which file each alert
-uses. The sounds are in `art/`; `tools/install.py` copies them to the default place for you.
+uses; `/toolbox sounds test` (or the Test buttons in settings) plays them and reports whether the
+game is really playing them. The sounds are in `art/`; `tools/install.py` copies them to the
+default place for you, plus `.wav` copies to try as a custom path if an `.ogg` plays silently.
+
+When a buff's expiry alert fires, its sweep turns from dark to red for the rest of that run.
 
 Requirements: Lua 5.2+ or LuaJIT, [luacheck](https://github.com/lunarmodules/luacheck), Python 3.9+.
 

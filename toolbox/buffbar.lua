@@ -30,28 +30,30 @@ BB.GAP = 3
 BB.DEBUFF_SUPPRESS = 3        -- seconds after start / a scene change with no debuff alerts
 BB.DEBUFF_COOLDOWN = 1        -- at most one debuff sound a second
 
--- The clock sprite sheet (art/clock.py): FRAMES frames in a COLS x ROWS grid.
-BB.CLOCK = { path = "toolbox/clock.png", FRAMES = 24, COLS = 6, ROWS = 4 }
+-- The clock sprite sheet (art/clock.py): FRAMES frames in a COLS x ROWS grid, once per SET
+-- stacked top to bottom: set 0 is the normal (dark) sweep, set 1 the warning (red) one.
+BB.CLOCK = { path = "toolbox/clock.png", FRAMES = 24, COLS = 6, ROWS = 4, SETS = 2 }
 
 -- ---------------------------------------------------------------------------
 -- Model (no API calls)
 -- ---------------------------------------------------------------------------
 
--- Tracks one buff's timer. st = { total, last, armed } (created on first sight).
+-- Tracks one buff's timer. st = { total, last, armed, warned } (created on first sight).
 -- Returns st, fraction remaining (0..1) or nil without a timer, and true when the
--- expiry alert should fire now.
+-- expiry alert should fire now. st.warned stays true for the rest of the run once it has
+-- fired (the sweep turns red); a refresh starts a new run.
 function BB.Track(st, remaining, threshold)
   if type(remaining) ~= "number" or remaining <= 0 then return st, nil, false end
   if not st or remaining > st.last + 1 then
     -- First sight, or refreshed (time went up): a new run. Only arm the alert when the
     -- buff has more time than the threshold, so short buffs don't alert on arrival.
-    st = { total = remaining, last = remaining, armed = remaining > threshold }
+    st = { total = remaining, last = remaining, armed = remaining > threshold, warned = false }
   end
   st.last = remaining
   if remaining > st.total then st.total = remaining end
   local fire = false
   if st.armed and remaining <= threshold then
-    st.armed, fire = false, true
+    st.armed, st.warned, fire = false, true, true
   elseif remaining > threshold then
     st.armed = true
   end
@@ -67,10 +69,13 @@ function BB.Frame(fraction)
   return k
 end
 
--- UV rectangle (x, y, w, h as fractions, top-left origin) of a clock frame.
-function BB.FrameUV(k)
+-- UV rectangle (x, y, w, h as fractions, top-left origin) of a clock frame, from the
+-- warning (red) set when `warn` is true.
+function BB.FrameUV(k, warn)
   local c = BB.CLOCK
-  return (k % c.COLS) / c.COLS, math.floor(k / c.COLS) / c.ROWS, 1 / c.COLS, 1 / c.ROWS
+  local rows = c.ROWS * c.SETS
+  local row = math.floor(k / c.COLS) + (warn and c.ROWS or 0)
+  return (k % c.COLS) / c.COLS, row / rows, 1 / c.COLS, 1 / rows
 end
 
 -- Names in `now` that aren't in `before` (both sets name -> true).
@@ -194,11 +199,12 @@ local function build()
     } }
 end
 
--- Puts entry e (or nothing) into a slot, touching only what changed.
-local function fill(slot, e, fraction)
+-- Puts entry e (or nothing) into a slot, touching only what changed. `warn` shows the
+-- red sweep (the buff's expiry alert has fired).
+local function fill(slot, e, fraction, warn)
   if not e then
     if slot.used then slot.row:SetVisible(false) end
-    slot.used, slot.name, slot.k = false, nil, nil
+    slot.used, slot.name, slot.k, slot.warn = false, nil, nil, nil
     return
   end
   if not slot.used then slot.row:SetVisible(true) end
@@ -220,10 +226,11 @@ local function fill(slot, e, fraction)
     slot.icon:SetTooltip(tip ~= "" and tip or e.name)
   end
   local k = fraction and BB.Frame(fraction) or nil
-  if k ~= slot.k then
-    slot.k = k
+  warn = warn == true
+  if k ~= slot.k or warn ~= slot.warn then
+    slot.k, slot.warn = k, warn
     if k and k > 0 and clockTex >= 0 then
-      slot.overlay:SetUV(BB.FrameUV(k))
+      slot.overlay:SetUV(BB.FrameUV(k, warn))
       slot.overlay:SetVisible(true)
     else
       slot.overlay:SetVisible(false)
@@ -252,7 +259,7 @@ function BB.Tick()
         if slots.debuffs[di] then fill(slots.debuffs[di], e, fraction) end
       else
         bi = bi + 1
-        if slots.buffs[bi] then fill(slots.buffs[bi], e, fraction) end
+        if slots.buffs[bi] then fill(slots.buffs[bi], e, fraction, st and st.warned) end
       end
     end
   end

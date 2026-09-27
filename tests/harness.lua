@@ -166,9 +166,15 @@ local function install_api()
     return had
   end
   ShroudPlaySoundChannel = function(id, volume)
-    if type(id) ~= "number" or id < 1 or id > #S.clips then return -1 end
+    if type(id) ~= "number" or id < 1 or id > #S.clips or S.channelsBusy then return -1 end
     S.played[#S.played + 1] = { name = S.clips[id], volume = volume }
+    S.channel = { name = S.clips[id], untilT = ShroudTime + (S.undecodable and 0 or 1) }
     return 1
+  end
+  -- What channel 1 is playing ("" once finished; at once for a clip that didn't decode).
+  ShroudIsChannelPlaying = function(ch)
+    if ch ~= 1 or not S.channel or ShroudTime >= S.channel.untilT then return "" end
+    return S.channel.name
   end
 
   -- Buffs: one flat entry per effect; grouped by name for ShroudGetPlayerBuff.

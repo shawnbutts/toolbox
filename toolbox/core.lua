@@ -211,7 +211,11 @@ add("debuffalert", "sound when a debuff lands (on / off; no argument: show)", fu
   T.Print("Debuff alert: " .. (B.GetDebuffAlert() and "on" or "off") .. ".")
 end)
 
-add("sounds", "show which sound files the alerts use; /toolbox sounds <0-100> sets the volume", function(rest)
+add("sounds", "show the alert sound files; <0-100> sets the volume, test plays them", function(rest)
+  if rest:lower() == "test" then
+    for _, def in ipairs(T.Sounds.DEFS) do T.Sounds.Test(def.key) end
+    return
+  end
   if rest ~= "" and not T.Sounds.SetVolume(tonumber(rest)) then
     T.Print("Volume must be a whole number from 0 to 100.")
     return

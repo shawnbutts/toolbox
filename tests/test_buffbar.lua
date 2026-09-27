@@ -67,8 +67,10 @@ return function(t)
     t.eq(B().Frame(0.5), 12)
     t.eq(B().Frame(0.01), 23)
     t.eq(B().Frame(0), 23, "clamped")
-    local x, y, w, h = B().FrameUV(7)                  -- column 1, row 1 of a 6 x 4 grid
-    t.near(x, 1 / 6); t.near(y, 1 / 4); t.near(w, 1 / 6); t.near(h, 1 / 4)
+    local x, y, w, h = B().FrameUV(7)                  -- column 1, row 1 of 6 x 4, of 8 rows in all
+    t.near(x, 1 / 6); t.near(y, 1 / 8); t.near(w, 1 / 6); t.near(h, 1 / 8)
+    x, y = B().FrameUV(7, true)                         -- the same frame in the red set below
+    t.near(x, 1 / 6); t.near(y, 5 / 8)
   end)
 
   t.test("new debuff names", function()
@@ -113,8 +115,34 @@ return function(t)
     H.advance(12, 0.5)                                  -- half gone
     t.eq(heal.children[2].visible, true)
     local uv = heal.children[2].uv
-    t.near(uv[1], (12 % 6) / 6); t.near(uv[2], math.floor(12 / 6) / 4)
+    t.near(uv[1], (12 % 6) / 6); t.near(uv[2], math.floor(12 / 6) / 8)
     t.eq(aura.children[2].visible, false, "no timer, no clock")
+  end)
+
+  t.test("the sweep turns red when the expiry alert fires, and back after a recast", function()
+    bootWithSounds()
+    H.chat("/tbx buffs")
+    H.chat("/tbx buffalert 5")
+    H.addBuffs({ { name = "Heal", remaining = 12, icon = 101 } })
+    local overlay = function() return H.slots("buffs")[1].children[2] end
+    H.advance(4, 0.5)
+    t.ok(overlay().uv[2] < 0.5, "normal (top) set before the alert")
+    H.advance(3.5, 0.5)                                 -- crosses 5 s
+    t.eq(H.playedNames(), "toolbox_buff_expiring")
+    t.ok(overlay().uv[2] >= 0.5, "red (bottom) set once it fired")
+    H.S.buffs[1].remaining = 30                         -- recast
+    H.advance(1, 0.5)
+    t.ok(not overlay().visible or overlay().uv[2] < 0.5, "back to normal after the recast")
+  end)
+
+  t.test("red only follows the alert: short buffs and debuffs never turn red", function()
+    bootWithSounds()
+    H.chat("/tbx buffs")
+    H.addBuffs({ { name = "Quick", remaining = 6, icon = 1 }, { name = "Bleed", remaining = 20, debuff = true } })
+    H.advance(4, 0.5)
+    t.ok(H.slots("buffs")[1].children[2].uv[2] < 0.5, "a buff that started under the threshold")
+    H.advance(12, 0.5)
+    t.ok(H.slots("debuffs")[1].children[2].uv[2] < 0.5, "debuffs keep the normal sweep")
   end)
 
   t.test("the icon pool is built once; buff changes create no elements", function()
@@ -337,8 +365,10 @@ return function(t)
     H.advance(1)
     t.eq(find("snd_buff_expiring_status").text, "Buff expiring: toolbox_buff_expiring.ogg")
     local before = #H.S.played
+    H.clearLogs()
     H.click("toolbox_config", "snd_buff_expiring_test")
     t.eq(#H.S.played, before + 1, "Test button plays it")
+    t.ok(H.logged("playing 'toolbox_buff_expiring' %(clip %d+%) on channel 1 at volume 55"), H.lastLog())
     H.S.files["toolbox_debuff_landed.ogg"] = nil
     Toolbox.Sounds.SetPath("debuff_landed", "nowhere.ogg")
     H.advance(20)
@@ -354,5 +384,41 @@ return function(t)
     for _, c in ipairs({ "buffs", "buffalert", "debuffalert", "sounds" }) do
       t.ok(H.logged("/toolbox " .. c), c)
     end
+  end)
+
+  t.test("sound test: reports a clip that plays", function()
+    bootWithSounds()
+    H.clearLogs()
+    H.chat("/tbx sounds test")
+    H.advance(0.2, 0.1)
+    t.ok(H.logged("Buff expiring: channel 1 is playing") or H.logged("Debuff landed: channel 1 is playing"),
+      H.lastLog())
+  end)
+
+  t.test("sound test: a clip that loads but doesn't decode is called out", function()
+    bootWithSounds()
+    H.S.undecodable = true
+    H.clearLogs()
+    Toolbox.Sounds.Test("debuff_landed")
+    H.advance(0.2, 0.1)
+    t.ok(H.logged("already silent, so the file most likely didn't decode"), H.lastLog())
+  end)
+
+  t.test("sound test: refused, muted and not loaded each say why", function()
+    bootWithSounds()
+    H.S.channelsBusy = true
+    H.clearLogs()
+    Toolbox.Sounds.Test("buff_expiring")
+    t.ok(H.logged("refused to play clip"), H.lastLog())
+    H.S.channelsBusy = nil
+    H.chat("/tbx sounds 0")
+    H.clearLogs()
+    Toolbox.Sounds.Test("buff_expiring")
+    t.ok(H.logged("volume is 0"))
+    H.chat("/tbx sounds 70")
+    ShroudListSoundReset()
+    H.clearLogs()
+    Toolbox.Sounds.Test("buff_expiring")
+    t.ok(H.logged("list was cleared; reloading"))
   end)
 end

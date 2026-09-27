@@ -117,21 +117,61 @@ local function save()
   T.Save("sounds", prefs)
 end
 
--- Plays a sound by key. Returns true when it started.
+-- Plays a sound by key. Returns true when it started, and a table saying what happened:
+-- { reason = "ok" | "notLoaded" | "muted" | "cleared" | "refused", clip, index, channel }.
 function S.Play(key)
   local st = state[key]
-  if not st or st.status ~= "ready" or prefs.volume <= 0 then return false end
+  if not st or st.status ~= "ready" then return false, { reason = "notLoaded" } end
+  if prefs.volume <= 0 then return false, { reason = "muted" } end
   for i, name in ipairs(listSounds()) do
     if name == st.clip then
       local ok, channel = pcall(ShroudPlaySoundChannel, i, prefs.volume)
-      return ok and type(channel) == "number" and channel > 0
+      local info = { clip = name, index = i, channel = ok and channel or nil }
+      if ok and type(channel) == "number" and channel > 0 then
+        info.reason = "ok"
+        return true, info
+      end
+      info.reason = "refused"
+      return false, info
     end
   end
   -- The clip list was cleared (ShroudListSoundReset): load it again for next time.
   for _, def in ipairs(S.DEFS) do
     if def.key == key then startLoad(def) end
   end
-  return false
+  return false, { reason = "cleared" }
+end
+
+-- Plays a sound and reports in chat what happened, then checks a moment later whether the
+-- game is still playing it: a clip that loads but can't be decoded plays as silence.
+function S.Test(key)
+  local label = key
+  for _, def in ipairs(S.DEFS) do if def.key == key then label = def.label end end
+  local ok, info = S.Play(key)
+  if not ok then
+    local why = {
+      notLoaded = "no sound loaded (see /toolbox sounds)",
+      muted = "the alert volume is 0",
+      cleared = "the game's sound list was cleared; reloading, try again in a few seconds",
+      refused = "the game refused to play clip " .. tostring(info.index) .. " (returned "
+        .. tostring(info.channel) .. "; all 5 channels busy, or a bad clip id)",
+    }
+    T.Print(label .. ": " .. (why[info.reason] or info.reason) .. ".")
+    return false
+  end
+  T.Print(string.format("%s: playing '%s' (clip %d) on channel %d at volume %d.",
+    label, info.clip, info.index, info.channel, prefs.volume))
+  ShroudRegisterPeriodic("toolbox_soundcheck_" .. key, function()
+    local now = ShroudIsChannelPlaying(info.channel)
+    if type(now) == "string" and now ~= "" then
+      T.Print(label .. ": channel " .. info.channel .. " is playing '" .. now .. "'. If you hear nothing,"
+        .. " check the game's sound volume.")
+    else
+      T.Print(label .. ": channel " .. info.channel .. " is already silent, so the file most likely didn't"
+        .. " decode. Try a .wav (set its path in /toolbox config).")
+    end
+  end, 0.15, false)
+  return true
 end
 
 function S.Status(key)

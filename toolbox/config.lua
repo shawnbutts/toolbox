@@ -41,9 +41,7 @@ local function soundRows(def)
         onSubmit = function(_, text) S.SetPath(def.key, text) end },
       UI.Button{ id = "snd_" .. def.key .. "_test", text = "Test", style = { marginLeft = 4 },
         tooltip = "Play " .. def.label:lower(),
-        onClick = function()
-          if not S.Play(def.key) then T.Print(def.label .. ": no sound loaded (see /toolbox sounds).") end
-        end },
+        onClick = function() S.Test(def.key) end },
     } },
   } }
 end
