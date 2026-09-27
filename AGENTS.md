@@ -244,3 +244,8 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     available here. First in-game report (2026-09-27): `/toolbox sounds` found both, but Test was silent.
     Test now reports channel and whether `ShroudIsChannelPlaying` still sees it; "already silent" points
     at decoding (try the .wav), "playing" at volume. Pending that result.
+25. `ShroudGetBuffTimeRemaining` refresh rate: undocumented. REPORTED 2026-09-27: the sweep stalled for
+    long stretches and then jumped (a 2-minute buff shown 10% used when 50% was), which a value refreshed
+    only now and then produces; the harness reproduces it with `H.S.staleEvery = 30` (3 sweep steps in
+    60 s). `BuffBar.Track` now keeps each run's end time on `T.Now()` and resyncs only when the game's
+    value changes. Pending: `/toolbox buffs trace` output from the game to see the real refresh pattern.

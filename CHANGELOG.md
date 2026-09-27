@@ -20,6 +20,10 @@ store submission needs a higher version than any submitted before (rejected ones
   reloaded (it used to treat every such buff as brand new). The full duration comes from the
   game's `TotalDuration`/`CurrentDuration` when they agree with the time remaining, otherwise from
   the add-on's own record kept across `/lua reload`. `/toolbox buffs debug` lists the timing data.
+- Buff timers count down on the add-on's own clock and follow the game's time remaining only
+  when that value actually changes (a value jumping up is a recast). In game the sweep stalled
+  and then jumped, which is what a value refreshed only now and then produces; the expiry alert
+  was late for the same reason. `/toolbox buffs trace` logs the game's raw values for 10 s.
 - The sweep has 120 steps (3 degrees each) instead of 24: with 24, a long buff such as a
   20-minute Light spell moved only every 50 s and looked frozen. `clock.png` is now 960 x 576
   (48 px frames, 88 KiB).

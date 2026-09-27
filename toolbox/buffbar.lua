@@ -61,32 +61,46 @@ function BB.TotalFromEffects(remaining, effects)
   return best
 end
 
--- Tracks one buff's timer. st = { total, last, armed, warned } (created on first sight).
+-- Tracks one buff's timer and returns st, fraction remaining (0..1) or nil without a timer,
+-- true when the expiry alert should fire now, and the remaining seconds it used.
+--
+-- The game's time remaining (`api`) may not count down smoothly: in game the sweep stalled
+-- and then jumped, which is what a value refreshed only now and then looks like. So each run
+-- keeps its own end time (st.endAt, on the T.Now() clock) and counts down with that; the end
+-- time is moved only when the game's value actually changes (a correction), and a value that
+-- jumps up is a recast (a new run). If the game's value is continuous, this resyncs every tick.
+--
 -- `known` is the buff's full duration when it can be established (TotalFromEffects, or
 -- remembered across a reload); otherwise the largest remaining time seen stands in for it,
 -- which is wrong for a buff that was already running when the add-on started.
--- Returns st, fraction remaining (0..1) or nil without a timer, and true when the
--- expiry alert should fire now. st.warned stays true for the rest of the run once it has
--- fired (the sweep turns red); a refresh starts a new run.
-function BB.Track(st, remaining, threshold, known)
-  if type(remaining) ~= "number" or remaining <= 0 then return st, nil, false end
-  if type(known) ~= "number" or known < remaining - 0.5 then known = nil end
-  if not st or remaining > st.last + 1 then
-    -- First sight, or refreshed (time went up): a new run. Only arm the alert when the
-    -- buff has more time than the threshold, so short buffs don't alert on arrival.
-    st = { total = known or remaining, last = remaining, armed = remaining > threshold, warned = false }
-  elseif known then
-    st.total = known
+-- st.warned stays true for the rest of a run once the alert has fired (the sweep turns red).
+function BB.Track(st, api, threshold, known, now)
+  if type(api) ~= "number" or api <= 0 then return st, nil, false, nil end
+  now = now or T.Now()
+  local function newRun()
+    return { endAt = now + api, api = api, total = api, armed = api > threshold, warned = false }
   end
-  st.last = remaining
+  if not st then
+    st = newRun()
+  elseif api ~= st.api then
+    if api > (st.endAt - now) + 1.5 then
+      st = newRun()                      -- time went up: recast
+    else
+      st.endAt, st.api = now + api, api  -- the game refreshed its value: follow it
+    end
+  end
+  local remaining = st.endAt - now
+  if remaining < 0 then remaining = 0 end
+  if type(known) == "number" and known >= remaining - 0.5 then st.total = known end
   if remaining > st.total then st.total = remaining end
+  st.last = remaining
   local fire = false
   if st.armed and remaining <= threshold then
     st.armed, st.warned, fire = false, true, true
   elseif remaining > threshold then
     st.armed = true
   end
-  return st, remaining / st.total, fire
+  return st, (st.total > 0) and remaining / st.total or 0, fire, remaining
 end
 
 -- Clock frame for a fraction remaining: 0 = full time left (no shading).
@@ -336,6 +350,35 @@ function BB.DebugLines()
   end
   if #lines == 0 then lines[1] = "No buffs or debuffs right now." end
   return lines
+end
+
+-- /toolbox buffs trace: once a second for BB.TRACE_SECONDS, log each buff's raw game values
+-- next to what the bar uses, to see how the game reports buff time.
+BB.TRACE_SECONDS = 10
+function BB.Trace()
+  local n = 0
+  local byName = {}
+  ShroudRegisterPeriodic("toolbox_bufftrace", function()
+    n = n + 1
+    local list = ShroudGetPlayerBuff()
+    for _, rune in ipairs(type(list) == "table" and list or {}) do
+      if type(rune) == "table" and type(rune.RuneName) == "string" then byName[rune.RuneName] = rune end
+    end
+    local shown = 0
+    for _, e in ipairs(readEffects()) do
+      if shown < 3 then
+        shown = shown + 1
+        local fx = byName[e.name] and type(byName[e.name].Effects) == "table" and byName[e.name].Effects[1] or {}
+        local st = timers[e.name]
+        T.Print(string.format("+%ds %s: game %s left (Total %s, Current %s) | bar %s of %s",
+          n, e.name, tostring(e.remaining), tostring(fx.TotalDuration), tostring(fx.CurrentDuration),
+          st and string.format("%.1f", st.last or -1) or "?", st and string.format("%.1f", st.total) or "?"))
+      end
+    end
+    if shown == 0 then T.Print("+" .. n .. "s: no buffs") end
+    if n >= BB.TRACE_SECONDS then ShroudRemovePeriodic("toolbox_bufftrace") end
+  end, 1, true)
+  T.Print("Tracing up to 3 buffs for " .. BB.TRACE_SECONDS .. " s...")
 end
 
 -- Remembers the running timers so a /lua reload can pick them up (ShroudTime keeps running

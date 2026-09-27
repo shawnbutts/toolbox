@@ -535,4 +535,61 @@ return function(t)
     t.ok(H.logged("^Bleed %(debuff%): 7 s left"), H.logs()[2])
     t.eq(H.frame().visible, false, "debug doesn't toggle the bar")
   end)
+
+  -- a game value that only refreshes now and then ---------------------------
+
+  t.test("timer: counts down on its own clock while the game's value is stale", function()
+    H.boot()
+    local st, frac, _, rem = B().Track(nil, 120, 10, 120, 1000)
+    t.near(frac, 1)
+    t.near(rem, 120)
+    st, frac, _, rem = B().Track(st, 120, 10, 120, 1030)        -- same (stale) value 30 s later
+    t.near(rem, 90); t.near(frac, 0.75)
+    st, frac, _, rem = B().Track(st, 88, 10, 120, 1031)         -- the game refreshes: follow it
+    t.near(rem, 88)
+    st, _, _, rem = B().Track(st, 118, 10, 120, 1032)           -- jumps up: a recast
+    t.near(rem, 118)
+    t.ok(st and frac)
+  end)
+
+  t.test("the sweep keeps pace with a game value that refreshes only every 30 s", function()
+    H.boot()
+    H.S.staleEvery = 30
+    H.S.durationMode = "elapsed"
+    H.chat("/tbx buffs")
+    H.addBuffs({ { name = "Ward", remaining = 120, icon = 9 } })
+    local changes, last = 0, nil
+    for _ = 1, 120 do                                             -- 60 s in half-second ticks
+      H.advance(0.5, 0.5)
+      local ov = H.slots("buffs")[1].children[2]
+      local key = ov.visible and (ov.uv[1] .. "," .. ov.uv[2]) or "hidden"
+      if key ~= last then changes, last = changes + 1, key end
+    end
+    t.ok(changes >= 50, "moved smoothly: " .. changes .. " steps in 60 s")
+    sameUV(t, H.slots("buffs")[1].children[2].uv, 60 / 120, "half used after 60 s")
+  end)
+
+  t.test("the expiry alert fires on time with a stale game value", function()
+    bootWithSounds()
+    H.S.staleEvery = 30
+    H.chat("/tbx buffalert 10")
+    H.addBuffs({ { name = "Ward", remaining = 45 } })
+    H.advance(34, 0.5)
+    t.eq(#H.S.played, 0, "11 s left: not yet")
+    H.advance(1.5, 0.5)
+    t.eq(H.playedNames(), "toolbox_buff_expiring", "fired at 10 s though the game still said 15")
+  end)
+
+  t.test("/tbx buffs trace logs raw and shown values once a second", function()
+    H.boot()
+    H.S.durationMode = "elapsed"
+    H.addBuffs({ { name = "Ward", remaining = 60, icon = 9 } })
+    H.advance(1, 0.5)
+    H.clearLogs()
+    H.chat("/tbx buffs trace")
+    H.advance(Toolbox.BuffBar.TRACE_SECONDS + 3)
+    t.ok(H.logged("^%+1s Ward: game 58"), H.logs()[2])
+    t.ok(H.logged("^%+10s Ward:"), "ten lines")
+    t.no(H.logged("^%+11s"), "stops after ten")
+  end)
 end

@@ -181,7 +181,18 @@ local function install_api()
   local function effect(i) return S.char.present and S.buffs[i + 1] or nil end
   ShroudGetBuffCount = function() return S.char.present and #S.buffs or 0 end
   ShroudGetBuffName = function(i) local e = effect(i); return e and e.name or "Invalid" end
-  ShroudGetBuffTimeRemaining = function(i) local e = effect(i); return e and e.remaining or -1 end
+  -- H.S.staleEvery = N: the game refreshes the value only every N seconds (holding it in between).
+  ShroudGetBuffTimeRemaining = function(i)
+    local e = effect(i)
+    if not e then return -1 end
+    if S.staleEvery and e.remaining and e.remaining > 0 then
+      if not e.reportedAt or ShroudTime - e.reportedAt >= S.staleEvery then
+        e.reported, e.reportedAt = e.remaining, ShroudTime
+      end
+      return e.reported
+    end
+    return e.remaining
+  end
   ShroudGetBuffIcon = function(i) local e = effect(i); return e and (e.icon or -1) or -1 end
   ShroudGetBuffTooltip = function(i)
     local e = effect(i)

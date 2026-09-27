@@ -186,9 +186,13 @@ add("spacing", "set the extra space between lines, 0-12 (no number: show and mea
   end
 end)
 
-add("buffs", "show or hide the buff bar (debug: list each buff's timing data)", function(rest)
+add("buffs", "show or hide the buff bar (debug: each buff's timing data; trace: log it for 10 s)", function(rest)
   if rest:lower() == "debug" then
     for _, line in ipairs(T.BuffBar.DebugLines()) do T.Print(line) end
+    return
+  end
+  if rest:lower() == "trace" then
+    T.BuffBar.Trace()
     return
   end
   T.BuffBar.Toggle()
