@@ -142,6 +142,9 @@ Run all three before calling a change done.
   `/toolbox version` shows it, to tell exactly which build is installed.
 - `tools/build.py`: validates the store packaging rules and writes `dist/toolbox/` + zip.
 - `tools/install.py`: copies `dist/toolbox/` into a client's Lua folder.
+- `tools/beta.py` (`make beta`): builds, then zips `toolbox/` (+ default sounds) and `INSTALL.txt`
+  (= `BETA.md`, the tester guide) as `dist/toolbox-<version>-beta.zip`. Update BETA.md's known issues
+  and "what to try" for every beta.
 - `.luacheckrc`: std `lua52` plus every global documented for API 14. If the docs add a function,
   add it here; never add a name that isn't in the docs.
 

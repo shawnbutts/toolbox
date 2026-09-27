@@ -362,6 +362,15 @@ tools/install.py    copies dist/toolbox/ into a game client's Lua folder
    each feature has a checkbox (`/toolbox welcome reset` + `/lua reload` replays it). `/toolbox xp` opens the XP window; hover it for XP Detailed. Try `/tbx help`, `/tbx reset`, `/lua reload` (the session should
    carry on), and closing/moving the window then reloading.
 
+## Beta testing (hand installs)
+
+1. Commit everything (the build is stamped with the commit; testers' `/toolbox version` shows it).
+2. `make beta` runs lint, tests and the build, then writes `dist/toolbox-<version>-beta.zip`:
+   a ready-to-copy `toolbox/` folder (the add-on plus the default alert sounds, which the store
+   doesn't accept yet) and `INSTALL.txt` for testers (the text of `BETA.md`: install steps, what to
+   try, known issues, how to report).
+3. Send testers the zip. Keep `BETA.md`'s known issues and "what to try" current for each beta.
+
 ## Releasing
 
 1. Bump `version` in `toolbox/manifest.json` and `Toolbox.version` in `toolbox/core.lua`.

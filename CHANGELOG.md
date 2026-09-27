@@ -5,6 +5,14 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-27 (beta 1)
+
+First beta for hand-installing testers (`make beta`; see BETA.md). Highlights since 0.1.0: the XP
+and XP Detailed windows with a hover pop-up, Today and Today Detailed (items gained), a buff bar
+with clock sweeps and expiry / debuff alerts, health & focus bars (with glue to the buff bar), a
+combat stats HUD, a settings window with Docs, a first-run welcome, and a settings shortcut key.
+Full detail below.
+
 ### Added
 - A shortcut key for the settings window (`Shroud.Keybind`), suggested as Ctrl+; (Shift can't be a
   modifier, so the requested Ctrl+Shift+; isn't possible). Players change it in the add-on manager
