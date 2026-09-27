@@ -123,7 +123,11 @@ Run all three before calling a change done.
     rows). Never edit it; edit CHANGELOG.md and run `make check`. CHANGELOG text lands in a package file, so
     the source checks apply to it: don't quote refused patterns there (runtime loading, "or nil" entries).
     The package allows 16 Lua files and has 15: prefer adding code to an existing file.
-  - `docs.lua`: `Toolbox.Docs`, the Docs window, and the version window (`/toolbox version`, `OpenVersion`). `D.SECTIONS` is the player guide (update it with every
+  - `docs.lua`: `Toolbox.Docs`, the Docs window, and the version window (`/toolbox version`, `OpenVersion`),
+    and `Toolbox.Motd`, the guild message of the day window (`/toolbox motd`): `Check()` runs from
+    `ShroudOnStart`, every tick and `ShroudOnSocialChanged`, and opens it when the message differs from
+    `guild_motd.seen`; a message counts as seen only once the window is really shown. `NewMessage` is pure.
+    `D.SECTIONS` is the player guide (update it with every
     user-facing change); the Commands part comes from `Toolbox.CommandList()`. Built on first open.
   - `config.lua`: `Toolbox.Config`, the settings window. Controls call the owning module's setters; the
     setters call `Toolbox.Config.Sync()` so the controls follow chat commands and the close button.
@@ -190,6 +194,8 @@ in chat.
   `H.S.files[path] = true` makes a texture/sound exist; `H.S.acceptMissing` makes `ShroudLoadSound`
   accept paths it can't load; `H.S.played` / `H.playedNames()`; `H.frame()` / `H.vitals()` / `H.hud()` (the glued strip); `H.combatHud()`, `H.combatRows()`,
   `H.setCombat(on)` (combat mode + callback); `H.submit(win, id, text)`;
+  `H.setGuild(name, motd)` (no callback; the next tick sees it), `H.setMotd(text)` (+ `ShroudOnSocialChanged`),
+  `H.motd()`;
 - The first run on an account prints a one-time welcome and opens the settings window (account-scope
   saved var `welcomed`; `T.Welcome()` runs last in `ShroudOnStart`). Test boots are returning players;
   use `H.firstBoot()` for a first run.
@@ -216,6 +222,7 @@ including the "no character" sentinel.
 | `vitals` | `{ show, width = 100..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, x, y }` |
 | `hud` | `{ glued = bool, x, y }` (the glued strip's position) |
 | `combat` | `{ show, scale = 75..250, pet, stats = { "MagicResistance", ... }, bg = None/Dark/Light, bgOpacity = 10..100, x, y }` |
+| `guild_motd` | `{ show = bool, seen = "text" }`: the last guild message shown to this character |
 | `buff_durations` | `{ [rune name] = seconds }`: full durations learned from casts |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
@@ -507,3 +514,8 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     clicks through, but not whether hover reaches a strip's panel and rows. The XP / Today strips report
     hover on their panel and each row (`t:hud`, `t:hud_<id>`). Unconfirmed in game: if the pop-up never
     appears over a strip, this is the place to look.
+41. Guild message of the day (`ShroudGetSocialSummary().guildMotd`, API 14). Unconfirmed in game: whether it
+    is "" (or the summary nil / `inGuild` false) until the guild data loads after login; an empty message is
+    never treated as new, so a late load just shows on a later tick. Also whether the text carries markup
+    (shown as plain text) and whether `ShroudOnSocialChanged` fires when the data first loads (the 1 s tick
+    checks too, so it doesn't matter).

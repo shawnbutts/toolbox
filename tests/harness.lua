@@ -17,6 +17,7 @@ H.PACKAGE = ROOT .. "/toolbox"
 local CALLBACKS = {
   "ShroudOnStart", "ShroudOnUpdate", "ShroudOnExperienceGain", "ShroudOnExperienceChanged",
   "ShroudOnLogOut", "ShroudOnDisableScript", "ShroudOnSceneLoaded", "ShroudOnSceneUnloaded",
+  "ShroudOnSocialChanged",
 }
 
 local function copy(v)
@@ -49,6 +50,9 @@ local function fresh(disk)
     files = { ["toolbox/clock.png"] = true },   -- files that exist, relative to the Lua folder
     clips = {}, pendingClips = {}, played = {},
     buffs = {},                        -- { name, remaining, icon, debuff, tooltip } per effect
+    -- ShroudGetSocialSummary(); H.setGuild / H.setMotd change it
+    social = { inGuild = false, guildName = "", guildRole = "", guildMotd = "",
+               guildMembers = 0, guildOnline = 0, friends = 0, friendsOnline = 0 },
     stats = {},                        -- { name, label, value, hidden }
     frames = {},
     logs = {},
@@ -100,6 +104,10 @@ local function install_api()
   ShroudGetPlayerName = function()
     if not S.char.present then return "INVALID" end
     return S.char.name
+  end
+  ShroudGetSocialSummary = function()
+    if not S.char.present then return nil end
+    return copy(S.social)
   end
   ShroudGetTotalAdventurerExperience = function() return S.char.present and S.char.adv or 0 end
   ShroudGetTotalProducerExperience = function() return S.char.present and S.char.prod or 0 end
@@ -578,9 +586,11 @@ end
 function H.restart(time, flushFirst)
   if flushFirst then ShroudFlushSavedVars() end
   local disk, char, date, serverTime, buffs, mode = S.disk, S.char, S.date, S.serverTime, S.buffs, S.durationMode
+  local social = S.social
   fresh(disk)
-  -- the character's buffs live on the server: they survive a client restart
+  -- the character's buffs and guild live on the server: they survive a client restart
   S.char, S.date, S.serverTime, S.buffs, S.durationMode = char, date, serverTime, buffs, mode
+  S.social = social
   S.time = time or 50
   install_api()
   H.load()
@@ -732,6 +742,22 @@ function H.daily() return S.windows.toolbox_daily end
 function H.dailyText(id) return H.daily():Find(id).text end
 
 -- A brand-new player: nothing saved, not welcomed yet.
+-- Guild membership and message of the day, no callback (as if the guild data just loaded: the
+-- next tick sees it). Set it after H.boot; it survives H.reload and H.restart.
+function H.setGuild(name, motd)
+  S.social.inGuild = name ~= nil
+  S.social.guildName = name or ""
+  S.social.guildMotd = motd or ""
+end
+
+-- The guild message changes while playing: the host notices and fires ShroudOnSocialChanged.
+function H.setMotd(motd)
+  S.social.guildMotd = motd
+  return H.callback("ShroudOnSocialChanged")
+end
+
+function H.motd() return S.windows.toolbox_motd end
+
 function H.firstBoot(time) return H.boot(nil, time, true) end
 
 function H.logs() return S.logs end

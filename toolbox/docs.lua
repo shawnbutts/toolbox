@@ -5,6 +5,8 @@
 --
 -- Also the version window (/toolbox version): the version line and the changelog, which
 -- tools/build.py bakes into changelog.lua (Toolbox.CHANGELOG) from CHANGELOG.md.
+--
+-- And the guild message of the day window (Toolbox.Motd, at the end), shown when it changes.
 
 local T = Toolbox
 local D = {}
@@ -59,6 +61,11 @@ D.SECTIONS = {
       .. "strip's top-left corner (untick Options > Interface > Nameplates & Chat Bubbles > "
       .. "Lock Status Movement to see it), use the Position buttons in settings, or type e.g. "
       .. "/toolbox buffs move 600 40." },
+  { "Guild message of the day",
+    "When your guild's message of the day has changed since you last saw it, a window shows it: at "
+      .. "login, after /lua reload, or when an officer changes it while you play. An unchanged message "
+      .. "doesn't show again. /toolbox motd shows it any time; /toolbox motd off (or the Guild setting) "
+      .. "stops it opening by itself." },
   { "Sounds",
     "The alert sounds live in the add-on's folder. To use your own, put "
       .. "toolbox_buff_expiring.ogg or toolbox_debuff_landed.ogg (or .wav) in your Lua folder, "
@@ -183,4 +190,134 @@ end
 
 function D.IsVersionShown()
   return vwin ~= nil and vwin:IsShown()
+end
+
+-- ---------------------------------------------------------------------------
+-- Guild message of the day (Toolbox.Motd)
+-- ---------------------------------------------------------------------------
+-- Opens a window with the guild's message of the day when it differs from the last one this
+-- character was shown: at login, after a reload, or when it changes while playing. The text
+-- is ShroudGetSocialSummary().guildMotd (API 14). The guild data may arrive after login, so
+-- a missing or empty message is never "new"; it is simply checked again next tick. A message
+-- counts as seen once its window has actually opened (Show can be refused).
+-- Saved var "guild_motd" (character scope): { show = bool, seen = "text" }.
+
+local M = {}
+Toolbox.Motd = M
+
+local MOTD_ID = "toolbox_motd"
+local mwin = nil
+local mprefs = nil        -- this character's prefs (the saved-var scope follows the character)
+local mprefsFor = nil     -- the player name mprefs were loaded for
+
+-- The message to show, or nil: in a guild, not empty, and not the one already seen.
+-- Leading and trailing spaces don't count as a change.
+function M.NewMessage(summary, seen)
+  if type(summary) ~= "table" or summary.inGuild ~= true then return nil end
+  if type(summary.guildMotd) ~= "string" then return nil end
+  local text = summary.guildMotd:match("^%s*(.-)%s*$")
+  if text == "" or text == seen then return nil end
+  return text
+end
+
+local function prefsNow()
+  local name = ShroudGetPlayerName()
+  if mprefs == nil or mprefsFor ~= name then
+    local saved = T.Load("guild_motd")
+    mprefs = { show = true, seen = "" }
+    if type(saved) == "table" then
+      if type(saved.show) == "boolean" then mprefs.show = saved.show end
+      if type(saved.seen) == "string" then mprefs.seen = saved.seen end
+    end
+    mprefsFor = name
+  end
+  return mprefs
+end
+
+local function saveMotd()
+  T.Save("guild_motd", mprefs)
+  T.unflushed = true          -- written to disk with the session's periodic flush
+end
+
+local function summaryNow()
+  local ok, summary = pcall(ShroudGetSocialSummary)
+  if ok and type(summary) == "table" then return summary end
+  return nil
+end
+
+local function buildMotd()
+  mwin = UI.Window{
+    id = MOTD_ID, title = "Guild message of the day",
+    width = 380, height = 220, minWidth = 220, minHeight = 120,
+    x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y,
+    escCloses = true,
+    style = { paddingTop = 6, paddingBottom = 6 },
+    children = {
+      UI.Scroll{ style = { flexGrow = 1 }, children = {
+        UI.Column{ style = { paddingLeft = GUTTER, paddingRight = GUTTER }, children = {
+          UI.Label{ id = "motd_guild", text = "", class = "heading" },
+          UI.Label{ id = "motd_text", text = "", class = "text", style = { whiteSpace = "wrap", marginTop = 4 } },
+        } },
+      } },
+      UI.Row{ style = { justifyContent = "end", paddingRight = GUTTER, marginTop = 4 }, children = {
+        UI.Button{ id = "motd_ok", text = "OK", onClick = function() mwin:Hide() end },
+      } },
+    },
+  }
+end
+
+-- Shows the window with this text. Returns true when it is on screen.
+function M.Show(text, guildName)
+  if not mwin then buildMotd() end
+  mwin:Find("motd_guild"):SetText(type(guildName) == "string" and guildName or "")
+  mwin:Find("motd_text"):SetText(text)
+  if mwin:IsShown() then return true end
+  return mwin:Show() == true
+end
+
+function M.IsShown()
+  return mwin ~= nil and mwin:IsShown()
+end
+
+-- Called from ShroudOnStart, every tick and ShroudOnSocialChanged: opens the window when
+-- the message is new to this character.
+function M.Check()
+  local p = prefsNow()
+  if not p.show then return end
+  local summary = summaryNow()
+  local text = M.NewMessage(summary, p.seen)
+  if not text then return end
+  if M.Show(text, summary.guildName) then
+    p.seen = text
+    saveMotd()
+  end
+end
+
+-- /toolbox motd: the current message, whether or not it's new.
+function M.OpenCurrent()
+  local summary = summaryNow()
+  if not summary or summary.inGuild ~= true then
+    T.Print("You're not in a guild.")
+    return
+  end
+  local text = M.NewMessage(summary, nil)
+  if not text then
+    T.Print("Your guild has no message of the day (or it hasn't loaded yet).")
+    return
+  end
+  if M.Show(text, summary.guildName) then
+    local p = prefsNow()
+    p.seen = text
+    saveMotd()
+  else
+    T.Print("The guild message window can't open right now; try again in a few seconds.")
+  end
+end
+
+function M.GetShow() return prefsNow().show end
+
+function M.SetShow(on)
+  prefsNow().show = on == true
+  saveMotd()
+  T.Config.Sync()
 end

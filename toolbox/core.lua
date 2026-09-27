@@ -500,6 +500,16 @@ add("version", "show the installed version and build, and open the changelog", f
   T.Docs.OpenVersion()
 end)
 
+add("motd", "show your guild's message of the day (on / off: open it by itself when it changes)", function(rest)
+  local word = rest:lower()
+  if word == "on" or word == "off" then
+    T.Motd.SetShow(word == "on")
+    T.Print("New guild messages " .. (word == "on" and "open by themselves." or "no longer open by themselves."))
+    return
+  end
+  T.Motd.OpenCurrent()
+end)
+
 add("stats", "list character stats matching a word, e.g. /toolbox stats health", function(rest)
   for _, line in ipairs(T.StatLines(rest)) do T.Print(line) end
 end)
@@ -707,6 +717,7 @@ function T.Tick()
   T.Hud.Tick()                       -- remember where the HUD strips are
   T.Config.SyncLive()
   T.RefreshViews()
+  T.Motd.Check()                     -- the guild message can load a while after login
 end
 
 -- ---------------------------------------------------------------------------
@@ -745,6 +756,7 @@ function ShroudOnStart()
   T.Vitals.Tick()
   ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
   T.Welcome()                        -- first run only: a chat line and the settings window
+  T.Motd.Check()                     -- a new guild message of the day
 end
 
 -- Only a trigger: the amount's relation to pooled vs total XP is not documented,
@@ -776,6 +788,11 @@ end
 
 function ShroudOnSceneLoaded(_)
   T.BuffBar.SceneChange()
+end
+
+-- Guild or friends changed (twice a second at most): maybe a new guild message of the day.
+function ShroudOnSocialChanged()
+  T.Motd.Check()
 end
 
 -- Items for the daily stats (anything that arrives in your bags).

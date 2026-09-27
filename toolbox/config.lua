@@ -239,6 +239,10 @@ local function build()
         C.BuffBarSection(),
         C.VitalsSection(),
         C.CombatSection(),
+        UI.Label{ text = "Guild", class = "heading", style = { marginTop = 8 } },
+        UI.Toggle{ id = "guild_motd", text = "Show a new guild message of the day", value = T.Motd.GetShow(),
+          tooltip = "Opens a window with your guild's message when it has changed since you last saw it",
+          onChange = function(_, v) T.Motd.SetShow(v) end },
       } },
     } } },
   }
@@ -251,7 +255,7 @@ local function build()
                 "vitals_pos", "vitals_show_bars", "vitals_show_text", "vitals_bg",
                 "vitals_flash", "vitals_flash_below", "vitals_flash_below_value", "vitals_glue",
                 "show_combat", "combat_pet", "combat_scale", "combat_scale_value", "combat_stats", "combat_pos",
-                "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut" }
+                "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "guild_motd" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -345,6 +349,7 @@ function C.Sync()
   el.combat_bg_opacity_value:SetText(fontLabel(cop))
   el.vitals_flash_below:SetValue(T.Vitals.GetFlashBelow())
   el.vitals_flash_below_value:SetText(fontLabel(T.Vitals.GetFlashBelow()))
+  el.guild_motd:SetValue(T.Motd.GetShow())
   C.SyncLive()
 end
 

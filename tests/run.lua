@@ -8,6 +8,7 @@ local filter = arg and arg[1]
 local suites = {
   "test_xp", "test_commands", "test_session", "test_config", "test_compact", "test_hover",
   "test_daily", "test_dailydetail", "test_buffbar", "test_vitals", "test_hud", "test_combat", "test_strips",
+  "test_motd",
 }
 
 local tests = {}
