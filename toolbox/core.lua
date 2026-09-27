@@ -246,6 +246,44 @@ add("sounds", "show the alert sound files; <0-100> sets the volume, test plays t
   for _, line in ipairs(T.Sounds.Report()) do T.Print(line) end
 end)
 
+-- Lists character stats whose internal or displayed name contains `filter` (any case):
+-- index, names, value, and whether add-ons may read it. For finding stat names in game.
+T.STATS_MAX_LINES = 40
+function T.StatLines(filter)
+  filter = (filter or ""):lower()
+  local lines, hidden, shown = {}, 0, 0
+  local count = ShroudGetStatCount() or 0
+  for i = 0, count - 1 do
+    local name = ShroudGetStatNameByNumber(i)
+    local label = ShroudGetStatDescriptionByNumber(i)
+    name = type(name) == "string" and name or "?"
+    label = type(label) == "string" and label or ""
+    if filter == "" or name:lower():find(filter, 1, true) or label:lower():find(filter, 1, true) then
+      if ShroudIsStatVisible(i) then
+        shown = shown + 1
+        if shown <= T.STATS_MAX_LINES then
+          local v = ShroudGetStatValueByNumber(i)
+          lines[#lines + 1] = string.format("%d %s%s = %s", i, name,
+            (label ~= "" and label ~= name) and (" (" .. label .. ")") or "",
+            type(v) == "number" and string.format("%g", v) or tostring(v))
+        end
+      else
+        hidden = hidden + 1
+      end
+    end
+  end
+  if shown > T.STATS_MAX_LINES then
+    lines[#lines + 1] = "... " .. (shown - T.STATS_MAX_LINES) .. " more; narrow it with a word."
+  end
+  lines[#lines + 1] = string.format("%d readable, %d hidden from add-ons%s (of %d stats).", shown, hidden,
+    filter ~= "" and (" matching '" .. filter .. "'") or "", count)
+  return lines
+end
+
+add("stats", "list character stats matching a word, e.g. /toolbox stats health", function(rest)
+  for _, line in ipairs(T.StatLines(rest)) do T.Print(line) end
+end)
+
 -- Parses "  XP  extra " -> "xp", "extra".
 function T.ParseArgs(args)
   args = tostring(args or "")

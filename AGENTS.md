@@ -258,3 +258,8 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     "remembered where the player put it", and `SetPosition` "remembers the new spot as the player's". Not
     said: whether the constructor's x/y override that memory after a reload. So the buff bar also keeps
     `buffbar.x/y` (polled every tick) and builds at them; either way it comes back where it was.
+27. Player vitals: current health and focus are documented per-frame globals (`ShroudPlayerCurrentHealth`,
+    `ShroudPlayerCurrentFocus`); the player's MAXIMUM health/focus has no documented getter (only target /
+    party / pet ones), and "vigor" appears nowhere in the docs. They may be stats (`ShroudGetStatValueByName`),
+    whose names the docs don't list and many of which are hidden. `/toolbox stats <word>` lists what the
+    game exposes; build the vitals bars only on names found that way.

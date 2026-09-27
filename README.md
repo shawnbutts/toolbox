@@ -35,6 +35,7 @@ Built clean-room from the official docs only:
 | `/toolbox buffalert <1-60>` / `on` / `off` | alert this many seconds before a buff runs out (default 10) |
 | `/toolbox debuffalert on` / `off` | alert when a debuff lands |
 | `/toolbox sounds [0-100]` | show which sound files the alerts use; with a number, set the volume |
+| `/toolbox stats [word]` | list character stats whose name contains the word (for finding stat names) |
 | `/toolbox config` | open or close the settings window |
 | `/toolbox spacing <0-12>` | set the extra space between lines in pixels (no number: show and measure it; default 2) |
 | `/toolbox font <9-32>` | set the window text size (no number: show the current size; default 12) |

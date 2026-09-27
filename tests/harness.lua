@@ -48,6 +48,7 @@ local function fresh(disk)
     files = { ["toolbox/clock.png"] = true },   -- files that exist, relative to the Lua folder
     clips = {}, pendingClips = {}, played = {},
     buffs = {},                        -- { name, remaining, icon, debuff, tooltip } per effect
+    stats = {},                        -- { name, label, value, hidden }
     frames = {},
     logs = {},
     commands = {},
@@ -99,6 +100,26 @@ local function install_api()
   end
   ShroudGetTotalAdventurerExperience = function() return S.char.present and S.char.adv or 0 end
   ShroudGetTotalProducerExperience = function() return S.char.present and S.char.prod or 0 end
+  -- Character stats: { name, label, value, hidden } (H.S.stats).
+  ShroudGetStatCount = function() return #S.stats end
+  ShroudGetStatNameByNumber = function(i) local st = S.stats[i + 1]; return st and st.name or "INVALID" end
+  ShroudGetStatDescriptionByNumber = function(i) local st = S.stats[i + 1]; return st and st.label or "INVALID" end
+  ShroudGetStatValueByNumber = function(i)
+    local st = S.stats[i + 1]
+    if not st then return -999 end
+    return st.hidden and 0 or st.value
+  end
+  ShroudIsStatVisible = function(i)
+    local st = type(i) == "number" and S.stats[i + 1]
+    if type(i) == "string" then
+      for _, x in ipairs(S.stats) do if x.name == i then st = x end end
+    end
+    return st ~= nil and st ~= false and not st.hidden
+  end
+  ShroudGetStatValueByName = function(name)
+    for _, x in ipairs(S.stats) do if x.name == name then return x.hidden and 0 or x.value end end
+    return -999
+  end
   ShroudGetPooledAdventurerExperience = function() return S.char.present and S.char.advPool or 0 end
   ShroudGetPooledProducerExperience = function() return S.char.present and S.char.prodPool or 0 end
   ShroudGetLevelProgress = function()

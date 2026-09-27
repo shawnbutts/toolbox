@@ -6,6 +6,9 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- `/toolbox stats [word]`: lists character stats matching a word (index, internal and displayed
+  name, value) and how many matching ones are hidden from add-ons. For finding the stats behind
+  own health / focus / vigor bars, which the docs don't name.
 - Buff bar position controls: 10 px nudge buttons, Reset and a position readout in settings, and
   `/toolbox buffs move <x> <y>`. (Its drag grip is hidden while the game's HUD is locked.) The
   position is also remembered by the add-on, in case the game's own memory doesn't survive a reload.

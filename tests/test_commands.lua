@@ -107,4 +107,30 @@ return function(t)
     t.eq(w, "")
     t.eq(rest, "")
   end)
+
+  t.test("/tbx stats lists matching readable stats and counts hidden ones", function()
+    H.boot()
+    H.S.stats = {
+      { name = "Strength", label = "Strength", value = 50 },
+      { name = "HealthMax", label = "Maximum Health", value = 812.5 },
+      { name = "HealthRegen", label = "Health Regeneration", value = 3 },
+      { name = "SecretHealth", label = "Secret", value = 7, hidden = true },
+    }
+    H.clearLogs()
+    H.chat("/tbx stats HEALTH")
+    t.ok(H.logged("^1 HealthMax %(Maximum Health%) = 812.5$"), H.logs()[1])
+    t.ok(H.logged("^2 HealthRegen %(Health Regeneration%) = 3$"))
+    t.no(H.logged("Strength"), "filtered")
+    t.no(H.logged("SecretHealth"), "hidden ones aren't listed")
+    t.ok(H.logged("2 readable, 1 hidden from add%-ons matching 'health' %(of 4 stats%)%."), H.lastLog())
+  end)
+
+  t.test("/tbx stats caps long lists", function()
+    H.boot()
+    for i = 1, 60 do H.S.stats[i] = { name = "Stat" .. i, label = "Stat " .. i, value = i } end
+    H.clearLogs()
+    H.chat("/tbx stats")
+    t.ok(H.logged("20 more; narrow it with a word"))
+    t.ok(H.logged("60 readable, 0 hidden"))
+  end)
 end
