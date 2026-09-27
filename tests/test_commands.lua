@@ -133,4 +133,15 @@ return function(t)
     t.ok(H.logged("20 more; narrow it with a word"))
     t.ok(H.logged("60 readable, 0 hidden"))
   end)
+
+  t.test("/tbx version shows the version, build and how many copies loaded", function()
+    H.boot()
+    H.clearLogs()
+    H.chat("/tbx version")
+    t.ok(H.logged("^Toolbox 0%.1%.0, build dev; API 14; copies loaded: 1$"), H.lastLog())
+    ToolboxCopies = 2                        -- as if an old copy also loaded
+    H.clearLogs()
+    H.chat("/tbx version")
+    t.ok(H.logged("copies loaded: 2 %(remove the extra one%)"), H.lastLog())
+  end)
 end

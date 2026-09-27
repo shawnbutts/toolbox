@@ -130,6 +130,8 @@ Run all three before calling a change done.
   `tools/build.py` refuses it. When audio is allowed, re-read the packaging docs for formats and size
   limits, extend `build.py`'s whitelist, and move the files into `toolbox/` (`Toolbox.Sounds` already
   looks there). Until then players put them at `Lua/toolbox_<name>.ogg` (`tools/install.py` does).
+- `tools/build.py` stamps `build = "<git short commit>[+]"` into dist's core.lua (the source keeps "dev");
+  `/toolbox version` shows it, to tell exactly which build is installed.
 - `tools/build.py`: validates the store packaging rules and writes `dist/toolbox/` + zip.
 - `tools/install.py`: copies `dist/toolbox/` into a client's Lua folder.
 - `.luacheckrc`: std `lua52` plus every global documented for API 14. If the docs add a function,
@@ -275,6 +277,10 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 23. Sounds: `ShroudLoadSound`'s path base ("the addon's Lua folder" vs the Lua root) and what clip names
     `ShroudListSound` reports. `Toolbox.Sounds` tries both bases and matches the file stem, falling back
     to "the one new clip". `/toolbox sounds` shows what was found.
+23d. The next in-game `/toolbox sounds debug` contradicted the code (an empty list, yet both alerts "ready"
+    with a TABLE as the clip, which the new code can't record). Suspects: two Toolbox copies loaded (they
+    share the global `Toolbox`), or a keyed (non-array) list. `/toolbox version` now reports the build and
+    the copy count (`ToolboxCopies`), and the debug dumps every key of `ShroudListSound()`.
 23c. FOUND in game 2026-09-27 (`/toolbox sounds debug`): `ShroudListSound()` entries are TABLES, not the
     documented strings; both alerts had recorded the same table as their clip. `Sounds` now reads names
     via `listSounds()` (strings, a table's name/Name/clip field, or a list wrapped in one table). The exact

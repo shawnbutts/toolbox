@@ -504,6 +504,7 @@ end
 -- Loads the package files in manifest order into the shared global env and runs ShroudOnStart.
 function H.load()
   Toolbox = nil
+  ToolboxCopies = nil                  -- one copy per (re)load, as in the game
   for _, cb in ipairs(CALLBACKS) do _G[cb] = nil end
   for _, file in ipairs(manifest_files()) do
     local chunk = assert(loadfile(H.PACKAGE .. "/" .. file))

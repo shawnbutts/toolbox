@@ -7,12 +7,17 @@
 Toolbox = {
   name = "Toolbox",
   version = "0.1.0",
+  build = "dev",         -- tools/build.py stamps the git commit here in dist/ (see /toolbox version)
   commands = { "toolbox", "tbx" },
   tickSeconds = 1.0,     -- periodic refresh; nothing runs per frame
   flushSeconds = 30,     -- how often a changed session is flushed to disk
 }
 
 local T = Toolbox
+
+-- Every copy of Toolbox that loads adds itself here. All add-ons share one global table, so a
+-- second copy (an old folder left in Lua/) would tangle the two; /toolbox version reports it.
+ToolboxCopies = (rawget(_G, "ToolboxCopies") or 0) + 1
 local SCOPE = "character"
 local PERIODIC = "toolbox_tick"
 
@@ -429,6 +434,11 @@ add("combat", "combat stats HUD; add stats while playing: /toolbox combat help",
   else
     T.Print("Unknown: /" .. T.commands[1] .. " combat " .. word .. ". Try /" .. T.commands[1] .. " help.")
   end
+end)
+
+add("version", "show the installed Toolbox version and build", function()
+  T.Print("Toolbox " .. T.version .. ", build " .. T.build .. "; API " .. tostring(ShroudLuaApiVersion)
+    .. "; copies loaded: " .. tostring(ToolboxCopies) .. (ToolboxCopies > 1 and " (remove the extra one)" or ""))
 end)
 
 add("stats", "list character stats matching a word, e.g. /toolbox stats health", function(rest)

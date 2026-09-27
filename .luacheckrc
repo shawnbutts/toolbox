@@ -114,11 +114,11 @@ read_globals = concat(api_functions, api_values)
 read_globals.Shroud = shroud_global
 
 -- The add-on's own namespace plus the callbacks it defines.
-globals = concat({ "Toolbox" }, api_callbacks)
+globals = concat({ "Toolbox", "ToolboxCopies" }, api_callbacks)
 
 -- Tests stub the whole API, so they may assign to any of it.
 files["tests/"] = {
   std = "+lua51",   -- the runner also supports LuaJIT (setfenv-free, but allow the 5.1 names)
-  globals = concat({ "Toolbox", "Shroud" }, api_functions, api_values, api_callbacks),
+  globals = concat({ "Toolbox", "ToolboxCopies", "Shroud" }, api_functions, api_values, api_callbacks),
   ignore = { "122" },   -- the harness replaces os.date to control the local date
 }

@@ -6,6 +6,9 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- `/toolbox version`: version, build (the git commit, stamped into `dist/` by `tools/build.py`,
+  with `+` for uncommitted changes), API version, and how many copies of Toolbox are loaded (a
+  second copy left in the Lua folder would share and tangle the global `Toolbox` table).
 - Documentation for adding combat HUD stats on the fly: `/toolbox combat help` (every combat
   option, with the find / add / remove steps and examples), a clearer `/toolbox combat stats`, a
   visible hint in settings, and a step-by-step section in the store readme.

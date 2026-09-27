@@ -297,14 +297,33 @@ def check_version_constant(report: Report, manifest: dict) -> None:
         report.error(f"core.lua version {m.group(1)} does not match manifest version {manifest.get('version')}")
 
 
+def build_stamp() -> str:
+    """Short git commit, "+" when there are uncommitted changes; "dev" outside git."""
+    import subprocess
+    try:
+        commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True,
+                                text=True, check=True).stdout.strip()
+        dirty = subprocess.run(["git", "status", "--porcelain"], cwd=ROOT, capture_output=True,
+                               text=True, check=True).stdout.strip()
+        return commit + ("+" if dirty else "")
+    except (OSError, subprocess.CalledProcessError):
+        return "dev"
+
+
 def build(manifest: dict, entries: list[Path], report: Report) -> Path:
     slug = manifest["slug"]
     out_dir = DIST / slug
     if out_dir.exists():
         shutil.rmtree(out_dir)
     out_dir.mkdir(parents=True)
+    stamp = build_stamp()
     for path in entries:
-        shutil.copy2(path, out_dir / path.name)
+        if path.name == "core.lua":
+            # Stamp the build (git commit) so /toolbox version shows exactly what's installed.
+            text = path.read_text(encoding="utf-8").replace('build = "dev",', f'build = "{stamp}",', 1)
+            (out_dir / path.name).write_text(text, encoding="utf-8")
+        else:
+            shutil.copy2(path, out_dir / path.name)
 
     zip_path = DIST / f"{slug}-{manifest['version']}.zip"
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
@@ -312,7 +331,7 @@ def build(manifest: dict, entries: list[Path], report: Report) -> Path:
             info = zipfile.ZipInfo(path.name, date_time=(1980, 1, 1, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o644 << 16
-            zf.writestr(info, path.read_bytes())
+            zf.writestr(info, (out_dir / path.name).read_bytes())   # the stamped copy
     if zip_path.stat().st_size > MAX_ZIPPED:
         report.error(f"{zip_path.name} is {zip_path.stat().st_size} bytes, limit {MAX_ZIPPED}")
     return zip_path

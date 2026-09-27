@@ -251,7 +251,7 @@ end
 
 -- /toolbox sounds debug: the game's raw sound list and what each alert recorded.
 function S.DebugLines()
-  local lines = {}
+  local lines = { "Toolbox build " .. T.build .. ", copies loaded: " .. tostring(ToolboxCopies) }
   local ok, raw = pcall(ShroudListSound)
   local n = type(raw) == "table" and #raw or 0
   local kind = ok and type(raw) or ("error " .. tostring(raw))
@@ -269,9 +269,13 @@ function S.DebugLines()
       .. " items: " .. table.concat(items, ", ")) or "") .. "}"
   end
   if type(raw) == "table" then
-    for i = 1, math.min(n, 20) do
-      lines[#lines + 1] = "  " .. i .. ": " .. describe(raw[i])
+    -- every key, not only 1..n: a keyed table would count as "0 entries"
+    local shown = 0
+    for k, v in pairs(raw) do
+      shown = shown + 1
+      if shown <= 20 then lines[#lines + 1] = "  [" .. type(k) .. " " .. tostring(k) .. "] " .. describe(v) end
     end
+    lines[#lines + 1] = "  (" .. shown .. " keys in all)"
   end
   lines[#lines + 1] = "Names used: " .. table.concat(listSounds(), ", ")
   for _, def in ipairs(S.DEFS) do
