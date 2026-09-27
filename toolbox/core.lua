@@ -441,6 +441,16 @@ add("combat", "combat stats HUD; add stats while playing: /toolbox combat help",
   end
 end)
 
+add("welcome", "show the first-run welcome again (reset: show it at the next /lua reload)", function(rest)
+  if rest:lower() == "reset" then
+    ShroudDeleteSavedVar("welcomed", "account")
+    T.Print("The welcome will show again at the next /lua reload or login.")
+    return
+  end
+  ShroudDeleteSavedVar("welcomed", "account")
+  T.Welcome()
+end)
+
 add("version", "show the installed Toolbox version and build", function()
   T.Print("Toolbox " .. T.version .. ", build " .. T.build .. "; API " .. tostring(ShroudLuaApiVersion)
     .. "; copies loaded: " .. tostring(ToolboxCopies) .. (ToolboxCopies > 1 and " (remove the extra one)" or ""))

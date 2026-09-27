@@ -41,6 +41,7 @@ Built clean-room from the official docs only:
 | `/toolbox sounds [0-100]` | show which sound files the alerts use; with a number, set the volume |
 | `/toolbox vitals` (`size <75-250>` / `text on\|off` / `bars on\|off` / `bg none\|dark\|light` / `flash <1-95>\|on\|off\|test` / `glue on\|off` / `move [x y]` / `debug`) | show or hide the health & focus bars (or place them) |
 | `/toolbox combat` (`reset` / `size <n>` / `bg dark\|light\|none [%]` / `pet on\|off` / `stat add\|remove <Name>` / `stats` / `move [x y]`) | show or hide the combat stats HUD, and its options |
+| `/toolbox welcome` (`reset`) | show the first-run welcome line again (`reset`: at the next reload, as on a first run) |
 | `/toolbox version` | the installed version and build (git commit), and whether more than one copy is loaded |
 | `/toolbox stats [word]` | list character stats whose name contains the word (for finding stat names) |
 | `/toolbox config` | open or close the settings window |
