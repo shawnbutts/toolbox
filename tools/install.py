@@ -43,6 +43,12 @@ def main() -> int:
     if not lua_dir.is_dir():
         print(f"{lua_dir} is not a folder.")
         return 1
+    # The game's data folder (ChatLogs, Settings, ...) holds the Lua folder: an easy one to pass
+    # by mistake, and the copy would land where the game never looks.
+    if lua_dir.name != "Lua" and (lua_dir / "Lua").is_dir():
+        print(f"{lua_dir} looks like the game's data folder; the Lua folder is inside it:")
+        print(f"  --lua-dir '{lua_dir / 'Lua'}'")
+        return 1
 
     # A loose <slug>.lua (any case) makes the game skip the package folder.
     for entry in lua_dir.iterdir():
