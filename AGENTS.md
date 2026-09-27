@@ -17,6 +17,9 @@ Guidance for AI coding agents (and humans) working on Toolbox, a Shroud of the A
   `TotalDuration`/`CurrentDuration` are nil; `ShroudPlayerCurrentHealth`/`Focus` aren't numbers). Read
   documented values defensively, keep a fallback that was confirmed in game, and add a `debug`
   subcommand that prints raw values so the owner can check without guessing.
+- **Use the UI theme for colours** (owner's preference): theme classes (`inset`, `card`, `text`, ...) and
+  `@` tokens follow the player's skin; avoid hard-coded `#rrggbb` except where the theme has nothing.
+- **Avoid `a and b or c` when `b` can be false/nil**; it has already caused a bug (vitals "not both off").
 - **Don't guess at API behaviour.** If the docs are unclear, pick the conservative option, write
   down the assumption (README or a comment), and add it to "Unconfirmed API behaviour" below.
 - **One global.** Everything lives in the `Toolbox` table or is `local`. The only other globals are
@@ -171,7 +174,7 @@ including the "no character" sentinel.
 | `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { buff_expiring = "...", debuff_landed = "..." } }` |
 | `buff_timers` | `{ v = 2, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload |
-| `vitals` | `{ show, width = 100..400 (bar length at 100%), scale = 75..250 (%), x, y }` |
+| `vitals` | `{ show, width = 100..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", x, y }` |
 | `buff_durations` | `{ [rune name] = seconds }`: full durations learned from casts |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
@@ -282,3 +285,5 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     "gold picked up") is in the same documented group as the nil vitals globals; if it is nil too, daily
     gold never counts. Asked the owner 2026-09-27 to check and run `/toolbox stats gold` for a fallback.
     `ShroudServerTime` is only the daily reset's fallback clock (os.date is used first).
+29. Theme classes `inset` / `card`: the docs say they "apply the game's own look" but not which is darker.
+    The vitals number background maps Dark -> inset, Light -> card (`V.BACKGROUNDS`); swap if wrong in game.

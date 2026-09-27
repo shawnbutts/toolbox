@@ -300,6 +300,7 @@ local FIELDS = {
   Image = { texture = 1, width = 1, height = 1, onClick = 1, tint = 1, uv = 1, rotation = 1 },
   HudFrame = { x = 1, y = 1, width = 1, height = 1, children = 1 },
   TextField = { text = 1, placeholder = 1, maxLength = 1, onChange = 1, onSubmit = 1, enabled = 1 },
+  Dropdown = { choices = 1, value = 1, onChange = 1, enabled = 1 },
   Bar = { value = 1, color = 1 },
   Slider = { min = 1, max = 1, step = 1, value = 1, onChange = 1, enabled = 1 },
   Toggle = { text = 1, value = 1, onChange = 1, enabled = 1 },
@@ -331,6 +332,22 @@ function Element:Clear()
   self.children = {}
 end
 function Element:SetVisible(v) self.visible = v end
+-- Theme classes, as a set (the class field may be a name or a list).
+local KNOWN_CLASSES = { button = 1, heading = 1, inset = 1, card = 1, badge = 1, warning = 1, good = 1, bad = 1,
+                        bodycopy = 1, text = 1, dim = 1, bright = 1, title = 1, link = 1 }
+function Element:Classes()
+  if not self.classSet then
+    self.classSet = {}
+    local c = self.class
+    for _, name in ipairs(type(c) == "table" and c or { c }) do self.classSet[name] = true end
+  end
+  return self.classSet
+end
+function Element:AddClass(name)
+  if not KNOWN_CLASSES[name] then error("unknown class " .. tostring(name), 2) end
+  self:Classes()[name] = true
+end
+function Element:RemoveClass(name) self:Classes()[name] = nil end
 function Element:SetTexture(id) self.texture = id end
 function Element:SetUV(x, y, w, h) self.uv = { x, y, w, h } end
 function Element:SetSize(w, h) self.width, self.height = w, h end

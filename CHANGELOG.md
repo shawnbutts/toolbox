@@ -6,6 +6,10 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Health & focus bars: show or hide the bars and the numbers separately (not both), and a
+  None / Dark / Light background behind the numbers from the UI theme (`inset` / `card`
+  classes). Settings has checkboxes and a dropdown; `/toolbox vitals text|bars on|off` and
+  `/toolbox vitals bg none|dark|light`.
 - Health & focus bars: a Size setting (75-250%, `/toolbox vitals size <n>` and a slider) that
   scales the text, bars, gap and strip together. The numbers now sit just after the bars
   (left-aligned, small gap) in a fixed-width box so both bars line up. The strip has its own size

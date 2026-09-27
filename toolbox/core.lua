@@ -285,10 +285,28 @@ function T.StatLines(filter)
   return lines
 end
 
-add("vitals", "show or hide the health & focus bars (size <75-250>; move [x y]; debug)", function(rest)
+add("vitals", "show/hide health & focus bars (size <n>; text|bars on|off; bg none|dark|light; move; debug)",
+    function(rest)
   local word, args = T.ParseArgs(rest)
+  local V = T.Vitals
+  if word == "text" or word == "bars" then
+    local set = word == "text" and V.SetShowText or V.SetShowBars
+    if args:lower() == "on" or args:lower() == "off" then
+      set(args:lower() == "on")
+    else
+      T.Print("Use /" .. T.commands[1] .. " vitals " .. word .. " on|off.")
+    end
+    return
+  end
+  if word == "bg" then
+    if args ~= "" and not V.SetBackground(args) then
+      T.Print("Backgrounds: " .. table.concat(V.BackgroundNames(), ", ") .. ".")
+      return
+    end
+    T.Print("Number background: " .. V.GetBackground() .. ".")
+    return
+  end
   if word == "size" then
-    local V = T.Vitals
     if args ~= "" and not V.SetScale(tonumber(args)) then
       T.Print("Size is a whole percent from " .. V.SCALE_MIN .. " to " .. V.SCALE_MAX .. ".")
       return

@@ -22,6 +22,15 @@ V.TICK = 0.2
 V.WIDTH_MIN, V.WIDTH_MAX, V.WIDTH_DEFAULT = 100, 400, 220   -- bar length at 100% size
 V.SCALE_MIN, V.SCALE_MAX, V.SCALE_DEFAULT = 75, 250, 100    -- percent
 V.BASE_FONT = 12                                             -- text size at 100%
+
+-- Backgrounds for the numbers, from the game's theme so they follow the player's skin:
+-- theme classes that "apply the game's own look". The docs don't say which is darker;
+-- inset is taken as the dark one and card as the light one (swap here if it's the other way).
+V.BACKGROUNDS = {
+  { name = "None" },
+  { name = "Dark", class = "inset" },
+  { name = "Light", class = "card" },
+}
 V.HOME = { 40, 300 }
 V.NUDGE = 10
 -- `current` reads the per-frame global directly: reaching a global through a name built at
@@ -76,6 +85,20 @@ end
 
 local function width() return prefs.width or V.WIDTH_DEFAULT end
 local function scale() return prefs.scale or V.SCALE_DEFAULT end
+local function showText() return prefs.showText ~= false end
+local function showBars() return prefs.showBars ~= false end
+
+local function background()
+  for _, bg in ipairs(V.BACKGROUNDS) do
+    if bg.name == prefs.bg then return bg end
+  end
+  return V.BACKGROUNDS[1]
+end
+
+-- The theme class for the current background, or nil for none.
+function V.BackgroundClass()
+  return background().class
+end
 
 -- Everything's size from one factor (Shroud.UI has no zoom): text, line height, bar
 -- thickness and length, the gap and number box, and the strip itself. The number box has a
@@ -92,16 +115,27 @@ function V.Metrics()
     textW = math.ceil(font * 5.2),        -- room for "9999 / 9999"
     rowGap = math.max(1, math.floor(2 * f + 0.5)),
   }
-  m.frameW = m.barW + m.gap + m.textW + 8
+  m.pad = V.BackgroundClass() and math.max(2, math.floor(3 * f + 0.5)) or 0   -- room around the text on a background
+  if not showBars() then m.barW, m.gap = 0, 0 end
+  if not showText() then m.textW, m.gap, m.pad = 0, 0, 0 end
+  m.frameW = m.barW + m.gap + m.textW + 2 * m.pad + 8
   m.frameH = #V.BARS * (line + m.rowGap) + 8
   return m
 end
 
 local function barStyle(m) return { width = m.barW, height = m.barH } end
-local function textStyle(m)
+-- Text colour: the bar's colour when the bars are hidden (so health and focus can still be
+-- told apart); otherwise the theme's (the "text" class, or the background class's own).
+local function textColor(bar)
+  if not showBars() then return bar.color end
+  return nil
+end
+
+local function textStyle(m, bar)
   return { fontSize = m.font, height = m.line, minHeight = m.line, maxHeight = m.line, marginTop = 0,
-           marginBottom = 0, paddingTop = 0, paddingBottom = 0, marginLeft = m.gap, width = m.textW,
-           textAlign = "left" }
+           marginBottom = 0, paddingTop = 0, paddingBottom = 0, marginLeft = m.gap,
+           width = m.textW + 2 * m.pad, paddingLeft = m.pad, paddingRight = m.pad, textAlign = "left",
+           color = textColor(bar) or "@text" }
 end
 
 local function build()
@@ -109,8 +143,11 @@ local function build()
   local rows = {}
   for _, bar in ipairs(V.BARS) do
     rows[#rows + 1] = UI.Row{ style = { alignItems = "center", marginBottom = m.rowGap }, children = {
-      UI.Bar{ id = bar.key .. "_bar", value = 0, color = bar.color, tooltip = bar.label, style = barStyle(m) },
-      UI.Label{ id = bar.key .. "_text", text = "", class = "text", style = textStyle(m) },
+      UI.Bar{ id = bar.key .. "_bar", value = 0, color = bar.color, tooltip = bar.label, style = barStyle(m),
+        visible = showBars() },
+      UI.Label{ id = bar.key .. "_text", text = "", class = V.BackgroundClass() and { "text", V.BackgroundClass() }
+        or "text", style = textStyle(m, bar),
+        visible = showText(), tooltip = bar.label },
     } }
   end
   frame = UI.HudFrame{ id = FRAME_ID, x = prefs.x or V.HOME[1], y = prefs.y or V.HOME[2],
@@ -155,6 +192,10 @@ function V.Init()
     if type(saved.scale) == "number" and saved.scale >= V.SCALE_MIN and saved.scale <= V.SCALE_MAX then
       prefs.scale = math.floor(saved.scale)
     end
+    prefs.showText = saved.showText ~= false
+    prefs.showBars = saved.showBars ~= false
+    if not prefs.showText and not prefs.showBars then prefs.showText = true end
+    if type(saved.bg) == "string" then prefs.bg = saved.bg end
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
   build()
@@ -202,7 +243,14 @@ local function applySize()
   local m = V.Metrics()
   for _, bar in ipairs(V.BARS) do
     el[bar.key .. "_bar"]:SetStyle(barStyle(m))
-    el[bar.key .. "_text"]:SetStyle(textStyle(m))
+    el[bar.key .. "_bar"]:SetVisible(showBars())
+    el[bar.key .. "_text"]:SetStyle(textStyle(m, bar))
+    el[bar.key .. "_text"]:SetVisible(showText())
+    -- swap the background's theme class
+    for _, bg in ipairs(V.BACKGROUNDS) do
+      if bg.class then el[bar.key .. "_text"]:RemoveClass(bg.class) end
+    end
+    if V.BackgroundClass() then el[bar.key .. "_text"]:AddClass(V.BackgroundClass()) end
   end
   pcall(function() frame:SetSize(m.frameW, m.frameH) end)   -- refused past the HUD area limit: keep the old size
 end
@@ -231,6 +279,52 @@ function V.SetScale(n)
 end
 
 function V.GetScale() return scale() end
+
+-- Shows or hides the numbers / the bars. Refuses to hide the last one (hide the strip with
+-- /toolbox vitals instead). Returns true when the setting took.
+local function setPart(key, on)
+  local other                              -- the other part (not `a and b or c`: b can be false)
+  if key == "showText" then other = showBars() else other = showText() end
+  if not on and not other then
+    T.Print("The bars and the numbers can't both be off; hide the strip with /" .. T.commands[1] .. " vitals.")
+    T.Config.Sync()
+    return false
+  end
+  prefs[key] = on == true
+  T.Save("vitals", prefs)
+  shown = {}
+  applySize()
+  V.Tick()
+  T.Config.Sync()
+  return true
+end
+
+function V.SetShowText(on) return setPart("showText", on) end
+function V.SetShowBars(on) return setPart("showBars", on) end
+function V.GetShowText() return showText() end
+function V.GetShowBars() return showBars() end
+
+-- Background behind the numbers by display name (any case): None, Dark or Light.
+function V.SetBackground(name)
+  local found
+  for _, bg in ipairs(V.BACKGROUNDS) do
+    if bg.name:lower() == tostring(name or ""):lower() then found = bg end
+  end
+  if not found then return false end
+  prefs.bg = found.name
+  T.Save("vitals", prefs)
+  applySize()
+  T.Config.Sync()
+  return true
+end
+
+function V.GetBackground() return background().name end
+
+function V.BackgroundNames()
+  local out = {}
+  for _, bg in ipairs(V.BACKGROUNDS) do out[#out + 1] = bg.name end
+  return out
+end
 
 -- The strip has its own Size setting, so the global text size and spacing don't change it.
 -- (Kept so Toolbox.Window.ApplyText can call every text user alike.)

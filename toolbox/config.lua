@@ -83,6 +83,16 @@ function C.VitalsSection()
       "Scales the bars, their text and the gap together", function(n) V.SetScale(n) end),
     slider("vitals_width", "Bar length", V.WIDTH_MIN, V.WIDTH_MAX, 10, V.GetWidth(),
       "Length of the bars at 100% size, in pixels", function(n) V.SetWidth(n) end),
+    UI.Toggle{ id = "vitals_show_bars", text = "Show bars", value = V.GetShowBars(),
+      style = { marginTop = 6 }, onChange = function(_, v) V.SetShowBars(v) end },
+    UI.Toggle{ id = "vitals_show_text", text = "Show numbers", value = V.GetShowText(),
+      onChange = function(_, v) V.SetShowText(v) end },
+    UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
+      UI.Label{ text = "Number background", class = "text", style = { flexGrow = 1 } },
+      UI.Dropdown{ id = "vitals_bg", choices = V.BackgroundNames(), value = V.GetBackground(),
+        tooltip = "A dark or light panel behind the numbers, in your UI theme's colours",
+        onChange = function(_, value) V.SetBackground(value) end },
+    } },
     C.PositionRows("vitals", V),
   } }
 end
@@ -114,7 +124,7 @@ local function build()
   local W = T.Window
   win = UI.Window{
     id = WINDOW_ID, title = "Toolbox Settings",
-    width = 280, height = 520, minWidth = 220, minHeight = 120,
+    width = 280, height = 560, minWidth = 220, minHeight = 120,
     escCloses = true,
     style = { paddingTop = 6, paddingBottom = 6 },
     children = { UI.Scroll{ style = { flexGrow = 1 }, children = {
@@ -176,7 +186,7 @@ local function build()
                 "show_buffs", "buff_size", "buff_size_value", "expire_alert", "expire_seconds",
                 "expire_seconds_value", "debuff_alert", "volume", "volume_value", "buff_pos",
                 "show_vitals", "vitals_width", "vitals_width_value", "vitals_scale", "vitals_scale_value",
-                "vitals_pos" }
+                "vitals_pos", "vitals_show_bars", "vitals_show_text", "vitals_bg" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -251,6 +261,9 @@ function C.Sync()
   el.vitals_width_value:SetText(fontLabel(T.Vitals.GetWidth()))
   el.vitals_scale:SetValue(T.Vitals.GetScale())
   el.vitals_scale_value:SetText(fontLabel(T.Vitals.GetScale()))
+  el.vitals_show_bars:SetValue(T.Vitals.GetShowBars())
+  el.vitals_show_text:SetValue(T.Vitals.GetShowText())
+  el.vitals_bg:SetValue(T.Vitals.GetBackground())
   C.SyncLive()
 end
 
