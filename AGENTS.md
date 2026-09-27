@@ -227,6 +227,52 @@ Bump `version` in `toolbox/manifest.json` **and** `Toolbox.version` in `core.lua
 match), move `[Unreleased]` notes under the new version in `CHANGELOG.md`, `make check`, test in game.
 Version numbers are single-use in the store, including rejected ones.
 
+## Planned for newer APIs
+
+The docs describe API 18, but the client is on 14. These are the owner's agreed plans (2026-09-27) for
+when the client catches up. Feature-detect each function (`type(ShroudX) == "function"`) and keep
+`min_api_version` at 14 unless a step below says otherwise. Add the new names to `.luacheckrc` and stub
+them in the harness with their documented behaviour.
+
+**API 15: sounds** (`sounds.lua`, items 23 and 24):
+
+1. First, re-test as-is: `/toolbox sounds test`, `try 1`, `debug`. The "no clip loads" problem (23h) may
+   have been the client. Until clips load and play in game, nothing below is worth doing.
+2. From API 15, `ShroudLoadSound` checks the file first and returns false for a missing or empty file,
+   one over 8 MB, or one whose header isn't the `AudioType` passed. So on false, try the next candidate
+   at once. Keep `LOAD_TIMEOUT` for true, because decode errors are still only logged.
+3. Ship the default sounds in the package. That allows up to 32 .ogg/.wav files, 2 MiB each, flat, with
+   lower-case names, and no `files` entry. Bytes must start with `OggS` / `RIFF....WAVE`. To do it: move
+   `art/*.ogg` into `toolbox/`, extend `build.py`'s whitelist with those limits and the header check, and
+   drop the manual-install steps from README/BETA. The load path stays `"toolbox/<name>"`.
+   Catch: shipping sounds needs `"min_api_version": 15`, which locks out API 14 clients. Do it only once
+   the live client is on 15.
+   If the experimental-encoder .ogg doesn't play (item 24), ship the .wav instead (well under 2 MiB).
+4. Once sound works, remove the diagnostics: the table-entry guessing in `listSounds` (if the list is
+   plain strings), `/toolbox sounds try`, and settled notes 23b to 23h.
+5. Never call `ShroudListSoundReset`: the clip list is shared, and it clears every add-on's clips. A
+   reload or scene change frees clips anyway, and `ShroudOnStart` loads them again.
+
+**API 16: replacing the game's buff bar** (`buffbar.lua`). The point: ours can be moved anywhere, while
+the game's is tied to the player frame. Don't follow the game's bar position: no `ShroudGetBuffBarRect`
+docking, no `ShroudOnBuffBarMoved`.
+
+1. "Replace the game's buff bar" setting (opt-in): `ShroudSetBuffBarVisible(false)`. The game never
+   saves it and releases it on reload, disable or error-stop, so apply it in `ShroudOnStart` every time.
+   Leave the game's bar visible whenever ours isn't showing (turned off, or its strip failed in
+   `Hud.Build`).
+2. "Click to dismiss" setting (opt-in, since the game's own bar confirms through a right-click menu).
+   The slots' no-op `onClick` becomes `ShroudDismissBuff(i)`. Re-resolve `i` by name at click time,
+   because the slot's index can be 0.5 s stale and indices are 0-based. Mark dismissable buffs with
+   `ShroudCanDismissBuff` (a tooltip line). Report a refusal (`notNow`, `tooOften`, `gestureSpent`, ...)
+   in chat. A dismissal removes every effect of the rune; `OnBuffsChanged` re-reads.
+3. Harness: hiding is counted per add-on and released on reload; dismiss works only on a gesture
+   (`H.click`, never `H.advance`) and shifts indices. `/toolbox buffs debug` prints
+   `ShroudIsBuffBarVisible()`. New `buffbar` keys: `replaceStock`, `clickDismiss`.
+4. Still missing: buff durations (item 22). Keep the learning code.
+5. Ideas, not agreed yet: a "lock position" setting (only if a strip's grip can be turned off), and snap
+   presets next to Reset.
+
 ## Unconfirmed API behaviour
 
 Things the docs don't settle. Verify in game before depending on them more heavily:
