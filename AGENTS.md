@@ -274,5 +274,10 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     stays). No stat matches "vigor" by name or label, so no vigor bar. REPORTED 2026-09-27: the bars
     showed "--" (seen as "~") and stayed empty, i.e. the per-frame globals weren't numbers; the bars now
     fall back to the `CurrentHealth` / `CurrentFocus` stats. CONFIRMED in game 2026-09-27: with the
-    fallback the bars show. Keep both sources: the globals are documented and may start working when
-    the client catches up with the docs.
+    fallback the bars show; `/toolbox vitals debug` showed `ShroudPlayerCurrentHealth` and
+    `ShroudPlayerCurrentFocus` are nil. Keep both sources: the globals are documented and may start
+    working when the client catches up with the docs.
+28. Other per-frame globals in use: `ShroudTime` works (sessions, buff sweeps). `ShroudPlayerGold` (daily
+    "gold picked up") is in the same documented group as the nil vitals globals; if it is nil too, daily
+    gold never counts. Asked the owner 2026-09-27 to check and run `/toolbox stats gold` for a fallback.
+    `ShroudServerTime` is only the daily reset's fallback clock (os.date is used first).
