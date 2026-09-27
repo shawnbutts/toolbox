@@ -82,6 +82,9 @@ store submission needs a higher version than any submitted before (rejected ones
 - `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
 
 ### Fixed
+- The buff bar couldn't be dragged past about two-thirds of the screen: its strip was always 20
+  icon slots wide (invisible when empty), and the game keeps HUD frames on screen. The strip is
+  now sized to the icons showing (one row without debuffs) and re-fits as buffs come and go.
 - The Light number background showed nothing in game (the theme's `card` class draws no panel
   behind a label). Light is now a panel in the theme colour `@text` with dark numbers, on a
   wrapper so switching back to Dark still shows the `inset` panel.

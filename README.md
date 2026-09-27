@@ -172,6 +172,9 @@ is locked: untick **Lock Status Movement** under **Nameplates & Chat Bubbles** o
 **Interface** options page to see it. Or use the Position buttons in `/toolbox config`
 (10 px nudges and Reset), or type `/toolbox buffs move 600 40`. The bar remembers where it is.
 
+The strip is sized to the icons showing and grows to the right as buffs arrive; the game keeps
+it on screen, so a bar parked at the far right is pushed left as it grows.
+
 The game's own buff bar can't be hidden from an add-on, so this one sits alongside it. Icons are a
 fixed pool (20 buffs, 10 debuffs) built once, so buff changes never create UI elements.
 

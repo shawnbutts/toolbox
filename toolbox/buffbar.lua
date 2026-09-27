@@ -238,9 +238,26 @@ end
 
 local function size() return prefs.size or BB.SIZE_DEFAULT end
 
-local function frameSize()
+-- The strip's size for `used` icons across (the busier row) and `rows` rows. It is sized to
+-- what is showing, not to the whole slot pool: the game keeps HUD frames on screen, so a strip
+-- as wide as 20 empty slots couldn't be dragged near the right edge (reported in game).
+local function frameSize(used, rows)
   local cell = size() + BB.GAP
-  return T.Window.GRIP + BB.BUFF_SLOTS * cell + 8, 2 * cell + 8
+  used = math.max(1, math.min(BB.BUFF_SLOTS, used or 1))
+  return T.Window.GRIP + used * cell + 8, (rows or 1) * cell + 8
+end
+
+local sizedFor = nil          -- "used,rows" the frame was last sized for
+
+-- Resizes the strip to the icons showing (only when that changes).
+local function fitFrame(buffsShown, debuffsShown)
+  local used = math.max(buffsShown, debuffsShown)
+  local rows = debuffsShown > 0 and 2 or 1
+  local key = used .. "," .. rows .. "," .. size()
+  if key == sizedFor or not frame then return end
+  sizedFor = key
+  local w, h = frameSize(used, rows)
+  pcall(function() frame:SetSize(w, h) end)   -- refused past the HUD area limit: keep the old size
 end
 
 local function makeSlot(debuff)
@@ -268,7 +285,8 @@ local function build()
     slots.debuffs[i] = makeSlot(true)
     debuffRow[i] = slots.debuffs[i].row
   end
-  local w, h = frameSize()
+  local w, h = frameSize(1, 1)
+  sizedFor = nil
   -- Our own remembered spot too: the docs don't say whether x/y here override the game's
   -- memory of a HUD frame's position after a reload.
   frame = UI.HudFrame{ id = FRAME_ID, x = prefs.x or BB.HOME[1], y = prefs.y or BB.HOME[2],
@@ -366,6 +384,7 @@ function BB.Tick()
   if frame and prefs.show then
     for i = bi + 1, BB.BUFF_SLOTS do fill(slots.buffs[i], nil) end
     for i = di + 1, BB.DEBUFF_SLOTS do fill(slots.debuffs[i], nil) end
+    fitFrame(math.min(bi, BB.BUFF_SLOTS), math.min(di, BB.DEBUFF_SLOTS))
   end
   if expiring and prefs.expire then T.Sounds.Play("buff_expiring") end
   -- Remember where the player put the bar (dragged by its grip, or moved from settings).
@@ -549,9 +568,6 @@ function BB.SetSize(n)
   prefs.size = n
   savePrefs()
   if frame then
-    local w, h = frameSize()
-    -- HUD frames of one add-on may cover at most 35% of the screen; a refused size keeps the old one.
-    pcall(function() frame:SetSize(w, h) end)
     for _, group in pairs(slots) do
       for _, slot in ipairs(group) do
         slot.row:SetStyle{ width = n, height = n }
@@ -560,6 +576,7 @@ function BB.SetSize(n)
         slot.overlay:SetStyle{ marginLeft = -n }
       end
     end
+    BB.Tick()                                  -- re-fits the strip for the new icon size
   end
   T.Config.Sync()
   return true

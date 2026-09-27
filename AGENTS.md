@@ -293,3 +293,6 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     strip. HUD strips now wrap their contents in a Column with `paddingLeft = Toolbox.Window.GRIP` (14 px,
     an estimate; adjust if the grip still overlaps or the gap looks too big). Add-ons can't tell whether
     the grip is shown (Lock Status Movement), so the room is always kept.
+31. HUD frames are kept on screen by the game using their FULL size, including empty space. A buff strip
+    sized for all 20 slots couldn't be dragged near the right edge (reported 2026-09-27). Size HUD strips
+    to what they show (`fitFrame` in buffbar.lua) and re-fit when that changes.
