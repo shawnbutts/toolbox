@@ -221,7 +221,9 @@ local function labelStyle(m, width, align)
   if background() == "Light" then color = C.DARK_TEXT end
   return { fontSize = m.font, height = m.line, minHeight = m.line, maxHeight = m.line, width = width,
            marginTop = 0, marginBottom = 0, paddingTop = 0, paddingBottom = 0,
-           paddingLeft = 0, paddingRight = 0, textAlign = align,
+           -- the labels' own side margins made each row ~8 px wider than its panel in game,
+           -- pushing the values onto the right edge (/toolbox combat debug, 2026-09-27)
+           marginLeft = 0, marginRight = 0, paddingLeft = 0, paddingRight = 0, textAlign = align,
            color = color }
 end
 

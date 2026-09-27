@@ -191,6 +191,10 @@ return function(t)
     t.ok(m.line <= 64, "within the game's -64 margin limit")
     t.eq(line.style.paddingLeft, m.pad)
     t.eq(line.style.paddingRight, m.pad, "values inset from the right edge like the names on the left")
+    for _, label in ipairs(line.children) do
+      t.eq(label.style.marginLeft, 0, "no side margins: the row must fit its panel")
+      t.eq(label.style.marginRight, 0)
+    end
     t.eq(line.style.opacity, nil, "the text isn't faded")
     t.eq(H.combatHud():Find("pad_top").visible, true, "padding slabs above and below")
     local w, h = C().ContentSize()

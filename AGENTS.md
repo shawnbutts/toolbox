@@ -400,3 +400,6 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     owner setting Ctrl+Shift+; in the add-on manager WORKS, so Shift IS usable (docs wrong). Suggestions
     are now tried in order `T.KEY_SUGGESTIONS` = Ctrl+Shift+Semicolon, Ctrl+Semicolon. Pending: the exact
     key string the game reports for the player-set binding (`/toolbox key`), to use as the suggestion.
+39. Label side margins: labels carry side margins from the theme unless set. FOUND in game 2026-09-27
+    (`/toolbox combat debug`): a combat row laid out ~8 px wider than name + value + padding, so the values
+    sat on the panel's right edge. Set `marginLeft`/`marginRight` = 0 on labels whose widths must add up.
