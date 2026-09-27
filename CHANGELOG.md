@@ -20,6 +20,9 @@ store submission needs a higher version than any submitted before (rejected ones
   reloaded (it used to treat every such buff as brand new). The full duration comes from the
   game's `TotalDuration`/`CurrentDuration` when they agree with the time remaining, otherwise from
   the add-on's own record kept across `/lua reload`. `/toolbox buffs debug` lists the timing data.
+- The sweep has 120 steps (3 degrees each) instead of 24: with 24, a long buff such as a
+  20-minute Light spell moved only every 50 s and looked frozen. `clock.png` is now 960 x 576
+  (48 px frames, 88 KiB).
 - The sweep turns red the moment a buff's expiry alert fires (a second, red set of frames in
   `clock.png`); a recast turns it back. The normal sweep is darker (82% instead of 62%).
 - Sound Test buttons and `/toolbox sounds test` report the clip, channel and volume, then check

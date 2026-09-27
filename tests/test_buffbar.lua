@@ -3,6 +3,14 @@ local H = require("harness")
 
 return function(t)
   local B = function() return Toolbox.BuffBar end
+  -- The overlay shows the frame for `fraction`, give or take one frame (3 degrees): sampling
+  -- lands within a tick (0.5 s) of the exact time.
+  local function sameUV(t2, uv, fraction, msg)
+    local c = B().CLOCK
+    local shown = math.floor(uv[1] * c.COLS + 0.5) + math.floor(uv[2] * c.ROWS * c.SETS + 0.5) * c.COLS
+    local want = B().Frame(fraction)
+    t2.ok(math.abs(shown - want) <= 1, (msg or "") .. ": frame " .. shown .. ", expected " .. want)
+  end
 
   -- With both alert files in the default place, booted and loaded.
   local function bootWithSounds()
@@ -63,14 +71,34 @@ return function(t)
 
   t.test("clock frames and their UVs", function()
     H.boot()
+    local c = B().CLOCK
     t.eq(B().Frame(1), 0, "full time: no shading")
-    t.eq(B().Frame(0.5), 12)
-    t.eq(B().Frame(0.01), 23)
-    t.eq(B().Frame(0), 23, "clamped")
-    local x, y, w, h = B().FrameUV(7)                  -- column 1, row 1 of 6 x 4, of 8 rows in all
-    t.near(x, 1 / 6); t.near(y, 1 / 8); t.near(w, 1 / 6); t.near(h, 1 / 8)
-    x, y = B().FrameUV(7, true)                         -- the same frame in the red set below
-    t.near(x, 1 / 6); t.near(y, 5 / 8)
+    t.eq(B().Frame(0.5), c.FRAMES / 2)
+    t.eq(B().Frame(0.001), c.FRAMES - 1)
+    t.eq(B().Frame(0), c.FRAMES - 1, "clamped")
+    local k = c.COLS + 1                                -- column 1, row 1
+    local rows = c.ROWS * c.SETS
+    local x, y, w, h = B().FrameUV(k)
+    t.near(x, 1 / c.COLS); t.near(y, 1 / rows); t.near(w, 1 / c.COLS); t.near(h, 1 / rows)
+    x, y = B().FrameUV(k, true)                         -- the same frame in the red set below
+    t.near(x, 1 / c.COLS); t.near(y, (1 + c.ROWS) / rows)
+    x, y = B().FrameUV(c.FRAMES - 1)                    -- the last frame stays inside the normal set
+    t.ok(y < 0.5 and x < 1)
+  end)
+
+  t.test("a long buff's sweep keeps moving (at most 1/FRAMES of its time per step)", function()
+    H.boot()
+    H.S.durationMode = "elapsed"
+    H.chat("/tbx buffs")
+    H.addBuffs({ { name = "Light", remaining = 1200, icon = 5 } })
+    local changes, last = 0, nil
+    for _ = 1, 120 do
+      H.advance(1, 0.5)
+      local ov = H.slots("buffs")[1].children[2]
+      local key = ov.visible and (ov.uv[1] .. "," .. ov.uv[2]) or "hidden"
+      if key ~= last then changes, last = changes + 1, key end
+    end
+    t.ok(changes >= 12, "20-minute buff, first 2 minutes: " .. changes .. " steps")
   end)
 
   t.test("new debuff names", function()
@@ -114,8 +142,7 @@ return function(t)
     t.eq(heal.children[2].visible, false, "full time: no shading yet")
     H.advance(12, 0.5)                                  -- half gone
     t.eq(heal.children[2].visible, true)
-    local uv = heal.children[2].uv
-    t.near(uv[1], (12 % 6) / 6); t.near(uv[2], math.floor(12 / 6) / 8)
+    sameUV(t, heal.children[2].uv, 11.5 / 24, "half the time left")
     t.eq(aura.children[2].visible, false, "no timer, no clock")
   end)
 
@@ -453,17 +480,13 @@ return function(t)
     t.test("a buff already running at start shows its real progress (durations as " .. mode .. ")", function()
       local overlay = startMidBuff(mode)
       t.eq(overlay.visible, true)
-      -- 9.5 of 40 s left: frame floor((1 - 9.5/40) * 24) = 18
-      t.near(overlay.uv[1], (18 % 6) / 6)
-      t.near(overlay.uv[2], math.floor(18 / 6) / 8)
+      sameUV(t, overlay.uv, 9.5 / 40, "9.5 of 40 s left")
     end)
   end
 
   t.test("unusable durations fall back to treating the buff as new", function()
     local overlay = startMidBuff("nonsense")
-    -- 9.5 of an assumed 10 s: frame 1, the first sliver
-    t.near(overlay.uv[1], 1 / 6, 1e-6, "shown as nearly full")
-    t.near(overlay.uv[2], 0)
+    sameUV(t, overlay.uv, 9.5 / 10, "9.5 of an assumed 10 s: nearly full")
   end)
 
   t.test("without durations, a /lua reload keeps each buff's progress", function()
@@ -474,8 +497,7 @@ return function(t)
     H.reload()
     H.advance(0.5, 0.5)
     local overlay = H.slots("buffs")[1].children[2]
-    t.near(overlay.uv[1], (18 % 6) / 6)
-    t.near(overlay.uv[2], math.floor(18 / 6) / 8)
+    sameUV(t, overlay.uv, 9.5 / 40, "progress kept across the reload")
   end)
 
   t.test("a remembered duration is ignored when the buff doesn't line up (recast meanwhile)", function()
@@ -486,7 +508,8 @@ return function(t)
     H.S.buffs[1].remaining = 20                      -- recast to a different length during the reload
     H.reload()
     H.advance(0.5, 0.5)
-    t.eq(H.slots("buffs")[1].children[2].visible, false, "treated as a fresh 20 s buff")
+    local ov = H.slots("buffs")[1].children[2]
+    sameUV(t, ov.uv, 19.5 / 20, "treated as a fresh 20 s buff")
   end)
 
   t.test("after a restart remembered durations are not used", function()

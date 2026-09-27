@@ -32,7 +32,9 @@ BB.DEBUFF_COOLDOWN = 1        -- at most one debuff sound a second
 
 -- The clock sprite sheet (art/clock.py): FRAMES frames in a COLS x ROWS grid, once per SET
 -- stacked top to bottom: set 0 is the normal (dark) sweep, set 1 the warning (red) one.
-BB.CLOCK = { path = "toolbox/clock.png", FRAMES = 24, COLS = 6, ROWS = 4, SETS = 2 }
+-- 120 frames (3 degrees each): with fewer, a long buff (a 20-minute Light spell) moved so
+-- rarely it looked frozen.
+BB.CLOCK = { path = "toolbox/clock.png", FRAMES = 120, COLS = 20, ROWS = 6, SETS = 2 }
 
 -- ---------------------------------------------------------------------------
 -- Model (no API calls)

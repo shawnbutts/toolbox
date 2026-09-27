@@ -21,7 +21,7 @@ import math
 import subprocess
 from pathlib import Path
 
-FRAMES, COLS, ROWS, FRAME = 24, 6, 4, 64
+FRAMES, COLS, ROWS, FRAME = 120, 20, 6, 48   # 3 degrees a frame; 960 x 576 for two sets
 # (shade colour, shade opacity, hand colour, hand opacity) per set, top to bottom.
 SETS = [
     ("#000000", 0.82, "#f3d38a", 0.9),     # normal

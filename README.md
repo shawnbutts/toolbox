@@ -223,7 +223,7 @@ toolbox/            the package (what ships)
   dailydetail.lua   the Today Detailed window (/toolbox dailydetailed, dd)
   sounds.lua        alert sound loading (custom path, then defaults) and playback
   buffbar.lua       the buff bar HUD, clock overlay, expiry and debuff alerts
-  clock.png         the clock overlay sprite sheet (24 frames, from art/clock.py)
+  clock.png         the clock overlay sprite sheet (2 x 120 frames, from art/clock.py)
   config.lua        the Toolbox Settings window (/toolbox config)
   README.md         player-facing store readme
   icon.png          store / add-on manager icon (256x256)
