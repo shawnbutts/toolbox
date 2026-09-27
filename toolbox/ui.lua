@@ -94,12 +94,12 @@ local function build()
     end,
     -- Hover is reported on the window and its two sections, so the pop-up stays up
     -- whichever way the host reports entering a child (see Toolbox.Compact).
-    onHover = function(_, over) T.Compact.PopupHover("xp_window", over) end,
+    onHover = function(_, over) T.Compact.PopupHover("window", over) end,
     style = { paddingTop = 6, paddingBottom = 6 },
     children = {
       UI.Row{
         id = "header",
-        onHover = function(_, over) T.Compact.PopupHover("xp_header", over) end,
+        onHover = function(_, over) T.Compact.PopupHover("header", over) end,
         style = { alignItems = "center", paddingLeft = W.GUTTER, paddingRight = W.GUTTER },
         children = {
           UI.Label{ id = "elapsed", text = "", class = "title", style = W.TextStyle{ flexGrow = 1 } },
@@ -109,7 +109,7 @@ local function build()
       },
       -- Scrolls when the player makes the window smaller than its content.
       UI.Scroll{ id = "body", style = { flexGrow = 1 }, children = rows,
-        onHover = function(_, over) T.Compact.PopupHover("xp_body", over) end },
+        onHover = function(_, over) T.Compact.PopupHover("body", over) end },
     },
   }
 

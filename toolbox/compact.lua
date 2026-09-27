@@ -3,9 +3,7 @@
 -- current adventurer and producer pools, and the XP earned on each over the last hour.
 -- Shares the text size with the XP Detailed window; has its own open state and position.
 --
--- Hovering it pops up the XP Detailed window after C.HOVER_SHOW_DELAY seconds. The
--- pop-up stays while the pointer is over either window (so its Reset button can be
--- used) and closes C.HOVER_HIDE_DELAY seconds after the pointer has left both.
+-- Hovering it pops up the XP Detailed window (see hover.lua).
 
 local T = Toolbox
 local C = {}
@@ -15,17 +13,22 @@ local UI = Shroud.UI
 local WINDOW_ID = "toolbox_compact"
 local GUTTER = 8
 
-C.HOVER_SHOW_DELAY = 0.5   -- passing over the window on the way elsewhere does nothing
-C.HOVER_HIDE_DELAY = 0.75  -- time to cross from the compact window to the pop-up
-
-local SHOW_TIMER = "toolbox_hover_show"
-local HIDE_TIMER = "toolbox_hover_hide"
-
 local win = nil
 local el = {}
 local prefs = { open = false, hover = true }
-local hovered = {}         -- hover keys currently reporting "over" (see C.PopupHover)
-local showPending = false  -- the show timer is running
+
+-- Hover pop-up of the XP Detailed window (Toolbox.Window).
+local hover = T.Hover.New{
+  name = "xp",
+  enabled = function() return prefs.hover end,
+  trigger = function() return C.IsShown() end,
+  popup = {
+    IsShown = function() return T.Window.IsShown() end,
+    IsPopup = function() return T.Window.IsPopup() end,
+    ShowPopup = function() return T.Window.ShowPopup() end,
+    HidePopup = function() return T.Window.HidePopup() end,
+  },
+}
 
 -- id, left text, theme class for both cells, indented under the line above
 local LINES = {
@@ -62,15 +65,15 @@ local function build()
     onClose = function()
       prefs.open = false
       C.SavePrefs()
-      C.ClearHover("compact_")
+      hover:Clear("t:")
       T.Config.Sync()
     end,
-    onHover = function(_, over) C.PopupHover("compact_window", over) end,
+    onHover = function(_, over) hover:Report("t:window", over) end,
     style = { paddingTop = 4, paddingBottom = 4 },
     children = {
       UI.Scroll{
         id = "body", style = { flexGrow = 1 },
-        onHover = function(_, over) C.PopupHover("compact_body", over) end,
+        onHover = function(_, over) hover:Report("t:body", over) end,
         children = {
           UI.Column{ style = { paddingLeft = GUTTER, paddingRight = GUTTER }, children = rows },
         } },
@@ -91,7 +94,6 @@ end
 function C.Init()
   local saved = T.Load("compact")
   prefs = { open = false, hover = true }
-  hovered = {}
   if type(saved) == "table" then
     prefs.open = saved.open == true
     prefs.hover = saved.hover ~= false
@@ -112,7 +114,7 @@ function C.SetOpen(open)
   if not open then
     win:Hide()
     prefs.open = false
-    C.ClearHover("compact_")
+    hover:Clear("t:")
   elseif win:IsShown() or win:Show() then
     prefs.open = true
     C.Refresh()
@@ -132,73 +134,21 @@ end
 -- ---------------------------------------------------------------------------
 -- Hover pop-up
 -- ---------------------------------------------------------------------------
--- Several elements report hover (each window and its sections) because the docs
--- don't say whether moving onto a child counts as leaving the parent. "Hovering"
--- means any key is over; the delays absorb flicker between them.
 
-local function anyHovered(prefix)
-  for key in pairs(hovered) do
-    if not prefix or key:sub(1, #prefix) == prefix then return true end
-  end
-  return false
-end
-
-local function onShowTimer()
-  if prefs.hover and C.IsShown() and anyHovered("compact_") then T.Window.ShowPopup() end
-end
-
-local function onHideTimer()
-  if not anyHovered() then T.Window.HidePopup() end
-end
-
-local function update()
-  if anyHovered() then
-    ShroudRemovePeriodic(HIDE_TIMER)
-    if prefs.hover and anyHovered("compact_") and not T.Window.IsShown() then
-      -- Registering the same name again restarts it, so only start it once per hover.
-      if not showPending then
-        showPending = true
-        ShroudRegisterPeriodic(SHOW_TIMER, function() showPending = false; onShowTimer() end,
-          C.HOVER_SHOW_DELAY, false)
-      end
-    end
-  else
-    ShroudRemovePeriodic(SHOW_TIMER)
-    showPending = false
-    if T.Window.IsPopup() then
-      ShroudRegisterPeriodic(HIDE_TIMER, onHideTimer, C.HOVER_HIDE_DELAY, false)
-    end
-  end
-end
-
--- Hover report from an element of either window. key starts with "compact_" or "xp_".
+-- Hover report from an element of the XP Detailed window (key without prefix).
 function C.PopupHover(key, over)
-  hovered[key] = over and true or nil
-  update()
-end
-
--- Forgets hover keys starting with prefix (a window closed under the pointer
--- reports no "left" event we can rely on).
-function C.ClearHover(prefix)
-  for key in pairs(hovered) do
-    if key:sub(1, #prefix) == prefix then hovered[key] = nil end
-  end
-  update()
+  hover:Report("p:" .. key, over)
 end
 
 -- The XP Detailed window was closed by the player.
 function C.PopupClosed()
-  C.ClearHover("xp_")
+  hover:Clear("p:")
 end
 
 function C.SetHover(on)
   prefs.hover = on == true
   C.SavePrefs()
-  if not prefs.hover then
-    ShroudRemovePeriodic(SHOW_TIMER)
-    showPending = false
-    T.Window.HidePopup()
-  end
+  if not prefs.hover then hover:Cancel() end
   T.Config.Sync()
 end
 

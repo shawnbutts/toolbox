@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "description": "XP and daily stats. XP: session time, adventurer and producer pools, XP earned in the last hour; hover for XP Detailed with levels, progress bars, XP per hour and time to next level. Today: gold picked up, kills and XP since midnight. Commands: /toolbox and /tbx.",
   "author": "shawn butts",
-  "files": ["core.lua", "xp.lua", "ui.lua", "compact.lua", "daily.lua", "config.lua"],
+  "files": ["core.lua", "xp.lua", "hover.lua", "ui.lua", "compact.lua", "daily.lua", "config.lua"],
   "min_api_version": 14,
   "permissions": []
 }

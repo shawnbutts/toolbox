@@ -6,7 +6,7 @@ return function(t)
   local function setup()
     H.boot()
     H.chat("/tbx xp")
-    SHOW, HIDE = Toolbox.Compact.HOVER_SHOW_DELAY, Toolbox.Compact.HOVER_HIDE_DELAY
+    SHOW, HIDE = Toolbox.Hover.SHOW_DELAY, Toolbox.Hover.HIDE_DELAY
   end
   local function xpShown() return H.window():IsShown() end
 
