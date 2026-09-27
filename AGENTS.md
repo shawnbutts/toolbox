@@ -275,6 +275,43 @@ docking, no `ShroudOnBuffBarMoved`.
 5. Ideas, not agreed yet: a "lock position" setting (only if a strip's grip can be turned off), and snap
    presets next to Reset.
 
+**API 18: crafting and gathering** (`daily.lua`, `dailydetail.lua`). The API map says v15 for the
+crafting/social getters, but the reference says "Added in API 18" for all of them and for the result
+events, so gate on the functions existing, never on the version number.
+
+1. **Crafted Today** window (`/toolbox crafted`), fed by `ShroudOnCraftResults`.
+   - Header: crafts, exceptional %, failures, producer XP from crafting (Quick Craft pays none).
+   - Rows: item + count made, with exceptional ("Iron Ingot 40 (3 exc)").
+   - A salvage section: items salvaged and what they returned (`items`; salvage has no `recipeId`).
+   - Count by `crafted`/`exceptional`/`failed`, never 1 per result: a Quick Craft result is a group.
+2. **Gathered Today** window (`/toolbox gathered`), fed by `ShroudOnGatherResults`.
+   - Only gathered items; header: nodes, failed harvests, producer XP from gathering.
+3. **Loot window option** "Include crafted and gathered items" in the Today Detailed list.
+   Default OFF (excluded).
+   - `ShroudOnItemsGained` already counts crafting results and harvests (and purchases, mail, bank
+     withdrawals). Keep all three tallies in the day table (`items`, `crafted`, `gathered`) and
+     subtract at display time, per name, clamped at 0. Summing over the day avoids depending on
+     which event fires first.
+   - Salvage returns count as crafted, so they're excluded too.
+   - Without the API 18 events, hide the option and subtract nothing.
+   - Unconfirmed: that the result events' item names match `ShroudOnItemsGained`'s. Check in game
+     with a debug line before trusting the subtraction.
+4. Shape and structure:
+   - Both new windows work like Today Detailed: rows appended, never rebuilt on a timer (creation
+     cap); hover pop-up from new "Crafted" / "Gathered" lines in the Today window; pin like XP
+     Detailed.
+   - Don't spend the 16th Lua file: turn Today Detailed's list code into a reusable list window and
+     make Crafted and Gathered more instances of it.
+   - Day format bump (`v = 2`, old days upgrade with empty tallies); per-day name caps like
+     `D.MAX_KINDS`.
+   - Add `dropped` to the counts.
+   - Today first; "this session" (from the XP session start) can be a header toggle later.
+5. Ideas, not agreed yet:
+   - ingredient have/need checklist for pinned recipes (`ShroudGetRecipe`; bags only, no bank/lot);
+   - a gathering session HUD (nodes/items/XP per hour, idle timeout);
+   - a crafting-station strip shown while the window is open, plus a "craft finished" sound;
+   - friends/guild online list, friend-online chat line or sound, guild MOTD change in chat.
+
 ## Unconfirmed API behaviour
 
 Things the docs don't settle. Verify in game before depending on them more heavily:
