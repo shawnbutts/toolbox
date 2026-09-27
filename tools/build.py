@@ -59,6 +59,11 @@ DYNAMIC_CODE_RE = re.compile(
 # "color = ... or nil" in a style table hid a whole HUD strip in game. Refuse the pattern.
 NIL_ENTRY_RE = re.compile(r"\b\w+\s*=\s*[^=\n]*\bor\s+nil\s*[,}]")
 
+# A local declared without a value. Standard Lua sets it to nil; in game (MoonSharp) one seemed
+# to keep an old value from its slot (alert sounds recorded a table as their clip). Always
+# write `local x = nil`.
+BARE_LOCAL_RE = re.compile(r"^\s*local\s+[A-Za-z_]\w*(\s*,\s*[A-Za-z_]\w*)*\s*(--.*)?$")
+
 # Project rule: persistence goes through saved vars only; no file or OS access. The one
 # exception is reading the local clock (os.date / os.time) for the daily reset.
 FORBIDDEN_LIB_RE = re.compile(r"\bio\s*\.|\bos\s*\.(?!(date|time)\b)")
@@ -268,6 +273,9 @@ def check_sources(report: Report, manifest: dict) -> None:
             m = DYNAMIC_CODE_RE.search(line)
             if m:
                 report.error(f"{f}:{lineno}: runtime code loading '{m.group(0).strip()}' is not allowed")
+            if BARE_LOCAL_RE.match(line):
+                report.error(f"{f}:{lineno}: a local without a value; write '= nil' (the game's Lua may not"
+                             " reset it)")
             m = NIL_ENTRY_RE.search(line)
             if m and not line.lstrip().startswith("--"):
                 report.error(f"{f}:{lineno}: a table entry that can be nil ('{m.group(0).strip()}'); the game's"

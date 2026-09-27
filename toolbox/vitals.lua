@@ -147,7 +147,7 @@ local function barStyle(m) return { width = m.barW, height = m.barH } end
 -- focus can still be told apart); otherwise the theme's text colour.
 function V.Colors(bar, flashing)
   local dark = background().darkText
-  local text
+  local text = nil
   if dark then
     text = flashing and bar.color or V.DARK_TEXT
   elseif not showBars() then
@@ -359,7 +359,7 @@ function V.GetScale() return scale() end
 -- Shows or hides the numbers / the bars. Refuses to hide the last one (hide the strip with
 -- /toolbox vitals instead). Returns true when the setting took.
 local function setPart(key, on)
-  local other                              -- the other part (not `a and b or c`: b can be false)
+  local other = nil                        -- the other part (not `a and b or c`: b can be false)
   if key == "showText" then other = showBars() else other = showText() end
   if not on and not other then
     T.Print("The bars and the numbers can't both be off; hide the strip with /" .. T.commands[1] .. " vitals.")
@@ -382,7 +382,7 @@ function V.GetShowBars() return showBars() end
 
 -- Background behind the numbers by display name (any case): None, Dark or Light.
 function V.SetBackground(name)
-  local found
+  local found = nil
   for _, bg in ipairs(V.BACKGROUNDS) do
     if bg.name:lower() == tostring(name or ""):lower() then found = bg end
   end

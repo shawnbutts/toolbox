@@ -2,7 +2,7 @@
 -- Alert sounds (Toolbox.Sounds). Each sound is looked for in order:
 --   1. the player's custom path (settings), anywhere inside the Lua folder;
 --   2. "toolbox_<file>" loose in the Lua folder (the default place to drop a file: store
---      updates replace the package folder, not loose files);
+--      updates replace the package folder, not loose files), then the same name as .wav;
 --   3. "toolbox/<file>" and "<file>": inside the package, for when audio files are allowed
 --      in packages (the sound docs say paths are relative to "the addon's Lua folder", the
 --      texture docs to the Lua root; both readings are tried).
@@ -68,6 +68,9 @@ local function candidates(def)
   local custom = prefs.paths[def.key]
   if type(custom) == "string" and custom ~= "" then list[#list + 1] = custom end
   list[#list + 1] = "toolbox_" .. def.file
+  -- A .wav beside it: in game the .ogg files (ffmpeg's experimental Vorbis encoder) never showed
+  -- up in ShroudListSound(), i.e. didn't decode; tools/install.py copies .wav versions too.
+  list[#list + 1] = "toolbox_" .. def.file:gsub("%.ogg$", ".wav")
   list[#list + 1] = "toolbox/" .. def.file
   list[#list + 1] = def.file
   return list
@@ -102,12 +105,14 @@ function S.Poll()
     if st and st.status == "loading" then
       local list = listSounds()
       local stem = def.file:gsub("%.%w+$", "")
-      local found
+      -- `= nil` matters: in game, a bare `local found` here seemed to keep a table from an earlier
+      -- use of the slot (both sounds "ready" with the same table as their clip, the list empty).
+      local found = nil
       for i = st.before + 1, #list do
         if type(list[i]) == "string" and list[i]:find(stem, 1, true) then found = list[i] end
       end
       if not found and #list == st.before + 1 and list[#list] ~= "" then found = list[#list] end   -- name didn't say
-      if found then
+      if type(found) == "string" and found ~= "" then
         st.status, st.clip, st.path = "ready", found, st.candidates[st.at]
       elseif T.Now() - st.since >= S.LOAD_TIMEOUT then
         st.at = st.at + 1
@@ -168,7 +173,7 @@ function S.Play(key)
     startLoad(defFor(key))
     return false, { reason = "cleared" }
   end
-  st.clip = name
+  if type(name) == "string" then st.clip = name end
   local ok, channel = pcall(ShroudPlaySoundChannel, index, prefs.volume)
   local info = { clip = name, index = index }
   if ok then info.channel = channel end

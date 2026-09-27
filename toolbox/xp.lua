@@ -114,7 +114,7 @@ end
 -- the window start is the newest sample at or before it; totals only change at samples.
 function XP.WindowGain(s, key, now, seconds)
   local cutoff = now - seconds
-  local fromT, fromV
+  local fromT, fromV = nil, nil
   if cutoff <= s.start then
     fromT, fromV = s.start, s.base[key]
   else

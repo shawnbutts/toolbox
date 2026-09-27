@@ -8,6 +8,10 @@
 std = "lua52"
 max_line_length = 120
 exclude_files = { "dist/" }   -- build output; the sources in toolbox/ are checked
+-- 311 "value assigned to a local is unused": every local starts with an explicit `= nil`
+-- (in game a bare `local x` seemed to keep an old value; tools/build.py enforces it), and those
+-- defaults are often overwritten before use on purpose.
+ignore = { "311" }
 
 -- Functions and values the host provides (read-only for add-ons).
 local api_functions = {

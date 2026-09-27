@@ -407,7 +407,7 @@ add("combat", "combat stats HUD; add stats while playing: /toolbox combat help",
     T.Print("Pet damage counts toward DPS: " .. (C.GetPet() and "on" or "off") .. ".")
   elseif word == "stat" then
     local verb, name = T.ParseArgs(args)
-    local ok, msg
+    local ok, msg = nil, nil
     if verb == "add" then ok, msg = C.AddStat(name)
     elseif verb == "remove" then ok, msg = C.RemoveStat(name)
     else msg = "Use /" .. T.commands[1] .. " combat stat add <Name> or remove <Name>." end

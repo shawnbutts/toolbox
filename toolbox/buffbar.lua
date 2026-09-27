@@ -48,7 +48,7 @@ BB.CLOCK = { path = "toolbox/clock.png", FRAMES = 120, COLS = 20, ROWS = 6, SETS
 -- milliseconds, with CurrentDuration as either the time elapsed or the time remaining.
 function BB.TotalFromEffects(remaining, effects)
   if type(remaining) ~= "number" or remaining <= 0 or type(effects) ~= "table" then return nil end
-  local best
+  local best = nil
   for _, e in ipairs(effects) do
     local tot, cur = type(e) == "table" and e.TotalDuration, type(e) == "table" and e.CurrentDuration
     if type(tot) == "number" and type(cur) == "number" and tot > 0 then
@@ -178,7 +178,7 @@ local function savePrefs()
   T.Save("buffbar", prefs)
 end
 
-local readEffects
+local readEffects = nil
 
 -- Re-reads the grouped list (debuff flags, icons, full durations) and raises the debuff alert.
 function BB.OnBuffsChanged()

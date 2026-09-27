@@ -346,7 +346,7 @@ return function(t)
     H.S.files["toolbox/buff_expiring.ogg"] = true
     H.reload()
     t.eq(Toolbox.Sounds.Status("buff_expiring"), "loading")
-    H.advance(Toolbox.Sounds.LOAD_TIMEOUT + 2)
+    H.advance(2 * Toolbox.Sounds.LOAD_TIMEOUT + 2)            -- the loose .ogg, then the .wav, time out
     local status, path = Toolbox.Sounds.Status("buff_expiring")
     t.eq(status, "ready")
     t.eq(path, "toolbox/buff_expiring.ogg")
@@ -791,4 +791,25 @@ return function(t)
       t.ok(H.logged("Names used: toolbox_"), H.lastLog())
     end)
   end
+
+  t.test("sounds: when the .ogg never loads, the .wav beside it is used", function()
+    H.boot()
+    H.S.acceptMissing = true                          -- the .ogg is accepted but never shows up
+    H.S.files["toolbox_buff_expiring.wav"] = true
+    H.reload()
+    H.advance(Toolbox.Sounds.LOAD_TIMEOUT + 2)
+    local status, path = Toolbox.Sounds.Status("buff_expiring")
+    t.eq(status, "ready")
+    t.eq(path, "toolbox_buff_expiring.wav")
+    t.ok(Toolbox.Sounds.Play("buff_expiring"))
+  end)
+
+  t.test("sounds: never 'ready' without a real clip name", function()
+    H.boot()
+    H.S.acceptMissing = true                          -- nothing ever loads
+    H.reload()
+    H.advance(Toolbox.Sounds.LOAD_TIMEOUT * 5 + 2)
+    t.eq(Toolbox.Sounds.Status("buff_expiring"), "missing")
+    t.eq(Toolbox.Sounds.Status("debuff_landed"), "missing")
+  end)
 end

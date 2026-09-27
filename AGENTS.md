@@ -19,6 +19,10 @@ Guidance for AI coding agents (and humans) working on Toolbox, a Shroud of the A
   subcommand that prints raw values so the owner can check without guessing.
 - **Use the UI theme for colours** (owner's preference): theme classes (`inset`, `card`, `text`, ...) and
   `@` tokens follow the player's skin; avoid hard-coded `#rrggbb` except where the theme has nothing.
+- **Always initialise locals: `local x = nil`, never a bare `local x`.** In game a bare `local found`
+  inside a loop appeared to keep an old value (a table) instead of starting as nil, marking both alert
+  sounds "ready" with the same table as their clip. `tools/build.py` refuses bare declarations; luacheck's
+  311 ("value assigned is unused") is ignored because of these deliberate `= nil` defaults.
 - **Never put a possibly-nil value in a table passed to the UI** (spec, style, `SetStyle`). Unlike
   standard Lua, the game's MoonSharp passes a nil entry on, and the UI rejects it ("style color takes a
   number or a string" hid the whole combat strip). Use a real default, or add the key only when set.
@@ -277,6 +281,11 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 23. Sounds: `ShroudLoadSound`'s path base ("the addon's Lua folder" vs the Lua root) and what clip names
     `ShroudListSound` reports. `Toolbox.Sounds` tries both bases and matches the file stem, falling back
     to "the one new clip". `/toolbox sounds` shows what was found.
+23e. RESOLVED (probably) 2026-09-27: one copy, build 34dc37a, `ShroudListSound()` empty with 0 keys, yet
+    both alerts "ready" with the same table as clip: impossible in standard Lua. Most likely MoonSharp does
+    not reset a bare `local found` per loop iteration. Fixed by `= nil` everywhere + a string check. The
+    empty list itself means the .ogg clips never loaded (decode failure, "logged, not returned"), so the
+    loader now tries `toolbox_<name>.wav` after the .ogg. Pending: does the .wav play in game?
 23d. The next in-game `/toolbox sounds debug` contradicted the code (an empty list, yet both alerts "ready"
     with a TABLE as the clip, which the new code can't record). Suspects: two Toolbox copies loaded (they
     share the global `Toolbox`), or a keyed (non-array) list. `/toolbox version` now reports the build and

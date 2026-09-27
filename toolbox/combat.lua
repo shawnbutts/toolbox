@@ -386,7 +386,7 @@ end
 
 -- Background: "None" / "Dark" / "Light" (any case), and optionally its opacity in percent.
 function C.SetBackground(name, percent)
-  local found
+  local found = nil
   for _, b in ipairs(C.BACKGROUNDS) do
     if b:lower() == tostring(name or ""):lower() then found = b end
   end
