@@ -198,7 +198,10 @@ fixed pool (20 buffs, 10 debuffs) built once, so buff changes never create UI el
    updates don't touch loose files);
 3. the package folder (for when audio can ship).
 
-Missing files are fine: that alert is just silent. `/toolbox sounds` says which file each alert
+Missing files are fine: that alert is just silent. **Known issue (2026-09-27):** in the current
+(DEV) client no sound file loads at all (`/toolbox sounds try 1` returns -1), which looks like a
+client problem; the alerts are silent until that is fixed, but the red sweep still marks expiring
+buffs. `/toolbox sounds` says which file each alert
 uses; `/toolbox sounds test` (or the Test buttons in settings) plays them and reports whether the
 game is really playing them. The sounds are in `art/`; `tools/install.py` copies them to the
 default place for you, plus `.wav` copies to try as a custom path if an `.ogg` plays silently.

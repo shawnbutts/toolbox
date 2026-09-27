@@ -281,6 +281,13 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 23. Sounds: `ShroudLoadSound`'s path base ("the addon's Lua folder" vs the Lua root) and what clip names
     `ShroudListSound` reports. `Toolbox.Sounds` tries both bases and matches the file stem, falling back
     to "the one new clip". `/toolbox sounds` shows what was found.
+23h. CONCLUDED 2026-09-27 (build 53d793b): NO CLIP LOADS in the current (DEV) client. `ShroudLuaPath` is the
+    Lua root (`.../Shroud of the Avatar(DEV)/Lua`), so `toolbox_<name>.ogg` is the right path and the file is
+    there; 12 accepted loads (.ogg + plain 16-bit PCM .wav, every folder); `ShroudListSound()` empty; and
+    `/toolbox sounds try 1|2` -> `ShroudPlaySoundChannel` = -1 (no such clip, per docs). Not the add-on.
+    Suspect the client: the docs say sounds load via a web request, and the path has spaces and parentheses
+    (pictures, read directly, load fine). Toolbox keeps trying and stays silent; re-test after a client
+    update with `/toolbox sounds test` / `try 1`. ON HOLD until then.
 23g. FOUND 2026-09-27 (build ac17b29): `ShroudLoadSound` returned TRUE for every path, even ones that can't
     exist, so "true" only means "request accepted" (the docs say "path exists"). After 12 accepted loads
     (.ogg and .wav, Lua root and package folder) `ShroudListSound()` stayed empty (0 keys). Either every
