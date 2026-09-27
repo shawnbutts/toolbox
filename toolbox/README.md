@@ -16,6 +16,7 @@ A small toolbox of quality-of-life features: XP tracking and daily stats.
 - `/toolbox buffalert <1-60>` (or `on` / `off`): sound this many seconds before a buff runs out
 - `/toolbox debuffalert on` / `off`: sound when a debuff lands
 - `/toolbox sounds`: show which sound files the alerts use (`/toolbox sounds 50` sets the volume)
+- `/toolbox vitals`: show or hide health & focus bars (`/toolbox vitals move 40 300` places them)
 - `/toolbox config`: open the settings window (text size, line spacing, which windows to show)
 - `/toolbox spacing <0-12>`: set the space between lines (default 2)
 - `/toolbox font <9-32>`: set the window text size (default 12)

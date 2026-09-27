@@ -44,7 +44,7 @@ Run all three before calling a change done.
 
 - `toolbox/`: the shipped package. Flat folder: `manifest.json`, `*.lua`, `README.md` (store readme),
   optional `icon.png` and pictures. Nothing else, or the build fails.
-  - `manifest.json` `files` is the load order: `core.lua`, `xp.lua`, `hover.lua`, `ui.lua`, `compact.lua`, `daily.lua`, `dailydetail.lua`, `sounds.lua`, `buffbar.lua`, `config.lua`. A new `.lua` file must be
+  - `manifest.json` `files` is the load order: `core.lua`, `xp.lua`, `hover.lua`, `ui.lua`, `compact.lua`, `daily.lua`, `dailydetail.lua`, `sounds.lua`, `buffbar.lua`, `vitals.lua`, `config.lua`. A new `.lua` file must be
     added there. Later files may use globals from earlier ones at top level; earlier files may only use
     later ones inside functions (callbacks run after every file has loaded).
   - `core.lua`: `Toolbox` namespace, chat output (`Toolbox.Print`), saved-var helpers (`Load`/`Save`/`Flush`,
@@ -85,6 +85,11 @@ Run all three before calling a change done.
     its own 0.5 s periodic reads the flat effect list, runs the expiry alert and fills a fixed slot pool
     (never create elements per change). The clock overlay is a second `Image` over the icon via a
     negative left margin, showing one `SetUV` frame of `clock.png` (`CLOCK` must match `art/clock.py`).
+  - `vitals.lua`: `Toolbox.Vitals`, the health & focus bars (HUD). `V.Format` is pure. Reads the
+    per-frame globals directly (never through a name built at runtime: review treats that like code
+    loading) and the `Health` / `Focus` stats as maximums.
+  - HUD strips share `Toolbox.Window.HudMover(getFrame, home)` (Get/MoveTo/Nudge/Reset),
+    `Toolbox.Config.PositionRows(prefix, module)` and `Toolbox.MoveCommand(module, cmd, name, args)`.
   - `config.lua`: `Toolbox.Config`, the settings window. Controls call the owning module's setters; the
     setters call `Toolbox.Config.Sync()` so the controls follow chat commands and the close button.
     To add a setting: a setter + getter on the owning module (persisted there), a control here, a line
@@ -161,6 +166,7 @@ including the "no character" sentinel.
 | `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { buff_expiring = "...", debuff_landed = "..." } }` |
 | `buff_timers` | `{ v = 2, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload |
+| `vitals` | `{ show, width = 100..400, x, y }` |
 | `buff_durations` | `{ [rune name] = seconds }`: full durations learned from casts |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
@@ -258,8 +264,8 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     "remembered where the player put it", and `SetPosition` "remembers the new spot as the player's". Not
     said: whether the constructor's x/y override that memory after a reload. So the buff bar also keeps
     `buffbar.x/y` (polled every tick) and builds at them; either way it comes back where it was.
-27. Player vitals: current health and focus are documented per-frame globals (`ShroudPlayerCurrentHealth`,
-    `ShroudPlayerCurrentFocus`); the player's MAXIMUM health/focus has no documented getter (only target /
-    party / pet ones), and "vigor" appears nowhere in the docs. They may be stats (`ShroudGetStatValueByName`),
-    whose names the docs don't list and many of which are hidden. `/toolbox stats <word>` lists what the
-    game exposes; build the vitals bars only on names found that way.
+27. Player vitals. FOUND in game 2026-09-27 (`/toolbox stats health|focus|vigor`): readable stats
+    `CurrentHealth` 943 / `Health` 942.23 and `CurrentFocus` 700 / `Focus` 700 at full, so `Health` and
+    `Focus` are taken as the maximums (unconfirmed while damaged: `CurrentHealth` should drop while `Health`
+    stays). No stat matches "vigor" by name or label, so no vigor bar. Current values come from the
+    documented per-frame globals.

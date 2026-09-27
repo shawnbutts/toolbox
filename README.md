@@ -206,6 +206,18 @@ A buff that was already running and has never been seen cast shows **no sweep** 
 cast, rather than a wrong one. The expiry alert only needs the time left, so it works either way.
 `/toolbox buffs debug` says where each buff's duration came from.
 
+## Health & focus bars
+
+`/toolbox vitals` shows a red health bar and a blue focus bar with "current / max" on a HUD
+strip, moved like the buff bar (grip, Position buttons in `/toolbox config`, or
+`/toolbox vitals move x y`). Settings also has the bar width; the text follows the text size and
+line spacing. Current values are the documented `ShroudPlayerCurrentHealth` / `ShroudPlayerCurrentFocus`.
+The maximums have no documented getter: the readable stats `Health` and `Focus` equal the current
+values at full health and focus, so they are used as the maximums (never shown below the current
+value). There is no vigor bar: no stat the game exposes to add-ons matches "vigor".
+
+## Development
+
 Requirements: Lua 5.2+ or LuaJIT, [luacheck](https://github.com/lunarmodules/luacheck), Python 3.9+.
 
 ```sh
@@ -225,7 +237,8 @@ image limits, size caps, no runtime code loading, and no `io`/`os` use in packag
 ```
 toolbox/            the package (what ships)
   manifest.json     files load in this order: core.lua, xp.lua, hover.lua, ui.lua, compact.lua, daily.lua,
-                    dailydetail.lua, sounds.lua, buffbar.lua, config.lua
+                    dailydetail.lua, sounds.lua, buffbar.lua, vitals.lua,
+                    config.lua
   core.lua          Toolbox namespace, commands, saved-var helpers, session lifecycle, callbacks
   xp.lua            pure session XP model (rates, rolling window, time to level)
   ui.lua            the XP Detailed window (/toolbox xpdetailed; Toolbox.Window, id toolbox_xp)
@@ -235,6 +248,7 @@ toolbox/            the package (what ships)
   dailydetail.lua   the Today Detailed window (/toolbox dailydetailed, dd)
   sounds.lua        alert sound loading (custom path, then defaults) and playback
   buffbar.lua       the buff bar HUD, clock overlay, expiry and debuff alerts
+  vitals.lua        the health & focus bars HUD
   clock.png         the clock overlay sprite sheet (2 x 120 frames, from art/clock.py)
   config.lua        the Toolbox Settings window (/toolbox config)
   README.md         player-facing store readme

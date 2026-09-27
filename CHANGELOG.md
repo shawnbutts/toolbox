@@ -6,6 +6,9 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Health & focus bars (`/toolbox vitals`): a movable HUD strip with health (red) and focus (blue)
+  bars and "current / max", with width and position settings. Maximums come from the `Health` /
+  `Focus` stats found with `/toolbox stats`; vigor isn't exposed to add-ons.
 - `/toolbox stats [word]`: lists character stats matching a word (index, internal and displayed
   name, value) and how many matching ones are hidden from add-ons. For finding the stats behind
   own health / focus / vigor bars, which the docs don't name.
@@ -68,6 +71,7 @@ store submission needs a higher version than any submitted before (rejected ones
 - `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
 
 ### Fixed
+- README: the "Development" heading had been dropped when the Buff bar section was added.
 - Line spacing had no visible effect: label heights are now pinned with `minHeight`/`maxHeight`
   as well as `height`, so a theme class's minimum height can't override them. `/toolbox spacing`
   with no number now measures the laid-out line height.
@@ -75,6 +79,8 @@ store submission needs a higher version than any submitted before (rejected ones
   window's close button (it only worked in one direction).
 
 ### Changed
+- HUD position controls (settings rows and the `move` command) are shared by the buff bar and the
+  health & focus bars (`Toolbox.Window.HudMover`, `Toolbox.Config.PositionRows`, `Toolbox.MoveCommand`).
 - The hover pop-up logic is shared (`hover.lua`) between XP / XP Detailed and Today / Today Detailed.
 - Window names and commands: the compact window is now **XP** (`/toolbox xp`), and the old
   Session XP window is **XP Detailed** (`/toolbox xpdetailed`, alias `xpd`). `/toolbox compact`
