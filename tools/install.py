@@ -59,7 +59,10 @@ def main() -> int:
     for sound in sorted((ROOT / "art").glob("*.ogg")) + sorted((ROOT / "art").glob("*.wav")):
         target = lua_dir / f"{slug}_{sound.name}"
         shutil.copy2(sound, target)
-        print(f"Copied alert sound to {target}")
+        # Also inside the package folder, for local testing: the sound docs say paths are relative
+        # to "the addon's Lua folder". (Not in the store package: audio isn't allowed there yet.)
+        shutil.copy2(sound, dest / sound.name)
+        print(f"Copied alert sound to {target} and {dest / sound.name}")
     print("In game: /lua reload, enable Toolbox in the add-on manager, /lua check toolbox, then /toolbox xp")
     return 0
 

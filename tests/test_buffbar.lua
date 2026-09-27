@@ -812,4 +812,18 @@ return function(t)
     t.eq(Toolbox.Sounds.Status("buff_expiring"), "missing")
     t.eq(Toolbox.Sounds.Status("debuff_landed"), "missing")
   end)
+
+  t.test("sounds: debug lists every path tried and what the game answered", function()
+    H.boot()
+    H.S.files["buff_expiring.wav"] = true             -- only in the package folder, as .wav
+    H.reload()
+    H.advance(6 * Toolbox.Sounds.LOAD_TIMEOUT + 2)
+    local status, path = Toolbox.Sounds.Status("buff_expiring")
+    t.eq(status, "ready")
+    t.eq(path, "buff_expiring.wav")
+    H.clearLogs()
+    H.chat("/tbx sounds debug")
+    t.ok(H.logged("^    tried toolbox_buff_expiring%.ogg %-> false$"), "paths the game refused")
+    t.ok(H.logged("^    tried buff_expiring%.wav %-> true$"), "and the one it accepted")
+  end)
 end

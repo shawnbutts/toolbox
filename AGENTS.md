@@ -281,6 +281,11 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 23. Sounds: `ShroudLoadSound`'s path base ("the addon's Lua folder" vs the Lua root) and what clip names
     `ShroudListSound` reports. `Toolbox.Sounds` tries both bases and matches the file stem, falling back
     to "the one new clip". `/toolbox sounds` shows what was found.
+23f. 2026-09-27, build 52094c3: nothing loaded from any candidate (.ogg or .wav in Lua/). Suspect the path
+    base: for sounds, "relative to the addon's Lua folder" may mean Lua/toolbox/ for a package (textures
+    are Lua-root-relative; clock.png loads as "toolbox/clock.png"). Candidates now include .ogg/.wav in
+    the package folder; install.py copies sounds there; debug logs every `ShroudLoadSound` answer
+    ("tried <path> -> true/false"). Pending: that log from the game.
 23e. RESOLVED (probably) 2026-09-27: one copy, build 34dc37a, `ShroudListSound()` empty with 0 keys, yet
     both alerts "ready" with the same table as clip: impossible in standard Lua. Most likely MoonSharp does
     not reset a bare `local found` per loop iteration. Fixed by `= nil` everywhere + a string check. The

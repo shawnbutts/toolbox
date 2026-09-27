@@ -99,6 +99,11 @@ store submission needs a higher version than any submitted before (rejected ones
 - `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
 
 ### Fixed
+- In game no alert sound loaded from any path (all timed out). The sound docs say paths are relative
+  to "the addon's Lua folder", which for a package may be `Lua/toolbox/`: each alert now also tries
+  `.ogg` and `.wav` inside the package folder, `tools/install.py` copies them there for local testing
+  (not part of the store package), the per-path wait is 2 s, and `/toolbox sounds debug` lists each
+  path tried with what `ShroudLoadSound` answered.
 - Alert sounds claimed "ready" while the game's sound list was empty, with a table (the same one
   for both) as their clip. A bare `local found` in the load loop apparently kept an old value in
   the game's Lua (MoonSharp), where standard Lua resets it to nil. Every local now starts with an

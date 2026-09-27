@@ -18,7 +18,7 @@ local T = Toolbox
 local S = {}
 Toolbox.Sounds = S
 
-S.LOAD_TIMEOUT = 3          -- seconds to wait for a candidate to appear
+S.LOAD_TIMEOUT = 2          -- seconds to wait for a candidate to appear (local files load fast)
 S.VOLUME_DEFAULT = 70
 S.DEFS = {
   { key = "buff_expiring", file = "buff_expiring.ogg", label = "Buff expiring" },
@@ -67,12 +67,14 @@ local function candidates(def)
   local list = {}
   local custom = prefs.paths[def.key]
   if type(custom) == "string" and custom ~= "" then list[#list + 1] = custom end
-  list[#list + 1] = "toolbox_" .. def.file
-  -- A .wav beside it: in game the .ogg files (ffmpeg's experimental Vorbis encoder) never showed
-  -- up in ShroudListSound(), i.e. didn't decode; tools/install.py copies .wav versions too.
-  list[#list + 1] = "toolbox_" .. def.file:gsub("%.ogg$", ".wav")
-  list[#list + 1] = "toolbox/" .. def.file
-  list[#list + 1] = def.file
+  -- Each place as .ogg and then .wav (in game the .ogg files never showed up in ShroudListSound()).
+  -- The sound docs say paths are relative to "the addon's Lua folder", the texture docs to the Lua
+  -- root, so both the Lua root ("toolbox_x", "toolbox/x") and the package folder ("x") are tried.
+  local wav = def.file:gsub("%.ogg$", ".wav")
+  for _, name in ipairs({ "toolbox_" .. def.file, "toolbox_" .. wav, "toolbox/" .. def.file, "toolbox/" .. wav,
+                          def.file, wav }) do
+    list[#list + 1] = name
+  end
   return list
 end
 
@@ -82,6 +84,9 @@ local function tryNext(st)
     local path = st.candidates[st.at]
     st.before = #listSounds()
     local ok, accepted = pcall(ShroudLoadSound, path, audioType(path))
+    -- What the game said about each path (docs: true = "the path exists inside the addon folder").
+    st.log = st.log or {}
+    st.log[#st.log + 1] = path .. " -> " .. (ok and tostring(accepted) or ("error " .. tostring(accepted)))
     if ok and accepted then
       st.since = T.Now()
       st.status = "loading"
@@ -288,6 +293,7 @@ function S.DebugLines()
     lines[#lines + 1] = string.format("%s: status %s, path %s, recorded clip %s (%s), tried %s of %s",
       def.label, tostring(st.status), tostring(st.path), tostring(st.clip), type(st.clip),
       tostring(st.at), st.candidates and #st.candidates or 0)
+    for _, entry in ipairs(st.log or {}) do lines[#lines + 1] = "    tried " .. entry end
   end
   return lines
 end
