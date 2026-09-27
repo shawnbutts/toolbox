@@ -415,11 +415,11 @@ end
 
 -- A scene change rebuilds the buff list: don't alert for debuffs that were already there.
 function ShroudOnSceneUnloaded()
-  T.BuffBar.Quiet()
+  T.BuffBar.SceneChange()
 end
 
 function ShroudOnSceneLoaded(_)
-  T.BuffBar.Quiet()
+  T.BuffBar.SceneChange()
 end
 
 -- Items for the daily stats (anything that arrives in your bags).

@@ -26,7 +26,7 @@ return function(t)
 
   t.test("timer: fires once when crossing the threshold", function()
     H.boot()
-    local st, frac, fire = B().Track(nil, 30, 10)
+    local st, frac, fire = B().Track(nil, 30, 10, nil, nil, true)
     t.near(frac, 1)
     t.no(fire)
     t.ok(st.armed)
@@ -43,14 +43,14 @@ return function(t)
 
   t.test("timer: a buff that starts below the threshold never fires", function()
     H.boot()
-    local st, _, fire = B().Track(nil, 6, 10)
+    local st, _, fire = B().Track(nil, 6, 10, nil, nil, true)
     t.no(fire)
     for rem = 5.5, 0.5, -0.5 do st, _, fire = B().Track(st, rem, 10); t.no(fire, "at " .. rem) end
   end)
 
   t.test("timer: a refresh starts a new run and re-arms", function()
     H.boot()
-    local st, _, fire = B().Track(nil, 20, 10)
+    local st, _, fire = B().Track(nil, 20, 10, nil, nil, true)
     t.no(fire)
     st, _, fire = B().Track(st, 9, 10)
     t.ok(fire)
@@ -484,9 +484,53 @@ return function(t)
     end)
   end
 
-  t.test("unusable durations fall back to treating the buff as new", function()
+  t.test("unknown full duration: no sweep rather than a wrong one", function()
     local overlay = startMidBuff("nonsense")
-    sameUV(t, overlay.uv, 9.5 / 10, "9.5 of an assumed 10 s: nearly full")
+    t.eq(overlay.visible, false)
+    overlay = startMidBuff("absent")
+    t.eq(overlay.visible, false, "as in game: no duration fields")
+  end)
+
+  t.test("a buff seen cast teaches its duration for next time it is already running", function()
+    H.boot()
+    H.S.durationMode = "absent"
+    H.chat("/tbx buffs")
+    H.addBuffs({ { name = "Light", remaining = 225, icon = 5 } })   -- cast while running: learned
+    H.advance(225, 5)                                                 -- runs out
+    H.advance(15, 5)
+    H.S.buffs = { { name = "Light", remaining = 112, total = 225, icon = 5 } }
+    ShroudFlushSavedVars()
+    H.restart(10)                                                     -- already running at login
+    H.advance(0.5, 0.5)
+    sameUV(t, H.slots("buffs")[1].children[2].uv, 111.5 / 225, "half used, from the learned 225 s")
+  end)
+
+  t.test("the expiry alert works for a buff whose duration is unknown", function()
+    bootWithSounds()
+    H.S.durationMode = "absent"
+    H.S.buffs = { { name = "Old", remaining = 14 } }
+    H.reload()
+    H.advance(2, 0.5)
+    H.S.played = {}
+    H.advance(4, 0.5)
+    t.eq(H.playedNames(), "toolbox_buff_expiring")
+  end)
+
+  t.test("a buff that vanishes during a scene load keeps its timer", function()
+    H.boot()
+    H.S.durationMode = "absent"
+    H.chat("/tbx buffs")
+    H.addBuffs({ { name = "Light", remaining = 200, icon = 5 } })
+    H.advance(100, 5)
+    local saved = H.S.buffs
+    H.callback("ShroudOnSceneUnloaded")
+    H.S.buffs = {}
+    H.advance(4)                                                      -- loading: list empty
+    saved[1].remaining = saved[1].remaining - 4                       -- the buff kept running meanwhile
+    H.S.buffs = saved
+    H.callback("ShroudOnSceneLoaded", "Town")
+    H.advance(0.5, 0.5)
+    sameUV(t, H.slots("buffs")[1].children[2].uv, 95.5 / 200, "still its real progress")
   end)
 
   t.test("without durations, a /lua reload keeps each buff's progress", function()
@@ -500,7 +544,7 @@ return function(t)
     sameUV(t, overlay.uv, 9.5 / 40, "progress kept across the reload")
   end)
 
-  t.test("a remembered duration is ignored when the buff doesn't line up (recast meanwhile)", function()
+  t.test("a remembered timer that doesn't line up falls back to the learned duration", function()
     H.boot()
     H.chat("/tbx buffs")
     H.addBuffs({ { name = "Light", remaining = 40, icon = 5 } })
@@ -509,7 +553,7 @@ return function(t)
     H.reload()
     H.advance(0.5, 0.5)
     local ov = H.slots("buffs")[1].children[2]
-    sameUV(t, ov.uv, 19.5 / 20, "treated as a fresh 20 s buff")
+    sameUV(t, ov.uv, 19.5 / 40, "the 40 s learned when it was cast")
   end)
 
   t.test("after a restart remembered durations are not used", function()
@@ -617,5 +661,16 @@ return function(t)
     H.chat("/tbx buffs trace nosuch")
     H.advance(1)
     t.ok(H.logged("no buffs matching 'nosuch'"))
+  end)
+
+  t.test("timers saved by the old version (with wrong totals) are ignored", function()
+    H.boot()
+    H.S.durationMode = "absent"
+    H.S.buffs = { { name = "Light", remaining = 112, total = 225, icon = 5 } }
+    H.S.memory["character:Tester"].buff_timers = { Light = { total = 130, remaining = 112.5, at = ShroudTime } }
+    H.S.memory["character:Tester"].buffbar = { show = true }
+    H.reload()
+    H.advance(0.5, 0.5)
+    t.eq(H.slots("buffs")[1].children[2].visible, false, "unknown, not the stale 130 s")
   end)
 end

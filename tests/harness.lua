@@ -218,8 +218,12 @@ local function install_api()
       elseif S.durationMode == "remaining" then tot, cur = total, rem
       elseif S.durationMode == "ms" then tot, cur = total * 1000, (total - rem) * 1000
       elseif S.durationMode == "nonsense" then tot, cur = 7, 3 end
-      r.Effects[#r.Effects + 1] = { Description = "", Value = 0, CurrentDuration = cur, TotalDuration = tot,
-                                    TotalTick = 0 }
+      if S.durationMode == "absent" then                      -- what the game really reports
+        r.Effects[#r.Effects + 1] = { Description = "", Value = 0 }
+      else
+        r.Effects[#r.Effects + 1] = { Description = "", Value = 0, CurrentDuration = cur, TotalDuration = tot,
+                                      TotalTick = 0 }
+      end
     end
     return out
   end
@@ -465,9 +469,10 @@ end
 -- Quit and relaunch the client. Only flushed saved vars survive; time restarts.
 function H.restart(time, flushFirst)
   if flushFirst then ShroudFlushSavedVars() end
-  local disk, char, date, serverTime = S.disk, S.char, S.date, S.serverTime
+  local disk, char, date, serverTime, buffs, mode = S.disk, S.char, S.date, S.serverTime, S.buffs, S.durationMode
   fresh(disk)
-  S.char, S.date, S.serverTime = char, date, serverTime
+  -- the character's buffs live on the server: they survive a client restart
+  S.char, S.date, S.serverTime, S.buffs, S.durationMode = char, date, serverTime, buffs, mode
   S.time = time or 50
   install_api()
   H.load()

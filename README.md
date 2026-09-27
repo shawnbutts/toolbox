@@ -189,13 +189,13 @@ default place for you, plus `.wav` copies to try as a custom path if an `.ogg` p
 
 When a buff's expiry alert fires, its sweep turns from dark to red for the rest of that run.
 
-To draw the sweep the bar needs each buff's full duration, which matters for buffs that were
-already running when the add-on started. It uses the game's `TotalDuration`/`CurrentDuration`
-only when they agree with the time remaining (their units aren't documented), and otherwise its
-own record, kept across `/lua reload`. `/toolbox buffs debug` prints what it has for each buff.
-Time left is counted on the add-on's own clock from each buff's end time, which is corrected
-whenever the game's time remaining changes, so the sweep moves smoothly even if the game only
-refreshes that value now and then.
+To draw the sweep the bar needs each buff's full duration, and the game doesn't report it (the
+documented `TotalDuration`/`CurrentDuration` come back empty). So the bar learns it: when a buff
+appears while the add-on is running, its first time left *is* its full duration, and that is
+remembered per character for the next time the buff is already running at login or reload.
+A buff that was already running and has never been seen cast shows **no sweep** until its next
+cast, rather than a wrong one. The expiry alert only needs the time left, so it works either way.
+`/toolbox buffs debug` says where each buff's duration came from.
 
 Requirements: Lua 5.2+ or LuaJIT, [luacheck](https://github.com/lunarmodules/luacheck), Python 3.9+.
 

@@ -61,37 +61,51 @@ function BB.TotalFromEffects(remaining, effects)
   return best
 end
 
--- Tracks one buff's timer and returns st, fraction remaining (0..1) or nil without a timer,
--- true when the expiry alert should fire now, and the remaining seconds it used.
+-- Tracks one buff's timer and returns st, fraction remaining (0..1) or nil when there is no
+-- timer or its full duration isn't known, true when the expiry alert should fire now, and the
+-- remaining seconds used.
 --
--- The game's time remaining (`api`) may not count down smoothly: in game the sweep stalled
--- and then jumped, which is what a value refreshed only now and then looks like. So each run
--- keeps its own end time (st.endAt, on the T.Now() clock) and counts down with that; the end
--- time is moved only when the game's value actually changes (a correction), and a value that
--- jumps up is a recast (a new run). If the game's value is continuous, this resyncs every tick.
+-- Time left counts down from each run's end time (st.endAt, on the T.Now() clock), which
+-- follows the game's value whenever it changes; a value that jumps up is a recast.
 --
--- `known` is the buff's full duration when it can be established (TotalFromEffects, or
--- remembered across a reload); otherwise the largest remaining time seen stands in for it,
--- which is wrong for a buff that was already running when the add-on started.
+-- The sweep needs the full duration, which the game doesn't give (in game, TotalDuration /
+-- CurrentDuration are nil). A run's total is trusted (st.trusted) only when:
+--   * `fresh`: the buff appeared while the add-on was running, so its first time left IS
+--     its full duration (also every recast);
+--   * `known`: a duration from TotalFromEffects, a timer remembered across a reload, or one
+--     learned from an earlier cast.
+-- Otherwise (a buff already running when the add-on started, never seen cast) there is no
+-- sweep rather than a wrong one. The expiry alert only needs time left, so it always works.
 -- st.warned stays true for the rest of a run once the alert has fired (the sweep turns red).
-function BB.Track(st, api, threshold, known, now)
+function BB.Track(st, api, threshold, known, now, fresh)
   if type(api) ~= "number" or api <= 0 then return st, nil, false, nil end
   now = now or T.Now()
-  local function newRun()
-    return { endAt = now + api, api = api, total = api, armed = api > threshold, warned = false }
+  if type(known) ~= "number" or known < api - 0.5 then known = nil end
+  local function newRun(seenFromStart)
+    local run = { endAt = now + api, api = api, armed = api > threshold, warned = false }
+    if seenFromStart then
+      run.total, run.trusted, run.learn = api, true, true
+    elseif known then
+      run.total, run.trusted = known, true
+    else
+      run.total, run.trusted = api, false
+    end
+    return run
   end
   if not st then
-    st = newRun()
+    st = newRun(fresh)
   elseif api ~= st.api then
     if api > (st.endAt - now) + 1.5 then
-      st = newRun()                      -- time went up: recast
+      st = newRun(true)                  -- time went up: a recast, seen from its start
     else
-      st.endAt, st.api = now + api, api  -- the game refreshed its value: follow it
+      st.endAt, st.api = now + api, api  -- follow the game's value
     end
   end
   local remaining = st.endAt - now
   if remaining < 0 then remaining = 0 end
-  if type(known) == "number" and known >= remaining - 0.5 then st.total = known end
+  -- A known duration wins, except on the tick a run was seen starting (its own first time left
+  -- is exact; a learned or remembered one may be out of date).
+  if known and not st.learn then st.total, st.trusted = known, true end
   if remaining > st.total then st.total = remaining end
   st.last = remaining
   local fire = false
@@ -100,7 +114,8 @@ function BB.Track(st, api, threshold, known, now)
   elseif remaining > threshold then
     st.armed = true
   end
-  return st, (st.total > 0) and remaining / st.total or 0, fire, remaining
+  local fraction = (st.trusted and st.total > 0) and remaining / st.total or nil
+  return st, fraction, fire, remaining
 end
 
 -- Clock frame for a fraction remaining: 0 = full time left (no shading).
@@ -138,6 +153,10 @@ end
 local prefs = {}
 local runes = {}          -- rune name -> { debuff, icon, total } from ShroudGetPlayerBuff
 local remembered = {}     -- rune name -> { total, remaining, at } saved before a reload
+local learned = {}        -- rune name -> full duration (s), seen from a cast (saved: buff_durations)
+local preexisting = {}    -- names already present when the add-on started (not seen cast)
+local sceneQuietUntil = 0 -- buffs first seen before this (scene load) aren't "fresh"
+BB.GRACE = 10             -- seconds a vanished buff keeps its timer (scene loads)
 local lastTimerSave = -math.huge
 BB.TIMER_SAVE = 5         -- seconds between saves of the running timers (for a reload)
 local debuffs = {}        -- debuff names seen at the last change (set)
@@ -183,6 +202,11 @@ end
 -- A scene change rebuilds the buff list: treat what's there as already known.
 function BB.Quiet()
   quietUntil = T.Now() + BB.DEBUFF_SUPPRESS
+end
+
+function BB.SceneChange()
+  BB.Quiet()
+  sceneQuietUntil = T.Now() + BB.DEBUFF_SUPPRESS
 end
 
 -- One entry per rune in the game's order: { name, remaining, index (first flat index) }.
@@ -303,7 +327,14 @@ function BB.Tick()
     local rune = runes[e.name] or {}
     local known = rune.total
     if not known and not timers[e.name] then known = BB.Recall(e.name, e.remaining) end
-    local st, fraction, fire = BB.Track(timers[e.name], e.remaining, threshold, known)
+    if not known then known = learned[e.name] end
+    local fresh = not preexisting[e.name] and T.Now() >= sceneQuietUntil
+    local st, fraction, fire = BB.Track(timers[e.name], e.remaining, threshold, known, nil, fresh)
+    if st and st.learn then
+      st.learn = nil
+      BB.Learn(e.name, st.total)
+    end
+    if st then st.missingSince = nil end
     timers[e.name] = st
     if fire and not rune.debuff then expiring = true end
     if frame and prefs.show then
@@ -316,8 +347,15 @@ function BB.Tick()
       end
     end
   end
-  for name in pairs(timers) do
-    if not seen[name] then timers[name] = nil end
+  -- A vanished buff keeps its timer for BB.GRACE seconds (a scene load empties the list).
+  for name, st in pairs(timers) do
+    if not seen[name] then
+      st.missingSince = st.missingSince or T.Now()
+      if T.Now() - st.missingSince >= BB.GRACE then
+        timers[name] = nil
+        preexisting[name] = nil        -- next time it appears, it was cast
+      end
+    end
   end
   if frame and prefs.show then
     for i = bi + 1, BB.BUFF_SLOTS do fill(slots.buffs[i], nil) end
@@ -329,6 +367,15 @@ end
 
 -- One chat line per current effect, for checking durations in game:
 -- "Light: 9.5 s left; TotalDuration 40, CurrentDuration 30.5; full duration 40 s (from the game)".
+-- A buff's displayed name without the game's colour markup ([c][27E833]...[-][/c]).
+local function plainLabel(index, fallback)
+  local label = ShroudGetBuffDescription(index)
+  if type(label) ~= "string" or label == "Invalid" then return fallback end
+  label = label:gsub("%[%x%x%x%x%x%x%x?%x?%]", ""):gsub("%[%-%]", ""):gsub("%[/?%a%]", "")
+  label = label:match("^%s*(.-)%s*$")
+  return label ~= "" and label or fallback
+end
+
 -- %g: the same text on every Lua (5.3+ would print 39.0 where MoonSharp prints 39).
 local function num(x) return type(x) == "number" and string.format("%g", x) or tostring(x) end
 
@@ -344,10 +391,10 @@ function BB.DebugLines()
     local fx = type(rune.Effects) == "table" and rune.Effects[1] or {}
     local fromGame = BB.TotalFromEffects(e.remaining, rune.Effects)
     local st = timers[e.name]
-    local source = fromGame and "from the game" or (st and "observed or remembered") or "none yet"
-    local label = ShroudGetBuffDescription(e.index)
-    local hasLabel = type(label) == "string" and label ~= "Invalid" and label ~= e.name
-    local named = hasLabel and (label .. " [" .. e.name .. "]") or e.name
+    local source = fromGame and "from the game" or learned[e.name] and "learned from a cast"
+      or (st and st.trusted) and "seen cast or remembered" or "unknown: cast it once"
+    local label = plainLabel(e.index, e.name)
+    local named = label ~= e.name and (label .. " [" .. e.name .. "]") or e.name
     lines[#lines + 1] = string.format("%s%s: %s s left; TotalDuration %s, CurrentDuration %s; full duration %s (%s)",
       named, rune.IsDebuff and " (debuff)" or "", num(e.remaining), num(fx.TotalDuration),
       num(fx.CurrentDuration), st and (num(st.total) .. " s") or "?", source)
@@ -373,17 +420,18 @@ function BB.Trace(filter)
     end
     local shown = 0
     for _, e in ipairs(readEffects()) do
-      local label = ShroudGetBuffDescription(e.index)
-      label = (type(label) == "string" and label ~= "Invalid") and label or e.name
+      local label = plainLabel(e.index, e.name)
       local match = filter == "" or e.name:lower():find(filter, 1, true) or label:lower():find(filter, 1, true)
       if match and shown < BB.TRACE_MAX then
         shown = shown + 1
         local fx = byName[e.name] and type(byName[e.name].Effects) == "table" and byName[e.name].Effects[1] or {}
         local st = timers[e.name]
         local named = label == e.name and e.name or (label .. " [" .. e.name .. "]")
-        T.Print(string.format("+%ds %s: game %s left (Total %s, Current %s) | bar %s of %s",
-          n, named, num(e.remaining), num(fx.TotalDuration), num(fx.CurrentDuration),
-          st and string.format("%.1f", st.last or -1) or "?", st and string.format("%.1f", st.total) or "?"))
+        local effects = byName[e.name] and byName[e.name].Effects
+        T.Print(string.format("+%ds %s: game %s left (%s effects; Total %s, Current %s) | bar %s of %s",
+          n, named, num(e.remaining), type(effects) == "table" and #effects or "no", num(fx.TotalDuration),
+          num(fx.CurrentDuration), st and string.format("%.1f", st.last or -1) or "?",
+          st and (string.format("%.1f", st.total) .. (st.trusted and "" or " (unknown)")) or "?"))
       end
     end
     if shown == 0 then
@@ -395,15 +443,25 @@ function BB.Trace(filter)
   T.Print("Tracing " .. what .. " for " .. BB.TRACE_SECONDS .. " s...")
 end
 
+-- Records a buff's full duration, seen from a cast, for next time it is already running.
+function BB.Learn(name, total)
+  if type(total) ~= "number" or total <= 0 or learned[name] == total then return end
+  learned[name] = math.floor(total * 10 + 0.5) / 10
+  T.Save("buff_durations", learned)
+end
+
 -- Remembers the running timers so a /lua reload can pick them up (ShroudTime keeps running
 -- through a reload, so "remaining then minus time since" is where each should be now).
 function BB.SaveTimers()
   lastTimerSave = T.Now()
   local out = {}
   for name, st in pairs(timers) do
-    if st and st.last and st.last > 0 then out[name] = { total = st.total, remaining = st.last, at = T.Now() } end
+    if st and st.trusted and st.last and st.last > 0 then
+      out[name] = { total = st.total, remaining = st.last, at = T.Now() }
+    end
   end
-  T.Save("buff_timers", out)
+  -- v2: only trusted totals. v1 (unversioned) saves could hold a wrong "first seen" total.
+  T.Save("buff_timers", { v = 2, timers = out })
 end
 
 -- A remembered full duration for a buff seen for the first time since start, when its
@@ -437,7 +495,15 @@ function BB.Init()
   end
   timers, debuffs, runes = {}, {}, {}
   local savedTimers = T.Load("buff_timers")
-  remembered = type(savedTimers) == "table" and savedTimers or {}
+  remembered = (type(savedTimers) == "table" and savedTimers.v == 2 and type(savedTimers.timers) == "table")
+    and savedTimers.timers or {}
+  learned = {}
+  local savedDurations = T.Load("buff_durations")
+  for name, v in pairs(type(savedDurations) == "table" and savedDurations or {}) do
+    if type(name) == "string" and type(v) == "number" and v > 0 then learned[name] = v end
+  end
+  preexisting, sceneQuietUntil = {}, 0
+  for _, e in ipairs(readEffects()) do preexisting[e.name] = true end
   build()
   BB.Quiet()
   BB.OnBuffsChanged()                  -- the change callback only fires on changes
