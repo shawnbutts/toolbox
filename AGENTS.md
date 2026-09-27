@@ -20,7 +20,9 @@ Guidance for AI coding agents (and humans) working on Toolbox, a Shroud of the A
 - **No runtime code loading** (`load`, `loadstring`, `loadfile`, `dofile`, `require`, `_G[...]`,
   `_ENV[...]`) in package files, not even in comments: the client matches source text.
   `tools/build.py` refuses it.
-- **No `io.*` / `os.*`.** Persist with `ShroudSetSavedVar`/`ShroudGetSavedVar`, character scope.
+- **No `io.*` / `os.*`**, except `os.date`/`os.time` to read the local clock (undocumented in the SotA
+  docs, so always feature-detect them; see `Toolbox.Today`). Persist with
+  `ShroudSetSavedVar`/`ShroudGetSavedVar`, character scope.
 - **UI is `Shroud.UI` only.** No retained widgets (`ShroudUI*`), no immediate-mode GUI (`ShroudOnGUI`).
 - **No per-frame work.** Don't define `ShroudOnUpdate`. Use events and the 1-second periodic.
 - Constructors (`Shroud.UI.*`, `Shroud.Command`) raise at file top level. Call them from
@@ -42,7 +44,7 @@ Run all three before calling a change done.
 
 - `toolbox/`: the shipped package. Flat folder: `manifest.json`, `*.lua`, `README.md` (store readme),
   optional `icon.png` and pictures. Nothing else, or the build fails.
-  - `manifest.json` `files` is the load order: `core.lua`, `xp.lua`, `ui.lua`, `compact.lua`, `config.lua`. A new `.lua` file must be
+  - `manifest.json` `files` is the load order: `core.lua`, `xp.lua`, `ui.lua`, `compact.lua`, `daily.lua`, `config.lua`. A new `.lua` file must be
     added there. Later files may use globals from earlier ones at top level; earlier files may only use
     later ones inside functions (callbacks run after every file has loaded).
   - `core.lua`: `Toolbox` namespace, chat output (`Toolbox.Print`), saved-var helpers (`Load`/`Save`/`Flush`,
@@ -57,6 +59,10 @@ Run all three before calling a change done.
     the hover pop-up: elements of both windows report hover keys to `PopupHover`, and one-shot
     periodics (`toolbox_hover_show`/`_hide`) apply the delays. The Session XP window distinguishes
     pinned (`IsOpen`, persisted) from popped up (`IsPopup`, never persisted).
+  - `daily.lua`: `Toolbox.Daily`, daily stats (model functions at the top are pure and tested) and the
+    Today window. Fed by `Toolbox.Sample` (XP totals), `Toolbox.Tick` (gold, day rollover, saving) and
+    `ShroudOnCombatEvents` (kills). `OnLogin` is called for every new session except a reset, and
+    re-bases gold/XP so offline changes don't count. The day key comes from `Toolbox.Today()`.
   - `config.lua`: `Toolbox.Config`, the settings window. Controls call the owning module's setters; the
     setters call `Toolbox.Config.Sync()` so the controls follow chat commands and the close button.
     To add a setting: a setter + getter on the owning module (persisted there), a control here, a line
@@ -93,6 +99,8 @@ in chat.
 - `H.reload()` = `/lua reload`: flush, tear down UI/commands/timers, reload files, `ShroudTime` continues;
 - `H.restart()` = client relaunch: only flushed data survives, `ShroudTime` restarts;
 - `H.advance(n)` runs the periodics second by second; `H.gain(a, p)` adds XP (and fires the callback);
+- `H.S.date = "2026-09-28"` changes what `os.date("%Y-%m-%d")` returns; `H.S.serverTime` sets
+  `ShroudServerTime`; `H.goldChange(n)`; `H.combat{ { kind = "death", fromYou = true } }`;
 - `H.chat("/tbx reset")`, `H.click(window, id)`, `H.change(window, id, value)` (player input on a
   slider/toggle), `H.closeWindow(id)`, `H.moveWindow(id, x, y)`.
 
@@ -106,6 +114,8 @@ including the "no character" sentinel.
 | `session` | see the header comment of `xp.lua` (format `v = 1`; bump and handle old data if it changes) |
 | `window` | `{ open = bool, x = number, y = number, font = 9..32, spacing = 0..12 }` |
 | `compact` | `{ open = bool, x = number, y = number, hover = bool }` |
+| `daily` | see the header comment of `daily.lua` (format `v = 1`) |
+| `daily_window` | `{ open = bool, x = number, y = number }` |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
 you read back (`Toolbox.XP.IsValid`) and fall back to defaults.
@@ -156,3 +166,11 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     `ceil(1.15 * fontSize) + spacing`. Whether a height below the glyph box clips text (spacing 0 at
     large sizes) is untested; also whether class styles (`heading`, `title`) add margins that the
     inline zero margins override.
+16. Combat `death` lines: which of `source`/`target` is the killer, and whether `fromYou` is set on a
+    death line for a kill you made. Kills count `kind == "death"` with `fromYou` or `fromYourPet` and
+    neither `toYou` nor `toYourPet`. If kills stay at 0 in game, log the death events to check.
+17. `os.date` in the MoonSharp sandbox: undocumented. `Toolbox.Today` feature-detects it and falls back
+    to the date part of `ShroudServerTime`, whose format is also undocumented (the time of day is
+    stripped with a pattern and the rest used as the key).
+18. `ShroudPlayerGold` before a character is loaded or during a scene change: a 0 from a positive
+    balance is ignored as a bad read, so spending exactly down to 0 under-counts the next pickup.

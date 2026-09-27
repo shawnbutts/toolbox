@@ -120,4 +120,5 @@ globals = concat({ "Toolbox" }, api_callbacks)
 files["tests/"] = {
   std = "+lua51",   -- the runner also supports LuaJIT (setfenv-free, but allow the 5.1 names)
   globals = concat({ "Toolbox", "Shroud" }, api_functions, api_values, api_callbacks),
+  ignore = { "122" },   -- the harness replaces os.date to control the local date
 }

@@ -55,8 +55,9 @@ DYNAMIC_CODE_RE = re.compile(
     r"\b(load|loadstring|loadfile|dofile|require|loadsafe)\s*[(\"'\[{]"
     r"|\bdynamic\.eval\b|\b_G\s*\[|\b_ENV\s*\["
 )
-# Project rule: persistence goes through saved vars only; no file or OS access at all.
-FORBIDDEN_LIB_RE = re.compile(r"\b(io|os)\s*\.")
+# Project rule: persistence goes through saved vars only; no file or OS access. The one
+# exception is reading the local clock (os.date / os.time) for the daily reset.
+FORBIDDEN_LIB_RE = re.compile(r"\bio\s*\.|\bos\s*\.(?!(date|time)\b)")
 
 
 class Report:
@@ -265,7 +266,7 @@ def check_sources(report: Report, manifest: dict) -> None:
                 report.error(f"{f}:{lineno}: runtime code loading '{m.group(0).strip()}' is not allowed")
             m = FORBIDDEN_LIB_RE.search(line)
             if m:
-                report.error(f"{f}:{lineno}: '{m.group(0)}' - use saved vars, not io/os")
+                report.error(f"{f}:{lineno}: '{m.group(0)}' - use saved vars, not io/os (only os.date/os.time allowed)")
 
 
 def check_changelog(report: Report, manifest: dict) -> None:

@@ -35,13 +35,16 @@ local S   -- current host state
 
 local function fresh(disk)
   S = {
-    char = { name = "Tester", adv = 1000000, prod = 500000, advPool = 25000, prodPool = 4000, present = true,
+    char = { name = "Tester", adv = 1000000, prod = 500000, advPool = 25000, prodPool = 4000, gold = 5000,
+             present = true,
              progress = {
                adventurer = { level = 50, experience = 1000000, intoLevel = 20000, forLevel = 100000, percent = 0.2 },
                producer = { level = 40, experience = 500000, intoLevel = 5000, forLevel = 50000, percent = 0.1 },
              } },
     memory = copy(disk or {}),   -- saved vars cache: [scope][key]
     disk = copy(disk or {}),
+    date = "2026-09-27",               -- what os.date("%Y-%m-%d") returns
+    serverTime = "2026-09-27 12:00:00",
     logs = {},
     commands = {},
     taken = {},
@@ -67,10 +70,19 @@ local function scopeOf(scope)
   return "character:" .. S.char.name
 end
 
+local realDate = os.date
+
 local function install_api()
   ShroudLuaApiVersion = 14
   InvalidStatResult = -999
   ShroudTime = S.time or 100
+  ShroudPlayerGold = S.char.gold
+  ShroudServerTime = S.serverTime
+  -- The local clock the add-on reads for the daily reset.
+  os.date = function(fmt, ...)
+    if fmt == "%Y-%m-%d" and S.date then return S.date end
+    return realDate(fmt, ...)
+  end
 
   ShroudConsoleLog = function(msg)
     S.logs[#S.logs + 1] = tostring(msg)
@@ -195,6 +207,7 @@ function Element:SetStyle(style)
   for k, v in pairs(style) do self.style[k] = v end
 end
 function Element:SetText(t) self.text = t end
+function Element:SetTooltip(t) self.tooltip = t end
 function Element:GetText() return self.text end
 function Element:SetValue(v) self.value = v end
 function Element:GetValue() return self.value end
@@ -328,9 +341,9 @@ end
 -- Quit and relaunch the client. Only flushed saved vars survive; time restarts.
 function H.restart(time, flushFirst)
   if flushFirst then ShroudFlushSavedVars() end
-  local disk, char = S.disk, S.char
+  local disk, char, date, serverTime = S.disk, S.char, S.date, S.serverTime
   fresh(disk)
-  S.char = char
+  S.char, S.date, S.serverTime = char, date, serverTime
   S.time = time or 50
   install_api()
   H.load()
@@ -342,6 +355,8 @@ function H.advance(seconds, step)
   local target = ShroudTime + seconds
   while ShroudTime < target - 1e-9 do
     ShroudTime = math.min(target, ShroudTime + step)
+    ShroudPlayerGold = S.char.present and S.char.gold or 0   -- per-frame global
+    ShroudServerTime = S.serverTime
     local due = {}
     for name in pairs(S.periodics) do due[#due + 1] = name end
     table.sort(due)
@@ -367,6 +382,25 @@ function H.gain(adv, prod, fireCallback)
     if (prod or 0) > 0 then H.callback("ShroudOnExperienceGain", "Producer", prod) end
   end
 end
+
+-- Gold arrives (positive) or is spent (negative).
+function H.goldChange(delta)
+  S.char.gold = S.char.gold + delta
+end
+
+-- Combat chat lines, e.g. { kind = "death", fromYou = true, target = "Wolf" }.
+function H.combat(events)
+  for _, e in ipairs(events) do
+    for _, k in ipairs({ "fromYou", "toYou", "fromYourPet", "toYourPet", "party" }) do
+      if e[k] == nil then e[k] = false end
+    end
+    e.source, e.target, e.amount, e.skill = e.source or "", e.target or "", e.amount or 0, e.skill or ""
+  end
+  return H.callback("ShroudOnCombatEvents", events, 0)
+end
+
+function H.daily() return S.windows.toolbox_daily end
+function H.dailyText(id) return H.daily():Find(id).text end
 
 function H.logs() return S.logs end
 function H.clearLogs() S.logs = {} end

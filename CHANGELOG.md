@@ -6,6 +6,9 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Daily stats window (`/toolbox daily`, also in settings): gold picked up, kills by you or your
+  pet, and adventurer / producer XP gained today. Resets at local midnight (midnight UTC if the
+  local clock is unavailable); kept per character across reloads and relogs.
 - Line spacing setting (`/toolbox spacing <0-12>` and a slider in settings). Text lines now have
   a fixed height that follows the text size, so smaller text makes the windows shorter.
 - Hovering the compact XP window pops up the Session XP window after a short delay; it stays
@@ -17,6 +20,8 @@ store submission needs a higher version than any submitted before (rejected ones
 - `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
 
 ### Changed
+- The build allows `os.date` / `os.time` (for the daily reset); other `os` and all `io` use is
+  still refused.
 - Lower minimum window heights (Session XP 60, compact 50) now that lines can be tighter.
 - "Next level" and "Last hour" lines use the normal text colour instead of the dimmed one.
 - Sample history now covers the last hour (was 10 minutes); the session is stored in saved

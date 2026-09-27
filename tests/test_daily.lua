@@ -1,0 +1,231 @@
+-- Daily stats: gold picked up, kills, XP today; local-midnight reset.
+local H = require("harness")
+
+return function(t)
+  local function D() return Toolbox.Daily end
+  local function day() return Toolbox.Daily.day end
+
+  -- model -------------------------------------------------------------------
+
+  t.test("model: XP counts increases only, first reading is the baseline", function()
+    H.boot()
+    local d = D().New("k")
+    t.ok(D().ObserveXP(d, 1000, 50))
+    t.eq(d.a, 0)
+    D().ObserveXP(d, 1600, 80)
+    t.eq(d.a, 600)
+    t.eq(d.p, 30)
+    t.no(D().ObserveXP(d, 0, 0), "bad read ignored")
+    D().ObserveXP(d, 1700, 80)
+    t.eq(d.a, 700, "baseline kept through the bad read")
+  end)
+
+  t.test("model: gold counts increases, spending lowers the baseline", function()
+    H.boot()
+    local d = D().New("k")
+    D().ObserveGold(d, 1000)
+    t.eq(d.gold, 0, "baseline")
+    D().ObserveGold(d, 1250)
+    t.eq(d.gold, 250)
+    D().ObserveGold(d, 200)            -- bought something
+    t.eq(d.gold, 250)
+    D().ObserveGold(d, 300)            -- picked up 100 more
+    t.eq(d.gold, 350)
+    t.no(D().ObserveGold(d, 0), "0 from a positive balance is a bad read")
+    D().ObserveGold(d, 310)
+    t.eq(d.gold, 360)
+  end)
+
+  t.test("model: what counts as a kill", function()
+    H.boot()
+    local K = D().IsKill
+    t.ok(K({ kind = "death", fromYou = true }), "yours")
+    t.ok(K({ kind = "death", fromYourPet = true }), "your pet's")
+    t.no(K({ kind = "death", party = true }), "a party member's")
+    t.no(K({ kind = "death", toYou = true, fromYou = false }), "you died")
+    t.no(K({ kind = "death", fromYou = true, toYou = true }), "you killed yourself (a fall)")
+    t.no(K({ kind = "death", fromYourPet = false, toYourPet = true }), "your pet died")
+    t.no(K({ kind = "hit", fromYou = true }), "a hit")
+    t.no(K(nil))
+  end)
+
+  t.test("model: rolling to a new day zeroes counts and keeps baselines", function()
+    H.boot()
+    local d = D().New("day1")
+    D().ObserveXP(d, 100, 100)
+    D().ObserveXP(d, 200, 100)
+    t.no(D().Roll(d, "day1"))
+    t.no(D().Roll(d, nil), "no clock: no roll")
+    t.ok(D().Roll(d, "day2"))
+    t.eq(d.a, 0)
+    D().ObserveXP(d, 250, 100)
+    t.eq(d.a, 50, "gain after midnight counts from the last reading")
+  end)
+
+  -- live --------------------------------------------------------------------
+
+  t.test("counts XP, gold and kills during play", function()
+    H.boot()
+    H.gain(3000, 40)
+    H.goldChange(750)
+    H.advance(1)
+    H.combat({ { kind = "death", fromYou = true, target = "Wolf" },
+               { kind = "hit", fromYou = true, amount = 30 },
+               { kind = "death", fromYourPet = true, target = "Rat" },
+               { kind = "death", party = true, target = "Bear" } })
+    H.advance(1)
+    t.eq(day().a, 3000)
+    t.eq(day().p, 40)
+    t.eq(day().gold, 750)
+    t.eq(day().kills, 2)
+  end)
+
+  t.test("window shows today's numbers", function()
+    H.boot()
+    H.chat("/tbx daily")
+    H.gain(12345, 6)
+    H.goldChange(1500)
+    H.combat({ { kind = "death", fromYou = true } })
+    H.advance(1)
+    t.eq(H.dailyText("date"), "Today 2026-09-27")
+    t.eq(H.dailyText("gold_label"), "Gold picked up")
+    t.eq(H.dailyText("gold"), "1,500")
+    t.eq(H.dailyText("kills"), "1")
+    t.eq(H.dailyText("adv"), "12,345")
+    t.eq(H.dailyText("prod"), "6")
+    t.eq(H.daily():Find("date").tooltip, "Resets at local midnight")
+  end)
+
+  t.test("resets at local midnight", function()
+    H.boot()
+    H.gain(500, 0)
+    H.goldChange(100)
+    H.combat({ { kind = "death", fromYou = true } })
+    H.advance(1)
+    H.S.date = "2026-09-28"
+    H.advance(1)
+    t.eq(day().a, 0)
+    t.eq(day().gold, 0)
+    t.eq(day().kills, 0)
+    t.eq(day().key, "local:2026-09-28")
+    H.gain(20, 0)
+    H.advance(1)
+    t.eq(day().a, 20, "counting again on the new day")
+  end)
+
+  t.test("survives /lua reload on the same day", function()
+    H.boot()
+    H.gain(900, 0)
+    H.goldChange(60)
+    H.combat({ { kind = "death", fromYou = true } })
+    H.advance(1)
+    H.reload()
+    H.advance(1)
+    t.eq(day().a, 900)
+    t.eq(day().gold, 60)
+    t.eq(day().kills, 1)
+  end)
+
+  t.test("a relog on the same day keeps the counts; gold changed while away doesn't count", function()
+    H.boot()
+    H.gain(900, 0)
+    H.goldChange(60)
+    H.advance(1)
+    H.S.char.present = false
+    H.callback("ShroudOnLogOut")
+    H.S.char.gold = H.S.char.gold + 5000         -- e.g. a player vendor sold something
+    H.S.char.present = true
+    H.advance(2)
+    t.eq(day().a, 900)
+    t.eq(day().gold, 60, "offline gold not counted")
+    H.goldChange(40)
+    H.advance(1)
+    t.eq(day().gold, 100, "counting again after login")
+  end)
+
+  t.test("a client restart on the same day keeps the counts", function()
+    H.boot()
+    H.gain(900, 0)
+    H.advance(40)                                -- flushed
+    H.restart()
+    H.advance(1)
+    t.eq(day().a, 900)
+  end)
+
+  t.test("the next day's login starts fresh", function()
+    H.boot()
+    H.gain(900, 0)
+    H.advance(40)
+    H.S.date = "2026-09-28"
+    H.restart()
+    t.eq(day().a, 0)
+    t.eq(day().key, "local:2026-09-28")
+  end)
+
+  t.test("each character has its own day", function()
+    H.boot()
+    H.gain(900, 0)
+    H.advance(1)
+    H.S.char.name = "Alt"
+    H.advance(1)
+    t.eq(day().a, 0, "Alt starts at 0")
+    H.gain(10, 0)
+    H.advance(1)
+    t.eq(day().a, 10)
+    t.eq(H.S.memory["character:Tester"].daily.a, 900, "Tester's day kept")
+  end)
+
+  t.test("falls back to the UTC date when the local clock is missing", function()
+    local realDate = os.date
+    H.boot()
+    os.date = nil
+    H.chat("/tbx daily")
+    H.advance(1)
+    t.eq(H.dailyText("date"), "Today 2026-09-27 UTC")
+    t.eq(H.daily():Find("date").tooltip, "Local clock unavailable: resets at midnight UTC")
+    H.gain(5, 0)
+    H.advance(1)
+    H.S.serverTime = "2026-09-28 00:00:01"
+    H.advance(1)
+    t.eq(day().a, 0, "rolled over at UTC midnight")
+    os.date = realDate
+  end)
+
+  t.test("with no clock at all the counts don't reset", function()
+    local realDate = os.date
+    H.boot()
+    os.date = nil
+    H.S.serverTime = "12:00:00"
+    H.chat("/tbx daily")
+    H.gain(5, 0)
+    H.advance(1)
+    t.eq(H.dailyText("date"), "Today (no clock)")
+    t.eq(day().a, 5, "still counting")
+    os.date = realDate
+  end)
+
+  t.test("corrupt saved data starts a fresh day", function()
+    H.boot({ ["character:Tester"] = { daily = { v = 1, key = "local:2026-09-27", gold = "x", last = {} } } })
+    t.eq(day().gold, 0)
+    t.ok(D().IsValid(day()))
+  end)
+
+  t.test("window toggle, settings checkbox, text size and position", function()
+    H.boot()
+    H.chat("/tbx daily")
+    t.ok(H.daily():IsShown())
+    H.chat("/tbx config")
+    t.eq(H.config():Find("show_daily").value, true)
+    H.change("toolbox_config", "show_daily", false)
+    t.no(H.daily():IsShown())
+    H.chat("/tbx daily")
+    H.chat("/tbx font 10")
+    t.eq(H.daily():Find("kills").style.fontSize, 10)
+    H.moveWindow("toolbox_daily", 50, 60)
+    H.advance(1)
+    H.reload()
+    t.ok(H.daily():IsShown())
+    t.eq(H.daily().x, 50)
+    t.eq(H.saved("daily_window").open, true)
+  end)
+end

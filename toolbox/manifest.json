@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "description": "Session XP tracker: adventurer and producer XP gained this session, XP per hour (session and last 10 minutes), level progress and time to next level. Commands: /toolbox and /tbx.",
   "author": "shawn butts",
-  "files": ["core.lua", "xp.lua", "ui.lua", "compact.lua", "config.lua"],
+  "files": ["core.lua", "xp.lua", "ui.lua", "compact.lua", "daily.lua", "config.lua"],
   "min_api_version": 14,
   "permissions": []
 }

@@ -151,6 +151,7 @@ function W.ApplyText()
     for _, track in ipairs(T.XP.TRACKS) do el[track.key .. "_bar"]:SetStyle{ height = barHeight() } end
   end
   T.Compact.ApplyText()
+  T.Daily.ApplyText()
   T.Config.Sync()
 end
 

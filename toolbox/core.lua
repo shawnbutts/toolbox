@@ -1,7 +1,7 @@
 -- Toolbox: core.lua
 -- Namespace, chat output, saved-variable helpers, slash commands and callback wiring.
 -- Loaded first (see manifest.json). Later files add Toolbox.XP, Toolbox.Window,
--- Toolbox.Compact and Toolbox.Config.
+-- Toolbox.Compact, Toolbox.Daily and Toolbox.Config.
 
 Toolbox = {
   name = "Toolbox",
@@ -28,6 +28,31 @@ end
 -- restarts from 0 when the client restarts.
 function T.Now()
   return ShroudTime or 0
+end
+
+-- Today's date for the daily reset: returns key, label, source.
+--   source "local": the local calendar date from os.date, which the SotA docs don't
+--                   document, so it is feature-detected on every call;
+--   source "utc":   the date part of ShroudServerTime ("server UTC time, formatted as
+--                   a string"; the format isn't documented, so the time of day is
+--                   stripped and whatever date text remains is used as the key);
+--   nil:            no usable clock.
+function T.Today()
+  local osTable = rawget(_G, "os")
+  local date = type(osTable) == "table" and osTable.date
+  if type(date) == "function" then
+    local ok, d = pcall(date, "%Y-%m-%d")
+    if ok and type(d) == "string" and d:match("^%d%d%d%d%-%d%d%-%d%d$") then
+      return "local:" .. d, d, "local"
+    end
+  end
+  local server = ShroudServerTime
+  if type(server) == "string" then
+    local datePart = server:gsub("%d%d?:%d%d:?%d?%d?%.?%d*%s*[AaPp]?%.?[Mm]?%.?", "")
+    datePart = datePart:gsub("UTC", ""):gsub("[Zz]%s*$", ""):gsub("[Tt]%s*$", ""):match("^%s*(.-)[%s,]*$")
+    if datePart:find("%d") then return "utc:" .. datePart, datePart .. " UTC", "utc" end
+  end
+  return nil
 end
 
 -- Deep copy of plain data (tables, strings, numbers, booleans). Used so the
@@ -99,6 +124,10 @@ end)
 
 add("compact", "show or hide the compact XP window", function()
   T.Compact.Toggle()
+end)
+
+add("daily", "show or hide today's stats (gold, kills, XP; resets at midnight)", function()
+  T.Daily.Toggle()
 end)
 
 add("config", "open or close the settings window", function()
@@ -210,6 +239,7 @@ function T.StartSession(why)
   if not adv then return false end
   T.session = T.XP.NewSession(T.Now(), adv, prod, ShroudGetPlayerName())
   T.session.reason = why
+  if why ~= "reset" then T.Daily.OnLogin(adv, prod) end
   T.SaveSession(true)
   T.RefreshViews()
   return true
@@ -234,9 +264,10 @@ end
 
 -- Takes one reading of the totals into the session.
 function T.Sample()
-  if not T.session or T.session.ended then return end
   local adv, prod = T.ReadTotals()
   if not adv then return end
+  T.Daily.ObserveTotals(adv, prod)
+  if not T.session or T.session.ended then return end
   if T.XP.Record(T.session, T.Now(), adv, prod) then T.unsaved = true end
 end
 
@@ -244,6 +275,7 @@ end
 function T.RefreshViews()
   T.Window.Refresh()
   T.Compact.Refresh()
+  T.Daily.Refresh()
 end
 
 function T.Tick()
@@ -257,8 +289,10 @@ function T.Tick()
   else
     T.Sample()
   end
+  T.Daily.Tick(T.ReadTotals() ~= nil)
   T.Window.Track()
   T.Compact.Track()
+  T.Daily.Track()
   -- Store a changed session once a tick (in memory; copying up to an hour of
   -- samples per XP event would be wasteful), and write it to disk at most
   -- every flushSeconds. A reload re-reads the totals, so it loses no XP.
@@ -277,10 +311,12 @@ end
 
 function ShroudOnStart()
   T.RegisterCommands()
+  T.Daily.Load()                     -- before the session: a new login re-bases daily gold
   T.ResumeOrStart()
   T.Sample()                         -- XP gained since the last save (e.g. across a reload)
   T.Window.Init()
   T.Compact.Init()
+  T.Daily.InitWindow()
   ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
 end
 
@@ -290,21 +326,30 @@ function ShroudOnExperienceGain(_, _)
   T.Sample()
 end
 
+-- Kills for the daily stats (combat chat lines about you, your party or your pet).
+function ShroudOnCombatEvents(events, _)
+  T.Daily.OnCombat(events)
+end
+
 function ShroudOnLogOut()
   if T.session then
     T.Sample()
     T.session.ended = true
     T.SaveSession(false)
   end
+  T.Daily.Save()
   T.Window.SavePrefs()
   T.Compact.SavePrefs()
+  T.Daily.SavePrefs()
   T.Flush()
 end
 
 function ShroudOnDisableScript()
   -- Not marked ended: it is not documented whether /lua reload goes through here.
   if T.session then T.SaveSession(false) end
+  T.Daily.Save()
   T.Window.SavePrefs()
   T.Compact.SavePrefs()
+  T.Daily.SavePrefs()
   T.Flush()
 end

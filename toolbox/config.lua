@@ -22,7 +22,7 @@ local function build()
   local W = T.Window
   win = UI.Window{
     id = WINDOW_ID, title = "Toolbox Settings",
-    width = 260, height = 270, minWidth = 200, minHeight = 120,
+    width = 260, height = 290, minWidth = 200, minHeight = 120,
     escCloses = true,
     style = { paddingTop = 6, paddingBottom = 6 },
     children = {
@@ -56,6 +56,10 @@ local function build()
           onChange = function(_, value) C.OnShowCompact(value) end,
         },
         UI.Toggle{
+          id = "show_daily", text = "Show daily stats window", value = T.Daily.IsShown(),
+          onChange = function(_, value) C.OnShowDaily(value) end,
+        },
+        UI.Toggle{
           id = "hover_popup", text = "Show Session XP on hover", value = T.Compact.GetHover(),
           tooltip = "Hovering the compact window pops up the Session XP window",
           onChange = function(_, value) T.Compact.SetHover(value) end,
@@ -64,7 +68,8 @@ local function build()
     },
   }
   el = {}
-  local ids = { "font", "font_value", "spacing", "spacing_value", "show_xp", "show_compact", "hover_popup" }
+  local ids = { "font", "font_value", "spacing", "spacing_value", "show_xp", "show_compact", "show_daily",
+                "hover_popup" }
   for _, id in ipairs(ids) do el[id] = win:Find(id) end
 end
 
@@ -91,6 +96,13 @@ end
 function C.OnShowCompact(value)
   if not T.Compact.SetOpen(value == true) then
     el.show_compact:SetValue(T.Compact.IsShown())
+  el.show_daily:SetValue(T.Daily.IsShown())
+  end
+end
+
+function C.OnShowDaily(value)
+  if not T.Daily.SetOpen(value == true) then
+    el.show_daily:SetValue(T.Daily.IsShown())
   end
 end
 

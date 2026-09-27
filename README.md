@@ -22,6 +22,7 @@ Built clean-room from the official docs only:
 | `/toolbox xp` | show or hide the Session XP window |
 | `/toolbox reset` | start a new XP session |
 | `/toolbox compact` | show or hide the compact XP window |
+| `/toolbox daily` | show or hide today's stats (gold, kills, XP) |
 | `/toolbox config` | open or close the settings window |
 | `/toolbox spacing <0-12>` | set the extra space between lines in pixels (no number: show it; default 2) |
 | `/toolbox font <9-32>` | set the window text size (no number: show the current size; default 12) |
@@ -90,7 +91,8 @@ over the compact window quickly does nothing. A popped-up window isn't remembere
 with "Show Session XP on hover" in `/toolbox config`.
 
 `/toolbox config` opens a **Toolbox Settings** window with a text-size slider (applied as you
-drag), a line-spacing slider, and checkboxes to show the Session XP and compact XP windows.
+drag), a line-spacing slider, and checkboxes to show the Session XP, compact XP and daily stats
+windows.
 
 Shroud.UI has no line-height style, so every text line gets a fixed height of about
 1.15 × the text size plus the line spacing, with no margins above or below. Shrinking the text
@@ -100,6 +102,29 @@ The window remembers whether it is open, where it is and its text size (characte
 `window`). Drag its corner to resize it. The game remembers the size you drag it to, so the
 size set in code only applies the first time the window opens. Content scrolls when the window
 is smaller than it.
+
+## Daily stats
+
+`/toolbox daily` opens a **Today** window:
+
+```
+Today 2026-09-27
+Gold picked up         1,500
+Kills                     87
+Adventurer XP        123,456
+Producer XP            4,567
+```
+
+- **Resets at local midnight.** The local clock comes from `os.date`, which the SotA docs don't
+  mention, so it is checked at runtime. Without it, the reset falls back to midnight UTC using the
+  date in `ShroudServerTime`, and the date line's tooltip says so.
+- **Gold picked up** is every increase in your gold. The API has no loot-gold event, so vendor
+  sales, trades and mail count too. Spending doesn't subtract, and gold that changes while you are
+  logged out isn't counted.
+- **Kills** are combat-chat `death` lines dealt by you or your pet (`ShroudOnCombatEvents`).
+  Party members' kills don't count. Lines past 50 in a single frame are dropped by the game.
+- **XP** is the rise in your total adventurer / producer XP today.
+- Per character, and kept across `/lua reload`, relogs and client restarts on the same day.
 
 ## Development
 
@@ -114,17 +139,19 @@ make check                 # all three
 
 `tools/build.py --check` validates without writing anything. The build enforces the store rules
 from the docs: manifest fields, slug and version format, files list, flat whitelisted zip entries,
-image limits, size caps, and no runtime code loading or `io`/`os` use in package files.
+image limits, size caps, no runtime code loading, and no `io`/`os` use in package files except
+`os.date`/`os.time`.
 
 ### Layout
 
 ```
 toolbox/            the package (what ships)
-  manifest.json     files load in this order: core.lua, xp.lua, ui.lua, compact.lua, config.lua
+  manifest.json     files load in this order: core.lua, xp.lua, ui.lua, compact.lua, daily.lua, config.lua
   core.lua          Toolbox namespace, commands, saved-var helpers, session lifecycle, callbacks
   xp.lua            pure session XP model (rates, rolling window, time to level)
   ui.lua            the Session XP window (Shroud.UI)
   compact.lua       the compact XP window (/toolbox compact)
+  daily.lua         daily stats and the Today window (/toolbox daily)
   config.lua        the Toolbox Settings window (/toolbox config)
   README.md         player-facing store readme
 tests/              headless tests with a stubbed host (harness.lua)

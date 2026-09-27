@@ -36,6 +36,7 @@ return function(t)
     t.ok(H.logged("/toolbox config"))
     t.ok(H.logged("/toolbox compact"))
     t.ok(H.logged("/toolbox spacing"))
+    t.ok(H.logged("/toolbox daily"))
     t.ok(H.logged("/tbx"), "mentions the alias")
   end)
 
