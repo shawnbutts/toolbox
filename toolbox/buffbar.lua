@@ -27,6 +27,8 @@ BB.BUFF_SLOTS, BB.DEBUFF_SLOTS = 20, 10
 BB.SIZE_MIN, BB.SIZE_MAX, BB.SIZE_DEFAULT = 20, 48, 32
 BB.ALERT_MIN, BB.ALERT_MAX, BB.ALERT_DEFAULT = 1, 60, 10
 BB.GAP = 3
+BB.HOME = { 40, 220 }         -- where the bar starts, and where Reset puts it
+BB.NUDGE = 10                 -- pixels per nudge button press
 BB.DEBUFF_SUPPRESS = 3        -- seconds after start / a scene change with no debuff alerts
 BB.DEBUFF_COOLDOWN = 1        -- at most one debuff sound a second
 
@@ -267,7 +269,10 @@ local function build()
     debuffRow[i] = slots.debuffs[i].row
   end
   local w, h = frameSize()
-  frame = UI.HudFrame{ id = FRAME_ID, x = 40, y = 220, width = w, height = h, visible = prefs.show,
+  -- Our own remembered spot too: the docs don't say whether x/y here override the game's
+  -- memory of a HUD frame's position after a reload.
+  frame = UI.HudFrame{ id = FRAME_ID, x = prefs.x or BB.HOME[1], y = prefs.y or BB.HOME[2],
+    width = w, height = h, visible = prefs.show,
     children = {
       UI.Row{ id = "buffs", style = { marginBottom = BB.GAP }, children = buffRow },
       UI.Row{ id = "debuffs", children = debuffRow },
@@ -362,6 +367,12 @@ function BB.Tick()
     for i = di + 1, BB.DEBUFF_SLOTS do fill(slots.debuffs[i], nil) end
   end
   if expiring and prefs.expire then T.Sounds.Play("buff_expiring") end
+  -- Remember where the player put the bar (dragged by its grip, or moved from settings).
+  local x, y = BB.GetPosition()
+  if x and (x ~= prefs.x or y ~= prefs.y) then
+    prefs.x, prefs.y = x, y
+    savePrefs()
+  end
   if T.Now() - lastTimerSave >= BB.TIMER_SAVE then BB.SaveTimers() end
 end
 
@@ -492,6 +503,7 @@ function BB.Init()
       prefs.expireSeconds = math.floor(saved.expireSeconds)
     end
     prefs.debuff = saved.debuff ~= false
+    if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
   timers, debuffs, runes = {}, {}, {}
   local savedTimers = T.Load("buff_timers")
@@ -579,3 +591,38 @@ function BB.SetDebuffAlert(on)
 end
 
 function BB.GetDebuffAlert() return prefs.debuff end
+
+-- ---------------------------------------------------------------------------
+-- Position. A HUD frame can also be dragged by the grip at its top-left corner, but the
+-- grip is hidden while the player has the HUD locked; these move it from settings or chat.
+-- The game remembers a HUD frame's position itself (SetPosition "remembers the new spot as
+-- the player's"; its Reset Positions button puts it back).
+-- ---------------------------------------------------------------------------
+
+-- Left and top as laid out, or nil before the first layout.
+function BB.GetPosition()
+  if not frame then return nil end
+  local ok, x, y = pcall(frame.GetPosition, frame)
+  if not ok or type(x) ~= "number" or type(y) ~= "number" then return nil end
+  return math.floor(x + 0.5), math.floor(y + 0.5)
+end
+
+local function finite(n) return type(n) == "number" and n == n and n > -math.huge and n < math.huge end
+
+-- Moves the bar (the game keeps it on screen). Returns true when it was moved.
+function BB.MoveTo(x, y)
+  if not frame or not finite(x) or not finite(y) then return false end
+  local ok = pcall(frame.SetPosition, frame, math.floor(x + 0.5), math.floor(y + 0.5))
+  T.Config.SyncLive()
+  return ok
+end
+
+function BB.Nudge(dx, dy)
+  local x, y = BB.GetPosition()
+  if not x then x, y = BB.HOME[1], BB.HOME[2] end
+  return BB.MoveTo(x + dx, y + dy)
+end
+
+function BB.ResetPosition()
+  return BB.MoveTo(BB.HOME[1], BB.HOME[2])
+end

@@ -6,6 +6,9 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Buff bar position controls: 10 px nudge buttons, Reset and a position readout in settings, and
+  `/toolbox buffs move <x> <y>`. (Its drag grip is hidden while the game's HUD is locked.) The
+  position is also remembered by the add-on, in case the game's own memory doesn't survive a reload.
 - Buff bar (`/toolbox buffs`): buffs and debuffs as their skill icons on a HUD strip, debuffs
   outlined in red, with a clock-style sweep over each icon (`toolbox/clock.png`) instead of a
   countdown. Built from a fixed pool of slots.

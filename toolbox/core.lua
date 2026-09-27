@@ -186,8 +186,22 @@ add("spacing", "set the extra space between lines, 0-12 (no number: show and mea
   end
 end)
 
-add("buffs", "show or hide the buff bar (debug: timing data; trace [name]: log it for 10 s)", function(rest)
+add("buffs", "show or hide the buff bar (move [x y]; debug; trace [name])", function(rest)
   local word, name = T.ParseArgs(rest)
+  if word == "move" then
+    local x, y = name:match("^(%-?%d+)[%s,]+(%-?%d+)$")
+    if x then
+      T.BuffBar.MoveTo(tonumber(x), tonumber(y))
+    elseif name ~= "" then
+      T.Print("Use /" .. T.commands[1] .. " buffs move <x> <y>, e.g. 40 220.")
+      return
+    end
+    local px, py = T.BuffBar.GetPosition()
+    T.Print("Buff bar at " .. (px and (px .. ", " .. py) or "(not laid out yet)")
+      .. ". Move it with /" .. T.commands[1] .. " buffs move <x> <y>, the buttons in settings, or its grip"
+      .. " (unlock the HUD to see the grip).")
+    return
+  end
   if word == "debug" then
     for _, line in ipairs(T.BuffBar.DebugLines()) do T.Print(line) end
     return
@@ -375,7 +389,7 @@ function T.Tick()
     T.unflushed = false
   end
   T.Sounds.Poll()
-  T.Config.SyncSounds()
+  T.Config.SyncLive()
   T.RefreshViews()
 end
 

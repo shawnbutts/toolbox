@@ -30,6 +30,7 @@ Built clean-room from the official docs only:
 | `/toolbox reset` | start a new XP session |
 | `/toolbox daily` | show or hide today's stats (gold, kills, XP) |
 | `/toolbox dailydetailed` (or `dd`) | show or hide Today Detailed (every item gained today) |
+| `/toolbox buffs move [x y]` | place the buff bar (no numbers: say where it is) |
 | `/toolbox buffs` (`debug` / `trace [name]`) | show or hide the buff bar (`debug`: each buff's timing data; `trace light`: log the buffs whose name contains "light" once a second for 10 s) |
 | `/toolbox buffalert <1-60>` / `on` / `off` | alert this many seconds before a buff runs out (default 10) |
 | `/toolbox debuffalert on` / `off` | alert when a debuff lands |
@@ -158,10 +159,14 @@ the day's gold and kills and a list of every item gained today with its count, h
 
 ## Buff bar
 
-`/toolbox buffs` shows a HUD strip (move it by its corner grip; the game remembers where) with
+`/toolbox buffs` shows a HUD strip with
 your buffs on the top row and debuffs, outlined in red, below. Each icon is the skill's real icon
 with the game's own tooltip. Time left is shown as a darkening clockwise sweep from 12 o'clock
 (the `toolbox/clock.png` sprite sheet), not as text; permanent effects have no sweep.
+
+**Moving it.** Drag the small grip at its top-left corner (the game hides the grip while the HUD
+is locked: unlock it in the game's settings), use the Position buttons in `/toolbox config`
+(10 px nudges and Reset), or type `/toolbox buffs move 600 40`. The bar remembers where it is.
 
 The game's own buff bar can't be hidden from an add-on, so this one sits alongside it. Icons are a
 fixed pool (20 buffs, 10 debuffs) built once, so buff changes never create UI elements.

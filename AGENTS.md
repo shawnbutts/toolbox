@@ -158,7 +158,7 @@ including the "no character" sentinel.
 | `daily` | see the header comment of `daily.lua` (format `v = 1`) |
 | `daily_window` | `{ open = bool, x = number, y = number, hover = bool }` |
 | `daily_detail` | `{ open = bool, x = number, y = number }` |
-| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff }` |
+| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { buff_expiring = "...", debuff_landed = "..." } }` |
 | `buff_timers` | `{ v = 2, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload |
 | `buff_durations` | `{ [rune name] = seconds }`: full durations learned from casts |
@@ -236,7 +236,9 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     So a buff's full duration is only known by seeing it start: `BuffBar.Track`'s `fresh` (appeared while
     running, not in the start-up snapshot, not during a scene load) or a recast; those runs are
     `trusted` and `BuffBar.Learn` saves the length (`buff_durations`) for next time it is already
-    running. Untrusted runs get no sweep. `TotalFromEffects` stays in case the fields ever appear.
+    running. Untrusted runs get no sweep. `TotalFromEffects` stays in case the fields ever appear:
+    the docs may be ahead of the released client. ON HOLD by the owner (2026-09-27): don't debug the
+    missing fields further; re-check `/toolbox buffs trace` after a client update.
     `buff_timers` is `{ v = 2, timers = ... }` holding trusted totals only; unversioned (v1) saves are
     ignored because they could hold wrong totals. Vanished buffs keep their timer for `GRACE` seconds.
 23. Sounds: `ShroudLoadSound`'s path base ("the addon's Lua folder" vs the Lua root) and what clip names
@@ -250,3 +252,7 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     ~1 s per second). An earlier "stale value" theory for the lagging sweep was wrong; the cause was the
     unknown full duration (item 22). `BuffBar.Track`'s own end-time clock stays (harmless: it resyncs
     every tick when the value changes), and `H.S.staleEvery` still tests it.
+26. HUD frame position: docs say a HudFrame is moved by a grip (hidden while the HUD is locked), is
+    "remembered where the player put it", and `SetPosition` "remembers the new spot as the player's". Not
+    said: whether the constructor's x/y override that memory after a reload. So the buff bar also keeps
+    `buffbar.x/y` (polled every tick) and builds at them; either way it comes back where it was.

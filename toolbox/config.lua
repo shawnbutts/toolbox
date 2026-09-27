@@ -53,6 +53,23 @@ function C.BuffBarSection()
     UI.Label{ text = "Buff bar", class = "heading", style = { marginTop = 8 } },
     UI.Toggle{ id = "show_buffs", text = "Show buff bar", value = B.IsShown(),
       onChange = function(_, v) B.SetShown(v) end },
+    UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
+      UI.Label{ text = "Position", class = "text", style = { flexGrow = 1 },
+        tooltip = "Or drag the grip at the bar's top-left corner (unlock the HUD in the game's settings to see it)" },
+      UI.Label{ id = "buff_pos", text = "", class = "dim" },
+    } },
+    UI.Row{ style = { marginTop = 2 }, children = {
+      UI.Button{ id = "buff_left", text = "<", tooltip = "Move left " .. B.NUDGE .. " px",
+        onClick = function() B.Nudge(-B.NUDGE, 0) end },
+      UI.Button{ id = "buff_up", text = "^", tooltip = "Move up " .. B.NUDGE .. " px",
+        style = { marginLeft = 2 }, onClick = function() B.Nudge(0, -B.NUDGE) end },
+      UI.Button{ id = "buff_down", text = "v", tooltip = "Move down " .. B.NUDGE .. " px",
+        style = { marginLeft = 2 }, onClick = function() B.Nudge(0, B.NUDGE) end },
+      UI.Button{ id = "buff_right", text = ">", tooltip = "Move right " .. B.NUDGE .. " px",
+        style = { marginLeft = 2 }, onClick = function() B.Nudge(B.NUDGE, 0) end },
+      UI.Button{ id = "buff_reset", text = "Reset", tooltip = "Put the bar back where it started",
+        style = { marginLeft = 6 }, onClick = function() B.ResetPosition() end },
+    } },
     slider("buff_size", "Icon size", B.SIZE_MIN, B.SIZE_MAX, 1, B.GetSize(),
       "Buff icon size in pixels", function(n) B.SetSize(n) end),
     UI.Toggle{ id = "expire_alert", text = "Sound when a buff is about to run out", value = B.GetExpireAlert(),
@@ -131,7 +148,7 @@ local function build()
   local ids = { "font", "font_value", "spacing", "spacing_value", "show_xp", "show_compact", "show_daily",
                 "show_daily_detail", "hover_popup", "hover_daily",
                 "show_buffs", "buff_size", "buff_size_value", "expire_alert", "expire_seconds",
-                "expire_seconds_value", "debuff_alert", "volume", "volume_value" }
+                "expire_seconds_value", "debuff_alert", "volume", "volume_value", "buff_pos" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -201,11 +218,20 @@ function C.Sync()
   end
   el.expire_alert:SetValue(B.GetExpireAlert())
   el.debuff_alert:SetValue(B.GetDebuffAlert())
-  C.SyncSounds()
+  C.SyncLive()
 end
 
--- Sound status lines ("Buff expiring: playing toolbox_buff_expiring.ogg"); called from Sync
--- and once a tick while loads settle. Path fields are left alone so typing isn't overwritten.
+-- Things that change without a setter being called (sound loads settling, the bar being
+-- dragged by its grip); called once a tick from Toolbox.Tick, and from Sync.
+function C.SyncLive()
+  if not win then return end
+  C.SyncSounds()
+  local x, y = T.BuffBar.GetPosition()
+  el.buff_pos:SetText(x and (x .. ", " .. y) or "")
+end
+
+-- Sound status lines ("Buff expiring: playing toolbox_buff_expiring.ogg"). Path fields are
+-- left alone so typing isn't overwritten.
 function C.SyncSounds()
   if not win then return end
   for _, def in ipairs(T.Sounds.DEFS) do
