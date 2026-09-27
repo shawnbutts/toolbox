@@ -416,6 +416,7 @@ add("combat", "combat stats HUD; add stats while playing: /toolbox combat help",
     T.MoveCommand(C, "combat", "Combat stats", args)
   elseif word == "debug" then
     T.Print(T.Hud.Debug("combat"))
+    T.Print(C.LayoutDebug())
   elseif word == "size" then
     if args ~= "" and not C.SetScale(tonumber(args)) then
       T.Print("Size is a whole percent from " .. C.SCALE_MIN .. " to " .. C.SCALE_MAX .. ".")

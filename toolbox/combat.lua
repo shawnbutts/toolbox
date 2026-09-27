@@ -287,6 +287,23 @@ function C.ContentSize()
   return m.w + 2 * m.pad, math.max(1, shownRows) * m.line + 2 * m.pad
 end
 
+-- One chat line with the sizes the game laid out for the first row (for /toolbox combat debug):
+-- what Metrics asked for next to what GetSize reports, to see where the space goes.
+function C.LayoutDebug()
+  local m = C.Metrics()
+  local slot = el[1]
+  local function size(e)
+    if not e then return "?" end
+    local ok, w, h = pcall(e.GetSize, e)
+    if not ok then return "?" end
+    return tostring(w) .. "x" .. tostring(h)
+  end
+  return string.format("layout: bg %s, pad %d, name %d + value %d = %d wide; "
+    .. "laid out: slab %s, row %s, name %s, value %s",
+    background(), m.pad, m.labelW, m.valueW, m.w + 2 * m.pad, size(slot and slot.dark), size(slot and slot.line),
+    size(slot and slot.name), size(slot and slot.value))
+end
+
 function C.GetSavedPosition() return prefs.x, prefs.y end
 function C.SavePosition(x, y)
   if x ~= prefs.x or y ~= prefs.y then
