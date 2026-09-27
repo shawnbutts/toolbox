@@ -217,6 +217,15 @@ function Element:Clear()
   self.children = {}
 end
 function Element:SetVisible(v) self.visible = v end
+-- Laid-out size. Models a theme class with a minimum height (H.S.themeMinHeight):
+-- an explicit minHeight overrides it; maxHeight caps the result.
+function Element:GetSize()
+  local st = self.style or {}
+  local h = st.height or 20
+  h = math.max(h, st.minHeight or S.themeMinHeight or 0)
+  if st.maxHeight then h = math.min(h, st.maxHeight) end
+  return 200, h
+end
 function Element:IsVisible() return self.visible ~= false end
 function Element:SetText(t) self.text = t end
 function Element:SetTooltip(t) self.tooltip = t end

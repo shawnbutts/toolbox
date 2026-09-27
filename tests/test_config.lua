@@ -166,4 +166,57 @@ return function(t)
     t.eq(find("show_compact").value, false)
     t.eq(find("show_daily").value, true, "daily checkbox untouched")
   end)
+
+  t.test("line height is pinned with min/max height so a theme minimum can't override it", function()
+    H.boot()
+    H.S.themeMinHeight = 22               -- a theme class asking for taller lines
+    H.chat("/tbx xp")
+    H.chat("/tbx spacing 0")
+    local lh = Toolbox.Window.LineHeight()
+    t.ok(lh < 22, "line height below the theme minimum: " .. lh)
+    local label = H.compact():Find("a_pool")
+    t.eq(label.style.minHeight, lh)
+    t.eq(label.style.maxHeight, lh)
+    t.eq(select(2, label:GetSize()), lh, "laid out at the requested height")
+  end)
+
+  t.test("/tbx spacing measures the laid-out height", function()
+    H.boot()
+    H.clearLogs()
+    H.chat("/tbx spacing")
+    t.ok(H.logged("open a window to measure"), "nothing shown yet")
+    H.chat("/tbx daily")
+    H.clearLogs()
+    H.chat("/tbx spacing")
+    local lh = Toolbox.Window.LineHeight()
+    t.ok(H.logged("lines should be " .. lh .. " px; in Today they measure " .. lh .. " px%."), H.lastLog())
+    -- a game that ignored the height would be called out
+    H.daily():Find("date").style.maxHeight = nil
+    H.daily():Find("date").style.minHeight = 30
+    H.clearLogs()
+    H.chat("/tbx spacing")
+    t.ok(H.logged("the game is not applying the height"), H.lastLog())
+  end)
+
+  t.test("setting spacing reports the new height and how to measure", function()
+    H.boot()
+    H.clearLogs()
+    H.chat("/tbx spacing 5")
+    t.ok(H.logged("set to 5 %(lines " .. Toolbox.Window.LineHeight() .. " px%)"), H.lastLog())
+  end)
+
+  t.test("spacing changes reach already-open windows of every kind", function()
+    H.boot()
+    H.items({ { "Ore", 1 } })
+    for _, c in ipairs({ "/tbx xp", "/tbx xpdetailed", "/tbx daily", "/tbx dd" }) do H.chat(c) end
+    H.chat("/tbx spacing 9")
+    local lh = Toolbox.Window.LineHeight()
+    local probes = {
+      { H.compact, "p_hour" }, { H.window, "a_eta" }, { H.daily, "kills" }, { H.detail, "summary" },
+    }
+    for _, pr in ipairs(probes) do
+      t.eq(select(2, pr[1]():Find(pr[2]):GetSize()), lh, pr[2])
+    end
+    t.eq(select(2, H.detail():Find("list").children[1].children[1]:GetSize()), lh, "item row")
+  end)
 end

@@ -188,12 +188,16 @@ end
 
 function DD.ApplyText()
   if not win then return end
-  local style = { fontSize = T.Window.GetFont(), height = T.Window.LineHeight() }
+  local style = T.Window.LineStyle()
   for _, id in ipairs(HEADER_IDS) do el[id]:SetStyle(style) end
   for _, r in pairs(rows) do
     r.name:SetStyle(style)
     r.count:SetStyle(style)
   end
+end
+
+function DD.SampleLabel()
+  return DD.IsShown() and el.date or nil
 end
 
 function DD.Track()

@@ -176,10 +176,11 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     window's title bar counts as the window. We register hover on each window and its sections and
     treat "any over" as hovering; the show/hide delays absorb flicker. If the pop-up flickers or
     won't close, this is the place to look.
-15. Line height: there is no line-height style, so labels get an explicit `height` of
-    `ceil(1.15 * fontSize) + spacing`. Whether a height below the glyph box clips text (spacing 0 at
-    large sizes) is untested; also whether class styles (`heading`, `title`) add margins that the
-    inline zero margins override.
+15. Line height: there is no line-height style, so labels get `height`, `minHeight` and `maxHeight`
+    of `ceil(1.15 * fontSize) + spacing` (`Toolbox.Window.LineStyle()`). Setting only `height` did
+    nothing in game (reported 2026-09-27); the suspected cause is a theme class minimum height, hence
+    the pinning. `/toolbox spacing` (no number) compares the requested height with `GetSize()`; if they
+    differ, the game is still overriding it. Unconfirmed: whether a height below the glyph box clips text.
 16. Combat `death` lines: which of `source`/`target` is the killer, and whether `fromYou` is set on a
     death line for a kill you made. Kills count `kind == "death"` with `fromYou` or `fromYourPet` and
     neither `toYou` nor `toYourPet`. If kills stay at 0 in game, log the death events to check.

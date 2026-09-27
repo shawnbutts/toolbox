@@ -159,8 +159,12 @@ end
 -- Follows the XP Detailed window's text size and line spacing (called from Toolbox.Window.ApplyText).
 function C.ApplyText()
   if not win then return end
-  local style = { fontSize = T.Window.GetFont(), height = T.Window.LineHeight() }
+  local style = T.Window.LineStyle()
   for _, id in ipairs(TEXT_IDS) do el[id]:SetStyle(style) end
+end
+
+function C.SampleLabel()
+  return C.IsShown() and el.elapsed or nil
 end
 
 function C.Track()

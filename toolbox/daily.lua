@@ -336,8 +336,12 @@ end
 
 function D.ApplyText()
   if not win then return end
-  local style = { fontSize = T.Window.GetFont(), height = T.Window.LineHeight() }
+  local style = T.Window.LineStyle()
   for _, id in ipairs(TEXT_IDS) do el[id]:SetStyle(style) end
+end
+
+function D.SampleLabel()
+  return D.IsShown() and el.date or nil
 end
 
 function D.Track()

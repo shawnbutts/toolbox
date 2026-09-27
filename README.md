@@ -29,7 +29,7 @@ Built clean-room from the official docs only:
 | `/toolbox daily` | show or hide today's stats (gold, kills, XP) |
 | `/toolbox dailydetailed` (or `dd`) | show or hide Today Detailed (every item gained today) |
 | `/toolbox config` | open or close the settings window |
-| `/toolbox spacing <0-12>` | set the extra space between lines in pixels (no number: show it; default 2) |
+| `/toolbox spacing <0-12>` | set the extra space between lines in pixels (no number: show and measure it; default 2) |
 | `/toolbox font <9-32>` | set the window text size (no number: show the current size; default 12) |
 
 If the game refuses a command name (another add-on has it, or it is too close to a chat
@@ -100,7 +100,9 @@ pin it (running it while the window is popped up keeps it open). Turn hover off 
 drag), a line-spacing slider, and checkboxes to show each window and to turn each hover pop-up on or off.
 
 Shroud.UI has no line-height style, so every text line gets a fixed height of about
-1.15 × the text size plus the line spacing, with no margins above or below. Shrinking the text
+1.15 × the text size plus the line spacing (pinned with `minHeight`/`maxHeight` so a theme's own
+minimum can't override it), with no margins above or below. `/toolbox spacing` with no number
+reports the height lines should be and the height the game actually laid them out at. Shrinking the text
 therefore shrinks the lines too, and both windows can then be dragged smaller. It writes the same settings as the chat commands.
 
 The window remembers whether it is open, where it is and its text size (character-scope saved var

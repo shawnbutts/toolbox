@@ -49,11 +49,19 @@ function W.LineHeight()
   return math.ceil(fontSize() * 1.15) + spacing()
 end
 
--- Style for a text label: size, fixed line height, no vertical margins or padding.
--- `extra` adds or overrides keys. Shared with the compact window.
+-- Size and line height for a text label. The height is pinned with minHeight and
+-- maxHeight too: a theme class can set its own minimum height, which would win over
+-- a smaller `height` and make small spacing values do nothing.
+function W.LineStyle()
+  local h = W.LineHeight()
+  return { fontSize = fontSize(), height = h, minHeight = h, maxHeight = h }
+end
+
+-- Style for a text label: LineStyle plus no vertical margins or padding.
+-- `extra` adds or overrides keys. Shared with the other windows.
 function W.TextStyle(extra)
-  local style = { fontSize = fontSize(), height = W.LineHeight(),
-                  marginTop = 0, marginBottom = 0, paddingTop = 0, paddingBottom = 0 }
+  local style = W.LineStyle()
+  style.marginTop, style.marginBottom, style.paddingTop, style.paddingBottom = 0, 0, 0, 0
   for k, v in pairs(extra or {}) do style[k] = v end
   return style
 end
@@ -144,10 +152,32 @@ function W.GetSpacing()
   return spacing()
 end
 
+-- A label in this window while it is shown (for measuring), else nil.
+function W.SampleLabel()
+  return W.IsShown() and el.elapsed or nil
+end
+
+-- The height the game actually laid one text line out at, from the first shown
+-- window, and that window's name. nil when no window is shown or not laid out yet.
+function W.MeasureLine()
+  local sources = {
+    { "XP Detailed", W.SampleLabel }, { "XP", T.Compact.SampleLabel },
+    { "Today", T.Daily.SampleLabel }, { "Today Detailed", T.DailyDetail.SampleLabel },
+  }
+  for _, src in ipairs(sources) do
+    local label = src[2]()
+    if label then
+      local _, h = label:GetSize()
+      if type(h) == "number" then return math.floor(h + 0.5), src[1] end
+    end
+  end
+  return nil
+end
+
 -- Re-applies text size and line height to both XP windows and syncs the settings window.
 function W.ApplyText()
   if win then
-    local line = { fontSize = fontSize(), height = W.LineHeight() }
+    local line = W.LineStyle()
     for _, id in ipairs(TEXT_IDS) do el[id]:SetStyle(line) end
     el.reset:SetStyle{ fontSize = fontSize() }
     for _, track in ipairs(T.XP.TRACKS) do el[track.key .. "_bar"]:SetStyle{ height = barHeight() } end

@@ -159,11 +159,27 @@ add("font", "set the window text size, 9-32 (no number: show the current size)",
   end
 end)
 
-add("spacing", "set the extra space between lines, 0-12 (no number: show the current value)", function(rest)
+-- "Line spacing is 2: lines should be 16 px; in XP they measure 16 px."
+local function spacingReport(prefix)
+  local W = T.Window
+  local msg = prefix .. " " .. W.GetSpacing() .. ": lines should be " .. W.LineHeight() .. " px"
+  local measured, where = W.MeasureLine()
+  if measured then
+    msg = msg .. "; in " .. where .. " they measure " .. measured .. " px"
+    if measured ~= W.LineHeight() then msg = msg .. " (the game is not applying the height)" end
+  else
+    msg = msg .. " (open a window to measure)"
+  end
+  return msg .. "."
+end
+
+add("spacing", "set the extra space between lines, 0-12 (no number: show and measure it)", function(rest)
   if rest == "" then
-    T.Print("Line spacing is " .. T.Window.GetSpacing() .. ". Use /" .. T.commands[1] .. " spacing <0-12>.")
+    T.Print(spacingReport("Line spacing is") .. " Use /" .. T.commands[1] .. " spacing <0-12>.")
   elseif T.Window.SetSpacing(tonumber(rest)) then
-    T.Print("Line spacing set to " .. T.Window.GetSpacing() .. ".")
+    -- Not measured here: the game lays the change out on the next frame.
+    T.Print("Line spacing set to " .. T.Window.GetSpacing() .. " (lines " .. T.Window.LineHeight()
+      .. " px). Type /" .. T.commands[1] .. " spacing to measure.")
   else
     T.Print("Line spacing must be a whole number from 0 to 12.")
   end

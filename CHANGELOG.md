@@ -23,6 +23,9 @@ store submission needs a higher version than any submitted before (rejected ones
 - `/toolbox font <9-32>` sets the Session XP window's text size (saved per character).
 
 ### Fixed
+- Line spacing had no visible effect: label heights are now pinned with `minHeight`/`maxHeight`
+  as well as `height`, so a theme class's minimum height can't override them. `/toolbox spacing`
+  with no number now measures the laid-out line height.
 - The "Show daily stats window" checkbox in settings now follows `/toolbox daily` and the
   window's close button (it only worked in one direction).
 
