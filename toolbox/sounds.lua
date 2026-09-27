@@ -1,11 +1,10 @@
 -- Toolbox: sounds.lua
 -- Alert sounds (Toolbox.Sounds). Each sound is looked for in order:
 --   1. the player's custom path (settings), anywhere inside the Lua folder;
---   2. "toolbox_<file>" loose in the Lua folder (the default place to drop a file: store
---      updates replace the package folder, not loose files), then the same name as .wav;
---   3. "toolbox/<file>" and "<file>": inside the package, for when audio files are allowed
---      in packages (the sound docs say paths are relative to "the addon's Lua folder", the
---      texture docs to the Lua root; both readings are tried).
+--   2. a replacement "Lua/toolbox_<file>" beside the package (store updates replace the package
+--      folder, not loose files), as .ogg then .wav;
+--   3. the default "Lua/toolbox/<file>" in the package folder, as .ogg then .wav.
+-- Paths are relative to the Lua root (ShroudLuaPath is the Lua folder in game).
 -- The first that loads is used; if none do, the sound stays silent.
 --
 -- ShroudLoadSound is asynchronous and "true" only means the request was accepted, so a
@@ -67,12 +66,12 @@ local function candidates(def)
   local list = {}
   local custom = prefs.paths[def.key]
   if type(custom) == "string" and custom ~= "" then list[#list + 1] = custom end
-  -- Each place as .ogg and then .wav (in game the .ogg files never showed up in ShroudListSound()).
-  -- The sound docs say paths are relative to "the addon's Lua folder", the texture docs to the Lua
-  -- root, so both the Lua root ("toolbox_x", "toolbox/x") and the package folder ("x") are tried.
+  -- Paths are relative to the Lua root (in game ShroudLuaPath is the Lua folder itself).
+  -- A player's replacement sits in the Lua folder, beside the package, and wins; the defaults
+  -- ship in the package folder. Each as .ogg, then .wav.
   local wav = def.file:gsub("%.ogg$", ".wav")
-  for _, name in ipairs({ "toolbox_" .. def.file, "toolbox_" .. wav, "toolbox/" .. def.file, "toolbox/" .. wav,
-                          def.file, wav }) do
+  for _, name in ipairs({ "toolbox_" .. def.file, "toolbox_" .. wav,     -- replacement: Lua/toolbox_<name>
+                          "toolbox/" .. def.file, "toolbox/" .. wav }) do  -- default: Lua/toolbox/<name>
     list[#list + 1] = name
   end
   return list
@@ -330,7 +329,8 @@ function S.Report()
     local status, path = S.Status(def.key)
     local where = status == "ready" and ("playing " .. path)
       or status == "loading" and "still looking..."
-      or ("no file found; put one at Lua/toolbox_" .. def.file .. " or set a path in /toolbox config")
+      or ("no file found (the default is Lua/toolbox/" .. def.file .. "; a replacement goes at Lua/toolbox_"
+        .. def.file .. ")")
     lines[#lines + 1] = def.label .. ": " .. where
   end
   lines[#lines + 1] = "Volume " .. prefs.volume .. "."

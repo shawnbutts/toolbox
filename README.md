@@ -27,7 +27,8 @@ Built clean-room from the official docs only:
 
 | Command | What it does |
 | --- | --- |
-| `/toolbox help` (or no argument) | list commands |
+| `/toolbox` (no argument) | open or close the settings window, the hub for everything |
+| `/toolbox help` | list commands |
 | `/toolbox xp` | show or hide the XP window |
 | `/toolbox xpdetailed` (or `xpd`) | show or hide the XP Detailed window |
 | `/toolbox reset` | start a new XP session |
@@ -191,12 +192,17 @@ fixed pool (20 buffs, 10 debuffs) built once, so buff changes never create UI el
   doesn't say who applied an effect, so this is any new debuff. It stays quiet for 3 s after you
   log in or change scene, when the game rebuilds the buff list.
 
-**Sounds.** Audio files can't be part of a store package yet, so each alert looks, in order, for:
+**Sounds.** The default sounds live in the add-on's folder (`Lua/toolbox/buff_expiring.ogg`,
+`Lua/toolbox/debuff_landed.ogg`); to use your own, put a replacement in the folder above it. Each
+alert takes the first that loads of:
 
 1. a custom path you set in `/toolbox config` (any `.ogg`/`.wav`/`.mp3` inside your Lua folder);
-2. `Lua/toolbox_buff_expiring.ogg` / `Lua/toolbox_debuff_landed.ogg` (the default place; store
-   updates don't touch loose files);
-3. the package folder (for when audio can ship).
+2. a replacement beside the add-on: `Lua/toolbox_buff_expiring.ogg` / `Lua/toolbox_debuff_landed.ogg`
+   (or `.wav`), which store updates don't touch;
+3. the default in the add-on's folder, `Lua/toolbox/<name>.ogg` (or `.wav`).
+
+Audio files can't be part of a store package yet, so for now `tools/install.py` puts the defaults
+there; paths are relative to the Lua folder (`ShroudLuaPath`).
 
 Missing files are fine: that alert is just silent. **Known issue (2026-09-27):** in the current
 (DEV) client no sound file loads at all (`/toolbox sounds try 1` returns -1), which looks like a
@@ -204,7 +210,7 @@ client problem; the alerts are silent until that is fixed, but the red sweep sti
 buffs. `/toolbox sounds` says which file each alert
 uses; `/toolbox sounds test` (or the Test buttons in settings) plays them and reports whether the
 game is really playing them. The sounds are in `art/`; `tools/install.py` copies them to the
-default place for you, plus `.wav` copies to try as a custom path if an `.ogg` plays silently.
+add-on's folder for you (with `.wav` copies), and never writes to the Lua folder itself.
 
 When a buff's expiry alert fires, its sweep turns from dark to red for the rest of that run.
 
@@ -339,14 +345,17 @@ tools/install.py    copies dist/toolbox/ into a game client's Lua folder
    python3 tools/install.py --lua-dir "/path/to/Lua"
    # or: export SOTA_LUA_DIR="/path/to/Lua"; make install
    ```
-   The installer also copies the alert sounds to `Lua/toolbox_*.ogg`. The folder name must be
+   The installer also puts the default alert sounds in `Lua/toolbox/`. (Earlier installs put them
+   in `Lua/toolbox_*.ogg`; those now count as your replacements, so delete them unless wanted.)
+   The folder name must be
    exactly `toolbox`, and there must be no loose `toolbox.lua` in the Lua
    folder (it would block the package). Re-installing replaces `Lua/toolbox/` only; saved vars in
    `Lua/SavedVariables/` are kept.
 4. In game: `/lua reload`.
 5. Enable **Toolbox** in the add-on manager (new add-ons load disabled).
 6. `/lua check toolbox` should report nothing blocking.
-7. `/toolbox xp` opens the XP window; hover it for XP Detailed. Try `/tbx help`, `/tbx reset`, `/lua reload` (the session should
+7. The first run prints "Toolbox is ready: type /toolbox ...". `/toolbox` opens the settings window,
+   where each feature has a checkbox. `/toolbox xp` opens the XP window; hover it for XP Detailed. Try `/tbx help`, `/tbx reset`, `/lua reload` (the session should
    carry on), and closing/moving the window then reloading.
 
 ## Releasing

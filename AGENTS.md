@@ -133,7 +133,9 @@ Run all three before calling a change done.
   audio is identical, so `git checkout` an .ogg you didn't mean to change. NOT shipped: the documented package whitelist has no audio, and
   `tools/build.py` refuses it. When audio is allowed, re-read the packaging docs for formats and size
   limits, extend `build.py`'s whitelist, and move the files into `toolbox/` (`Toolbox.Sounds` already
-  looks there). Until then players put them at `Lua/toolbox_<name>.ogg` (`tools/install.py` does).
+  looks there). Owner's decision (2026-09-27): DEFAULTS live in the package folder (`Lua/toolbox/<name>`,
+  path "toolbox/<name>"); a player's REPLACEMENTS go in the Lua folder beside it (`Lua/toolbox_<name>`)
+  and win. `tools/install.py` puts the defaults in the package folder and never writes to the Lua root.
 - `tools/build.py` stamps `build = "<git short commit>[+]"` into dist's core.lua (the source keeps "dev");
   `/toolbox version` shows it, to tell exactly which build is installed.
 - `tools/build.py`: validates the store packaging rules and writes `dist/toolbox/` + zip.
@@ -176,6 +178,8 @@ in chat.
   `H.S.files[path] = true` makes a texture/sound exist; `H.S.acceptMissing` makes `ShroudLoadSound`
   accept paths it can't load; `H.S.played` / `H.playedNames()`; `H.frame()` / `H.vitals()` / `H.hud()` (the glued strip); `H.combatHud()`, `H.combatRows()`,
   `H.setCombat(on)` (combat mode + callback); `H.submit(win, id, text)`;
+- The first run on an account prints a one-time welcome (account-scope saved var `welcomed`).
+  `/toolbox` with no argument opens the settings window (`/toolbox help` lists commands).
 - `H.chat("/tbx reset")`, `H.click(window, id)`, `H.change(window, id, value)` (player input on a
   slider/toggle), `H.closeWindow(id)`, `H.moveWindow(id, x, y)`.
 

@@ -269,6 +269,8 @@ return function(t)
     H.boot()
     H.chat("/tbx xpdetailed")
     t.eq(H.S.memory["character:Tester"].window.open, true)
-    t.eq(H.S.memory.account, nil, "nothing in account scope")
+    local account = H.S.memory.account or {}
+    t.eq(account.window, nil, "window prefs aren't account-wide")
+    t.eq(account.welcomed, true, "only the one-time welcome flag is")
   end)
 end

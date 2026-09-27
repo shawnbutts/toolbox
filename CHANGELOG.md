@@ -151,6 +151,12 @@ store submission needs a higher version than any submitted before (rejected ones
   window's close button (it only worked in one direction).
 
 ### Changed
+- `/toolbox` (or `/tbx`) with no argument opens the settings window instead of printing help;
+  a one-time welcome line on first run says so, and the settings window opens with a short intro
+  and a "Chat commands" button.
+- Alert sounds: the defaults live in the add-on's folder (`Lua/toolbox/<name>.ogg`/`.wav`); a
+  replacement in the Lua folder beside it (`Lua/toolbox_<name>`) wins. The package-relative guesses
+  are gone (paths are Lua-root relative), and `tools/install.py` no longer writes to the Lua folder.
 - HUD strips are owned by `hud.lua` (`Toolbox.Hud`): the buff bar and the health & focus bars build
   only their content, and the HUD puts it in one strip each or a shared glued strip, sizes it and
   remembers its position.

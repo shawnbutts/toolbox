@@ -172,6 +172,12 @@ local function build()
     style = { paddingTop = 6, paddingBottom = 6 },
     children = { UI.Scroll{ style = { flexGrow = 1 }, children = {
       UI.Column{ style = { paddingLeft = GUTTER, paddingRight = GUTTER }, children = {
+        UI.Label{ text = "Tick what you want on screen and tune it here. Everything is saved per character.",
+          class = "text", style = { whiteSpace = "wrap" } },
+        UI.Row{ style = { justifyContent = "end", marginTop = 2, marginBottom = 4 }, children = {
+          UI.Button{ id = "help", text = "Chat commands", tooltip = "List every /toolbox command in chat",
+            onClick = function() T.Dispatch("help") end },
+        } },
         UI.Label{ text = "XP windows", class = "heading" },
         UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
           UI.Label{ text = "Text size", class = "text", style = { flexGrow = 1 } },

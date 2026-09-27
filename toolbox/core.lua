@@ -119,7 +119,7 @@ local function add(name, help, fn, aliases)
   order[#order + 1] = { name = name, help = help, aliases = aliases }
 end
 
-add("help", "list commands", function()
+add("help", "list commands (/toolbox alone opens the settings)", function()
   T.Print("Commands (/" .. table.concat(T.commands, " or /") .. "):")
   for _, c in ipairs(order) do
     local also = c.aliases and (" (or " .. table.concat(c.aliases, ", ") .. ")") or ""
@@ -459,7 +459,7 @@ end
 
 function T.Dispatch(args)
   local word, rest = T.ParseArgs(args)
-  if word == "" then word = "help" end
+  if word == "" then word = "config" end       -- /toolbox alone opens the settings window
   local fn = handlers[word]
   if not fn then
     T.Print("Unknown command '" .. word .. "'. Try /" .. T.commands[1] .. " help.")
@@ -602,8 +602,17 @@ end
 -- Callbacks
 -- ---------------------------------------------------------------------------
 
+-- A one-time line the first time Toolbox runs on this account.
+function T.Welcome()
+  if ShroudGetSavedVar("welcomed", "account") then return end
+  T.Print("Toolbox is ready: type /" .. T.commands[1] .. " to open its settings, or /" .. T.commands[1]
+    .. " help for commands.")
+  ShroudSetSavedVar("welcomed", true, "account")
+end
+
 function ShroudOnStart()
   T.RegisterCommands()
+  T.Welcome()
   T.Daily.Load()                     -- before the session: a new login re-bases daily gold
   T.ResumeOrStart()
   T.Sample()                         -- XP gained since the last save (e.g. across a reload)

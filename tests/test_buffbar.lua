@@ -301,7 +301,8 @@ return function(t)
     t.no(Toolbox.Sounds.Play("buff_expiring"))
     H.clearLogs()
     H.chat("/tbx sounds")
-    t.ok(H.logged("put one at Lua/toolbox_buff_expiring.ogg"))
+    t.ok(H.logged("the default is Lua/toolbox/buff_expiring.ogg; a replacement goes at Lua/toolbox_buff_expiring.ogg"),
+      H.lastLog())
   end)
 
   t.test("sounds: the loose default location is found", function()
@@ -815,16 +816,16 @@ return function(t)
 
   t.test("sounds: debug lists every path tried and what the game answered", function()
     H.boot()
-    H.S.files["buff_expiring.wav"] = true             -- only in the package folder, as .wav
+    H.S.files["toolbox/buff_expiring.wav"] = true     -- only the default, and only as .wav
     H.reload()
-    H.advance(6 * Toolbox.Sounds.LOAD_TIMEOUT + 2)
+    H.advance(4 * Toolbox.Sounds.LOAD_TIMEOUT + 2)
     local status, path = Toolbox.Sounds.Status("buff_expiring")
     t.eq(status, "ready")
-    t.eq(path, "buff_expiring.wav")
+    t.eq(path, "toolbox/buff_expiring.wav")
     H.clearLogs()
     H.chat("/tbx sounds debug")
     t.ok(H.logged("^    tried toolbox_buff_expiring%.ogg %-> false$"), "paths the game refused")
-    t.ok(H.logged("^    tried buff_expiring%.wav %-> true$"), "and the one it accepted")
+    t.ok(H.logged("^    tried toolbox/buff_expiring%.wav %-> true$"), "and the one it accepted")
   end)
 
   t.test("sounds: try <n> plays a clip id directly and reports", function()
@@ -840,5 +841,15 @@ return function(t)
     H.clearLogs()
     H.chat("/tbx sounds debug")
     t.ok(H.logged("^ShroudLuaPath = "), "paths shown")
+  end)
+
+  t.test("sounds: a replacement beside the package wins over the default in it", function()
+    H.boot()
+    H.S.files["toolbox/debuff_landed.ogg"] = true      -- the default
+    H.S.files["toolbox_debuff_landed.wav"] = true      -- the player's replacement
+    H.reload()
+    H.advance(2 * Toolbox.Sounds.LOAD_TIMEOUT + 2)
+    local _, path = Toolbox.Sounds.Status("debuff_landed")
+    t.eq(path, "toolbox_debuff_landed.wav")
   end)
 end

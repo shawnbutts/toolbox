@@ -1,11 +1,16 @@
 # Toolbox
 
-A small toolbox of quality-of-life features: XP tracking and daily stats.
+A small toolbox of quality-of-life features: XP tracking, daily stats, a buff bar, health &
+focus bars and combat stats.
+
+**Getting started:** type `/toolbox` (or `/tbx`) to open the settings window and tick what you
+want on screen. `/toolbox help` lists every chat command.
 
 ## Commands
 
 `/toolbox` and `/tbx` do the same thing.
 
+- `/toolbox`: open the settings window (tick what you want on screen)
 - `/toolbox help`: list commands
 - `/toolbox xp`: show or hide the XP window (session time, pools, XP in the last hour)
 - `/toolbox xpdetailed` (or `xpd`): show or hide the XP Detailed window (levels, progress, XP per hour, Reset)
@@ -48,8 +53,9 @@ with every item that arrived in your bags today and how many.
 
 `/toolbox buffs` shows your buffs and debuffs as their skill icons, with a clock-style sweep for
 the time left. It can sound an alert a set number of seconds before a buff runs out, and when a
-debuff lands. For the sounds, put `toolbox_buff_expiring.ogg` and `toolbox_debuff_landed.ogg` in
-your Lua folder, or choose your own files in `/toolbox config`.
+debuff lands. The default sounds are in the add-on's folder; to use your own, put
+`toolbox_buff_expiring.ogg` / `toolbox_debuff_landed.ogg` (or `.wav`) in your Lua folder, beside
+the `toolbox` folder, or choose any file in `/toolbox config`.
 
 ## Combat stats
 

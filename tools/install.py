@@ -7,9 +7,9 @@
 
 Find the Lua folder in game with `/lua path` or the add-on manager's Open Folder
 button. This replaces <Lua>/toolbox/ only; saved variables live in
-<Lua>/SavedVariables/ and are left alone. It also copies the alert sounds from art/
-to <Lua>/toolbox_<name>.ogg, where the add-on looks for them (audio files can't ship
-in a store package yet). Existing sound files there are replaced. Standard library only.
+<Lua>/SavedVariables/ and are left alone. The default alert sounds from art/ go into
+<Lua>/toolbox/ with it (audio files can't ship in a store package yet); nothing is
+written to <Lua> itself, where a player's replacement sounds go. Standard library only.
 """
 
 from __future__ import annotations
@@ -56,13 +56,18 @@ def main() -> int:
     print(f"Installed {len(list(dest.iterdir()))} files to {dest}")
     # .ogg is what the add-on looks for; .wav copies (made by art/alerts.py, not committed) are
     # there to try as a custom path if an .ogg won't play.
+    # The default alert sounds go in the package folder (Lua/toolbox/). The Lua folder itself is
+    # where a player's replacements go (Lua/toolbox_<name>.ogg), so nothing is written there.
+    # (Not part of the store package: audio files aren't allowed in packages yet.)
     for sound in sorted((ROOT / "art").glob("*.ogg")) + sorted((ROOT / "art").glob("*.wav")):
-        target = lua_dir / f"{slug}_{sound.name}"
-        shutil.copy2(sound, target)
-        # Also inside the package folder, for local testing: the sound docs say paths are relative
-        # to "the addon's Lua folder". (Not in the store package: audio isn't allowed there yet.)
         shutil.copy2(sound, dest / sound.name)
-        print(f"Copied alert sound to {target} and {dest / sound.name}")
+        print(f"Copied default alert sound to {dest / sound.name}")
+    old = [p for p in lua_dir.glob(f"{slug}_*") if p.suffix in (".ogg", ".wav")]
+    if old:
+        print("Note: these in the Lua folder now act as REPLACEMENTS for the defaults (earlier installs put"
+              " them there); delete them unless you want them:")
+        for p in old:
+            print(f"  {p}")
     print("In game: /lua reload, enable Toolbox in the add-on manager, /lua check toolbox, then /toolbox xp")
     return 0
 
