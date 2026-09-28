@@ -291,4 +291,23 @@ return function(t)
     t.eq(rest, "")
     t.raises(function() return long:match("^%s*(.-)%s*$") end, "pattern too complex")   -- the harness models it
   end)
+
+  t.test("/tbx xp debug: recorded vs game totals, last hour, and ignored lower readings", function()
+    H.boot()
+    H.gain(500, 0)
+    H.advance(2)
+    H.clearLogs()
+    H.chat("/tbx xp debug")
+    t.ok(H.logged("^Session: Tester, started .* ago, %d+ samples; newest .* ago: adventurer 1,000,500, "
+      .. "producer 500,000%.$"))
+    t.ok(H.logged("^Game totals now: adventurer 1,000,500, producer 500,000%.$"))
+    t.ok(H.logged("^Last hour: adventurer %+500, producer %+0%.$"))
+    t.ok(H.logged("^Readings lower than recorded, ignored: none%.$"))
+    H.S.char.adv = H.S.char.adv - 100            -- a total that went down (a death?)
+    H.advance(3)
+    H.clearLogs()
+    H.chat("/tbx xp debug")
+    t.ok(H.logged("^Readings lower than recorded, ignored: %d+; the last .* ago: adventurer 1,000,400 %(recorded "
+      .. "1,000,500%)"), H.lastLog())
+  end)
 end

@@ -317,8 +317,35 @@ local function formCommand(m, cmd, name, rest)
   end
 end
 
-add("xp", "show or hide the XP window (session time, pools, XP in the last hour; hud / window; move [x y])",
-    function(rest)
+-- /toolbox xp debug: the session's recorded totals next to the game's, and ignored readings.
+function T.XPDebugLines()
+  local s, now = T.session, T.Now()
+  if not s then return { "No XP session yet (waiting for a character)." } end
+  local cur = T.XP.Current(s)
+  local lines = {
+    string.format("Session: %s, started %s ago, %d samples; newest %s ago: adventurer %s, producer %s%s.",
+      tostring(s.player), T.FormatDuration(T.XP.Elapsed(s, now)), #s.samples, T.FormatDuration(now - cur.t),
+      T.FormatNumber(cur.a), T.FormatNumber(cur.p), s.ended and " (ended: logged out)" or ""),
+  }
+  local adv, prod = T.ReadTotals()
+  lines[#lines + 1] = adv and ("Game totals now: adventurer " .. T.FormatNumber(adv) .. ", producer "
+    .. T.FormatNumber(prod) .. ".") or "Game totals now: not readable."
+  lines[#lines + 1] = "Last hour: adventurer +" .. T.FormatNumber(T.XP.LastHour(s, "a", now)) .. ", producer +"
+    .. T.FormatNumber(T.XP.LastHour(s, "p", now)) .. "."
+  local low = T.xpLow
+  lines[#lines + 1] = low and string.format("Readings lower than recorded, ignored: %d; the last %s ago: "
+      .. "adventurer %s (recorded %s), producer %s (recorded %s).", low.count, T.FormatDuration(now - low.at),
+      T.FormatNumber(low.a), T.FormatNumber(low.ca), T.FormatNumber(low.p), T.FormatNumber(low.cp))
+    or "Readings lower than recorded, ignored: none."
+  return lines
+end
+
+add("xp", "show or hide the XP window (session time, pools, XP in the last hour; hud / window; move [x y]; "
+    .. "debug)", function(rest)
+  if T.ParseArgs(rest) == "debug" then
+    for _, line in ipairs(T.XPDebugLines()) do T.Print(line) end
+    return
+  end
   formCommand(T.Compact, "xp", "XP", rest)
 end)
 
@@ -1023,6 +1050,12 @@ function T.Sample()
   if not adv then return end
   T.Daily.ObserveTotals(adv, prod)
   if not T.session or T.session.ended then return end
+  local cur = T.XP.Current(T.session)
+  if adv < cur.a or prod < cur.p then        -- ignored by XP.Record; counted for /toolbox xp debug
+    local low = T.xpLow or { count = 0 }
+    low.count, low.at, low.a, low.p, low.ca, low.cp = low.count + 1, T.Now(), adv, prod, cur.a, cur.p
+    T.xpLow = low
+  end
   if T.XP.Record(T.session, T.Now(), adv, prod) then T.unsaved = true end
 end
 
