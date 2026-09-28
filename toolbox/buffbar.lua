@@ -412,10 +412,22 @@ function BB.OnBuffsChanged(from)
   end
   local new = BB.NewNames(debuffs, now)
   debuffs = now
-  if #new > 0 and prefs.debuff and T.Now() >= quietUntil and T.Now() - lastDebuffSound >= BB.DEBUFF_COOLDOWN then
+  if #new == 0 then return end
+  -- What became of the last new debuff, for /toolbox buffs debug (a missing sound, 2026-09-28).
+  local result = nil
+  if not prefs.debuff then
+    result = "not played: the debuff alert is off"
+  elseif T.Now() < quietUntil then
+    result = "not played: quiet just after start or a scene change"
+  elseif T.Now() - lastDebuffSound < BB.DEBUFF_COOLDOWN then
+    result = "not played: another debuff sounded under " .. BB.DEBUFF_COOLDOWN .. " s ago"
+  else
     lastDebuffSound = T.Now()
-    T.Sounds.Play("debuff_landed")
+    local ok, info = T.Sounds.Play("debuff_landed")
+    result = ok and ("played on channel " .. tostring(info.channel))
+      or ("not played: " .. tostring(info.reason) .. " (see /toolbox sounds)")
   end
+  BB.lastDebuff = { name = table.concat(new, ", "), at = T.Now(), result = result }
 end
 
 -- A scene change rebuilds the buff list: treat what's there as already known.
@@ -835,6 +847,9 @@ function BB.DebugLines()
   if #lines == 0 then lines[1] = "No buffs or debuffs right now." end
   lines[#lines + 1] = "Buff list changes seen: " .. BB.changes.event .. " from ShroudOnBuffsChanged, "
     .. BB.changes.tick .. " by the bar's own check. Debuff alert: " .. (prefs.debuff and "on" or "off") .. "."
+  local ld = BB.lastDebuff
+  lines[#lines + 1] = ld and string.format("Last new debuff: %s, %d s ago: %s.", ld.name,
+    math.floor(T.Now() - ld.at), ld.result) or "Last new debuff: none seen since the add-on started."
   if BB.CanReplace() then
     lines[#lines + 1] = "Game's buff bar: " .. (ShroudIsBuffBarVisible() and "showing" or "hidden")
       .. " (Toolbox is " .. (stockHidden and "hiding it" or "not hiding it") .. ")."
