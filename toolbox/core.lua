@@ -735,10 +735,18 @@ function T.StatLines(filter)
   return lines
 end
 
-add("vitals", "health & focus bars (size; text|bars on|off; bg; flash <%>|off|test; glue on|off; move)",
+add("vitals", "health, focus & Vigor bars (size; text|bars|vigor on|off; bg; flash <%>|off|test; glue on|off; "
+    .. "move)",
     function(rest)
   local word, args = T.ParseArgs(rest)
   local V = T.Vitals
+  if word == "vigor" then
+    local a = args:lower()
+    if a == "on" or a == "off" then V.SetShowVigor(a == "on") end
+    T.Print("Vigor bar: " .. (V.GetShowVigor() and "on" or "off")
+      .. (V.HasVigor() and "" or " (this game client has no Vigor for add-ons: it needs Lua API 20)") .. ".")
+    return
+  end
   if word == "text" or word == "bars" then
     local set = word == "text" and V.SetShowText or V.SetShowBars
     if args:lower() == "on" or args:lower() == "off" then
@@ -1380,6 +1388,11 @@ end
 -- Buff bar and the debuff alert.
 function ShroudOnBuffsChanged()
   T.BuffBar.OnBuffsChanged("event")
+end
+
+-- Vigor moved, appeared or went away (API 20; never fires on older clients).
+function ShroudOnVigorChanged(vigor)
+  T.Vitals.OnVigorChanged(vigor)
 end
 
 -- A scene change rebuilds the buff list: don't alert for debuffs that were already there.

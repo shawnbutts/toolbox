@@ -389,4 +389,87 @@ return function(t)
     H.chat("/tbx vitals flash test")
     t.ok(H.logged("Flashing the bars"))
   end)
+
+  -- Vigor (API 20) ---------------------------------------------------------------
+
+  local function vigorRow() return H.vitals():Find("vigor_row") end
+
+  t.test("vigor: a gold bar with the percentage, bonuses in the tooltip", function()
+    H.boot()
+    withStats()
+    H.chat("/tbx vitals")
+    H.setVigor{ vigor = 64.5, percent = 64, healthRegenBonus = 12, focusRegenBonus = 8, critBonus = 3 }
+    H.advance(0.2, 0.2)
+    t.ok(vigorRow().visible ~= false)
+    t.eq(H.vitals():Find("vigor_text").text, "64%")
+    t.near(H.vitals():Find("vigor_bar").value, 0.645)
+    t.eq(H.vitals():Find("vigor_bar").color, "@gold")
+    t.eq(H.vitals():Find("vigor_bar").tooltip,
+      "Vigor 64%\n+12% health regen, +8% focus regen, +3% critical chance")
+    H.setVigor{ vigor = 100, rested = true }
+    H.advance(0.2, 0.2)
+    t.eq(H.vitals():Find("vigor_text").text, "100%")
+    t.ok(H.vitals():Find("vigor_text").tooltip:find("(rested)", 1, true))
+  end)
+
+  t.test("vigor: the row and the strip's height follow whether there is a reading", function()
+    H.boot()
+    withStats()
+    H.chat("/tbx vitals")
+    H.advance(1)
+    local two = H.vitals().height
+    t.eq(vigorRow().visible, false, "no Vigor (below its level): no row")
+    H.setVigor{ vigor = 50 }
+    H.advance(0.2, 0.2)
+    t.ok(vigorRow().visible ~= false)
+    t.ok(H.vitals().height > two, "a third row")
+    H.setVigor(nil)
+    H.advance(0.2, 0.2)
+    t.eq(vigorRow().visible, false)
+    t.eq(H.vitals().height, two)
+  end)
+
+  t.test("vigor: read at start (the callback fires only on a change) and re-read now and then", function()
+    H.boot()
+    H.S.vigor = { vigor = 30, max = 100, percent = 30, rested = false, healthRegenBonus = 0, focusRegenBonus = 0,
+                  critBonus = 0 }
+    H.chat("/tbx vitals")
+    H.reload()
+    H.advance(0.2, 0.2)
+    t.eq(H.vitals():Find("vigor_text").text, "30%", "read in ShroudOnStart")
+    H.S.vigor.vigor, H.S.vigor.percent = 40, 40      -- changed without a callback
+    H.advance(Toolbox.Vitals.VIGOR_POLL)
+    t.eq(H.vitals():Find("vigor_text").text, "40%")
+  end)
+
+  t.test("vigor: never flashes, and the setting hides it", function()
+    H.boot()
+    withStats()
+    H.chat("/tbx vitals")
+    H.setVigor{ vigor = 2 }
+    H.advance(2)
+    t.eq(H.vitals():Find("vigor_bar").color, "@gold", "low Vigor isn't an emergency")
+    H.chat("/tbx vitals vigor off")
+    t.eq(H.saved("vitals").vigor, false)
+    H.advance(0.2, 0.2)
+    t.eq(vigorRow().visible, false)
+    H.chat("/tbx config")
+    H.change("toolbox_config", "vitals_vigor", true)
+    H.advance(0.2, 0.2)
+    t.ok(vigorRow().visible ~= false)
+  end)
+
+  t.test("vigor: an older client without it", function()
+    H.boot()
+    ShroudGetVigor = nil
+    H.chat("/tbx vitals")
+    H.advance(Toolbox.Vitals.VIGOR_POLL)
+    t.eq(vigorRow().visible, false)
+    H.clearLogs()
+    H.chat("/tbx vitals vigor")
+    t.ok(H.logged("needs Lua API 20"))
+    H.clearLogs()
+    H.chat("/tbx vitals debug")
+    t.ok(H.logged("^Vigor: ShroudGetVigor missing"))
+  end)
 end

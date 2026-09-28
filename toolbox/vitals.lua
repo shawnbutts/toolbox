@@ -5,8 +5,12 @@
 -- Current values are the documented per-frame globals ShroudPlayerCurrentHealth and
 -- ShroudPlayerCurrentFocus. The player's maximums have no documented getter; in game
 -- (`/toolbox stats health`) the readable stats "Health" and "Focus" equal the current values
--- at full, so they are taken as the maximums, never shown below the current value. Vigor
--- isn't exposed to add-ons (no stat matches it), so there is no vigor bar.
+-- at full, so they are taken as the maximums, never shown below the current value.
+--
+-- A third, gold Vigor bar (API 20, feature-detected: ShroudGetVigor / ShroudOnVigorChanged) shows
+-- "64%" with the regen and crit bonuses in its tooltip. The reading is kept from the callback (core.lua)
+-- and re-read every V.VIGOR_POLL s; the row hides while there is none (below the level where
+-- Vigor applies) or when the "vigor" setting is off. Vigor never flashes.
 --
 -- Updated by a light periodic (V.TICK), touching the UI only when a shown value changes.
 
@@ -52,12 +56,18 @@ V.BARS = {
     currentStat = "CurrentHealth", maxStat = "Health", color = "@red", label = "Health" },
   { key = "focus", current = function() return ShroudPlayerCurrentFocus end, global = "ShroudPlayerCurrentFocus",
     currentStat = "CurrentFocus", maxStat = "Focus", color = "@blue", label = "Focus" },
+  { key = "vigor", vigor = true, color = "@gold", label = "Vigor" },
 }
+V.VIGOR_POLL = 5          -- seconds between re-reads of ShroudGetVigor (the callback is the main source)
 
 local prefs = { show = false }
 local content = nil       -- the bar rows (in a strip owned by Toolbox.Hud)
 local el = {}
 local shown = {}          -- key -> { value = bar fill, text = label text } last set
+local vigor = nil         -- the last Vigor reading (V.ReadVigor's shape), nil when there is none
+local vigorShow = { 0, "--", "Vigor" }   -- its fill, text and tooltip, formatted once per reading
+local lastVigorRead = -math.huge
+local vigorRowShown = nil
 
 -- ---------------------------------------------------------------------------
 -- Model
@@ -89,6 +99,50 @@ function V.Read(bar)
   return current, stat(bar.maxStat), current ~= nil and source or nil
 end
 
+-- Vigor (API 20): ShroudGetVigor()'s answer (a table or a game object) as plain data
+-- { vigor, max, percent, rested, health, focus, crit }, or nil when there is none.
+function V.ReadVigor(v)
+  if v == nil then return nil end
+  local function num(k)
+    local x = T.Field(v, k)
+    return (type(x) == "number" and x == x) and x or nil
+  end
+  local out = { vigor = num("vigor"), max = num("max") or 100, percent = num("percent"),
+                rested = T.Field(v, "rested") == true, health = num("healthRegenBonus") or 0,
+                focus = num("focusRegenBonus") or 0, crit = num("critBonus") or 0 }
+  if not out.vigor then return nil end
+  if not out.percent then out.percent = math.floor(out.vigor * 100 / math.max(1, out.max)) end
+  return out
+end
+
+-- Bar fill (0..1), text and tooltip for a Vigor reading.
+function V.FormatVigor(v)
+  if not v then return 0, "--", "Vigor" end
+  local fill = math.max(0, math.min(1, v.vigor / math.max(1, v.max)))
+  local tip = string.format("Vigor %d%%%s\n+%s%% health regen, +%s%% focus regen, +%s%% critical chance",
+    math.floor(v.percent), v.rested and " (rested)" or "", tostring(v.health), tostring(v.focus), tostring(v.crit))
+  return fill, math.floor(v.percent) .. "%", tip
+end
+
+function V.HasVigor() return type(ShroudGetVigor) == "function" end
+
+-- From ShroudOnVigorChanged (core.lua), and the periodic re-read.
+function V.OnVigorChanged(v)
+  vigor = V.ReadVigor(v)
+  lastVigorRead = T.Now()
+  vigorShow[1], vigorShow[2], vigorShow[3] = V.FormatVigor(vigor)
+end
+
+local function readVigorNow()
+  if not V.HasVigor() then
+    if vigor then V.OnVigorChanged(nil) end
+    lastVigorRead = T.Now()
+    return
+  end
+  local ok, v = pcall(ShroudGetVigor)
+  V.OnVigorChanged(ok and v or nil)
+end
+
 -- ---------------------------------------------------------------------------
 -- HUD frame
 -- ---------------------------------------------------------------------------
@@ -97,6 +151,16 @@ local function width() return prefs.width or V.WIDTH_DEFAULT end
 local function scale() return prefs.scale or V.SCALE_DEFAULT end
 local function showText() return prefs.showText ~= false end
 local function showBars() return prefs.showBars ~= false end
+local function vigorShown() return prefs.vigor ~= false and vigor ~= nil end
+
+-- How many bar rows show (the Vigor row only while there is a reading).
+local function rowCount()
+  local n = 0
+  for _, bar in ipairs(V.BARS) do
+    if not bar.vigor or vigorShown() then n = n + 1 end
+  end
+  return n
+end
 
 local function background()
   for _, bg in ipairs(V.BACKGROUNDS) do
@@ -135,7 +199,7 @@ function V.Metrics()
   if not showBars() then m.barW, m.gap = 0, 0 end
   if not showText() then m.textW, m.gap, m.pad = 0, 0, 0 end
   m.contentW = m.barW + m.gap + m.textW + 2 * m.pad
-  m.contentH = #V.BARS * (line + m.rowGap)
+  m.contentH = rowCount() * (line + m.rowGap)
   m.frameW = T.Window.GRIP + m.contentW + 8        -- when in its own strip
   m.frameH = m.contentH + 8
   return m
@@ -177,7 +241,8 @@ function V.BuildContent()
   local m = V.Metrics()
   local rows = {}
   for _, bar in ipairs(V.BARS) do
-    rows[#rows + 1] = UI.Row{ style = { alignItems = "center", marginBottom = m.rowGap }, children = {
+    rows[#rows + 1] = UI.Row{ id = bar.key .. "_row", visible = not bar.vigor or vigorShown(),
+      style = { alignItems = "center", marginBottom = m.rowGap }, children = {
       UI.Bar{ id = bar.key .. "_bar", value = 0, color = bar.color, tooltip = bar.label, style = barStyle(m),
         visible = showBars() },
       UI.Row{ id = bar.key .. "_wrap", style = wrapStyle(m), visible = showText(), children = {
@@ -192,7 +257,9 @@ function V.BuildContent()
     el[bar.key .. "_bar"] = content:Find(bar.key .. "_bar")
     el[bar.key .. "_text"] = content:Find(bar.key .. "_text")
     el[bar.key .. "_wrap"] = content:Find(bar.key .. "_wrap")
+    el[bar.key .. "_row"] = content:Find(bar.key .. "_row")
   end
+  vigorRowShown = vigorShown()
   return content
 end
 
@@ -236,14 +303,30 @@ end
 function V.Tick()
   ticks = ticks + 1
   local phase = math.floor(ticks / V.FLASH_TICKS) % 2 == 1
+  if T.Now() - lastVigorRead >= V.VIGOR_POLL then readVigorNow() end
+  if content and vigorShown() ~= vigorRowShown then       -- Vigor appeared, went away, or was switched
+    vigorRowShown = vigorShown()
+    el.vigor_row:SetVisible(vigorRowShown)
+    T.Hud.Refresh()
+  end
   if content and prefs.show then
     for _, bar in ipairs(V.BARS) do
-      local current, max = V.Read(bar)
-      local value, text = V.Format(current, max)
-      local flashing = (V.IsLow(current, value) or T.Now() < previewUntil) and phase
+      local current, value, text, tip = nil, nil, nil, nil
+      if bar.vigor then
+        value, text, tip = vigorShow[1], vigorShow[2], vigorShow[3]
+      else
+        local max = nil
+        current, max = V.Read(bar)
+        value, text = V.Format(current, max)
+      end
+      local flashing = not bar.vigor and (V.IsLow(current, value) or T.Now() < previewUntil) and phase
       local last = shown[bar.key] or {}
       if value ~= last.value then el[bar.key .. "_bar"]:SetValue(value) end
       if text ~= last.text then el[bar.key .. "_text"]:SetText(text) end
+      if tip then
+        T.SetTooltip(el[bar.key .. "_bar"], tip)
+        T.SetTooltip(el[bar.key .. "_text"], tip)
+      end
       if flashing ~= last.flashing then
         local barColor, textColor = V.Colors(bar, flashing)
         el[bar.key .. "_bar"]:SetColor(barColor)
@@ -274,7 +357,11 @@ function V.Init()
       prefs.flashBelow = math.floor(saved.flashBelow)
     end
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
+    prefs.vigor = saved.vigor ~= false
   end
+  vigor, lastVigorRead, vigorRowShown = nil, -math.huge, nil
+  vigorShow[1], vigorShow[2], vigorShow[3] = V.FormatVigor(nil)
+  readVigorNow()                     -- the callback fires only on a change: read the start here
   T.Hud.Register("vitals", V)
   ShroudRegisterPeriodic(PERIODIC, V.Tick, V.TICK, true)
 end
@@ -287,6 +374,20 @@ end
 function V.DebugLines()
   local lines = {}
   for _, bar in ipairs(V.BARS) do
+    if bar.vigor then
+      local raw = nil
+      if V.HasVigor() then
+        local ok, v = pcall(ShroudGetVigor)
+        raw = ok and v or nil
+      end
+      local fill, text = V.FormatVigor(vigor)
+      lines[#lines + 1] = string.format("Vigor: ShroudGetVigor %s; vigor %s, percent %s, max %s, rested %s; "
+        .. "bonuses health %s, focus %s, crit %s; showing \"%s\", fill %.2f, setting %s",
+        V.HasVigor() and type(raw) or "missing (needs API 20)", tostring(T.Field(raw, "vigor")),
+        tostring(T.Field(raw, "percent")), tostring(T.Field(raw, "max")), tostring(T.Field(raw, "rested")),
+        tostring(T.Field(raw, "healthRegenBonus")), tostring(T.Field(raw, "focusRegenBonus")),
+        tostring(T.Field(raw, "critBonus")), text, fill, prefs.vigor ~= false and "on" or "off")
+    else
     local g = bar.current()
     local current, max, source = V.Read(bar)
     local fill, text = V.Format(current, max)
@@ -294,6 +395,7 @@ function V.DebugLines()
     lines[#lines + 1] = string.format("%s: %s = %s; stat %s = %s; stat %s = %s; using %s -> \"%s\", fill %.2f",
       bar.label, bar.global, show(g), bar.currentStat, show(ShroudGetStatValueByName(bar.currentStat)),
       bar.maxStat, show(ShroudGetStatValueByName(bar.maxStat)), source or "nothing readable", text, fill)
+    end
   end
   return lines
 end
@@ -412,6 +514,17 @@ function V.SetFlashBelow(n)
   T.Save("vitals", prefs)
   T.Config.Sync()
   return true
+end
+
+-- The Vigor row (shown while there is a reading).
+function V.GetShowVigor() return prefs.vigor ~= false end
+
+function V.SetShowVigor(on)
+  prefs.vigor = on == true
+  T.Save("vitals", prefs)
+  shown = {}
+  V.Tick()
+  T.Config.Sync()
 end
 
 function V.GetFlashBelow() return prefs.flashBelow or V.FLASH_DEFAULT end

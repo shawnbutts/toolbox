@@ -82,12 +82,11 @@ local api_values = {
   "UI", "ButtonMode", "Transition", "ContentType", "AudioType", "TextAnchor", "LuaVector2", "LuaVector3",
 }
 
--- Functions from newer APIs, only probed with type() by /toolbox api. The crafting and social
--- group was documented as API 18 on 2026-09-27 and
--- then withdrawn from the docs, while the client reports API 20. Move a name up to api_functions
--- once the docs (or a probe in game) settle it.
+-- Functions from newer APIs (documented for API 18-22 since 2026-09-28; the docs describe API 22).
+-- Feature-detect each with type() before calling: a client older than the function lacks it.
 local api_probed = {
   "ShroudGetRecipe", "ShroudGetCraftingState", "ShroudGetFriends", "ShroudGetGuildMembers", "ShroudGetGuildMotd",
+  "ShroudGetVigor",                                         -- API 20
 }
 
 -- Callbacks an add-on may define. Listed as writable globals.
@@ -100,6 +99,7 @@ local api_callbacks = {
   "ShroudOnRecipesChanged", "ShroudOnSceneLoaded", "ShroudOnSceneUnloaded", "ShroudOnSkillsChanged",
   "ShroudOnSocialChanged", "ShroudOnStart", "ShroudOnTargetChanged", "ShroudOnTasksChanged",
   "ShroudOnTitlesChanged", "ShroudOnToggleChange", "ShroudOnUpdate",
+  "ShroudOnVigorChanged",                                   -- API 20
 }
 
 -- The early global `Shroud` (read-only userdata) and its documented fields.

@@ -66,6 +66,7 @@ local function fresh(disk)
     notes = { unreadMail = 0, mailExpiring = false, ransoms = 0, newRewards = false, guildApplications = -1 },
     stats = {},                        -- { name, label, value, hidden }
     gear = {},                         -- worn items, ShroudGetEquipmentItems() fields; H.setGear
+    vigor = nil,                       -- ShroudGetVigor() (API 20); nil = below Vigor's level; H.setVigor
     frames = {},
     logs = {},
     commands = {},
@@ -181,6 +182,11 @@ local function install_api()
   ShroudGetNotifications = function()
     if not S.char.present then return nil end
     return copy(S.notes)
+  end
+  -- Vigor (API 20): the documented table, a fresh copy per call; nil below the level where it applies.
+  ShroudGetVigor = function()
+    if not S.char.present or not S.vigor then return nil end
+    return copy(S.vigor)
   end
   -- Worn items (documented fields; empty slots skipped). Game objects when H.S.buffObjects is set.
   ShroudGetEquipmentItems = function()
@@ -708,11 +714,11 @@ end
 function H.restart(time, flushFirst)
   if flushFirst then ShroudFlushSavedVars() end
   local disk, char, date, serverTime, buffs, mode = S.disk, S.char, S.date, S.serverTime, S.buffs, S.durationMode
-  local social, notes, gear = S.social, S.notes, S.gear
+  local social, notes, gear, vigor = S.social, S.notes, S.gear, S.vigor
   fresh(disk)
   -- the character's buffs and guild live on the server: they survive a client restart
   S.char, S.date, S.serverTime, S.buffs, S.durationMode = char, date, serverTime, buffs, mode
-  S.social, S.notes, S.gear = social, notes, gear
+  S.social, S.notes, S.gear, S.vigor = social, notes, gear, vigor
   S.time = time or 50
   install_api()
   H.load()
@@ -932,6 +938,17 @@ end
 
 -- Worn gear: { { name, durability, maxDurability [, icon] }, ... }. No event: the game has none.
 function H.setGear(list) S.gear = list end
+
+-- Vigor changes: { vigor = 64, percent = 64, ... } (missing fields get defaults) or nil, + ShroudOnVigorChanged.
+function H.setVigor(v)
+  if v then
+    v = { vigor = v.vigor, max = v.max or 100, percent = v.percent or math.floor(v.vigor), rested = v.rested == true,
+          healthRegenBonus = v.healthRegenBonus or 0, focusRegenBonus = v.focusRegenBonus or 0,
+          critBonus = v.critBonus or 0 }
+  end
+  S.vigor = v
+  return H.callback("ShroudOnVigorChanged", v and copy(v) or nil)
+end
 
 -- Notification counts / flags change (fields as ShroudGetNotifications), + ShroudOnNotificationsChanged.
 function H.setNotes(fields)

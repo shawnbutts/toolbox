@@ -76,7 +76,7 @@ end
 function C.VitalsSection()
   local V = T.Vitals
   return UI.Column{ children = {
-    UI.Label{ text = "Health & focus bars", class = "heading", style = { marginTop = 8 } },
+    UI.Label{ text = "Health, focus & Vigor bars", class = "heading", style = { marginTop = 8 } },
     UI.Toggle{ id = "show_vitals", text = "Show health & focus bars", value = V.IsShown(),
       onChange = function(_, v) V.SetShown(v) end },
     UI.Toggle{ id = "vitals_glue", text = "Glue to the buff bar (one HUD)", value = T.Hud.IsGlued(),
@@ -90,6 +90,10 @@ function C.VitalsSection()
       style = { marginTop = 6 }, onChange = function(_, v) V.SetShowBars(v) end },
     UI.Toggle{ id = "vitals_show_text", text = "Show numbers", value = V.GetShowText(),
       onChange = function(_, v) V.SetShowText(v) end },
+    UI.Toggle{ id = "vitals_vigor", text = "Show Vigor", value = V.GetShowVigor(), enabled = V.HasVigor(),
+      tooltip = V.HasVigor() and "A gold Vigor bar under focus (hover it for the regen and crit bonuses);"
+        .. " it hides below the level where Vigor applies" or "Needs a newer game client (Lua API 20)",
+      onChange = function(_, v) V.SetShowVigor(v) end },
     UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
       UI.Label{ text = "Number background", class = "text", style = { flexGrow = 1 } },
       UI.Dropdown{ id = "vitals_bg", choices = V.BackgroundNames(), value = V.GetBackground(),
@@ -336,7 +340,7 @@ local function build()
                 "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "buff_group",
                 "buff_replace", "buff_dismiss", "buff_group_after",
                 "buffs_combat_only", "dd_values", "xp_net", "buff_flash", "combat_detail", "combat_detail_hover",
-                "show_gear", "gear_glue", "gear_threshold", "gear_pos" }
+                "show_gear", "gear_glue", "gear_threshold", "gear_pos", "vitals_vigor" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -506,6 +510,7 @@ function C.Sync()
   el.vitals_scale_value:SetText(fontLabel(T.Vitals.GetScale()))
   el.vitals_show_bars:SetValue(T.Vitals.GetShowBars())
   el.vitals_show_text:SetValue(T.Vitals.GetShowText())
+  el.vitals_vigor:SetValue(T.Vitals.GetShowVigor())
   el.vitals_bg:SetValue(T.Vitals.GetBackground())
   el.vitals_flash:SetValue(T.Vitals.GetFlash())
   el.vitals_glue:SetValue(T.Hud.IsGlued())

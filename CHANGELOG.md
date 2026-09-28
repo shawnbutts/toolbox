@@ -13,6 +13,9 @@ store submission needs a higher version than any submitted before (rejected ones
   the debuffs (`/toolbox gear glue on`, or settings).
 - A "Gear needs repair" notification when an item drops below the threshold, and again when it
   breaks. Settings has an Equipment bar section; `/toolbox gear` lists worn items' durability.
+- A gold Vigor bar under health and focus, with its percentage; hover it for what Vigor adds to
+  health regen, focus regen and critical chance. It shows once you are past the level where Vigor
+  applies (needs a game client with Lua API 20). `/toolbox vitals vigor off` or settings hides it.
 
 ### Changed
 - Health & focus bars: the bar length can now go down to 20 (was 100), for a compact strip.

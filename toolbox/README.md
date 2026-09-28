@@ -26,7 +26,7 @@ under **Keys**.
 - `/toolbox buffalert <1-60>` (or `on` / `off`): sound this many seconds before a buff runs out
 - `/toolbox debuffalert on` / `off`: sound when a debuff lands
 - `/toolbox sounds`: show which sound files the alerts use (`/toolbox sounds 50` sets the volume)
-- `/toolbox vitals`: show or hide health & focus bars (`/toolbox vitals size 150` scales them,
+- `/toolbox vitals`: show or hide health, focus & Vigor bars (`/toolbox vitals size 150` scales them,
   `/toolbox vitals move 40 300` places them, `/toolbox vitals glue on` joins them to the buff bar)
 - `/toolbox combat`: show or hide the combat stats HUD (DPS, damage taken, healing, crit and avoid rates, fight timer, chosen stats)
 - `/toolbox gear`: list your worn items' durability, lowest first (`/toolbox gear repair 30` sets when

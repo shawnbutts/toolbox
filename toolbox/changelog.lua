@@ -8,6 +8,7 @@ Toolbox.CHANGELOG = {
   { "section", "Added" },
   { "item", "Gear repair: an equipment bar (a HUD strip) shows worn items below a repair threshold (20% by default), each with a red sweep for the durability it has lost, lowest first; hover one for its durability. It hides when nothing needs repair, and shows every worn item while settings are open. Its icons follow the buff bar's icon size, and it can be glued to the buff bar as a third row under the debuffs (/toolbox gear glue on, or settings)." },
   { "item", "A \"Gear needs repair\" notification when an item drops below the threshold, and again when it breaks. Settings has an Equipment bar section; /toolbox gear lists worn items' durability." },
+  { "item", "A gold Vigor bar under health and focus, with its percentage; hover it for what Vigor adds to health regen, focus regen and critical chance. It shows once you are past the level where Vigor applies (needs a game client with Lua API 20). /toolbox vitals vigor off or settings hides it." },
   { "section", "Changed" },
   { "item", "Health & focus bars: the bar length can now go down to 20 (was 100), for a compact strip." },
   { "section", "Fixed" },

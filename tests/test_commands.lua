@@ -91,7 +91,7 @@ return function(t)
     local texts = {}
     for _, label in ipairs(docs:Find("docs_body").children) do texts[#texts + 1] = label.text end
     local all = table.concat(texts, "\n")
-    for _, heading in ipairs({ "Getting started", "XP", "Today", "Buff bar", "Health & focus bars",
+    for _, heading in ipairs({ "Getting started", "XP", "Today", "Buff bar", "Health, focus & Vigor bars",
                                "Combat stats", "Moving the HUD strips", "Sounds", "Commands" }) do
       t.ok(all:find("\n" .. heading .. "\n", 1, true) or all:find("^" .. heading .. "\n"), "section " .. heading)
     end

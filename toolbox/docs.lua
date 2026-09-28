@@ -80,8 +80,11 @@ D.SECTIONS = {
       .. "this one is showing (it comes back whenever this one is off), and Click a buff to dismiss it "
       .. "works like the game's right-click Dismiss. Chat: /toolbox buffs replace on|off, "
       .. "/toolbox buffs dismiss on|off." },
-  { "Health & focus bars",
-    "/toolbox vitals: your health and focus with \"current / max\".",
+  { "Health, focus & Vigor bars",
+    "/toolbox vitals: your health and focus with \"current / max\", and a gold Vigor bar with its "
+      .. "percentage (hover it for what Vigor adds to health regen, focus regen and critical chance). The "
+      .. "Vigor bar shows once you are past the level where Vigor applies; Show Vigor in settings, or "
+      .. "/toolbox vitals vigor off, hides it.",
     "Options: size (75-250%), bar length, show bars and/or numbers, a dark or light panel "
       .. "behind the numbers, and a flash when a value drops below a percentage (Test flash "
       .. "shows it). Glue to the buff bar joins them into one HUD." },
