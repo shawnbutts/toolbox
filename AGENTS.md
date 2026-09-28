@@ -132,8 +132,10 @@ Run all three before calling a change done.
     settings window is open (to place it). `Tick` refreshes the HUD when `IsShown()` changes.
     `OnBuffsChanged(from)` runs from core's `ShroudOnBuffsChanged` ("event") AND from `Tick` whenever a
     name comes or goes ("tick"): the debuff alert didn't sound in game (2026-09-28), so it no longer
-    depends on the callback. `BB.changes` counts both for `/toolbox buffs debug`. Unconfirmed which of
-    the two failed: the callback not arriving, or `IsDebuff` not set (the debug marks debuffs).
+    depends on the callback. `BB.changes` counts both for `/toolbox buffs debug`. The callback DOES
+    arrive (debug, 2026-09-28: 83 from the event, 15 from the tick), so the suspect is `IsDebuff` not
+    set on debuffs. Pending: the debug line of a live debuff ("(debuff)" or not).
+    Display names (`BB.PlainLabel`): colour codes stripped, first line only, at most `LABEL_MAX` (60).
     `HidesGlued()` (an optional Hud module method): hiding out of combat hides the whole glued strip,
     health & focus bars included (owner, 2026-09-28).
     API 16 (feature-detected, `CanReplace`/`CanDismiss`): `replaceStock` hides the game's bar only while ours

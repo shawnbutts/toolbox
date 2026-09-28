@@ -19,7 +19,7 @@ Toolbox.CHANGELOG = {
   { "item", "/toolbox sounds debug is simpler; /toolbox sounds try is gone (sounds work in current clients)." },
   { "section", "Fixed" },
   { "item", "The debuff sound didn't play in game. The alert no longer depends only on the game's buff-change callback: the buff bar's own check notices a new debuff too. /toolbox buffs debug shows how many changes each one saw." },
-  { "item", "Buff bar: a buff with two effects running (e.g. refreshed) shows the tooltip of the one that lasts longer." },
+  { "item", "Buff bar: a buff with two effects running (e.g. refreshed) shows the tooltip of the one that lasts longer. Buff names in the long-lasting list and in /toolbox buffs debug use only the first line of a long description, so a debug line is no longer cut short." },
   { "item", "Toolbox stopped with \"pattern too complex\" errors (and was disabled) when a buff had a very long description; the game's Lua gives up on a text pattern that standard Lua handles. The same could have happened with a long guild message. All such text is now trimmed without patterns." },
   { "item", "Buff bar: the sweep no longer lags the game's own buff bar. Buffs that load in after you log in (or zone) were taken for fresh casts, so their time left at that moment was remembered as their full length. Buffs that appear in the first 15 seconds after logging in, zoning or switching characters, or several at once, now count as already running. Lengths learned the old way are forgotten once; cast a buff again to teach it." },
   { "item", "Combat stats HUD: no more lines between the rows of the Dark background. It is now one flat black panel at the chosen opacity instead of the theme's panel look, whose shaded edges showed at every row." },

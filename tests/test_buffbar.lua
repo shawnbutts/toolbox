@@ -1322,4 +1322,18 @@ return function(t)
     t.eq(#H.slots("buffs"), 1)
     t.eq(H.slots("buffs")[1].children[1].tooltip, "Light\n10m")
   end)
+
+  t.test("PlainLabel: colour codes out, first line only, capped", function()
+    H.boot()
+    local P = Toolbox.BuffBar.PlainLabel
+    t.eq(P("[c][27E833]+5 Dexterity[-][/c]", "x"), "+5 Dexterity")
+    t.eq(P("+5% Spell Critical Chance Bonus\nWhile wielding a staff, ...\nmore", "x"),
+      "+5% Spell Critical Chance Bonus")
+    t.eq(P("\n  \n", "fallback"), "fallback")
+    t.eq(P(nil, "fallback"), "fallback")
+    t.eq(P("Invalid", "fallback"), "fallback")
+    local long = P(string.rep("abcdef ", 20), "x")
+    t.eq(#long, Toolbox.BuffBar.LABEL_MAX)
+    t.ok(long:find("%.%.%.$"))
+  end)
 end

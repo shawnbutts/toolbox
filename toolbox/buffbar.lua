@@ -294,12 +294,21 @@ end
 local readEffects = nil
 
 -- A buff's displayed name without the game's colour markup ([c][27E833]...[-][/c]).
-local function plainLabel(index, fallback)
-  local label = ShroudGetBuffDescription(index)
+-- Only its first line, at most BB.LABEL_MAX characters: some descriptions run to several long
+-- lines (one cut the debug line short and, with a pattern, stopped the add-on; 2026-09-28).
+BB.LABEL_MAX = 60
+function BB.PlainLabel(label, fallback)
   if type(label) ~= "string" or label == "Invalid" then return fallback end
   label = label:gsub("%[%x%x%x%x%x%x%x?%x?%]", ""):gsub("%[%-%]", ""):gsub("%[/?%a%]", "")
   label = T.Trim(label)
+  local eol = label:find("[\r\n]")
+  if eol then label = T.Trim(label:sub(1, eol - 1)) end
+  if #label > BB.LABEL_MAX then label = T.Trim(label:sub(1, BB.LABEL_MAX - 3)) .. "..." end
   return label ~= "" and label or fallback
+end
+
+local function plainLabel(index, fallback)
+  return BB.PlainLabel(ShroudGetBuffDescription(index), fallback)
 end
 
 -- The "group after" limit in use, in seconds (0 = off). This is where a game setting would come

@@ -51,7 +51,8 @@ store submission needs a higher version than any submitted before (rejected ones
   callback: the buff bar's own check notices a new debuff too. /toolbox buffs debug shows how many
   changes each one saw.
 - Buff bar: a buff with two effects running (e.g. refreshed) shows the tooltip of the one that lasts
-  longer.
+  longer. Buff names in the long-lasting list and in /toolbox buffs debug use only the first line
+  of a long description, so a debug line is no longer cut short.
 - Toolbox stopped with "pattern too complex" errors (and was disabled) when a buff had a very long
   description; the game's Lua gives up on a text pattern that standard Lua handles. The same could
   have happened with a long guild message. All such text is now trimmed without patterns.
