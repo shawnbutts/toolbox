@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "version", "0.3.1 - 2026-09-28 (beta 4)" },
+  { "para", "Fourth beta. Combat Detailed (damage by skill, the last minute as a chart, healing, targets, damage types and recent fights), an XP-over-the-last-hour chart in XP Detailed, a performance pass that leaves more room for other add-ons, and fixes for start-up errors." },
   { "section", "Changed" },
   { "item", "Performance: Toolbox asks much less of the game each second, leaving more room for other add-ons. With every window open, idle, it now makes about 4 UI updates a second instead of ~100 and a sixth of the garbage; in combat about a quarter of the UI updates and half the garbage. Windows only update what changed, Combat Detailed refreshes once a second, and the buff bar, combat HUD and XP chart reuse their data instead of rebuilding it." },
   { "section", "Added" },

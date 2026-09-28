@@ -74,6 +74,14 @@ row under "Keys".
 --------------
 
 Anything you like, but especially what's new in this beta (/tbx version lists it all):
+  * Combat Detailed: rest the pointer on the combat stats HUD (or /tbx combat detail). Damage by
+    skill as bars, the last minute as a chart (damage done up, taken down), healing and overheal,
+    your targets with kill times, damage types, and your last 10 fights. Switch between this fight
+    and the session with the dropdown. Do the numbers match your combat chat?
+  * XP Detailed: the last hour as small columns under each track. Does it match how you played?
+  * Toolbox should feel lighter: it now does far less work each second. If anything that used to
+    update stops updating (a number, a bar, a sweep), please report it.
+From beta 3:
   * Notifications: a window with what's new since you last looked: your guild's message of the
     day, new mail, mail about to expire, ransoms, rewards, guild applications. Each can go to the
     window or to a notification HUD strip (dropdown in settings, or /tbx notify via hud). Does
@@ -129,7 +137,7 @@ Please include:
   3. Any chat lines starting with "[Add-on: Toolbox]", especially errors.
   4. For a specific part, its debug command's output:
        /tbx buffs debug     /tbx vitals debug     /tbx combat debug     /tbx sounds debug
-       /tbx xp debug        /tbx notify show      /tbx dd values test
+       /tbx xp debug        /tbx notify show      /tbx dd values test   /tbx combat events 5
   5. A screenshot if it's about how something looks.
 
 

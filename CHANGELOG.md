@@ -5,6 +5,12 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-28 (beta 4)
+
+Fourth beta. Combat Detailed (damage by skill, the last minute as a chart, healing, targets, damage
+types and recent fights), an XP-over-the-last-hour chart in XP Detailed, a performance pass that
+leaves more room for other add-ons, and fixes for start-up errors.
+
 ### Changed
 - Performance: Toolbox asks much less of the game each second, leaving more room for other
   add-ons. With every window open, idle, it now makes about 4 UI updates a second instead of ~100
