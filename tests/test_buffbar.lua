@@ -731,6 +731,35 @@ return function(t)
     t.eq(B().redraw, "uv", "a reload goes back to the documented way")
   end)
 
+  t.test("/tbx buffs uvtest steps six clocks through the frames, each its own way, then closes", function()
+    bootSettled()
+    H.clearLogs()
+    H.chat("/tbx buffs uvtest")
+    t.ok(H.logged("^UV test: six light squares"), H.logs()[1])
+    t.ok(H.logged("^  6: an IconButton"))
+    local f = H.S.frames.toolbox_uvtest
+    t.ok(f, "its own HUD strip")
+    H.advance(2.1, 0.1)
+    t.no(H.logged("raised"), "no way raised")
+    local row = f.children[1]
+    local c = B().CLOCK
+    for i, col in ipairs(row.children) do
+      local img = col.children[1].children[1]
+      local k = math.floor(img.uv[1] * c.COLS + 0.5) + math.floor(img.uv[2] * c.ROWS * c.SETS + 0.5) * c.COLS
+      t.eq(k, 5 * B().UVTEST_FRAMES_PER_STEP, "way " .. i .. " asks for the same frame")
+      t.ok(img.visible ~= false, "way " .. i .. " shown")
+      t.ok(col.children[2].text:find("^" .. i .. ": 16%%"), col.children[2].text)
+    end
+    H.advance(B().UVTEST_SECONDS, 0.5)
+    t.eq(H.S.frames.toolbox_uvtest, nil, "closed after the test")
+    t.ok(H.logged("UV test finished"))
+    H.chat("/tbx buffs uvtest")
+    H.clearLogs()
+    H.chat("/tbx buffs uvtest")
+    t.ok(H.logged("UV test stopped"), "a second one stops it")
+    t.eq(H.S.frames.toolbox_uvtest, nil)
+  end)
+
   t.test("/tbx buffs trace says which sweep frame is on screen", function()
     bootSettled()
     H.S.durationMode = "remaining"

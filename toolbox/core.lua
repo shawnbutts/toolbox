@@ -589,8 +589,20 @@ end
 
 add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off; add|remove <name>|reset]; "
     .. "combat on|off (only during combat); flash on|off; replace on|off; "
-    .. "dismiss on|off; debug; raw; trace [name]; frame <0-119> [red]|off; redraw <way>)", function(rest)
+    .. "dismiss on|off; debug; raw; trace [name]; frame <0-119> [red]|off; redraw <way>; uvtest)", function(rest)
   local word, name = T.ParseArgs(rest)
+  if word == "uvtest" then
+    local ok, why = T.BuffBar.UVTest()
+    if not ok then
+      T.Print(why == "stopped" and "UV test stopped." or ("UV test: " .. why .. "."))
+      return
+    end
+    T.Print("UV test: six light squares (at 300, 200 on screen) each sweep the clock round for "
+      .. T.BuffBar.UVTEST_SECONDS .. " s, " .. T.BuffBar.UVTEST_FRAMES_PER_STEP .. " frames every "
+      .. T.BuffBar.UVTEST_STEP .. " s. Which ones visibly sweep round? Each label shows the % it asks for.")
+    for i, way in ipairs(T.BuffBar.UVTEST_WAYS) do T.Print("  " .. i .. ": " .. way[2]) end
+    return
+  end
   if word == "redraw" then
     local B = T.BuffBar
     local m = name:lower()

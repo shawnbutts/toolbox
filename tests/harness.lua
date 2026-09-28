@@ -454,6 +454,7 @@ local FIELDS = {
   Label = { text = 1 },
   Button = { text = 1, onClick = 1, enabled = 1 },
   Image = { texture = 1, width = 1, height = 1, onClick = 1, tint = 1, uv = 1, rotation = 1 },
+  IconButton = { texture = 1, onClick = 1, tint = 1, uv = 1, rotation = 1 },
   HudFrame = { x = 1, y = 1, width = 1, height = 1, children = 1 },
   TextField = { text = 1, placeholder = 1, maxLength = 1, onChange = 1, onSubmit = 1, enabled = 1 },
   Dropdown = { choices = 1, value = 1, onChange = 1, enabled = 1 },
