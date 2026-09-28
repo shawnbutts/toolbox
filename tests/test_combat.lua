@@ -295,4 +295,32 @@ return function(t)
     H.chat("/tbx combat stat remove MagicResistance")
     t.eq(H.config():Find("combat_stats").text, "Stats shown: CombatHealthRegen")
   end)
+
+  t.test("combat events as game objects still count (DPS and kills)", function()
+    H.boot()
+    H.S.eventObjects = true
+    H.chat("/tbx combat")
+    H.setCombat(true)
+    H.combat({ { kind = "hit", fromYou = true, amount = 500, target = "Wolf" },
+               { kind = "death", fromYou = true, target = "Wolf" } })
+    H.advance(1)
+    t.ok(table.concat(H.combatRows(), "|"):find("DPS=%d"), "DPS counted")
+    t.eq(Toolbox.Daily.day.kills, 1, "the kill counted")
+  end)
+
+  t.test("/tbx combat events prints the next events' fields", function()
+    H.boot()
+    H.S.eventObjects = true
+    H.clearLogs()
+    H.chat("/tbx combat events 2")
+    t.ok(H.logged("^Printing the next 2 combat events"))
+    H.combat({ { kind = "hit", fromYou = true, amount = 500, target = "Wolf", rune = "Fireball", runeId = 12,
+                 damageType = "fire", time = 101.5, targetKey = 3 },
+               { kind = "heal", fromYou = true, amount = 80, overheal = 20, rune = "Heal", runeId = 7 },
+               { kind = "hit", toYou = true, amount = 30 } })
+    t.ok(H.logged("^Combat event: %(%a+%) kind=hit target=Wolf amount=500 fromYou=true rune=Fireball runeId=12 "
+      .. "damageType=fire time=101.5 targetKey=3$"), H.logs()[2])
+    t.ok(H.logged("kind=heal .*overheal=20"))
+    t.no(H.logged("toYou=true"), "only the next 2")
+  end)
 end

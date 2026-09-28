@@ -738,6 +738,20 @@ function H.combat(events)
     end
     e.source, e.target, e.amount, e.skill = e.source or "", e.target or "", e.amount or 0, e.skill or ""
   end
+  -- H.S.eventObjects: like the buff list in game, events as objects read by field only (real
+  -- userdata on LuaJIT via newproxy).
+  if S.eventObjects then
+    local proxy = rawget(_G, "newproxy")
+    for i, e in ipairs(events) do
+      if proxy then
+        local u = proxy(true)
+        getmetatable(u).__index = e
+        events[i] = u
+      else
+        events[i] = setmetatable({}, { __index = e })
+      end
+    end
+  end
   return H.callback("ShroudOnCombatEvents", events, 0)
 end
 

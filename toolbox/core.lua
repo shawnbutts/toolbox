@@ -84,6 +84,59 @@ function T.Trim(s, set)
   return s:sub(i, j)
 end
 
+-- ---------------------------------------------------------------------------
+-- Game data: tables or game objects
+-- ---------------------------------------------------------------------------
+-- The docs describe tables, but the game can hand add-ons C# objects (userdata): the buff list
+-- did (2026-09-28), and every `type(x) == "table"` check skipped it. Read fields by name through
+-- T.Field and copy what's needed into plain tables.
+
+-- Field `k` of a table or game object, or nil when it can't be read.
+function T.Field(obj, k)
+  local ty = type(obj)
+  if ty ~= "table" and ty ~= "userdata" then return nil end
+  local ok, v = pcall(function() return obj[k] end)
+  if ok then return v end
+  return nil
+end
+
+-- A list from the game as a Lua list: a table (1-based), or a game-side list (userdata) with
+-- Count, indexed from 0 (C#) or else from 1.
+function T.List(list)
+  local out = {}
+  if type(list) == "table" then
+    for i, v in ipairs(list) do out[i] = v end
+    return out
+  end
+  if type(list) ~= "userdata" then return out end
+  local n = T.Field(list, "Count")
+  if type(n) ~= "number" then
+    local ok, len = pcall(function() return #list end)
+    n = (ok and type(len) == "number") and len or 0
+  end
+  local base = (n > 0 and T.Field(list, 0) == nil) and 1 or 0
+  for i = base, base + n - 1 do
+    local v = T.Field(list, i)
+    if v ~= nil then out[#out + 1] = v end
+  end
+  return out
+end
+
+-- The documented fields of a combat event (API 14, and API 17's rune ... targetKey).
+T.EVENT_FIELDS = { "kind", "source", "target", "amount", "skill", "fromYou", "toYou", "fromYourPet",
+  "toYourPet", "party", "rune", "runeId", "damageType", "dot", "overheal", "time", "sourceKey", "targetKey" }
+
+-- ShroudOnCombatEvents' list as plain tables (each also noting `raw`, the game's type for it).
+function T.ReadEvents(events)
+  local out = {}
+  for _, e in ipairs(T.List(events)) do
+    local copy = { raw = type(e) }
+    for _, f in ipairs(T.EVENT_FIELDS) do copy[f] = T.Field(e, f) end
+    out[#out + 1] = copy
+  end
+  return out
+end
+
 -- Deep copy of plain data (tables, strings, numbers, booleans). Used so the
 -- live session never aliases the saved-variable cache.
 function T.Copy(v)
@@ -685,6 +738,7 @@ function T.CombatHelp()
     "  2. Add it by the name shown: " .. c .. "combat stat add CombatHealthRegen",
     "  3. Remove it: " .. c .. "combat stat remove CombatHealthRegen",
     "  List what's shown: " .. c .. "combat stats   (a stat the game hides shows \"n/a\")",
+    "Checking: " .. c .. "combat events 5 - print the next 5 combat events' fields",
   }
 end
 
@@ -702,6 +756,10 @@ add("combat", "combat stats HUD; add stats while playing: /toolbox combat help",
   elseif word == "debug" then
     T.Print(T.Hud.Debug("combat"))
     T.Print(C.LayoutDebug())
+  elseif word == "events" then
+    local n = tonumber(args) or C.CAPTURE_DEFAULT
+    C.Capture(n)
+    T.Print("Printing the next " .. C.CaptureLeft() .. " combat events' fields (hit something, or get hit).")
   elseif word == "size" then
     if args ~= "" and not C.SetScale(tonumber(args)) then
       T.Print("Size is a whole percent from " .. C.SCALE_MIN .. " to " .. C.SCALE_MAX .. ".")
@@ -1160,8 +1218,9 @@ end
 
 -- Kills for the daily stats (combat chat lines about you, your party or your pet).
 function ShroudOnCombatEvents(events, dropped)
-  T.Daily.OnCombat(events)
-  T.Combat.OnEvents(events, dropped)
+  local list = T.ReadEvents(events)  -- plain tables, whatever the game hands over
+  T.Daily.OnCombat(list)
+  T.Combat.OnEvents(list, dropped)
 end
 
 -- Fight start / end for the combat HUD.

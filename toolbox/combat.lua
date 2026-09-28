@@ -152,10 +152,32 @@ function C.OnCombatMode(on)
   end
 end
 
+-- /toolbox combat events [n]: print the fields of the next n combat events, to see what the game
+-- really sends (API 17's rune, damageType, dot, overheal, time and keys; tables or game objects).
+C.CAPTURE_DEFAULT, C.CAPTURE_MAX = 5, 20
+local captureLeft = 0
+function C.Capture(n)
+  captureLeft = math.max(1, math.min(C.CAPTURE_MAX, math.floor(tonumber(n) or C.CAPTURE_DEFAULT)))
+end
+function C.CaptureLeft() return captureLeft end
+
+function C.EventLine(e)
+  local parts = { "(" .. tostring(e.raw) .. ")" }
+  for _, f in ipairs(T.EVENT_FIELDS) do
+    local v = e[f]
+    if v ~= nil and v ~= "" and v ~= false and v ~= 0 then parts[#parts + 1] = f .. "=" .. tostring(v) end
+  end
+  return table.concat(parts, " ")
+end
+
 function C.OnEvents(events, dropped)
   if type(events) ~= "table" then return end
   local now = T.Now()
   for _, e in ipairs(events) do
+    if captureLeft > 0 then
+      captureLeft = captureLeft - 1
+      T.Print("Combat event: " .. C.EventLine(e))
+    end
     local relevant = type(e) == "table" and (C.DAMAGE_KINDS[e.kind] or C.HEAL_KINDS[e.kind] or C.AVOID_KINDS[e.kind])
       and (e.fromYou or e.toYou or e.fromYourPet)
     if relevant then

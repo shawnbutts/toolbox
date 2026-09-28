@@ -539,7 +539,11 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 32. Glued HUD. CONFIRMED in game 2026-09-27: destroying HUD frames and rebuilding them (same ids when
     unglued again) on `Hud.SetGlued` works, and the shared strip lays out and moves as one. Hiding a
     module's content inside it uses `SetVisible` (hidden elements take no space).
-33. Combat events: damage out = `fromYou` (or `fromYourPet`, optional) lines of kind hit / critical /
+33. Combat events are read through `Toolbox.ReadEvents` (core.lua) into plain tables before anything
+    uses them: game data may be userdata (see the buff list, item 22), and `Combat.OnEvents` /
+    `Daily.OnCombat` skipped anything not a table. `/toolbox combat events [n]` prints the next events'
+    fields (API 17 adds rune, runeId, damageType, dot, overheal, time, sourceKey, targetKey); pending in
+    game. Combat events: damage out = `fromYou` (or `fromYourPet`, optional) lines of kind hit / critical /
     glancing / ultraslay; taken = `toYou` (not from you) damage kinds; avoided = `toYou` dodge / parry /
     block. Assumed: `amount` is the damage number for those kinds (docs: "the number the line prints").
     Player defensive stat names beyond `MagicResistance` aren't documented: the stat list is the player's
