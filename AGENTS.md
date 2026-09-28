@@ -51,6 +51,14 @@ Guidance for AI coding agents (and humans) working on Toolbox, a Shroud of the A
   `ShroudSetSavedVar`/`ShroudGetSavedVar`, character scope.
 - **UI is `Shroud.UI` only.** No retained widgets (`ShroudUI*`), no immediate-mode GUI (`ShroudOnGUI`).
 - **No per-frame work.** Don't define `ShroudOnUpdate`. Use events and the 1-second periodic.
+- **Be cheap per tick; leave room for other add-ons.** Garbage lands on the heap every add-on (and the
+  game) shares, and every UI call crosses into the game's UI. In anything that runs every tick: set UI
+  through `Toolbox.SetText` / `SetTooltip` / `SetVisible` / `SetValue` / `SetStyle` (they skip calls that
+  change nothing; don't mix them with direct calls for the same element and property), reuse tables
+  instead of building new ones, keep sort comparators and closures out of loops, and rebuild derived
+  data (charts, tooltips) only when its inputs change. `tests/test_perf.lua` holds the budgets (a
+  minute with every window open, idle and in combat); after the 2026-09-28 pass: idle ~4 UI calls/s and
+  ~6 KB/s of garbage, combat ~28 and ~31 KB/s.
 - Constructors (`Shroud.UI.*`, `Shroud.Command`) raise at file top level. Call them from
   `ShroudOnStart` or later. Reading `Shroud.UI` at top level is fine.
 

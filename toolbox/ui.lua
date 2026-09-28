@@ -79,6 +79,9 @@ W.CHART_COL_W, W.CHART_GAP, W.CHART_H = 5, 1, 24
 W.CHART_COLORS = { a = "@gold", p = "@green" }
 local chartCols = {}                          -- track key -> the column blocks
 local chartShown = {}                         -- track key -> the height each column shows
+-- What each chart was last drawn from: redrawn only when a sample is added or changes, a column
+-- rolls over, or the net option changes (not every second).
+local chartDrawn = {}
 
 -- One element per column (the element-creation cap): a block pushed down by its top margin so it
 -- stands on the baseline. An empty column is a transparent 1 px block, not hidden: hidden elements
@@ -93,7 +96,7 @@ end
 local function chart(track)
   local k = track.key
   local cols = {}
-  chartCols[k], chartShown[k] = {}, {}
+  chartCols[k], chartShown[k], chartDrawn[k] = {}, {}, nil
   for i = 1, W.CHART_COLS do
     local style = columnStyle(0)
     style.width, style.marginLeft = W.CHART_COL_W, i > 1 and W.CHART_GAP or 0
@@ -120,6 +123,11 @@ end
 
 -- Puts a track's last hour into its chart, scaled to the busiest column.
 local function fillChart(s, k, now, net)
+  local cur = T.XP.Current(s)
+  local sig = #s.samples .. ":" .. cur.t .. ":" .. cur[k] .. ":" .. (cur["l" .. k] or 0) .. ":"
+    .. math.floor(now / (W.CHART_SPAN / W.CHART_COLS)) .. ":" .. tostring(net) .. ":" .. s.start
+  if chartDrawn[k] == sig then return end
+  chartDrawn[k] = sig
   local series = T.XP.Series(s, k, now, W.CHART_COLS, W.CHART_SPAN, net)
   local peak = 0
   for _, g in ipairs(series) do
@@ -429,11 +437,11 @@ function W.Refresh()
   if not W.IsShown() then return end
   local s = T.session
   if not s then
-    el.elapsed:SetText("Waiting for character...")
+    T.SetText(el.elapsed, "Waiting for character...")
     return
   end
   local now = T.Now()
-  el.elapsed:SetText("Session " .. T.FormatDuration(T.XP.Elapsed(s, now)))
+  T.SetText(el.elapsed, "Session " .. T.FormatDuration(T.XP.Elapsed(s, now)))
 
   local progress = ShroudGetLevelProgress()
   for _, track in ipairs(T.XP.TRACKS) do
@@ -441,19 +449,19 @@ function W.Refresh()
     local net = W.GetNet()
     fillChart(s, k, now, net)
     local sessionRate = T.XP.SessionRate(s, k, now, net)
-    el[k .. "_gain"]:SetText(T.XP.Signed(T.XP.Gained(s, k, net)) .. "  " .. rateText(sessionRate)
+    T.SetText(el[k .. "_gain"], T.XP.Signed(T.XP.Gained(s, k, net)) .. "  " .. rateText(sessionRate)
       .. "  (10m " .. rateText(T.XP.WindowRate(s, k, now, net)) .. ")")
 
     local p = progress and progress[track.progress]
     if type(p) == "table" and type(p.level) == "number" then
       local pct = math.max(0, math.min(1, tonumber(p.percent) or 0))
-      el[k .. "_head"]:SetText(string.format("%s  Lv %d  %.1f%%", track.name, math.floor(p.level), pct * 100))
-      el[k .. "_bar"]:SetValue(pct)
-      el[k .. "_eta"]:SetText(W.NextLevelText(p, sessionRate))
+      T.SetText(el[k .. "_head"], string.format("%s  Lv %d  %.1f%%", track.name, math.floor(p.level), pct * 100))
+      T.SetValue(el[k .. "_bar"], pct)
+      T.SetText(el[k .. "_eta"], W.NextLevelText(p, sessionRate))
     else
-      el[k .. "_head"]:SetText(track.name .. "  Lv --")
-      el[k .. "_bar"]:SetValue(0)
-      el[k .. "_eta"]:SetText(W.NextLevelText(nil, 0))
+      T.SetText(el[k .. "_head"], track.name .. "  Lv --")
+      T.SetValue(el[k .. "_bar"], 0)
+      T.SetText(el[k .. "_eta"], W.NextLevelText(nil, 0))
     end
   end
 end

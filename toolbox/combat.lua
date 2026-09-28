@@ -233,42 +233,44 @@ end
 
 -- Adds one combat line to a fight (and, when given, the session). `pet` counts your pet's damage
 -- as yours.
+-- One line's numbers into one set of stats (a fight, or the session).
+local function addTo(s, e, amount, mine, atMe, t, now)
+  if mine and C.DAMAGE_KINDS[e.kind] and not atMe then
+    s.out = s.out + amount
+    s.hits = s.hits + 1
+    if e.kind == "critical" then s.crits = s.crits + 1 end
+    addDetails(s, e, amount, "out", t)
+  elseif e.fromYou == true and C.HEAL_KINDS[e.kind] then
+    s.healed = s.healed + amount
+    addDetails(s, e, amount, "heal", t)
+  end
+  if atMe and not e.fromYou then
+    if C.DAMAGE_KINDS[e.kind] then
+      s.taken = s.taken + amount
+      addDetails(s, e, amount, "taken", t)
+      s.attacksIn = s.attacksIn + 1
+    elseif C.AVOID_KINDS[e.kind] then
+      s.attacksIn = s.attacksIn + 1
+      s.avoided = s.avoided + 1
+    end
+  end
+  -- A creature you damaged died: its kill time runs from your first hit to its death.
+  if e.kind == "death" then
+    local tg = s.targets[C.TargetKey(e.targetKey, e.target) or ""]
+      or s.targets[C.TargetKey(e.sourceKey, e.source) or ""]
+    if tg and not tg.killed then tg.killed, tg.killTime = true, math.max(0, t - tg.first) end
+  end
+  s.last = now
+end
+
 function C.Add(f, e, now, pet, session)
   if type(e) ~= "table" then return end
   local amount = type(e.amount) == "number" and e.amount > 0 and e.amount or 0
   local mine = e.fromYou == true or (pet and e.fromYourPet == true)
   local atMe = e.toYou == true
   local t = type(e.time) == "number" and e.time or now     -- API 17: the line's own time
-  local targets = { f }
-  if session then targets[2] = session end
-  for _, s in ipairs(targets) do
-    if mine and C.DAMAGE_KINDS[e.kind] and not atMe then
-      s.out = s.out + amount
-      s.hits = s.hits + 1
-      if e.kind == "critical" then s.crits = s.crits + 1 end
-      addDetails(s, e, amount, "out", t)
-    elseif e.fromYou == true and C.HEAL_KINDS[e.kind] then
-      s.healed = s.healed + amount
-      addDetails(s, e, amount, "heal", t)
-    end
-    if atMe and not e.fromYou then
-      if C.DAMAGE_KINDS[e.kind] then
-        s.taken = s.taken + amount
-        addDetails(s, e, amount, "taken", t)
-        s.attacksIn = s.attacksIn + 1
-      elseif C.AVOID_KINDS[e.kind] then
-        s.attacksIn = s.attacksIn + 1
-        s.avoided = s.avoided + 1
-      end
-    end
-    -- A creature you damaged died: its kill time runs from your first hit to its death.
-    if e.kind == "death" then
-      local tg = s.targets[C.TargetKey(e.targetKey, e.target) or ""]
-        or s.targets[C.TargetKey(e.sourceKey, e.source) or ""]
-      if tg and not tg.killed then tg.killed, tg.killTime = true, math.max(0, t - tg.first) end
-    end
-    s.last = now
-  end
+  addTo(f, e, amount, mine, atMe, t, now)
+  if session then addTo(session, e, amount, mine, atMe, t, now) end
   if mine and C.DAMAGE_KINDS[e.kind] and not atMe then
     f.recent[#f.recent + 1] = { t = now, out = amount }
     if session then C.AddTimeline(session, t, amount, 0) end
@@ -290,11 +292,14 @@ end
 
 -- Drops "recent" entries older than the window.
 function C.Prune(f, now)
-  local keep = {}
-  for _, r in ipairs(f.recent) do
-    if now - r.t < C.WINDOW then keep[#keep + 1] = r end
+  local r, n = f.recent, 0                -- in place: no new table each tick
+  for i = 1, #r do
+    if now - r[i].t < C.WINDOW then
+      n = n + 1
+      r[n] = r[i]
+    end
   end
-  f.recent = keep
+  for i = #r, n + 1, -1 do r[i] = nil end
 end
 
 function C.Duration(f, now)
@@ -334,6 +339,8 @@ local inCombat = false
 local content = nil
 local el = {}
 local shownText = {}
+
+local idleFight, idleEnded, idleStats = nil, nil, {}   -- what the HUD showed while no fight ran
 
 local function scale() return prefs.scale or C.SCALE_DEFAULT end
 
@@ -375,7 +382,7 @@ end
 function C.CaptureLeft() return captureLeft end
 
 function C.EventLine(e)
-  local parts = { "(" .. tostring(e.raw) .. ")" }
+  local parts = { "(" .. tostring(e.raw or type(e)) .. ")" }
   for _, f in ipairs(T.EVENT_FIELDS) do
     local v = e[f]
     if v ~= nil and v ~= "" and v ~= false and v ~= 0 then parts[#parts + 1] = f .. "=" .. tostring(v) end
@@ -419,25 +426,37 @@ local function num(n) return T.FormatNumber(n or 0) end
 local function pct(p) return p and string.format("%d%%", math.floor(p + 0.5)) or "--" end
 
 -- The rows as { id, label, value } for the current fight and stats.
+-- Rows are reused across ticks (no new tables twice a second).
+local rowsOut, rowPool = {}, {}
+local function putRow(i, id, label, value)
+  local r = rowPool[i]
+  if not r then
+    r = {}
+    rowPool[i] = r
+  end
+  r.id, r.label, r.value = id, label, value
+  rowsOut[i] = r
+end
+
 function C.Rows(now)
-  local rows = {}
+  for k = #rowsOut, 1, -1 do rowsOut[k] = nil end
   local f = fight
   local recent, avg = { out = 0, taken = 0, healed = 0 }, { out = 0, taken = 0, healed = 0 }
   if f then recent, avg = C.Rates(f, now) end
   local timer = f and T.FormatDuration(C.Duration(f, now)) or "--"
   local status = not f and "" or (f.ended and " (ended)" or "")
-  rows[#rows + 1] = { id = "fight", label = "Fight", value = timer .. status }
-  rows[#rows + 1] = { id = "dps", label = "DPS", value = num(recent.out) .. "  avg " .. num(avg.out) }
-  rows[#rows + 1] = { id = "taken", label = "Taken /s", value = num(recent.taken) .. "  avg " .. num(avg.taken) }
-  rows[#rows + 1] = { id = "hps", label = "Healing /s", value = num(recent.healed) .. "  avg " .. num(avg.healed) }
-  rows[#rows + 1] = { id = "crit", label = "Crit", value = f and pct(C.CritPct(f)) or "--" }
-  rows[#rows + 1] = { id = "avoid", label = "Avoided", value = f and pct(C.AvoidPct(f)) or "--" }
+  putRow(#rowsOut + 1, "fight", "Fight", timer .. status)
+  putRow(#rowsOut + 1, "dps", "DPS", num(recent.out) .. "  avg " .. num(avg.out))
+  putRow(#rowsOut + 1, "taken", "Taken /s", num(recent.taken) .. "  avg " .. num(avg.taken))
+  putRow(#rowsOut + 1, "hps", "Healing /s", num(recent.healed) .. "  avg " .. num(avg.healed))
+  putRow(#rowsOut + 1, "crit", "Crit", f and pct(C.CritPct(f)) or "--")
+  putRow(#rowsOut + 1, "avoid", "Avoided", f and pct(C.AvoidPct(f)) or "--")
   for i, name in ipairs(statList()) do
     local v = ShroudGetStatValueByName(name)
     local readable = type(v) == "number" and v ~= InvalidStatResult and not (v == 0 and not ShroudIsStatVisible(name))
-    rows[#rows + 1] = { id = "stat" .. i, label = name, value = readable and string.format("%g", v) or "n/a" }
+    putRow(#rowsOut + 1, "stat" .. i, name, readable and string.format("%g", v) or "n/a")
   end
-  return rows
+  return rowsOut
 end
 
 local function background() return prefs.bg or C.BG_DEFAULT end
@@ -581,18 +600,32 @@ function C.Tick()
   C.Detail.Refresh()
   C.Detail.Track()
   if not content or not prefs.show then return end
+  -- No fight running and the stats unchanged: the rows would come out the same, so skip building
+  -- them (their strings are most of the HUD's garbage).
+  if not fight or fight.ended then
+    local same = idleFight == fight and idleEnded == (fight and fight.ended) and #idleStats == #statList()
+    for i, name in ipairs(statList()) do
+      local v = ShroudGetStatValueByName(name)
+      if idleStats[i] ~= v then
+        same = false
+        idleStats[i] = v
+      end
+    end
+    for k = #idleStats, #statList() + 1, -1 do idleStats[k] = nil end
+    if same and next(shownText) then return end
+    idleFight, idleEnded = fight, fight and fight.ended
+  else
+    idleFight = nil
+  end
   local rows = C.Rows(now)
   for i, slot in ipairs(el) do
     local r = rows[i]
-    local key = r and (r.label .. "\0" .. r.value) or nil
-    if key ~= shownText[i] then
-      shownText[i] = key
-      if r then
-        slot.name:SetText(r.label)
-        slot.value:SetText(r.value)
-      end
-      slot.row:SetVisible(r ~= nil)
+    if r then
+      T.SetText(slot.name, r.label)
+      T.SetText(slot.value, r.value)
     end
+    T.SetVisible(slot.row, r ~= nil)
+    shownText[i] = r ~= nil
   end
   if #rows ~= shownRows then
     shownRows = #rows
@@ -968,15 +1001,36 @@ local function scoped(now)
   return fight, C.Duration(fight, now)
 end
 
-function CD.Refresh()
+-- A bar row's contents: text, bar, value and tooltip, the tooltip rebuilt only when `sig` (the
+-- numbers behind it) changes.
+local function fillRow(slot, name, bar, value, sig, tipFn)
+  T.SetText(slot.name, name)
+  T.SetValue(slot.bar, bar)
+  T.SetText(slot.value, value)
+  if slot.sig ~= sig then
+    slot.sig = sig
+    local tip = tipFn()
+    T.SetTooltip(slot.name, tip)
+    T.SetTooltip(slot.value, tip)
+  end
+  T.SetVisible(slot.row, true)
+end
+
+local lastRefresh = -math.huge
+CD.REFRESH = 1                        -- seconds between refreshes while shown
+
+-- `force`: now, not on the 1 s pace (opened, scope changed).
+function CD.Refresh(force)
   if not CD.IsShown() then return end
   local now = T.Now()
+  if not force and now - lastRefresh < CD.REFRESH then return end
+  lastRefresh = now
   local s, dur = scoped(now)
   local span = math.max(1, dur)
   if not s then
-    cdEl.cd_summary:SetText(cdPrefs.scope == "session" and "No fights yet this session." or "No fight yet.")
+    T.SetText(cdEl.cd_summary, cdPrefs.scope == "session" and "No fights yet this session." or "No fight yet.")
   else
-    cdEl.cd_summary:SetText(string.format("%s: %s. Damage %s (%s/s), taken %s (%s/s)%s.",
+    T.SetText(cdEl.cd_summary, string.format("%s: %s. Damage %s (%s/s), taken %s (%s/s)%s.",
       scopeLabel(cdPrefs.scope), T.FormatDuration(dur), short(s.out), short(s.out / span), short(s.taken),
       short(s.taken / span), (s.fights and s.fights > 0) and (", " .. s.fights .. " fights done") or ""))
   end
@@ -984,28 +1038,28 @@ function CD.Refresh()
   for i, slot in ipairs(cdEl.skills) do
     local r = top[i]
     if r then
-      slot.name:SetText(r.name)
-      slot.bar:SetValue(top[1].dmg > 0 and r.dmg / top[1].dmg or 0)
-      slot.value:SetText(short(r.dmg) .. string.format("  %d%%", math.floor(r.share * 100 + 0.5)))
-      local tip = string.format("%s: %s damage, %s/s over %s\n%d hits, %d critical (%d%%), %d over-time ticks\n"
-        .. "average hit %s", r.name, T.FormatNumber(r.dmg), short(r.dmg / span), T.FormatDuration(dur), r.hits,
-        r.crits, r.hits > 0 and math.floor(100 * r.crits / r.hits + 0.5) or 0, r.dots,
-        T.FormatNumber(r.hits > 0 and r.dmg / r.hits or 0))
-      slot.name:SetTooltip(tip)
-      slot.value:SetTooltip(tip)
+      fillRow(slot, r.name, top[1].dmg > 0 and r.dmg / top[1].dmg or 0,
+        short(r.dmg) .. "  " .. math.floor(r.share * 100 + 0.5) .. "%",
+        r.name .. r.dmg .. ":" .. r.hits .. ":" .. r.crits .. ":" .. r.dots, function()
+          return string.format("%s: %s damage (%d%%)\n%d hits, %d critical (%d%%), %d over-time ticks\n"
+            .. "average hit %s", r.name, T.FormatNumber(r.dmg), math.floor(r.share * 100 + 0.5), r.hits, r.crits,
+            r.hits > 0 and math.floor(100 * r.crits / r.hits + 0.5) or 0, r.dots,
+            T.FormatNumber(r.hits > 0 and r.dmg / r.hits or 0))
+        end)
+    else
+      T.SetVisible(slot.row, false)
     end
-    slot.row:SetVisible(r ~= nil)
   end
-  cdEl.cd_noskills:SetVisible(#top == 0)
+  T.SetVisible(cdEl.cd_noskills, #top == 0)
   local tl = session and C.Timeline(session, now) or {}
   local peakOut, peakIn = 0, 0
   for _, x in ipairs(tl) do
     peakOut, peakIn = math.max(peakOut, x.out), math.max(peakIn, x.taken)
   end
   for i = 1, #cdEl.outCols do
-    local x = tl[i] or { out = 0, taken = 0 }
-    local hu = peakOut > 0 and math.floor(CD.OUT_H * x.out / peakOut + 0.5) or 0
-    local hd = peakIn > 0 and math.floor(CD.IN_H * x.taken / peakIn + 0.5) or 0
+    local x = tl[i]
+    local hu = (x and peakOut > 0) and math.floor(CD.OUT_H * x.out / peakOut + 0.5) or 0
+    local hd = (x and peakIn > 0) and math.floor(CD.IN_H * x.taken / peakIn + 0.5) or 0
     if hu ~= cdEl.shown.up[i] then
       cdEl.shown.up[i] = hu
       cdEl.outCols[i]:SetStyle(hu > 0 and { height = hu, marginTop = CD.OUT_H - hu, backgroundColor = CD.OUT_COLOR }
@@ -1017,42 +1071,43 @@ function CD.Refresh()
         or { height = 1, backgroundColor = CD.EMPTY })
     end
   end
-  cdEl.cd_peak:SetText("Peaks: " .. short(peakOut) .. "/s done, " .. short(peakIn) .. "/s taken ("
+  T.SetText(cdEl.cd_peak, "Peaks: " .. short(peakOut) .. "/s done, " .. short(peakIn) .. "/s taken ("
     .. C.SLICE .. " s columns, newest on the right)")
   local tops = s and C.TopTargets(s, CD.TARGET_ROWS) or {}
   for i, slot in ipairs(cdEl.targets) do
     local tg = tops[i]
     if tg then
-      slot.name:SetText(tg.name)
-      slot.bar:SetValue(tops[1].dmg > 0 and tg.dmg / tops[1].dmg or 0)
-      slot.value:SetText(short(tg.dmg) .. (tg.killed and ("  killed " .. T.FormatDuration(tg.secs)) or ""))
-      local tip = string.format("%s: %s damage in %d hits over %s (%s/s)%s", tg.name, T.FormatNumber(tg.dmg),
-        tg.hits, T.FormatDuration(tg.secs), short(tg.dmg / math.max(1, tg.secs)),
-        tg.killed and "; killed" or "; not killed (yet)")
-      slot.name:SetTooltip(tip)
-      slot.value:SetTooltip(tip)
+      fillRow(slot, tg.name, tops[1].dmg > 0 and tg.dmg / tops[1].dmg or 0,
+        short(tg.dmg) .. (tg.killed and ("  killed " .. T.FormatDuration(tg.secs)) or ""),
+        tg.name .. tg.dmg .. ":" .. tg.hits .. ":" .. tg.secs .. tostring(tg.killed), function()
+          return string.format("%s: %s damage in %d hits over %s (%s/s)%s", tg.name, T.FormatNumber(tg.dmg),
+            tg.hits, T.FormatDuration(tg.secs), short(tg.dmg / math.max(1, tg.secs)),
+            tg.killed and "; killed" or "; not killed (yet)")
+        end)
+    else
+      T.SetVisible(slot.row, false)
     end
-    slot.row:SetVisible(tg ~= nil)
   end
-  cdEl.cd_notargets:SetVisible(#tops == 0)
+  T.SetVisible(cdEl.cd_notargets, #tops == 0)
   for _, which in ipairs({ "out", "taken" }) do
     local list = s and C.Types(s, which) or {}
-    local shown, parts, used = {}, {}, 0
+    local widths, parts, used = {}, {}, 0
     for i, x in ipairs(list) do
-      local seg = cdEl.typeSegs[which][x.type] or cdEl.typeSegs[which].other
+      local key = cdEl.typeSegs[which][x.type] and x.type or "other"
       local w = i == #list and (CD.TYPE_W - used) or math.floor(CD.TYPE_W * x.share + 0.5)
       w = math.max(0, math.min(CD.TYPE_W - used, w))
       if w > 0 then
-        seg:SetStyle{ width = w }
-        seg:SetTooltip(string.format("%s: %s (%d%%)", CD.TypeName(x.type), T.FormatNumber(x.amount),
-          math.floor(x.share * 100 + 0.5)))
-        shown[seg] = true
+        local seg = cdEl.typeSegs[which][key]
+        widths[key] = w
+        T.SetStyle(seg, { width = w })
+        T.SetTooltip(seg, CD.TypeName(x.type) .. ": " .. T.FormatNumber(x.amount) .. " ("
+          .. math.floor(x.share * 100 + 0.5) .. "%)")
         used = used + w
       end
       if i <= 4 then parts[#parts + 1] = CD.TypeName(x.type) .. " " .. math.floor(x.share * 100 + 0.5) .. "%" end
     end
-    for _, seg in pairs(cdEl.typeSegs[which]) do seg:SetVisible(shown[seg] == true) end
-    cdEl["cd_types_" .. which]:SetText(#parts > 0 and table.concat(parts, "  ·  ") or "None yet.")
+    for key, seg in pairs(cdEl.typeSegs[which]) do T.SetVisible(seg, widths[key] ~= nil) end
+    T.SetText(cdEl["cd_types_" .. which], #parts > 0 and table.concat(parts, "  ·  ") or "None yet.")
   end
   local hist = session and session.history or {}
   local best = 0
@@ -1060,24 +1115,24 @@ function CD.Refresh()
   for i, slot in ipairs(cdEl.history) do
     local h = hist[i]
     if h then
-      slot.name:SetText(T.FormatDuration(h.secs) .. (h.top ~= "" and ("  " .. h.top) or ""))
-      slot.bar:SetValue(best > 0 and h.dps / best or 0)
-      slot.value:SetText("DPS " .. short(h.dps))
-      local tip = string.format("%s fight: %s damage (%s/s), %s taken, %s healed; %d killed; most damage: %s",
-        T.FormatDuration(h.secs), T.FormatNumber(h.out), short(h.dps), T.FormatNumber(h.taken),
-        T.FormatNumber(h.healed), h.kills, h.top ~= "" and h.top or "none")
-      slot.name:SetTooltip(tip)
-      slot.value:SetTooltip(tip)
+      fillRow(slot, T.FormatDuration(h.secs) .. (h.top ~= "" and ("  " .. h.top) or ""),
+        best > 0 and h.dps / best or 0, "DPS " .. short(h.dps),
+        h.secs .. ":" .. h.out .. ":" .. h.taken .. ":" .. h.healed .. ":" .. h.kills .. h.top, function()
+          return string.format("%s fight: %s damage (%s/s), %s taken, %s healed; %d killed; most damage: %s",
+            T.FormatDuration(h.secs), T.FormatNumber(h.out), short(h.dps), T.FormatNumber(h.taken),
+            T.FormatNumber(h.healed), h.kills, h.top ~= "" and h.top or "none")
+        end)
+    else
+      T.SetVisible(slot.row, false)
     end
-    slot.row:SetVisible(h ~= nil)
   end
-  cdEl.cd_nohistory:SetVisible(#hist == 0)
+  T.SetVisible(cdEl.cd_nohistory, #hist == 0)
   if s and s.healed + s.overheal > 0 then
     local over = C.OverhealPct(s)
-    cdEl.cd_heal:SetText(string.format("%s healed (%s/s); %s wasted as overheal (%d%%).", short(s.healed),
+    T.SetText(cdEl.cd_heal, string.format("%s healed (%s/s); %s wasted as overheal (%d%%).", short(s.healed),
       short(s.healed / span), short(s.overheal), math.floor((over or 0) + 0.5)))
   else
-    cdEl.cd_heal:SetText("No healing yet.")
+    T.SetText(cdEl.cd_heal, "No healing yet.")
   end
 end
 
@@ -1092,7 +1147,7 @@ function CD.SetScope(scope)
   cdPrefs.scope = scope
   cdSave()
   if cdEl.cd_scope then cdEl.cd_scope:SetValue(scopeLabel(scope)) end
-  CD.Refresh()
+  CD.Refresh(true)
   return true
 end
 
@@ -1109,7 +1164,7 @@ function CD.SetOpen(open)
     cdPrefs.open, cdPopup = true, false
   elseif cdWin:Show() then
     cdPrefs.open, cdPopup = true, false
-    CD.Refresh()
+    CD.Refresh(true)
   else
     T.Print("The Combat Detailed window can't open right now; try again in a few seconds.")
     ok = false
@@ -1125,7 +1180,7 @@ function CD.ShowPopup()
   if not cdWin and not tryBuild() then return false end
   if cdWin:IsShown() or not cdWin:Show() then return false end
   cdPopup = true
-  CD.Refresh()
+  CD.Refresh(true)
   return true
 end
 
@@ -1162,7 +1217,7 @@ function CD.Init()
     ShroudRegisterPeriodic("toolbox_combat_detail_open", function()
       if not cdWin and not tryBuild() then return end
       if not cdWin:Show() then T.Print("Combat Detailed could not reopen yet; use /toolbox combat detail.") end
-      CD.Refresh()
+      CD.Refresh(true)
     end, CD.OPEN_DELAY, false)
   end
 end

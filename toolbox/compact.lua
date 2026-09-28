@@ -243,17 +243,17 @@ function C.Refresh()
   if not C.IsShown() or not e.elapsed then return end
   local s = T.session
   if not s then
-    e.elapsed:SetText("Waiting for character...")
+    T.SetText(e.elapsed, "Waiting for character...")
     return
   end
   local now = T.Now()
-  e.elapsed:SetText("Session " .. T.FormatDuration(T.XP.Elapsed(s, now)))
+  T.SetText(e.elapsed, "Session " .. T.FormatDuration(T.XP.Elapsed(s, now)))
 
   local adv = pool(ShroudGetPooledAdventurerExperience)
   local prod = pool(ShroudGetPooledProducerExperience)
-  e.a_pool:SetText(adv and T.FormatNumber(adv) or "--")
-  e.p_pool:SetText(prod and T.FormatNumber(prod) or "--")
+  T.SetText(e.a_pool, adv and T.FormatNumber(adv) or "--")
+  T.SetText(e.p_pool, prod and T.FormatNumber(prod) or "--")
   local net = T.Window.GetNet()
-  e.a_hour:SetText(T.XP.Signed(T.XP.LastHour(s, "a", now, net)))
-  e.p_hour:SetText(T.XP.Signed(T.XP.LastHour(s, "p", now, net)))
+  T.SetText(e.a_hour, T.XP.Signed(T.XP.LastHour(s, "a", now, net)))
+  T.SetText(e.p_hour, T.XP.Signed(T.XP.LastHour(s, "p", now, net)))
 end

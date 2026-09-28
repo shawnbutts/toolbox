@@ -94,6 +94,8 @@ function XP.ConfirmDrop(pending, key, value, now)
   return true
 end
 
+local recordVals = {}   -- reused by XP.Record (no new table per reading)
+
 -- Records a reading of the totals. Returns true when the session changed. Each track on its
 -- own: a lower reading is ignored until XP.ConfirmDrop believes it; then the session carries on
 -- from it, the loss added to s.offset so it counts as no gain rather than negative gain.
@@ -103,7 +105,7 @@ function XP.Record(s, now, adv, prod)
   local cur = XP.Current(s)
   s.offset = s.offset or {}
   s.pending = s.pending or {}
-  local vals, changed = {}, false
+  local vals, changed = recordVals, false
   for _, key in ipairs({ "a", "p" }) do
     local v = (key == "a" and adv or prod) + (s.offset[key] or 0)
     if v >= cur[key] then

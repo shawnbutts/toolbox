@@ -221,13 +221,15 @@ end
 
 -- Sorts { name, remaining } entries in place: soonest to run out first, buffs that never run
 -- out (0 or less: permanent, or no time given) last; ties by name, so the order stays put.
+local function byExpiry(x, y)
+  local a = (type(x.remaining) == "number" and x.remaining > 0) and x.remaining or math.huge
+  local b = (type(y.remaining) == "number" and y.remaining > 0) and y.remaining or math.huge
+  if a ~= b then return a < b end
+  return x.name < y.name
+end
+
 function BB.SortByExpiry(list)
-  table.sort(list, function(x, y)
-    local a = (type(x.remaining) == "number" and x.remaining > 0) and x.remaining or math.huge
-    local b = (type(y.remaining) == "number" and y.remaining > 0) and y.remaining or math.huge
-    if a ~= b then return a < b end
-    return x.name < y.name
-  end)
+  table.sort(list, byExpiry)             -- one comparison function, not a new one per call
   return list
 end
 
@@ -292,6 +294,7 @@ local function savePrefs()
 end
 
 local readEffects = nil
+local labelFor = nil
 
 -- A buff's displayed name without the game's colour markup ([c][27E833]...[-][/c]).
 -- Only its first line, at most BB.LABEL_MAX characters: some descriptions run to several long
@@ -317,6 +320,17 @@ end
 -- when the game's can't be read.
 function BB.GroupAfter()
   return prefs.groupAfter or BB.GROUP_AFTER_DEFAULT
+end
+
+-- A buff's display name, remembered by rune name (it doesn't change; read once, not twice a second).
+local labels = {}
+function labelFor(e)
+  local l = labels[e.name]
+  if not l then
+    l = plainLabel(e.index, e.name)
+    labels[e.name] = l
+  end
+  return l
 end
 
 -- Whether a buff goes in the long-lasting group (debuffs never do): by time left, or by name.
@@ -441,8 +455,13 @@ function BB.SceneChange()
 end
 
 -- One entry per rune in the game's order: { name, remaining, index (first flat index) }.
+-- The list and its entries are reused call to call (it runs twice a second): callers must not
+-- keep them past the tick.
+local effOut, effByName, effPool = {}, {}, {}
 function readEffects()
-  local out, byName = {}, {}
+  local out, byName = effOut, effByName
+  for k = #out, 1, -1 do out[k] = nil end
+  for k in pairs(byName) do byName[k] = nil end
   local n = ShroudGetBuffCount() or 0
   for i = 0, n - 1 do
     local name = ShroudGetBuffName(i)
@@ -450,7 +469,12 @@ function readEffects()
       local remaining = ShroudGetBuffTimeRemaining(i)
       local e = byName[name]
       if not e then
-        e = { name = name, remaining = remaining, index = i }
+        e = effPool[name]
+        if not e then
+          e = {}
+          effPool[name] = e
+        end
+        e.name, e.remaining, e.index = name, remaining, i
         byName[name] = e
         out[#out + 1] = e
       elseif type(remaining) == "number" and remaining > (e.remaining or -1) then
@@ -742,9 +766,31 @@ end
 -- Tick: timers, alerts, and the bar
 -- ---------------------------------------------------------------------------
 
+-- Reused by BB.Tick: two "seen" sets taking turns (the last one is kept as lastSeen), and the
+-- display lists with their entry tables.
+local seenA, seenB = {}, {}
+local groupedList, buffList, debuffList = {}, {}, {}
+local groupedPool, buffPool, debuffPool = {}, {}, {}
+local NOTHING = {}
+
+local function clear(t)
+  for k in pairs(t) do t[k] = nil end
+  return t
+end
+
+local function pooled(pool, i)
+  local x = pool[i]
+  if not x then
+    x = {}
+    pool[i] = x
+  end
+  return x
+end
+
 function BB.Tick()
   local effects = readEffects()
-  local seen, grouped, shownBuffs, shownDebuffs = {}, {}, {}, {}
+  local seen = clear(lastSeen == seenA and seenB or seenA)
+  local grouped, shownBuffs, shownDebuffs = clear(groupedList), clear(buffList), clear(debuffList)
   local threshold = prefs.expireSeconds or BB.ALERT_DEFAULT
   local expiring = false
   local shown = BB.IsShown()
@@ -759,9 +805,9 @@ function BB.Tick()
   end
   -- Two or more buffs appearing in the same tick came in with a login or a zone change, not from
   -- casts: nobody casts two buffs within half a second.
-  local newNow, present = 0, {}
+  local newNow = 0
   for _, e in ipairs(effects) do
-    present[e.name] = true
+    seen[e.name] = true
     if not lastSeen[e.name] then newNow = newNow + 1 end
   end
   -- The list changed (a name came or went): re-read debuff flags and run the debuff alert here
@@ -769,13 +815,12 @@ function BB.Tick()
   -- (reported 2026-09-28: no debuff sound). A second run for the same change finds nothing new.
   local changed = newNow > 0
   for name in pairs(lastSeen) do
-    if not present[name] then changed = true end
+    if not seen[name] then changed = true end
   end
   if changed then BB.OnBuffsChanged("tick") end
   local settling = T.Now() < sceneQuietUntil or newNow >= 2
   for _, e in ipairs(effects) do
-    seen[e.name] = true
-    local rune = runes[e.name] or {}
+    local rune = runes[e.name] or NOTHING
     local known = rune.total
     if not known and not timers[e.name] then known = BB.Recall(e.name, e.remaining) end
     if not known then known = learned[e.name] end
@@ -790,13 +835,19 @@ function BB.Tick()
     if fire and not rune.debuff then expiring = true end
     if content and shown then
       if rune.debuff then
-        shownDebuffs[#shownDebuffs + 1] = { e = e, fraction = fraction, name = e.name, remaining = e.remaining }
+        local x = pooled(debuffPool, #shownDebuffs + 1)
+        x.e, x.fraction, x.warn, x.name, x.remaining = e, fraction, false, e.name, e.remaining
+        shownDebuffs[#shownDebuffs + 1] = x
       elseif isGrouped(e) then
         local tex = (type(rune.icon) == "number" and rune.icon >= 0) and rune.icon or ShroudGetBuffIcon(e.index)
-        grouped[#grouped + 1] = { plainLabel(e.index, e.name), e.remaining, tex }
+        local x = pooled(groupedPool, #grouped + 1)
+        x[1], x[2], x[3] = labelFor(e), e.remaining, tex
+        grouped[#grouped + 1] = x
       else
-        shownBuffs[#shownBuffs + 1] = { e = e, fraction = fraction, warn = st ~= nil and st.warned == true,
-                                        name = e.name, remaining = e.remaining }
+        local x = pooled(buffPool, #shownBuffs + 1)
+        x.e, x.fraction, x.warn, x.name, x.remaining = e, fraction, st ~= nil and st.warned == true, e.name,
+          e.remaining
+        shownBuffs[#shownBuffs + 1] = x
       end
     end
   end

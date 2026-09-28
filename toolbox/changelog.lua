@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Changed" },
+  { "item", "Performance: Toolbox asks much less of the game each second, leaving more room for other add-ons. With every window open, idle, it now makes about 4 UI updates a second instead of ~100 and a sixth of the garbage; in combat about a quarter of the UI updates and half the garbage. Windows only update what changed, Combat Detailed refreshes once a second, and the buff bar, combat HUD and XP chart reuse their data instead of rebuilding it." },
   { "section", "Added" },
   { "item", "XP Detailed: the last hour as a column chart under each track (2-minute columns of XP gained, gold for adventurer, green for producer), with the best rate per hour. It follows the \"Subtract XP lost\" setting." },
   { "item", "Combat Detailed: a window that pops up when you hover the combat HUD (or /toolbox combat detail). Damage by skill as bars, longest first, with hits, crits and over-time ticks on hover; the last minute as a column chart, damage done up and damage taken down; and healing with the share wasted as overheal. For this fight or the whole session. Uses the per-skill combat details of Lua API 17. Also: Targets (damage to each creature, same-named ones kept apart, and how long each took to kill) and Damage types (bars split by element for damage done and taken), and Recent fights: the last 10 fights as DPS bars, newest first, with damage, taken, healing, kills and top skill on hover." },

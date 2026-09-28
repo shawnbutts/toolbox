@@ -5,6 +5,13 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Changed
+- Performance: Toolbox asks much less of the game each second, leaving more room for other
+  add-ons. With every window open, idle, it now makes about 4 UI updates a second instead of ~100
+  and a sixth of the garbage; in combat about a quarter of the UI updates and half the garbage.
+  Windows only update what changed, Combat Detailed refreshes once a second, and the buff bar, combat
+  HUD and XP chart reuse their data instead of rebuilding it.
+
 ### Added
 - XP Detailed: the last hour as a column chart under each track (2-minute columns of XP gained,
   gold for adventurer, green for producer), with the best rate per hour. It follows the "Subtract

@@ -221,8 +221,8 @@ function DD.Refresh()
   if not day then return end
   if day.key ~= listKey then rebuildList() end
 
-  el.date:SetText((T.Daily.DateText()))
-  el.summary:SetText("Gold " .. T.FormatNumber(day.gold) .. "  |  Kills " .. T.FormatNumber(day.kills))
+  T.SetText(el.date, (T.Daily.DateText()))
+  T.SetText(el.summary, "Gold " .. T.FormatNumber(day.gold) .. "  |  Kills " .. T.FormatNumber(day.kills))
 
   local kinds, total, new = 0, 0, {}
   for name, n in pairs(day.items) do
@@ -237,23 +237,23 @@ function DD.Refresh()
   for _, name in ipairs(new) do
     if not addRow(name) then break end
   end
-  for name, r in pairs(rows) do r.count:SetText(T.FormatNumber(day.items[name] or 0)) end
+  for name, r in pairs(rows) do T.SetText(r.count, T.FormatNumber(day.items[name] or 0)) end
   DD.RefreshValues(day)
   local hidden = kinds - rowCount
-  el.items_summary:SetText(kinds == 0 and "No items gained yet"
+  T.SetText(el.items_summary, kinds == 0 and "No items gained yet"
     or ("Items gained: " .. T.FormatNumber(total) .. " (" .. kinds .. (kinds == 1 and " kind)" or " kinds)")))
 
   local notes = {}
   if hidden > 0 then notes[#notes + 1] = "+" .. hidden .. " more kinds not listed" end
   if day.dropped > 0 then notes[#notes + 1] = "+" .. day.dropped .. " kinds the game didn't itemise" end
   if prefs.values and hidden > 0 then notes[#notes + 1] = "the value includes them" end
-  el.more:SetText(table.concat(notes, "; "))
-  el.more:SetVisible(#notes > 0)
+  T.SetText(el.more, table.concat(notes, "; "))
+  T.SetVisible(el.more, #notes > 0)
 end
 
 -- The value column and the header's value line (estimated values on), or hides them.
 function DD.RefreshValues(day)
-  el.value_summary:SetVisible(prefs.values == true)
+  T.SetVisible(el.value_summary, prefs.values == true)
   if not prefs.values then return end
   local total, priced, kinds = 0, 0, 0
   for name, n in pairs(day.items) do
@@ -269,8 +269,8 @@ function DD.RefreshValues(day)
   for name, r in pairs(rows) do
     local each = P.Average(name)
     local n = day.items[name] or 0
-    r.value:SetText(each and ("~" .. P.Format(n * each)) or "")
-    r.value:SetTooltip(P.Tooltip(name))
+    T.SetText(r.value, each and ("~" .. P.Format(n * each)) or "")
+    T.SetTooltip(r.value, P.Tooltip(name))
   end
   local line = P.StatusLine()
   if not line then
@@ -279,7 +279,7 @@ function DD.RefreshValues(day)
     if priced == 0 and P.Idle() then line = "Estimated value: none of today's items sold recently (SOTA.net)" end
     if kinds == 0 then line = "Estimated value: nothing gained yet" end
   end
-  el.value_summary:SetText(line)
+  T.SetText(el.value_summary, line)
 end
 
 function DD.GetValues() return prefs.values == true end
@@ -287,7 +287,7 @@ function DD.GetValues() return prefs.values == true end
 function DD.SetValues(on)
   prefs.values = on == true
   DD.SavePrefs()
-  for _, r in pairs(rows) do r.value:SetVisible(prefs.values) end
+  for _, r in pairs(rows) do T.SetVisible(r.value, prefs.values) end
   if prefs.values then P.Wake() end
   DD.Refresh()
   T.Config.Sync()

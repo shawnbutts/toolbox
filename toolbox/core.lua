@@ -85,6 +85,78 @@ function T.Trim(s, set)
 end
 
 -- ---------------------------------------------------------------------------
+-- UI updates: only when something changes
+-- ---------------------------------------------------------------------------
+-- Every SetText / SetVisible / SetStyle is a call into the game's UI (and may re-lay it out), and
+-- windows refreshing every tick mostly re-set what they already show. These helpers remember what
+-- each element was last given and skip the call when nothing is new (2026-09-28: ~100 UI calls a
+-- second idle with every window open, most of them no-ops). Use them for everything a refresh
+-- sets repeatedly, and don't mix them with direct calls on the same element and property.
+-- (MoonSharp may not honour weak keys; the few elements ever rebuilt make that a non-issue.)
+local seen = setmetatable({}, { __mode = "k" })
+
+local function memo(element)
+  local m = seen[element]
+  if not m then
+    m = { style = {} }
+    seen[element] = m
+  end
+  return m
+end
+
+function T.SetText(element, text)
+  local m = memo(element)
+  if m.text ~= text then
+    m.text = text
+    element:SetText(text)
+  end
+end
+
+function T.SetTooltip(element, text)
+  local m = memo(element)
+  if m.tip ~= text then
+    m.tip = text
+    element:SetTooltip(text)
+  end
+end
+
+function T.SetVisible(element, on)
+  on = on == true
+  local m = memo(element)
+  if m.visible ~= on then
+    m.visible = on
+    element:SetVisible(on)
+  end
+end
+
+function T.SetValue(element, value)
+  local m = memo(element)
+  if m.value ~= value then
+    m.value = value
+    element:SetValue(value)
+  end
+end
+
+-- Applies only the style keys whose values changed (never a nil: see the hard rules).
+function T.SetStyle(element, style)
+  local m = memo(element)
+  local diff = nil
+  for k, v in pairs(style) do
+    if m.style[k] ~= v then
+      m.style[k] = v
+      diff = diff or {}
+      diff[k] = v
+    end
+  end
+  if diff then element:SetStyle(diff) end
+end
+
+-- Forgets what an element was given (after something else changed it directly).
+function T.Forget(element)
+  seen[element] = nil
+end
+
+-- ---------------------------------------------------------------------------
 -- Game data: tables or game objects
 -- ---------------------------------------------------------------------------
 -- The docs describe tables, but the game can hand add-ons C# objects (userdata): the buff list
@@ -128,6 +200,17 @@ T.EVENT_FIELDS = { "kind", "source", "target", "amount", "skill", "fromYou", "to
 
 -- ShroudOnCombatEvents' list as plain tables (each also noting `raw`, the game's type for it).
 function T.ReadEvents(events)
+  -- Plain tables already (as in game, 2026-09-28): used as they are, no copy per event.
+  if type(events) == "table" then
+    local plain = true
+    for _, e in ipairs(events) do
+      if type(e) ~= "table" then
+        plain = false
+        break
+      end
+    end
+    if plain then return events end
+  end
   local out = {}
   for _, e in ipairs(T.List(events)) do
     local copy = { raw = type(e) }
@@ -1177,7 +1260,15 @@ function T.Tick()
   T.Hud.Tick()                       -- remember where the HUD strips are
   T.Config.SyncLive()
   T.RefreshViews()
-  T.Notify.Check()                   -- notifications: the game's data can load a while after login
+  -- Notifications: the game's change callbacks catch changes; this is the fallback for data that
+  -- loads after login without one: every second for the first T.NOTIFY_EARLY seconds after start,
+  -- then every T.NOTIFY_POLL seconds.
+  local early = T.Now() - (T.startedAt or 0) < T.NOTIFY_EARLY
+  if early or T.Now() - (T.lastNotifyPoll or -math.huge) >= T.NOTIFY_POLL then
+    T.lastNotifyPoll = T.Now()
+    T.Notify.Check()
+  end
+  T.Notify.Hud.Tick()                -- the notification HUD's auto-hide: every tick
 end
 
 -- ---------------------------------------------------------------------------
@@ -1189,6 +1280,7 @@ end
 -- settings window opened. Call after everything is initialised (the settings window reads
 -- every module's settings). Returns true when it showed.
 T.WELCOME_DELAY = 2
+T.NOTIFY_POLL, T.NOTIFY_EARLY = 5, 60
 
 function T.Welcome()
   if ShroudGetSavedVar("welcomed", "account") then return false end
@@ -1202,6 +1294,7 @@ function T.Welcome()
 end
 
 function ShroudOnStart()
+  T.startedAt = T.Now()
   T.RegisterCommands()
   T.RegisterKeybind()
   T.Daily.Load()                     -- before the session: a new login re-bases daily gold
