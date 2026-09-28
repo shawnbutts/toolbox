@@ -80,6 +80,8 @@ return function(t)
     t.eq(B().Frame(1), 0, "full time: no shading")
     t.eq(B().Frame(0.5), c.FRAMES / 2)
     t.eq(B().Frame(0.001), c.FRAMES - 1)
+    t.eq(B().Frame(1 - 0.6 / c.FRAMES), 1, "the nearest frame: 0.6 of a frame used shows frame 1, not 0")
+    t.eq(B().Frame(1 - 0.4 / c.FRAMES), 0)
     t.eq(B().Frame(0), c.FRAMES - 1, "clamped")
     local k = c.COLS + 1                                -- column 1, row 1
     local rows = c.ROWS * c.SETS
@@ -147,7 +149,8 @@ return function(t)
     H.addBuffs({ { name = "Heal", remaining = 24, icon = 101 } })   -- cast on its own
     H.advance(0.5, 0.5)
     local heal, aura = H.slots("buffs")[1], H.slots("buffs")[2]
-    t.eq(heal.children[2].visible, false, "full time: no shading yet")
+    t.ok(heal.children[2].visible == false or heal.children[2].uv[1] <= 1 / B().CLOCK.COLS + 1e-9,
+      "just cast: at most the first sliver (drawn for the middle of the tick)")
     H.advance(12, 0.5)                                  -- half gone
     t.eq(heal.children[2].visible, true)
     sameUV(t, heal.children[2].uv, 11.5 / 24, "half the time left")
@@ -504,6 +507,15 @@ return function(t)
     sameUV(t, overlay.uv, 9.5 / 40, "9.5 of 40 s left")
   end)
 
+  t.test("the sweep isn't behind the game's: nearest frame, for the middle of the tick", function()
+    local c = B().CLOCK
+    local overlay = startMidBuff("remaining")              -- 40 s buff, 9.5 s left after the first tick
+    local shown = math.floor(overlay.uv[1] * c.COLS + 0.5) + math.floor(overlay.uv[2] * c.ROWS * c.SETS + 0.5) * c.COLS
+    -- used: 30.5 s now, 30.75 s in the middle of the tick it stays up for -> 92.25 frames -> 92
+    t.eq(shown, math.floor((30.5 + B().SWEEP_LEAD) / 40 * c.FRAMES + 0.5))
+    t.ok(shown >= math.floor(30.5 / 40 * c.FRAMES), "never behind the time used")
+  end)
+
   t.test("unknown full duration: no sweep rather than a wrong one", function()
     for _, mode in ipairs({ "nonsense", "absent", "elapsed", "ms" }) do
       t.eq(startMidBuff(mode).visible, false, mode)
@@ -515,6 +527,7 @@ return function(t)
     H.S.durationMode = "absent"
     H.chat("/tbx buffs")
     H.addBuffs({ { name = "Light", remaining = 225, icon = 5 } })   -- cast while running: learned
+    H.advance(0.5, 0.5)                                               -- seen at once, as a 0.5 s tick does
     H.advance(225, 5)                                                 -- runs out
     H.advance(15, 5)
     H.S.buffs = { { name = "Light", remaining = 112, total = 225, icon = 5 } }
@@ -540,6 +553,7 @@ return function(t)
     H.S.durationMode = "absent"
     H.chat("/tbx buffs")
     H.addBuffs({ { name = "Light", remaining = 200, icon = 5 } })
+    H.advance(0.5, 0.5)                                               -- seen at once, as a 0.5 s tick does
     H.advance(100, 5)
     local saved = H.S.buffs
     H.callback("ShroudOnSceneUnloaded")

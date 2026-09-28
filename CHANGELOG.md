@@ -24,6 +24,9 @@ store submission needs a higher version than any submitted before (rejected ones
 - Buff bar: a buff whose skill applies several effects could get its sweep's length from the wrong
   one, so the sweep sat out of step with the game's bar. The full length now comes from the effect
   whose time left matches, read the way the game reports it.
+- Buff bar: the sweep no longer lags behind the game's. It showed the last step it had passed (up
+  to 1/120 of the buff behind, plus up to half a second); it now shows the nearest step, drawn for
+  the middle of the half second it stays up.
 - "Couldn't build the notify HUD: elements are being created too fast" at login. A HUD strip that
   runs into the game's limit on how fast add-ons may create elements is now built again a moment
   later, without an error in chat (only the strips that failed are built again); and one part failing

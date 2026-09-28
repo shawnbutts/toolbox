@@ -612,6 +612,11 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     (ms, elapsed): another effect of the same rune could set the sweep's length (a candidate cause of the
     sweep being out of step with the game's bar). Still unknown: which effect's time the GAME's bar shows for
     a rune with several (ours: the longest-running, `readEffects`). `/toolbox buffs trace <name>` shows both.
+    FOUND in game 2026-09-28 (trace of Light: our total 127.2 = the game's 127.171, time left within a tick):
+    the timing was right; the DRAWING lagged ("lines up after /lua reload, then lags"). `BB.Frame` rounded
+    down (up to a frame behind: 1/120 of the buff) and a frame stays up a whole tick. Now the nearest frame,
+    for `BB.SWEEP_LEAD` (half a tick) ahead. Pending: the owner's check in game. If long buffs still look
+    steppy, the next step is a finer clock sheet (e.g. 360 frames at 32 px: 1024 px/side and 256 KiB limits).
 23. Sounds. SETTLED 2026-09-28. Paths are relative to the Lua root (`ShroudLuaPath`; a package's own
     sounds are "toolbox/<name>.ogg"). `ShroudLoadSound` answers false for a missing / empty / wrong-format
     file (API 15) and true when the load starts (async; failures only in Player.log). `ShroudListSound()`

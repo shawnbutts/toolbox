@@ -37,6 +37,9 @@ local FRAME_ID = "toolbox_buffs"
 local PERIODIC = "toolbox_buffbar"
 
 BB.TICK = 0.5                 -- seconds between updates (sweep + alerts)
+-- A frame stays up for a whole tick while the buff runs on, so the sweep is drawn for the middle of
+-- that tick (BB.TICK / 2 ahead): on average level with the game's smooth sweep, not half a tick behind.
+BB.SWEEP_LEAD = BB.TICK / 2
 BB.BUFF_SLOTS, BB.DEBUFF_SLOTS = 20, 10
 BB.SIZE_MIN, BB.SIZE_MAX, BB.SIZE_DEFAULT = 20, 48, 32
 BB.ALERT_MIN, BB.ALERT_MAX, BB.ALERT_DEFAULT = 1, 60, 10
@@ -158,10 +161,12 @@ function BB.Track(st, api, threshold, known, now, fresh)
   return st, fraction, fire, remaining
 end
 
--- Clock frame for a fraction remaining: 0 = full time left (no shading).
+-- Clock frame for a fraction remaining: 0 = full time left (no shading). The NEAREST frame: rounding
+-- down kept the shading behind the true position by up to a frame (1/120 of the buff; 7.5 s of a
+-- 15-minute one), and the game's own bar sweeps smoothly (reported 2026-09-28: "ours lags behind").
 function BB.Frame(fraction)
   local n = BB.CLOCK.FRAMES
-  local k = math.floor((1 - fraction) * n)
+  local k = math.floor((1 - fraction) * n + 0.5)
   if k < 0 then k = 0 end
   if k > n - 1 then k = n - 1 end
   return k
@@ -835,6 +840,7 @@ function BB.Tick()
     if not known then known = learned[e.name] end
     local fresh = not preexisting[e.name] and not settling
     local st, fraction, fire = BB.Track(timers[e.name], e.remaining, threshold, known, nil, fresh)
+    if fraction and st.total > 0 then fraction = math.max(0, fraction - BB.SWEEP_LEAD / st.total) end
     if st and st.learn then
       st.learn = nil
       BB.Learn(e.name, st.total)
