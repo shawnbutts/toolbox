@@ -650,21 +650,35 @@ end
 -- Puts entry e (or nothing) into a slot, touching only what changed. `warn` shows the
 -- red sweep (the buff's expiry alert has fired); `flash` also blinks a red border, on and off
 -- with each tick (owner, 2026-09-28: "flash red when it's about to run out").
+-- Clears a slot's sweep and flash for its next buff. Slots are reused (never created per buff),
+-- and a red sweep stayed on the next buff in the slot after one ran out (reported 2026-09-28): so
+-- a new occupant starts from a clean slot, not from what the last one left.
+local function resetSlot(slot)
+  slot.overlay:SetVisible(false)
+  if slot.blink ~= false then slot.row:SetStyle{ borderWidth = 0 } end
+  slot.k, slot.warn, slot.blink, slot.tip = nil, nil, false, nil
+end
+
 local function fill(slot, e, fraction, warn, flash)
-  local blink = flash == true and math.floor(T.Now() * 2) % 2 == 0
-  if not e then blink = false end
-  if blink ~= (slot.blink == true) then
-    slot.blink = blink
-    slot.row:SetStyle{ borderWidth = blink and 2 or 0 }
-  end
   if not e then
-    if slot.used then slot.row:SetVisible(false) end
-    slot.used, slot.name, slot.label, slot.k, slot.warn = false, nil, nil, nil, nil
+    if slot.used then
+      slot.row:SetVisible(false)
+      resetSlot(slot)
+    end
+    slot.used, slot.name, slot.label = false, nil, nil
     return
   end
   if not slot.used then slot.row:SetVisible(true) end
   slot.used = true
-  if slot.name ~= e.name then slot.name, slot.label = e.name, plainLabel(e.index, e.name) end
+  if slot.name ~= e.name then
+    resetSlot(slot)
+    slot.name, slot.label = e.name, plainLabel(e.index, e.name)
+  end
+  local blink = flash == true and math.floor(T.Now() * 2) % 2 == 0
+  if blink ~= (slot.blink == true) then
+    slot.blink = blink
+    slot.row:SetStyle{ borderWidth = blink and 2 or 0 }
+  end
   local rune = runes[e.name] or {}
   local tex = (type(rune.icon) == "number" and rune.icon >= 0) and rune.icon or ShroudGetBuffIcon(e.index)
   if tex ~= slot.tex then

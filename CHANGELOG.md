@@ -55,6 +55,8 @@ store submission needs a higher version than any submitted before (rejected ones
 - /toolbox sounds debug is simpler; /toolbox sounds try is gone (sounds work in current clients).
 
 ### Fixed
+- Buff bar: after a buff ran out while flashing red, the next buff to take its place kept the red
+  shading. A slot is now cleared whenever a different buff moves into it.
 - XP: after losing XP (for example on death), "last hour", XP/hour and today's XP stopped counting,
   on both adventurer and producer, until the total climbed back past its old high. A drop that
   holds for a few seconds is now accepted (and counted as no gain), and the two tracks are counted

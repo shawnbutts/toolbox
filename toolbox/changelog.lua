@@ -22,6 +22,7 @@ Toolbox.CHANGELOG = {
   { "item", "The alert sounds now come with the add-on (game clients at Lua API 15 or newer allow sounds in add-on packages), so there's nothing to copy by hand. Toolbox now needs Lua API 15. Your own sounds in the Lua folder (toolbox_buff_expiring.ogg, toolbox_debuff_landed.ogg) still win." },
   { "item", "/toolbox sounds debug is simpler; /toolbox sounds try is gone (sounds work in current clients)." },
   { "section", "Fixed" },
+  { "item", "Buff bar: after a buff ran out while flashing red, the next buff to take its place kept the red shading. A slot is now cleared whenever a different buff moves into it." },
   { "item", "XP: after losing XP (for example on death), \"last hour\", XP/hour and today's XP stopped counting, on both adventurer and producer, until the total climbed back past its old high. A drop that holds for a few seconds is now accepted (and counted as no gain), and the two tracks are counted separately. /toolbox xp debug shows the numbers." },
   { "item", "Buff bar: debuffs weren't recognised (no debuff sound, no red row), and buff icons and full durations from the game's buff list were never read. The game hands add-ons its buff list as game objects rather than the documented plain tables, which Toolbox skipped; it now reads them." },
   { "item", "The debuff sound didn't play in game. The alert no longer depends only on the game's buff-change callback: the buff bar's own check notices a new debuff too. /toolbox buffs debug shows how many changes each one saw." },

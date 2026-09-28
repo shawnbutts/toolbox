@@ -1433,4 +1433,21 @@ return function(t)
     H.advance(1, 0.5)
     t.eq(border(), 0, "no flash when switched off")
   end)
+
+  t.test("after a red, flashing buff runs out, the next buff in its slot starts clean", function()
+    bootWithSounds()
+    H.chat("/tbx buffs")
+    H.chat("/tbx buffalert 5")
+    H.addBuffs({ { name = "Short", remaining = 10, icon = 1 } })
+    H.advance(0.5, 0.5)
+    H.addBuffs({ { name = "Aura", remaining = -1, permanent = true, icon = 2 } })   -- no sweep of its own
+    H.advance(7, 0.5)
+    local slot = H.slots("buffs")[1]
+    t.ok(slot.children[2].uv[2] >= 0.5, "Short is red")
+    H.advance(5, 0.5)                            -- Short runs out; Aura moves into the first slot
+    slot = H.slots("buffs")[1]
+    t.eq(slot.children[1].texture, 2)
+    t.eq(slot.children[2].visible, false, "no sweep left over")
+    t.eq(slot.style.borderWidth, 0, "no border left over")
+  end)
 end
