@@ -589,8 +589,30 @@ end
 
 add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off; add|remove <name>|reset]; "
     .. "combat on|off (only during combat); flash on|off; replace on|off; "
-    .. "dismiss on|off; debug; raw; trace [name])", function(rest)
+    .. "dismiss on|off; debug; raw; trace [name]; frame <0-119> [red]|off)", function(rest)
   local word, name = T.ParseArgs(rest)
+  if word == "frame" then
+    local B = T.BuffBar
+    local arg, extra = T.ParseArgs(name)
+    if arg:lower() == "off" then
+      B.FrameTest(nil)
+      T.Print("Frame test off: the icons show their buffs' time again.")
+      return
+    end
+    local k = tonumber(arg)
+    local red = extra:lower() == "red"
+    local n, why = B.FrameTest(k, red)
+    if not n then
+      T.Print("Use /" .. T.commands[1] .. " buffs frame <0-" .. (B.CLOCK.FRAMES - 1) .. "> [red] (or off): "
+        .. why .. ".")
+      return
+    end
+    T.Print(string.format("Every icon on the buff bar now shows sweep frame %d of %d: %d%% shaded clockwise from "
+      .. "12 o'clock, %s, for %d s (%d icon%s showing).", k, B.CLOCK.FRAMES, math.floor(k * 100 / B.CLOCK.FRAMES),
+      red and "dark red" or "dark", B.FRAME_TEST_SECONDS, n, n == 1 and "" or "s"))
+    if n == 0 then T.Print("No icons are showing: cast a buff (or open settings to show the bar) and try again.") end
+    return
+  end
   if word == "flash" then
     local B, arg = T.BuffBar, name:lower()
     if arg == "on" or arg == "off" then B.SetFlash(arg == "on") end

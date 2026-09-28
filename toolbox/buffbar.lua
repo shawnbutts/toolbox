@@ -697,6 +697,35 @@ local function resetSlot(slot)
   slot.k, slot.warn, slot.blink, slot.tip = nil, nil, false, nil
 end
 
+-- /toolbox buffs frame <k> [red]: every icon on the bar shows clock frame k for BB.FRAME_TEST_SECONDS,
+-- whatever its buff's time, to compare what the game draws with what was asked for (reported
+-- 2026-09-28: a sweep under half covered at the expiry alert, while the trace said 96%).
+BB.FRAME_TEST_SECONDS = 15
+local frameTest = nil          -- { k, warn, till } while a test runs
+
+-- Starts (k = 0..FRAMES-1) or ends (k = nil) a frame test. Returns the number of icons it covers,
+-- or nil and a reason.
+function BB.FrameTest(k, warn)
+  if k == nil then
+    frameTest = nil
+    BB.Tick()
+    return 0
+  end
+  if type(k) ~= "number" or k ~= math.floor(k) or k < 0 or k >= BB.CLOCK.FRAMES then
+    return nil, "a frame from 0 to " .. (BB.CLOCK.FRAMES - 1)
+  end
+  if clockTex < 0 then return nil, "the clock picture " .. BB.CLOCK.path .. " isn't available" end
+  frameTest = { k = k, warn = warn == true, till = T.Now() + BB.FRAME_TEST_SECONDS }
+  BB.Tick()
+  local n = 0
+  for _, pool in pairs(slots) do
+    for _, slot in ipairs(pool) do
+      if slot.used then n = n + 1 end
+    end
+  end
+  return n
+end
+
 local function fill(slot, e, fraction, warn, flash)
   if not e then
     if slot.used then
@@ -738,6 +767,13 @@ local function fill(slot, e, fraction, warn, flash)
   end
   local k = fraction and BB.Frame(fraction) or nil
   warn = warn == true
+  if frameTest then
+    if T.Now() < frameTest.till then
+      k, warn = frameTest.k, frameTest.warn
+    else
+      frameTest = nil
+    end
+  end
   if k ~= slot.k or warn ~= slot.warn then
     slot.k, slot.warn = k, warn
     if k and k > 0 and clockTex >= 0 then

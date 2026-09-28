@@ -672,6 +672,42 @@ return function(t)
     t.no(H.logged("^%+11s"), "stops after ten")
   end)
 
+  t.test("/tbx buffs frame holds one sweep frame on every icon, then lets go", function()
+    bootSettled()
+    H.S.durationMode = "remaining"
+    H.chat("/tbx buffs")
+    H.addBuffs({ { name = "Ward", remaining = 60, icon = 9 }, { name = "Aura", remaining = -1, permanent = true } })
+    H.advance(1, 0.5)
+    local c = B().CLOCK
+    local function frameOf(slot)
+      local uv = slot.children[2].uv
+      return math.floor(uv[1] * c.COLS + 0.5) + math.floor(uv[2] * c.ROWS * c.SETS + 0.5) * c.COLS
+    end
+    H.clearLogs()
+    H.chat("/tbx buffs frame 30")
+    t.ok(H.logged("frame 30 of 120: 25%% shaded"), H.lastLog())
+    t.ok(H.logged("%(2 icons showing%)"))
+    for _, slot in ipairs(H.slots("buffs")) do
+      t.eq(slot.children[2].visible, true, "even the permanent one")
+      t.eq(frameOf(slot), 30)
+    end
+    H.advance(5, 0.5)
+    t.eq(frameOf(H.slots("buffs")[1]), 30, "held while the buff runs on")
+    H.chat("/tbx buffs frame 90 red")
+    t.eq(frameOf(H.slots("buffs")[1]), 90 + c.COLS * c.ROWS, "the red set")
+    H.advance(B().FRAME_TEST_SECONDS + 1, 0.5)
+    local own = frameOf(H.slots("buffs")[1])                    -- 22.5 of 60 s used: about frame 45
+    t.ok(own >= 42 and own <= 48, "back to the buff's own time: " .. own)
+    t.eq(H.slots("buffs")[2].children[2].visible, false, "the permanent one has no sweep again")
+    H.chat("/tbx buffs frame 60")
+    H.chat("/tbx buffs frame off")
+    own = frameOf(H.slots("buffs")[1])
+    t.ok(own >= 42 and own <= 48, "off ends it at once: " .. own)
+    H.clearLogs()
+    H.chat("/tbx buffs frame 120")
+    t.ok(H.logged("a frame from 0 to 119"))
+  end)
+
   t.test("/tbx buffs trace says which sweep frame is on screen", function()
     bootSettled()
     H.S.durationMode = "remaining"
