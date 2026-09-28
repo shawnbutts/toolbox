@@ -144,8 +144,10 @@ Run all three before calling a change done.
     and the match count. ROOT CAUSE (2026-09-28, `/toolbox buffs raw`): the entries are USERDATA
     ("LuaManager+RuneEffects"), not the documented tables, and every `type(x) == "table"` check skipped
     them: 15 entries, 0 read. `BB.ReadRunes` now copies the documented fields through a pcall'd
-    accessor (`Effects` may be a game-side list: `Count`, 0- or 1-based). Pending in game: debuff flag,
-    icons and whether `TotalDuration` / `CurrentDuration` really hold values (item 22 may be the same bug).
+    accessor (`Effects` may be a game-side list: `Count`, 0- or 1-based). CONFIRMED in game 2026-09-28
+    (build 954a6a5, `/toolbox buffs raw`): 14 of 14 read and matched; `IsDebuff=true` on the wolf's
+    MoveSpeed debuff; `TotalDuration` = full seconds, `CurrentDuration` = seconds LEFT (e.g. 601984.5 of
+    604800), `TotalTick` = total; the moon timer reports `TotalDuration=0` (falls back to learning).
     Display names (`BB.PlainLabel`): colour codes stripped, first line only, at most `LABEL_MAX` (60).
     `HidesGlued()` (an optional Hud module method): hiding out of combat hides the whole glued strip,
     health & focus bars included (owner, 2026-09-28).
@@ -351,7 +353,7 @@ docking, no `ShroudOnBuffBarMoved`.
 3. Harness: hiding is counted per add-on and released on reload; dismiss works only on a gesture
    (`H.click`, never `H.advance`) and shifts indices. `/toolbox buffs debug` prints
    `ShroudIsBuffBarVisible()`. New `buffbar` keys: `replaceStock`, `clickDismiss`.
-4. Still missing: buff durations (item 22). Keep the learning code.
+4. Buff durations: not missing after all (item 22 correction, 2026-09-28). Learning stays as a fallback.
 5. Ideas, not agreed yet: a "lock position" setting (only if a strip's grip can be turned off), and snap
    presets next to Reset.
 6. Game settings (requested from the devs 2026-09-28, not in any docs yet): if a read-only settings API
@@ -456,6 +458,10 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 22. Buff timers. CONFIRMED in game 2026-09-27 (`/toolbox buffs trace light`): permanent effects report
     0 left (no sweep, no alert); `ShroudGetBuffTimeRemaining` counts down smoothly (fractional seconds);
     and the grouped `Effects` entries have NO `TotalDuration`/`CurrentDuration` (nil), despite the docs.
+    CORRECTION 2026-09-28: they were there all along. The entries are userdata and our table checks
+    skipped them (see `BB.ReadRunes`); read properly, `TotalDuration` is the full length and
+    `CurrentDuration` the time left, so sweeps come "from the game". Learning stays as the fallback
+    (effects with `TotalDuration = 0`, like the moon timer). The paragraph below is history.
     So a buff's full duration is only known by seeing it start: `BuffBar.Track`'s `fresh` (appeared while
     running, not in the start-up snapshot, not during a scene load) or a recast; those runs are
     `trusted` and `BuffBar.Learn` saves the length (`buff_durations`) for next time it is already
