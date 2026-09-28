@@ -705,3 +705,9 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     items without durability report `maxDurability` 0 (they're skipped), and whether `icon` is a usable
     texture id (-1 leaves the slot's placeholder). An empty list is taken as "not loaded" and changes
     nothing. If the percentages look wrong, `/toolbox gear` prints the raw numbers.
+    FOUND in game 2026-09-28 (`/toolbox gear`, 29 items): numbers, not userdata problems; `durability` and
+    `maxDurability` whole numbers, `primaryDurability` fractional, and on EVERY item
+    durability <= primaryDurability <= maxDurability (e.g. a sword 10 / 20.5 / 50; new tools 100 / 100 / 100).
+    Reading: `primaryDurability` is the current maximum a repair restores to (it decays for good), and
+    `maxDurability` the item's original maximum. Unconfirmed until checked against the game's item tooltip.
+    Crafting tools (worn in tool slots) and "Fluffy" are in the list too, so a set can exceed `G.SLOTS` (12).
