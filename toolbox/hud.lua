@@ -21,7 +21,7 @@ Toolbox.Hud = Hud
 
 Hud.GLUED_ID = "toolbox_hud"
 Hud.GLUED_HOME = { 40, 260 }
-Hud.ORDER = { "vitals", "buffs", "combat", "xp", "daily" }   -- every HUD module, in build order
+Hud.ORDER = { "vitals", "buffs", "combat", "xp", "daily", "notify" }   -- every HUD module, in build order
 Hud.GLUE = { vitals = true, buffs = true }     -- the ones that share a strip when glued (left to right as in ORDER)
 Hud.GAP = 6                           -- between the parts of the glued strip
 Hud.PAD = 8                           -- the strip's own padding

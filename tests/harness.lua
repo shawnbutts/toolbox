@@ -844,6 +844,18 @@ end
 
 -- The Notifications window, and one source's section in it ({ shown, title, text }).
 function H.notify() return S.windows.toolbox_notify end
+
+-- The notification HUD strip, the text / tooltip of its row i (nil when hidden), and hovering it.
+function H.nhud() return S.frames.toolbox_notify_hud end
+function H.nhudRow(i)
+  local row = S.frames.toolbox_notify_hud:Find("nh_" .. i)
+  if row.visible == false then return nil end
+  return row.text, row.tooltip
+end
+function H.nhudHover(over)
+  local panel = S.frames.toolbox_notify_hud:Find("nh_panel")
+  H.call(function() panel.onHover(panel, over) end)
+end
 function H.notice(key)
   local w = S.windows.toolbox_notify
   if not w then return nil end

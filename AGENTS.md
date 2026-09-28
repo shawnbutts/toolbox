@@ -160,7 +160,12 @@ Run all three before calling a change done.
     `ShroudOnStart`, `ShroudOnSocialChanged`, `ShroudOnNotificationsChanged`), which remembers a notice
     as seen only once delivered. Off sources are tracked quietly; `N.SETTLE` s after start or a character
     change, counts going down aren't remembered (they read 0 while loading). Settings: `C.NotifySection`
-    builds a toggle per source (ids `notify_<key>`).
+    builds a toggle + delivery dropdown per source (ids `notify_<key>`, `notify_<key>_via`).
+    Delivery "hud" = `Toolbox.Notify.Hud` (NH), a `Toolbox.Hud` module (key "notify", own strip): a fixed
+    pool of `KEEP` nowrap labels (ids `nh_<i>`) in a Scroll `LINES` lines high, refilled from `history`
+    (newest first; saved `notify_history`) on every change. `NH.IsShown`: something routed there or in
+    history, and (settings open, hovered, `hideAfter` = 0, or within `hideAfter` s of the last notice);
+    `NH.Tick` (end of `N.Check`) refreshes the HUD when that changes.
     `D.SECTIONS` is the player guide (update it with every
     user-facing change); the Commands part comes from `Toolbox.CommandList()`. Built on first open.
   - `config.lua`: `Toolbox.Config`, the settings window. Controls call the owning module's setters; the
@@ -230,7 +235,8 @@ in chat.
   `H.setCombat(on)` (combat mode + callback); `H.submit(win, id, text)`;
   `H.setGuild(name, motd)` (no callback; the next tick sees it), `H.setMotd(text)` (+ `ShroudOnSocialChanged`),
   `H.setNotes{ unreadMail = 2, ... }` (+ `ShroudOnNotificationsChanged`), `H.notify()` (the window),
-  `H.notice(key)` -> `{ shown, title, text }`;
+  `H.notice(key)` -> `{ shown, title, text }`; `H.nhud()` (the notification HUD), `H.nhudRow(i)` -> text,
+  tooltip (nil when hidden), `H.nhudHover(over)`;
 - The first run on an account prints a one-time welcome and opens the settings window (account-scope
   saved var `welcomed`; `T.Welcome()` runs last in `ShroudOnStart`). Test boots are returning players;
   use `H.firstBoot()` for a first run.
@@ -259,6 +265,8 @@ including the "no character" sentinel.
 | `combat` | `{ show, scale = 75..250, pet, stats = { "MagicResistance", ... }, bg = None/Dark/Light, bgOpacity = 10..100, x, y }` |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last = ISO date, day = Toolbox.Today() key, at = Toolbox.Clock() when known } } }`, at most `P.MAX_KEEP` |
 | `notify` | `{ v = 1, sources = { [key] = { on = bool, seen = last value delivered, via = "window" } } }` (keys: motd, mail, expiring, ransoms, rewards, applications); the older `guild_motd` `{ show, seen }` is read once to take over |
+| `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), x, y }` |
+| `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most `Notify.Hud.KEEP` (20) |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts (unversioned ignored) |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
@@ -604,3 +612,6 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 44. Notifications (`ShroudGetNotifications`, API 14; built 2026-09-28). Unconfirmed in game: that the
     counts read 0 (or nil) until loaded after login (hence `N.SETTLE`), what "ransoms" and "newRewards"
     look like in practice, and `guildApplications` for a recruiter. Check with `/toolbox notify show`.
+45. Notification HUD (built 2026-09-28): a `Scroll` inside a HudFrame (scrolls with the wheel?), `whiteSpace
+    = "nowrap"` labels ending in "..." when too long (the docs say labels do), and hover on a HUD strip
+    (item 40) keeping it shown. Unconfirmed in game.

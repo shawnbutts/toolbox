@@ -89,7 +89,13 @@ D.SECTIONS = {
       .. "Nothing already seen shows again.",
     "Switch each one on or off in settings (Notifications), or with /toolbox notify <name> on|off "
       .. "(names: motd, mail, expiring, ransoms, rewards, applications). /toolbox notify lists them; "
-      .. "/toolbox notify show shows everything current; /toolbox motd shows the guild message." },
+      .. "/toolbox notify show shows everything current; /toolbox motd shows the guild message.",
+    "Each can show in the Notifications window or on the notification HUD (the dropdown next to it in "
+      .. "settings, or /toolbox notify <name> via hud; /toolbox notify via hud for all). The HUD lists the "
+      .. "latest 20, newest on top, one line each (hover a line for all of it; scroll for older ones). It "
+      .. "shows when something arrives and hides after 10 seconds, or never (HUD: hide after, or "
+      .. "/toolbox notify hud hide 30); it stays while the pointer is on it. Move it like the other HUD "
+      .. "strips (settings, or /toolbox notify hud move <x> <y>); /toolbox notify hud clear empties it." },
   { "Sounds",
     "The alert sounds live in the add-on's folder. To use your own, put "
       .. "toolbox_buff_expiring.ogg or toolbox_debuff_landed.ogg (or .wav) in your Lua folder, "
@@ -226,9 +232,10 @@ end
 --     Check(seen, ctx) -> notice or nil, plus an optional second value to remember quietly
 --     (a count going down: nothing to say). A notice is { title?, text, seen = what to remember
 --     once it has been delivered }. ctx holds this check's game reads (social, notes).
---   * N.DELIVERY, how notices reach the player, by name: "window" for now. Each source has a
---     `via` pref naming one; a chat line, a sound or another kind of window is a new entry here
---     plus a control in settings, with no change to the sources.
+--   * N.DELIVERY, how notices reach the player, by name: "window" (one Notifications window) and
+--     "hud" (a HUD strip listing the latest, newest on top, hidden again after a while). Each
+--     source has a `via` pref naming one (N.VIAS lists them for settings); a chat line, a sound or
+--     another kind of window is a new entry here and in N.VIAS, with no change to the sources.
 --   * N.Check (every tick, ShroudOnStart, and the game's social / notification callbacks): per
 --     source, compare with what it last saw, gather new notices by delivery, deliver them, and
 --     remember them as seen only once delivered (a window's Show can be refused: it is simply
@@ -236,10 +243,14 @@ end
 --     doesn't bring up old news. For N.SETTLE seconds after start or a character change, counts
 --     going down are not remembered: at login they read 0 until the game has loaded them.
 -- Saved var "notify" (character scope): { v = 1, sources = { [key] = { on = bool, seen = any,
--- via = "window" } } }. The older "guild_motd" ({ show, seen }) is taken over once.
+-- via = "window"|"hud" } } }. The older "guild_motd" ({ show, seen }) is taken over once.
+-- The HUD's: "notify_hud" { hideAfter = seconds (0 = never), x, y } and "notify_history"
+-- { v = 1, list = { { when = "HH:MM", title, text } } } (newest first, at most N.Hud.KEEP).
 
 local N = {}
 Toolbox.Notify = N
+
+local nprefs = nil        -- this character's prefs (the saved-var scope follows the character)
 
 N.SETTLE = 30             -- seconds after start / a character change before counts can go down
 N.WINDOW_ID = "toolbox_notify"
@@ -388,10 +399,208 @@ end
 function N.IsShown() return nwin ~= nil and nwin:IsShown() end
 
 -- ---------------------------------------------------------------------------
+-- The notification HUD (delivery "hud"): a Toolbox.Hud module
+-- ---------------------------------------------------------------------------
+-- A fixed pool of KEEP one-line labels in a Scroll LINES lines high, filled from `history`
+-- (newest first) on every change: rows are never created per notice (element-creation cap;
+-- no reorder API). A label that runs out of width ends in "..." by itself; its tooltip has the
+-- whole notice. Shown when something arrives, hidden `hideAfter` seconds later (0 = never),
+-- kept while the pointer is over it, and shown while settings are open so it can be placed.
+
+local NH = {}
+N.Hud = NH
+NH.FRAME_ID = "toolbox_notify_hud"
+NH.HOME = { 40, 120 }
+NH.KEEP = 20              -- notices kept (and rows built)
+NH.LINES = 5              -- lines shown; the rest scroll
+NH.WIDTH = 320            -- pixels
+NH.PAD = 4
+NH.HIDE_CHOICES = { { 0, "Never" }, { 5, "5 seconds" }, { 10, "10 seconds" }, { 20, "20 seconds" },
+                    { 30, "30 seconds" }, { 60, "1 minute" } }
+NH.HIDE_DEFAULT = 10
+
+local hprefs = { hideAfter = NH.HIDE_DEFAULT }
+local history = {}        -- newest first: { when, title, text }
+local hudRows = {}
+local hudScroll = nil
+local visibleUntil = 0
+local hovered = {}
+local hudShown = nil      -- NH.IsShown() at the last check, to refresh the HUD when it changes
+
+local function lineHeight() return T.Window.LineHeight() end
+
+local function clockText()
+  local osTable = rawget(_G, "os")
+  local date = type(osTable) == "table" and osTable.date
+  if type(date) ~= "function" then return "" end
+  local ok, s = pcall(date, "%H:%M")
+  return (ok and type(s) == "string") and s or ""
+end
+
+-- One notice's line and its tooltip.
+function NH.Line(e)
+  local when = e.when ~= "" and (e.when .. "  ") or ""
+  return when .. e.title .. ": " .. e.text
+end
+
+function NH.Tooltip(e)
+  return e.title .. (e.when ~= "" and (" (" .. e.when .. ")") or "") .. "\n" .. e.text
+end
+
+local function saveHistory() T.Save("notify_history", { v = 1, list = history }) end
+local function saveHud() T.Save("notify_hud", hprefs) end
+
+-- True when any source is delivered here (otherwise the HUD never shows, even in settings).
+local function inUse()
+  local p = nprefs
+  if not p then return false end
+  for _, sp in pairs(p.sources) do
+    if sp.on and sp.via == "hud" then return true end
+  end
+  return false
+end
+
+function NH.IsShown()
+  if not inUse() and #history == 0 then return false end
+  if T.Config.IsShown() then return true end           -- to place it
+  if #history == 0 then return false end
+  if next(hovered) then return true end
+  return hprefs.hideAfter == 0 or T.Now() < visibleUntil
+end
+
+-- Puts `history` into the rows (and the scroll's height to the lines used).
+function NH.Fill()
+  if not hudScroll then return end
+  for i = 1, NH.KEEP do
+    local e = history[i]
+    local row = hudRows[i]
+    if e then
+      row:SetText(NH.Line(e))
+      row:SetTooltip(NH.Tooltip(e))
+    end
+    row:SetVisible(e ~= nil)
+  end
+  hudScroll:SetStyle{ height = math.max(1, math.min(#history, NH.LINES)) * lineHeight() }
+end
+
+local function hover(k, over)
+  if over then
+    hovered[k] = true
+  else
+    hovered[k] = nil
+    if not next(hovered) then visibleUntil = T.Now() + hprefs.hideAfter end   -- a fresh wait after
+  end
+end
+
+function NH.BuildContent()
+  hudRows = {}
+  local rows = {}
+  for i = 1, NH.KEEP do
+    hudRows[i] = UI.Label{ id = "nh_" .. i, text = "", class = "text", visible = false,
+      style = T.Window.TextStyle{ width = NH.WIDTH, whiteSpace = "nowrap", marginLeft = 0, marginRight = 0 },
+      onHover = function(_, over) hover("row" .. i, over) end }
+    rows[i] = hudRows[i]
+  end
+  hudScroll = UI.Scroll{ id = "nh_scroll", style = { width = NH.WIDTH, height = lineHeight() },
+    children = { UI.Column{ children = rows } } }
+  local content = UI.Column{ id = "nh_panel", style = { padding = NH.PAD, backgroundColor = "#00000099" },
+    onHover = function(_, over) hover("panel", over) end, children = { hudScroll } }
+  NH.Fill()
+  return content
+end
+
+function NH.ContentSize()
+  return NH.WIDTH + 2 * NH.PAD, math.max(1, math.min(#history, NH.LINES)) * lineHeight() + 2 * NH.PAD
+end
+
+function NH.GetSavedPosition() return hprefs.x, hprefs.y end
+function NH.SavePosition(x, y)
+  if x ~= hprefs.x or y ~= hprefs.y then
+    hprefs.x, hprefs.y = x, y
+    saveHud()
+  end
+end
+
+local hudMover = T.Hud.MoverFor("notify", NH.HOME)
+NH.GetPosition, NH.MoveTo, NH.Nudge, NH.ResetPosition = hudMover.Get, hudMover.MoveTo, hudMover.Nudge, hudMover.Reset
+
+-- Shows or hides the strip when that should change (from N.Check, every tick).
+function NH.Tick()
+  local shown = NH.IsShown()
+  if shown ~= hudShown then
+    hudShown = shown
+    T.Hud.Refresh()
+  end
+end
+
+-- "hud": each notice goes on top of the list; the HUD shows for hideAfter seconds.
+N.DELIVERY.hud = function(list)
+  for _, item in ipairs(list) do
+    table.insert(history, 1, { when = clockText(), title = item.notice.title or item.source.label,
+                               text = item.notice.text })
+  end
+  for i = #history, NH.KEEP + 1, -1 do history[i] = nil end
+  saveHistory()
+  visibleUntil = T.Now() + hprefs.hideAfter
+  NH.Fill()
+  hudShown = nil                         -- refit and show now
+  NH.Tick()
+  return true
+end
+
+function NH.Init()
+  local saved = T.Load("notify_hud")
+  hprefs = { hideAfter = NH.HIDE_DEFAULT }
+  if type(saved) == "table" then
+    for _, c in ipairs(NH.HIDE_CHOICES) do if saved.hideAfter == c[1] then hprefs.hideAfter = c[1] end end
+    if type(saved.x) == "number" and type(saved.y) == "number" then hprefs.x, hprefs.y = saved.x, saved.y end
+  end
+  history = {}
+  local h = T.Load("notify_history")
+  if type(h) == "table" and h.v == 1 and type(h.list) == "table" then
+    for _, e in ipairs(h.list) do
+      if type(e) == "table" and type(e.title) == "string" and type(e.text) == "string" and #history < NH.KEEP then
+        history[#history + 1] = { when = type(e.when) == "string" and e.when or "", title = e.title, text = e.text }
+      end
+    end
+  end
+  visibleUntil, hovered, hudShown = 0, {}, nil
+  T.Hud.Register("notify", NH)
+end
+
+function NH.GetHideAfter() return hprefs.hideAfter end
+
+-- Seconds, one of NH.HIDE_CHOICES (0 = never). Returns false for anything else.
+function NH.SetHideAfter(seconds)
+  local ok = false
+  for _, c in ipairs(NH.HIDE_CHOICES) do if c[1] == seconds then ok = true end end
+  if not ok then return false end
+  hprefs.hideAfter = seconds
+  saveHud()
+  NH.Tick()
+  T.Config.Sync()
+  return true
+end
+
+function NH.HideLabel(seconds)
+  for _, c in ipairs(NH.HIDE_CHOICES) do if c[1] == seconds then return c[2] end end
+  return nil
+end
+
+function NH.Clear()
+  history = {}
+  saveHistory()
+  NH.Fill()
+  hudShown = nil
+  NH.Tick()
+end
+
+function NH.Count() return #history end
+
+-- ---------------------------------------------------------------------------
 -- Prefs and the check loop
 -- ---------------------------------------------------------------------------
 
-local nprefs = nil        -- this character's prefs (the saved-var scope follows the character)
 local nprefsFor = nil     -- the player name they were loaded for
 local settleUntil = 0
 
@@ -469,6 +678,7 @@ function N.Check()
   end
   if deliver(byVia) then changed = true end
   if changed then save() end
+  NH.Tick()
 end
 
 -- Shows a source's current state (or every enabled one's), new or not. Returns how many showed.
@@ -524,8 +734,27 @@ function N.SetOn(key, on)
   return true
 end
 
--- The delivery a source uses ("window"); for settings to offer choices once there are several.
+-- The deliveries, in the order settings offer them: { name, label }.
+N.VIAS = { { "window", "Window" }, { "hud", "HUD" } }
+
+function N.ViaLabel(via)
+  for _, v in ipairs(N.VIAS) do if v[1] == via then return v[2] end end
+  return nil
+end
+
+-- The delivery a source uses ("window" or "hud").
 function N.GetVia(key)
   local sp = prefsNow().sources[key]
   return sp and sp.via or N.DELIVERY_DEFAULT
+end
+
+-- Sends a source's notices another way (a key from N.DELIVERY). Returns false if unknown.
+function N.SetVia(key, via)
+  local sp = prefsNow().sources[key]
+  if not sp or not N.DELIVERY[via] then return false end
+  sp.via = via
+  save()
+  NH.Tick()
+  T.Config.Sync()
+  return true
 end

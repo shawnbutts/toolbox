@@ -293,7 +293,11 @@ local function build()
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
   end
-  for _, src in ipairs(T.Notify.Sources()) do ids[#ids + 1] = "notify_" .. src.key end
+  for _, src in ipairs(T.Notify.Sources()) do
+    ids[#ids + 1] = "notify_" .. src.key
+    ids[#ids + 1] = "notify_" .. src.key .. "_via"
+  end
+  for _, id in ipairs({ "nhud_hide", "nhud_pos" }) do ids[#ids + 1] = id end
   for _, id in ipairs(ids) do el[id] = win:Find(id) end
 end
 
@@ -337,12 +341,46 @@ function C.NotifySection()
     UI.Label{ text = "A window tells you what's new since you last saw it.", class = "dim",
       style = { whiteSpace = "wrap" } },
   }
+  local vias = {}
+  for i, v in ipairs(T.Notify.VIAS) do vias[i] = v[2] end
   for _, src in ipairs(T.Notify.Sources()) do
     local key = src.key
-    children[#children + 1] = UI.Toggle{ id = "notify_" .. key, text = src.label, value = T.Notify.IsOn(key),
-      tooltip = src.tip, onChange = function(_, v) T.Notify.SetOn(key, v) end }
+    children[#children + 1] = UI.Row{ style = { alignItems = "center" }, children = {
+      UI.Toggle{ id = "notify_" .. key, text = src.label, value = T.Notify.IsOn(key), style = { flexGrow = 1 },
+        tooltip = src.tip, onChange = function(_, v) T.Notify.SetOn(key, v) end },
+      UI.Dropdown{ id = "notify_" .. key .. "_via", choices = vias,
+        value = T.Notify.ViaLabel(T.Notify.GetVia(key)) or vias[1],
+        tooltip = "Where it shows: the Notifications window, or the notification HUD",
+        onChange = function(_, label) C.OnNotifyVia(key, label) end },
+    } }
   end
+  local NH = T.Notify.Hud
+  local hides = {}
+  for i, c in ipairs(NH.HIDE_CHOICES) do hides[i] = c[2] end
+  children[#children + 1] = UI.Row{ style = { alignItems = "center", marginTop = 6 }, children = {
+    UI.Label{ text = "HUD: hide after", class = "text", style = { flexGrow = 1 } },
+    UI.Dropdown{ id = "nhud_hide", choices = hides, value = NH.HideLabel(NH.GetHideAfter()) or hides[1],
+      tooltip = "The notification HUD shows when something arrives and hides after this (Never: always shown)",
+      onChange = function(_, label) C.OnNotifyHide(label) end },
+  } }
+  children[#children + 1] = C.PositionRows("nhud", NH)
+  children[#children + 1] = UI.Row{ style = { justifyContent = "end", marginTop = 2 }, children = {
+    UI.Button{ id = "nhud_clear", text = "Clear HUD", tooltip = "Empty the notification HUD's list",
+      onClick = function() NH.Clear() end },
+  } }
   return UI.Column{ children = children }
+end
+
+function C.OnNotifyVia(key, label)
+  for _, v in ipairs(T.Notify.VIAS) do
+    if v[2] == label then T.Notify.SetVia(key, v[1]) end
+  end
+end
+
+function C.OnNotifyHide(label)
+  for _, c in ipairs(T.Notify.Hud.HIDE_CHOICES) do
+    if c[2] == label then T.Notify.Hud.SetHideAfter(c[1]) end
+  end
 end
 
 -- "Group buffs lasting longer than" choices, as shown in the dropdown.
@@ -429,7 +467,11 @@ function C.Sync()
   el.combat_bg_opacity_value:SetText(fontLabel(cop))
   el.vitals_flash_below:SetValue(T.Vitals.GetFlashBelow())
   el.vitals_flash_below_value:SetText(fontLabel(T.Vitals.GetFlashBelow()))
-  for _, src in ipairs(T.Notify.Sources()) do el["notify_" .. src.key]:SetValue(T.Notify.IsOn(src.key)) end
+  for _, src in ipairs(T.Notify.Sources()) do
+    el["notify_" .. src.key]:SetValue(T.Notify.IsOn(src.key))
+    el["notify_" .. src.key .. "_via"]:SetValue(T.Notify.ViaLabel(T.Notify.GetVia(src.key)) or "Window")
+  end
+  el.nhud_hide:SetValue(T.Notify.Hud.HideLabel(T.Notify.Hud.GetHideAfter()) or "Never")
   C.SyncLive()
 end
 
@@ -439,7 +481,7 @@ function C.SyncLive()
   if not win then return end
   C.SyncSounds()
   el.shortcut:SetText("Shortcut: " .. T.KeyStatus())
-  for prefix, m in pairs({ buff = T.BuffBar, vitals = T.Vitals, combat = T.Combat }) do
+  for prefix, m in pairs({ buff = T.BuffBar, vitals = T.Vitals, combat = T.Combat, nhud = T.Notify.Hud }) do
     local x, y = m.GetPosition()
     el[prefix .. "_pos"]:SetText(x and (x .. ", " .. y) or "")
   end

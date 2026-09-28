@@ -719,15 +719,57 @@ local function notifyList()
   local parts = {}
   for _, src in ipairs(T.Notify.Sources()) do
     parts[#parts + 1] = src.key .. " (" .. src.label .. ") " .. (T.Notify.IsOn(src.key) and "on" or "off")
+      .. (T.Notify.GetVia(src.key) == "hud" and " (HUD)" or "")
   end
   return "Notifications: " .. table.concat(parts, ", ") .. "."
 end
 
-add("notify", "notifications: list them; <name> on|off; show (everything current)", function(rest)
+-- /toolbox notify hud ...: the notification HUD's options.
+local function notifyHud(args)
+  local NH, c = T.Notify.Hud, "/" .. T.commands[1] .. " notify hud"
+  local word, rest = T.ParseArgs(args)
+  if word == "move" then
+    T.MoveCommand(NH, "notify hud", "Notification HUD", rest)
+  elseif word == "clear" then
+    NH.Clear()
+    T.Print("Notification HUD cleared.")
+  elseif word == "hide" then
+    local secs = rest:lower() == "never" and 0 or tonumber(rest)
+    if rest ~= "" and not NH.SetHideAfter(secs) then
+      local choices = {}
+      for _, ch in ipairs(NH.HIDE_CHOICES) do if ch[1] > 0 then choices[#choices + 1] = tostring(ch[1]) end end
+      T.Print("Use " .. c .. " hide never, or seconds: " .. table.concat(choices, ", ") .. ".")
+      return
+    end
+    T.Print("Notification HUD hides after: " .. NH.HideLabel(NH.GetHideAfter()) .. ".")
+  else
+    T.Print("Use " .. c .. " hide <seconds>|never, move <x> <y>, or clear.")
+  end
+end
+
+add("notify", "notifications: list them; <name> on|off; [<name>] via window|hud; show; hud (hide, move, clear)",
+    function(rest)
   local c = "/" .. T.commands[1] .. " notify"
   local word, arg = T.ParseArgs(rest)
   if word == "show" then
     if T.Notify.ShowCurrent() == 0 then T.Print("Nothing to show right now.") end
+    return
+  end
+  if word == "hud" then
+    notifyHud(arg)
+    return
+  end
+  if word == "via" or (T.Notify.Label(word) and arg:lower():match("^via%s")) then
+    local via = (word == "via" and arg or arg:match("^%S+%s+(.*)$") or ""):lower()
+    if not T.Notify.ViaLabel(via) then
+      T.Print("Use " .. c .. " [<name>] via window|hud.")
+      return
+    end
+    for _, src in ipairs(T.Notify.Sources()) do
+      if word == "via" or src.key == word then T.Notify.SetVia(src.key, via) end
+    end
+    T.Print((word == "via" and "All notifications" or T.Notify.Label(word)) .. " now show in the "
+      .. (via == "hud" and "notification HUD." or "Notifications window."))
     return
   end
   if word ~= "" then
@@ -1044,6 +1086,7 @@ function ShroudOnStart()
   T.BuffBar.Init()
   T.Vitals.Init()
   T.Combat.Init()
+  T.Notify.Hud.Init()
   T.Hud.Init()                       -- builds the HUD strips (glued or not) for all three
   T.BuffBar.Tick()
   T.Vitals.Tick()
