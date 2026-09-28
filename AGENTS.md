@@ -28,7 +28,9 @@ Guidance for AI coding agents (and humans) working on Toolbox, a Shroud of the A
   standard Lua, the game's MoonSharp passes a nil entry on, and the UI rejects it ("style color takes a
   number or a string" hid the whole combat strip). Use a real default, or add the key only when set.
   The tests can't see this (a nil entry doesn't exist in standard Lua); `tools/build.py` refuses
-  `name = ... or nil` table entries.
+  `name = ... or nil` table entries. Setting a field to nil does NOT remove it either: an IconButton
+  spec with `spec.width, spec.height = nil, nil` was refused in game ("IconButton has no field 'height'",
+  2026-09-28). Build a new table instead; `tools/build.py` refuses `spec.x = nil` / `style.x = nil`.
 - **No lazy `.-` patterns on text that can be long.** MoonSharp raises "pattern too complex" where
   standard Lua copes: the trim `"^%s*(.-)%s*$"` on a long buff description stopped the buff bar's
   timer and got Toolbox disabled (2026-09-28). Use `Toolbox.Trim` / `Toolbox.ParseArgs` or plain

@@ -754,14 +754,13 @@ end
 
 local function uvtestImage(way, k, s)
   local x, y, w, h = BB.FrameUV(k, false)
-  local spec = { texture = clockTex, width = s, height = s, uv = { x, y, w, h } }
   if way == "iconbutton" then
-    spec.width, spec.height = nil, nil
-    spec.onClick = function() end
-    spec.style = { width = s, height = s, padding = 0 }
-    return UI.IconButton(spec)
+    -- its own spec: an IconButton has no width/height fields, and setting a key to nil doesn't
+    -- remove it in the game's Lua (the UI then rejects it; 2026-09-28)
+    return UI.IconButton{ texture = clockTex, uv = { x, y, w, h }, onClick = function() end,
+      style = { width = s, height = s, padding = 0 } }
   end
-  return UI.Image(spec)
+  return UI.Image{ texture = clockTex, width = s, height = s, uv = { x, y, w, h } }
 end
 
 local function uvtestStep()

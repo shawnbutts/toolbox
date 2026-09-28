@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PACKAGE = ROOT / "toolbox"
 DIST = ROOT / "dist"
 
-CLIENT_API_VERSION = 17  # newest API the docs describe; min_api_version above this cannot load
+CLIENT_API_VERSION = 22  # newest API the docs describe; min_api_version above this cannot load
 
 SLUG_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
 # The docs list these "among" the reserved slugs; the full list is not published.
@@ -68,6 +68,10 @@ DYNAMIC_CODE_RE = re.compile(
 # The game's Lua (MoonSharp) passes a nil table entry on to the UI, which rejects it: a
 # "color = ... or nil" in a style table hid a whole HUD strip in game. Refuse the pattern.
 NIL_ENTRY_RE = re.compile(r"\b\w+\s*=\s*[^=\n]*\bor\s+nil\s*[,}]")
+# The same through assignment: `spec.key = nil` does not remove the key in the game's Lua either,
+# so an IconButton spec with `width, height = nil, nil` was refused ("IconButton has no field
+# 'height'", 2026-09-28). Refuse nil assignments to fields of spec / style tables; build a new table.
+SPEC_NIL_RE = re.compile(r"\b\w*(spec|style|Spec|Style)\.\w+(\s*,\s*[\w.]+)*\s*=\s*nil\b")
 
 # A local declared without a value. Standard Lua sets it to nil; in game (MoonSharp) one seemed
 # to keep an old value from its slot (alert sounds recorded a table as their clip). Always
@@ -310,6 +314,10 @@ def check_sources(report: Report, manifest: dict) -> None:
             if m and not line.lstrip().startswith("--"):
                 report.error(f"{f}:{lineno}: a table entry that can be nil ('{m.group(0).strip()}'); the game's"
                              " Lua passes nil entries to the UI, which rejects them - use a real default")
+            m = SPEC_NIL_RE.search(line)
+            if m and not line.lstrip().startswith("--"):
+                report.error(f"{f}:{lineno}: '{m.group(0).strip()}': setting a UI spec/style field to nil keeps the"
+                             " key in the game's Lua, and the UI rejects it - build the table without it")
             m = LAZY_PATTERN_RE.search(line)
             if m:
                 report.error(f"{f}:{lineno}: pattern '{m.group(0)}': the game's Lua gives up on a lazy (.-) match"

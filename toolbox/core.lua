@@ -1147,15 +1147,20 @@ function T.RegisterKeybind()
   -- Presses are counted so /toolbox key can tell "the key never arrives" from "it arrives but
   -- nothing happens" (in game, Ctrl+; showed as bound but did nothing).
   T.keyPresses = 0
-  local spec = { id = T.KEY_ID, label = "Open Toolbox settings", key = T.KEY_DEFAULT,
-                 onPress = function()
-                   T.keyPresses = T.keyPresses + 1
-                   T.Config.Toggle()
-                 end }
+  local function onPress()
+    T.keyPresses = T.keyPresses + 1
+    T.Config.Toggle()
+  end
+  -- A fresh spec each time, with `key` only when there is one: in the game's Lua a key set to nil
+  -- stays in the table and reaches the UI as a nil entry (see AGENTS.md).
+  local function spec(key)
+    local s = { id = T.KEY_ID, label = "Open Toolbox settings", onPress = onPress }
+    if key then s.key = key end
+    return s
+  end
   local refused = {}
   for _, key in ipairs(T.KEY_SUGGESTIONS) do
-    spec.key = key
-    local ok, err = pcall(Shroud.Keybind, spec)
+    local ok, err = pcall(Shroud.Keybind, spec(key))
     if ok then
       T.keySuggested = key
       if #refused > 0 then T.keyNote = "not accepted: " .. table.concat(refused, ", ") end
@@ -1163,9 +1168,8 @@ function T.RegisterKeybind()
     end
     refused[#refused + 1] = key .. " (" .. tostring(err) .. ")"
   end
-  spec.key = nil
   T.keyNote = "no suggested key was accepted: " .. table.concat(refused, ", ")
-  local ok, err = pcall(Shroud.Keybind, spec)
+  local ok, err = pcall(Shroud.Keybind, spec(nil))
   if not ok then T.Print("Couldn't add the settings shortcut: " .. tostring(err)) end
 end
 
