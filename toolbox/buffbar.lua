@@ -1,6 +1,7 @@
 -- Toolbox: buffbar.lua
 -- A buff bar (/toolbox buffs): your buffs and debuffs as their real skill icons on a HUD
--- strip, with a clock-style sweep over each icon instead of a time readout. Plus two
+-- strip, with a clock-style sweep over each icon instead of a time readout, soonest to run out on
+-- the left (permanent effects, then the long-lasting group, at the right end). Plus two
 -- alerts that work whether or not the bar is shown:
 --   * a buff is about to run out: fires once when a buff's remaining time crosses the
 --     player's threshold (a buff that starts below it never fires);
@@ -185,6 +186,18 @@ function BB.ShortTime(s)
   if h > 0 then return string.format("%dh %dm", h, m) end
   if m > 0 then return string.format("%dm %ds", m, s % 60) end
   return string.format("%ds", s)
+end
+
+-- Sorts { name, remaining } entries in place: soonest to run out first, buffs that never run
+-- out (0 or less: permanent, or no time given) last; ties by name, so the order stays put.
+function BB.SortByExpiry(list)
+  table.sort(list, function(x, y)
+    local a = (type(x.remaining) == "number" and x.remaining > 0) and x.remaining or math.huge
+    local b = (type(y.remaining) == "number" and y.remaining > 0) and y.remaining or math.huge
+    if a ~= b then return a < b end
+    return x.name < y.name
+  end)
+  return list
 end
 
 -- The group slot's tooltip: a heading line, then "name: time left" per buff, longest first.
@@ -555,7 +568,7 @@ end
 
 function BB.Tick()
   local effects = readEffects()
-  local seen, bi, di, grouped = {}, 0, 0, {}
+  local seen, grouped, shownBuffs, shownDebuffs = {}, {}, {}, {}
   local threshold = prefs.expireSeconds or BB.ALERT_DEFAULT
   local expiring = false
   for _, e in ipairs(effects) do
@@ -575,14 +588,13 @@ function BB.Tick()
     if fire and not rune.debuff then expiring = true end
     if content and prefs.show then
       if rune.debuff then
-        di = di + 1
-        if slots.debuffs[di] then fill(slots.debuffs[di], e, fraction) end
+        shownDebuffs[#shownDebuffs + 1] = { e = e, fraction = fraction, name = e.name, remaining = e.remaining }
       elseif isGrouped(e) then
         local tex = (type(rune.icon) == "number" and rune.icon >= 0) and rune.icon or ShroudGetBuffIcon(e.index)
         grouped[#grouped + 1] = { plainLabel(e.index, e.name), e.remaining, tex }
       else
-        bi = bi + 1
-        if slots.buffs[bi] then fill(slots.buffs[bi], e, fraction, st and st.warned) end
+        shownBuffs[#shownBuffs + 1] = { e = e, fraction = fraction, warn = st ~= nil and st.warned == true,
+                                        name = e.name, remaining = e.remaining }
       end
     end
   end
@@ -597,10 +609,19 @@ function BB.Tick()
     end
   end
   if content and prefs.show then
-    for i = bi + 1, BB.BUFF_SLOTS do fill(slots.buffs[i], nil) end
-    for i = di + 1, BB.DEBUFF_SLOTS do fill(slots.debuffs[i], nil) end
-    fillGroup(grouped)
-    fitFrame(math.min(bi, BB.BUFF_SLOTS) + (#grouped > 0 and 1 or 0), math.min(di, BB.DEBUFF_SLOTS))
+    BB.SortByExpiry(shownBuffs)
+    BB.SortByExpiry(shownDebuffs)
+    for i = 1, BB.BUFF_SLOTS do
+      local s = shownBuffs[i]
+      if s then fill(slots.buffs[i], s.e, s.fraction, s.warn) else fill(slots.buffs[i], nil) end
+    end
+    for i = 1, BB.DEBUFF_SLOTS do
+      local s = shownDebuffs[i]
+      if s then fill(slots.debuffs[i], s.e, s.fraction) else fill(slots.debuffs[i], nil) end
+    end
+    fillGroup(grouped)                 -- always last: the longest-lasting buffs
+    fitFrame(math.min(#shownBuffs, BB.BUFF_SLOTS) + (#grouped > 0 and 1 or 0),
+      math.min(#shownDebuffs, BB.DEBUFF_SLOTS))
   end
   if expiring and prefs.expire then T.Sounds.Play("buff_expiring") end
   if T.Now() - lastTimerSave >= BB.TIMER_SAVE then BB.SaveTimers() end

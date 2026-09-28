@@ -40,7 +40,8 @@ D.SECTIONS = {
       .. "arrived in your bags today, with counts.",
     "Like XP, it can be a HUD strip: /toolbox daily hud (and daily window, daily move <x> <y>)." },
   { "Buff bar",
-    "/toolbox buffs: your buffs and debuffs (outlined red) as their skill icons. A darkening "
+    "/toolbox buffs: your buffs and debuffs (outlined red) as their skill icons, the one that runs out "
+      .. "soonest on the left. A darkening "
       .. "sweep shows the time left; it turns red when a buff is about to run out. Hover an icon "
       .. "for its tooltip.",
     "Options: icon size; a sound before a buff runs out (/toolbox buffalert 10 = ten seconds "

@@ -9,6 +9,7 @@ Toolbox.CHANGELOG = {
   { "item", "Guild message of the day: when your guild's message has changed since you last saw it, a window shows it at login, after a reload, or as soon as it changes while you play. An unchanged message stays hidden. /toolbox motd shows it any time; /toolbox motd off, or the new Guild setting, stops it opening by itself." },
   { "item", "Buff bar: long-lasting buffs (the seven Obsidian potion blessings, by default) share one slot at the end of the row with a count; hover it to see each one and its time left. Picked by name, since the game doesn't mark long buffs: /toolbox buffs group add <name>, remove <name>, reset." },
   { "item", "Buff bar: \"Replace the game's buff bar\" hides the game's own bar while Toolbox's is showing, and \"Click a buff to dismiss it\" works like the game's right-click Dismiss. Both off by default, and only on game clients with Lua API 16 (/toolbox buffs replace on|off, dismiss on|off)." },
+  { "item", "Buff bar: buffs and debuffs are sorted by time left, the one that runs out soonest on the left. Buffs that never run out come next, and the long-lasting group stays at the right end." },
   { "item", "/toolbox api lists which newer game functions this client has (buff bar, crafting, friends and guild), to check the client against the docs." },
   { "section", "Fixed" },
   { "item", "Combat stats HUD: no more lines between the rows of the Dark background. It is now one flat black panel at the chosen opacity instead of the theme's panel look, whose shaded edges showed at every row." },

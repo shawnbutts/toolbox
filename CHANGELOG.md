@@ -16,6 +16,8 @@ store submission needs a higher version than any submitted before (rejected ones
 - Buff bar: "Replace the game's buff bar" hides the game's own bar while Toolbox's is showing, and
   "Click a buff to dismiss it" works like the game's right-click Dismiss. Both off by default, and
   only on game clients with Lua API 16 (/toolbox buffs replace on|off, dismiss on|off).
+- Buff bar: buffs and debuffs are sorted by time left, the one that runs out soonest on the left.
+  Buffs that never run out come next, and the long-lasting group stays at the right end.
 - /toolbox api lists which newer game functions this client has (buff bar, crafting, friends and
   guild), to check the client against the docs.
 

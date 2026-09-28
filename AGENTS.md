@@ -99,7 +99,8 @@ Run all three before calling a change done.
   - `buffbar.lua`: `Toolbox.BuffBar`. Model functions (`Track`, `Frame`, `FrameUV`, `NewNames`) are pure.
     `OnBuffsChanged` reads `ShroudGetPlayerBuff()` (debuff flags, icons) and raises the debuff alert;
     its own 0.5 s periodic reads the flat effect list, runs the expiry alert and fills a fixed slot pool
-    (never create elements per change). Buffs whose rune or displayed name contains a `prefs.group` part
+    (never create elements per change). Each row is sorted by time left every tick (`SortByExpiry`: soonest
+    left, permanent ones last, ties by name; the group slot always after them). Buffs whose rune or displayed name contains a `prefs.group` part
     (default: the 7 Obsidian potion runes, `BlessingOf...` by full name) go into one extra "group" slot:
     count label over the first one's icon, list + time left in the tooltip. By name because the API has
     no long-lasting flag and no full duration (owner's choice, 2026-09-27); they still get expiry alerts.

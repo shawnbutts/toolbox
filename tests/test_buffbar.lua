@@ -1072,4 +1072,39 @@ return function(t)
     H.chat("/tbx sounds debug")
     t.ok(H.logged("%-> true %(the game accepts any path"), "a client without it")
   end)
+
+  t.test("SortByExpiry: soonest first, permanent last, ties by name", function()
+    H.boot()
+    local list = { { name = "C", remaining = 0 }, { name = "B", remaining = 50 }, { name = "A", remaining = -1 },
+                   { name = "D", remaining = 10 }, { name = "E", remaining = 50 } }
+    Toolbox.BuffBar.SortByExpiry(list)
+    local names = {}
+    for i, x in ipairs(list) do names[i] = x.name end
+    t.eq(table.concat(names, ","), "D,B,E,A,C")
+  end)
+
+  t.test("the bar shows buffs soonest-to-expire on the left, the group slot last", function()
+    H.boot()
+    H.chat("/tbx buffs")
+    H.addBuffs({ { name = "Long", remaining = 900, icon = 1 },
+                 { name = "BlessingOfStamina", remaining = 300000, icon = 2 },
+                 { name = "Aura", remaining = -1, permanent = true, icon = 3 },
+                 { name = "Short", remaining = 20, icon = 4 },
+                 { name = "Mid", remaining = 120, icon = 5 },
+                 { name = "Bleed", remaining = 30, icon = 6, debuff = true },
+                 { name = "Poison", remaining = 8, icon = 7, debuff = true } })
+    H.advance(1)
+    local function icons(row)
+      local out = {}
+      for i, s in ipairs(H.slots(row)) do
+        out[i] = s.children[2].text and ("group" .. s.children[2].text) or tostring(s.children[1].texture)
+      end
+      return table.concat(out, ",")
+    end
+    t.eq(icons("buffs"), "4,5,1,3,group1", "Short, Mid, Long, permanent Aura, then the group")
+    t.eq(icons("debuffs"), "7,6", "Poison before Bleed")
+    for _, b in ipairs(H.S.buffs) do if b.name == "Short" then b.remaining = 1000 end end   -- recast
+    H.advance(1)
+    t.eq(icons("buffs"), "5,1,4,3,group1", "a refreshed buff moves right")
+  end)
 end
