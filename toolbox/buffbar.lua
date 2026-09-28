@@ -568,8 +568,9 @@ local sizedFor = nil          -- "used,rows,size" the content was last sized for
 -- Re-fits the strip to the icons showing (only when that changes). buffsShown counts the
 -- group slot.
 local function fitFrame(buffsShown, debuffsShown)
-  local used = math.max(buffsShown, debuffsShown)
-  local rows = debuffsShown > 0 and 2 or 1
+  local gear = T.Gear.GluedCount()     -- the equipment bar's row under the debuffs, when glued
+  local used = math.max(buffsShown, debuffsShown, gear)
+  local rows = 1 + (debuffsShown > 0 and 1 or 0) + (gear > 0 and 1 or 0)
   local key = used .. "," .. rows .. "," .. size()
   if key == sizedFor or not content then return end
   sizedFor = key
@@ -655,10 +656,15 @@ function BB.BuildContent()
   end
   sizedFor = nil
   contentW, contentH = contentSize(1, 1)
-  content = UI.Column{ id = "buffbar", children = {
+  local rows = {
     UI.Row{ id = "buffs", style = { marginBottom = BB.GAP }, children = buffRow },
     UI.Row{ id = "debuffs", children = debuffRow },
-  } }
+  }
+  if T.Gear.Glued() then                -- the equipment bar as a third row
+    rows[2] = UI.Row{ id = "debuffs", style = { marginBottom = BB.GAP }, children = debuffRow }
+    rows[3] = T.Gear.BuildRow()
+  end
+  content = UI.Column{ id = "buffbar", children = rows }
   return content
 end
 
@@ -1125,7 +1131,11 @@ end
 function BB.SetShown(on)
   prefs.show = on == true
   savePrefs()
-  T.Hud.Refresh()
+  if T.Gear.GetGlue() then
+    T.Hud.Build()                      -- the glued equipment bar moves to its own strip, or back
+  else
+    T.Hud.Refresh()
+  end
   if prefs.show then BB.Tick() end
   applyStock()                       -- off: the game's bar comes back at once
   T.Config.Sync()
@@ -1159,6 +1169,7 @@ function BB.SetSize(n)
     end
     BB.Tick()                                  -- re-fits the strip for the new icon size
   end
+  T.Gear.ApplySize(n)                          -- the equipment bar uses the same icon size
   T.Config.Sync()
   return true
 end
@@ -1306,7 +1317,9 @@ BB.GetPosition, BB.MoveTo, BB.Nudge, BB.ResetPosition = mover.Get, mover.MoveTo,
 -- uses the same reading. The game fires no event when gear wears (ShroudOnInventoryChanged skips
 -- durability), so the equipment list is read every G.POLL seconds. Items are keyed by name, with
 -- "#2", "#3"... for same-named ones (two rings). Only items with a maximum durability count.
--- Saved var "gear" (character scope): { show = bool, threshold = percent, x, y }.
+-- Icons are the buff bar's size. Glued (`glue`, while the buff bar is on), the slots are a third
+-- row of the buff bar's strip, under the debuffs, and the gear strip isn't built (`Wanted`).
+-- Saved var "gear" (character scope): { show = bool, threshold = percent, glue = bool, x, y }.
 
 local G = {}
 Toolbox.Gear = G
@@ -1404,6 +1417,7 @@ end
 -- What the strip lists: items below the threshold, or every worn item while settings are open.
 local function shownList()
   local out, all = {}, T.Config.IsShown()
+  if gprefs.show ~= true then return out end
   for _, it in ipairs(gItems) do
     if all or G.Stage(it, gprefs.threshold) then out[#out + 1] = it end
   end
@@ -1411,10 +1425,23 @@ local function shownList()
 end
 
 function G.IsShown()
-  return gprefs.show == true and #gShownList > 0
+  return gprefs.show == true and #gShownList > 0 and not G.Glued()
 end
 
-function G.BuildContent()
+-- Glued to the buff bar right now (the setting, and the buff bar switched on).
+function G.Glued() return gprefs.glue == true and BB.IsEnabled() end
+
+-- For Toolbox.Hud: the gear strip is built only when not glued.
+function G.Wanted() return not G.Glued() end
+
+-- Slots showing in the buff bar's third row (0 when not glued).
+function G.GluedCount()
+  if not G.Glued() then return 0 end
+  return math.min(G.SLOTS, #gShownList)
+end
+
+-- The row of slots: the gear strip's content, or the buff bar's third row when glued.
+function G.BuildRow()
   if clockTex < 0 then clockTex = ShroudLoadTexture(BB.CLOCK.path) end
   local s = size()
   local row = {}
@@ -1432,6 +1459,18 @@ function G.BuildContent()
   gContent = UI.Row{ id = "gear", children = row }
   lastPoll = -math.huge                 -- new slots: fill them on the next tick
   return gContent
+end
+G.BuildContent = G.BuildRow
+
+-- The buff bar's icon size changed (BB.SetSize).
+function G.ApplySize(n)
+  for _, slot in ipairs(gSlots) do
+    slot.row:SetStyle{ width = n, height = n }
+    slot.icon:SetSize(n, n)
+    slot.overlay:SetSize(n, n)
+    slot.overlay:SetStyle{ marginLeft = -n }
+  end
+  if G.Glued() then BB.Tick() else T.Hud.Refresh() end    -- re-fit the strip
 end
 
 function G.ContentSize()
@@ -1487,10 +1526,10 @@ function G.Poll(force)
   table.sort(gItems, byDurability)
   gShownList = shownList()
   fillGear()
-  local shown = G.IsShown() and #gShownList or 0
+  local shown = (G.IsShown() or G.Glued()) and #gShownList or 0
   if shown ~= gShown then
     gShown = shown
-    T.Hud.Refresh()
+    if G.Glued() then BB.Tick() else T.Hud.Refresh() end   -- glued: the buff strip re-fits
   end
 end
 
@@ -1502,6 +1541,7 @@ function G.Init()
   gprefs = { show = true, threshold = G.THRESHOLD_DEFAULT }
   if type(saved) == "table" then
     gprefs.show = saved.show ~= false
+    gprefs.glue = saved.glue == true
     for _, v in ipairs(G.THRESHOLDS) do if saved.threshold == v then gprefs.threshold = v end end
     if type(saved.x) == "number" and type(saved.y) == "number" then gprefs.x, gprefs.y = saved.x, saved.y end
   end
@@ -1510,13 +1550,25 @@ function G.Init()
 end
 
 function G.GetShow() return gprefs.show == true end
+function G.GetGlue() return gprefs.glue == true end
+
+-- Glue the equipment bar under the buff bar's debuffs, or give it its own strip.
+function G.SetGlue(on)
+  gprefs.glue = on == true
+  gSave()
+  gShown = nil
+  T.Hud.Build()
+  G.Poll(true)
+  BB.Tick()                            -- the rebuilt buff strip fits its rows now, not next tick
+  T.Config.Sync()
+end
 
 function G.SetShow(on)
   gprefs.show = on == true
   gSave()
   gShown = nil
   G.Poll(true)
-  T.Hud.Refresh()
+  if G.Glued() then BB.Tick() else T.Hud.Refresh() end
   T.Config.Sync()
 end
 

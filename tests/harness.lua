@@ -900,7 +900,8 @@ end
 function H.gearFrame() return S.frames.toolbox_gear end
 function H.gearSlots()
   local out = {}
-  for _, slot in ipairs(S.frames.toolbox_gear:Find("gear").children) do
+  local frame = S.frames.toolbox_gear or S.frames.toolbox_buffs or S.frames.toolbox_hud  -- own, or glued
+  for _, slot in ipairs(frame:Find("gear").children) do
     if slot.visible ~= false then out[#out + 1] = slot end
   end
   return out

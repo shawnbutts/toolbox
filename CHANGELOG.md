@@ -9,6 +9,8 @@ store submission needs a higher version than any submitted before (rejected ones
 - Gear repair: an equipment bar (a HUD strip) shows worn items below a repair threshold (20% by
   default), each with a red sweep for the durability it has lost, lowest first; hover one for its
   durability. It hides when nothing needs repair, and shows every worn item while settings are open.
+  Its icons follow the buff bar's icon size, and it can be glued to the buff bar as a third row under
+  the debuffs (`/toolbox gear glue on`, or settings).
 - A "Gear needs repair" notification when an item drops below the threshold, and again when it
   breaks. Settings has an Equipment bar section; `/toolbox gear` lists worn items' durability.
 

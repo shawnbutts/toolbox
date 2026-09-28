@@ -893,8 +893,8 @@ add("combat", "combat stats HUD; add stats while playing: /toolbox combat help",
   end
 end)
 
-add("gear", "worn gear's durability, lowest first (bar on|off: the equipment bar; repair <percent>: when "
-    .. "to warn; move [x y])", function(rest)
+add("gear", "worn gear's durability, lowest first (bar on|off: the equipment bar; glue on|off: under the "
+    .. "buff bar; repair <percent>: when to warn; move [x y])", function(rest)
   local G = T.Gear
   local word, args = T.ParseArgs(rest)
   if word == "" then
@@ -902,6 +902,11 @@ add("gear", "worn gear's durability, lowest first (bar on|off: the equipment bar
   elseif word == "bar" then
     if args:lower() == "on" or args:lower() == "off" then G.SetShow(args:lower() == "on") end
     T.Print("Equipment bar (worn items below " .. G.Threshold() .. "%): " .. (G.GetShow() and "on" or "off") .. ".")
+  elseif word == "glue" then
+    if args:lower() == "on" or args:lower() == "off" then G.SetGlue(args:lower() == "on") end
+    T.Print("Equipment bar glued under the buff bar: " .. (G.GetGlue() and "on" or "off")
+      .. (G.GetGlue() and not T.BuffBar.IsEnabled() and " (the buff bar is off, so it has its own strip)" or "")
+      .. ".")
   elseif word == "repair" then
     if args ~= "" and not G.SetThreshold(tonumber((args:gsub("%%", "")))) then
       local list = {}

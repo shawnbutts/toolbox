@@ -102,7 +102,9 @@ D.SECTIONS = {
     "The equipment bar shows worn items that need repair: each item's icon with a red sweep for the "
       .. "durability it has lost, lowest first; hover one for its durability. It shows only items below "
       .. "the repair threshold (20% unless you change it), and hides when nothing needs repair. While the "
-      .. "settings window is open it shows every worn item, so you can place it.",
+      .. "settings window is open it shows every worn item, so you can place it. Its icons are the buff bar's "
+      .. "size. Glue it to the buff bar (settings, or /toolbox gear glue on) to make it a third row under "
+      .. "the debuffs; it then moves and hides with the buff bar.",
     "The Gear needs repair notification says when an item drops below the threshold, and again when "
       .. "it breaks; a repaired item warns again next time. Settings (Equipment bar) sets the threshold and "
       .. "switches the bar off; the notification has its own switch under Notifications. /toolbox gear "

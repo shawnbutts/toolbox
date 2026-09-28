@@ -50,7 +50,12 @@ end
 
 local function gluedHere(key) return prefs.glued and Hud.GLUE[key] end
 
-local function present(key) return modules[key] ~= nil end
+-- Registered, and wanted as a strip (optional module method `Wanted`: the equipment bar glued
+-- into the buff bar has no strip of its own).
+local function present(key)
+  local m = modules[key]
+  return m ~= nil and (m.Wanted == nil or m.Wanted())
+end
 
 -- The game's element-creation cap ("elements are being created too fast") can still be hit while
 -- start-up or a login builds everything (2026-09-28: the notification HUD at login). A strip that

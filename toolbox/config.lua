@@ -156,6 +156,10 @@ function C.GearSection()
       tooltip = "Icons of worn items below the threshold, the sweep showing durability used up. Every worn"
         .. " item shows while this window is open, so you can place it.",
       onChange = function(_, v) G.SetShow(v) end },
+    UI.Toggle{ id = "gear_glue", text = "Glue to the buff bar", value = G.GetGlue(), style = { marginLeft = 16 },
+      tooltip = "A third row of the buff bar, under the debuffs; it moves and hides with the buff bar."
+        .. " Icons are the buff bar's size either way.",
+      onChange = function(_, v) G.SetGlue(v) end },
     UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
       UI.Label{ text = "Repair below", class = "text", style = { flexGrow = 1 } },
       UI.Dropdown{ id = "gear_threshold", choices = C.ThresholdLabels(), value = G.Threshold() .. "%",
@@ -332,7 +336,7 @@ local function build()
                 "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "buff_group",
                 "buff_replace", "buff_dismiss", "buff_group_after",
                 "buffs_combat_only", "dd_values", "xp_net", "buff_flash", "combat_detail", "combat_detail_hover",
-                "show_gear", "gear_threshold", "gear_pos" }
+                "show_gear", "gear_glue", "gear_threshold", "gear_pos" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -518,6 +522,7 @@ function C.Sync()
   el.combat_bg_opacity:SetValue(cop)
   el.combat_bg_opacity_value:SetText(fontLabel(cop))
   el.show_gear:SetValue(T.Gear.GetShow())
+  el.gear_glue:SetValue(T.Gear.GetGlue())
   el.gear_threshold:SetValue(T.Gear.Threshold() .. "%")
   el.vitals_flash_below:SetValue(T.Vitals.GetFlashBelow())
   el.vitals_flash_below_value:SetText(fontLabel(T.Vitals.GetFlashBelow()))

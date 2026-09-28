@@ -173,7 +173,11 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     the equipment bar (HUD module "gear", `G.SLOTS` fixed slots; worn items below `threshold`, lowest
     first, all while settings are open) and the model for the "durability" notification source
     (`G.Read`, `G.Stage`, `G.Notice` are pure). No event fires on wear, so `G.Tick` reads
-    `ShroudGetEquipmentItems()` every `G.POLL` s (and whenever settings open or close).
+    `ShroudGetEquipmentItems()` every `G.POLL` s (and whenever settings open or close). Icons use the
+    buff bar's `size()`; `BB.SetSize` calls `G.ApplySize`. `glue` (owner, 2026-09-28): while the buff bar
+    is on, `BB.BuildContent` adds `G.BuildRow()` as a third row under the debuffs, `fitFrame` counts it
+    (`G.GluedCount`), and the gear strip isn't built (`G.Wanted`, an optional Hud module method checked by
+    `present()`). Changing glue, or the buff bar's on/off while glued, rebuilds the HUD (`Hud.Build`).
   - `vitals.lua`: `Toolbox.Vitals`, the health & focus bars (HUD). `V.Format` is pure. Every size comes
     from `V.Metrics()` (one scale factor; Shroud.UI has no zoom), applied at build and by `applySize`. Reads the
     per-frame globals directly (never through a name built at runtime: review treats that like code
@@ -320,7 +324,7 @@ including the "no character" sentinel.
 | `notify` | `{ v = 1, sources = { [key] = { on = bool, seen = last value delivered, via = "window" } } }` (keys: motd, mail, expiring, ransoms, rewards, applications, durability; durability's `seen` is a table `{ [item key] = "low"/"broken" }`, read back as string keys and values only); the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), x, y }` |
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most `Notify.Hud.KEEP` (20) |
-| `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), x, y }` (the equipment bar) |
+| `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` (the equipment bar) |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts (unversioned ignored) |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
