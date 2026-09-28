@@ -719,6 +719,56 @@ end
 -- %g: the same text on every Lua (5.3+ would print 39.0 where MoonSharp prints 39).
 local function num(x) return type(x) == "number" and string.format("%g", x) or tostring(x) end
 
+-- /toolbox buffs raw: ShroudGetPlayerBuff() as the game returns it, one line per entry with every
+-- field (tables shown as their size and keys), and how many of its RuneNames match the flat list's
+-- names. In game no entry ever showed a debuff flag or Effects (2026-09-28): a name mismatch
+-- would explain both.
+BB.RAW_MAX = 25
+local function rawValue(v)
+  if type(v) ~= "table" then return tostring(v) end
+  local keys = {}
+  for k in pairs(v) do keys[#keys + 1] = tostring(k) end
+  table.sort(keys)
+  local first = type(v[1]) == "table" and v[1] or nil
+  local inner = {}
+  if first then
+    for k, x in pairs(first) do inner[#inner + 1] = tostring(k) .. "=" .. tostring(x) end
+    table.sort(inner)
+  end
+  return "table(" .. #keys .. " keys: " .. table.concat(keys, ",", 1, math.min(#keys, 8))
+    .. (first and ("; [1] = {" .. table.concat(inner, ", ") .. "}") or "") .. ")"
+end
+
+function BB.RawLines()
+  local ok, list = pcall(ShroudGetPlayerBuff)
+  if not ok then return { "ShroudGetPlayerBuff() raised: " .. tostring(list) } end
+  local flat, flatCount = {}, 0
+  for _, e in ipairs(readEffects()) do
+    flat[e.name] = true
+    flatCount = flatCount + 1
+  end
+  local lines, n, matched = {}, 0, 0
+  if type(list) == "table" then
+    for k, v in pairs(list) do
+      n = n + 1
+      local parts = {}
+      if type(v) == "table" then
+        if flat[v.RuneName] then matched = matched + 1 end
+        local keys = {}
+        for fk in pairs(v) do keys[#keys + 1] = fk end
+        table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+        for _, fk in ipairs(keys) do parts[#parts + 1] = tostring(fk) .. "=" .. rawValue(v[fk]) end
+      else
+        parts[1] = type(v) .. " " .. tostring(v)
+      end
+      if n <= BB.RAW_MAX then lines[#lines + 1] = "  [" .. tostring(k) .. "] " .. table.concat(parts, "; ") end
+    end
+  end
+  table.insert(lines, 1, string.format("ShroudGetPlayerBuff(): %s, %d entries; %d RuneNames match the %d names"
+    .. " from ShroudGetBuffName", type(list), n, matched, flatCount))
+  return lines
+end
+
 function BB.DebugLines()
   local lines = {}
   local list = ShroudGetPlayerBuff()

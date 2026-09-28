@@ -134,7 +134,10 @@ Run all three before calling a change done.
     name comes or goes ("tick"): the debuff alert didn't sound in game (2026-09-28), so it no longer
     depends on the callback. `BB.changes` counts both for `/toolbox buffs debug`. The callback DOES
     arrive (debug, 2026-09-28: 83 from the event, 15 from the tick), so the suspect is `IsDebuff` not
-    set on debuffs. Pending: the debug line of a live debuff ("(debuff)" or not).
+    set on debuffs. FOUND 2026-09-28: a live debuff (`WolfSpecialAttack2`, "-0.1 Move Speed") showed NO
+    "(debuff)" marker. Together with "no effects" on every trace, suspect `ShroudGetPlayerBuff()` RuneNames
+    not matching `ShroudGetBuffName` (every lookup by name missing). `/toolbox buffs raw` dumps that list
+    and the match count. Pending: its output. (A leading "-" is no debuff test: "-37.5% Reagent Use" helps.)
     Display names (`BB.PlainLabel`): colour codes stripped, first line only, at most `LABEL_MAX` (60).
     `HidesGlued()` (an optional Hud module method): hiding out of combat hides the whole glued strip,
     health & focus bars included (owner, 2026-09-28).

@@ -1336,4 +1336,15 @@ return function(t)
     t.eq(#long, Toolbox.BuffBar.LABEL_MAX)
     t.ok(long:find("%.%.%.$"))
   end)
+
+  t.test("/tbx buffs raw lists the game's grouped buff list and how many names match", function()
+    H.boot()
+    H.addBuffs({ { name = "Light", remaining = 40, icon = 5 },
+                 { name = "WolfSpecialAttack2", remaining = 14, icon = 6, debuff = true } })
+    H.clearLogs()
+    H.chat("/tbx buffs raw")
+    t.ok(H.logged("^ShroudGetPlayerBuff%(%): table, 2 entries; 2 RuneNames match the 2 names from ShroudGetBuffName$"))
+    t.ok(H.logged("^  %[2%] .*IsDebuff=true; .*RuneName=WolfSpecialAttack2"))
+    t.ok(H.logged("Effects=table%(1 keys: 1; %[1%] = {.*}%)"))
+  end)
 end

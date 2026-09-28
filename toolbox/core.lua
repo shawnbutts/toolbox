@@ -421,7 +421,7 @@ end
 
 add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off; add|remove <name>|reset]; "
     .. "combat on|off (only during combat); replace on|off; "
-    .. "dismiss on|off; debug; trace [name])", function(rest)
+    .. "dismiss on|off; debug; raw; trace [name])", function(rest)
   local word, name = T.ParseArgs(rest)
   if word == "combat" then
     local B, arg = T.BuffBar, name:lower()
@@ -477,6 +477,10 @@ add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off;
   end
   if word == "debug" then
     for _, line in ipairs(T.BuffBar.DebugLines()) do T.Print(line) end
+    return
+  end
+  if word == "raw" then
+    for _, line in ipairs(T.BuffBar.RawLines()) do T.Print(line) end
     return
   end
   if word == "trace" then
