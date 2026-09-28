@@ -1451,8 +1451,8 @@ function G.BuildRow()
     local overlaySpec = { width = s, height = s, visible = false, style = { marginLeft = -s } }
     if clockTex >= 0 then iconSpec.texture, overlaySpec.texture = clockTex, clockTex end
     local icon, overlay = UI.Image(iconSpec), UI.Image(overlaySpec)
-    local slot = UI.Row{ visible = false, children = { icon, overlay },
-      style = { width = s, height = s, marginRight = BB.GAP, backgroundColor = "#00000066" } }
+    local slot = UI.Row{ visible = false, children = { icon, overlay },     -- as the buff slots' style
+      style = { width = s, height = s, marginRight = BB.GAP, backgroundColor = "#00000066", borderWidth = 0 } }
     gSlots[i] = { row = slot, icon = icon, overlay = overlay }
     row[i] = slot
   end
@@ -1596,6 +1596,36 @@ function G.Lines()
     lines[#lines + 1] = string.format("  %s: %d%% (%s / %s)%s  [primaryDurability %s]", it.name,
       math.floor(it.pct * 100), T.FormatNumber(it.dur), T.FormatNumber(it.max),
       stage == "broken" and " BROKEN" or (stage == "low" and " needs repair" or ""), tostring(it.primary))
+  end
+  return lines
+end
+
+-- /toolbox gear debug: the laid-out sizes of a buff slot and a gear slot (and their rows), to
+-- compare them in game (reported 2026-09-28: gear icons look larger and start further left).
+function G.DebugLines()
+  local function sz(e)
+    if not e then return "none" end
+    local ok, w, h = pcall(e.GetSize, e)
+    if not ok then return "?" end
+    return tostring(w) .. "x" .. tostring(h)
+  end
+  local function firstShown(pool)
+    for _, slot in ipairs(pool or {}) do
+      if slot.row:IsVisible() then return slot end
+    end
+    return nil
+  end
+  local b, g = firstShown(slots and slots.buffs), firstShown(gSlots)
+  local lines = {
+    string.format("icon size %d; glued %s (setting %s, buff bar %s); gear showing %d of %d worn",
+      size(), tostring(G.Glued()), tostring(gprefs.glue == true), tostring(BB.IsEnabled()), #gShownList, #gItems),
+    "buff slot " .. sz(b and b.row) .. ", its icon " .. sz(b and b.icon) .. ", sweep " .. sz(b and b.overlay),
+    "gear slot " .. sz(g and g.row) .. ", its icon " .. sz(g and g.icon) .. ", sweep " .. sz(g and g.overlay),
+    "rows: buffs " .. sz(content and content:Find("buffs")) .. ", debuffs " .. sz(content and content:Find("debuffs"))
+      .. ", gear " .. sz(gContent),
+  }
+  if not b or not g then
+    lines[#lines + 1] = "(a slot shows \"none\" when nothing is up in it: open settings for gear)"
   end
   return lines
 end

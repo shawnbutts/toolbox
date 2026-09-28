@@ -902,6 +902,8 @@ add("gear", "worn gear's durability, lowest first (bar on|off: the equipment bar
   elseif word == "bar" then
     if args:lower() == "on" or args:lower() == "off" then G.SetShow(args:lower() == "on") end
     T.Print("Equipment bar (worn items below " .. G.Threshold() .. "%): " .. (G.GetShow() and "on" or "off") .. ".")
+  elseif word == "debug" then
+    for _, line in ipairs(G.DebugLines()) do T.Print(line) end
   elseif word == "glue" then
     if args:lower() == "on" or args:lower() == "off" then G.SetGlue(args:lower() == "on") end
     T.Print("Equipment bar glued under the buff bar: " .. (G.GetGlue() and "on" or "off")
