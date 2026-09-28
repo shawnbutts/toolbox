@@ -965,6 +965,7 @@ end
 -- whose rune name or displayed name contains it (any case); without, the first BB.TRACE_MAX.
 BB.TRACE_SECONDS = 10
 BB.TRACE_MAX = 8
+BB.TRACE_EFFECTS = 6            -- effects listed per buff in a trace line
 function BB.Trace(filter)
   filter = (filter or ""):lower()
   local n = 0
@@ -978,13 +979,22 @@ function BB.Trace(filter)
       local match = filter == "" or e.name:lower():find(filter, 1, true) or label:lower():find(filter, 1, true)
       if match and shown < BB.TRACE_MAX then
         shown = shown + 1
-        local fx = byName[e.name] and type(byName[e.name].Effects) == "table" and byName[e.name].Effects[1] or {}
         local st = timers[e.name]
         local named = label == e.name and e.name or (label .. " [" .. e.name .. "]")
         local effects = byName[e.name] and byName[e.name].Effects
-        T.Print(string.format("+%ds %s: game %s left (%s effects; Total %s, Current %s) | bar %s of %s",
-          n, named, num(e.remaining), type(effects) == "table" and #effects or "no", num(fx.TotalDuration),
-          num(fx.CurrentDuration), st and string.format("%.1f", st.last or -1) or "?",
+        -- every effect of the rune as "left/total" (a rune can apply several of different lengths)
+        local parts = {}
+        if type(effects) == "table" then
+          for k, fx in ipairs(effects) do
+            if k <= BB.TRACE_EFFECTS then
+              parts[#parts + 1] = num(fx.CurrentDuration) .. "/" .. num(fx.TotalDuration)
+            end
+          end
+          if #effects > BB.TRACE_EFFECTS then parts[#parts + 1] = "..." end
+        end
+        T.Print(string.format("+%ds %s: game %s left (effects left/total: %s) | bar %s of %s",
+          n, named, num(e.remaining), #parts > 0 and table.concat(parts, ", ") or "none",
+          st and string.format("%.1f", st.last or -1) or "?",
           st and (string.format("%.1f", st.total) .. (st.trusted and "" or " (unknown)")) or "?"))
       end
     end
