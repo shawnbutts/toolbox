@@ -18,6 +18,7 @@ Toolbox.CHANGELOG = {
   { "item", "The alert sounds now come with the add-on (game clients at Lua API 15 or newer allow sounds in add-on packages), so there's nothing to copy by hand. Toolbox now needs Lua API 15. Your own sounds in the Lua folder (toolbox_buff_expiring.ogg, toolbox_debuff_landed.ogg) still win." },
   { "item", "/toolbox sounds debug is simpler; /toolbox sounds try is gone (sounds work in current clients)." },
   { "section", "Fixed" },
+  { "item", "Buff bar: debuffs weren't recognised (no debuff sound, no red row), and buff icons and full durations from the game's buff list were never read. The game hands add-ons its buff list as game objects rather than the documented plain tables, which Toolbox skipped; it now reads them." },
   { "item", "The debuff sound didn't play in game. The alert no longer depends only on the game's buff-change callback: the buff bar's own check notices a new debuff too. /toolbox buffs debug shows how many changes each one saw." },
   { "item", "Buff bar: a buff with two effects running (e.g. refreshed) shows the tooltip of the one that lasts longer. Buff names in the long-lasting list and in /toolbox buffs debug use only the first line of a long description, so a debug line is no longer cut short." },
   { "item", "Toolbox stopped with \"pattern too complex\" errors (and was disabled) when a buff had a very long description; the game's Lua gives up on a text pattern that standard Lua handles. The same could have happened with a long guild message. All such text is now trimmed without patterns." },

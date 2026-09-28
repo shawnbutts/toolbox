@@ -47,6 +47,9 @@ store submission needs a higher version than any submitted before (rejected ones
 - /toolbox sounds debug is simpler; /toolbox sounds try is gone (sounds work in current clients).
 
 ### Fixed
+- Buff bar: debuffs weren't recognised (no debuff sound, no red row), and buff icons and full
+  durations from the game's buff list were never read. The game hands add-ons its buff list as game
+  objects rather than the documented plain tables, which Toolbox skipped; it now reads them.
 - The debuff sound didn't play in game. The alert no longer depends only on the game's buff-change
   callback: the buff bar's own check notices a new debuff too. /toolbox buffs debug shows how many
   changes each one saw.

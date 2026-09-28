@@ -330,23 +330,85 @@ local function isGrouped(e)
   return g
 end
 
+-- ---------------------------------------------------------------------------
+-- The game's grouped buff list, as plain data
+-- ---------------------------------------------------------------------------
+-- The docs describe ShroudGetPlayerBuff() entries as tables; in game (2026-09-28) they are game
+-- objects (userdata "LuaManager+RuneEffects"), which `pairs` can't walk and which every
+-- `type(x) == "table"` check here skipped: no debuff flag, icon or Effects was ever read (so no
+-- debuff sound, and no full durations). BB.ReadRunes copies the documented fields into tables.
+
+-- Field `k` of a table or game object, or nil when it can't be read.
+local function field(obj, k)
+  local ty = type(obj)
+  if ty ~= "table" and ty ~= "userdata" then return nil end
+  local ok, v = pcall(function() return obj[k] end)
+  if ok then return v end
+  return nil
+end
+
+-- A list from the game as a Lua list: a table (1-based), or a game-side list (userdata) with
+-- Count, indexed from 0 (C#) or else from 1.
+local function items(list)
+  local out = {}
+  if type(list) == "table" then
+    for i, v in ipairs(list) do out[i] = v end
+    return out
+  end
+  if type(list) ~= "userdata" then return out end
+  local n = field(list, "Count")
+  if type(n) ~= "number" then
+    local ok, len = pcall(function() return #list end)
+    n = (ok and type(len) == "number") and len or 0
+  end
+  local base = (n > 0 and field(list, 0) == nil) and 1 or 0
+  for i = base, base + n - 1 do
+    local v = field(list, i)
+    if v ~= nil then out[#out + 1] = v end
+  end
+  return out
+end
+
+BB.RUNE_FIELDS = { "RuneName", "RuneId", "IsDebuff", "IconId", "StackCount" }
+BB.EFFECT_FIELDS = { "Description", "Value", "CurrentDuration", "TotalDuration", "TotalTick" }
+
+-- ShroudGetPlayerBuff()'s answer as { { RuneName, RuneId, IsDebuff, IconId, StackCount,
+-- Effects = { { Description, Value, CurrentDuration, TotalDuration, TotalTick } } } }.
+function BB.ReadRunes(list)
+  local out = {}
+  for _, r in ipairs(items(list)) do
+    local rune = { Effects = {} }
+    for _, f in ipairs(BB.RUNE_FIELDS) do rune[f] = field(r, f) end
+    for _, e in ipairs(items(field(r, "Effects"))) do
+      local fx = {}
+      for _, f in ipairs(BB.EFFECT_FIELDS) do fx[f] = field(e, f) end
+      rune.Effects[#rune.Effects + 1] = fx
+    end
+    if type(rune.RuneName) == "string" then out[#out + 1] = rune end
+  end
+  return out
+end
+
+local function playerRunes()
+  local ok, list = pcall(ShroudGetPlayerBuff)
+  return BB.ReadRunes(ok and list or nil)
+end
+
 -- Re-reads the grouped list (debuff flags, icons, full durations) and raises the debuff alert.
 -- `from` = "event" (ShroudOnBuffsChanged), "tick" (the bar saw the list change) or "start";
 -- the first two are counted for debug.
 BB.changes = { event = 0, tick = 0 }
 function BB.OnBuffsChanged(from)
   if BB.changes[from] then BB.changes[from] = BB.changes[from] + 1 end
-  local list = ShroudGetPlayerBuff()
+  local list = playerRunes()
   local remainingByName = {}
   for _, e in ipairs(readEffects()) do remainingByName[e.name] = e.remaining end
   runes = {}
   local now = {}
-  for _, rune in ipairs(type(list) == "table" and list or {}) do
-    if type(rune) == "table" and type(rune.RuneName) == "string" then
-      runes[rune.RuneName] = { debuff = rune.IsDebuff == true, icon = rune.IconId,
-        total = BB.TotalFromEffects(remainingByName[rune.RuneName], rune.Effects) }
-      if rune.IsDebuff then now[rune.RuneName] = true end
-    end
+  for _, rune in ipairs(list) do
+    runes[rune.RuneName] = { debuff = rune.IsDebuff == true, icon = rune.IconId,
+      total = BB.TotalFromEffects(remainingByName[rune.RuneName], rune.Effects) }
+    if rune.IsDebuff == true then now[rune.RuneName] = true end
   end
   local new = BB.NewNames(debuffs, now)
   debuffs = now
@@ -719,26 +781,10 @@ end
 -- %g: the same text on every Lua (5.3+ would print 39.0 where MoonSharp prints 39).
 local function num(x) return type(x) == "number" and string.format("%g", x) or tostring(x) end
 
--- /toolbox buffs raw: ShroudGetPlayerBuff() as the game returns it, one line per entry with every
--- field (tables shown as their size and keys), and how many of its RuneNames match the flat list's
--- names. In game no entry ever showed a debuff flag or Effects (2026-09-28): a name mismatch
--- would explain both.
+-- /toolbox buffs raw: ShroudGetPlayerBuff() as the game returns it: each entry's type and its
+-- documented fields as read (BB.ReadRunes), its first effect's fields, and how many RuneNames
+-- match the flat list's names.
 BB.RAW_MAX = 25
-local function rawValue(v)
-  if type(v) ~= "table" then return tostring(v) end
-  local keys = {}
-  for k in pairs(v) do keys[#keys + 1] = tostring(k) end
-  table.sort(keys)
-  local first = type(v[1]) == "table" and v[1] or nil
-  local inner = {}
-  if first then
-    for k, x in pairs(first) do inner[#inner + 1] = tostring(k) .. "=" .. tostring(x) end
-    table.sort(inner)
-  end
-  return "table(" .. #keys .. " keys: " .. table.concat(keys, ",", 1, math.min(#keys, 8))
-    .. (first and ("; [1] = {" .. table.concat(inner, ", ") .. "}") or "") .. ")"
-end
-
 function BB.RawLines()
   local ok, list = pcall(ShroudGetPlayerBuff)
   if not ok then return { "ShroudGetPlayerBuff() raised: " .. tostring(list) } end
@@ -747,38 +793,35 @@ function BB.RawLines()
     flat[e.name] = true
     flatCount = flatCount + 1
   end
-  local lines, n, matched = {}, 0, 0
-  if type(list) == "table" then
-    for k, v in pairs(list) do
-      n = n + 1
+  local raw = items(list)
+  local runesRead = BB.ReadRunes(list)
+  local lines, matched = {}, 0
+  for i, rune in ipairs(runesRead) do
+    if flat[rune.RuneName] then matched = matched + 1 end
+    if i <= BB.RAW_MAX then
       local parts = {}
-      if type(v) == "table" then
-        if flat[v.RuneName] then matched = matched + 1 end
-        local keys = {}
-        for fk in pairs(v) do keys[#keys + 1] = fk end
-        table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
-        for _, fk in ipairs(keys) do parts[#parts + 1] = tostring(fk) .. "=" .. rawValue(v[fk]) end
-      else
-        parts[1] = type(v) .. " " .. tostring(v)
+      for _, f in ipairs(BB.RUNE_FIELDS) do parts[#parts + 1] = f .. "=" .. tostring(rune[f]) end
+      local fx = rune.Effects[1]
+      local inner = {}
+      if fx then
+        for _, f in ipairs(BB.EFFECT_FIELDS) do inner[#inner + 1] = f .. "=" .. tostring(fx[f]) end
       end
-      if n <= BB.RAW_MAX then lines[#lines + 1] = "  [" .. tostring(k) .. "] " .. table.concat(parts, "; ") end
+      lines[#lines + 1] = "  [" .. i .. "] " .. type(raw[i]) .. ": " .. table.concat(parts, "; ") .. "; Effects="
+        .. #rune.Effects .. (fx and (" [1] {" .. table.concat(inner, ", ") .. "}") or "")
     end
   end
-  table.insert(lines, 1, string.format("ShroudGetPlayerBuff(): %s, %d entries; %d RuneNames match the %d names"
-    .. " from ShroudGetBuffName", type(list), n, matched, flatCount))
+  table.insert(lines, 1, string.format("ShroudGetPlayerBuff(): %s, %d entries (%d read); %d RuneNames match the"
+    .. " %d names from ShroudGetBuffName", type(list), #raw, #runesRead, matched, flatCount))
   return lines
 end
 
 function BB.DebugLines()
   local lines = {}
-  local list = ShroudGetPlayerBuff()
   local byName = {}
-  for _, rune in ipairs(type(list) == "table" and list or {}) do
-    if type(rune) == "table" and type(rune.RuneName) == "string" then byName[rune.RuneName] = rune end
-  end
+  for _, rune in ipairs(playerRunes()) do byName[rune.RuneName] = rune end
   for _, e in ipairs(readEffects()) do
     local rune = byName[e.name] or {}
-    local fx = type(rune.Effects) == "table" and rune.Effects[1] or {}
+    local fx = rune.Effects and rune.Effects[1] or {}
     local fromGame = BB.TotalFromEffects(e.remaining, rune.Effects)
     local st = timers[e.name]
     local source = fromGame and "from the game" or learned[e.name] and "learned from a cast"
@@ -810,10 +853,7 @@ function BB.Trace(filter)
   ShroudRegisterPeriodic("toolbox_bufftrace", function()
     n = n + 1
     local byName = {}
-    local list = ShroudGetPlayerBuff()
-    for _, rune in ipairs(type(list) == "table" and list or {}) do
-      if type(rune) == "table" and type(rune.RuneName) == "string" then byName[rune.RuneName] = rune end
-    end
+    for _, rune in ipairs(playerRunes()) do byName[rune.RuneName] = rune end
     local shown = 0
     for _, e in ipairs(readEffects()) do
       local label = plainLabel(e.index, e.name)

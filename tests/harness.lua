@@ -325,6 +325,21 @@ local function install_api()
                                       TotalTick = 0 }
       end
     end
+    -- H.S.buffObjects: like the game (2026-09-28), entries are objects whose fields can only be read
+    -- by name, not the documented tables: real userdata where the runtime can make it (LuaJIT's
+    -- newproxy), else empty tables with an __index.
+    if S.buffObjects then
+      local proxy = rawget(_G, "newproxy")
+      for i, r in ipairs(out) do
+        if proxy then
+          local u = proxy(true)
+          getmetatable(u).__index = r
+          out[i] = u
+        else
+          out[i] = setmetatable({}, { __index = r })
+        end
+      end
+    end
     return out
   end
 

@@ -1343,8 +1343,31 @@ return function(t)
                  { name = "WolfSpecialAttack2", remaining = 14, icon = 6, debuff = true } })
     H.clearLogs()
     H.chat("/tbx buffs raw")
-    t.ok(H.logged("^ShroudGetPlayerBuff%(%): table, 2 entries; 2 RuneNames match the 2 names from ShroudGetBuffName$"))
-    t.ok(H.logged("^  %[2%] .*IsDebuff=true; .*RuneName=WolfSpecialAttack2"))
-    t.ok(H.logged("Effects=table%(1 keys: 1; %[1%] = {.*}%)"))
+    t.ok(H.logged("^ShroudGetPlayerBuff%(%): table, 2 entries %(2 read%); 2 RuneNames match the 2 names from "
+      .. "ShroudGetBuffName$"))
+    t.ok(H.logged("^  %[2%] table: RuneName=WolfSpecialAttack2; RuneId=2; IsDebuff=true; IconId=6; StackCount=1; "
+      .. "Effects=1 %[1%] {Description=, Value=0, "))
+  end)
+
+  t.test("game objects instead of tables (as in game): debuff flag, icons and durations are read", function()
+    H.boot()
+    H.S.buffObjects = true
+    H.S.durationMode = "elapsed"                -- as the docs describe the Effects
+    H.S.files["toolbox_debuff_landed.ogg"] = true
+    H.reload()
+    H.advance(Toolbox.BuffBar.SETTLE)
+    H.chat("/tbx buffs")
+    H.S.played = {}
+    H.addBuffs({ { name = "WolfSpecialAttack2", label = "-0.1 Move Speed", remaining = 14, icon = 6, debuff = true } })
+    H.advance(1)
+    t.eq(H.playedNames(), "toolbox_debuff_landed", "the debuff alert")
+    t.eq(#H.slots("debuffs"), 1, "in the debuff row")
+    H.S.buffs = { { name = "Light", remaining = 100, total = 400, icon = 5 } }   -- already running
+    H.S.durationMode = "remaining"
+    H.callback("ShroudOnBuffsChanged")
+    H.advance(Toolbox.BuffBar.SETTLE + 1)
+    H.clearLogs()
+    H.chat("/tbx buffs debug")
+    t.ok(H.logged("^Light: .*full duration 400 s %(from the game%)"), "the full duration, from Effects")
   end)
 end

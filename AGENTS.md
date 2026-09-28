@@ -34,6 +34,10 @@ Guidance for AI coding agents (and humans) working on Toolbox, a Shroud of the A
   timer and got Toolbox disabled (2026-09-28). Use `Toolbox.Trim` / `Toolbox.ParseArgs` or plain
   `find`/`sub`. `tools/build.py` refuses a `(.-)` capture anchored with `$`; the harness raises the
   same error for any `.-` pattern on text over 120 characters.
+- **Game data may be userdata, not tables.** `ShroudGetPlayerBuff()` entries are C# objects in game
+  (2026-09-28), despite the docs; `type(x) == "table"` checks silently skipped them. Read fields by name
+  through a pcall'd accessor (see `BB.ReadRunes`), never `pairs` over game objects. The harness can
+  return such objects (`H.S.buffObjects`; real userdata on LuaJIT).
 - **Avoid `a and b or c` when `b` can be false/nil**; it has already caused a bug (vitals "not both off").
 - **Don't guess at API behaviour.** If the docs are unclear, pick the conservative option, write
   down the assumption (README or a comment), and add it to "Unconfirmed API behaviour" below.
@@ -137,7 +141,11 @@ Run all three before calling a change done.
     set on debuffs. FOUND 2026-09-28: a live debuff (`WolfSpecialAttack2`, "-0.1 Move Speed") showed NO
     "(debuff)" marker. Together with "no effects" on every trace, suspect `ShroudGetPlayerBuff()` RuneNames
     not matching `ShroudGetBuffName` (every lookup by name missing). `/toolbox buffs raw` dumps that list
-    and the match count. Pending: its output. (A leading "-" is no debuff test: "-37.5% Reagent Use" helps.)
+    and the match count. ROOT CAUSE (2026-09-28, `/toolbox buffs raw`): the entries are USERDATA
+    ("LuaManager+RuneEffects"), not the documented tables, and every `type(x) == "table"` check skipped
+    them: 15 entries, 0 read. `BB.ReadRunes` now copies the documented fields through a pcall'd
+    accessor (`Effects` may be a game-side list: `Count`, 0- or 1-based). Pending in game: debuff flag,
+    icons and whether `TotalDuration` / `CurrentDuration` really hold values (item 22 may be the same bug).
     Display names (`BB.PlainLabel`): colour codes stripped, first line only, at most `LABEL_MAX` (60).
     `HidesGlued()` (an optional Hud module method): hiding out of combat hides the whole glued strip,
     health & focus bars included (owner, 2026-09-28).
