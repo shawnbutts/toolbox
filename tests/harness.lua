@@ -53,6 +53,8 @@ local function fresh(disk)
     -- ShroudGetSocialSummary(); H.setGuild / H.setMotd change it
     social = { inGuild = false, guildName = "", guildRole = "", guildMotd = "",
                guildMembers = 0, guildOnline = 0, friends = 0, friendsOnline = 0 },
+    -- ShroudGetNotifications(); H.setNotes changes it
+    notes = { unreadMail = 0, mailExpiring = false, ransoms = 0, newRewards = false, guildApplications = -1 },
     stats = {},                        -- { name, label, value, hidden }
     frames = {},
     logs = {},
@@ -151,6 +153,10 @@ local function install_api()
     local id = #S.requests + 1
     S.requests[id] = { id = id, url = url }
     return id
+  end
+  ShroudGetNotifications = function()
+    if not S.char.present then return nil end
+    return copy(S.notes)
   end
   ShroudGetSocialSummary = function()
     if not S.char.present then return nil end
@@ -634,11 +640,11 @@ end
 function H.restart(time, flushFirst)
   if flushFirst then ShroudFlushSavedVars() end
   local disk, char, date, serverTime, buffs, mode = S.disk, S.char, S.date, S.serverTime, S.buffs, S.durationMode
-  local social = S.social
+  local social, notes = S.social, S.notes
   fresh(disk)
   -- the character's buffs and guild live on the server: they survive a client restart
   S.char, S.date, S.serverTime, S.buffs, S.durationMode = char, date, serverTime, buffs, mode
-  S.social = social
+  S.social, S.notes = social, notes
   S.time = time or 50
   install_api()
   H.load()
@@ -830,7 +836,21 @@ function H.setMotd(motd)
   return H.callback("ShroudOnSocialChanged")
 end
 
-function H.motd() return S.windows.toolbox_motd end
+-- Notification counts / flags change (fields as ShroudGetNotifications), + ShroudOnNotificationsChanged.
+function H.setNotes(fields)
+  for k, v in pairs(fields) do S.notes[k] = v end
+  return H.callback("ShroudOnNotificationsChanged")
+end
+
+-- The Notifications window, and one source's section in it ({ shown, title, text }).
+function H.notify() return S.windows.toolbox_notify end
+function H.notice(key)
+  local w = S.windows.toolbox_notify
+  if not w then return nil end
+  local sec = w:Find("n_" .. key)
+  return { shown = w:IsShown() and sec.visible ~= false, title = w:Find("n_" .. key .. "_title").text,
+           text = w:Find("n_" .. key .. "_text").text }
+end
 
 function H.firstBoot(time) return H.boot(nil, time, true) end
 

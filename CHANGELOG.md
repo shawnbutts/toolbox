@@ -6,10 +6,12 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
-- Guild message of the day: when your guild's message has changed since you last saw it, a window
-  shows it at login, after a reload, or as soon as it changes while you play. An unchanged message
-  stays hidden. /toolbox motd shows it any time; /toolbox motd off, or the new Guild setting,
-  stops it opening by itself.
+- Notifications: a window tells you what's new since you last saw it: your guild's message of the
+  day, new mail, mail about to expire, ransoms, new rewards and guild applications. It opens at
+  login, after a reload, or as soon as something changes, with everything new together; nothing
+  already seen shows again. Each can be switched on or off in settings (Notifications) or with
+  /toolbox notify <name> on|off; /toolbox notify show shows everything current, /toolbox motd the
+  guild message.
 - Buff bar: buffs with more than 15 minutes left (Obsidian potions, for example) share one slot at
   the end of the row with a count; hover it to see each one and its time left. A buff moves back
   onto the bar once it has less than that left. The time is a setting ("Group buffs lasting longer

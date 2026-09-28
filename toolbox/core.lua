@@ -714,14 +714,48 @@ add("version", "show the installed version and build, and open the changelog", f
   T.Docs.OpenVersion()
 end)
 
+-- "Notifications: Guild message of the day on, New mail on, ..." for chat.
+local function notifyList()
+  local parts = {}
+  for _, src in ipairs(T.Notify.Sources()) do
+    parts[#parts + 1] = src.key .. " (" .. src.label .. ") " .. (T.Notify.IsOn(src.key) and "on" or "off")
+  end
+  return "Notifications: " .. table.concat(parts, ", ") .. "."
+end
+
+add("notify", "notifications: list them; <name> on|off; show (everything current)", function(rest)
+  local c = "/" .. T.commands[1] .. " notify"
+  local word, arg = T.ParseArgs(rest)
+  if word == "show" then
+    if T.Notify.ShowCurrent() == 0 then T.Print("Nothing to show right now.") end
+    return
+  end
+  if word ~= "" then
+    arg = arg:lower()
+    if not T.Notify.Label(word) or (arg ~= "on" and arg ~= "off" and arg ~= "") then
+      T.Print("Use " .. c .. " <name> on|off, or " .. c .. " show. " .. notifyList())
+      return
+    end
+    if arg ~= "" then T.Notify.SetOn(word, arg == "on") end
+    T.Print(T.Notify.Label(word) .. ": " .. (T.Notify.IsOn(word) and "on" or "off") .. ".")
+    return
+  end
+  T.Print(notifyList())
+end)
+
 add("motd", "show your guild's message of the day (on / off: open it by itself when it changes)", function(rest)
   local word = rest:lower()
   if word == "on" or word == "off" then
-    T.Motd.SetShow(word == "on")
+    T.Notify.SetOn("motd", word == "on")
     T.Print("New guild messages " .. (word == "on" and "open by themselves." or "no longer open by themselves."))
     return
   end
-  T.Motd.OpenCurrent()
+  local social = ShroudGetSocialSummary()
+  if type(social) ~= "table" or social.inGuild ~= true then
+    T.Print("You're not in a guild.")
+  elseif T.Notify.ShowCurrent("motd") == 0 then
+    T.Print("Your guild has no message of the day (or it hasn't loaded yet).")
+  end
 end)
 
 -- /toolbox api: which functions from newer APIs this client really has. The docs (API 17 on
@@ -976,7 +1010,7 @@ function T.Tick()
   T.Hud.Tick()                       -- remember where the HUD strips are
   T.Config.SyncLive()
   T.RefreshViews()
-  T.Motd.Check()                     -- the guild message can load a while after login
+  T.Notify.Check()                   -- notifications: the game's data can load a while after login
 end
 
 -- ---------------------------------------------------------------------------
@@ -1015,7 +1049,7 @@ function ShroudOnStart()
   T.Vitals.Tick()
   ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
   T.Welcome()                        -- first run only: a chat line and the settings window
-  T.Motd.Check()                     -- a new guild message of the day
+  T.Notify.Check()                   -- anything new: the guild message, mail, ...
 end
 
 -- Only a trigger: the amount's relation to pooled vs total XP is not documented,
@@ -1052,7 +1086,12 @@ end
 
 -- Guild or friends changed (twice a second at most): maybe a new guild message of the day.
 function ShroudOnSocialChanged()
-  T.Motd.Check()
+  T.Notify.Check()
+end
+
+-- A notification count or flag changed (mail, ransoms, rewards, guild applications).
+function ShroudOnNotificationsChanged()
+  T.Notify.Check()
 end
 
 -- Web answers (only the SOTA.net price lookups ask for any).

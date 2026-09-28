@@ -6,7 +6,8 @@
 -- Also the version window (/toolbox version): the version line and the changelog, which
 -- tools/build.py bakes into changelog.lua (Toolbox.CHANGELOG) from CHANGELOG.md.
 --
--- And the guild message of the day window (Toolbox.Motd, at the end), shown when it changes.
+-- And notifications (Toolbox.Notify, at the end): the guild message of the day, new mail and
+-- other game notices, in one window when there's something new.
 
 local T = Toolbox
 local D = {}
@@ -81,11 +82,14 @@ D.SECTIONS = {
       .. "strip's top-left corner (untick Options > Interface > Nameplates & Chat Bubbles > "
       .. "Lock Status Movement to see it), use the Position buttons in settings, or type e.g. "
       .. "/toolbox buffs move 600 40." },
-  { "Guild message of the day",
-    "When your guild's message of the day has changed since you last saw it, a window shows it: at "
-      .. "login, after /lua reload, or when an officer changes it while you play. An unchanged message "
-      .. "doesn't show again. /toolbox motd shows it any time; /toolbox motd off (or the Guild setting) "
-      .. "stops it opening by itself." },
+  { "Notifications",
+    "A Notifications window tells you what's new since you last saw it: your guild's message of the "
+      .. "day, new mail, mail about to expire, ransoms, new rewards and guild applications. It opens at "
+      .. "login, after /lua reload, or as soon as something changes, and shows everything new together. "
+      .. "Nothing already seen shows again.",
+    "Switch each one on or off in settings (Notifications), or with /toolbox notify <name> on|off "
+      .. "(names: motd, mail, expiring, ransoms, rewards, applications). /toolbox notify lists them; "
+      .. "/toolbox notify show shows everything current; /toolbox motd shows the guild message." },
   { "Sounds",
     "The alert sounds live in the add-on's folder. To use your own, put "
       .. "toolbox_buff_expiring.ogg or toolbox_debuff_landed.ogg (or .wav) in your Lua folder, "
@@ -213,26 +217,67 @@ function D.IsVersionShown()
 end
 
 -- ---------------------------------------------------------------------------
--- Guild message of the day (Toolbox.Motd)
+-- Notifications (Toolbox.Notify)
 -- ---------------------------------------------------------------------------
--- Opens a window with the guild's message of the day when it differs from the last one this
--- character was shown: at login, after a reload, or when it changes while playing. The text
--- is ShroudGetSocialSummary().guildMotd (API 14). The guild data may arrive after login, so
--- a missing or empty message is never "new"; it is simply checked again next tick. A message
--- counts as seen once its window has actually opened (Show can be refused).
--- Saved var "guild_motd" (character scope): { show = bool, seen = "text" }.
+-- Tells the player about what's new since they last saw it: the guild message of the day, new
+-- mail, mail about to expire, ransoms, new rewards, guild applications (all API 14). Three
+-- parts, kept apart so each can grow on its own:
+--   * N.SOURCES, one entry per kind: key (chat and saved-var name), label, tip, default, and
+--     Check(seen, ctx) -> notice or nil, plus an optional second value to remember quietly
+--     (a count going down: nothing to say). A notice is { title?, text, seen = what to remember
+--     once it has been delivered }. ctx holds this check's game reads (social, notes).
+--   * N.DELIVERY, how notices reach the player, by name: "window" for now. Each source has a
+--     `via` pref naming one; a chat line, a sound or another kind of window is a new entry here
+--     plus a control in settings, with no change to the sources.
+--   * N.Check (every tick, ShroudOnStart, and the game's social / notification callbacks): per
+--     source, compare with what it last saw, gather new notices by delivery, deliver them, and
+--     remember them as seen only once delivered (a window's Show can be refused: it is simply
+--     tried again next tick). Sources switched off are tracked quietly, so switching one on
+--     doesn't bring up old news. For N.SETTLE seconds after start or a character change, counts
+--     going down are not remembered: at login they read 0 until the game has loaded them.
+-- Saved var "notify" (character scope): { v = 1, sources = { [key] = { on = bool, seen = any,
+-- via = "window" } } }. The older "guild_motd" ({ show, seen }) is taken over once.
 
-local M = {}
-Toolbox.Motd = M
+local N = {}
+Toolbox.Notify = N
 
-local MOTD_ID = "toolbox_motd"
-local mwin = nil
-local mprefs = nil        -- this character's prefs (the saved-var scope follows the character)
-local mprefsFor = nil     -- the player name mprefs were loaded for
+N.SETTLE = 30             -- seconds after start / a character change before counts can go down
+N.WINDOW_ID = "toolbox_notify"
 
--- The message to show, or nil: in a guild, not empty, and not the one already seen.
+local function plural(n, one, many) return T.FormatNumber(n) .. " " .. (n == 1 and one or many) end
+
+-- A Check for a count the game shows (unread mail, ransoms, ...): a notice when it goes up.
+-- `say(total, new)` words it; new == total when nothing was seen before.
+local function countCheck(field, say)
+  return function(seen, ctx)
+    local n = nil
+    if type(ctx.notes) == "table" then n = ctx.notes[field] end
+    if type(n) ~= "number" or n < 0 then return nil end
+    local before = type(seen) == "number" and seen or 0
+    if n < before then return nil, n end
+    if n == before then return nil end
+    return { text = say(n, n - before), seen = n }
+  end
+end
+
+-- A Check for an on/off indicator (mail expiring, new rewards): a notice when it comes on.
+local function flagCheck(field, text)
+  return function(seen, ctx)
+    local v = nil                            -- not `a and b or nil`: b is often false here
+    if type(ctx.notes) == "table" then v = ctx.notes[field] end
+    if type(v) ~= "boolean" then return nil end
+    if not v then
+      if seen == true then return nil, false end
+      return nil
+    end
+    if seen == true then return nil end
+    return { text = text, seen = true }
+  end
+end
+
+-- The guild message to show, or nil: in a guild, not empty, and not the one already seen.
 -- Leading and trailing spaces don't count as a change.
-function M.NewMessage(summary, seen)
+function N.NewMotd(summary, seen)
   if type(summary) ~= "table" or summary.inGuild ~= true then return nil end
   if type(summary.guildMotd) ~= "string" then return nil end
   local text = summary.guildMotd:match("^%s*(.-)%s*$")
@@ -240,104 +285,247 @@ function M.NewMessage(summary, seen)
   return text
 end
 
-local function prefsNow()
-  local name = ShroudGetPlayerName()
-  if mprefs == nil or mprefsFor ~= name then
-    local saved = T.Load("guild_motd")
-    mprefs = { show = true, seen = "" }
-    if type(saved) == "table" then
-      if type(saved.show) == "boolean" then mprefs.show = saved.show end
-      if type(saved.seen) == "string" then mprefs.seen = saved.seen end
-    end
-    mprefsFor = name
-  end
-  return mprefs
-end
+N.SOURCES = {
+  { key = "motd", label = "Guild message of the day", default = true,
+    tip = "Your guild's message of the day, when it has changed since you last saw it",
+    Check = function(seen, ctx)
+      local text = N.NewMotd(ctx.social, seen)
+      if not text then return nil end
+      local guild = type(ctx.social.guildName) == "string" and ctx.social.guildName or ""
+      return { title = guild ~= "" and (guild .. ": message of the day") or "Guild message of the day",
+               text = text, seen = text }
+    end },
+  { key = "mail", label = "New mail", default = true,
+    tip = "When new letters arrive in your mailbox",
+    Check = countCheck("unreadMail", function(total, new)
+      if new == total then return "You have " .. plural(total, "unread letter", "unread letters") .. "." end
+      return plural(new, "new letter", "new letters") .. " (" .. T.FormatNumber(total) .. " unread in all)."
+    end) },
+  { key = "expiring", label = "Mail about to expire", default = true,
+    tip = "When some of your mail is about to expire (expired mail is lost)",
+    Check = flagCheck("mailExpiring", "Some of your mail is about to expire. Collect it before it's gone.") },
+  { key = "ransoms", label = "Ransoms", default = true,
+    tip = "When a thief holds something of yours for ransom",
+    Check = countCheck("ransoms", function(total, new)
+      if new == total then return "You have " .. plural(total, "ransom notice", "ransom notices") .. "." end
+      return plural(new, "new ransom notice", "new ransom notices") .. " (" .. T.FormatNumber(total) .. " in all)."
+    end) },
+  { key = "rewards", label = "New rewards", default = true,
+    tip = "When the game's new-reward indicator lights up",
+    Check = flagCheck("newRewards", "You have new rewards waiting.") },
+  { key = "applications", label = "Guild applications", default = true,
+    tip = "When players apply to your guild (only if you may manage recruitment)",
+    Check = countCheck("guildApplications", function(total, new)
+      if new == total then return plural(total, "guild application is", "guild applications are") .. " waiting." end
+      return plural(new, "new guild application", "new guild applications") .. " (" .. T.FormatNumber(total)
+        .. " waiting)."
+    end) },
+}
 
-local function saveMotd()
-  T.Save("guild_motd", mprefs)
-  T.unflushed = true          -- written to disk with the session's periodic flush
-end
-
-local function summaryNow()
-  local ok, summary = pcall(ShroudGetSocialSummary)
-  if ok and type(summary) == "table" then return summary end
+local function sourceFor(key)
+  for _, src in ipairs(N.SOURCES) do if src.key == key then return src end end
   return nil
 end
 
-local function buildMotd()
-  mwin = UI.Window{
-    id = MOTD_ID, title = "Guild message of the day",
-    width = 380, height = 220, minWidth = 220, minHeight = 120,
+-- ---------------------------------------------------------------------------
+-- Delivery
+-- ---------------------------------------------------------------------------
+
+N.DELIVERY = {}
+N.DELIVERY_DEFAULT = "window"
+local nwin = nil
+
+local function clearWindow()
+  if not nwin then return end
+  for _, src in ipairs(N.SOURCES) do nwin:Find("n_" .. src.key):SetVisible(false) end
+end
+
+local function buildWindow()
+  local sections = {}
+  for _, src in ipairs(N.SOURCES) do       -- one fixed section per source, shown when it has news
+    sections[#sections + 1] = UI.Column{ id = "n_" .. src.key, visible = false, style = { marginBottom = 8 },
+      children = {
+        UI.Label{ id = "n_" .. src.key .. "_title", text = src.label, class = "heading" },
+        UI.Label{ id = "n_" .. src.key .. "_text", text = "", class = "text",
+          style = { whiteSpace = "wrap", marginTop = 2 } },
+      } }
+  end
+  nwin = UI.Window{
+    id = N.WINDOW_ID, title = "Notifications",
+    width = 380, height = 240, minWidth = 220, minHeight = 120,
     x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y,
     escCloses = true,
+    onClose = function() clearWindow() end,
     style = { paddingTop = 6, paddingBottom = 6 },
     children = {
       UI.Scroll{ style = { flexGrow = 1 }, children = {
-        UI.Column{ style = { paddingLeft = GUTTER, paddingRight = GUTTER }, children = {
-          UI.Label{ id = "motd_guild", text = "", class = "heading" },
-          UI.Label{ id = "motd_text", text = "", class = "text", style = { whiteSpace = "wrap", marginTop = 4 } },
-        } },
+        UI.Column{ style = { paddingLeft = GUTTER, paddingRight = GUTTER }, children = sections },
       } },
       UI.Row{ style = { justifyContent = "end", paddingRight = GUTTER, marginTop = 4 }, children = {
-        UI.Button{ id = "motd_ok", text = "OK", onClick = function() mwin:Hide() end },
+        UI.Button{ id = "n_ok", text = "OK", onClick = function()
+          nwin:Hide()
+          clearWindow()
+        end },
       } },
     },
   }
 end
 
--- Shows the window with this text. Returns true when it is on screen.
-function M.Show(text, guildName)
-  if not mwin then buildMotd() end
-  mwin:Find("motd_guild"):SetText(type(guildName) == "string" and guildName or "")
-  mwin:Find("motd_text"):SetText(text)
-  if mwin:IsShown() then return true end
-  return mwin:Show() == true
+-- "window": every notice gets its source's section in the one Notifications window (added to
+-- what it already shows). True when the window is on screen.
+N.DELIVERY.window = function(list)
+  if not nwin then buildWindow() end
+  for _, item in ipairs(list) do
+    local id = "n_" .. item.source.key
+    nwin:Find(id .. "_title"):SetText(item.notice.title or item.source.label)
+    nwin:Find(id .. "_text"):SetText(item.notice.text)
+    nwin:Find(id):SetVisible(true)
+  end
+  if nwin:IsShown() then return true end
+  return nwin:Show() == true
 end
 
-function M.IsShown()
-  return mwin ~= nil and mwin:IsShown()
+function N.IsShown() return nwin ~= nil and nwin:IsShown() end
+
+-- ---------------------------------------------------------------------------
+-- Prefs and the check loop
+-- ---------------------------------------------------------------------------
+
+local nprefs = nil        -- this character's prefs (the saved-var scope follows the character)
+local nprefsFor = nil     -- the player name they were loaded for
+local settleUntil = 0
+
+local function save()
+  T.Save("notify", nprefs)
+  T.unflushed = true      -- written to disk with the session's periodic flush
 end
 
--- Called from ShroudOnStart, every tick and ShroudOnSocialChanged: opens the window when
--- the message is new to this character.
-function M.Check()
+local function prefsNow()
+  local name = ShroudGetPlayerName()
+  if nprefs ~= nil and nprefsFor == name then return nprefs end
+  nprefsFor = name
+  settleUntil = T.Now() + N.SETTLE
+  local saved = T.Load("notify")
+  local stored = type(saved) == "table" and saved.v == 1 and type(saved.sources) == "table" and saved.sources or {}
+  if type(saved) ~= "table" then
+    local old = T.Load("guild_motd")       -- before notifications, the guild message had its own
+    if type(old) == "table" then
+      stored = { motd = { on = old.show ~= false, seen = type(old.seen) == "string" and old.seen or "" } }
+    end
+  end
+  nprefs = { v = 1, sources = {} }
+  for _, src in ipairs(N.SOURCES) do
+    local s = type(stored[src.key]) == "table" and stored[src.key] or {}
+    local sp = { on = src.default, via = N.DELIVERY_DEFAULT }
+    if type(s.on) == "boolean" then sp.on = s.on end
+    if type(s.via) == "string" and N.DELIVERY[s.via] then sp.via = s.via end
+    if s.seen ~= nil and type(s.seen) ~= "table" then sp.seen = s.seen end
+    nprefs.sources[src.key] = sp
+  end
+  return nprefs
+end
+
+-- What the sources read this check, once.
+local function context()
+  local ctx = {}
+  local ok, social = pcall(ShroudGetSocialSummary)
+  if ok and type(social) == "table" then ctx.social = social end
+  local ok2, notes = pcall(ShroudGetNotifications)
+  if ok2 and type(notes) == "table" then ctx.notes = notes end
+  return ctx
+end
+
+-- Hands each delivery its notices; remembers them as seen once delivered. Returns true if any.
+local function deliver(byVia)
+  local p, any = nprefs, false
+  for via, list in pairs(byVia) do
+    local ok, done = pcall(N.DELIVERY[via], list)
+    if ok and done then
+      for _, item in ipairs(list) do p.sources[item.source.key].seen = item.notice.seen end
+      any = true
+    end
+  end
+  return any
+end
+
+function N.Check()
   local p = prefsNow()
-  if not p.show then return end
-  local summary = summaryNow()
-  local text = M.NewMessage(summary, p.seen)
-  if not text then return end
-  if M.Show(text, summary.guildName) then
-    p.seen = text
-    saveMotd()
+  local ctx = context()
+  local settling = T.Now() < settleUntil
+  local byVia, changed = {}, false
+  for _, src in ipairs(N.SOURCES) do
+    local sp = p.sources[src.key]
+    local ok, notice, quiet = pcall(src.Check, sp.seen, ctx)
+    if ok and notice and sp.on then
+      local via = N.DELIVERY[sp.via] and sp.via or N.DELIVERY_DEFAULT
+      byVia[via] = byVia[via] or {}
+      local list = byVia[via]
+      list[#list + 1] = { source = src, notice = notice }
+    elseif ok and notice then                  -- switched off: keep up quietly
+      sp.seen, changed = notice.seen, true
+    elseif ok and quiet ~= nil and not settling then
+      sp.seen, changed = quiet, true
+    end
   end
+  if deliver(byVia) then changed = true end
+  if changed then save() end
 end
 
--- /toolbox motd: the current message, whether or not it's new.
-function M.OpenCurrent()
-  local summary = summaryNow()
-  if not summary or summary.inGuild ~= true then
-    T.Print("You're not in a guild.")
-    return
+-- Shows a source's current state (or every enabled one's), new or not. Returns how many showed.
+function N.ShowCurrent(key)
+  local p = prefsNow()
+  local ctx = context()
+  local byVia, n = {}, 0
+  for _, src in ipairs(N.SOURCES) do
+    if (key and src.key == key) or (not key and p.sources[src.key].on) then
+      local ok, notice = pcall(src.Check, nil, ctx)
+      if ok and notice then
+        local via = p.sources[src.key].via
+        byVia[via] = byVia[via] or {}
+        local list = byVia[via]
+        list[#list + 1] = { source = src, notice = notice }
+        n = n + 1
+      end
+    end
   end
-  local text = M.NewMessage(summary, nil)
-  if not text then
-    T.Print("Your guild has no message of the day (or it hasn't loaded yet).")
-    return
+  if n > 0 then
+    if deliver(byVia) then
+      save()
+    else
+      T.Print("The notifications window can't open right now; try again in a few seconds.")
+    end
   end
-  if M.Show(text, summary.guildName) then
-    local p = prefsNow()
-    p.seen = text
-    saveMotd()
-  else
-    T.Print("The guild message window can't open right now; try again in a few seconds.")
-  end
+  return n
 end
 
-function M.GetShow() return prefsNow().show end
+-- ---------------------------------------------------------------------------
+-- Settings
+-- ---------------------------------------------------------------------------
 
-function M.SetShow(on)
-  prefsNow().show = on == true
-  saveMotd()
+function N.Sources() return N.SOURCES end
+
+function N.Label(key)
+  local src = sourceFor(key)
+  return src and src.label or nil
+end
+
+function N.IsOn(key)
+  local sp = prefsNow().sources[key]
+  return sp ~= nil and sp.on == true
+end
+
+-- Returns false for an unknown key.
+function N.SetOn(key, on)
+  local sp = prefsNow().sources[key]
+  if not sp then return false end
+  sp.on = on == true
+  save()
   T.Config.Sync()
+  return true
+end
+
+-- The delivery a source uses ("window"); for settings to offer choices once there are several.
+function N.GetVia(key)
+  local sp = prefsNow().sources[key]
+  return sp and sp.via or N.DELIVERY_DEFAULT
 end

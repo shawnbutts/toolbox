@@ -273,10 +273,7 @@ local function build()
         C.BuffBarSection(),
         C.VitalsSection(),
         C.CombatSection(),
-        UI.Label{ text = "Guild", class = "heading", style = { marginTop = 8 } },
-        UI.Toggle{ id = "guild_motd", text = "Show a new guild message of the day", value = T.Motd.GetShow(),
-          tooltip = "Opens a window with your guild's message when it has changed since you last saw it",
-          onChange = function(_, v) T.Motd.SetShow(v) end },
+        C.NotifySection(),
       } },
     } } },
   }
@@ -289,13 +286,14 @@ local function build()
                 "vitals_pos", "vitals_show_bars", "vitals_show_text", "vitals_bg",
                 "vitals_flash", "vitals_flash_below", "vitals_flash_below_value", "vitals_glue",
                 "show_combat", "combat_pet", "combat_scale", "combat_scale_value", "combat_stats", "combat_pos",
-                "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "guild_motd", "buff_group",
+                "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "buff_group",
                 "buff_replace", "buff_dismiss", "buff_group_after",
                 "buffs_combat_only", "dd_values" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
   end
+  for _, src in ipairs(T.Notify.Sources()) do ids[#ids + 1] = "notify_" .. src.key end
   for _, id in ipairs(ids) do el[id] = win:Find(id) end
 end
 
@@ -329,6 +327,22 @@ function C.OnShowDaily(value)
   if not T.Daily.SetOpen(value == true) then
     el.show_daily:SetValue(T.Daily.IsShown())
   end
+end
+
+-- The "Notifications" part of the settings: one toggle per source (Toolbox.Notify.SOURCES).
+-- More per-source controls (how it's delivered, a sound) would go on each source's row.
+function C.NotifySection()
+  local children = {
+    UI.Label{ text = "Notifications", class = "heading", style = { marginTop = 8 } },
+    UI.Label{ text = "A window tells you what's new since you last saw it.", class = "dim",
+      style = { whiteSpace = "wrap" } },
+  }
+  for _, src in ipairs(T.Notify.Sources()) do
+    local key = src.key
+    children[#children + 1] = UI.Toggle{ id = "notify_" .. key, text = src.label, value = T.Notify.IsOn(key),
+      tooltip = src.tip, onChange = function(_, v) T.Notify.SetOn(key, v) end }
+  end
+  return UI.Column{ children = children }
 end
 
 -- "Group buffs lasting longer than" choices, as shown in the dropdown.
@@ -415,7 +429,7 @@ function C.Sync()
   el.combat_bg_opacity_value:SetText(fontLabel(cop))
   el.vitals_flash_below:SetValue(T.Vitals.GetFlashBelow())
   el.vitals_flash_below_value:SetText(fontLabel(T.Vitals.GetFlashBelow()))
-  el.guild_motd:SetValue(T.Motd.GetShow())
+  for _, src in ipairs(T.Notify.Sources()) do el["notify_" .. src.key]:SetValue(T.Notify.IsOn(src.key)) end
   C.SyncLive()
 end
 

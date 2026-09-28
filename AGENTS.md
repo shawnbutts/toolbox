@@ -152,9 +152,15 @@ Run all three before calling a change done.
     the source checks apply to it: don't quote refused patterns there (runtime loading, "or nil" entries).
     The package allows 16 Lua files and has 15: prefer adding code to an existing file.
   - `docs.lua`: `Toolbox.Docs`, the Docs window, and the version window (`/toolbox version`, `OpenVersion`),
-    and `Toolbox.Motd`, the guild message of the day window (`/toolbox motd`): `Check()` runs from
-    `ShroudOnStart`, every tick and `ShroudOnSocialChanged`, and opens it when the message differs from
-    `guild_motd.seen`; a message counts as seen only once the window is really shown. `NewMessage` is pure.
+    and `Toolbox.Notify`, notifications (`/toolbox notify`, `/toolbox motd`), built to grow in three parts:
+    `N.SOURCES` (key, label, tip, default, `Check(seen, ctx)` -> notice `{ title?, text, seen }` or nil, plus
+    an optional quiet value; `countCheck` / `flagCheck` build the common kinds), `N.DELIVERY` (by name;
+    only "window" so far: one "Notifications" window with a fixed section per source; a chat line, sound
+    or other window style is a new entry + a settings control, sources untouched), and `N.Check` (tick,
+    `ShroudOnStart`, `ShroudOnSocialChanged`, `ShroudOnNotificationsChanged`), which remembers a notice
+    as seen only once delivered. Off sources are tracked quietly; `N.SETTLE` s after start or a character
+    change, counts going down aren't remembered (they read 0 while loading). Settings: `C.NotifySection`
+    builds a toggle per source (ids `notify_<key>`).
     `D.SECTIONS` is the player guide (update it with every
     user-facing change); the Commands part comes from `Toolbox.CommandList()`. Built on first open.
   - `config.lua`: `Toolbox.Config`, the settings window. Controls call the owning module's setters; the
@@ -223,7 +229,8 @@ in chat.
   accept paths it can't load; `H.S.played` / `H.playedNames()`; `H.frame()` / `H.vitals()` / `H.hud()` (the glued strip); `H.combatHud()`, `H.combatRows()`,
   `H.setCombat(on)` (combat mode + callback); `H.submit(win, id, text)`;
   `H.setGuild(name, motd)` (no callback; the next tick sees it), `H.setMotd(text)` (+ `ShroudOnSocialChanged`),
-  `H.motd()`;
+  `H.setNotes{ unreadMail = 2, ... }` (+ `ShroudOnNotificationsChanged`), `H.notify()` (the window),
+  `H.notice(key)` -> `{ shown, title, text }`;
 - The first run on an account prints a one-time welcome and opens the settings window (account-scope
   saved var `welcomed`; `T.Welcome()` runs last in `ShroudOnStart`). Test boots are returning players;
   use `H.firstBoot()` for a first run.
@@ -251,7 +258,7 @@ including the "no character" sentinel.
 | `hud` | `{ glued = bool, x, y }` (the glued strip's position) |
 | `combat` | `{ show, scale = 75..250, pet, stats = { "MagicResistance", ... }, bg = None/Dark/Light, bgOpacity = 10..100, x, y }` |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last = ISO date, day = Toolbox.Today() key, at = Toolbox.Clock() when known } } }`, at most `P.MAX_KEEP` |
-| `guild_motd` | `{ show = bool, seen = "text" }`: the last guild message shown to this character |
+| `notify` | `{ v = 1, sources = { [key] = { on = bool, seen = last value delivered, via = "window" } } }` (keys: motd, mail, expiring, ransoms, rewards, applications); the older `guild_motd` `{ show, seen }` is read once to take over |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts (unversioned ignored) |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
@@ -594,3 +601,6 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     names (`ShroudOnItemsGained`, localized) match SOTA.net's (English, matched whole, any case). The API
     asks for a descriptive User-Agent; the client allows no headers. The store guide says to declare only
     hosts you control; shroudoftheavatar.net publishes this API for tools, but a reviewer may ask.
+44. Notifications (`ShroudGetNotifications`, API 14; built 2026-09-28). Unconfirmed in game: that the
+    counts read 0 (or nil) until loaded after login (hence `N.SETTLE`), what "ransoms" and "newRewards"
+    look like in practice, and `guildApplications` for a recruiter. Check with `/toolbox notify show`.
