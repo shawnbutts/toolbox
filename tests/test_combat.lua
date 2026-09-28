@@ -563,4 +563,45 @@ return function(t)
     end
     t.eq(shownW, Toolbox.Combat.Detail.TYPE_W, "the parts fill the bar")
   end)
+
+  t.test("fight history: the last 10 finished fights, newest first, blips left out", function()
+    H.boot()
+    local M = Toolbox.Combat
+    local s = M.NewSession(0)
+    local function fight(start, dmg, secs)
+      local f = M.NewFight(start)
+      f.out, f.last, f.ended = dmg, start + secs, start + secs
+      return f
+    end
+    for i = 1, 12 do M.Remember(s, fight(i * 100, i * 1000, 10)) end
+    M.Remember(s, fight(2000, 0, 3))                 -- nothing happened: not remembered
+    t.eq(#s.history, M.HISTORY)
+    t.eq(s.history[1].out, 12000, "newest first")
+    t.eq(s.history[1].dps, 1200)
+    t.eq(s.history[#s.history].out, 3000, "the oldest two dropped")
+  end)
+
+  t.test("Combat Detailed: recent fights as DPS bars", function()
+    H.boot()
+    H.chat("/tbx combat")
+    for n = 1, 2 do
+      H.setCombat(true)
+      H.combat({ { kind = "hit", fromYou = true, amount = n * 300, rune = "Thrust", runeId = 10, target = "Spider",
+                   targetKey = n, time = ShroudTime } })
+      H.advance(3)
+      H.setCombat(false)
+      H.advance(1)
+    end
+    H.chat("/tbx combat detail")
+    H.advance(1)
+    local w = H.S.windows.toolbox_combat_detail
+    local body = w.children[1].children[1].children
+    local rows = body[#body - 1].children
+    t.eq(rows[1].visible ~= false, true)
+    t.ok(rows[1].children[1].text:find("Thrust$"), rows[1].children[1].text)
+    t.eq(rows[1].children[2].value, 1, "the newest (600) is the best")
+    t.near(rows[2].children[2].value, 0.5, 0.01)
+    t.eq(rows[3].visible, false)
+    t.eq(w:Find("cd_nohistory").visible, false)
+  end)
 end

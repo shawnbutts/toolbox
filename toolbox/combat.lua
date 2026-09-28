@@ -47,6 +47,7 @@ C.HEAL_KINDS = { heal = true, criticalHeal = true }
 C.AVOID_KINDS = { dodge = true, parry = true, block = true }
 C.SLICE = 2                    -- seconds per column of the damage timeline
 C.TIMELINE = 60                -- seconds the timeline covers
+C.HISTORY = 10                 -- finished fights the session remembers
 
 -- ---------------------------------------------------------------------------
 -- Fight model (no API calls)
@@ -63,8 +64,29 @@ end
 -- slice number: { out, taken }), which runs across fights.
 function C.NewSession(now)
   local s = C.NewFight(now)
-  s.active, s.fights, s.timeline = 0, 0, {}
+  s.active, s.fights, s.timeline, s.history = 0, 0, {}, {}
   return s
+end
+
+-- A finished fight's summary for the session's history: { secs, out, dps, taken, healed, top
+-- (skill with the most damage, or ""), kills }.
+function C.Summary(f)
+  local secs = C.Duration(f, f.ended or f.last)
+  local top = C.TopRunes(f, 1)[1]
+  local kills = 0
+  for _, tg in pairs(f.targets) do
+    if tg.killed then kills = kills + 1 end
+  end
+  return { secs = secs, out = f.out, dps = f.out / math.max(1, secs), taken = f.taken, healed = f.healed,
+           top = top and top.name or "", kills = kills }
+end
+
+-- Adds a finished fight to the session's history (newest first, at most C.HISTORY). Fights with no
+-- damage either way (a combat-mode blip) are left out.
+function C.Remember(s, f)
+  if f.out <= 0 and f.taken <= 0 then return end
+  table.insert(s.history, 1, C.Summary(f))
+  for i = #s.history, C.HISTORY + 1, -1 do s.history[i] = nil end
 end
 
 -- One skill's numbers (by runeId, the same in every language; by name when there is no id;
@@ -329,6 +351,7 @@ local function endFight()
     if session then
       session.active = session.active + C.Duration(fight, fight.ended)
       session.fights = session.fights + 1
+      C.Remember(session, fight)
     end
   end
 end
@@ -746,6 +769,7 @@ CD.OUT_H, CD.IN_H = 44, 28            -- the two halves of the timeline chart
 CD.OUT_COLOR, CD.IN_COLOR, CD.BAR_COLOR = "@green", "@red", "@gold"
 CD.SCOPES = { { "fight", "This fight" }, { "session", "Session" } }
 CD.TARGET_ROWS = 6
+CD.HISTORY_ROWS = 10
 CD.TYPE_W, CD.TYPE_H = 330, 10         -- the damage-type bars
 -- Damage types in the docs' order, and a colour for each: the theme has no colours for them, so
 -- these are fixed (weapons in greys and browns, elements in their usual colours).
@@ -820,7 +844,7 @@ end
 
 local function buildDetail()
   local skills = {}
-  cdEl = { skills = {}, outCols = {}, inCols = {}, targets = {} }
+  cdEl = { skills = {}, outCols = {}, inCols = {}, targets = {}, history = {} }
   for i = 1, CD.SKILL_ROWS do
     local name = UI.Label{ text = "", class = "text",
       style = { width = CD.NAME_W, whiteSpace = "nowrap", marginLeft = 0, marginRight = 4 } }
@@ -850,6 +874,11 @@ local function buildDetail()
   for i = 1, CD.TARGET_ROWS do
     cdEl.targets[i] = barRow()
     targetRows[i] = cdEl.targets[i].row
+  end
+  local historyRows = {}
+  for i = 1, CD.HISTORY_ROWS do
+    cdEl.history[i] = barRow()
+    historyRows[i] = cdEl.history[i].row
   end
   local outTypes, outLegend, outSegs = typeBar("out")
   local inTypes, inLegend, inSegs = typeBar("taken")
@@ -893,10 +922,13 @@ local function buildDetail()
         outTypes, outLegend,
         UI.Label{ text = "Taken", class = "text", style = { marginTop = 4 } },
         inTypes, inLegend,
+        heading("Recent fights (newest first)"),
+        UI.Column{ children = historyRows },
+        UI.Label{ id = "cd_nohistory", text = "No finished fights yet this session.", class = "dim", visible = false },
       } } } } },
   }
   for _, id in ipairs({ "cd_summary", "cd_scope", "cd_noskills", "cd_peak", "cd_heal", "cd_notargets",
-                        "cd_types_out", "cd_types_taken" }) do
+                        "cd_types_out", "cd_types_taken", "cd_nohistory" }) do
     cdEl[id] = cdWin:Find(id)
   end
 end
@@ -1003,6 +1035,24 @@ function CD.Refresh()
     for _, seg in pairs(cdEl.typeSegs[which]) do seg:SetVisible(shown[seg] == true) end
     cdEl["cd_types_" .. which]:SetText(#parts > 0 and table.concat(parts, "  ·  ") or "None yet.")
   end
+  local hist = session and session.history or {}
+  local best = 0
+  for _, h in ipairs(hist) do best = math.max(best, h.dps) end
+  for i, slot in ipairs(cdEl.history) do
+    local h = hist[i]
+    if h then
+      slot.name:SetText(T.FormatDuration(h.secs) .. (h.top ~= "" and ("  " .. h.top) or ""))
+      slot.bar:SetValue(best > 0 and h.dps / best or 0)
+      slot.value:SetText("DPS " .. short(h.dps))
+      local tip = string.format("%s fight: %s damage (%s/s), %s taken, %s healed; %d killed; most damage: %s",
+        T.FormatDuration(h.secs), T.FormatNumber(h.out), short(h.dps), T.FormatNumber(h.taken),
+        T.FormatNumber(h.healed), h.kills, h.top ~= "" and h.top or "none")
+      slot.name:SetTooltip(tip)
+      slot.value:SetTooltip(tip)
+    end
+    slot.row:SetVisible(h ~= nil)
+  end
+  cdEl.cd_nohistory:SetVisible(#hist == 0)
   if s and s.healed + s.overheal > 0 then
     local over = C.OverhealPct(s)
     cdEl.cd_heal:SetText(string.format("%s healed (%s/s); %s wasted as overheal (%d%%).", short(s.healed),

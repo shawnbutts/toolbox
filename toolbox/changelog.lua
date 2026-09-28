@@ -6,7 +6,7 @@
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "section", "Added" },
-  { "item", "Combat Detailed: a window that pops up when you hover the combat HUD (or /toolbox combat detail). Damage by skill as bars, longest first, with hits, crits and over-time ticks on hover; the last minute as a column chart, damage done up and damage taken down; and healing with the share wasted as overheal. For this fight or the whole session. Uses the per-skill combat details of Lua API 17. Also: Targets (damage to each creature, same-named ones kept apart, and how long each took to kill) and Damage types (bars split by element for damage done and taken)." },
+  { "item", "Combat Detailed: a window that pops up when you hover the combat HUD (or /toolbox combat detail). Damage by skill as bars, longest first, with hits, crits and over-time ticks on hover; the last minute as a column chart, damage done up and damage taken down; and healing with the share wasted as overheal. For this fight or the whole session. Uses the per-skill combat details of Lua API 17. Also: Targets (damage to each creature, same-named ones kept apart, and how long each took to kill) and Damage types (bars split by element for damage done and taken), and Recent fights: the last 10 fights as DPS bars, newest first, with damage, taken, healing, kills and top skill on hover." },
   { "item", "/toolbox combat events prints the next combat events' fields, to check what the game sends." },
   { "section", "Fixed" },
   { "item", "Combat events are now read whether the game hands them over as tables or as game objects (the buff list turned out to be game objects), so the combat HUD and the kill count can't silently miss them." },

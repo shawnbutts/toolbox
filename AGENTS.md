@@ -169,7 +169,8 @@ Run all three before calling a change done.
     a hover pop-up of the HUD (`T.Hover`, keys "t:hud"/"t:row<i>") or pinned. Also per target (`targets`,
     keyed `C.TargetKey(targetKey, name)` since keys restart per scene; a "death" line marks the kill,
     `TopTargets`) and per damage type (`types.out` / `types.taken`, `Types`; fixed colours
-    `CD.TYPE_COLORS`, as the theme has none). Fed by `ShroudOnCombatEvents` and `ShroudOnCombatModeChanged` (both in core.lua).
+    `CD.TYPE_COLORS`, as the theme has none). The session's `history`: the last `C.HISTORY` finished fights
+    (`C.Summary` / `C.Remember` in `endFight`), shown as DPS bars. Fed by `ShroudOnCombatEvents` and `ShroudOnCombatModeChanged` (both in core.lua).
     A fixed pool of label rows is built once; `Rows()` decides what they show.
   - `hud.lua`: `Toolbox.Hud` owns every HUD strip. A HUD module registers (`Hud.Register(key, module)`)
     and implements `FRAME_ID`, `HOME`, `BuildContent()`, `ContentSize()`, `IsShown()`,
