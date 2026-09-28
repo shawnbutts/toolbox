@@ -322,7 +322,11 @@ local function isGrouped(e)
 end
 
 -- Re-reads the grouped list (debuff flags, icons, full durations) and raises the debuff alert.
-function BB.OnBuffsChanged()
+-- `from` = "event" (ShroudOnBuffsChanged), "tick" (the bar saw the list change) or "start";
+-- the first two are counted for debug.
+BB.changes = { event = 0, tick = 0 }
+function BB.OnBuffsChanged(from)
+  if BB.changes[from] then BB.changes[from] = BB.changes[from] + 1 end
   local list = ShroudGetPlayerBuff()
   local remainingByName = {}
   for _, e in ipairs(readEffects()) do remainingByName[e.name] = e.remaining end
@@ -367,7 +371,7 @@ function readEffects()
         byName[name] = e
         out[#out + 1] = e
       elseif type(remaining) == "number" and remaining > (e.remaining or -1) then
-        e.remaining = remaining          -- a rune lasts until its last effect ends
+        e.remaining, e.index = remaining, i   -- a rune lasts until its last effect ends; its tooltip
       end
     end
   end
@@ -629,10 +633,19 @@ function BB.Tick()
   end
   -- Two or more buffs appearing in the same tick came in with a login or a zone change, not from
   -- casts: nobody casts two buffs within half a second.
-  local newNow = 0
+  local newNow, present = 0, {}
   for _, e in ipairs(effects) do
+    present[e.name] = true
     if not lastSeen[e.name] then newNow = newNow + 1 end
   end
+  -- The list changed (a name came or went): re-read debuff flags and run the debuff alert here
+  -- too, not only from ShroudOnBuffsChanged, so the alert doesn't depend on that callback
+  -- (reported 2026-09-28: no debuff sound). A second run for the same change finds nothing new.
+  local changed = newNow > 0
+  for name in pairs(lastSeen) do
+    if not present[name] then changed = true end
+  end
+  if changed then BB.OnBuffsChanged("tick") end
   local settling = T.Now() < sceneQuietUntil or newNow >= 2
   for _, e in ipairs(effects) do
     seen[e.name] = true
@@ -718,6 +731,8 @@ function BB.DebugLines()
       num(fx.CurrentDuration), st and (num(st.total) .. " s") or "?", source)
   end
   if #lines == 0 then lines[1] = "No buffs or debuffs right now." end
+  lines[#lines + 1] = "Buff list changes seen: " .. BB.changes.event .. " from ShroudOnBuffsChanged, "
+    .. BB.changes.tick .. " by the bar's own check. Debuff alert: " .. (prefs.debuff and "on" or "off") .. "."
   if BB.CanReplace() then
     lines[#lines + 1] = "Game's buff bar: " .. (ShroudIsBuffBarVisible() and "showing" or "hidden")
       .. " (Toolbox is " .. (stockHidden and "hiding it" or "not hiding it") .. ")."
@@ -857,7 +872,7 @@ function BB.Init()
   lastSeen = {}
   for name in pairs(preexisting) do lastSeen[name] = true end
   BB.Quiet()
-  BB.OnBuffsChanged()                  -- the change callback only fires on changes
+  BB.OnBuffsChanged("start")           -- the change callback only fires on changes
   ShroudRegisterPeriodic(PERIODIC, BB.Tick, BB.TICK, true)
 end
 

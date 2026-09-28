@@ -47,6 +47,11 @@ store submission needs a higher version than any submitted before (rejected ones
 - /toolbox sounds debug is simpler; /toolbox sounds try is gone (sounds work in current clients).
 
 ### Fixed
+- The debuff sound didn't play in game. The alert no longer depends only on the game's buff-change
+  callback: the buff bar's own check notices a new debuff too. /toolbox buffs debug shows how many
+  changes each one saw.
+- Buff bar: a buff with two effects running (e.g. refreshed) shows the tooltip of the one that lasts
+  longer.
 - Toolbox stopped with "pattern too complex" errors (and was disabled) when a buff had a very long
   description; the game's Lua gives up on a text pattern that standard Lua handles. The same could
   have happened with a long guild message. All such text is now trimmed without patterns.

@@ -130,6 +130,10 @@ Run all three before calling a change done.
     `IsEnabled()` is the "Show buff bar" setting; `IsShown()` (what Hud asks) adds `combatOnly`: shown in
     combat (`OnCombatMode` from core's `ShroudOnCombatModeChanged`), `COMBAT_LINGER` s after, or while the
     settings window is open (to place it). `Tick` refreshes the HUD when `IsShown()` changes.
+    `OnBuffsChanged(from)` runs from core's `ShroudOnBuffsChanged` ("event") AND from `Tick` whenever a
+    name comes or goes ("tick"): the debuff alert didn't sound in game (2026-09-28), so it no longer
+    depends on the callback. `BB.changes` counts both for `/toolbox buffs debug`. Unconfirmed which of
+    the two failed: the callback not arriving, or `IsDebuff` not set (the debug marks debuffs).
     `HidesGlued()` (an optional Hud module method): hiding out of combat hides the whole glued strip,
     health & focus bars included (owner, 2026-09-28).
     API 16 (feature-detected, `CanReplace`/`CanDismiss`): `replaceStock` hides the game's bar only while ours

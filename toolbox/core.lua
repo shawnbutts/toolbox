@@ -1123,7 +1123,7 @@ end
 
 -- Buff bar and the debuff alert.
 function ShroudOnBuffsChanged()
-  T.BuffBar.OnBuffsChanged()
+  T.BuffBar.OnBuffsChanged("event")
 end
 
 -- A scene change rebuilds the buff list: don't alert for debuffs that were already there.

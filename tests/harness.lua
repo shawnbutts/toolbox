@@ -760,11 +760,13 @@ function H.httpRespond(n, ok, status, body, err)
 end
 
 -- Adds effects ({ name = , remaining = , debuff = , icon = , permanent = }) and fires the callback.
-function H.addBuffs(list)
+-- `silent`: the game doesn't fire ShroudOnBuffsChanged (reported 2026-09-28: no debuff sound).
+function H.addBuffs(list, silent)
   for _, b in ipairs(list) do
     b.total = b.total or b.remaining             -- full duration (for H.S.durationMode)
     S.buffs[#S.buffs + 1] = b
   end
+  if silent then return end
   return H.callback("ShroudOnBuffsChanged")
 end
 

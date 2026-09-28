@@ -1284,4 +1284,42 @@ return function(t)
     H.chat("/tbx buffs debug")
     t.ok(H.logged("^%+5%% Spell Critical Chance Bonus and a great deal"))
   end)
+
+  t.test("debuff alert without ShroudOnBuffsChanged: the bar's own check catches it", function()
+    bootWithSounds()
+    H.S.played = {}
+    H.addBuffs({ { name = "Poison", remaining = 20, debuff = true, icon = 7 } }, true)
+    H.advance(1)
+    t.eq(H.playedNames(), "toolbox_debuff_landed")
+    H.chat("/tbx buffs")
+    H.advance(1)
+    t.eq(#H.slots("debuffs"), 1, "shown in the debuff row")
+    H.S.buffs = {}                               -- it wears off, silently too
+    H.advance(Toolbox.BuffBar.DEBUFF_COOLDOWN + 1)
+    H.S.played = {}
+    H.addBuffs({ { name = "Poison", remaining = 20, debuff = true, icon = 7 } }, true)
+    H.advance(1)
+    t.eq(H.playedNames(), "toolbox_debuff_landed", "again when it lands again")
+    H.clearLogs()
+    H.chat("/tbx buffs debug")
+    t.ok(H.logged("^Buff list changes seen: 0 from ShroudOnBuffsChanged, %d+ by the bar's own check%."))
+  end)
+
+  t.test("debuff alert: the callback and the bar's check don't both sound", function()
+    bootWithSounds()
+    H.S.played = {}
+    H.addBuffs({ { name = "Poison", remaining = 20, debuff = true, icon = 7 } })
+    H.advance(Toolbox.BuffBar.DEBUFF_COOLDOWN + 2)
+    t.eq(H.playedNames(), "toolbox_debuff_landed", "once")
+  end)
+
+  t.test("a rune with two effects: one icon, with the longer-lasting effect's tooltip", function()
+    H.boot()
+    H.chat("/tbx buffs")
+    H.addBuffs({ { name = "Light", remaining = 30, icon = 5, tooltip = "Light\n30s" },
+                 { name = "Light", remaining = 600, icon = 5, tooltip = "Light\n10m" } })
+    H.advance(1)
+    t.eq(#H.slots("buffs"), 1)
+    t.eq(H.slots("buffs")[1].children[1].tooltip, "Light\n10m")
+  end)
 end
