@@ -292,7 +292,7 @@ end
 function N.NewMotd(summary, seen)
   if type(summary) ~= "table" or summary.inGuild ~= true then return nil end
   if type(summary.guildMotd) ~= "string" then return nil end
-  local text = summary.guildMotd:match("^%s*(.-)%s*$")
+  local text = T.Trim(summary.guildMotd)
   if text == "" or text == seen then return nil end
   return text
 end

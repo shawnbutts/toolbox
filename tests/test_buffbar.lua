@@ -1271,4 +1271,17 @@ return function(t)
     H.chat("/tbx buffs combat on")               -- "only during combat", but the bar itself is off
     t.ok(H.hud().visible ~= false)
   end)
+
+  t.test("a very long buff description doesn't stop the bar (MoonSharp: pattern too complex)", function()
+    H.boot()
+    H.chat("/tbx buffs")
+    local long = "  +5% Spell Critical Chance Bonus " .. string.rep("and a great deal more text ", 12) .. " "
+    H.addBuffs({ { name = "LongOne", label = long, remaining = 5000, icon = 9 },     -- grouped: read each tick
+                 { name = "Short", label = long, remaining = 60, icon = 8 } })
+    H.advance(3)
+    t.ok(H.slots("buffs")[2].children[1].tooltip:find("^Long%-lasting buffs %(1%)\n%+5%% Spell Critical"))
+    H.clearLogs()
+    H.chat("/tbx buffs debug")
+    t.ok(H.logged("^%+5%% Spell Critical Chance Bonus and a great deal"))
+  end)
 end

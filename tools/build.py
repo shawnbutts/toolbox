@@ -55,6 +55,10 @@ MAX_ENTRIES = 80         # the guide: "under 24 MB, zipped or unpacked, and at m
 MAX_ZIPPED = 24 * 1024 * 1024
 MAX_UNPACKED = 24 * 1024 * 1024
 
+# A lazy capture with the match anchored at the end: MoonSharp raised "pattern too complex" on
+# the trim pattern over a long buff description (2026-09-28), killing the add-on.
+LAZY_PATTERN_RE = re.compile(r"\(\.-\)[^\"'\n]*\$")
+
 # Runtime code loading. The client scans source text (comments included) for these,
 # and review flags them, so they are refused anywhere in a package file.
 DYNAMIC_CODE_RE = re.compile(
@@ -306,6 +310,11 @@ def check_sources(report: Report, manifest: dict) -> None:
             if m and not line.lstrip().startswith("--"):
                 report.error(f"{f}:{lineno}: a table entry that can be nil ('{m.group(0).strip()}'); the game's"
                              " Lua passes nil entries to the UI, which rejects them - use a real default")
+            m = LAZY_PATTERN_RE.search(line)
+            if m:
+                report.error(f"{f}:{lineno}: pattern '{m.group(0)}': the game's Lua gives up on a lazy (.-) match"
+                             " anchored at the end over long text ('pattern too complex'); use Toolbox.Trim or"
+                             " plain find/sub")
             m = FORBIDDEN_LIB_RE.search(line)
             if m:
                 report.error(f"{f}:{lineno}: '{m.group(0)}' - use saved vars, not io/os (only os.date/os.time allowed)")

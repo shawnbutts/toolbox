@@ -29,6 +29,11 @@ Guidance for AI coding agents (and humans) working on Toolbox, a Shroud of the A
   number or a string" hid the whole combat strip). Use a real default, or add the key only when set.
   The tests can't see this (a nil entry doesn't exist in standard Lua); `tools/build.py` refuses
   `name = ... or nil` table entries.
+- **No lazy `.-` patterns on text that can be long.** MoonSharp raises "pattern too complex" where
+  standard Lua copes: the trim `"^%s*(.-)%s*$"` on a long buff description stopped the buff bar's
+  timer and got Toolbox disabled (2026-09-28). Use `Toolbox.Trim` / `Toolbox.ParseArgs` or plain
+  `find`/`sub`. `tools/build.py` refuses a `(.-)` capture anchored with `$`; the harness raises the
+  same error for any `.-` pattern on text over 120 characters.
 - **Avoid `a and b or c` when `b` can be false/nil**; it has already caused a bug (vitals "not both off").
 - **Don't guess at API behaviour.** If the docs are unclear, pick the conservative option, write
   down the assumption (README or a comment), and add it to "Unconfirmed API behaviour" below.

@@ -66,10 +66,22 @@ function T.Today()
   local server = ShroudServerTime
   if type(server) == "string" then
     local datePart = server:gsub("%d%d?:%d%d:?%d?%d?%.?%d*%s*[AaPp]?%.?[Mm]?%.?", "")
-    datePart = datePart:gsub("UTC", ""):gsub("[Zz]%s*$", ""):gsub("[Tt]%s*$", ""):match("^%s*(.-)[%s,]*$")
+    datePart = T.Trim((datePart:gsub("UTC", ""):gsub("[Zz]%s*$", ""):gsub("[Tt]%s*$", "")), "%s,")
     if datePart:find("%d") then return "utc:" .. datePart, datePart .. " UTC", "utc" end
   end
   return nil
+end
+
+-- Trims `set` (a pattern class body, default "%s": spaces) from both ends, with a plain loop:
+-- the game's MoonSharp gives up on the usual lazy-capture trim pattern over long text ("pattern
+-- too complex", on a buff description, 2026-09-28), which standard Lua (and so the tests) handles.
+function T.Trim(s, set)
+  s = tostring(s or "")
+  local class = "[" .. (set or "%s") .. "]"
+  local i, j = 1, #s
+  while i <= j and s:sub(i, i):find(class) do i = i + 1 end
+  while j >= i and s:sub(j, j):find(class) do j = j - 1 end
+  return s:sub(i, j)
 end
 
 -- Deep copy of plain data (tables, strings, numbers, booleans). Used so the
@@ -902,9 +914,10 @@ end)
 
 -- Parses "  XP  extra " -> "xp", "extra".
 function T.ParseArgs(args)
-  args = tostring(args or "")
-  local word, rest = args:match("^%s*(%S*)%s*(.-)%s*$")
-  return (word or ""):lower(), rest or ""
+  args = T.Trim(args)
+  local gap = args:find("%s")
+  if not gap then return args:lower(), "" end
+  return args:sub(1, gap - 1):lower(), T.Trim(args:sub(gap + 1))
 end
 
 function T.Dispatch(args)

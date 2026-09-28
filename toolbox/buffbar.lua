@@ -298,7 +298,7 @@ local function plainLabel(index, fallback)
   local label = ShroudGetBuffDescription(index)
   if type(label) ~= "string" or label == "Invalid" then return fallback end
   label = label:gsub("%[%x%x%x%x%x%x%x?%x?%]", ""):gsub("%[%-%]", ""):gsub("%[/?%a%]", "")
-  label = label:match("^%s*(.-)%s*$")
+  label = T.Trim(label)
   return label ~= "" and label or fallback
 end
 
@@ -1008,7 +1008,7 @@ end
 
 -- Returns ok, message (for chat).
 function BB.AddGroupPart(part)
-  part = (part or ""):match("^%s*(.-)%s*$")
+  part = T.Trim(part)
   if part == "" then return false, "Give part of a buff's name, e.g. BlessingOfStamina." end
   if #part > BB.GROUP_LEN then return false, "Keep it under " .. BB.GROUP_LEN .. " characters." end
   local parts = BB.GroupParts()
@@ -1022,7 +1022,7 @@ function BB.AddGroupPart(part)
 end
 
 function BB.RemoveGroupPart(part)
-  part = (part or ""):match("^%s*(.-)%s*$"):lower()
+  part = T.Trim(part):lower()
   local parts, kept, found = BB.GroupParts(), {}, nil
   for _, p in ipairs(parts) do
     if p:lower() == part then found = p else kept[#kept + 1] = p end

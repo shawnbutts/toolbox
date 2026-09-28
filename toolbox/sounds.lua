@@ -227,7 +227,7 @@ end
 function S.SetPath(key, path)
   for _, def in ipairs(S.DEFS) do
     if def.key == key then
-      path = tostring(path or ""):match("^%s*(.-)%s*$")
+      path = T.Trim(path)
       prefs.paths[key] = path ~= "" and path or nil
       save()
       startLoad(def)

@@ -523,7 +523,8 @@ local REFUSALS = {
   host_not_allowed = "the package doesn't declare shroudoftheavatar.net",
 }
 function P.Test(name)
-  name = (type(name) == "string" and name:match("%S")) and name:match("^%s*(.-)%s*$") or P.TEST_ITEM
+  name = T.Trim(name)
+  if name == "" then name = P.TEST_ITEM end
   if type(ShroudHttpGet) ~= "function" then
     T.Print("Price test: this game client has no internet access for add-ons (no ShroudHttpGet).")
     return

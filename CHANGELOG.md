@@ -47,6 +47,9 @@ store submission needs a higher version than any submitted before (rejected ones
 - /toolbox sounds debug is simpler; /toolbox sounds try is gone (sounds work in current clients).
 
 ### Fixed
+- Toolbox stopped with "pattern too complex" errors (and was disabled) when a buff had a very long
+  description; the game's Lua gives up on a text pattern that standard Lua handles. The same could
+  have happened with a long guild message. All such text is now trimmed without patterns.
 - Buff bar: the sweep no longer lags the game's own buff bar. Buffs that load in after you log in
   (or zone) were taken for fresh casts, so their time left at that moment was remembered as their
   full length. Buffs that appear in the first 15 seconds after logging in, zoning or switching

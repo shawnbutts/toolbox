@@ -83,6 +83,20 @@ local function scopeOf(scope)
   return "character:" .. S.char.name
 end
 
+-- The game's MoonSharp raises "pattern too complex" for a lazy ".-" pattern over long text (a
+-- buff description, 2026-09-28), where standard Lua copes. Model it, so tests catch it.
+local LAZY_LIMIT = 120
+local realFind = string.find
+for _, fname in ipairs({ "match", "find", "gmatch", "gsub" }) do
+  local real = string[fname]
+  string[fname] = function(s, pattern, ...)
+    if type(s) == "string" and #s > LAZY_LIMIT and type(pattern) == "string" and realFind(pattern, "%.%-") then
+      error("pattern too complex", 2)
+    end
+    return real(s, pattern, ...)
+  end
+end
+
 local realDate = os.date
 local realTime = os.time
 
@@ -589,7 +603,7 @@ local function manifest_files()
   local f = assert(io.open(H.PACKAGE .. "/manifest.json", "r"))
   local text = f:read("*a")
   f:close()
-  local list = assert(text:match('"files"%s*:%s*%[(.-)%]'), "manifest has no files list")
+  local list = assert(text:match('"files"%s*:%s*%[([^%]]*)%]'), "manifest has no files list")
   local files = {}
   for name in list:gmatch('"([^"]+)"') do files[#files + 1] = name end
   return files

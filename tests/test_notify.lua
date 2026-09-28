@@ -342,4 +342,12 @@ return function(t)
     t.no(H.notice("mail") and H.notice("mail").shown, "mail not in the window")
     t.ok(H.nhudRow(1):find("New mail"), "mail on the HUD")
   end)
+
+  t.test("a long guild message works (MoonSharp: pattern too complex)", function()
+    H.boot()
+    local long = "  Welcome! " .. string.rep("Raid tonight at 8, bring potions. ", 10) .. "\n"
+    H.setGuild("Knights", long)
+    H.advance(1)
+    t.eq(H.notice("motd").text, Toolbox.Trim(long))
+  end)
 end
