@@ -296,8 +296,7 @@ them in the harness with their documented behaviour.
 
 **API 15: sounds** (`sounds.lua`, items 23 and 24):
 
-1. First, re-test as-is: `/toolbox sounds test`, `try 1`, `debug`. The "no clip loads" problem (23h) may
-   have been the client. Until clips load and play in game, nothing below is worth doing.
+1. DONE 2026-09-28: sounds work in game after a client fix (23h). Next: steps 3-4.
 2. From API 15, `ShroudLoadSound` checks the file first and returns false for a missing or empty file,
    one over 8 MB, or one whose header isn't the `AudioType` passed. So on false, try the next candidate
    at once. Keep `LOAD_TIMEOUT` for true, because decode errors are still only logged.
@@ -479,6 +478,8 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     scheme-less URL against https://localhost/. (On Windows "C:\..." parses as an absolute file URI, so it
     probably works there.) Client fix: `"file://" + path` / `new System.Uri(path).AbsoluteUri`. Passing
     "file://..." from Lua can't help: the client prefixes the Lua root itself.
+    FIXED 2026-09-28: the owner reports sounds now work (a client update). Pending: `/toolbox sounds
+    debug` output, to record which path and format loaded.
 23g. FOUND 2026-09-27 (build ac17b29): `ShroudLoadSound` returned TRUE for every path, even ones that can't
     exist, so "true" only means "request accepted" (the docs say "path exists"). After 12 accepted loads
     (.ogg and .wav, Lua root and package folder) `ShroudListSound()` stayed empty (0 keys). Either every

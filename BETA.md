@@ -88,9 +88,9 @@ Anything you like, but especially:
 5. Known issues
 ---------------
 
-  * Alert sounds don't play on macOS: the game client fails to load add-on sound files there (a
-    game bug, reported). The buff sweep still turns red before a buff runs out. On Windows they may
-    work: if you're on Windows, please tell us whether /tbx sounds test plays anything.
+  * Alert sounds need a recent game client: older macOS clients failed to load add-on sound files
+    (a game bug, now fixed). If /tbx sounds test is silent, update the game. The buff sweep still
+    turns red before a buff runs out either way.
   * The Ctrl+Shift+; shortcut may not take on some setups. If it does nothing, set a key for
     Toolbox in the add-on manager under "Keys".
   * A buff that was already running when you installed Toolbox shows no sweep until you recast it
