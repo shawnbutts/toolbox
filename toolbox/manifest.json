@@ -3,12 +3,13 @@
   "slug": "toolbox",
   "name": "Toolbox",
   "version": "0.2.1",
-  "description": "XP and daily stats. XP: session time, adventurer and producer pools, XP earned in the last hour; hover for XP Detailed with levels, progress bars, XP per hour and time to next level. Today: gold picked up, kills and XP since midnight; hover for every item gained today. Health & focus bars. Combat stats HUD: DPS, damage taken, healing, crit and avoid rates. Buff bar: your buffs and debuffs with a clock sweep, and optional sound alerts before a buff runs out and when a debuff lands (sound files you add to your Lua folder). Commands: /toolbox and /tbx.",
+  "description": "XP and daily stats. XP: session time, adventurer and producer pools, XP earned in the last hour; hover for XP Detailed with levels, progress bars, XP per hour and time to next level. Today: gold picked up, kills and XP since midnight; hover for every item gained today, with optional estimated values from shroudoftheavatar.net (uses the internet, off by default). Health & focus bars. Combat stats HUD: DPS, damage taken, healing, crit and avoid rates. Buff bar: your buffs and debuffs with a clock sweep, and optional sound alerts before a buff runs out and when a debuff lands (sound files you add to your Lua folder). Commands: /toolbox and /tbx.",
   "author": "shawn butts",
   "files": ["core.lua", "xp.lua", "hover.lua", "ui.lua", "compact.lua", "daily.lua", "dailydetail.lua", "sounds.lua", "hud.lua", "buffbar.lua",
             "vitals.lua", "combat.lua", "changelog.lua", "docs.lua",
             "config.lua"],
   "icon": "icon.png",
   "min_api_version": 14,
-  "permissions": []
+  "permissions": ["network"],
+  "network_hosts": ["shroudoftheavatar.net"]
 }

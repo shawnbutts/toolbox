@@ -23,6 +23,12 @@ store submission needs a higher version than any submitted before (rejected ones
 - Buff bar: "Only during combat" shows the bar only while you're in combat (and 5 seconds after),
   so it can sit in your line of sight without being in the way. It also shows while the settings
   window is open, so you can place it. /toolbox buffs combat on|off. Alerts work either way.
+- Today Detailed: optional estimated values. Each item shows its count times its 90-day average
+  sale price from SOTA.net's public price list (player-uploaded receipts), and the header a total
+  for the day; hover a value for the price each. Items with no recent sales stay blank. Off by
+  default: switch on "Estimated values (SOTA.net)" in settings (or /toolbox dd values on) and
+  Internet for Toolbox in the add-on manager. Only item names are sent; prices are kept for the day.
+  /toolbox dd values test [item] checks the connection with one lookup and prints the answer.
 - /toolbox api lists which newer game functions this client has (buff bar, crafting, friends and
   guild), to check the client against the docs.
 

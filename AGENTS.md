@@ -91,6 +91,15 @@ Run all three before calling a change done.
     timer (element-creation cap; no reorder API): new names are appended, and a sorted rebuild happens
     only when the window is shown, the rows are out of order, and `RESORT_SECONDS` have passed.
     Rows have no ids (item names aren't valid ids); handles are kept in a Lua table.
+    Also `Toolbox.Prices` (bottom of the file): optional estimated values (`daily_detail.values`) from
+    SOTA.net's `GET /api/v1/receipts/prices?item=..` (<= 50 names, `avg90d` null = no sales) via
+    `ShroudHttpGet` (manifest `permissions: ["network"]`, `network_hosts: ["shroudoftheavatar.net"]`;
+    the player must also switch Internet on in the add-on manager). Names are queued by `RefreshValues`
+    (only while the window shows), sent one request at a time `P.GAP` apart from `P.Tick` (core Tick),
+    answered in core's `ShroudOnHttpResponse` -> `P.OnResponse`; cached per account for the local day.
+    JSON via `Toolbox.JsonDecode` (core.lua; the sandbox has none), URLs via `Toolbox.UrlEncode`.
+    `/toolbox dd values test [item]` (`P.Test`/`P.Report`): one lookup regardless of the setting, each step
+    (refusal reason, HTTP error, price) printed in chat; the first thing to run in game.
   - `sounds.lua`: `Toolbox.Sounds`. `Play(key)` for `buff_expiring` / `debuff_landed`. Loading walks
     candidate paths (custom, `toolbox_<file>` loose in Lua/, `toolbox/<file>`, `<file>`); each gets
     `LOAD_TIMEOUT` s to appear in `ShroudListSound()` (loads are async and "accepted" isn't "found").
@@ -232,13 +241,14 @@ including the "no character" sentinel.
 | `compact` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, hx, hy }` (hx/hy: the HUD strip) |
 | `daily` | see the header comment of `daily.lua` (format `v = 1`) |
 | `daily_window` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, hx, hy }` |
-| `daily_detail` | `{ open = bool, x = number, y = number }` |
+| `daily_detail` | `{ open = bool, x = number, y = number, values = bool }` |
 | `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), group = { name parts }, replaceStock, clickDismiss, combatOnly, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { buff_expiring = "...", debuff_landed = "..." } }` |
 | `buff_timers` | `{ v = 3, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload (v1/v2 ignored) |
 | `vitals` | `{ show, width = 100..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, x, y }` |
 | `hud` | `{ glued = bool, x, y }` (the glued strip's position) |
 | `combat` | `{ show, scale = 75..250, pet, stats = { "MagicResistance", ... }, bg = None/Dark/Light, bgOpacity = 10..100, x, y }` |
+| `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last = ISO date, day = Toolbox.Today() key } } }`, at most `P.MAX_KEEP` |
 | `guild_motd` | `{ show = bool, seen = "text" }`: the last guild message shown to this character |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts (unversioned ignored) |
 
@@ -577,3 +587,8 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     gesture `ShroudDismissBuff` needs (the docs list "clickable images"). If dismissing says "it needs a
     click", that's the place to look.
     CONFIRMED in game 2026-09-27 (build 7fe0014): both work as built.
+43. Web requests (`ShroudHttpGet`, built 2026-09-28 for estimated values): unconfirmed in game that the
+    shard has it switched on, how the add-on manager's Internet switch appears, and whether looted item
+    names (`ShroudOnItemsGained`, localized) match SOTA.net's (English, matched whole, any case). The API
+    asks for a descriptive User-Agent; the client allows no headers. The store guide says to declare only
+    hosts you control; shroudoftheavatar.net publishes this API for tools, but a reviewer may ask.

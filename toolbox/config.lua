@@ -253,6 +253,14 @@ local function build()
           onChange = function(_, value) C.OnShowDailyDetail(value) end,
         },
         UI.Toggle{
+          id = "dd_values", text = "Estimated values (SOTA.net)", value = T.DailyDetail.GetValues(),
+          style = { marginLeft = 16 },
+          tooltip = "Adds each item's value to Today Detailed: count x its 90-day average sale price from"
+            .. " shroudoftheavatar.net (player-uploaded receipts); blank when it hasn't sold. Sends item"
+            .. " names to that site. Also switch Internet on for Toolbox in the add-on manager.",
+          onChange = function(_, value) T.DailyDetail.SetValues(value) end,
+        },
+        UI.Toggle{
           id = "hover_popup", text = "Show XP Detailed on hover", value = T.Compact.GetHover(),
           tooltip = "Hovering the XP window pops up the XP Detailed window",
           onChange = function(_, value) T.Compact.SetHover(value) end,
@@ -283,7 +291,7 @@ local function build()
                 "show_combat", "combat_pet", "combat_scale", "combat_scale_value", "combat_stats", "combat_pos",
                 "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "guild_motd", "buff_group",
                 "buff_replace", "buff_dismiss", "buff_group_after",
-                "buffs_combat_only" }
+                "buffs_combat_only", "dd_values" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -365,6 +373,7 @@ function C.Sync()
   el.show_compact:SetValue(T.Compact.IsShown())
   el.show_daily:SetValue(T.Daily.IsShown())
   el.show_daily_detail:SetValue(T.DailyDetail.IsOpen())
+  el.dd_values:SetValue(T.DailyDetail.GetValues())
   el.hover_popup:SetValue(T.Compact.GetHover())
   el.hover_daily:SetValue(T.Daily.GetHover())
   el.xp_hud:SetValue(T.Compact.GetHud())

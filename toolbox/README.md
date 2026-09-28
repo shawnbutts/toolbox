@@ -21,6 +21,7 @@ under **Keys**.
 - `/toolbox reset`: start a new XP session
 - `/toolbox daily`: show or hide today's stats: gold picked up, kills, adventurer and producer XP (resets at midnight)
 - `/toolbox dailydetailed` (or `dd`): show or hide Today Detailed: every item gained today, with counts
+- `/toolbox dd values on` / `off`: estimated values in Today Detailed, from SOTA.net (see below)
 - `/toolbox buffs`: show or hide the buff bar
 - `/toolbox buffalert <1-60>` (or `on` / `off`): sound this many seconds before a buff runs out
 - `/toolbox debuffalert on` / `off`: sound when a debuff lands
@@ -52,6 +53,20 @@ and which windows are open are saved per character.
 `/toolbox daily` shows gold picked up, kills by you or your pet, and adventurer and producer XP
 gained today. It resets at local midnight. Rest the pointer on it and **Today Detailed** pops up
 with every item that arrived in your bags today and how many.
+
+### Estimated values (optional, uses the internet)
+
+Turn on **Estimated values (SOTA.net)** in settings (or `/toolbox dd values on`) and Today Detailed
+adds each item's estimated value: its count times its average sale price over the last 90 days,
+from the public price list at shroudoftheavatar.net (built from receipts players upload), plus a
+total for the day. Hover a value for the price per unit and how many sold. Items that haven't
+sold in 90 days stay blank.
+
+It is off by default and needs two switches: this setting, and **Internet** for Toolbox in the
+add-on manager (off until you turn it on). When on, Toolbox sends only the names of the items in
+Today Detailed to shroudoftheavatar.net, at most one request every few seconds, and remembers the
+prices for the rest of the day. Like any website, that site can see your IP address. Toolbox
+contacts no other site.
 
 ## Buff bar
 

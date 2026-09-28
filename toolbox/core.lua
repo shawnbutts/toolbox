@@ -94,6 +94,138 @@ function T.FormatNumber(n)
   return out
 end
 
+-- Percent-encodes text for a URL query ("Gold Ore" -> "Gold%20Ore"); UTF-8 bytes one by one.
+function T.UrlEncode(s)
+  return (tostring(s):gsub("[^%w%-%._~]", function(c) return string.format("%%%02X", c:byte()) end))
+end
+
+-- Decodes JSON text: objects -> tables, arrays -> lists, null -> nil (a null in an array
+-- leaves a hole; `n` is not kept). Returns the value, or nil and an error message. The
+-- sandbox has no JSON library; used for the SOTA.net price API's answers.
+function T.JsonDecode(s)
+  if type(s) ~= "string" then return nil, "not text" end
+  local pos = 1
+  local function fail(msg) error({ json = msg .. " at " .. pos }, 0) end
+  local function skip() pos = s:find("[^ \t\r\n]", pos) or (#s + 1) end
+  local function utf8char(cp)
+    if cp < 0x80 then return string.char(cp) end
+    if cp < 0x800 then return string.char(0xC0 + math.floor(cp / 0x40), 0x80 + cp % 0x40) end
+    if cp < 0x10000 then
+      return string.char(0xE0 + math.floor(cp / 0x1000), 0x80 + math.floor(cp / 0x40) % 0x40, 0x80 + cp % 0x40)
+    end
+    return string.char(0xF0 + math.floor(cp / 0x40000), 0x80 + math.floor(cp / 0x1000) % 0x40,
+      0x80 + math.floor(cp / 0x40) % 0x40, 0x80 + cp % 0x40)
+  end
+  local ESCAPES = { ['"'] = '"', ["\\"] = "\\", ["/"] = "/", b = "\b", f = "\f", n = "\n", r = "\r", t = "\t" }
+  local function str()
+    pos = pos + 1                                  -- past the opening quote
+    local out = {}
+    while true do
+      local c = s:sub(pos, pos)
+      if c == "" then fail("unfinished string") end
+      if c == '"' then
+        pos = pos + 1
+        return table.concat(out)
+      elseif c == "\\" then
+        local e = s:sub(pos + 1, pos + 1)
+        if e == "u" then
+          local hex = s:sub(pos + 2, pos + 5)
+          if not hex:match("^%x%x%x%x$") then fail("bad \\u escape") end
+          local cp = tonumber(hex, 16)
+          pos = pos + 6
+          if cp >= 0xD800 and cp <= 0xDBFF and s:sub(pos, pos + 1) == "\\u" then
+            local lo = tonumber(s:sub(pos + 2, pos + 5), 16)
+            if lo and lo >= 0xDC00 and lo <= 0xDFFF then
+              cp = 0x10000 + (cp - 0xD800) * 0x400 + (lo - 0xDC00)
+              pos = pos + 6
+            end
+          end
+          out[#out + 1] = utf8char(cp)
+        elseif ESCAPES[e] then
+          out[#out + 1] = ESCAPES[e]
+          pos = pos + 2
+        else
+          fail("bad escape")
+        end
+      else
+        local j = s:find('["\\]', pos) or (#s + 1)
+        out[#out + 1] = s:sub(pos, j - 1)
+        pos = j
+      end
+    end
+  end
+  local value = nil
+  value = function(depth)
+    if depth > 64 then fail("nested too deep") end
+    skip()
+    local c = s:sub(pos, pos)
+    if c == "{" then
+      pos = pos + 1
+      local obj = {}
+      skip()
+      if s:sub(pos, pos) == "}" then
+        pos = pos + 1
+        return obj
+      end
+      while true do
+        skip()
+        if s:sub(pos, pos) ~= '"' then fail("expected a key") end
+        local k = str()
+        skip()
+        if s:sub(pos, pos) ~= ":" then fail("expected ':'") end
+        pos = pos + 1
+        obj[k] = value(depth + 1)
+        skip()
+        local d = s:sub(pos, pos)
+        pos = pos + 1
+        if d == "}" then return obj end
+        if d ~= "," then fail("expected ',' or '}'") end
+      end
+    elseif c == "[" then
+      pos = pos + 1
+      local arr, n = {}, 0
+      skip()
+      if s:sub(pos, pos) == "]" then
+        pos = pos + 1
+        return arr
+      end
+      while true do
+        n = n + 1
+        arr[n] = value(depth + 1)
+        skip()
+        local d = s:sub(pos, pos)
+        pos = pos + 1
+        if d == "]" then return arr end
+        if d ~= "," then fail("expected ',' or ']'") end
+      end
+    elseif c == '"' then
+      return str()
+    elseif s:sub(pos, pos + 3) == "true" then
+      pos = pos + 4
+      return true
+    elseif s:sub(pos, pos + 4) == "false" then
+      pos = pos + 5
+      return false
+    elseif s:sub(pos, pos + 3) == "null" then
+      pos = pos + 4
+      return nil
+    end
+    local num = s:match("^%-?%d+%.?%d*[eE]?[%+%-]?%d*", pos)
+    local v = num and tonumber(num)
+    if not v then fail("unexpected '" .. c .. "'") end
+    pos = pos + #num
+    return v
+  end
+  local ok, result = pcall(function()
+    local v = value(0)
+    skip()
+    if pos <= #s then fail("text after the value") end
+    return v
+  end)
+  if ok then return result end
+  return nil, type(result) == "table" and result.json or tostring(result)
+end
+
 -- Seconds -> "1h 02m 03s" / "4m 05s" / "7s".
 function T.FormatDuration(seconds)
   seconds = math.max(0, math.floor(seconds or 0))
@@ -176,7 +308,21 @@ add("daily", "show or hide today's stats (gold, kills, XP; resets at midnight; h
   formCommand(T.Daily, "daily", "Today", rest)
 end)
 
-add("dailydetailed", "show or hide Today Detailed (every item gained today, with counts)", function()
+add("dailydetailed", "show or hide Today Detailed (every item gained today, with counts; values on|off: "
+    .. "estimated values from SOTA.net; values test [item]: check the connection)", function(rest)
+  local word, arg = T.ParseArgs(rest)
+  if word == "values" then
+    local sub, item = T.ParseArgs(arg)
+    if sub == "test" then
+      T.Prices.Test(item)
+      return
+    end
+    arg = arg:lower()
+    if arg == "on" or arg == "off" then T.DailyDetail.SetValues(arg == "on") end
+    T.Print("Estimated values (SOTA.net): " .. (T.DailyDetail.GetValues() and "on" or "off") .. "."
+      .. (T.DailyDetail.GetValues() and " Switch Internet on for Toolbox in the add-on manager too." or ""))
+    return
+  end
   T.DailyDetail.Toggle()
 end, { "dd" })
 
@@ -808,6 +954,7 @@ function T.Tick()
     T.unflushed = false
   end
   T.Sounds.Poll()
+  T.Prices.Tick()                    -- estimated values: the next SOTA.net lookup, when due
   T.Hud.Tick()                       -- remember where the HUD strips are
   T.Config.SyncLive()
   T.RefreshViews()
@@ -888,6 +1035,11 @@ end
 -- Guild or friends changed (twice a second at most): maybe a new guild message of the day.
 function ShroudOnSocialChanged()
   T.Motd.Check()
+end
+
+-- Web answers (only the SOTA.net price lookups ask for any).
+function ShroudOnHttpResponse(requestId, ok, status, body, err)
+  T.Prices.OnResponse(requestId, ok, status, body, err)
 end
 
 -- Items for the daily stats (anything that arrives in your bags).

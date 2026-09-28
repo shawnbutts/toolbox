@@ -38,6 +38,11 @@ D.SECTIONS = {
     "Today (/toolbox daily): gold picked up, kills by you or your pet, and adventurer and "
       .. "producer XP since midnight. Rest the pointer on it for Today Detailed: every item that "
       .. "arrived in your bags today, with counts.",
+    "Estimated values (optional): switch on Estimated values (SOTA.net) in settings, or /toolbox dd "
+      .. "values on, and switch Internet on for Toolbox in the add-on manager. Today Detailed then shows "
+      .. "each item's count times its 90-day average sale price from shroudoftheavatar.net (player-"
+      .. "uploaded receipts) and a total; hover a value for the price each. Items with no recent sales "
+      .. "stay blank. Only item names are sent, and prices are kept for the day.",
     "Like XP, it can be a HUD strip: /toolbox daily hud (and daily window, daily move <x> <y>)." },
   { "Buff bar",
     "/toolbox buffs: your buffs and debuffs (outlined red) as their skill icons, the one that runs out "

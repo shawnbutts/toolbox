@@ -17,7 +17,7 @@ H.PACKAGE = ROOT .. "/toolbox"
 local CALLBACKS = {
   "ShroudOnStart", "ShroudOnUpdate", "ShroudOnExperienceGain", "ShroudOnExperienceChanged",
   "ShroudOnLogOut", "ShroudOnDisableScript", "ShroudOnSceneLoaded", "ShroudOnSceneUnloaded",
-  "ShroudOnSocialChanged",
+  "ShroudOnSocialChanged", "ShroudOnHttpResponse",
 }
 
 local function copy(v)
@@ -131,6 +131,19 @@ local function install_api()
       S.buffs = kept                       -- every effect of that rune
       return true, "ok"
     end
+  end
+  -- Web requests: H.S.httpRefuse = "not_permitted" (etc.) refuses them; H.S.requests records the
+  -- accepted ones ({ id, url, done }); H.httpRespond answers one.
+  ShroudHttpGet = function(url)
+    if S.httpRefuse then return nil, S.httpRefuse end
+    if type(url) ~= "string" or not url:match("^https://shroudoftheavatar%.net/") then
+      return nil, "host_not_allowed"
+    end
+    if #url > 2048 then return nil, "url_too_long" end
+    S.requests = S.requests or {}
+    local id = #S.requests + 1
+    S.requests[id] = { id = id, url = url }
+    return id
   end
   ShroudGetSocialSummary = function()
     if not S.char.present then return nil end
@@ -701,9 +714,25 @@ function H.detail() return S.windows.toolbox_daily_detail end
 function H.detailRows()
   local out = {}
   for _, row in ipairs(H.detail():Find("list").children or {}) do
-    out[#out + 1] = { row.children[1].text, row.children[2].text }
+    out[#out + 1] = { row.children[1].text, row.children[2].text, row.children[3] and row.children[3].text,
+                      row.children[3] and row.children[3].tooltip }
   end
   return out
+end
+
+-- The item names a recorded web request asked SOTA.net for.
+function H.requestedItems(n)
+  local out = {}
+  for v in S.requests[n].url:gmatch("item=([^&]*)") do
+    out[#out + 1] = (v:gsub("%%(%x%x)", function(h) return string.char(tonumber(h, 16)) end))
+  end
+  return out
+end
+
+-- Answers web request n (ok, status, body, err), as ShroudOnHttpResponse.
+function H.httpRespond(n, ok, status, body, err)
+  S.requests[n].done = true
+  return H.callback("ShroudOnHttpResponse", n, ok, status, body, err)
 end
 
 -- Adds effects ({ name = , remaining = , debuff = , icon = , permanent = }) and fires the callback.
