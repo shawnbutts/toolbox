@@ -61,7 +61,8 @@ D.SECTIONS = {
       .. "/toolbox buffs debug shows buffs' names).",
     "Only during combat (settings, or /toolbox buffs combat on|off) shows the bar only while you're "
       .. "in combat and for a few seconds after, so it can sit in your line of sight without being in "
-      .. "the way. It also shows while the settings window is open, so you can place it.",
+      .. "the way. It also shows while the settings window is open, so you can place it. Glued to the "
+      .. "health & focus bars, both hide and show together.",
     "Two settings on newer game clients: Replace the game's buff bar hides the game's own bar while "
       .. "this one is showing (it comes back whenever this one is off), and Click a buff to dismiss it "
       .. "works like the game's right-click Dismiss. Chat: /toolbox buffs replace on|off, "

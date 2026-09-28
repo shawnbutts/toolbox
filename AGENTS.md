@@ -124,6 +124,8 @@ Run all three before calling a change done.
     `IsEnabled()` is the "Show buff bar" setting; `IsShown()` (what Hud asks) adds `combatOnly`: shown in
     combat (`OnCombatMode` from core's `ShroudOnCombatModeChanged`), `COMBAT_LINGER` s after, or while the
     settings window is open (to place it). `Tick` refreshes the HUD when `IsShown()` changes.
+    `HidesGlued()` (an optional Hud module method): hiding out of combat hides the whole glued strip,
+    health & focus bars included (owner, 2026-09-28).
     API 16 (feature-detected, `CanReplace`/`CanDismiss`): `replaceStock` hides the game's bar only while ours
     is shown and built (`applyStock`, end of every tick; the game releases a hide on reload), and restores it
     otherwise. `clickDismiss`: a slot's icon `onClick` re-finds the index by name, then `ShroudDismissBuff`;

@@ -876,6 +876,12 @@ function BB.IsShown()
   return inCombat or T.Now() < combatUntil or T.Config.IsShown()
 end
 
+-- For Toolbox.Hud: out of combat with "only during combat", a glued strip (health & focus bars
+-- and buffs) hides as a whole, not just its buffs part.
+function BB.HidesGlued()
+  return prefs.show == true and prefs.combatOnly == true and not BB.IsShown()
+end
+
 -- ShroudOnCombatModeChanged (from core.lua).
 function BB.OnCombatMode(on)
   inCombat = on == true

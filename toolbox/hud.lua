@@ -13,6 +13,8 @@
 --   BuildContent() -> element     (creates its elements; called on every (re)build)
 --   ContentSize() -> w, h          (the content's size, without grip or padding)
 --   IsShown() -> bool
+--   HidesGlued() -> bool   (optional) true to hide the whole glued strip, not just this part
+--                          (the buff bar's "only during combat" takes the health bars with it)
 --   GetSavedPosition() -> x, y | nil ; SavePosition(x, y)   (its own strip's spot)
 
 local T = Toolbox
@@ -108,9 +110,10 @@ end
 function Hud.Refresh()
   local frame = prefs.glued and frames[Hud.GLUED_ID]
   if frame then
-    local w, h, any = 0, 0, false
+    local w, h, any, hideAll = 0, 0, false, false
     for _, key in ipairs(Hud.ORDER) do
       local content = Hud.GLUE[key] and contents[key]
+      if content and modules[key].HidesGlued and modules[key].HidesGlued() then hideAll = true end
       if content then
         local shown = modules[key].IsShown()
         content:SetVisible(shown)
@@ -121,6 +124,7 @@ function Hud.Refresh()
         end
       end
     end
+    if hideAll then any = false end
     frame:SetVisible(any)
     if any then setSize(frame, T.Window.GRIP + w + Hud.PAD, h + Hud.PAD) end
   end

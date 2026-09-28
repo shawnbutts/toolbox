@@ -29,6 +29,7 @@ store submission needs a higher version than any submitted before (rejected ones
 - Buff bar: "Only during combat" shows the bar only while you're in combat (and 5 seconds after),
   so it can sit in your line of sight without being in the way. It also shows while the settings
   window is open, so you can place it. /toolbox buffs combat on|off. Alerts work either way.
+  When the health & focus bars are glued to the buff bar, they hide and show with it.
 - Today Detailed: optional estimated values. Each item shows its count times its 90-day average
   sale price from SOTA.net's public price list (player-uploaded receipts), and the header a total
   for the day; hover a value for the price each. Items with no recent sales stay blank. Off by
