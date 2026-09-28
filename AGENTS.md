@@ -715,3 +715,7 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     Reading: `primaryDurability` is the current maximum a repair restores to (it decays for good), and
     `maxDurability` the item's original maximum. Unconfirmed until checked against the game's item tooltip.
     Crafting tools (worn in tool slots) and "Fluffy" are in the list too, so a set can exceed `G.SLOTS` (12).
+    CONFIRMED in game 2026-09-28 (build 21f745e, `/toolbox gear debug`): glued under the debuffs, a gear slot,
+    its icon and sweep lay out at exactly the buff slot's size (30.09 for size 30: UI scale), and the rows share
+    one width (a Column stretches its rows). Gear slots now set `borderWidth = 0` like the buff slots; the
+    "gear icons look larger / start further left" report went away with that build.
