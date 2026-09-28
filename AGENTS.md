@@ -624,6 +624,8 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 46. Combat Detailed (built 2026-09-28). CONFIRMED in game 2026-09-28 (`/toolbox combat events`): events are
     plain tables with every API 17 field: rune + runeId on every line (auto-attacks as "Bladed Combat" 222;
     creature specials too, e.g. "Bear Special Attack 2" 328, even on a block), damageType ("blade",
-    "handToHand"), time on ShroudTime's clock, sourceKey/targetKey (you = 1). Still unconfirmed: column charts built from `Column`s whose height is set with `SetStyle` inside a
+    "handToHand"), time on ShroudTime's clock, sourceKey/targetKey (you = 1). The window, its charts, bars,
+    targets and damage types WORK in game (owner, 2026-09-28, build 32a3e88). Pending: the fields of a
+    "death" line (kill times assume it names the creature as target or source). Was unconfirmed: column charts built from `Column`s whose height is set with `SetStyle` inside a
     parent with `justifyContent = "end"` (bottom-aligned) / `"start"`; `Bar` `SetValue` for the skill bars;
     `backgroundColor` with the theme tokens `@green` / `@red` / `@text`; and hover on HUD rows (item 40).
