@@ -57,7 +57,7 @@ def main() -> None:
                          f'viewBox="0 0 {FRAME} {FRAME}">{wedge(k / FRAMES, *colours)}</svg>')
     parts.append("</svg>")
     svg = here / "clock.svg"
-    svg.write_text("\n".join(parts) + "\n")
+    svg.write_text("\n".join(parts) + "\n", encoding="utf-8")
     png = here.parent / "toolbox" / "clock.png"
     subprocess.run(["rsvg-convert", "-w", str(w), "-h", str(h), str(svg), "-o", str(png)], check=True)
     print(f"wrote {svg.name} and toolbox/{png.name} ({w}x{h}, {len(SETS)} x {FRAMES} frames)")

@@ -1,0 +1,10 @@
+# Keep LF line endings on every OS: the build's source checks, the generated changelog.lua and the
+# store package expect LF, and Git on Windows would otherwise check text out as CRLF.
+* text=auto eol=lf
+
+# Binary: never touch.
+*.png binary
+*.jpg binary
+*.ogg binary
+*.wav binary
+*.zip binary

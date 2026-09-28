@@ -1,0 +1,16 @@
+# Dev container for Toolbox: every tool the checks and the asset scripts need, nothing else.
+# The source isn't copied in: tools/check.py --container mounts the checkout at /src.
+#
+#   python3 tools/check.py --container          (builds this image on first use)
+#   docker build -t toolbox-dev -f tools/container/Containerfile tools/container   (by hand)
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      lua5.4 luajit lua-check python3 git ffmpeg librsvg2-bin ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# The mounted checkout belongs to the host user; let git read it (the build stamps the commit).
+RUN git config --system --add safe.directory '*'
+
+WORKDIR /src

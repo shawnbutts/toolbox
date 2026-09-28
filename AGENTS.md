@@ -65,14 +65,16 @@ Guidance for AI coding agents (and humans) working on Toolbox, a Shroud of the A
 ## Commands
 
 ```sh
+python3 tools/check.py     # all of the below, on any OS (tests under every Lua found); --container too
 luacheck .                 # must be clean
 lua tests/run.lua          # must pass (also: luajit tests/run.lua; filter: lua tests/run.lua reload)
 python3 tools/build.py     # must succeed; --check validates only
-make check                 # all of the above
+make check                 # = tools/check.py
 python3 tools/install.py --lua-dir "<game Lua folder>"   # local in-game testing
 ```
 
-Run all three before calling a change done.
+Run `tools/check.py` (or all three) before calling a change done. Contributor setup per OS, and the
+dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it current.
 
 ## Layout
 

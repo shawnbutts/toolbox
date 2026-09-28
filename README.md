@@ -289,13 +289,15 @@ settings. The docs don't name a theme background colour, so these are the closes
 
 ## Development
 
-Requirements: Lua 5.2+ or LuaJIT, [luacheck](https://github.com/lunarmodules/luacheck), Python 3.9+.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setting up on macOS, Windows or Linux (or in a container).
+Requirements: Lua 5.2+ and/or LuaJIT, [luacheck](https://github.com/lunarmodules/luacheck), Python 3.9+.
 
 ```sh
-luacheck .                 # lint (std lua52 + the documented API 14 globals)
+python3 tools/check.py     # lint + tests (every Lua found) + build; Windows: py tools/check.py
+python3 tools/check.py --container   # the same in the dev container (Docker or Podman)
+luacheck .                 # lint (std lua52 + the documented API globals)
 lua tests/run.lua          # headless tests (luajit tests/run.lua works too)
 python3 tools/build.py     # validate + write dist/toolbox/ and dist/toolbox-<version>.zip
-make check                 # all three
 ```
 
 `tools/build.py --check` validates without writing anything. The build enforces the store rules
