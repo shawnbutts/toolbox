@@ -23,7 +23,7 @@ Toolbox.Hud = Hud
 
 Hud.GLUED_ID = "toolbox_hud"
 Hud.GLUED_HOME = { 40, 260 }
-Hud.ORDER = { "vitals", "buffs", "combat", "xp", "daily", "notify" }   -- every HUD module, in build order
+Hud.ORDER = { "vitals", "buffs", "combat", "gear", "xp", "daily", "notify" }   -- every HUD module, in build order
 Hud.GLUE = { vitals = true, buffs = true }     -- the ones that share a strip when glued (left to right as in ORDER)
 Hud.GAP = 6                           -- between the parts of the glued strip
 Hud.PAD = 8                           -- the strip's own padding
@@ -94,11 +94,13 @@ local function destroyAll()
 end
 
 -- (Re)builds every strip for the current glue setting.
-function Hud.Build()
-  destroyAll()
+-- `missingOnly` (the retry after the creation cap): keep the strips that were built and build
+-- only the rest, so a retry costs what failed, not everything again.
+function Hud.Build(missingOnly)
+  if not missingOnly then destroyAll() end
   Hud.errors = {}
   retryWanted = false
-  if prefs.glued then
+  if prefs.glued and not frames[Hud.GLUED_ID] then
     local parts = {}
     for _, key in ipairs(Hud.ORDER) do
       if present(key) and Hud.GLUE[key] then
@@ -117,10 +119,11 @@ function Hud.Build()
     end
   end
   for _, key in ipairs(Hud.ORDER) do
-    if present(key) and not gluedHere(key) then
+    local have = frames[key] ~= nil
+    if present(key) and not gluedHere(key) and not have then
       contents[key] = build(key)
     end
-    if contents[key] and not gluedHere(key) then
+    if contents[key] and not gluedHere(key) and not have then
       local m = modules[key]
       local x, y = m.GetSavedPosition()
       local ok, column = pcall(UI.Column, { style = { paddingLeft = T.Window.GRIP }, children = { contents[key] } })
@@ -135,7 +138,7 @@ function Hud.Build()
   Hud.Refresh()
   if retryWanted then
     retries = retries + 1
-    ShroudRegisterPeriodic("toolbox_hud_retry", function() Hud.Build() end, Hud.RETRY_DELAY, false)
+    ShroudRegisterPeriodic("toolbox_hud_retry", function() Hud.Build(true) end, Hud.RETRY_DELAY, false)
   else
     retries = 0
   end

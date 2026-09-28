@@ -146,6 +146,33 @@ function C.CombatSection()
   } }
 end
 
+-- The "Equipment bar" part: worn gear needing repair (Toolbox.Gear). The alert itself is the
+-- "Gear needs repair" notification source.
+function C.GearSection()
+  local G = T.Gear
+  return UI.Column{ children = {
+    UI.Label{ text = "Equipment bar", class = "heading", style = { marginTop = 8 } },
+    UI.Toggle{ id = "show_gear", text = "Show worn gear needing repair", value = G.GetShow(),
+      tooltip = "Icons of worn items below the threshold, the sweep showing durability used up. Every worn"
+        .. " item shows while this window is open, so you can place it.",
+      onChange = function(_, v) G.SetShow(v) end },
+    UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
+      UI.Label{ text = "Repair below", class = "text", style = { flexGrow = 1 } },
+      UI.Dropdown{ id = "gear_threshold", choices = C.ThresholdLabels(), value = G.Threshold() .. "%",
+        tooltip = "Durability at which an item shows on the bar and the \"Gear needs repair\" notification"
+          .. " comes (again when it breaks)",
+        onChange = function(_, value) G.SetThreshold(tonumber((value:gsub("%%", "")))) end },
+    } },
+    C.PositionRows("gear", G),
+  } }
+end
+
+function C.ThresholdLabels()
+  local out = {}
+  for i, v in ipairs(T.Gear.THRESHOLDS) do out[i] = v .. "%" end
+  return out
+end
+
 -- The "Buff bar" part of the settings (built inside build()).
 function C.BuffBarSection()
   local B, S = T.BuffBar, T.Sounds
@@ -288,6 +315,7 @@ local function build()
         C.BuffBarSection(),
         C.VitalsSection(),
         C.CombatSection(),
+        C.GearSection(),
         C.NotifySection(),
       } },
     } } },
@@ -303,7 +331,8 @@ local function build()
                 "show_combat", "combat_pet", "combat_scale", "combat_scale_value", "combat_stats", "combat_pos",
                 "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "buff_group",
                 "buff_replace", "buff_dismiss", "buff_group_after",
-                "buffs_combat_only", "dd_values", "xp_net", "buff_flash", "combat_detail", "combat_detail_hover" }
+                "buffs_combat_only", "dd_values", "xp_net", "buff_flash", "combat_detail", "combat_detail_hover",
+                "show_gear", "gear_threshold", "gear_pos" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -488,6 +517,8 @@ function C.Sync()
   el.combat_bg:SetValue(cbg)
   el.combat_bg_opacity:SetValue(cop)
   el.combat_bg_opacity_value:SetText(fontLabel(cop))
+  el.show_gear:SetValue(T.Gear.GetShow())
+  el.gear_threshold:SetValue(T.Gear.Threshold() .. "%")
   el.vitals_flash_below:SetValue(T.Vitals.GetFlashBelow())
   el.vitals_flash_below_value:SetText(fontLabel(T.Vitals.GetFlashBelow()))
   for _, src in ipairs(T.Notify.Sources()) do
@@ -504,7 +535,8 @@ function C.SyncLive()
   if not win then return end
   C.SyncSounds()
   el.shortcut:SetText("Shortcut: " .. T.KeyStatus())
-  for prefix, m in pairs({ buff = T.BuffBar, vitals = T.Vitals, combat = T.Combat, nhud = T.Notify.Hud }) do
+  for prefix, m in pairs({ buff = T.BuffBar, vitals = T.Vitals, combat = T.Combat, gear = T.Gear,
+                                  nhud = T.Notify.Hud }) do
     local x, y = m.GetPosition()
     el[prefix .. "_pos"]:SetText(x and (x .. ", " .. y) or "")
   end

@@ -893,6 +893,30 @@ add("combat", "combat stats HUD; add stats while playing: /toolbox combat help",
   end
 end)
 
+add("gear", "worn gear's durability, lowest first (bar on|off: the equipment bar; repair <percent>: when "
+    .. "to warn; move [x y])", function(rest)
+  local G = T.Gear
+  local word, args = T.ParseArgs(rest)
+  if word == "" then
+    for _, line in ipairs(G.Lines()) do T.Print(line) end
+  elseif word == "bar" then
+    if args:lower() == "on" or args:lower() == "off" then G.SetShow(args:lower() == "on") end
+    T.Print("Equipment bar (worn items below " .. G.Threshold() .. "%): " .. (G.GetShow() and "on" or "off") .. ".")
+  elseif word == "repair" then
+    if args ~= "" and not G.SetThreshold(tonumber((args:gsub("%%", "")))) then
+      local list = {}
+      for i, v in ipairs(G.THRESHOLDS) do list[i] = tostring(v) end
+      T.Print("Repair threshold is one of " .. table.concat(list, ", ") .. " (percent).")
+      return
+    end
+    T.Print("Warn when worn gear drops below " .. G.Threshold() .. "% durability.")
+  elseif word == "move" then
+    T.MoveCommand(G, "gear", "Equipment bar", args)
+  else
+    T.Print("Unknown: /" .. T.commands[1] .. " gear " .. word .. ". Try /" .. T.commands[1] .. " help.")
+  end
+end)
+
 add("welcome", "show the first-run welcome again (reset: show it at the next /lua reload)", function(rest)
   if rest:lower() == "reset" then
     ShroudDeleteSavedVar("welcomed", "account")
@@ -1258,6 +1282,7 @@ function T.Tick()
   T.Sounds.Poll()
   T.Prices.Tick()                    -- estimated values: the next SOTA.net lookup, when due
   T.Hud.Tick()                       -- remember where the HUD strips are
+  T.Gear.Tick()                      -- worn gear's durability, every Gear.POLL seconds
   T.Config.SyncLive()
   T.RefreshViews()
   -- Notifications: the game's change callbacks catch changes; this is the fallback for data that
@@ -1315,10 +1340,12 @@ function ShroudOnStart()
   step("the buff bar", T.BuffBar.Init)
   step("the health bars", T.Vitals.Init)
   step("combat stats", T.Combat.Init)
+  step("the equipment bar", T.Gear.Init)
   step("the notification HUD", T.Notify.Hud.Init)
   step("the HUD strips", T.Hud.Init)  -- builds the HUD strips (glued or not); retries on the cap
   step("the buff bar", T.BuffBar.Tick)
   step("the health bars", T.Vitals.Tick)
+  step("the equipment bar", function() T.Gear.Poll(true) end)
   ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
   T.Welcome()                        -- first run only: a chat line and the settings window
   step("notifications", T.Notify.Check)   -- anything new: the guild message, mail, ...

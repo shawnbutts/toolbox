@@ -98,18 +98,29 @@ D.SECTIONS = {
       .. "types, a bar split by element for damage done and one for damage taken. Switch between this "
       .. "fight and the whole session with the dropdown (or /toolbox combat detail session). /toolbox "
       .. "combat reset clears both." },
+  { "Gear repair",
+    "The equipment bar shows worn items that need repair: each item's icon with a red sweep for the "
+      .. "durability it has lost, lowest first; hover one for its durability. It shows only items below "
+      .. "the repair threshold (20% unless you change it), and hides when nothing needs repair. While the "
+      .. "settings window is open it shows every worn item, so you can place it.",
+    "The Gear needs repair notification says when an item drops below the threshold, and again when "
+      .. "it breaks; a repaired item warns again next time. Settings (Equipment bar) sets the threshold and "
+      .. "switches the bar off; the notification has its own switch under Notifications. /toolbox gear "
+      .. "lists your worn items and their durability; /toolbox gear repair 30 sets the threshold; "
+      .. "/toolbox gear bar off hides the bar; /toolbox gear move <x> <y> places it." },
   { "Moving the HUD strips",
-    "The buff bar, health & focus bars and combat stats are HUD strips. Drag the grip at a "
+    "The buff bar, health & focus bars, combat stats and the equipment bar are HUD strips. Drag the grip at a "
       .. "strip's top-left corner (untick Options > Interface > Nameplates & Chat Bubbles > "
       .. "Lock Status Movement to see it), use the Position buttons in settings, or type e.g. "
       .. "/toolbox buffs move 600 40." },
   { "Notifications",
     "A Notifications window tells you what's new since you last saw it: your guild's message of the "
-      .. "day, new mail, mail about to expire, ransoms, new rewards and guild applications. It opens at "
+      .. "day, new mail, mail about to expire, ransoms, new rewards, guild applications and gear needing "
+      .. "repair. It opens at "
       .. "login, after /lua reload, or as soon as something changes, and shows everything new together. "
       .. "Nothing already seen shows again.",
     "Switch each one on or off in settings (Notifications), or with /toolbox notify <name> on|off "
-      .. "(names: motd, mail, expiring, ransoms, rewards, applications). /toolbox notify lists them; "
+      .. "(names: motd, mail, expiring, ransoms, rewards, applications, durability). /toolbox notify lists them; "
       .. "/toolbox notify show shows everything current; /toolbox motd shows the guild message.",
     "Each can show in the Notifications window or on the notification HUD (the dropdown next to it in "
       .. "settings, or /toolbox notify <name> via hud; /toolbox notify via hud for all). The HUD lists the "
@@ -325,6 +336,15 @@ function N.NewMotd(summary, seen)
   return text
 end
 
+-- A saved table `seen` (the gear source's { [item] = stage }), keeping string keys and values only.
+local function plainStrings(t)
+  local out = {}
+  for k, v in pairs(t) do
+    if type(k) == "string" and type(v) == "string" then out[k] = v end
+  end
+  return out
+end
+
 N.SOURCES = {
   { key = "motd", label = "Guild message of the day", default = true,
     tip = "Your guild's message of the day, when it has changed since you last saw it",
@@ -360,6 +380,15 @@ N.SOURCES = {
       return plural(new, "new guild application", "new guild applications") .. " (" .. T.FormatNumber(total)
         .. " waiting)."
     end) },
+  { key = "durability", label = "Gear needs repair", default = true,
+    tip = "When a worn item drops below the repair threshold (Equipment bar settings), and again when it breaks",
+    Check = function(seen)
+      local items = T.Gear.Items()
+      if #items == 0 then return nil end     -- not loaded (or a scene change): keep what was seen
+      local notice, quiet = T.Gear.Notice(items, seen, T.Gear.Threshold())
+      if notice then notice.title = "Gear needs repair" end
+      return notice, quiet
+    end },
 }
 
 local function sourceFor(key)
@@ -671,7 +700,11 @@ local function prefsNow()
     local sp = { on = src.default, via = N.DELIVERY_DEFAULT }
     if type(s.on) == "boolean" then sp.on = s.on end
     if type(s.via) == "string" and N.DELIVERY[s.via] then sp.via = s.via end
-    if s.seen ~= nil and type(s.seen) ~= "table" then sp.seen = s.seen end
+    if type(s.seen) == "table" then
+      sp.seen = plainStrings(s.seen)
+    elseif s.seen ~= nil then
+      sp.seen = s.seen
+    end
     nprefs.sources[src.key] = sp
   end
   return nprefs

@@ -1296,3 +1296,254 @@ end
 BB.FRAME_ID = FRAME_ID
 local mover = T.Hud.MoverFor("buffs", BB.HOME)
 BB.GetPosition, BB.MoveTo, BB.Nudge, BB.ResetPosition = mover.Get, mover.MoveTo, mover.Nudge, mover.Reset
+
+-- ===========================================================================
+-- Equipment bar and repair alerts (Toolbox.Gear)
+-- ===========================================================================
+-- Worn items below the repair threshold as icons on a HUD strip, with the buff bar's clock sweep
+-- showing durability used up (red below the threshold, full red when broken); all worn items
+-- while settings are open, to place it. The "Gear needs repair" notification source (docs.lua)
+-- uses the same reading. The game fires no event when gear wears (ShroudOnInventoryChanged skips
+-- durability), so the equipment list is read every G.POLL seconds. Items are keyed by name, with
+-- "#2", "#3"... for same-named ones (two rings). Only items with a maximum durability count.
+-- Saved var "gear" (character scope): { show = bool, threshold = percent, x, y }.
+
+local G = {}
+Toolbox.Gear = G
+G.FRAME_ID = "toolbox_gear"
+G.HOME = { 40, 300 }
+G.SLOTS = 12                                 -- a worn set has about 12 items with durability
+G.POLL = 10                                  -- seconds between readings of the equipment
+G.THRESHOLDS = { 5, 10, 15, 20, 25, 30, 50 }
+G.THRESHOLD_DEFAULT = 20
+
+-- The worn items with durability, as { key, name, dur, max, pct (0-1), icon, primary }.
+-- `list` is ShroudGetEquipmentItems()'s answer (tables or game objects).
+function G.Read(list)
+  local out, count = {}, {}
+  for _, it in ipairs(T.List(list)) do
+    local name, dur, max = T.Field(it, "name"), T.Field(it, "durability"), T.Field(it, "maxDurability")
+    if type(name) == "string" and type(dur) == "number" and type(max) == "number" and max > 0 then
+      count[name] = (count[name] or 0) + 1
+      local icon = T.Field(it, "icon")
+      out[#out + 1] = { key = count[name] > 1 and (name .. "#" .. count[name]) or name, name = name,
+        dur = math.max(0, dur), max = max, pct = math.max(0, math.min(1, dur / max)),
+        icon = type(icon) == "number" and icon or -1, primary = T.Field(it, "primaryDurability") }
+    end
+  end
+  return out
+end
+
+-- "broken" at 0, "low" below `threshold` percent, nil otherwise.
+function G.Stage(item, threshold)
+  if item.dur <= 0 then return "broken" end
+  if item.pct * 100 < threshold then return "low" end
+  return nil
+end
+
+local function sameStages(a, b)
+  for k, v in pairs(a) do if b[k] ~= v then return false end end
+  for k, v in pairs(b) do if a[k] ~= v then return false end end
+  return true
+end
+
+-- For the notification source: a notice for items that got worse since `seen` ({ [key] = stage }):
+-- fine -> low, or anything -> broken. Repairs and unequipped items are remembered quietly (the
+-- second value), so an item warns again the next time it wears down.
+function G.Notice(worn, seen, threshold)
+  seen = type(seen) == "table" and seen or {}
+  local now, worse = {}, {}
+  for _, it in ipairs(worn) do
+    local st = G.Stage(it, threshold)
+    if st then now[it.key] = st end
+    if st and st ~= seen[it.key] and (st == "broken" or seen[it.key] == nil) then worse[#worse + 1] = it end
+  end
+  if #worse == 0 then
+    if not sameStages(now, seen) then return nil, now end
+    return nil
+  end
+  local parts = {}
+  for _, it in ipairs(worse) do
+    if it.dur <= 0 then
+      parts[#parts + 1] = it.name .. " is broken"
+    else
+      parts[#parts + 1] = it.name .. " is at " .. math.floor(it.pct * 100) .. "% durability"
+    end
+  end
+  return { text = table.concat(parts, ". ") .. ". Repair it before it breaks.", seen = now }
+end
+
+-- The equipment now (a fresh reading), for the notification source and /toolbox gear.
+function G.Items()
+  local ok, list = pcall(ShroudGetEquipmentItems)
+  if not ok then return {} end
+  return G.Read(list)
+end
+
+-- ---------------------------------------------------------------------------
+-- The strip
+-- ---------------------------------------------------------------------------
+
+local gprefs = { show = true, threshold = G.THRESHOLD_DEFAULT }
+local gContent = nil
+local gSlots = {}
+local gItems = {}                     -- the last reading, lowest first
+local gShownList = {}                 -- what the strip shows now
+local lastPoll, lastSettingsOpen = -math.huge, nil
+local gShown = nil
+
+local function gSave() T.Save("gear", gprefs) end
+
+function G.Threshold() return gprefs.threshold end
+
+local function byDurability(a, b)
+  if a.pct ~= b.pct then return a.pct < b.pct end
+  return a.key < b.key
+end
+
+-- What the strip lists: items below the threshold, or every worn item while settings are open.
+local function shownList()
+  local out, all = {}, T.Config.IsShown()
+  for _, it in ipairs(gItems) do
+    if all or G.Stage(it, gprefs.threshold) then out[#out + 1] = it end
+  end
+  return out
+end
+
+function G.IsShown()
+  return gprefs.show == true and #gShownList > 0
+end
+
+function G.BuildContent()
+  if clockTex < 0 then clockTex = ShroudLoadTexture(BB.CLOCK.path) end
+  local s = size()
+  local row = {}
+  gSlots = {}
+  for i = 1, G.SLOTS do
+    local iconSpec = { width = s, height = s, onClick = function() end }   -- a click handler: tooltips show
+    local overlaySpec = { width = s, height = s, visible = false, style = { marginLeft = -s } }
+    if clockTex >= 0 then iconSpec.texture, overlaySpec.texture = clockTex, clockTex end
+    local icon, overlay = UI.Image(iconSpec), UI.Image(overlaySpec)
+    local slot = UI.Row{ visible = false, children = { icon, overlay },
+      style = { width = s, height = s, marginRight = BB.GAP, backgroundColor = "#00000066" } }
+    gSlots[i] = { row = slot, icon = icon, overlay = overlay }
+    row[i] = slot
+  end
+  gContent = UI.Row{ id = "gear", children = row }
+  lastPoll = -math.huge                 -- new slots: fill them on the next tick
+  return gContent
+end
+
+function G.ContentSize()
+  local cell = size() + BB.GAP
+  return math.max(1, math.min(G.SLOTS, #gShownList)) * cell, cell
+end
+
+function G.GetSavedPosition() return gprefs.x, gprefs.y end
+function G.SavePosition(x, y)
+  if x ~= gprefs.x or y ~= gprefs.y then
+    gprefs.x, gprefs.y = x, y
+    gSave()
+  end
+end
+
+local gearMover = T.Hud.MoverFor("gear", G.HOME)
+G.GetPosition, G.MoveTo, G.Nudge, G.ResetPosition = gearMover.Get, gearMover.MoveTo, gearMover.Nudge,
+  gearMover.Reset
+
+-- Puts gShownList into the slots (only what changed) and refits the strip when that changes.
+local function fillGear()
+  if not gContent then return end
+  for i, slot in ipairs(gSlots) do
+    local it = gShownList[i]
+    if it then
+      if slot.tex ~= it.icon then
+        slot.tex = it.icon
+        if it.icon >= 0 then slot.icon:SetTexture(it.icon) end
+      end
+      local stage = G.Stage(it, gprefs.threshold)
+      local k = it.dur <= 0 and (BB.CLOCK.FRAMES - 1) or BB.Frame(it.pct)
+      local warn = stage ~= nil
+      if k ~= slot.k or warn ~= slot.warn then
+        slot.k, slot.warn = k, warn
+        if k > 0 and clockTex >= 0 then slot.overlay:SetUV(BB.FrameUV(k, warn)) end
+        T.SetVisible(slot.overlay, k > 0 and clockTex >= 0)
+      end
+      T.SetTooltip(slot.icon, string.format("%s\nDurability %s / %s (%d%%)%s", it.name, T.FormatNumber(it.dur),
+        T.FormatNumber(it.max), math.floor(it.pct * 100), stage == "broken" and "\nBroken: repair it"
+        or (stage == "low" and "\nNeeds repair" or "")))
+    end
+    T.SetVisible(slot.row, it ~= nil)
+  end
+end
+
+-- Reads the equipment (every G.POLL seconds, or `force`), and shows or hides the strip.
+function G.Poll(force)
+  local now = T.Now()
+  local settings = T.Config.IsShown()
+  if not force and settings == lastSettingsOpen and now - lastPoll < G.POLL then return end
+  lastPoll, lastSettingsOpen = now, settings
+  gItems = G.Items()
+  table.sort(gItems, byDurability)
+  gShownList = shownList()
+  fillGear()
+  local shown = G.IsShown() and #gShownList or 0
+  if shown ~= gShown then
+    gShown = shown
+    T.Hud.Refresh()
+  end
+end
+
+-- From Toolbox.Tick (1 s).
+function G.Tick() G.Poll(false) end
+
+function G.Init()
+  local saved = T.Load("gear")
+  gprefs = { show = true, threshold = G.THRESHOLD_DEFAULT }
+  if type(saved) == "table" then
+    gprefs.show = saved.show ~= false
+    for _, v in ipairs(G.THRESHOLDS) do if saved.threshold == v then gprefs.threshold = v end end
+    if type(saved.x) == "number" and type(saved.y) == "number" then gprefs.x, gprefs.y = saved.x, saved.y end
+  end
+  gItems, gShownList, gShown, lastPoll, lastSettingsOpen = {}, {}, nil, -math.huge, nil
+  T.Hud.Register("gear", G)
+end
+
+function G.GetShow() return gprefs.show == true end
+
+function G.SetShow(on)
+  gprefs.show = on == true
+  gSave()
+  gShown = nil
+  G.Poll(true)
+  T.Hud.Refresh()
+  T.Config.Sync()
+end
+
+-- Percent, one of G.THRESHOLDS. Returns false for anything else.
+function G.SetThreshold(pct)
+  local ok = false
+  for _, v in ipairs(G.THRESHOLDS) do if v == pct then ok = true end end
+  if not ok then return false end
+  gprefs.threshold = pct
+  gSave()
+  for _, slot in ipairs(gSlots) do slot.k = nil end    -- redraw the sweeps' colours
+  G.Poll(true)
+  T.Config.Sync()
+  return true
+end
+
+-- /toolbox gear: every worn item with durability, lowest first, and the raw fields.
+function G.Lines()
+  local worn = G.Items()
+  table.sort(worn, byDurability)
+  if #worn == 0 then return { "No worn items with durability (or the equipment isn't loaded yet)." } end
+  local lines = { "Worn gear (repair below " .. gprefs.threshold .. "%):" }
+  for _, it in ipairs(worn) do
+    local stage = G.Stage(it, gprefs.threshold)
+    lines[#lines + 1] = string.format("  %s: %d%% (%s / %s)%s  [primaryDurability %s]", it.name,
+      math.floor(it.pct * 100), T.FormatNumber(it.dur), T.FormatNumber(it.max),
+      stage == "broken" and " BROKEN" or (stage == "low" and " needs repair" or ""), tostring(it.primary))
+  end
+  return lines
+end

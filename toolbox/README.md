@@ -1,7 +1,7 @@
 # Toolbox
 
 A small toolbox of quality-of-life features: XP tracking, daily stats, a buff bar, health &
-focus bars and combat stats.
+focus bars, combat stats and gear repair alerts.
 
 **Getting started:** type `/toolbox` (or `/tbx`) to open the settings window and tick what you
 want on screen. Its **Docs** button (or `/toolbox docs`) opens a guide to every feature, option and
@@ -29,6 +29,8 @@ under **Keys**.
 - `/toolbox vitals`: show or hide health & focus bars (`/toolbox vitals size 150` scales them,
   `/toolbox vitals move 40 300` places them, `/toolbox vitals glue on` joins them to the buff bar)
 - `/toolbox combat`: show or hide the combat stats HUD (DPS, damage taken, healing, crit and avoid rates, fight timer, chosen stats)
+- `/toolbox gear`: list your worn items' durability, lowest first (`/toolbox gear repair 30` sets when
+  to warn, `/toolbox gear bar off` hides the equipment bar)
 - `/toolbox config`: open the settings window (text size, line spacing, which windows to show)
 - `/toolbox spacing <0-12>`: set the space between lines (default 2)
 - `/toolbox font <9-32>`: set the window text size (default 12)
@@ -76,6 +78,12 @@ the time left. It can sound an alert a set number of seconds before a buff runs 
 debuff lands. The default sounds are in the add-on's folder; to use your own, put
 `toolbox_buff_expiring.ogg` / `toolbox_debuff_landed.ogg` (or `.wav`) in your Lua folder, beside
 the `toolbox` folder, or choose any file in `/toolbox config`.
+
+## Gear repair
+
+An equipment bar shows worn items below the repair threshold (20% by default), with a red sweep
+for the durability they have lost, and a **Gear needs repair** notification tells you when an item
+drops below it, and again when it breaks. Both are in the settings window.
 
 ## Combat stats
 

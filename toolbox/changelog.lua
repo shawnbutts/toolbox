@@ -5,10 +5,13 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Added" },
+  { "item", "Gear repair: an equipment bar (a HUD strip) shows worn items below a repair threshold (20% by default), each with a red sweep for the durability it has lost, lowest first; hover one for its durability. It hides when nothing needs repair, and shows every worn item while settings are open." },
+  { "item", "A \"Gear needs repair\" notification when an item drops below the threshold, and again when it breaks. Settings has an Equipment bar section; /toolbox gear lists worn items' durability." },
   { "section", "Changed" },
   { "item", "Health & focus bars: the bar length can now go down to 20 (was 100), for a compact strip." },
   { "section", "Fixed" },
-  { "item", "\"Couldn't build the notify HUD: elements are being created too fast\" at login. A HUD strip that runs into the game's limit on how fast add-ons may create elements is now built again a moment later, without an error in chat; and one part failing at start-up no longer stops the others." },
+  { "item", "\"Couldn't build the notify HUD: elements are being created too fast\" at login. A HUD strip that runs into the game's limit on how fast add-ons may create elements is now built again a moment later, without an error in chat (only the strips that failed are built again); and one part failing at start-up no longer stops the others." },
   { "version", "0.3.1 - 2026-09-28 (beta 4)" },
   { "para", "Fourth beta. Combat Detailed (damage by skill, the last minute as a chart, healing, targets, damage types and recent fights), an XP-over-the-last-hour chart in XP Detailed, a performance pass that leaves more room for other add-ons, and fixes for start-up errors." },
   { "section", "Changed" },

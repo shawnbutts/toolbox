@@ -5,13 +5,21 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Added
+- Gear repair: an equipment bar (a HUD strip) shows worn items below a repair threshold (20% by
+  default), each with a red sweep for the durability it has lost, lowest first; hover one for its
+  durability. It hides when nothing needs repair, and shows every worn item while settings are open.
+- A "Gear needs repair" notification when an item drops below the threshold, and again when it
+  breaks. Settings has an Equipment bar section; `/toolbox gear` lists worn items' durability.
+
 ### Changed
 - Health & focus bars: the bar length can now go down to 20 (was 100), for a compact strip.
 
 ### Fixed
 - "Couldn't build the notify HUD: elements are being created too fast" at login. A HUD strip that
   runs into the game's limit on how fast add-ons may create elements is now built again a moment
-  later, without an error in chat; and one part failing at start-up no longer stops the others.
+  later, without an error in chat (only the strips that failed are built again); and one part failing
+  at start-up no longer stops the others.
 
 ## [0.3.1] - 2026-09-28 (beta 4)
 

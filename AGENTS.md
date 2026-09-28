@@ -169,6 +169,11 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     otherwise. `clickDismiss`: a slot's icon `onClick` re-finds the index by name, then `ShroudDismissBuff`;
     refusals go to chat; dismissable buffs get a "Click to dismiss" tooltip line. The clock overlay is a second `Image` over the icon via a
     negative left margin, showing one `SetUV` frame of `clock.png` (`CLOCK` must match `art/clock.py`).
+    The file also holds `Toolbox.Gear` (in it to reuse the clock sweep and not spend the 16th Lua file):
+    the equipment bar (HUD module "gear", `G.SLOTS` fixed slots; worn items below `threshold`, lowest
+    first, all while settings are open) and the model for the "durability" notification source
+    (`G.Read`, `G.Stage`, `G.Notice` are pure). No event fires on wear, so `G.Tick` reads
+    `ShroudGetEquipmentItems()` every `G.POLL` s (and whenever settings open or close).
   - `vitals.lua`: `Toolbox.Vitals`, the health & focus bars (HUD). `V.Format` is pure. Every size comes
     from `V.Metrics()` (one scale factor; Shroud.UI has no zoom), applied at build and by `applySize`. Reads the
     per-frame globals directly (never through a name built at runtime: review treats that like code
@@ -279,7 +284,8 @@ in chat.
   `H.S.files[path] = true` makes a texture/sound exist; `H.S.acceptMissing` makes `ShroudLoadSound`
   accept paths it can't load; `H.S.played` / `H.playedNames()`; `H.frame()` / `H.vitals()` / `H.hud()` (the glued strip); `H.combatHud()`, `H.combatRows()`,
   `H.setCombat(on)` (combat mode + callback); `H.submit(win, id, text)`;
-  `H.setGuild(name, motd)` (no callback; the next tick sees it), `H.setMotd(text)` (+ `ShroudOnSocialChanged`),
+  `H.setGear{ { name, durability, maxDurability }, ... }` (worn items; no callback, as in game), `H.gearFrame()`,
+  `H.gearSlots()`; `H.setGuild(name, motd)` (no callback; the next tick sees it), `H.setMotd(text)` (+ `ShroudOnSocialChanged`),
   `H.setNotes{ unreadMail = 2, ... }` (+ `ShroudOnNotificationsChanged`), `H.notify()` (the window),
   `H.notice(key)` -> `{ shown, title, text }`; `H.nhud()` (the notification HUD), `H.nhudRow(i)` -> text,
   tooltip (nil when hidden), `H.nhudHover(over)`;
@@ -311,9 +317,10 @@ including the "no character" sentinel.
 | `combat_detail` | `{ open = bool (pinned), x, y, scope = "fight"/"session", hover = bool }` |
 | `combat` | `{ show, scale = 75..250, pet, stats = { "MagicResistance", ... }, bg = None/Dark/Light, bgOpacity = 10..100, x, y }` |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last = ISO date, day = Toolbox.Today() key, at = Toolbox.Clock() when known } } }`, at most `P.MAX_KEEP` |
-| `notify` | `{ v = 1, sources = { [key] = { on = bool, seen = last value delivered, via = "window" } } }` (keys: motd, mail, expiring, ransoms, rewards, applications); the older `guild_motd` `{ show, seen }` is read once to take over |
+| `notify` | `{ v = 1, sources = { [key] = { on = bool, seen = last value delivered, via = "window" } } }` (keys: motd, mail, expiring, ransoms, rewards, applications, durability; durability's `seen` is a table `{ [item key] = "low"/"broken" }`, read back as string keys and values only); the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), x, y }` |
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most `Notify.Hud.KEEP` (20) |
+| `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), x, y }` (the equipment bar) |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts (unversioned ignored) |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
@@ -435,9 +442,9 @@ building, and remember the per-add-on budgets (8 windows, the element-creation c
    `ShroudOnTargetChanged`.
 2. **Skills gained and deaths** in the XP and Today windows: skill levels gained this session / today
    (`ShroudGetSkills`, `ShroudOnSkillsChanged`) and deaths (`ShroudOnDeathChanged(isDead)`).
-3. **Gear durability alert**: a notification (and/or sound) when equipped gear drops below a
-   threshold, from `ShroudGetEquipmentItems()` (durability / maxDurability). Fits the notification
-   system as a new source.
+3. **Gear durability alert**: BUILT 2026-09-28 (`Toolbox.Gear` in buffbar.lua), with an equipment
+   bar. Owner's choices: warn below 20% (setting), warn again when broken, the bar shows only items
+   below the threshold.
 4. **More notification deliveries**: a sound per notification source, and a chat line, as new
    `N.DELIVERY` entries plus a choice in the per-source dropdown (the system was built for this).
 5. **Crafting skill tracker** (documented): crafting and gathering skills with level, effective level
@@ -528,7 +535,8 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     destroys the other). The harness enforces the 8 windows (`H.MAX_WINDOWS`). A new window needs a slot.
     STILL HIT at login 2026-09-28 (the notification HUD, last in `Hud.ORDER`): the game counts more than the
     harness models, or a login builds more. So `Hud.Build` retries strips that failed with "too fast"
-    quietly after `Hud.RETRY_DELAY` (up to `RETRY_MAX` times), and `ShroudOnStart` runs each module's init
+    quietly after `Hud.RETRY_DELAY` (up to `RETRY_MAX` times; a retry builds only the strips that are
+    missing, so it costs what failed), and `ShroudOnStart` runs each module's init
     through `step()` so one failure can't stop the rest.
     HUD strip builds are atomic (`Hud.TextStrip` fills `strip.el` only once built): a half-built XP strip
     crashed its refresh every tick in game (2026-09-28). Container `Add`/`Clear` and the element-creation rate cap: the Today Detailed
@@ -691,3 +699,9 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     "death" line (kill times assume it names the creature as target or source). Was unconfirmed: column charts built from `Column`s whose height is set with `SetStyle` inside a
     parent with `justifyContent = "end"` (bottom-aligned) / `"start"`; `Bar` `SetValue` for the skill bars;
     `backgroundColor` with the theme tokens `@green` / `@red` / `@text`; and hover on HUD rows (item 40).
+47. Equipment durability (`ShroudGetEquipmentItems()`, API 13; built 2026-09-28). Unconfirmed in game: the
+    fields' shape (read through `T.Field`, so tables or game objects both work), whether `durability` counts
+    down to 0 or stops above it, what `primaryDurability` means (shown only by `/toolbox gear`), whether
+    items without durability report `maxDurability` 0 (they're skipped), and whether `icon` is a usable
+    texture id (-1 leaves the slot's placeholder). An empty list is taken as "not loaded" and changes
+    nothing. If the percentages look wrong, `/toolbox gear` prints the raw numbers.

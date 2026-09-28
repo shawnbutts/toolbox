@@ -65,6 +65,7 @@ local function fresh(disk)
     -- ShroudGetNotifications(); H.setNotes changes it
     notes = { unreadMail = 0, mailExpiring = false, ransoms = 0, newRewards = false, guildApplications = -1 },
     stats = {},                        -- { name, label, value, hidden }
+    gear = {},                         -- worn items, ShroudGetEquipmentItems() fields; H.setGear
     frames = {},
     logs = {},
     commands = {},
@@ -180,6 +181,17 @@ local function install_api()
   ShroudGetNotifications = function()
     if not S.char.present then return nil end
     return copy(S.notes)
+  end
+  -- Worn items (documented fields; empty slots skipped). Game objects when H.S.buffObjects is set.
+  ShroudGetEquipmentItems = function()
+    if not S.char.present then return {} end
+    local out = {}
+    for i, it in ipairs(S.gear) do
+      local item = { name = it.name, durability = it.durability, primaryDurability = it.primaryDurability or 0,
+                     maxDurability = it.maxDurability, weight = 1, quantity = 1, value = 10, icon = it.icon or 7 }
+      out[i] = item
+    end
+    return out
   end
   ShroudGetSocialSummary = function()
     if not S.char.present then return nil end
@@ -696,11 +708,11 @@ end
 function H.restart(time, flushFirst)
   if flushFirst then ShroudFlushSavedVars() end
   local disk, char, date, serverTime, buffs, mode = S.disk, S.char, S.date, S.serverTime, S.buffs, S.durationMode
-  local social, notes = S.social, S.notes
+  local social, notes, gear = S.social, S.notes, S.gear
   fresh(disk)
   -- the character's buffs and guild live on the server: they survive a client restart
   S.char, S.date, S.serverTime, S.buffs, S.durationMode = char, date, serverTime, buffs, mode
-  S.social, S.notes = social, notes
+  S.social, S.notes, S.gear = social, notes, gear
   S.time = time or 50
   install_api()
   H.load()
@@ -884,6 +896,15 @@ function H.slots(row)
   end
   return out
 end
+-- The equipment bar's strip, and its visible slots (the icon's tooltip is slot.children[1].tooltip).
+function H.gearFrame() return S.frames.toolbox_gear end
+function H.gearSlots()
+  local out = {}
+  for _, slot in ipairs(S.frames.toolbox_gear:Find("gear").children) do
+    if slot.visible ~= false then out[#out + 1] = slot end
+  end
+  return out
+end
 function H.playedNames()
   local out = {}
   for _, p in ipairs(S.played) do out[#out + 1] = p.name end
@@ -907,6 +928,9 @@ function H.setMotd(motd)
   S.social.guildMotd = motd
   return H.callback("ShroudOnSocialChanged")
 end
+
+-- Worn gear: { { name, durability, maxDurability [, icon] }, ... }. No event: the game has none.
+function H.setGear(list) S.gear = list end
 
 -- Notification counts / flags change (fields as ShroudGetNotifications), + ShroudOnNotificationsChanged.
 function H.setNotes(fields)
