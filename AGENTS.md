@@ -182,6 +182,11 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     from `V.Metrics()` (one scale factor; Shroud.UI has no zoom), applied at build and by `applySize`. Reads the
     per-frame globals directly (never through a name built at runtime: review treats that like code
     loading) and the `Health` / `Focus` stats as maximums.
+    A third bar, Vigor (API 20, built 2026-09-28; `V.BARS` entry with `vigor = true`, `@gold`): `ShroudGetVigor()`
+    read in `V.Init`, kept from core's `ShroudOnVigorChanged` (`V.OnVigorChanged`) and re-read every
+    `V.VIGOR_POLL` s; `V.ReadVigor` / `V.FormatVigor` are pure, formatted once per reading (not per 0.2 s tick).
+    Its row (`vigor_row`) hides while there is no reading (below Vigor's level; nil) or `prefs.vigor` is off,
+    and `V.Metrics` counts only shown rows. Vigor never flashes. Feature-detected: `V.HasVigor()`.
   - `combat.lua`: `Toolbox.Combat`, the combat stats HUD. Fight model (`NewFight`, `Add`, `Rates`, `CritPct`,
     `AvoidPct`, and `NewSession`, `TopRunes`, `Timeline`, `OverhealPct`, `SessionDuration`) is pure: each fight
     and the session (every fight since start/reset) keep per-skill stats (`runes`, by runeId), overheal, and
@@ -250,8 +255,9 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
 - `tools/beta.py` (`make beta`): builds, then zips `toolbox/` (+ default sounds) and `INSTALL.txt`
   (= `BETA.md`, the tester guide) as `dist/toolbox-<version>-beta.zip`. Update BETA.md's known issues
   and "what to try" for every beta.
-- `.luacheckrc`: std `lua52` plus every global documented for API 14. If the docs add a function,
-  add it here; never add a name that isn't in the docs.
+- `.luacheckrc`: std `lua52` plus the documented globals (API 14 in `api_functions`; newer ones, used
+  feature-detected, in `api_probed`; callbacks in `api_callbacks`). If the docs add a function, add it
+  here; never add a name that isn't in the docs.
 
 ## Adding a subcommand
 
@@ -289,7 +295,8 @@ in chat.
   accept paths it can't load; `H.S.played` / `H.playedNames()`; `H.frame()` / `H.vitals()` / `H.hud()` (the glued strip); `H.combatHud()`, `H.combatRows()`,
   `H.setCombat(on)` (combat mode + callback); `H.submit(win, id, text)`;
   `H.setGear{ { name, durability, maxDurability }, ... }` (worn items; no callback, as in game), `H.gearFrame()`,
-  `H.gearSlots()`; `H.setGuild(name, motd)` (no callback; the next tick sees it), `H.setMotd(text)` (+ `ShroudOnSocialChanged`),
+  `H.gearSlots()`; `H.setVigor{ vigor = 64, ... }` / `H.setVigor(nil)` (+ `ShroudOnVigorChanged`; `H.S.vigor` without
+  the callback); `H.setGuild(name, motd)` (no callback; the next tick sees it), `H.setMotd(text)` (+ `ShroudOnSocialChanged`),
   `H.setNotes{ unreadMail = 2, ... }` (+ `ShroudOnNotificationsChanged`), `H.notify()` (the window),
   `H.notice(key)` -> `{ shown, title, text }`; `H.nhud()` (the notification HUD), `H.nhudRow(i)` -> text,
   tooltip (nil when hidden), `H.nhudHover(over)`;
@@ -316,7 +323,7 @@ including the "no character" sentinel.
 | `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, flash, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), group = { name parts }, replaceStock, clickDismiss, combatOnly, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { buff_expiring = "...", debuff_landed = "..." } }` |
 | `buff_timers` | `{ v = 3, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload (v1/v2 ignored) |
-| `vitals` | `{ show, width = 20..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, x, y }` |
+| `vitals` | `{ show, width = 20..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, vigor = bool (the Vigor row), x, y }` |
 | `hud` | `{ glued = bool, x, y }` (the glued strip's position) |
 | `combat_detail` | `{ open = bool (pinned), x, y, scope = "fight"/"session", hover = bool }` |
 | `combat` | `{ show, scale = 75..250, pet, stats = { "MagicResistance", ... }, bg = None/Dark/Light, bgOpacity = 10..100, x, y }` |
@@ -342,6 +349,31 @@ stamp must be the commit, not `...+`), and tag it: an annotated `vX.Y.Z` tag on 
 only when the owner asks to push. Tags so far: v0.2.0 (a52051c), v0.2.1 (ae2fa1f), v0.3.0 (607dcb3), v0.3.1 (7db2a15).
 
 ## Planned for newer APIs
+
+DOCS CHECK 2026-09-28: the docs describe **Lua API 22** and document the API 18 group again (crafting,
+gathering, friends, guild), so everything below is documented now; still feature-detect each function.
+What each version added (from the reference's "Added in API N" notes):
+- **API 18**: `ShroudOnCraftResults`, `ShroudOnGatherResults`, `ShroudOnCraftingStateChanged`, `ShroudGetRecipe`,
+  `ShroudGetCraftingState` (read only; results <= 20 per call + `dropped`); `ShroudGetFriends` ({ name, online }),
+  `ShroudGetGuildMembers` ({ name, online, role }), `ShroudGetGuildMotd()` (string, "" outside a guild),
+  `ShroudOnGuildMotdChanged(motd)` (checked twice a second), `ShroudOnFriendStatusChanged` /
+  `ShroudOnGuildMemberStatusChanged` ({ name, online } changes, <= 50 + `dropped`; login and the list loading
+  are not changes). Candidates: the guild MOTD notification could use `ShroudGetGuildMotd` +
+  `ShroudOnGuildMotdChanged` instead of `ShroudGetSocialSummary().guildMotd` polling; friend / guild member
+  online as notification sources.
+- **API 19**: `compact = true` windows (title bar hidden until hovered ~0.7 s, laid over the content; NO
+  TextField/Dropdown in them). A candidate look for the XP / Today windows (an option; check the version).
+- **API 20**: `ShroudGetVigor()` / `ShroudOnVigorChanged` -> the Vigor bar (built 2026-09-28, vitals.lua).
+- **API 21**: packages may ship .mp3/.aif/.aiff/.mod/.it/.s3m/.xm sounds (needs `min_api_version` 21; bytes checked
+  against the extension). Toolbox ships .ogg only: nothing to do. A player's own replacement may be any format.
+- **API 22**: package data files: `data_files` in the manifest (<= 16 .json, <= 256 KiB each, needs
+  `min_api_version` 22), read with `ShroudLoadData(name)` (works at file top level; JSON null reads as `json.null`,
+  whose library is otherwise undocumented, so `Toolbox.JsonDecode` stays). Nothing to use it for yet.
+- Also in the docs now: `ShroudFlushSavedVars()` returns false when a write failed or a table passed 256 KB
+  (we ignore it; could report it in chat); an optional manifest `support_url` (a store "Support" link, any API
+  version; for when the repo is public). The equipment example uses `durability / maxDurability < 0.2`, as
+  `Toolbox.Gear` does; `primaryDurability` is still undefined. "Shift is not a modifier" is still written
+  (item 38 found it works in game).
 
 The owner's agreed plans (2026-09-27). UPDATE, same day: the client now reports API 20, while the docs
 went BACK to describing API 17 and dropped the whole crafting / gathering / friends / guild group (the
@@ -575,6 +607,11 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     change or a player-name change, nor when 2+ names are new in one tick (`lastSeen`). Old learned data
     is dropped by versioning: `buff_durations` v2 and `buff_timers` v3.
     Vanished buffs keep their timer for `GRACE` seconds.
+    2026-09-28: `TotalFromEffects` now reads only that confirmed shape (seconds; CurrentDuration = time left)
+    and takes the effect whose time left matches the rune's, not the longest total that fitted any guess
+    (ms, elapsed): another effect of the same rune could set the sweep's length (a candidate cause of the
+    sweep being out of step with the game's bar). Still unknown: which effect's time the GAME's bar shows for
+    a rune with several (ours: the longest-running, `readEffects`). `/toolbox buffs trace <name>` shows both.
 23. Sounds. SETTLED 2026-09-28. Paths are relative to the Lua root (`ShroudLuaPath`; a package's own
     sounds are "toolbox/<name>.ogg"). `ShroudLoadSound` answers false for a missing / empty / wrong-format
     file (API 15) and true when the load starts (async; failures only in Player.log). `ShroudListSound()`
@@ -603,6 +640,9 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     fallback the bars show; `/toolbox vitals debug` showed `ShroudPlayerCurrentHealth` and
     `ShroudPlayerCurrentFocus` are nil. Keep both sources: the globals are documented and may start
     working when the client catches up with the docs.
+    2026-09-28: Vigor is readable after all, through its own API 20 getter (`ShroudGetVigor`), not a stat:
+    the Vigor bar is built on that. Unconfirmed in game: the look, that `percent` matches the game's bar, and
+    that the bonuses read as whole percent (shown as given).
 28. Other per-frame globals in use: `ShroudTime` works (sessions, buff sweeps). `ShroudPlayerGold` (daily
     "gold picked up") is in the same documented group as the nil vitals globals; if it is nil too, daily
     gold never counts. Asked the owner 2026-09-27 to check and run `/toolbox stats gold` for a fallback.
