@@ -226,6 +226,12 @@ local function build()
           onChange = function(_, value) C.OnSpacing(value) end,
         },
         UI.Toggle{
+          id = "xp_net", text = "Subtract XP lost (net change)", value = W.GetNet(),
+          tooltip = "Off: XP figures count gains only (a death doesn't lower them). On: XP lost is"
+            .. " subtracted, so last hour, XP/hour and today's XP can go negative.",
+          onChange = function(_, value) W.SetNet(value) end,
+        },
+        UI.Toggle{
           id = "show_compact", text = "Show XP window", value = T.Compact.IsShown(),
           style = { marginTop = 6 },
           onChange = function(_, value) C.OnShowCompact(value) end,
@@ -288,7 +294,7 @@ local function build()
                 "show_combat", "combat_pet", "combat_scale", "combat_scale_value", "combat_stats", "combat_pos",
                 "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "buff_group",
                 "buff_replace", "buff_dismiss", "buff_group_after",
-                "buffs_combat_only", "dd_values" }
+                "buffs_combat_only", "dd_values", "xp_net" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -421,6 +427,7 @@ function C.Sync()
   local spacing = T.Window.GetSpacing()
   el.spacing:SetValue(spacing)
   el.spacing_value:SetText(fontLabel(spacing))
+  el.xp_net:SetValue(T.Window.GetNet())
   el.show_xp:SetValue(T.Window.IsOpen())
   el.show_compact:SetValue(T.Compact.IsShown())
   el.show_daily:SetValue(T.Daily.IsShown())

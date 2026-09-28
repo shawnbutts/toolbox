@@ -152,6 +152,17 @@ function W.GetSpacing()
   return spacing()
 end
 
+-- "Subtract XP lost": XP windows and today's XP show the net change (losses subtracted, can be
+-- negative) instead of gains only (the default). Owner's option, 2026-09-28.
+function W.GetNet() return prefs.net == true end
+
+function W.SetNet(on)
+  prefs.net = on == true
+  W.SavePrefs()
+  T.RefreshViews()
+  T.Config.Sync()
+end
+
 -- A label in this window while it is shown (for measuring), else nil.
 function W.SampleLabel()
   return W.IsShown() and el.elapsed or nil
@@ -235,6 +246,7 @@ function W.Init()
     if type(saved.spacing) == "number" and saved.spacing >= W.SPACING_MIN and saved.spacing <= W.SPACING_MAX then
       prefs.spacing = math.floor(saved.spacing)
     end
+    prefs.net = saved.net == true
   end
   build()
   if prefs.open then
@@ -346,7 +358,8 @@ function W.NextLevelText(progress, ratePerHour)
     return "Next level: " .. T.FormatNumber(remaining) .. " XP (~" .. T.FormatDuration(seconds)
       .. " at " .. rateText(ratePerHour) .. ")"
   elseif status == "norate" then
-    return "Next level: " .. T.FormatNumber(remaining) .. " XP (no XP gained yet)"
+    local why = (type(ratePerHour) == "number" and ratePerHour < 0) and "losing XP" or "no XP gained yet"
+    return "Next level: " .. T.FormatNumber(remaining) .. " XP (" .. why .. ")"
   elseif status == "cap" then
     return "Next level: max level"
   end
@@ -366,9 +379,10 @@ function W.Refresh()
   local progress = ShroudGetLevelProgress()
   for _, track in ipairs(T.XP.TRACKS) do
     local k = track.key
-    local sessionRate = T.XP.SessionRate(s, k, now)
-    el[k .. "_gain"]:SetText("+" .. T.FormatNumber(T.XP.Gained(s, k)) .. "  " .. rateText(sessionRate)
-      .. "  (10m " .. rateText(T.XP.WindowRate(s, k, now)) .. ")")
+    local net = W.GetNet()
+    local sessionRate = T.XP.SessionRate(s, k, now, net)
+    el[k .. "_gain"]:SetText(T.XP.Signed(T.XP.Gained(s, k, net)) .. "  " .. rateText(sessionRate)
+      .. "  (10m " .. rateText(T.XP.WindowRate(s, k, now, net)) .. ")")
 
     local p = progress and progress[track.progress]
     if type(p) == "table" and type(p.level) == "number" then

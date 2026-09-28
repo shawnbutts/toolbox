@@ -6,6 +6,9 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- XP: "Subtract XP lost (net change)" in settings. Off (the default), XP figures count gains only;
+  on, XP lost (for example on death) is subtracted from last hour, XP/hour, session and today's XP,
+  which can then go negative.
 - Notifications: a window tells you what's new since you last saw it: your guild's message of the
   day, new mail, mail about to expire, ransoms, new rewards and guild applications. It opens at
   login, after a reload, or as soon as something changes, with everything new together; nothing

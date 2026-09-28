@@ -96,7 +96,7 @@ end
 function D.Roll(d, key)
   if key == nil or d.key == key then return false end
   d.key, d.gold, d.kills, d.a, d.p = key, 0, 0, 0, 0
-  d.items, d.dropped = {}, 0
+  d.items, d.dropped, d.la, d.lp = {}, 0, 0, 0
   return true
 end
 
@@ -118,10 +118,19 @@ local function observeTrack(d, key, v, now)
     return false
   end
   if T.XP.ConfirmDrop(pending, key, v, now) then
-    d.last[key] = v                  -- a loss: count on from here, nothing subtracted
+    d["l" .. key] = (d["l" .. key] or 0) + (last - v)   -- a loss (shown only with the net option)
+    d.last[key] = v                  -- count on from here, nothing subtracted
     return true
   end
   return false
+end
+
+-- Today's XP on a track as shown: gains, or with the net option (Toolbox.Window.GetNet) gains
+-- minus losses (d.la / d.lp), which can be negative.
+function D.XPToday(d, key)
+  local gained = d[key] or 0
+  if T.Window.GetNet() then return gained - (d["l" .. key] or 0) end
+  return gained
 end
 
 function D.ObserveXP(d, adv, prod, now)
@@ -454,6 +463,6 @@ function D.Refresh()
   e.date:SetTooltip(tip)
   e.gold:SetText(T.FormatNumber(D.day.gold))
   e.kills:SetText(T.FormatNumber(D.day.kills))
-  e.adv:SetText(T.FormatNumber(D.day.a))
-  e.prod:SetText(T.FormatNumber(D.day.p))
+  e.adv:SetText(T.FormatNumber(D.XPToday(D.day, "a")))
+  e.prod:SetText(T.FormatNumber(D.XPToday(D.day, "p")))
 end

@@ -278,7 +278,7 @@ including the "no character" sentinel.
 | Key | Shape |
 | --- | --- |
 | `session` | see the header comment of `xp.lua` (format `v = 1`; bump and handle old data if it changes) |
-| `window` | `{ open = bool, x = number, y = number, font = 9..32, spacing = 0..12 }` |
+| `window` | `{ open = bool, x = number, y = number, font = 9..32, spacing = 0..12, net = bool }` (net: subtract XP lost) |
 | `compact` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, hx, hy }` (hx/hy: the HUD strip) |
 | `daily` | see the header comment of `daily.lua` (format `v = 1`) |
 | `daily_window` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, hx, hy }` |
@@ -425,7 +425,9 @@ Things the docs don't settle. Verify in game before depending on them more heavi
    likely XP lost on death), and since every lower reading was ignored, on both tracks, all XP tracking
    froze for 1.5 h (`/toolbox xp debug`: 1 sample, 51 ignored readings). Now each track stands alone, a
    lower reading is ignored only until it has held `XP.DROP_CONFIRM` (5 s; `XP.ConfirmDrop`, also used by
-   the daily stats), and a believed loss goes into `session.offset` so it counts as no gain.
+   the daily stats), and a believed loss goes into `session.offset` so it counts as no gain. Samples carry
+   the losses so far (`la`/`lp`) and the day `la`/`lp`, for the "net" option (`Toolbox.Window.GetNet`):
+   `XP.Gained/SessionRate/WindowGain/WindowRate/LastHour(..., net)` subtract losses in the window.
 10. Whether `fontSize` is inherited from a container. We set it on every label and button.
     Also whether a `Bar` honours a `height` style (we set it to half the font size, min 4).
 11. Whether the window's `width`/`height` apply once the host has remembered a size. We assume

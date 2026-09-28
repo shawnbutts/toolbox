@@ -8,7 +8,8 @@
 --   start    = <seconds>,         -- T.Now() when the session began
 --   clock    = <seconds>,         -- T.Now() at the last save (detects client restarts)
 --   base     = { a = n, p = n },  -- total adventurer / producer XP at the start
---   samples  = { { t = s, a = n, p = n }, ... },  -- ascending t; last one = current
+--   samples  = { { t = s, a = n, p = n, la = n, lp = n }, ... },  -- ascending t; last one = current;
+--              la / lp: XP lost so far on that track (nil = 0), for the "net" views
 --   ended    = true|nil,          -- set at logout
 --   offset   = { a = n, p = n }|nil,  -- XP lost so far (added to readings: a loss isn't negative gain)
 --   pending  = { a = t, p = t }|nil,  -- since when a track has read lower than recorded
@@ -57,6 +58,7 @@ function XP.IsValid(s)
     if type(x) ~= "table" or not (isNum(x.t) and isNum(x.a) and isNum(x.p)) or x.t < prev then
       return false
     end
+    if (x.la ~= nil and not isNum(x.la)) or (x.lp ~= nil and not isNum(x.lp)) then return false end
     prev = x.t
   end
   return true
@@ -114,17 +116,23 @@ function XP.Record(s, now, adv, prod)
     end
     vals[key] = v
   end
-  if vals.a == cur.a and vals.p == cur.p then
+  if vals.a == cur.a and vals.p == cur.p and not changed then
     XP.Prune(s, now)
-    return changed
+    return false
   end
+  local la, lp = s.offset.a or 0, s.offset.p or 0
   if #s.samples >= 2 and now - cur.t < XP.BUCKET then
-    cur.a, cur.p = vals.a, vals.p     -- merge into the recent sample, keep its time
+    cur.a, cur.p, cur.la, cur.lp = vals.a, vals.p, la, lp   -- merge into the recent sample, keep its time
   else
-    s.samples[#s.samples + 1] = { t = now, a = vals.a, p = vals.p }
+    s.samples[#s.samples + 1] = { t = now, a = vals.a, p = vals.p, la = la, lp = lp }
   end
   XP.Prune(s, now)
   return true
+end
+
+-- XP lost so far on a track this session.
+function XP.Lost(s, key)
+  return type(s.offset) == "table" and s.offset[key] or 0
 end
 
 -- A track's reading as the session counts it (with XP lost so far added back).
@@ -136,9 +144,11 @@ function XP.Elapsed(s, now)
   return math.max(0, now - s.start)
 end
 
--- XP gained this session on one track ("a" or "p").
-function XP.Gained(s, key)
-  return math.max(0, XP.Current(s)[key] - s.base[key])
+-- XP gained this session on one track ("a" or "p"); with `net`, minus what was lost (can be < 0).
+function XP.Gained(s, key, net)
+  local gained = math.max(0, XP.Current(s)[key] - s.base[key])
+  if net then return gained - XP.Lost(s, key) end
+  return gained
 end
 
 -- Amount over seconds, per hour. 0 for spans too short to mean anything.
@@ -147,37 +157,46 @@ function XP.PerHour(amount, seconds)
   return amount * 3600 / seconds
 end
 
-function XP.SessionRate(s, key, now)
-  return XP.PerHour(XP.Gained(s, key), XP.Elapsed(s, now))
+function XP.SessionRate(s, key, now, net)
+  return XP.PerHour(XP.Gained(s, key, net), XP.Elapsed(s, now))
 end
 
 -- XP gained on one track over the last `seconds` (at most XP.KEEP), and the
 -- span it covers: the whole session while it is younger than that. The value at
 -- the window start is the newest sample at or before it; totals only change at samples.
-function XP.WindowGain(s, key, now, seconds)
+-- With `net`, XP lost within the window is subtracted (the result can be negative).
+function XP.WindowGain(s, key, now, seconds, net)
+  local lkey = "l" .. key
   local cutoff = now - seconds
-  local fromT, fromV = nil, nil
+  local fromT, fromV, fromL = nil, nil, 0
   if cutoff <= s.start then
     fromT, fromV = s.start, s.base[key]
   else
-    fromT, fromV = cutoff, s.samples[1][key]
+    fromT, fromV, fromL = cutoff, s.samples[1][key], s.samples[1][lkey] or 0
     for i = 1, #s.samples do
       local x = s.samples[i]
       if x.t > cutoff then break end
-      fromV = x[key]
+      fromV, fromL = x[key], x[lkey] or 0
     end
   end
-  return math.max(0, XP.Current(s)[key] - fromV), now - fromT
+  local gained = math.max(0, XP.Current(s)[key] - fromV)
+  if net then gained = gained - ((XP.Current(s)[lkey] or 0) - fromL) end
+  return gained, now - fromT
 end
 
 -- XP/hour over the last XP.WINDOW seconds (or the whole session while it is younger).
-function XP.WindowRate(s, key, now)
-  return XP.PerHour(XP.WindowGain(s, key, now, XP.WINDOW))
+function XP.WindowRate(s, key, now, net)
+  return XP.PerHour(XP.WindowGain(s, key, now, XP.WINDOW, net))
 end
 
 -- XP gained over the last hour (or the whole session while it is younger).
-function XP.LastHour(s, key, now)
-  return (XP.WindowGain(s, key, now, XP.HOUR))
+function XP.LastHour(s, key, now, net)
+  return (XP.WindowGain(s, key, now, XP.HOUR, net))
+end
+
+-- "+1,234" / "-567": a gain, or with the net option a change, for display.
+function XP.Signed(n)
+  return (n >= 0 and "+" or "") .. Toolbox.FormatNumber(n)
 end
 
 -- Where the next level stands, from one side of ShroudGetLevelProgress()

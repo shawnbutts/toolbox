@@ -211,4 +211,42 @@ return function(t)
     H.reload()
     t.eq(Toolbox.session.offset.a, 943678, "the loss is remembered across a reload")
   end)
+
+  t.test("net option: a loss inside the window is subtracted, and drops out after an hour", function()
+    H.boot()
+    local X = Toolbox.XP
+    local s = X.NewSession(0, 1000000, 500, "Tester")
+    X.Record(s, 100, 1100000, 500)               -- +100k
+    X.Record(s, 200, 990000, 500)                -- -110k (a death)...
+    X.Record(s, 206, 990000, 500)                -- ...believed once it holds
+    t.eq(X.LastHour(s, "a", 300), 100000, "gains only (the default)")
+    t.eq(X.LastHour(s, "a", 300, true), -10000, "net: +100k -110k")
+    t.eq(X.Gained(s, "a", true), -10000)
+    t.ok(X.SessionRate(s, "a", 300, true) < 0)
+    t.eq(X.Signed(-10000), "-10,000")
+    t.eq(X.Signed(100000), "+100,000")
+    X.Record(s, 3000, 1000000, 500)              -- +10k later
+    t.eq(X.LastHour(s, "a", 3000 + 3600 - 300, true), 10000, "the gain and the loss an hour ago have dropped out")
+  end)
+
+  t.test("net option: the setting changes the XP windows and today's XP", function()
+    H.boot()
+    H.chat("/tbx xp")
+    H.chat("/tbx xpdetailed")
+    H.chat("/tbx daily")
+    H.gain(100000, 0)
+    H.advance(Toolbox.XP.BUCKET + 1)
+    H.S.char.adv = H.S.char.adv - 110000
+    H.advance(Toolbox.XP.DROP_CONFIRM + 2)
+    t.eq(H.compactText("a_hour"), "+100,000", "gains only by default")
+    t.eq(H.dailyText("adv"), "100,000")
+    H.chat("/tbx config")
+    H.change("toolbox_config", "xp_net", true)
+    t.eq(H.saved("window").net, true)
+    t.eq(H.compactText("a_hour"), "-10,000")
+    t.ok(H.text("a_gain"):find("^%-10,000  %-"), H.text("a_gain"))
+    t.eq(H.dailyText("adv"), "-10,000")
+    H.reload()
+    t.eq(Toolbox.Window.GetNet(), true, "kept")
+  end)
 end
