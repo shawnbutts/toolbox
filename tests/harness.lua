@@ -87,7 +87,7 @@ local realDate = os.date
 local realTime = os.time
 
 local function install_api()
-  ShroudLuaApiVersion = 14
+  ShroudLuaApiVersion = 15
   InvalidStatResult = -999
   ShroudTime = S.time or 100
   ShroudPlayerGold = S.char.gold
@@ -241,12 +241,9 @@ local function install_api()
     end
     return true
   end
-  -- H.S.soundListShape: nil = the documented list of names; "tables" = { { name = ... }, ... };
-  -- "wrapped" = { { "a", "b" } } (in game the entries came back as tables).
   ShroudListSound = function()
     local out = {}
-    for i, c in ipairs(S.clips) do out[i] = S.soundListShape == "tables" and { name = c } or c end
-    if S.soundListShape == "wrapped" then return { out } end
+    for i, c in ipairs(S.clips) do out[i] = c end
     return out
   end
   ShroudListSoundReset = function()

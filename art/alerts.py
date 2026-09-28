@@ -4,7 +4,8 @@
     python3 art/alerts.py                    # every alert
     python3 art/alerts.py debuff_landed      # just one
 
-Each alert is written as art/<name>.ogg (and an intermediate art/<name>.wav, git-ignored).
+Each alert is written as toolbox/<name>.ogg, shipped in the package (API 15 allows sounds), with
+an intermediate art/<name>.wav (git-ignored).
 Standard library for the synthesis; ffmpeg (built-in Vorbis encoder) for the .ogg.
 
 Alerts:
@@ -147,7 +148,7 @@ ALERTS = {
 
 
 def write(name: str, samples: list[float]) -> None:
-    wav, ogg = HERE / f"{name}.wav", HERE / f"{name}.ogg"
+    wav, ogg = HERE / f"{name}.wav", HERE.parent / "toolbox" / f"{name}.ogg"
     with wave.open(str(wav), "wb") as w:
         w.setnchannels(1)
         w.setsampwidth(2)

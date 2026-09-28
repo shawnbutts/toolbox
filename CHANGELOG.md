@@ -40,6 +40,12 @@ store submission needs a higher version than any submitted before (rejected ones
 - /toolbox api lists which newer game functions this client has (buff bar, crafting, friends and
   guild), to check the client against the docs.
 
+### Changed
+- The alert sounds now come with the add-on (game clients at Lua API 15 or newer allow sounds in
+  add-on packages), so there's nothing to copy by hand. Toolbox now needs Lua API 15. Your own
+  sounds in the Lua folder (toolbox_buff_expiring.ogg, toolbox_debuff_landed.ogg) still win.
+- /toolbox sounds debug is simpler; /toolbox sounds try is gone (sounds work in current clients).
+
 ### Fixed
 - Buff bar: the sweep no longer lags the game's own buff bar. Buffs that load in after you log in
   (or zone) were taken for fresh casts, so their time left at that moment was remembered as their

@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PACKAGE = ROOT / "toolbox"
 DIST = ROOT / "dist"
 
-CLIENT_API_VERSION = 14  # newest API the docs describe; min_api_version above this cannot load
+CLIENT_API_VERSION = 17  # newest API the docs describe; min_api_version above this cannot load
 
 SLUG_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
 # The docs list these "among" the reserved slugs; the full list is not published.
@@ -36,6 +36,7 @@ RESERVED_SLUGS = {"test", "addon", "addons", "lua", "shroud", "sota", "store", "
 VERSION_RE = re.compile(r"^(0|[1-9]\d{0,3})\.(0|[1-9]\d{0,3})\.(0|[1-9]\d{0,3})$")
 LUA_NAME_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_-]{0,63}\.lua$")
 ART_NAME_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_-]{0,63}\.(png|jpg|jpeg)$")
+SOUND_NAME_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_-]{0,63}\.(ogg|wav)$")
 HOST_RE = re.compile(r"^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$")
 
 MANIFEST_KEYS = {
@@ -48,9 +49,11 @@ MAX_LUA_FILES = 16
 MAX_ART = 12
 MAX_ART_BYTES = 256 * 1024
 MAX_ART_SIDE = 1024
-MAX_ENTRIES = 32
-MAX_ZIPPED = 1024 * 1024
-MAX_UNPACKED = 4 * 1024 * 1024
+MAX_SOUNDS = 32          # API 15 package sounds
+MAX_SOUND_BYTES = 2 * 1024 * 1024
+MAX_ENTRIES = 80         # the guide: "under 24 MB, zipped or unpacked, and at most 80 files"
+MAX_ZIPPED = 24 * 1024 * 1024
+MAX_UNPACKED = 24 * 1024 * 1024
 
 # Runtime code loading. The client scans source text (comments included) for these,
 # and review flags them, so they are refused anywhere in a package file.
@@ -215,6 +218,7 @@ def check_entries(report: Report, manifest: dict) -> list[Path]:
     files = [f for f in manifest.get("files", []) if isinstance(f, str)]
     api = manifest.get("min_api_version") if type(manifest.get("min_api_version")) is int else 0
     art: list[Path] = []
+    sounds: list[Path] = []
     total = 0
 
     for path in sorted(PACKAGE.iterdir()):
@@ -235,7 +239,11 @@ def check_entries(report: Report, manifest: dict) -> list[Path]:
         if ART_NAME_RE.match(name) and Path(name).stem.lower() != "icon":
             art.append(path)
             continue
-        report.error(f"{name}: not an allowed package entry (manifest.json, icon.png, README.md, *.lua, art)")
+        if SOUND_NAME_RE.match(name) and Path(name).stem.lower() != "icon":
+            sounds.append(path)
+            continue
+        report.error(f"{name}: not an allowed package entry (manifest.json, icon.png, README.md, *.lua, "
+                     "pictures, .ogg/.wav sounds)")
 
     if art and api < 13:
         report.error("package pictures need min_api_version >= 13")
@@ -253,6 +261,20 @@ def check_entries(report: Report, manifest: dict) -> list[Path]:
         elif max(size) > MAX_ART_SIDE:
             report.error(f"{path.name}: {size[0]}x{size[1]}, limit {MAX_ART_SIDE}px per side")
 
+    # API 15 sounds: bytes must match the extension (the store checks the header), <= 2 MiB each.
+    if sounds and api < 15:
+        report.error("package sounds need min_api_version >= 15")
+    if len(sounds) > MAX_SOUNDS:
+        report.error(f"at most {MAX_SOUNDS} sounds allowed, found {len(sounds)}")
+    for path in sounds:
+        data = path.read_bytes()
+        if len(data) > MAX_SOUND_BYTES:
+            report.error(f"{path.name}: {len(data)} bytes, limit {MAX_SOUND_BYTES}")
+        if path.suffix == ".ogg" and not data.startswith(b"OggS"):
+            report.error(f"{path.name}: not an Ogg file (no OggS header)")
+        if path.suffix == ".wav" and not (data[:4] == b"RIFF" and data[8:12] == b"WAVE"):
+            report.error(f"{path.name}: not a WAV file (no RIFF....WAVE header)")
+
     if total > MAX_UNPACKED:
         report.error(f"package is {total} bytes unpacked, limit {MAX_UNPACKED}")
 
@@ -261,6 +283,7 @@ def check_entries(report: Report, manifest: dict) -> list[Path]:
         if (PACKAGE / extra).is_file():
             ordered.append(PACKAGE / extra)
     ordered += sorted(art, key=lambda p: p.name)
+    ordered += sorted(sounds, key=lambda p: p.name)     # canonical order: sounds after pictures
     if len(ordered) > MAX_ENTRIES:
         report.error(f"{len(ordered)} entries, limit {MAX_ENTRIES}")
     return ordered

@@ -204,16 +204,14 @@ alert takes the first that loads of:
    (or `.wav`), which store updates don't touch;
 3. the default in the add-on's folder, `Lua/toolbox/<name>.ogg`.
 
-Audio files can't be part of a store package yet, so for now `tools/install.py` puts the defaults
-there; paths are relative to the Lua folder (`ShroudLuaPath`).
+The defaults ship in the package (API 15 allows sounds, so the package needs `min_api_version`
+15); paths are relative to the Lua folder (`ShroudLuaPath`).
 
-Missing files are fine: that alert is just silent. **Known issue (2026-09-27):** in the current
-(DEV) client no sound file loads at all (`/toolbox sounds try 1` returns -1), which looks like a
-client problem; the alerts are silent until that is fixed, but the red sweep still marks expiring
-buffs. `/toolbox sounds` says which file each alert
+Missing files are fine: that alert is just silent. `/toolbox sounds` says which file each alert
 uses; `/toolbox sounds test` (or the Test buttons in settings) plays them and reports whether the
-game is really playing them. The sounds are in `art/`; `tools/install.py` copies them to the
-add-on's folder for you (only the `.ogg` files), and never writes to the Lua folder itself.
+game is really playing them; `/toolbox sounds debug` lists every path tried. `art/alerts.py`
+generates `toolbox/*.ogg`. (Older macOS clients failed every sound load; fixed in the client
+2026-09-28.)
 
 When a buff's expiry alert fires, its sweep turns from dark to red for the rest of that run.
 
@@ -331,7 +329,7 @@ toolbox/            the package (what ships)
   icon.png          store / add-on manager icon (256x256)
 art/icon.svg        editable source of the icon (not shipped)
 art/clock.py        generates toolbox/clock.png (and art/clock.svg)
-art/alerts.py       generates the alert sounds art/*.ogg (not shipped; see Buff bar)
+art/alerts.py       generates the alert sounds toolbox/*.ogg (shipped in the package)
 tests/              headless tests with a stubbed host (harness.lua)
 tools/build.py      validator + packager
 tools/install.py    copies dist/toolbox/ into a game client's Lua folder
@@ -349,9 +347,9 @@ tools/install.py    copies dist/toolbox/ into a game client's Lua folder
    python3 tools/install.py --lua-dir "/path/to/Lua"
    # or: export SOTA_LUA_DIR="/path/to/Lua"; make install
    ```
-   The installer also puts the default alert sounds in `Lua/toolbox/`. (Earlier installs put them
-   in `Lua/toolbox_*.ogg`; those now count as your replacements, so delete them unless wanted.)
-   The folder name must be
+   The default alert sounds come with the package. (Earlier installs put them in
+   `Lua/toolbox_*.ogg`; those count as your replacements, so delete them unless wanted: the
+   installer lists any it finds.) The folder name must be
    exactly `toolbox`, and there must be no loose `toolbox.lua` in the Lua
    folder (it would block the package). Re-installing replaces `Lua/toolbox/` only; saved vars in
    `Lua/SavedVariables/` are kept.
@@ -366,8 +364,8 @@ tools/install.py    copies dist/toolbox/ into a game client's Lua folder
 
 1. Commit everything (the build is stamped with the commit; testers' `/toolbox version` shows it).
 2. `make beta` runs lint, tests and the build, then writes `dist/toolbox-<version>-beta.zip`:
-   a ready-to-copy `toolbox/` folder (the add-on plus the default alert sounds, which the store
-   doesn't accept yet) and `INSTALL.txt` for testers (the text of `BETA.md`: install steps, what to
+   a ready-to-copy `toolbox/` folder (the add-on, default alert sounds included) and `INSTALL.txt`
+   for testers (the text of `BETA.md`: install steps, what to
    try, known issues, how to report).
 3. Send testers the zip. Keep `BETA.md`'s known issues and "what to try" current for each beta.
 

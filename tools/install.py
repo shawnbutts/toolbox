@@ -60,16 +60,12 @@ def main() -> int:
         shutil.rmtree(dest)
     shutil.copytree(src, dest)
     print(f"Installed {len(list(dest.iterdir()))} files to {dest}")
-    # The default alert sounds go in the package folder (Lua/toolbox/). The Lua folder itself is
-    # where a player's replacements go (Lua/toolbox_<name>.ogg), so nothing is written there.
-    # (Not part of the store package: audio files aren't allowed in packages yet.)
-    for sound in sorted((ROOT / "art").glob("*.ogg")):     # the defaults are .ogg (no .wav copies)
-        shutil.copy2(sound, dest / sound.name)
-        print(f"Copied default alert sound to {dest / sound.name}")
+    # The default alert sounds ship in the package (API 15), so they came with it. The Lua folder
+    # itself is where a player's replacements go (Lua/toolbox_<name>.ogg): nothing is written there.
     old = [p for p in lua_dir.glob(f"{slug}_*") if p.suffix in (".ogg", ".wav")]
     if old:
-        print("Note: these in the Lua folder now act as REPLACEMENTS for the defaults (earlier installs put"
-              " them there); delete them unless you want them:")
+        print("Note: these in the Lua folder act as REPLACEMENTS for the default sounds in the package"
+              " (earlier installs put them there); delete them unless you want them:")
         for p in old:
             print(f"  {p}")
     print("In game: /lua reload, enable Toolbox in the add-on manager, /lua check toolbox, then /toolbox xp")

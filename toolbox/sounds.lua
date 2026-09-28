@@ -19,7 +19,6 @@ Toolbox.Sounds = S
 
 S.LOAD_TIMEOUT = 2          -- seconds to wait for a candidate to appear (local files load fast)
 S.VOLUME_DEFAULT = 70
-S.MISSING_PROBE = "toolbox/no_such_sound.ogg"   -- /toolbox sounds debug asks the game to load this
 S.DEFS = {
   { key = "buff_expiring", file = "buff_expiring.ogg", label = "Buff expiring" },
   { key = "debuff_landed", file = "debuff_landed.ogg", label = "Debuff landed" },
@@ -30,29 +29,13 @@ S.DEFS = {
 local state = {}
 local prefs = { volume = S.VOLUME_DEFAULT, paths = {} }
 
--- A clip's name from one list entry: the docs say entries are name strings, but in game they
--- came back as tables, so a table's name / Name / clip field is used too.
-local function entryName(v)
-  if type(v) == "string" then return v end
-  if type(v) == "table" then
-    for _, k in ipairs({ "name", "Name", "clip", "Clip", "clipName" }) do
-      if type(v[k]) == "string" then return v[k] end
-    end
-  end
-  return nil
-end
-
--- The game's loaded clips as a flat list of names, in clip-id order (the id is the 1-based
--- position). Handles the documented list of strings, entries that are tables with a name,
--- and a list wrapped in one more table (in game every entry looked like the same table).
+-- The game's loaded clips as a list of names (the file's base name), in clip-id order: the id
+-- is the 1-based position. Confirmed in game 2026-09-28: plain strings, as documented.
 local function listSounds()
   local ok, raw = pcall(ShroudListSound)
   if not ok or type(raw) ~= "table" then return {} end
-  if #raw == 1 and type(raw[1]) == "table" and not entryName(raw[1]) then
-    raw = raw[1]                       -- wrapped: { { "a", "b" } }, or { {} } before any load
-  end
   local out = {}
-  for i, v in ipairs(raw) do out[i] = entryName(v) or "" end
+  for i, v in ipairs(raw) do out[i] = type(v) == "string" and v or "" end
   return out
 end
 
@@ -259,43 +242,13 @@ function S.GetPath(key)
   return prefs.paths[key] or ""
 end
 
--- /toolbox sounds debug: the game's raw sound list and what each alert recorded.
+-- /toolbox sounds debug: the game's clip list, and what each alert tried and found.
 function S.DebugLines()
   local lines = { "Toolbox build " .. T.build .. ", copies loaded: " .. tostring(ToolboxCopies),
     "ShroudLuaPath = " .. tostring(ShroudLuaPath) .. "; ShroudDataPath = " .. tostring(ShroudDataPath) }
-  local ok, raw = pcall(ShroudListSound)
-  local n = type(raw) == "table" and #raw or 0
-  local kind = ok and type(raw) or ("error " .. tostring(raw))
-  lines[#lines + 1] = "ShroudListSound(): " .. kind .. ", " .. n .. " entries"
-  -- What a value holds, one level deep: "string abc", "table {name=abc, 2 items: x, y}".
-  local function describe(v)
-    if type(v) ~= "table" then return type(v) .. " " .. tostring(v) end
-    local fields = {}
-    for k, x in pairs(v) do
-      if type(k) ~= "number" and #fields < 6 then fields[#fields + 1] = tostring(k) .. "=" .. tostring(x) end
-    end
-    local items = {}
-    for i = 1, math.min(#v, 6) do items[#items + 1] = tostring(v[i]) end
-    return "table {" .. table.concat(fields, ", ") .. (#v > 0 and ((#fields > 0 and "; " or "") .. #v
-      .. " items: " .. table.concat(items, ", ")) or "") .. "}"
-  end
-  if type(raw) == "table" then
-    -- every key, not only 1..n: a keyed table would count as "0 entries"
-    local shown = 0
-    for k, v in pairs(raw) do
-      shown = shown + 1
-      if shown <= 20 then lines[#lines + 1] = "  [" .. type(k) .. " " .. tostring(k) .. "] " .. describe(v) end
-    end
-    lines[#lines + 1] = "  (" .. shown .. " keys in all)"
-  end
-  lines[#lines + 1] = "Names used: " .. table.concat(listSounds(), ", ")
-  -- From API 15 the game checks a file before loading it and answers false for a missing one; on
-  -- API 14 it answered true to every path. So this says whether the newer loader is in the client.
-  local okMissing, missing = pcall(ShroudLoadSound, S.MISSING_PROBE, AudioType.OGGVORBIS)
-  lines[#lines + 1] = "A file that doesn't exist (" .. S.MISSING_PROBE .. ") -> "
-    .. (okMissing and tostring(missing) or ("error " .. tostring(missing)))
-    .. (okMissing and missing == false and " (good: the game checks files before loading)"
-      or okMissing and missing == true and " (the game accepts any path: no file check in this client)" or "")
+  local names = listSounds()
+  lines[#lines + 1] = "Loaded clips (all add-ons): " .. #names
+    .. (#names > 0 and (": " .. table.concat(names, ", ")) or "")
   for _, def in ipairs(S.DEFS) do
     local st = state[def.key] or {}
     lines[#lines + 1] = string.format("%s: status %s, path %s, recorded clip %s (%s), tried %s of %s",
@@ -304,30 +257,6 @@ function S.DebugLines()
     for _, entry in ipairs(st.log or {}) do lines[#lines + 1] = "    tried " .. entry end
   end
   return lines
-end
-
--- /toolbox sounds try <n>: play clip id n directly, without ShroudListSound(), and report what
--- happened. The docs: an id above the number of loaded clips is rejected (-1). So a channel
--- for id 1 means clips did load even when the list shows none.
-function S.TryClip(n)
-  if type(n) ~= "number" or n < 1 or n ~= math.floor(n) then
-    T.Print("Use /" .. T.commands[1] .. " sounds try <clip number>, e.g. 1.")
-    return
-  end
-  local ok, channel = pcall(ShroudPlaySoundChannel, n, prefs.volume > 0 and prefs.volume or 70)
-  if not ok then
-    T.Print("Clip " .. n .. ": ShroudPlaySoundChannel raised: " .. tostring(channel))
-    return
-  end
-  T.Print("Clip " .. n .. ": ShroudPlaySoundChannel returned " .. tostring(channel)
-    .. (channel == -1 and " (no such clip, or all channels busy)" or ""))
-  if type(channel) == "number" and channel > 0 then
-    ShroudRegisterPeriodic("toolbox_soundtry", function()
-      local now = ShroudIsChannelPlaying(channel)
-      T.Print("Clip " .. n .. ": channel " .. channel .. " is playing '" .. tostring(now) .. "'"
-        .. ((now == "" or now == nil) and " (nothing: it stopped at once or never started)" or ""))
-    end, 0.15, false)
-  end
 end
 
 -- One line per sound for /toolbox sounds.
