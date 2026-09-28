@@ -166,7 +166,10 @@ Run all three before calling a change done.
     and the session (every fight since start/reset) keep per-skill stats (`runes`, by runeId), overheal, and
     the session a `C.SLICE`-second damage timeline. `Toolbox.Combat.Detail` (bottom of the file) is the
     Combat Detailed window: fixed pools of skill rows (`Bar`) and timeline columns (heights via `SetStyle`),
-    a hover pop-up of the HUD (`T.Hover`, keys "t:hud"/"t:row<i>") or pinned. Fed by `ShroudOnCombatEvents` and `ShroudOnCombatModeChanged` (both in core.lua).
+    a hover pop-up of the HUD (`T.Hover`, keys "t:hud"/"t:row<i>") or pinned. Also per target (`targets`,
+    keyed `C.TargetKey(targetKey, name)` since keys restart per scene; a "death" line marks the kill,
+    `TopTargets`) and per damage type (`types.out` / `types.taken`, `Types`; fixed colours
+    `CD.TYPE_COLORS`, as the theme has none). Fed by `ShroudOnCombatEvents` and `ShroudOnCombatModeChanged` (both in core.lua).
     A fixed pool of label rows is built once; `Rows()` decides what they show.
   - `hud.lua`: `Toolbox.Hud` owns every HUD strip. A HUD module registers (`Hud.Register(key, module)`)
     and implements `FRAME_ID`, `HOME`, `BuildContent()`, `ContentSize()`, `IsShown()`,

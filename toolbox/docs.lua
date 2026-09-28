@@ -81,8 +81,10 @@ D.SECTIONS = {
     "Combat Detailed (hover the combat HUD, or /toolbox combat detail): your damage by skill as "
       .. "bars, longest first (hover one for hits, crits and over-time ticks); the last minute as a "
       .. "chart, damage done up and damage taken down; and healing with how much was wasted as "
-      .. "overheal. Switch between this fight and the whole session with the dropdown (or /toolbox "
-      .. "combat detail session). /toolbox combat reset clears both." },
+      .. "overheal; your targets (damage to each creature and how long each took to kill); and damage "
+      .. "types, a bar split by element for damage done and one for damage taken. Switch between this "
+      .. "fight and the whole session with the dropdown (or /toolbox combat detail session). /toolbox "
+      .. "combat reset clears both." },
   { "Moving the HUD strips",
     "The buff bar, health & focus bars and combat stats are HUD strips. Drag the grip at a "
       .. "strip's top-left corner (untick Options > Interface > Nameplates & Chat Bubbles > "

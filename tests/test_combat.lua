@@ -489,4 +489,78 @@ return function(t)
     H.advance(1, 0.25)
     t.no(cd():IsShown(), "no pop-up with hover off")
   end)
+
+  t.test("targets: damage per creature, same-named ones kept apart, kill time from first hit to death", function()
+    H.boot()
+    local M = Toolbox.Combat
+    local f = M.NewFight(0)
+    local function ev(x)
+      for _, k in ipairs({ "fromYou", "toYou", "fromYourPet", "toYourPet" }) do x[k] = x[k] == true end
+      return x
+    end
+    local bear = "Large Grizzly Bear"
+    M.Add(f, ev{ kind = "hit", fromYou = true, amount = 44, target = bear, targetKey = 15, time = 851 }, 851)
+    M.Add(f, ev{ kind = "hit", fromYou = true, amount = 14, target = bear, targetKey = 15, time = 852 }, 852)
+    M.Add(f, ev{ kind = "hit", fromYou = true, amount = 30, target = bear, targetKey = 16, time = 853 }, 853)
+    M.Add(f, ev{ kind = "death", fromYou = true, source = "shawn", sourceKey = 1, target = "Large Grizzly Bear",
+                 targetKey = 15, time = 893 }, 893)
+    local tops = M.TopTargets(f, 6)
+    t.eq(#tops, 2, "two bears, not one")
+    t.eq(tops[1].dmg, 58)
+    t.eq(tops[1].killed, true)
+    t.eq(tops[1].secs, 42, "first hit at 851, death at 893")
+    t.eq(tops[2].killed, false)
+    t.eq(M.TargetKey(nil, "Wolf"), "n:Wolf", "by name without a key (API 14)")
+  end)
+
+  t.test("damage types: done and taken, most first, with shares", function()
+    H.boot()
+    local M = Toolbox.Combat
+    local f = M.NewFight(0)
+    local function ev(x)
+      for _, k in ipairs({ "fromYou", "toYou", "fromYourPet", "toYourPet" }) do x[k] = x[k] == true end
+      return x
+    end
+    M.Add(f, ev{ kind = "hit", fromYou = true, amount = 70, damageType = "blade" }, 1)
+    M.Add(f, ev{ kind = "hit", fromYou = true, amount = 30, damageType = "handToHand" }, 1)
+    M.Add(f, ev{ kind = "hit", fromYou = true, amount = 5 }, 1)                    -- no type: "other"
+    M.Add(f, ev{ kind = "glancing", toYou = true, amount = 1, damageType = "handToHand" }, 1)
+    local out = M.Types(f, "out")
+    t.eq(out[1].type, "blade")
+    t.near(out[1].share, 70 / 105, 1e-9)
+    t.eq(out[3].type, "other")
+    t.eq(M.Types(f, "taken")[1].type, "handToHand")
+    t.eq(M.Detail.TypeName("handToHand"), "Hand to hand")
+  end)
+
+  t.test("Combat Detailed shows targets and damage types", function()
+    H.boot()
+    H.chat("/tbx combat")
+    H.setCombat(true)
+    local now = ShroudTime
+    H.combat({ { kind = "hit", fromYou = true, amount = 44, rune = "Body Slam", runeId = 75, damageType = "handToHand",
+                 target = "Large Grizzly Bear", targetKey = 15, time = now },
+               { kind = "hit", fromYou = true, amount = 100, rune = "Bladed Combat", runeId = 222, damageType = "blade",
+                 target = "Large Grizzly Bear", targetKey = 15, time = now },
+               { kind = "glancing", toYou = true, amount = 1, damageType = "handToHand", source = "Large Grizzly Bear",
+                 sourceKey = 15, time = now } })
+    H.advance(20)
+    H.combat({ { kind = "death", fromYou = true, source = "shawn", sourceKey = 1, target = "Large Grizzly Bear",
+                 targetKey = 15, time = ShroudTime } })
+    H.chat("/tbx combat detail")
+    H.advance(1)
+    local w = H.S.windows.toolbox_combat_detail
+    local body = w.children[1].children[1].children
+    local target = body[13].children[1]
+    t.eq(target.children[1].text, "Large Grizzly Bear")
+    t.ok(target.children[3].text:find("^144  killed 20s$"), target.children[3].text)
+    t.eq(w:Find("cd_types_out").text, "Blade 69%  ·  Hand to hand 31%")
+    t.eq(w:Find("cd_types_taken").text, "Hand to hand 100%")
+    local done = body[17]
+    local shownW = 0
+    for _, seg in ipairs(done.children) do
+      if seg.visible ~= false then shownW = shownW + seg.style.width end
+    end
+    t.eq(shownW, Toolbox.Combat.Detail.TYPE_W, "the parts fill the bar")
+  end)
 end

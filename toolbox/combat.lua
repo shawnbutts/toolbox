@@ -54,7 +54,8 @@ C.TIMELINE = 60                -- seconds the timeline covers
 
 function C.NewFight(now)
   return { start = now, last = now, ended = nil, out = 0, taken = 0, healed = 0, hits = 0, crits = 0,
-           attacksIn = 0, avoided = 0, dropped = 0, recent = {}, overheal = 0, runes = {} }
+           attacksIn = 0, avoided = 0, dropped = 0, recent = {}, overheal = 0, runes = {}, targets = {},
+           types = { out = {}, taken = {} } }
 end
 
 -- The whole session: the same numbers summed over every fight (API 17 per-skill details too),
@@ -82,12 +83,35 @@ local function runeStats(stats, e)
 end
 
 -- Adds a line's per-skill and healing details (API 17 fields; absent fields count as nothing).
-local function addDetails(stats, e, amount, kind)
+-- The key of a line's creature: its per-scene key (API 17) with its name, since keys start over
+-- in each scene; by name alone when there's no key.
+function C.TargetKey(key, name)
+  name = type(name) == "string" and name or ""
+  if type(key) == "number" and key > 0 then return key .. ":" .. name end
+  if name ~= "" then return "n:" .. name end
+  return nil
+end
+
+local function addDetails(stats, e, amount, kind, t)
+  local dtype = type(e.damageType) == "string" and e.damageType ~= "" and e.damageType or "other"
   if kind == "out" then
     local r = runeStats(stats, e)
     r.dmg, r.hits = r.dmg + amount, r.hits + 1
     if e.kind == "critical" then r.crits = r.crits + 1 end
     if e.dot == true then r.dots = r.dots + 1 end
+    stats.types.out[dtype] = (stats.types.out[dtype] or 0) + amount
+    local key = C.TargetKey(e.targetKey, e.target)
+    if key then
+      local tg = stats.targets[key]
+      if not tg then
+        tg = { name = type(e.target) == "string" and e.target ~= "" and e.target or "(unknown)", dmg = 0, hits = 0,
+               first = t, last = t }
+        stats.targets[key] = tg
+      end
+      tg.dmg, tg.hits, tg.last = tg.dmg + amount, tg.hits + 1, t
+    end
+  elseif kind == "taken" then
+    stats.types.taken[dtype] = (stats.types.taken[dtype] or 0) + amount
   elseif kind == "heal" then
     local over = type(e.overheal) == "number" and e.overheal > 0 and e.overheal or 0
     local r = runeStats(stats, e)
@@ -143,6 +167,41 @@ function C.TopRunes(stats, n)
   return out
 end
 
+-- Creatures by damage you did to them, most first (at most `n`): { name, dmg, hits, secs (first
+-- hit to kill, or to the last hit while alive), killed }.
+function C.TopTargets(stats, n)
+  local list = {}
+  for _, tg in pairs(stats.targets) do list[#list + 1] = tg end
+  table.sort(list, function(a, b)
+    if a.dmg ~= b.dmg then return a.dmg > b.dmg end
+    return a.name < b.name
+  end)
+  local out = {}
+  for i = 1, math.min(n, #list) do
+    local tg = list[i]
+    out[i] = { name = tg.name, dmg = tg.dmg, hits = tg.hits, killed = tg.killed == true,
+               secs = tg.killed and tg.killTime or math.max(0, tg.last - tg.first) }
+  end
+  return out
+end
+
+-- Damage by type ("out" = done, "taken"), most first: { type, amount, share (0-1) }.
+function C.Types(stats, which)
+  local list, total = {}, 0
+  for dtype, amount in pairs(stats.types[which] or {}) do
+    if amount > 0 then
+      list[#list + 1] = { type = dtype, amount = amount }
+      total = total + amount
+    end
+  end
+  table.sort(list, function(a, b)
+    if a.amount ~= b.amount then return a.amount > b.amount end
+    return a.type < b.type
+  end)
+  for _, x in ipairs(list) do x.share = total > 0 and x.amount / total or 0 end
+  return list
+end
+
 -- Overheal as a percentage of all healing done (healed + wasted), or nil when nothing healed.
 function C.OverhealPct(stats)
   local total = stats.healed + stats.overheal
@@ -165,19 +224,26 @@ function C.Add(f, e, now, pet, session)
       s.out = s.out + amount
       s.hits = s.hits + 1
       if e.kind == "critical" then s.crits = s.crits + 1 end
-      addDetails(s, e, amount, "out")
+      addDetails(s, e, amount, "out", t)
     elseif e.fromYou == true and C.HEAL_KINDS[e.kind] then
       s.healed = s.healed + amount
-      addDetails(s, e, amount, "heal")
+      addDetails(s, e, amount, "heal", t)
     end
     if atMe and not e.fromYou then
       if C.DAMAGE_KINDS[e.kind] then
         s.taken = s.taken + amount
+        addDetails(s, e, amount, "taken", t)
         s.attacksIn = s.attacksIn + 1
       elseif C.AVOID_KINDS[e.kind] then
         s.attacksIn = s.attacksIn + 1
         s.avoided = s.avoided + 1
       end
+    end
+    -- A creature you damaged died: its kill time runs from your first hit to its death.
+    if e.kind == "death" then
+      local tg = s.targets[C.TargetKey(e.targetKey, e.target) or ""]
+        or s.targets[C.TargetKey(e.sourceKey, e.source) or ""]
+      if tg and not tg.killed then tg.killed, tg.killTime = true, math.max(0, t - tg.first) end
     end
     s.last = now
   end
@@ -308,6 +374,8 @@ function C.OnEvents(events, dropped)
       if not fight or fight.ended then startFight() end
       session = session or C.NewSession(now)
       C.Add(fight, e, now, prefs.pet ~= false, session)
+    elseif type(e) == "table" and e.kind == "death" and fight then
+      C.Add(fight, e, now, prefs.pet ~= false, session)   -- marks a target killed; starts nothing
     end
   end
   if fight and type(dropped) == "number" and dropped > 0 then fight.dropped = fight.dropped + dropped end
@@ -677,6 +745,22 @@ CD.COL_W, CD.COL_GAP = 7, 2           -- timeline columns (pixels)
 CD.OUT_H, CD.IN_H = 44, 28            -- the two halves of the timeline chart
 CD.OUT_COLOR, CD.IN_COLOR, CD.BAR_COLOR = "@green", "@red", "@gold"
 CD.SCOPES = { { "fight", "This fight" }, { "session", "Session" } }
+CD.TARGET_ROWS = 6
+CD.TYPE_W, CD.TYPE_H = 330, 10         -- the damage-type bars
+-- Damage types in the docs' order, and a colour for each: the theme has no colours for them, so
+-- these are fixed (weapons in greys and browns, elements in their usual colours).
+CD.TYPES = { "handToHand", "blade", "polearm", "bludgeon", "ranged", "shield", "life", "death", "sun", "lunar",
+  "earth", "water", "fire", "air", "chaos", "curse", "disease", "poison", "transfer", "other" }
+CD.TYPE_COLORS = { handToHand = "#b8a58c", blade = "#c0c6cc", polearm = "#9aa3ab", bludgeon = "#8c7b6b",
+  ranged = "#a8b86c", shield = "#7f8c99", life = "#9be08a", death = "#8a6bb0", sun = "#f2cf4a", lunar = "#a7c7f2",
+  earth = "#a0703c", water = "#3f7fd6", fire = "#e2562b", air = "#d8f0f5", chaos = "#d04fc3", curse = "#6b2f7a",
+  disease = "#8a9a3a", poison = "#4fb04a", transfer = "#e07fa0", other = "#808080" }
+
+-- "handToHand" -> "Hand to hand".
+function CD.TypeName(dtype)
+  local words = dtype:gsub("(%u)", function(c) return " " .. c:lower() end)
+  return (words:gsub("^%l", string.upper))
+end
 
 local cdPrefs = { open = false, scope = "fight", hover = true }
 local cdWin = nil
@@ -709,9 +793,34 @@ local function scopeLabel(scope)
   return CD.SCOPES[1][2]
 end
 
+-- A bar row: name, bar, value (the skills and targets sections).
+local function barRow()
+  local name = UI.Label{ text = "", class = "text",
+    style = { width = CD.NAME_W, whiteSpace = "nowrap", marginLeft = 0, marginRight = 4 } }
+  local bar = UI.Bar{ value = 0, color = CD.BAR_COLOR, style = { width = CD.BAR_W, height = 8 } }
+  local value = UI.Label{ text = "", class = "bright",
+    style = { width = CD.VALUE_W, textAlign = "right", whiteSpace = "nowrap", marginLeft = 4, marginRight = 0 } }
+  local row = UI.Row{ visible = false, style = { alignItems = "center", marginTop = 1 },
+    children = { name, bar, value } }
+  return { row = row, name = name, bar = bar, value = value }
+end
+
+-- A damage-type bar: one segment per type (hidden until it has a share), and its legend line.
+local function typeBar(which)
+  local segs, children = {}, {}
+  for i, dtype in ipairs(CD.TYPES) do
+    segs[dtype] = UI.Column{ visible = false,
+      style = { width = 1, height = CD.TYPE_H, backgroundColor = CD.TYPE_COLORS[dtype] } }
+    children[i] = segs[dtype]
+  end
+  local bar = UI.Row{ style = { width = CD.TYPE_W, height = CD.TYPE_H, marginTop = 2 }, children = children }
+  local legend = UI.Label{ id = "cd_types_" .. which, text = "", class = "dim", style = { whiteSpace = "wrap" } }
+  return bar, legend, segs
+end
+
 local function buildDetail()
   local skills = {}
-  cdEl = { skills = {}, outCols = {}, inCols = {} }
+  cdEl = { skills = {}, outCols = {}, inCols = {}, targets = {} }
   for i = 1, CD.SKILL_ROWS do
     local name = UI.Label{ text = "", class = "text",
       style = { width = CD.NAME_W, whiteSpace = "nowrap", marginLeft = 0, marginRight = 4 } }
@@ -737,6 +846,14 @@ local function buildDetail()
   end
   local choices = {}
   for i, s in ipairs(CD.SCOPES) do choices[i] = s[2] end
+  local targetRows = {}
+  for i = 1, CD.TARGET_ROWS do
+    cdEl.targets[i] = barRow()
+    targetRows[i] = cdEl.targets[i].row
+  end
+  local outTypes, outLegend, outSegs = typeBar("out")
+  local inTypes, inLegend, inSegs = typeBar("taken")
+  cdEl.typeSegs = { out = outSegs, taken = inSegs }
   cdWin = UI.Window{
     id = CD.WINDOW_ID, title = "Combat Detailed",
     width = 380, height = 440, minWidth = 260, minHeight = 160,
@@ -768,9 +885,18 @@ local function buildDetail()
         UI.Label{ id = "cd_peak", text = "", class = "dim", style = { marginTop = 2 } },
         heading("Healing"),
         UI.Label{ id = "cd_heal", text = "", class = "text", style = { whiteSpace = "wrap" } },
+        heading("Targets"),
+        UI.Column{ children = targetRows },
+        UI.Label{ id = "cd_notargets", text = "Nothing hit yet.", class = "dim", visible = false },
+        heading("Damage types"),
+        UI.Label{ text = "Done", class = "text", style = { marginTop = 2 } },
+        outTypes, outLegend,
+        UI.Label{ text = "Taken", class = "text", style = { marginTop = 4 } },
+        inTypes, inLegend,
       } } } } },
   }
-  for _, id in ipairs({ "cd_summary", "cd_scope", "cd_noskills", "cd_peak", "cd_heal" }) do
+  for _, id in ipairs({ "cd_summary", "cd_scope", "cd_noskills", "cd_peak", "cd_heal", "cd_notargets",
+                        "cd_types_out", "cd_types_taken" }) do
     cdEl[id] = cdWin:Find(id)
   end
 end
@@ -842,6 +968,41 @@ function CD.Refresh()
   end
   cdEl.cd_peak:SetText("Peaks: " .. short(peakOut) .. "/s done, " .. short(peakIn) .. "/s taken ("
     .. C.SLICE .. " s columns, newest on the right)")
+  local tops = s and C.TopTargets(s, CD.TARGET_ROWS) or {}
+  for i, slot in ipairs(cdEl.targets) do
+    local tg = tops[i]
+    if tg then
+      slot.name:SetText(tg.name)
+      slot.bar:SetValue(tops[1].dmg > 0 and tg.dmg / tops[1].dmg or 0)
+      slot.value:SetText(short(tg.dmg) .. (tg.killed and ("  killed " .. T.FormatDuration(tg.secs)) or ""))
+      local tip = string.format("%s: %s damage in %d hits over %s (%s/s)%s", tg.name, T.FormatNumber(tg.dmg),
+        tg.hits, T.FormatDuration(tg.secs), short(tg.dmg / math.max(1, tg.secs)),
+        tg.killed and "; killed" or "; not killed (yet)")
+      slot.name:SetTooltip(tip)
+      slot.value:SetTooltip(tip)
+    end
+    slot.row:SetVisible(tg ~= nil)
+  end
+  cdEl.cd_notargets:SetVisible(#tops == 0)
+  for _, which in ipairs({ "out", "taken" }) do
+    local list = s and C.Types(s, which) or {}
+    local shown, parts, used = {}, {}, 0
+    for i, x in ipairs(list) do
+      local seg = cdEl.typeSegs[which][x.type] or cdEl.typeSegs[which].other
+      local w = i == #list and (CD.TYPE_W - used) or math.floor(CD.TYPE_W * x.share + 0.5)
+      w = math.max(0, math.min(CD.TYPE_W - used, w))
+      if w > 0 then
+        seg:SetStyle{ width = w }
+        seg:SetTooltip(string.format("%s: %s (%d%%)", CD.TypeName(x.type), T.FormatNumber(x.amount),
+          math.floor(x.share * 100 + 0.5)))
+        shown[seg] = true
+        used = used + w
+      end
+      if i <= 4 then parts[#parts + 1] = CD.TypeName(x.type) .. " " .. math.floor(x.share * 100 + 0.5) .. "%" end
+    end
+    for _, seg in pairs(cdEl.typeSegs[which]) do seg:SetVisible(shown[seg] == true) end
+    cdEl["cd_types_" .. which]:SetText(#parts > 0 and table.concat(parts, "  ·  ") or "None yet.")
+  end
   if s and s.healed + s.overheal > 0 then
     local over = C.OverhealPct(s)
     cdEl.cd_heal:SetText(string.format("%s healed (%s/s); %s wasted as overheal (%d%%).", short(s.healed),

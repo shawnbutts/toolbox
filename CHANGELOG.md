@@ -10,6 +10,8 @@ store submission needs a higher version than any submitted before (rejected ones
   Damage by skill as bars, longest first, with hits, crits and over-time ticks on hover; the last
   minute as a column chart, damage done up and damage taken down; and healing with the share wasted
   as overheal. For this fight or the whole session. Uses the per-skill combat details of Lua API 17.
+  Also: Targets (damage to each creature, same-named ones kept apart, and how long each took to
+  kill) and Damage types (bars split by element for damage done and taken).
 - /toolbox combat events prints the next combat events' fields, to check what the game sends.
 
 ### Fixed
