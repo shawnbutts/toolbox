@@ -424,6 +424,38 @@ events, so gate on the functions existing, never on the version number.
    - a crafting-station strip shown while the window is open, plus a "craft finished" sound;
    - friends/guild online list, friend-online chat line or sound, guild MOTD change in chat.
 
+**Other ideas, not agreed yet** (discussed with the owner 2026-09-27/28, recorded so they aren't lost).
+All but the undocumented-getter ones use documented API 13/14 calls; check the docs again before
+building, and remember the per-add-on budgets (8 windows, the element-creation cap, test_perf.lua).
+
+1. **Target HUD**: your target's health (and focus) plus your debuffs on it, reusing the buff bar's
+   icons and sweep. `ShroudHasTarget`, `ShroudGetTargetName`, `ShroudIsTargetDead`,
+   `ShroudIsTargetHealthHidden`, `ShroudGetTargetCurrentHealth` / `MaxHealth` (and Focus),
+   `ShroudGetTargetBuff*` (may be userdata like the player's list: read through `T.Field`),
+   `ShroudOnTargetChanged`.
+2. **Skills gained and deaths** in the XP and Today windows: skill levels gained this session / today
+   (`ShroudGetSkills`, `ShroudOnSkillsChanged`) and deaths (`ShroudOnDeathChanged(isDead)`).
+3. **Gear durability alert**: a notification (and/or sound) when equipped gear drops below a
+   threshold, from `ShroudGetEquipmentItems()` (durability / maxDurability). Fits the notification
+   system as a new source.
+4. **More notification deliveries**: a sound per notification source, and a chat line, as new
+   `N.DELIVERY` entries plus a choice in the per-source dropdown (the system was built for this).
+5. **Crafting skill tracker** (documented): crafting and gathering skills with level, effective level
+   (with gear), progress to the next level, and what moved this session (`ShroudGetSkills`:
+   trainedLevel / effectiveLevel / progress).
+6. **Recipe book lookup** (documented): search known recipes by name or skill, sorted by required
+   level, marking the ones your effective level allows; favourites filter; open the game's recipe book
+   (`ShroudGetKnownRecipes`, `ShroudOnRecipesChanged`, the stock-windows API's "recipes").
+7. **Crafting shopping list** (undocumented getter, present in the client): pinned recipes' ingredients
+   as have / need with "can make N" (`ShroudGetRecipe`; bags and an open table only). Feature-detect it
+   and grey out cleanly if it disappears. See also the crafting-station panel above.
+8. **Result-event probe**: listeners for `ShroudOnCraftResults`, `ShroudOnGatherResults` and
+   `ShroudOnCraftingStateChanged` reporting in `/toolbox api` (a count and the first result's fields),
+   to learn whether the undocumented events fire before building the API 18 plans on them.
+9. **CI**: `tools/check.py` on Linux, macOS and Windows (and `--container`) for every push and pull
+   request, once the public repo's host is chosen (GitHub Actions and Forgejo/Gitea Actions are nearly
+   the same format).
+
 ## Unconfirmed API behaviour
 
 Things the docs don't settle. Verify in game before depending on them more heavily:
