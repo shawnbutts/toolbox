@@ -472,7 +472,14 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     balance is ignored as a bad read, so spending exactly down to 0 under-counts the next pickup.
 19. `ShroudOnItemsGained` item names as keys: assumed stable, plain display names (localized). Two
     different items with the same display name are counted together.
-20. Container `Add`/`Clear` and the element-creation rate cap (~500 burst, ~200/s): the Today Detailed
+20. The element-creation cap (~500 burst, ~200/s) is REAL: 2026-09-28 Combat Detailed, pinned open, was
+    built at start-up with everything else (714 elements) and raised "elements are being created too
+    fast" in game. The harness now enforces it (token bucket `H.CREATE_BURST` / `H.CREATE_RATE`; player
+    actions - chat, click, change, key press, /lua reload - refill it, as they happen at human speed).
+    Budget: a plain start-up is ~370 elements (XP Detailed ~80, buff bar 100, combat HUD 75, HUD strips
+    38, notification HUD 24...). Keep big windows lazy (built on first show), open pinned big windows
+    after a delay (`CD.OPEN_DELAY`), open the first-run settings after `T.WELCOME_DELAY`, and draw charts
+    with one element per column. Container `Add`/`Clear` and the element-creation rate cap: the Today Detailed
     list keeps rebuilds to at most 3 x `MAX_ROWS` elements and one per `RESORT_SECONDS`. If a rebuild
     ever raises, lower `MAX_ROWS`.
 21. Buff bar layout. CONFIRMED in game 2026-09-27: an `Image` overlapping another via

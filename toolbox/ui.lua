@@ -78,19 +78,30 @@ W.CHART_COLS, W.CHART_SPAN = 30, 3600       -- 2-minute columns over the last ho
 W.CHART_COL_W, W.CHART_GAP, W.CHART_H = 5, 1, 24
 W.CHART_COLORS = { a = "@gold", p = "@green" }
 local chartCols = {}                          -- track key -> the column blocks
+local chartShown = {}                         -- track key -> the height each column shows
+
+-- One element per column (the element-creation cap): a block pushed down by its top margin so it
+-- stands on the baseline. An empty column is a transparent 1 px block, not hidden: hidden elements
+-- take no room and the others would slide left.
+W.CHART_EMPTY = "#00000000"
+
+local function columnStyle(h, color)
+  if h <= 0 then return { height = 1, marginTop = W.CHART_H - 1, backgroundColor = W.CHART_EMPTY } end
+  return { height = h, marginTop = W.CHART_H - h, backgroundColor = color }
+end
 
 local function chart(track)
   local k = track.key
   local cols = {}
-  chartCols[k] = {}
+  chartCols[k], chartShown[k] = {}, {}
   for i = 1, W.CHART_COLS do
-    local block = UI.Column{ visible = false,
-      style = { width = W.CHART_COL_W, height = 1, backgroundColor = W.CHART_COLORS[k] or "@gold" } }
-    chartCols[k][i] = block
-    cols[i] = UI.Column{ style = { width = W.CHART_COL_W, height = W.CHART_H, justifyContent = "end",
-      marginLeft = i > 1 and W.CHART_GAP or 0 }, children = { block } }
+    local style = columnStyle(0)
+    style.width, style.marginLeft = W.CHART_COL_W, i > 1 and W.CHART_GAP or 0
+    cols[i] = UI.Column{ style = style }
+    chartCols[k][i] = cols[i]
   end
-  return UI.Row{ id = k .. "_chart", style = { marginTop = 2 }, children = cols }
+  return UI.Row{ id = k .. "_chart", style = { marginTop = 2, height = W.CHART_H, alignItems = "start" },
+    children = cols }
 end
 
 local function trackRows(track)
@@ -117,8 +128,10 @@ local function fillChart(s, k, now, net)
   for i, block in ipairs(chartCols[k] or {}) do
     local g = series[i]
     local h = (g and peak > 0) and math.floor(W.CHART_H * math.max(0, g) / peak + 0.5) or 0
-    block:SetVisible(h > 0)
-    if h > 0 then block:SetStyle{ height = h } end
+    if h ~= chartShown[k][i] then
+      chartShown[k][i] = h
+      block:SetStyle(columnStyle(h, W.CHART_COLORS[k] or "@gold"))
+    end
   end
   local per = W.CHART_SPAN / W.CHART_COLS
   el[k .. "_chart_note"]:SetText("Last hour, " .. math.floor(per / 60) .. "-min columns; best "

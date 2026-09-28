@@ -34,6 +34,14 @@ H.copy = copy
 
 local S   -- current host state
 
+H.CREATE_BURST, H.CREATE_RATE = 500, 200
+
+-- A player action (typing a command, clicking, changing a control) happens at human speed, long
+-- after start-up, so the creation budget has refilled by then.
+local function humanPace()
+  if S and S.createBucket then S.createBucket.tokens = H.CREATE_BURST end
+end
+
 local function fresh(disk)
   S = {
     char = { name = "Tester", adv = 1000000, prod = 500000, advPool = 25000, prodPool = 4000, gold = 5000,
@@ -399,6 +407,7 @@ end
 
 -- The player presses a binding's key.
 function H.press(id)
+  humanPace()
   local b = S.keybinds[id]
   assert(b and b.key ~= "", "no key for " .. id)
   return H.call(b.onPress)
@@ -406,6 +415,7 @@ end
 
 -- Types a chat command, e.g. H.chat("/tbx reset").
 function H.chat(line)
+  humanPace()
   local name, args = line:match("^/(%S+)%s?(.*)$")
   local run = S.commands[name:lower()]
   assert(run, "no command /" .. name)
@@ -533,6 +543,15 @@ function H.makeUI()
         if not COMMON[k] and not fields[k] then error("UI." .. kind .. ": unknown field " .. k, 2) end
       end
       S.constructed = (S.constructed or 0) + 1
+      -- The game's element-creation cap: a burst of CREATE_BURST, refilling CREATE_RATE a second
+      -- (AGENTS item 20). Exceeding it raises, as in game (2026-09-28, Combat Detailed at start-up).
+      local now = type(ShroudTime) == "number" and ShroudTime or 0
+      local b = S.createBucket or { tokens = H.CREATE_BURST, at = now }
+      b.tokens = math.min(H.CREATE_BURST, b.tokens + math.max(0, now - b.at) * H.CREATE_RATE)
+      b.at = now
+      if b.tokens < 1 then error("Shroud.UI: elements are being created too fast", 2) end
+      b.tokens = b.tokens - 1
+      S.createBucket = b
       local e = setmetatable(copy(spec), Element)
       if type(e.style) == "table" then clampStyle(e.style) end
       e.kind = kind
@@ -570,6 +589,7 @@ end
 
 -- The player changes a slider, toggle, ... (fires onChange; our own SetValue never does).
 function H.change(windowId, elementId, value)
+  humanPace()
   local c = S.windows[windowId]:Find(elementId)
   assert(c, "no element " .. elementId)
   c.value = value
@@ -592,6 +612,7 @@ function H.submit(windowId, elementId, text)
 end
 
 function H.click(windowId, elementId)
+  humanPace()
   local b = S.windows[windowId]:Find(elementId)
   H.call(function() b.onClick(b) end)
 end
@@ -653,6 +674,7 @@ end
 -- /lua reload: the host unloads (flushing saved vars), tears down UI, commands
 -- and timers, then loads the files again. Engine time keeps running.
 function H.reload()
+  humanPace()                          -- /lua reload is typed by the player
   ShroudFlushSavedVars()
   S.stockHidden = false                -- the game releases an add-on's hide on reload
   S.commands, S.periodics, S.windows, S.keybinds = {}, {}, {}, {}

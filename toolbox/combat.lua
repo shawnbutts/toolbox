@@ -767,7 +767,9 @@ CD.NAME_W, CD.BAR_W, CD.VALUE_W = 120, 110, 100
 CD.COL_W, CD.COL_GAP = 7, 2           -- timeline columns (pixels)
 CD.OUT_H, CD.IN_H = 44, 28            -- the two halves of the timeline chart
 CD.OUT_COLOR, CD.IN_COLOR, CD.BAR_COLOR = "@green", "@red", "@gold"
+CD.EMPTY = "#00000000"                -- an empty timeline column: transparent, still taking its room
 CD.SCOPES = { { "fight", "This fight" }, { "session", "Session" } }
+CD.OPEN_DELAY = 3                      -- seconds after start-up before a pinned window is rebuilt
 CD.TARGET_ROWS = 6
 CD.HISTORY_ROWS = 10
 CD.TYPE_W, CD.TYPE_H = 330, 10         -- the damage-type bars
@@ -856,17 +858,18 @@ local function buildDetail()
     skills[i] = row
     cdEl.skills[i] = { row = row, name = name, bar = bar, value = value }
   end
+  -- One element per timeline column (the element-creation cap): an "up" block pushed down onto
+  -- the baseline by its top margin, and a "down" block hanging from it. Empty columns are
+  -- transparent 1 px blocks, not hidden (hidden elements take no room; the rest would slide).
   local n = math.floor(C.TIMELINE / C.SLICE)
   local outRow, inRow = {}, {}
+  cdEl.shown = { up = {}, down = {} }
   for i = 1, n do
     local gap = i > 1 and CD.COL_GAP or 0
-    local up = UI.Column{ visible = false, style = { width = CD.COL_W, height = 1, backgroundColor = CD.OUT_COLOR } }
-    local down = UI.Column{ visible = false, style = { width = CD.COL_W, height = 1, backgroundColor = CD.IN_COLOR } }
-    outRow[i] = UI.Column{ style = { width = CD.COL_W, height = CD.OUT_H, marginLeft = gap, justifyContent = "end" },
-      children = { up } }
-    inRow[i] = UI.Column{ style = { width = CD.COL_W, height = CD.IN_H, marginLeft = gap, justifyContent = "start" },
-      children = { down } }
-    cdEl.outCols[i], cdEl.inCols[i] = up, down
+    outRow[i] = UI.Column{ style = { width = CD.COL_W, marginLeft = gap, height = 1, marginTop = CD.OUT_H - 1,
+      backgroundColor = CD.EMPTY } }
+    inRow[i] = UI.Column{ style = { width = CD.COL_W, marginLeft = gap, height = 1, backgroundColor = CD.EMPTY } }
+    cdEl.outCols[i], cdEl.inCols[i] = outRow[i], inRow[i]
   end
   local choices = {}
   for i, s in ipairs(CD.SCOPES) do choices[i] = s[2] end
@@ -908,9 +911,9 @@ local function buildDetail()
         UI.Column{ children = skills },
         UI.Label{ id = "cd_noskills", text = "No damage yet.", class = "dim", visible = false },
         heading("Last minute: damage done (up) and taken (down), per second"),
-        UI.Row{ style = { marginTop = 4 }, children = outRow },
+        UI.Row{ style = { marginTop = 4, height = CD.OUT_H, alignItems = "start" }, children = outRow },
         UI.Row{ style = { height = 1, width = n * (CD.COL_W + CD.COL_GAP), backgroundColor = "@text" } },
-        UI.Row{ children = inRow },
+        UI.Row{ style = { height = CD.IN_H, alignItems = "start" }, children = inRow },
         UI.Label{ id = "cd_peak", text = "", class = "dim", style = { marginTop = 2 } },
         heading("Healing"),
         UI.Label{ id = "cd_heal", text = "", class = "text", style = { whiteSpace = "wrap" } },
@@ -931,6 +934,16 @@ local function buildDetail()
                         "cd_types_out", "cd_types_taken", "cd_nohistory" }) do
     cdEl[id] = cdWin:Find(id)
   end
+end
+
+-- Builds the window, reporting a failure instead of raising (about 230 elements: past the game's
+-- creation cap it raises "elements are being created too fast"; 2026-09-28 at start-up).
+local function tryBuild()
+  local ok, err = pcall(buildDetail)
+  if ok then return true end
+  cdWin = nil
+  T.Print("Couldn't build Combat Detailed yet (" .. tostring(err) .. "); try again in a moment.")
+  return false
 end
 
 local function short(n)
@@ -993,10 +1006,16 @@ function CD.Refresh()
     local x = tl[i] or { out = 0, taken = 0 }
     local hu = peakOut > 0 and math.floor(CD.OUT_H * x.out / peakOut + 0.5) or 0
     local hd = peakIn > 0 and math.floor(CD.IN_H * x.taken / peakIn + 0.5) or 0
-    cdEl.outCols[i]:SetVisible(hu > 0)
-    if hu > 0 then cdEl.outCols[i]:SetStyle{ height = hu } end
-    cdEl.inCols[i]:SetVisible(hd > 0)
-    if hd > 0 then cdEl.inCols[i]:SetStyle{ height = hd } end
+    if hu ~= cdEl.shown.up[i] then
+      cdEl.shown.up[i] = hu
+      cdEl.outCols[i]:SetStyle(hu > 0 and { height = hu, marginTop = CD.OUT_H - hu, backgroundColor = CD.OUT_COLOR }
+        or { height = 1, marginTop = CD.OUT_H - 1, backgroundColor = CD.EMPTY })
+    end
+    if hd ~= cdEl.shown.down[i] then
+      cdEl.shown.down[i] = hd
+      cdEl.inCols[i]:SetStyle(hd > 0 and { height = hd, backgroundColor = CD.IN_COLOR }
+        or { height = 1, backgroundColor = CD.EMPTY })
+    end
   end
   cdEl.cd_peak:SetText("Peaks: " .. short(peakOut) .. "/s done, " .. short(peakIn) .. "/s taken ("
     .. C.SLICE .. " s columns, newest on the right)")
@@ -1081,7 +1100,7 @@ function CD.GetScope() return cdPrefs.scope end
 
 -- Pinned open or closed by the player. Returns true when it ends up as asked.
 function CD.SetOpen(open)
-  if not cdWin then buildDetail() end
+  if not cdWin and not tryBuild() then return false end
   local ok = true
   if not open then
     cdWin:Hide()
@@ -1103,7 +1122,7 @@ end
 function CD.Toggle() return CD.SetOpen(not CD.IsOpen()) end
 
 function CD.ShowPopup()
-  if not cdWin then buildDetail() end
+  if not cdWin and not tryBuild() then return false end
   if cdWin:IsShown() or not cdWin:Show() then return false end
   cdPopup = true
   CD.Refresh()
@@ -1139,8 +1158,11 @@ function CD.Init()
   end
   cdWin, cdPopup = nil, false
   if cdPrefs.open then
-    buildDetail()
-    if not cdWin:Show() then T.Print("Combat Detailed could not reopen yet; use /toolbox combat detail.") end
-    CD.Refresh()
+    -- Pinned: reopen a few seconds after start-up, once the rest has been built (the creation cap).
+    ShroudRegisterPeriodic("toolbox_combat_detail_open", function()
+      if not cdWin and not tryBuild() then return end
+      if not cdWin:Show() then T.Print("Combat Detailed could not reopen yet; use /toolbox combat detail.") end
+      CD.Refresh()
+    end, CD.OPEN_DELAY, false)
   end
 end

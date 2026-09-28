@@ -19,6 +19,9 @@ store submission needs a higher version than any submitted before (rejected ones
 - /toolbox combat events prints the next combat events' fields, to check what the game sends.
 
 ### Fixed
+- "Elements are being created too fast" errors at start-up with Combat Detailed pinned open: the
+  charts use half as many elements, a pinned Combat Detailed opens a few seconds after start-up, and
+  the first-run settings window opens a moment after the welcome.
 - Combat events are now read whether the game hands them over as tables or as game objects (the
   buff list turned out to be game objects), so the combat HUD and the kill count can't silently
   miss them.

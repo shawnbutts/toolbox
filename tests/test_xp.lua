@@ -277,17 +277,21 @@ return function(t)
     H.gain(1000, 500)
     H.advance(2)
     local chart = H.window():Find("a_chart")
+    local W = Toolbox.Window
     local shown, tallest = 0, 0
     for _, col in ipairs(chart.children) do
-      local b = col.children[1]
-      if b.visible ~= false then shown, tallest = shown + 1, math.max(tallest, b.style.height) end
+      if col.style.backgroundColor ~= W.CHART_EMPTY then
+        shown, tallest = shown + 1, math.max(tallest, col.style.height)
+        t.eq(col.style.marginTop + col.style.height, W.CHART_H, "stands on the baseline")
+      end
     end
+    t.eq(#chart.children, W.CHART_COLS, "one element per column; empty ones keep their place")
     t.eq(shown, 2, "two slices with XP")
     t.eq(tallest, Toolbox.Window.CHART_H, "the busiest fills the chart")
     t.ok(H.text("a_chart_note"):find("^Last hour, 2%-min columns; best 90,000/h$"), H.text("a_chart_note"))
     local pshown = 0
     for _, col in ipairs(H.window():Find("p_chart").children) do
-      if col.children[1].visible ~= false then pshown = pshown + 1 end
+      if col.style.backgroundColor ~= W.CHART_EMPTY then pshown = pshown + 1 end
     end
     t.eq(pshown, 1, "producer has its own chart")
   end)

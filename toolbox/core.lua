@@ -1188,12 +1188,16 @@ end
 -- A one-time welcome the first time Toolbox runs on this account: a chat line, and the
 -- settings window opened. Call after everything is initialised (the settings window reads
 -- every module's settings). Returns true when it showed.
+T.WELCOME_DELAY = 2
+
 function T.Welcome()
   if ShroudGetSavedVar("welcomed", "account") then return false end
   T.Print("Toolbox is ready: type /" .. T.commands[1] .. " to open its settings, or /" .. T.commands[1]
     .. " docs for a guide to everything.")
   ShroudSetSavedVar("welcomed", true, "account")
-  T.Config.Open()
+  -- A moment later: start-up has just built every window and HUD strip, and the settings window's
+  -- ~180 elements on top could pass the game's element-creation cap (2026-09-28).
+  ShroudRegisterPeriodic("toolbox_welcome", function() T.Config.Open() end, T.WELCOME_DELAY, false)
   return true
 end
 

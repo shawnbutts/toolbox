@@ -438,16 +438,17 @@ return function(t)
     H.chat("/tbx combat detail")
     H.advance(1)
     local M = Toolbox.Combat.Detail
-    local up, down = {}, {}
-    local chart = cd().children[1].children[1]
-    local rows = chart.children
-    for _, col in ipairs(rows[6].children) do up[#up + 1] = col.children[1] end
-    for _, col in ipairs(rows[8].children) do down[#down + 1] = col.children[1] end
+    local rows = cd().children[1].children[1].children
+    local up, down = rows[6].children, rows[8].children
     local tallest, shownUp, shownDown = 0, 0, 0
     for _, b in ipairs(up) do
-      if b.visible ~= false then shownUp, tallest = shownUp + 1, math.max(tallest, b.style.height) end
+      if b.style.backgroundColor ~= M.EMPTY then
+        shownUp, tallest = shownUp + 1, math.max(tallest, b.style.height)
+        t.eq(b.style.marginTop + b.style.height, M.OUT_H, "stands on the baseline")
+      end
     end
-    for _, b in ipairs(down) do if b.visible ~= false then shownDown = shownDown + 1 end end
+    for _, b in ipairs(down) do if b.style.backgroundColor ~= M.EMPTY then shownDown = shownDown + 1 end end
+    t.eq(#up, 30, "one element per column; empty ones keep their place")
     t.eq(shownUp, 1, "one slice with damage done")
     t.eq(tallest, M.OUT_H, "the peak fills the chart")
     t.eq(shownDown, 1, "one slice with damage taken")
@@ -603,5 +604,17 @@ return function(t)
     t.near(rows[2].children[2].value, 0.5, 0.01)
     t.eq(rows[3].visible, false)
     t.eq(w:Find("cd_nohistory").visible, false)
+  end)
+
+  t.test("start-up with every window open stays inside the element-creation cap", function()
+    H.boot()
+    for _, c in ipairs({ "/tbx xp", "/tbx xpdetailed", "/tbx daily", "/tbx dd", "/tbx buffs", "/tbx vitals",
+                         "/tbx combat", "/tbx combat detail", "/tbx config", "/tbx notify via hud" }) do
+      H.chat(c)
+    end
+    H.reload()                                 -- everything rebuilt at once: must not raise
+    t.no(H.S.windows.toolbox_combat_detail, "the pinned Combat Detailed waits")
+    H.advance(Toolbox.Combat.Detail.OPEN_DELAY + 1)
+    t.ok(H.S.windows.toolbox_combat_detail:IsShown(), "and opens a moment later")
   end)
 end
