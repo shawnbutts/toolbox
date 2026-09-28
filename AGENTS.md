@@ -110,6 +110,9 @@ Run all three before calling a change done.
     when the game's can't be read.
     CONFIRMED in game 2026-09-27 (build bca2d21): the seven potions collapse into one slot with the count,
     and the hover list shows.
+    `IsEnabled()` is the "Show buff bar" setting; `IsShown()` (what Hud asks) adds `combatOnly`: shown in
+    combat (`OnCombatMode` from core's `ShroudOnCombatModeChanged`), `COMBAT_LINGER` s after, or while the
+    settings window is open (to place it). `Tick` refreshes the HUD when `IsShown()` changes.
     API 16 (feature-detected, `CanReplace`/`CanDismiss`): `replaceStock` hides the game's bar only while ours
     is shown and built (`applyStock`, end of every tick; the game releases a hide on reload), and restores it
     otherwise. `clickDismiss`: a slot's icon `onClick` re-finds the index by name, then `ShroudDismissBuff`;
@@ -230,7 +233,7 @@ including the "no character" sentinel.
 | `daily` | see the header comment of `daily.lua` (format `v = 1`) |
 | `daily_window` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, hx, hy }` |
 | `daily_detail` | `{ open = bool, x = number, y = number }` |
-| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), group = { name parts }, replaceStock, clickDismiss, x, y }` |
+| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), group = { name parts }, replaceStock, clickDismiss, combatOnly, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { buff_expiring = "...", debuff_landed = "..." } }` |
 | `buff_timers` | `{ v = 3, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload (v1/v2 ignored) |
 | `vitals` | `{ show, width = 100..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, x, y }` |

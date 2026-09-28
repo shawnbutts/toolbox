@@ -244,9 +244,15 @@ function T.MoveCommand(m, cmd, what, args)
 end
 
 add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off; add|remove <name>|reset]; "
-    .. "replace on|off; "
+    .. "combat on|off (only during combat); replace on|off; "
     .. "dismiss on|off; debug; trace [name])", function(rest)
   local word, name = T.ParseArgs(rest)
+  if word == "combat" then
+    local B, arg = T.BuffBar, name:lower()
+    if arg == "on" or arg == "off" then B.SetCombatOnly(arg == "on") end
+    T.Print("Buff bar only during combat: " .. (B.GetCombatOnly() and "on" or "off") .. ".")
+    return
+  end
   if word == "replace" or word == "dismiss" then
     local B, arg = T.BuffBar, name:lower()
     local set = word == "replace" and B.SetReplace or B.SetClickDismiss
@@ -862,6 +868,7 @@ end
 -- Fight start / end for the combat HUD.
 function ShroudOnCombatModeChanged(inCombat)
   T.Combat.OnCombatMode(inCombat)
+  T.BuffBar.OnCombatMode(inCombat)     -- "only during combat"
 end
 
 -- Buff bar and the debuff alert.

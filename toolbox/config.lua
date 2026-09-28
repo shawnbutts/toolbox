@@ -145,8 +145,13 @@ function C.BuffBarSection()
   local B, S = T.BuffBar, T.Sounds
   local children = {
     UI.Label{ text = "Buff bar", class = "heading", style = { marginTop = 8 } },
-    UI.Toggle{ id = "show_buffs", text = "Show buff bar", value = B.IsShown(),
+    UI.Toggle{ id = "show_buffs", text = "Show buff bar", value = B.IsEnabled(),
       onChange = function(_, v) B.SetShown(v) end },
+    UI.Toggle{ id = "buffs_combat_only", text = "Only during combat", value = B.GetCombatOnly(),
+      style = { marginLeft = 16 },
+      tooltip = "Show the bar only in combat (and a few seconds after). It also shows while this window"
+        .. " is open, so you can place it.",
+      onChange = function(_, v) B.SetCombatOnly(v) end },
     C.PositionRows("buff", B),
     slider("buff_size", "Icon size", B.SIZE_MIN, B.SIZE_MAX, 1, B.GetSize(),
       "Buff icon size in pixels", function(n) B.SetSize(n) end),
@@ -277,7 +282,8 @@ local function build()
                 "vitals_flash", "vitals_flash_below", "vitals_flash_below_value", "vitals_glue",
                 "show_combat", "combat_pet", "combat_scale", "combat_scale_value", "combat_stats", "combat_pos",
                 "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "guild_motd", "buff_group",
-                "buff_replace", "buff_dismiss", "buff_group_after" }
+                "buff_replace", "buff_dismiss", "buff_group_after",
+                "buffs_combat_only" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -364,7 +370,8 @@ function C.Sync()
   el.xp_hud:SetValue(T.Compact.GetHud())
   el.daily_hud:SetValue(T.Daily.GetHud())
   local B, S = T.BuffBar, T.Sounds
-  el.show_buffs:SetValue(B.IsShown())
+  el.show_buffs:SetValue(B.IsEnabled())
+  el.buffs_combat_only:SetValue(B.GetCombatOnly())
   for id, v in pairs({ buff_size = B.GetSize(), expire_seconds = B.GetExpireSeconds(), volume = S.GetVolume() }) do
     el[id]:SetValue(v)
     el[id .. "_value"]:SetText(fontLabel(v))

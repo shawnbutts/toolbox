@@ -52,6 +52,9 @@ D.SECTIONS = {
       .. "longer than) or with /toolbox buffs group after 30 (minutes; off turns it off). To always group "
       .. "a buff, add part of its name: /toolbox buffs group add <name> (remove <name> takes it off; "
       .. "/toolbox buffs debug shows buffs' names).",
+    "Only during combat (settings, or /toolbox buffs combat on|off) shows the bar only while you're "
+      .. "in combat and for a few seconds after, so it can sit in your line of sight without being in "
+      .. "the way. It also shows while the settings window is open, so you can place it.",
     "Two settings on newer game clients: Replace the game's buff bar hides the game's own bar while "
       .. "this one is showing (it comes back whenever this one is off), and Click a buff to dismiss it "
       .. "works like the game's right-click Dismiss. Chat: /toolbox buffs replace on|off, "

@@ -20,6 +20,9 @@ store submission needs a higher version than any submitted before (rejected ones
   only on game clients with Lua API 16 (/toolbox buffs replace on|off, dismiss on|off).
 - Buff bar: buffs and debuffs are sorted by time left, the one that runs out soonest on the left.
   Buffs that never run out come next, and the long-lasting group stays at the right end.
+- Buff bar: "Only during combat" shows the bar only while you're in combat (and 5 seconds after),
+  so it can sit in your line of sight without being in the way. It also shows while the settings
+  window is open, so you can place it. /toolbox buffs combat on|off. Alerts work either way.
 - /toolbox api lists which newer game functions this client has (buff bar, crafting, friends and
   guild), to check the client against the docs.
 

@@ -8,6 +8,9 @@
 --   * a debuff landed: fires when a debuff you didn't have appears (the API doesn't say
 --     who applied it).
 --
+-- "Only during combat" (opt-in) shows the bar only in combat mode (and BB.COMBAT_LINGER seconds
+-- after), or while the settings window is open so it can be placed; alerts run either way.
+--
 -- From API 16 two opt-in settings: "Replace the game's buff bar" hides the game's own bar
 -- (ShroudSetBuffBarVisible; never saved by the game and released on reload, so it's asserted
 -- again every tick while wanted), but only while this bar is actually showing; and "Click to
@@ -61,6 +64,7 @@ BB.DEBUFF_SUPPRESS = 3        -- seconds after start / a scene change with no de
 -- buffs taken for casts then had their time left learned as their full duration, and the sweep
 -- lagged the game's for the rest of the run (found in game 2026-09-28).
 BB.SETTLE = 15
+BB.COMBAT_LINGER = 5          -- seconds the bar stays after combat ends ("only during combat")
 BB.DEBUFF_COOLDOWN = 1        -- at most one debuff sound a second
 
 -- The clock sprite sheet (art/clock.py): FRAMES frames in a COLS x ROWS grid, once per SET
@@ -257,6 +261,9 @@ local preexisting = {}    -- names already present when the add-on started (not 
 local sceneQuietUntil = 0 -- buffs first seen before this (start, scene load) aren't "fresh"
 local lastPlayer = nil    -- the character seen last tick (a change settles like a scene load)
 local lastSeen = {}       -- names in the effect list last tick
+local inCombat = false    -- the game's combat mode
+local combatUntil = 0     -- "only during combat": still shown until this T.Now() after combat
+local lastShown = nil     -- BB.IsShown() at the last tick, to refresh the HUD when it changes
 BB.GRACE = 10             -- seconds a vanished buff keeps its timer (scene loads)
 local lastTimerSave = -math.huge
 BB.TIMER_SAVE = 5         -- seconds between saves of the running timers (for a reload)
@@ -276,7 +283,8 @@ local function defaults()
   local parts = {}
   for i, p in ipairs(BB.GROUP_DEFAULT) do parts[i] = p end
   return { show = false, size = BB.SIZE_DEFAULT, expire = true, expireSeconds = BB.ALERT_DEFAULT, debuff = true,
-           group = parts, groupAfter = BB.GROUP_AFTER_DEFAULT, replaceStock = false, clickDismiss = false }
+           group = parts, groupAfter = BB.GROUP_AFTER_DEFAULT, replaceStock = false, clickDismiss = false,
+           combatOnly = false }
 end
 
 local function savePrefs()
@@ -382,7 +390,7 @@ end
 -- player is never left without one. Runs every tick: the game forgets a hide on reload.
 local function applyStock()
   if not BB.CanReplace() then return end
-  local want = prefs.replaceStock == true and prefs.show == true and content ~= nil
+  local want = prefs.replaceStock == true and BB.IsShown() and content ~= nil
   if want then
     if not stockHidden or ShroudIsBuffBarVisible() == true then
       ShroudSetBuffBarVisible(false)
@@ -609,6 +617,11 @@ function BB.Tick()
   local seen, grouped, shownBuffs, shownDebuffs = {}, {}, {}, {}
   local threshold = prefs.expireSeconds or BB.ALERT_DEFAULT
   local expiring = false
+  local shown = BB.IsShown()
+  if shown ~= lastShown then          -- combat started or ended, the settings window opened or closed
+    lastShown = shown
+    T.Hud.Refresh()
+  end
   local who = ShroudGetPlayerName()
   if who ~= lastPlayer then
     lastPlayer = who
@@ -636,7 +649,7 @@ function BB.Tick()
     if st then st.missingSince = nil end
     timers[e.name] = st
     if fire and not rune.debuff then expiring = true end
-    if content and prefs.show then
+    if content and shown then
       if rune.debuff then
         shownDebuffs[#shownDebuffs + 1] = { e = e, fraction = fraction, name = e.name, remaining = e.remaining }
       elseif isGrouped(e) then
@@ -659,7 +672,7 @@ function BB.Tick()
       end
     end
   end
-  if content and prefs.show then
+  if content and shown then
     BB.SortByExpiry(shownBuffs)
     BB.SortByExpiry(shownDebuffs)
     for i = 1, BB.BUFF_SLOTS do
@@ -806,6 +819,7 @@ function BB.Init()
     if BB.GroupAfterLabel(saved.groupAfter) then prefs.groupAfter = saved.groupAfter end
     prefs.replaceStock = saved.replaceStock == true
     prefs.clickDismiss = saved.clickDismiss == true
+    prefs.combatOnly = saved.combatOnly == true
     -- A list saved exactly as an earlier default is taken as unset (the time rule replaced it).
     local old = false
     if type(saved.group) == "table" then
@@ -826,6 +840,7 @@ function BB.Init()
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
   timers, debuffs, runes, groupedCache, stockHidden = {}, {}, {}, {}, false
+  inCombat, combatUntil, lastShown = ShroudGetPlayerCombatMode() == true, 0, nil
   T.Hud.Register("buffs", BB)
   local savedTimers = T.Load("buff_timers")
   remembered = (type(savedTimers) == "table" and savedTimers.v == 3 and type(savedTimers.timers) == "table")
@@ -850,7 +865,32 @@ end
 -- Settings
 -- ---------------------------------------------------------------------------
 
-function BB.IsShown() return prefs.show == true end
+-- The "Show buff bar" setting.
+function BB.IsEnabled() return prefs.show == true end
+
+-- Whether the bar is on screen now (what Toolbox.Hud asks): enabled, and with "only during
+-- combat", in combat (or just after), or while the settings window is open to place it.
+function BB.IsShown()
+  if prefs.show ~= true then return false end
+  if not prefs.combatOnly then return true end
+  return inCombat or T.Now() < combatUntil or T.Config.IsShown()
+end
+
+-- ShroudOnCombatModeChanged (from core.lua).
+function BB.OnCombatMode(on)
+  inCombat = on == true
+  if not inCombat then combatUntil = T.Now() + BB.COMBAT_LINGER end
+  BB.Tick()                            -- shows or hides the bar now, not at the next tick
+end
+
+function BB.GetCombatOnly() return prefs.combatOnly == true end
+
+function BB.SetCombatOnly(on)
+  prefs.combatOnly = on == true
+  savePrefs()
+  BB.Tick()
+  T.Config.Sync()
+end
 
 function BB.SetShown(on)
   prefs.show = on == true
