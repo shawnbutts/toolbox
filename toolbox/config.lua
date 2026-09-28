@@ -116,6 +116,12 @@ function C.CombatSection()
     UI.Label{ text = "Combat stats", class = "heading", style = { marginTop = 8 } },
     UI.Toggle{ id = "show_combat", text = "Show combat stats", value = M.IsShown(),
       onChange = function(_, v) M.SetShown(v) end },
+    UI.Toggle{ id = "combat_detail", text = "Show Combat Detailed window", value = M.Detail.IsOpen(),
+      style = { marginLeft = 16 }, tooltip = "Damage by skill, the last minute as a chart, and healing",
+      onChange = function(_, v) C.OnShowCombatDetail(v) end },
+    UI.Toggle{ id = "combat_detail_hover", text = "Show it on hover", value = M.Detail.GetHover(),
+      style = { marginLeft = 16 }, tooltip = "Hovering the combat stats HUD pops up Combat Detailed",
+      onChange = function(_, v) M.Detail.SetHover(v) end },
     UI.Toggle{ id = "combat_pet", text = "Count pet damage in DPS", value = M.GetPet(),
       onChange = function(_, v) M.SetPet(v) end },
     slider("combat_scale", "Size (%)", M.SCALE_MIN, M.SCALE_MAX, 5, M.GetScale(),
@@ -297,7 +303,7 @@ local function build()
                 "show_combat", "combat_pet", "combat_scale", "combat_scale_value", "combat_stats", "combat_pos",
                 "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "buff_group",
                 "buff_replace", "buff_dismiss", "buff_group_after",
-                "buffs_combat_only", "dd_values", "xp_net", "buff_flash" }
+                "buffs_combat_only", "dd_values", "xp_net", "buff_flash", "combat_detail", "combat_detail_hover" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -414,6 +420,10 @@ function C.OnDismiss(value)
   if not T.BuffBar.SetClickDismiss(value == true) then el.buff_dismiss:SetValue(T.BuffBar.GetClickDismiss()) end
 end
 
+function C.OnShowCombatDetail(value)
+  if not T.Combat.Detail.SetOpen(value == true) then el.combat_detail:SetValue(T.Combat.Detail.IsOpen()) end
+end
+
 function C.OnShowDailyDetail(value)
   if not T.DailyDetail.SetOpen(value == true) then
     el.show_daily_detail:SetValue(T.DailyDetail.IsOpen())
@@ -468,6 +478,8 @@ function C.Sync()
   el.vitals_glue:SetValue(T.Hud.IsGlued())
   el.show_combat:SetValue(T.Combat.IsShown())
   el.combat_pet:SetValue(T.Combat.GetPet())
+  el.combat_detail:SetValue(T.Combat.Detail.IsOpen())
+  el.combat_detail_hover:SetValue(T.Combat.Detail.GetHover())
   el.combat_scale:SetValue(T.Combat.GetScale())
   el.combat_scale_value:SetText(fontLabel(T.Combat.GetScale()))
   local shownStats = T.Combat.Stats()

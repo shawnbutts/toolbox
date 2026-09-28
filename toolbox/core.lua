@@ -728,7 +728,9 @@ function T.CombatHelp()
   return {
     "Combat stats HUD:",
     "  " .. c .. "combat - show or hide it",
-    "  " .. c .. "combat reset - clear the fight numbers",
+    "  " .. c .. "combat reset - clear the fight and session numbers",
+    "  " .. c .. "combat detail [fight|session] - the Combat Detailed window: damage by skill, the last"
+      .. " minute, healing (it also pops up when you hover the HUD)",
     "  " .. c .. "combat size 150 - scale it (75-250%)",
     "  " .. c .. "combat bg dark 70 - background: dark, light or none, with opacity 10-100%",
     "  " .. c .. "combat pet on|off - count your pet's damage in DPS",
@@ -756,6 +758,14 @@ add("combat", "combat stats HUD; add stats while playing: /toolbox combat help",
   elseif word == "debug" then
     T.Print(T.Hud.Debug("combat"))
     T.Print(C.LayoutDebug())
+  elseif word == "detail" then
+    local scope = args:lower()
+    if scope == "fight" or scope == "session" then
+      C.Detail.SetScope(scope)
+      if not C.Detail.IsShown() then C.Detail.SetOpen(true) end
+    else
+      C.Detail.Toggle()
+    end
   elseif word == "events" then
     local n = tonumber(args) or C.CAPTURE_DEFAULT
     C.Capture(n)

@@ -390,4 +390,103 @@ return function(t)
     local _, s2 = Toolbox.Combat.Current()
     t.eq(s2, nil, "reset clears the session too")
   end)
+
+  -- Combat Detailed ------------------------------------------------------------
+
+  local function cd() return H.S.windows.toolbox_combat_detail end
+  -- Skill row i of the window ({ name, bar, value, tip }), nil when hidden. The window's layout:
+  -- Scroll > Column > { summary row, heading, skills column, ... }.
+  local function skillRow(i)
+    local row = cd().children[1].children[1].children[3].children[i]
+    if not row or row.visible == false then return nil end
+    return { name = row.children[1].text, bar = row.children[2].value, value = row.children[3].text,
+             tip = row.children[1].tooltip }
+  end
+
+  local function fightWithSkills()
+    H.boot()
+    H.chat("/tbx combat")
+    H.setCombat(true)
+    local now = ShroudTime
+    H.combat({ { kind = "hit", fromYou = true, amount = 600, rune = "Fireball", runeId = 12, time = now },
+               { kind = "critical", fromYou = true, amount = 400, rune = "Fireball", runeId = 12, time = now },
+               { kind = "hit", fromYou = true, amount = 150, rune = "Ignite", runeId = 13, dot = true, time = now },
+               { kind = "hit", toYou = true, amount = 90, rune = "Bite", time = now },
+               { kind = "heal", fromYou = true, amount = 300, overheal = 100, rune = "Heal", runeId = 7, time = now } })
+  end
+
+  t.test("Combat Detailed: damage by skill as bars, longest first, with details on hover", function()
+    fightWithSkills()
+    H.chat("/tbx combat detail")
+    t.ok(cd():IsShown())
+    t.eq(H.saved("combat_detail").open, true)
+    H.advance(1)
+    local r1, r2 = skillRow(1), skillRow(2)
+    t.eq(r1.name, "Fireball")
+    t.eq(r1.bar, 1, "the longest bar")
+    t.eq(r1.value, "1,000  87%")
+    t.ok(r1.tip:find("2 hits, 1 critical %(50%%%), 0 over%-time ticks"), r1.tip)
+    t.eq(r2.name, "Ignite")
+    t.near(r2.bar, 0.15, 1e-9)
+    t.eq(skillRow(3), nil, "only skills that did damage")
+    t.ok(cd():Find("cd_summary").text:find("^This fight: .*Damage 1,150"), cd():Find("cd_summary").text)
+    t.ok(cd():Find("cd_heal").text:find("^300 healed %(.-%); 100 wasted as overheal %(25%%%)%.$"))
+  end)
+
+  t.test("Combat Detailed: the last-minute chart scales to its peak", function()
+    fightWithSkills()
+    H.chat("/tbx combat detail")
+    H.advance(1)
+    local M = Toolbox.Combat.Detail
+    local up, down = {}, {}
+    local chart = cd().children[1].children[1]
+    local rows = chart.children
+    for _, col in ipairs(rows[6].children) do up[#up + 1] = col.children[1] end
+    for _, col in ipairs(rows[8].children) do down[#down + 1] = col.children[1] end
+    local tallest, shownUp, shownDown = 0, 0, 0
+    for _, b in ipairs(up) do
+      if b.visible ~= false then shownUp, tallest = shownUp + 1, math.max(tallest, b.style.height) end
+    end
+    for _, b in ipairs(down) do if b.visible ~= false then shownDown = shownDown + 1 end end
+    t.eq(shownUp, 1, "one slice with damage done")
+    t.eq(tallest, M.OUT_H, "the peak fills the chart")
+    t.eq(shownDown, 1, "one slice with damage taken")
+    t.ok(cd():Find("cd_peak").text:find("^Peaks: "))
+  end)
+
+  t.test("Combat Detailed: this fight or the session", function()
+    fightWithSkills()
+    H.advance(1)
+    H.setCombat(false)
+    H.advance(2)
+    H.setCombat(true)
+    H.combat({ { kind = "hit", fromYou = true, amount = 50, rune = "Frost", runeId = 14, time = ShroudTime } })
+    H.chat("/tbx combat detail")
+    H.advance(1)
+    t.eq(skillRow(1).name, "Frost", "this fight only")
+    H.chat("/tbx combat detail session")
+    t.eq(H.saved("combat_detail").scope, "session")
+    H.advance(1)
+    t.eq(skillRow(1).name, "Fireball", "every fight")
+    t.ok(cd():Find("cd_summary").text:find("1 fights done"))
+    H.change("toolbox_combat_detail", "cd_scope", "This fight")
+    t.eq(Toolbox.Combat.Detail.GetScope(), "fight")
+  end)
+
+  t.test("Combat Detailed pops up when the combat HUD is hovered", function()
+    fightWithSkills()
+    local rows = H.combatHud():Find("combat_rows")
+    H.call(function() rows.onHover(rows, true) end)
+    H.advance(1, 0.25)
+    t.ok(cd() and cd():IsShown(), "popped up")
+    t.eq(H.saved("combat_detail") and H.saved("combat_detail").open or false, false, "not pinned")
+    H.call(function() rows.onHover(rows, false) end)
+    H.advance(1, 0.25)
+    t.no(cd():IsShown(), "gone after leaving")
+    H.chat("/tbx config")
+    H.change("toolbox_config", "combat_detail_hover", false)
+    H.call(function() rows.onHover(rows, true) end)
+    H.advance(1, 0.25)
+    t.no(cd():IsShown(), "no pop-up with hover off")
+  end)
 end

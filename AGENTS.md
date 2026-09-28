@@ -162,7 +162,11 @@ Run all three before calling a change done.
     per-frame globals directly (never through a name built at runtime: review treats that like code
     loading) and the `Health` / `Focus` stats as maximums.
   - `combat.lua`: `Toolbox.Combat`, the combat stats HUD. Fight model (`NewFight`, `Add`, `Rates`, `CritPct`,
-    `AvoidPct`) is pure. Fed by `ShroudOnCombatEvents` and `ShroudOnCombatModeChanged` (both in core.lua).
+    `AvoidPct`, and `NewSession`, `TopRunes`, `Timeline`, `OverhealPct`, `SessionDuration`) is pure: each fight
+    and the session (every fight since start/reset) keep per-skill stats (`runes`, by runeId), overheal, and
+    the session a `C.SLICE`-second damage timeline. `Toolbox.Combat.Detail` (bottom of the file) is the
+    Combat Detailed window: fixed pools of skill rows (`Bar`) and timeline columns (heights via `SetStyle`),
+    a hover pop-up of the HUD (`T.Hover`, keys "t:hud"/"t:row<i>") or pinned. Fed by `ShroudOnCombatEvents` and `ShroudOnCombatModeChanged` (both in core.lua).
     A fixed pool of label rows is built once; `Rows()` decides what they show.
   - `hud.lua`: `Toolbox.Hud` owns every HUD strip. A HUD module registers (`Hud.Register(key, module)`)
     and implements `FRAME_ID`, `HOME`, `BuildContent()`, `ContentSize()`, `IsShown()`,
@@ -288,6 +292,7 @@ including the "no character" sentinel.
 | `buff_timers` | `{ v = 3, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload (v1/v2 ignored) |
 | `vitals` | `{ show, width = 100..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, x, y }` |
 | `hud` | `{ glued = bool, x, y }` (the glued strip's position) |
+| `combat_detail` | `{ open = bool (pinned), x, y, scope = "fight"/"session", hover = bool }` |
 | `combat` | `{ show, scale = 75..250, pet, stats = { "MagicResistance", ... }, bg = None/Dark/Light, bgOpacity = 10..100, x, y }` |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last = ISO date, day = Toolbox.Today() key, at = Toolbox.Clock() when known } } }`, at most `P.MAX_KEEP` |
 | `notify` | `{ v = 1, sources = { [key] = { on = bool, seen = last value delivered, via = "window" } } }` (keys: motd, mail, expiring, ransoms, rewards, applications); the older `guild_motd` `{ show, seen }` is read once to take over |
@@ -613,3 +618,7 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     Scroll. Also: a `Scroll` inside a HudFrame (scrolls with the wheel?), `whiteSpace
     = "nowrap"` labels ending in "..." when too long (the docs say labels do), and hover on a HUD strip
     (item 40) keeping it shown. Unconfirmed in game.
+46. Combat Detailed (built 2026-09-28). Unconfirmed in game: that API 17's event fields arrive (`/toolbox
+    combat events`); column charts built from `Column`s whose height is set with `SetStyle` inside a
+    parent with `justifyContent = "end"` (bottom-aligned) / `"start"`; `Bar` `SetValue` for the skill bars;
+    `backgroundColor` with the theme tokens `@green` / `@red` / `@text`; and hover on HUD rows (item 40).

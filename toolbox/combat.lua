@@ -437,13 +437,15 @@ function C.BuildContent()
     local value = UI.Label{ text = "", class = "bright", style = labelStyle(m, m.valueW, "right") }
     local light = slab(m.line)
     -- no id: ids repeated per row may not be allowed
-    local line = UI.Row{ style = flush{}, children = { name, value } }
+    local line = UI.Row{ style = flush{}, children = { name, value },
+      onHover = function(_, over) C.HudHover("row" .. i, over) end }
     local group = UI.Column{ visible = false, style = flush{}, children = { light, line } }
     groups[#groups + 1] = group
     el[i] = { row = group, name = name, value = value, light = light, line = line }
   end
   groups[#groups + 1] = pads[2].group
-  content = UI.Column{ id = "combat_rows", style = flush{}, children = groups }
+  content = UI.Column{ id = "combat_rows", style = flush{}, children = groups,
+    onHover = function(_, over) C.HudHover("hud", over) end }
   C.Tick()
   applyBackground()
   return content
@@ -485,6 +487,8 @@ function C.Tick()
     C.Prune(fight, now)
     if not inCombat and now - fight.last >= C.IDLE_END then endFight() end
   end
+  C.Detail.Refresh()
+  C.Detail.Track()
   if not content or not prefs.show then return end
   local rows = C.Rows(now)
   for i, slot in ipairs(el) do
@@ -536,6 +540,7 @@ function C.Init()
   inCombat = ShroudGetPlayerCombatMode() == true   -- change callbacks only fire on changes
   if inCombat then startFight() end
   T.Hud.Register("combat", C)
+  C.Detail.Init()
   ShroudRegisterPeriodic(PERIODIC, C.Tick, C.TICK, true)
 end
 
@@ -651,4 +656,280 @@ function C.RemoveStat(name)
   C.Tick()
   T.Config.Sync()                      -- an open settings window shows the new list
   return true, "Removed " .. name .. "."
+end
+
+-- ---------------------------------------------------------------------------
+-- Combat Detailed window (/toolbox combat detail; pops up when the combat HUD is hovered)
+-- ---------------------------------------------------------------------------
+-- Damage by skill as bars (longest first), the last minute's damage done (up) and taken (down)
+-- as columns, and healing with its overheal, for the current fight or the whole session. Built
+-- once from fixed pools (the element-creation cap): refreshes only change text, bar values,
+-- column heights and visibility. Uses API 17's per-skill fields; without them every line counts
+-- as "(other)" or the skill the line names.
+-- Saved var "combat_detail": { open = bool (pinned), x, y, scope = "fight"|"session", hover = bool }.
+
+local CD = {}
+C.Detail = CD
+CD.WINDOW_ID = "toolbox_combat_detail"
+CD.SKILL_ROWS = 8
+CD.NAME_W, CD.BAR_W, CD.VALUE_W = 120, 110, 100
+CD.COL_W, CD.COL_GAP = 7, 2           -- timeline columns (pixels)
+CD.OUT_H, CD.IN_H = 44, 28            -- the two halves of the timeline chart
+CD.OUT_COLOR, CD.IN_COLOR, CD.BAR_COLOR = "@green", "@red", "@gold"
+CD.SCOPES = { { "fight", "This fight" }, { "session", "Session" } }
+
+local cdPrefs = { open = false, scope = "fight", hover = true }
+local cdWin = nil
+local cdEl = {}
+local cdPopup = false
+
+local function cdSave() T.Save("combat_detail", cdPrefs) end
+
+local cdHover = T.Hover.New{
+  name = "combat",
+  enabled = function() return cdPrefs.hover ~= false end,
+  trigger = function() return prefs.show == true end,
+  popup = {
+    IsShown = function() return CD.IsShown() end,
+    IsPopup = function() return CD.IsPopup() end,
+    ShowPopup = function() return CD.ShowPopup() end,
+    HidePopup = function() return CD.HidePopup() end,
+  },
+}
+
+-- The combat HUD reports hover here (its panel and rows).
+function C.HudHover(key, over) cdHover:Report("t:" .. key, over) end
+
+local function heading(text)
+  return UI.Label{ text = text, class = "heading", style = { marginTop = 8 } }
+end
+
+local function scopeLabel(scope)
+  for _, s in ipairs(CD.SCOPES) do if s[1] == scope then return s[2] end end
+  return CD.SCOPES[1][2]
+end
+
+local function buildDetail()
+  local skills = {}
+  cdEl = { skills = {}, outCols = {}, inCols = {} }
+  for i = 1, CD.SKILL_ROWS do
+    local name = UI.Label{ text = "", class = "text",
+      style = { width = CD.NAME_W, whiteSpace = "nowrap", marginLeft = 0, marginRight = 4 } }
+    local bar = UI.Bar{ value = 0, color = CD.BAR_COLOR, style = { width = CD.BAR_W, height = 8 } }
+    local value = UI.Label{ text = "", class = "bright",
+      style = { width = CD.VALUE_W, textAlign = "right", whiteSpace = "nowrap", marginLeft = 4, marginRight = 0 } }
+    local row = UI.Row{ visible = false, style = { alignItems = "center", marginTop = 1 },
+      children = { name, bar, value } }
+    skills[i] = row
+    cdEl.skills[i] = { row = row, name = name, bar = bar, value = value }
+  end
+  local n = math.floor(C.TIMELINE / C.SLICE)
+  local outRow, inRow = {}, {}
+  for i = 1, n do
+    local gap = i > 1 and CD.COL_GAP or 0
+    local up = UI.Column{ visible = false, style = { width = CD.COL_W, height = 1, backgroundColor = CD.OUT_COLOR } }
+    local down = UI.Column{ visible = false, style = { width = CD.COL_W, height = 1, backgroundColor = CD.IN_COLOR } }
+    outRow[i] = UI.Column{ style = { width = CD.COL_W, height = CD.OUT_H, marginLeft = gap, justifyContent = "end" },
+      children = { up } }
+    inRow[i] = UI.Column{ style = { width = CD.COL_W, height = CD.IN_H, marginLeft = gap, justifyContent = "start" },
+      children = { down } }
+    cdEl.outCols[i], cdEl.inCols[i] = up, down
+  end
+  local choices = {}
+  for i, s in ipairs(CD.SCOPES) do choices[i] = s[2] end
+  cdWin = UI.Window{
+    id = CD.WINDOW_ID, title = "Combat Detailed",
+    width = 380, height = 440, minWidth = 260, minHeight = 160,
+    x = cdPrefs.x or T.Window.DEFAULT_X, y = cdPrefs.y or T.Window.DEFAULT_Y,
+    escCloses = true,
+    onClose = function()
+      cdPrefs.open, cdPopup = false, false
+      cdSave()
+      cdHover:Clear("p:")
+      T.Config.Sync()
+    end,
+    onHover = function(_, over) cdHover:Report("p:window", over) end,
+    style = { paddingTop = 6, paddingBottom = 6 },
+    children = { UI.Scroll{ style = { flexGrow = 1 }, onHover = function(_, over) cdHover:Report("p:body", over) end,
+      children = { UI.Column{ style = { paddingLeft = 10, paddingRight = 10 }, children = {
+        UI.Row{ style = { alignItems = "center" }, children = {
+          UI.Label{ id = "cd_summary", text = "", class = "text", style = { flexGrow = 1, whiteSpace = "wrap" } },
+          UI.Dropdown{ id = "cd_scope", choices = choices, value = scopeLabel(cdPrefs.scope),
+            tooltip = "This fight, or every fight since you logged in (or reset)",
+            onChange = function(_, label) CD.OnScope(label) end },
+        } },
+        heading("Damage by skill"),
+        UI.Column{ children = skills },
+        UI.Label{ id = "cd_noskills", text = "No damage yet.", class = "dim", visible = false },
+        heading("Last minute: damage done (up) and taken (down), per second"),
+        UI.Row{ style = { marginTop = 4 }, children = outRow },
+        UI.Row{ style = { height = 1, width = n * (CD.COL_W + CD.COL_GAP), backgroundColor = "@text" } },
+        UI.Row{ children = inRow },
+        UI.Label{ id = "cd_peak", text = "", class = "dim", style = { marginTop = 2 } },
+        heading("Healing"),
+        UI.Label{ id = "cd_heal", text = "", class = "text", style = { whiteSpace = "wrap" } },
+      } } } } },
+  }
+  for _, id in ipairs({ "cd_summary", "cd_scope", "cd_noskills", "cd_peak", "cd_heal" }) do
+    cdEl[id] = cdWin:Find(id)
+  end
+end
+
+local function short(n)
+  n = n or 0
+  if n >= 1000000 then return string.format("%.1fm", n / 1000000) end
+  if n >= 10000 then return string.format("%.1fk", n / 1000) end
+  return T.FormatNumber(n)
+end
+CD.Short = short
+
+function CD.IsShown() return cdWin ~= nil and cdWin:IsShown() end
+function CD.IsOpen() return cdPrefs.open == true end
+function CD.IsPopup() return cdPopup and CD.IsShown() end
+
+-- The stats the window shows now (fight or session) and their fighting time in seconds.
+local function scoped(now)
+  if cdPrefs.scope == "session" then
+    if not session then return nil, 0 end
+    return session, C.SessionDuration(session, fight, now)
+  end
+  if not fight then return nil, 0 end
+  return fight, C.Duration(fight, now)
+end
+
+function CD.Refresh()
+  if not CD.IsShown() then return end
+  local now = T.Now()
+  local s, dur = scoped(now)
+  local span = math.max(1, dur)
+  if not s then
+    cdEl.cd_summary:SetText(cdPrefs.scope == "session" and "No fights yet this session." or "No fight yet.")
+  else
+    cdEl.cd_summary:SetText(string.format("%s: %s. Damage %s (%s/s), taken %s (%s/s)%s.",
+      scopeLabel(cdPrefs.scope), T.FormatDuration(dur), short(s.out), short(s.out / span), short(s.taken),
+      short(s.taken / span), (s.fights and s.fights > 0) and (", " .. s.fights .. " fights done") or ""))
+  end
+  local top = s and C.TopRunes(s, CD.SKILL_ROWS) or {}
+  for i, slot in ipairs(cdEl.skills) do
+    local r = top[i]
+    if r then
+      slot.name:SetText(r.name)
+      slot.bar:SetValue(top[1].dmg > 0 and r.dmg / top[1].dmg or 0)
+      slot.value:SetText(short(r.dmg) .. string.format("  %d%%", math.floor(r.share * 100 + 0.5)))
+      local tip = string.format("%s: %s damage, %s/s over %s\n%d hits, %d critical (%d%%), %d over-time ticks\n"
+        .. "average hit %s", r.name, T.FormatNumber(r.dmg), short(r.dmg / span), T.FormatDuration(dur), r.hits,
+        r.crits, r.hits > 0 and math.floor(100 * r.crits / r.hits + 0.5) or 0, r.dots,
+        T.FormatNumber(r.hits > 0 and r.dmg / r.hits or 0))
+      slot.name:SetTooltip(tip)
+      slot.value:SetTooltip(tip)
+    end
+    slot.row:SetVisible(r ~= nil)
+  end
+  cdEl.cd_noskills:SetVisible(#top == 0)
+  local tl = session and C.Timeline(session, now) or {}
+  local peakOut, peakIn = 0, 0
+  for _, x in ipairs(tl) do
+    peakOut, peakIn = math.max(peakOut, x.out), math.max(peakIn, x.taken)
+  end
+  for i = 1, #cdEl.outCols do
+    local x = tl[i] or { out = 0, taken = 0 }
+    local hu = peakOut > 0 and math.floor(CD.OUT_H * x.out / peakOut + 0.5) or 0
+    local hd = peakIn > 0 and math.floor(CD.IN_H * x.taken / peakIn + 0.5) or 0
+    cdEl.outCols[i]:SetVisible(hu > 0)
+    if hu > 0 then cdEl.outCols[i]:SetStyle{ height = hu } end
+    cdEl.inCols[i]:SetVisible(hd > 0)
+    if hd > 0 then cdEl.inCols[i]:SetStyle{ height = hd } end
+  end
+  cdEl.cd_peak:SetText("Peaks: " .. short(peakOut) .. "/s done, " .. short(peakIn) .. "/s taken ("
+    .. C.SLICE .. " s columns, newest on the right)")
+  if s and s.healed + s.overheal > 0 then
+    local over = C.OverhealPct(s)
+    cdEl.cd_heal:SetText(string.format("%s healed (%s/s); %s wasted as overheal (%d%%).", short(s.healed),
+      short(s.healed / span), short(s.overheal), math.floor((over or 0) + 0.5)))
+  else
+    cdEl.cd_heal:SetText("No healing yet.")
+  end
+end
+
+function CD.OnScope(label)
+  for _, s in ipairs(CD.SCOPES) do
+    if s[2] == label then CD.SetScope(s[1]) end
+  end
+end
+
+function CD.SetScope(scope)
+  if scope ~= "fight" and scope ~= "session" then return false end
+  cdPrefs.scope = scope
+  cdSave()
+  if cdEl.cd_scope then cdEl.cd_scope:SetValue(scopeLabel(scope)) end
+  CD.Refresh()
+  return true
+end
+
+function CD.GetScope() return cdPrefs.scope end
+
+-- Pinned open or closed by the player. Returns true when it ends up as asked.
+function CD.SetOpen(open)
+  if not cdWin then buildDetail() end
+  local ok = true
+  if not open then
+    cdWin:Hide()
+    cdPrefs.open, cdPopup = false, false
+  elseif cdWin:IsShown() then
+    cdPrefs.open, cdPopup = true, false
+  elseif cdWin:Show() then
+    cdPrefs.open, cdPopup = true, false
+    CD.Refresh()
+  else
+    T.Print("The Combat Detailed window can't open right now; try again in a few seconds.")
+    ok = false
+  end
+  cdSave()
+  T.Config.Sync()
+  return ok
+end
+
+function CD.Toggle() return CD.SetOpen(not CD.IsOpen()) end
+
+function CD.ShowPopup()
+  if not cdWin then buildDetail() end
+  if cdWin:IsShown() or not cdWin:Show() then return false end
+  cdPopup = true
+  CD.Refresh()
+  return true
+end
+
+function CD.HidePopup()
+  if cdPopup and cdWin then cdWin:Hide() end
+  cdPopup = false
+end
+
+function CD.GetHover() return cdPrefs.hover ~= false end
+
+function CD.SetHover(on)
+  cdPrefs.hover = on == true
+  cdSave()
+  if not cdPrefs.hover then cdHover:Cancel() end
+  T.Config.Sync()
+end
+
+function CD.Track()
+  if cdWin and T.Window.TrackPosition(cdWin, cdPrefs) then cdSave() end
+end
+
+function CD.Init()
+  local saved = T.Load("combat_detail")
+  cdPrefs = { open = false, scope = "fight", hover = true }
+  if type(saved) == "table" then
+    cdPrefs.open = saved.open == true
+    cdPrefs.hover = saved.hover ~= false
+    if saved.scope == "session" then cdPrefs.scope = "session" end
+    if type(saved.x) == "number" and type(saved.y) == "number" then cdPrefs.x, cdPrefs.y = saved.x, saved.y end
+  end
+  cdWin, cdPopup = nil, false
+  if cdPrefs.open then
+    buildDetail()
+    if not cdWin:Show() then T.Print("Combat Detailed could not reopen yet; use /toolbox combat detail.") end
+    CD.Refresh()
+  end
 end

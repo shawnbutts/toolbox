@@ -5,6 +5,11 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Added" },
+  { "item", "Combat Detailed: a window that pops up when you hover the combat HUD (or /toolbox combat detail). Damage by skill as bars, longest first, with hits, crits and over-time ticks on hover; the last minute as a column chart, damage done up and damage taken down; and healing with the share wasted as overheal. For this fight or the whole session. Uses the per-skill combat details of Lua API 17." },
+  { "item", "/toolbox combat events prints the next combat events' fields, to check what the game sends." },
+  { "section", "Fixed" },
+  { "item", "Combat events are now read whether the game hands them over as tables or as game objects (the buff list turned out to be game objects), so the combat HUD and the kill count can't silently miss them." },
   { "version", "0.3.0 - 2026-09-28 (beta 3)" },
   { "para", "Third beta. Notifications (guild message, mail, rewards, ...) in a window or on a HUD strip; the buff bar can replace the game's, groups long buffs, sorts by time left, flashes before a buff runs out, can show only in combat, and finally reads the game's full buff durations and debuffs; optional estimated item values from SOTA.net; alert sounds ship with the add-on (needs Lua API 15); XP keeps counting after XP is lost; and fixes for errors that could stop Toolbox." },
   { "section", "Added" },
