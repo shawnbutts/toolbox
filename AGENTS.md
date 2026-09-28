@@ -208,7 +208,7 @@ Run all three before calling a change done.
 - `toolbox/*.ogg` alert sounds (shipped in the package: API 15, so `min_api_version` is 15), generated
   by `python3 art/alerts.py [name ...]` (stdlib synthesis + ffmpeg's built-in Vorbis encoder, which plays
   fine in game; intermediate `art/*.wav`, git-ignored): `buff_expiring` (two falling bell chimes, 0.9 s)
-  and `debuff_landed` (sad D-minor droop over a thump, 0.38 s). Re-encoding changes the .ogg bytes (random
+  and `debuff_landed` (three hollow notes stepping down from high to low, E6 -> B5 -> E5, 0.8 s). Re-encoding changes the .ogg bytes (random
   stream serial) even when the audio is identical, so `git checkout` an .ogg you didn't mean to change.
   `tools/build.py` checks the documented sound rules (<= 32, <= 2 MiB, lower-case .ogg/.wav, OggS /
   RIFF....WAVE header). DEFAULTS live in the package folder (path "toolbox/<name>"); a player's

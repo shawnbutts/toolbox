@@ -10,8 +10,8 @@ Standard library for the synthesis; ffmpeg (built-in Vorbis encoder) for the .og
 
 Alerts:
   buff_expiring   two soft bell chimes falling a fourth (A5 -> E5), 0.9 s: "winding down"
-  debuff_landed   two quick hollow notes drooping down a D-minor triad (A4 -> F4 -> D4) over a
-                  low thump, no echo, 0.38 s: a sad "uh-oh"
+  debuff_landed   three hollow notes stepping down from high to low (E6 -> B5 -> E5), each bending
+                  down as it sounds, 0.8 s: a falling "uh-oh" that starts high
 Tweak the constants in each render_* function and re-run.
 """
 
@@ -84,21 +84,25 @@ def render_buff_expiring() -> list[float]:
 
 
 # ---------------------------------------------------------------------------
-# debuff_landed: two quick hollow notes drooping down a minor triad, over a low thump
+# debuff_landed: three hollow notes stepping down, high to low
 # ---------------------------------------------------------------------------
 
-# A sad D-minor walk down (A4 -> F4 -> D4): each note droops for its whole length instead
-# of snapping to pitch, is cut off when the next starts, and there is no echo.
+# Starts high and falls (owner, 2026-09-28: "a little longer, higher to lower"): E6 -> B5 -> E5,
+# each note bending down a step while it sounds, cut off when the next starts; the last one
+# rings out. No thump (it would start the sound low) and no echo. Was: A4 -> F4 -> D4 over a
+# low thump, 0.38 s.
 DEBUFF = dict(
-    duration=0.38,
-    notes=[(0.00, 440.00, 349.23, 1.0), (0.09, 349.23, 293.66, 1.0)],   # (start s, from Hz, to Hz, loudness)
-    glide=0.16,                                   # seconds each note takes to bend down
-    decay=11.0,                                   # 1/s
+    duration=0.8,
+    notes=[(0.00, 1318.51, 1174.66, 0.85),        # (start s, from Hz, to Hz, loudness): E6 -> D6
+           (0.16, 987.77, 880.00, 0.95),          # B5 -> A5
+           (0.32, 659.26, 523.25, 1.0)],          # E5 -> C5
+    glide=0.18,                                   # seconds each note takes to bend down
+    decay=5.0,                                    # 1/s: slower than before, so it carries
     harmonics=[(1, 1.0), (3, 0.30), (5, 0.10)],   # odd harmonics: hollow, not a bell
-    thump=(110.0, 60.0, 0.09, 24.0, 0.6),         # (from Hz, to Hz, glide s, decay 1/s, level)
+    thump=(110.0, 60.0, 0.09, 24.0, 0.0),         # (from Hz, to Hz, glide s, decay 1/s, level): off
     echoes=[],
-    fade=0.05,
-    choke=0.015,          # each note fades out over this many seconds as the next one starts
+    fade=0.12,
+    choke=0.02,           # each note fades out over this many seconds as the next one starts
 )
 
 

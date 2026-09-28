@@ -15,6 +15,7 @@ Toolbox.CHANGELOG = {
   { "item", "Today Detailed: optional estimated values. Each item shows its count times its 90-day average sale price from SOTA.net's public price list (player-uploaded receipts), and the header a total for the day; hover a value for the price each. Items with no recent sales stay blank. Off by default: switch on \"Estimated values (SOTA.net)\" in settings (or /toolbox dd values on) and Internet for Toolbox in the add-on manager. Only item names are sent; each price is kept for 24 hours, across reloads and restarts (/toolbox dd values refresh looks them up again). /toolbox dd values test [item] checks the connection with one lookup and prints the answer." },
   { "item", "/toolbox api lists which newer game functions this client has (buff bar, crafting, friends and guild), to check the client against the docs." },
   { "section", "Changed" },
+  { "item", "New debuff sound: a little longer (0.8 s), starting high and falling, so it carries in a fight." },
   { "item", "The alert sounds now come with the add-on (game clients at Lua API 15 or newer allow sounds in add-on packages), so there's nothing to copy by hand. Toolbox now needs Lua API 15. Your own sounds in the Lua folder (toolbox_buff_expiring.ogg, toolbox_debuff_landed.ogg) still win." },
   { "item", "/toolbox sounds debug is simpler; /toolbox sounds try is gone (sounds work in current clients)." },
   { "section", "Fixed" },
