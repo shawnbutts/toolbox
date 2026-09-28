@@ -52,13 +52,39 @@ local function gluedHere(key) return prefs.glued and Hud.GLUE[key] end
 
 local function present(key) return modules[key] ~= nil end
 
--- A module's content, or nil when building it raised (reported in chat, so one broken strip
--- doesn't stop the others from being built and shown).
+-- The game's element-creation cap ("elements are being created too fast") can still be hit while
+-- start-up or a login builds everything (2026-09-28: the notification HUD at login). A strip that
+-- fails that way is built again quietly Hud.RETRY_DELAY seconds later, when the budget has
+-- refilled; only a failure that persists (or any other error) is reported in chat.
+Hud.RETRY_DELAY, Hud.RETRY_MAX = 1.5, 4
+local retries = 0
+local retryWanted = false
+
+local function tooFast(err) return tostring(err):find("too fast", 1, true) ~= nil end
+
+local function failed(what, err)
+  Hud.errors[what] = tostring(err)
+  if tooFast(err) and retries < Hud.RETRY_MAX then
+    retryWanted = true
+  else
+    T.Print("Couldn't build the " .. what .. " HUD: " .. tostring(err))
+  end
+end
+
+-- A module's content, or nil when building it raised (so one broken strip doesn't stop the others
+-- from being built and shown).
 local function build(key)
   local ok, result = pcall(modules[key].BuildContent)
   if ok then return result end
-  T.Print("Couldn't build the " .. key .. " HUD: " .. tostring(result))
-  Hud.errors[key] = tostring(result)
+  failed(key, result)
+  return nil
+end
+
+-- A HUD frame, or nil when the constructor raised.
+local function newFrame(what, spec)
+  local ok, result = pcall(UI.HudFrame, spec)
+  if ok then return result end
+  failed(what, result)
   return nil
 end
 
@@ -71,6 +97,7 @@ end
 function Hud.Build()
   destroyAll()
   Hud.errors = {}
+  retryWanted = false
   if prefs.glued then
     local parts = {}
     for _, key in ipairs(Hud.ORDER) do
@@ -79,10 +106,15 @@ function Hud.Build()
         parts[#parts + 1] = contents[key]
       end
     end
-    frames[Hud.GLUED_ID] = UI.HudFrame{ id = Hud.GLUED_ID, x = prefs.x or Hud.GLUED_HOME[1],
-      y = prefs.y or Hud.GLUED_HOME[2], width = 100, height = 40, visible = false,
-      -- start past the drag grip; parts side by side, tops aligned
-      children = { UI.Row{ style = { paddingLeft = T.Window.GRIP, alignItems = "start" }, children = parts } } }
+    local ok, row = pcall(UI.Row, { style = { paddingLeft = T.Window.GRIP, alignItems = "start" }, children = parts })
+    if ok then
+      frames[Hud.GLUED_ID] = newFrame("glued", { id = Hud.GLUED_ID, x = prefs.x or Hud.GLUED_HOME[1],
+        y = prefs.y or Hud.GLUED_HOME[2], width = 100, height = 40, visible = false,
+        -- start past the drag grip; parts side by side, tops aligned
+        children = { row } })
+    else
+      failed("glued", row)
+    end
   end
   for _, key in ipairs(Hud.ORDER) do
     if present(key) and not gluedHere(key) then
@@ -91,12 +123,22 @@ function Hud.Build()
     if contents[key] and not gluedHere(key) then
       local m = modules[key]
       local x, y = m.GetSavedPosition()
-      frames[key] = UI.HudFrame{ id = m.FRAME_ID, x = x or m.HOME[1], y = y or m.HOME[2],
-        width = 100, height = 40, visible = false,
-        children = { UI.Column{ style = { paddingLeft = T.Window.GRIP }, children = { contents[key] } } } }
+      local ok, column = pcall(UI.Column, { style = { paddingLeft = T.Window.GRIP }, children = { contents[key] } })
+      if ok then
+        frames[key] = newFrame(key, { id = m.FRAME_ID, x = x or m.HOME[1], y = y or m.HOME[2],
+          width = 100, height = 40, visible = false, children = { column } })
+      else
+        failed(key, column)
+      end
     end
   end
   Hud.Refresh()
+  if retryWanted then
+    retries = retries + 1
+    ShroudRegisterPeriodic("toolbox_hud_retry", function() Hud.Build() end, Hud.RETRY_DELAY, false)
+  else
+    retries = 0
+  end
 end
 
 local function setSize(frame, w, h)

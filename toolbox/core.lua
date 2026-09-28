@@ -1293,28 +1293,35 @@ function T.Welcome()
   return true
 end
 
+-- Runs one start-up step; a failure is reported and the rest still start (one broken part, such
+-- as a window hitting the game's element-creation cap, shouldn't take Toolbox down with it).
+local function step(name, fn)
+  local ok, err = pcall(fn)
+  if not ok then T.Print("Couldn't start " .. name .. ": " .. tostring(err)) end
+end
+
 function ShroudOnStart()
   T.startedAt = T.Now()
   T.RegisterCommands()
   T.RegisterKeybind()
-  T.Daily.Load()                     -- before the session: a new login re-bases daily gold
+  step("today's stats", T.Daily.Load)  -- before the session: a new login re-bases daily gold
   T.ResumeOrStart()
   T.Sample()                         -- XP gained since the last save (e.g. across a reload)
-  T.Window.Init()
-  T.Compact.Init()
-  T.Daily.InitWindow()
-  T.DailyDetail.Init()
-  T.Sounds.Init()
-  T.BuffBar.Init()
-  T.Vitals.Init()
-  T.Combat.Init()
-  T.Notify.Hud.Init()
-  T.Hud.Init()                       -- builds the HUD strips (glued or not) for all three
-  T.BuffBar.Tick()
-  T.Vitals.Tick()
+  step("XP Detailed", T.Window.Init)
+  step("the XP window", T.Compact.Init)
+  step("the Today window", T.Daily.InitWindow)
+  step("Today Detailed", T.DailyDetail.Init)
+  step("sounds", T.Sounds.Init)
+  step("the buff bar", T.BuffBar.Init)
+  step("the health bars", T.Vitals.Init)
+  step("combat stats", T.Combat.Init)
+  step("the notification HUD", T.Notify.Hud.Init)
+  step("the HUD strips", T.Hud.Init)  -- builds the HUD strips (glued or not); retries on the cap
+  step("the buff bar", T.BuffBar.Tick)
+  step("the health bars", T.Vitals.Tick)
   ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
   T.Welcome()                        -- first run only: a chat line and the settings window
-  T.Notify.Check()                   -- anything new: the guild message, mail, ...
+  step("notifications", T.Notify.Check)   -- anything new: the guild message, mail, ...
 end
 
 -- Only a trigger: the amount's relation to pooled vs total XP is not documented,

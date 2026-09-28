@@ -5,6 +5,11 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Fixed
+- "Couldn't build the notify HUD: elements are being created too fast" at login. A HUD strip that
+  runs into the game's limit on how fast add-ons may create elements is now built again a moment
+  later, without an error in chat; and one part failing at start-up no longer stops the others.
+
 ## [0.3.1] - 2026-09-28 (beta 4)
 
 Fourth beta. Combat Detailed (damage by skill, the last minute as a chart, healing, targets, damage

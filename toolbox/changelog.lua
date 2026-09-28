@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Fixed" },
+  { "item", "\"Couldn't build the notify HUD: elements are being created too fast\" at login. A HUD strip that runs into the game's limit on how fast add-ons may create elements is now built again a moment later, without an error in chat; and one part failing at start-up no longer stops the others." },
   { "version", "0.3.1 - 2026-09-28 (beta 4)" },
   { "para", "Fourth beta. Combat Detailed (damage by skill, the last minute as a chart, healing, targets, damage types and recent fights), an XP-over-the-last-hour chart in XP Detailed, a performance pass that leaves more room for other add-ons, and fixes for start-up errors." },
   { "section", "Changed" },

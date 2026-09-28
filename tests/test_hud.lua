@@ -153,4 +153,28 @@ return function(t)
     t.ok(H.logged("^combat: shown setting true; content built; strip own, visible true, size %d+ x %d+, at 40, 380"),
       H.lastLog())
   end)
+
+  t.test("a strip that hits the creation cap at start-up is built again a moment later, quietly", function()
+    local burst = H.CREATE_BURST
+    H.CREATE_BURST = 250                         -- a tighter budget than a real start-up needs
+    local ok, err = pcall(function()
+      H.boot()
+      H.chat("/tbx buffs")
+      H.chat("/tbx vitals")
+      H.chat("/tbx combat")
+      H.chat("/tbx notify via hud")
+      H.clearLogs()
+      H.S.createBucket.tokens = 0                -- as if start-up had just used up the budget
+      H.reload()
+      t.no(H.logged("Couldn't build"), "no error in chat for the cap")
+      H.advance(Toolbox.Hud.RETRY_DELAY * 2 + 1)
+      t.ok(H.frame(), "the buff bar strip")
+      t.ok(H.vitals(), "the health bars strip")
+      t.ok(H.combatHud(), "the combat strip")
+      t.ok(H.nhud(), "the notification HUD")
+      t.no(H.logged("Couldn't build"), "still quiet")
+    end)
+    H.CREATE_BURST = burst
+    if not ok then error(err, 0) end
+  end)
 end
