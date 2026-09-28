@@ -1617,8 +1617,9 @@ function G.DebugLines()
   end
   local b, g = firstShown(slots and slots.buffs), firstShown(gSlots)
   local lines = {
-    string.format("icon size %d; glued %s (setting %s, buff bar %s); gear showing %d of %d worn",
-      size(), tostring(G.Glued()), tostring(gprefs.glue == true), tostring(BB.IsEnabled()), #gShownList, #gItems),
+    string.format("icon size %d; glued %s (setting %s, buff bar %s); gear showing %d of %d worn; settings open %s",
+      size(), tostring(G.Glued()), tostring(gprefs.glue == true), tostring(BB.IsEnabled()), #gShownList, #gItems,
+      tostring(T.Config.IsShown())),
     "buff slot " .. sz(b and b.row) .. ", its icon " .. sz(b and b.icon) .. ", sweep " .. sz(b and b.overlay),
     "gear slot " .. sz(g and g.row) .. ", its icon " .. sz(g and g.icon) .. ", sweep " .. sz(g and g.overlay),
     "rows: buffs " .. sz(content and content:Find("buffs")) .. ", debuffs " .. sz(content and content:Find("debuffs"))
