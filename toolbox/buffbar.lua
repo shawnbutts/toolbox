@@ -998,10 +998,24 @@ function BB.Trace(filter)
           end
           if #effects > BB.TRACE_EFFECTS then parts[#parts + 1] = "..." end
         end
-        T.Print(string.format("+%ds %s: game %s left (effects left/total: %s) | bar %s of %s",
+        -- the sweep frame the slot is showing now (what should be on screen)
+        local sweep = "not on the bar"
+        for _, slot in ipairs(slots.buffs) do
+          if slot.used and slot.name == e.name then
+            sweep = (slot.k and slot.k > 0) and string.format("frame %d/%d (%d%% shaded%s)", slot.k, BB.CLOCK.FRAMES,
+              math.floor(slot.k * 100 / BB.CLOCK.FRAMES), slot.warn and ", red" or "") or "no sweep"
+          end
+        end
+        for _, slot in ipairs(slots.debuffs) do
+          if slot.used and slot.name == e.name then
+            sweep = (slot.k and slot.k > 0) and string.format("frame %d/%d (%d%% shaded)", slot.k, BB.CLOCK.FRAMES,
+              math.floor(slot.k * 100 / BB.CLOCK.FRAMES)) or "no sweep"
+          end
+        end
+        T.Print(string.format("+%ds %s: game %s left (effects left/total: %s) | bar %s of %s | %s",
           n, named, num(e.remaining), #parts > 0 and table.concat(parts, ", ") or "none",
           st and string.format("%.1f", st.last or -1) or "?",
-          st and (string.format("%.1f", st.total) .. (st.trusted and "" or " (unknown)")) or "?"))
+          st and (string.format("%.1f", st.total) .. (st.trusted and "" or " (unknown)")) or "?", sweep))
       end
     end
     if shown == 0 then
