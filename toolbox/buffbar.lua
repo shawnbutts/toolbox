@@ -709,11 +709,13 @@ local frameTest = nil          -- { k, warn, till } while a test runs
 -- on screen (also after SetTexture, a hide/show, or with an IconButton), so a sweep stayed at the frame
 -- it first showed: it "lagged", "barely moved", and sat under half covered at the expiry alert. So
 -- each slot's overlay is a holder (a Row over the icon, by negative margin) whose Image is replaced,
--- with `uv` in its spec, whenever the frame changes. At most BB.SWEEP_BUDGET replacements per buff
--- bar tick (the game limits element creation); a slot left over keeps its old frame and is redrawn
--- next tick. If a client update makes SetUV redraw, the uvtest will show it (way 1 sweeping).
-BB.SWEEP_BUDGET = 24
-local sweepBudget, sweepRefilledAt = BB.SWEEP_BUDGET, -math.huge
+-- with `uv` in its spec, whenever the frame changes. If a client update makes SetUV redraw, the
+-- uvtest will show it (way 1 sweeping).
+-- Load (owner, 2026-09-28: "50 a second seems like a lot"): at most BB.SWEEP_RATE new Images a second
+-- for all sweeps together (a token bucket, BB.SWEEP_BURST deep, so a few new buffs start at once).
+-- Sweeps that can't all be redrawn take turns by how far behind they are (drawSweeps).
+BB.SWEEP_RATE, BB.SWEEP_BURST = 4, 6
+local sweepTokens, sweepAt = BB.SWEEP_BURST, nil
 
 -- A slot's overlay holder for an s px icon: empty and hidden until a frame is shown.
 function BB.SweepHolder(s)
@@ -727,17 +729,19 @@ local function replaceSweep(holder, k, warn, s)
 end
 
 -- Shows clock frame k (> 0) of the normal or red set in `slot.overlay` (an s px holder). Returns
--- false when this tick's budget is spent (nothing changed: try again next tick).
-function BB.ShowFrame(slot, k, warn, s)
+-- false when the rate is used up (nothing changed: try again next tick). `force` (the frame test)
+-- ignores the rate.
+function BB.ShowFrame(slot, k, warn, s, force)
   local now = T.Now()
-  if now - sweepRefilledAt >= BB.TICK then sweepBudget, sweepRefilledAt = BB.SWEEP_BUDGET, now end
-  if sweepBudget <= 0 then return false end
+  sweepTokens = math.min(BB.SWEEP_BURST, sweepTokens + (now - (sweepAt or now)) * BB.SWEEP_RATE)
+  sweepAt = now
+  if sweepTokens < 1 and not force then return false end
   local ok = pcall(replaceSweep, slot.overlay, k, warn, s)
-  if not ok then                         -- the creation cap: leave it for the next tick
-    sweepBudget = 0
+  if not ok then                         -- the game's creation cap: leave it for the next tick
+    sweepTokens = 0
     return false
   end
-  sweepBudget = sweepBudget - 1
+  sweepTokens = math.max(0, sweepTokens - 1)
   if slot.sweepShown ~= true then
     slot.overlay:SetVisible(true)
     slot.sweepShown = true
@@ -942,20 +946,30 @@ local function fill(slot, e, fraction, warn, flash)
   end
 end
 
--- Redraws the sweeps fill() asked for, the longest-waiting first, as far as the budget goes (the
--- rest stay pending: fill asks again next tick). Without the order, 30 sweeps changing every tick
--- starved the last slots for good.
-local function byDrawnAt(a, b) return (a.drawnAt or -math.huge) < (b.drawnAt or -math.huge) end
+-- Redraws the sweeps fill() asked for as far as BB.SWEEP_RATE goes; the rest stay pending (fill asks
+-- again next tick). Most urgent first: turning red (the expiry alert fired), then the most frames
+-- behind, so short buffs (which fall behind fastest) get more turns than long ones, and none starves
+-- (an earlier first-come order left the last of 30 fast sweeps never redrawn).
+local function behind(slot)
+  if slot.wantWarn ~= slot.warn then return math.huge end
+  if not slot.k then return BB.CLOCK.FRAMES end
+  return math.abs(slot.wantK - slot.k)
+end
+local function byUrgency(a, b)
+  local x, y = behind(a), behind(b)
+  if x ~= y then return x > y end
+  return (a.drawnAt or -math.huge) < (b.drawnAt or -math.huge)
+end
 local function drawSweeps()
   if #pendingSweeps == 0 then return end
-  table.sort(pendingSweeps, byDrawnAt)
-  local s, now = size(), T.Now()
+  table.sort(pendingSweeps, byUrgency)
+  local s, now, testing = size(), T.Now(), frameTest ~= nil
   for i = 1, #pendingSweeps do
     local slot = pendingSweeps[i]
     pendingSweeps[i] = nil
     slot.pending = false
     if slot.used and slot.wantK and (slot.wantK ~= slot.k or slot.wantWarn ~= slot.warn)
-        and BB.ShowFrame(slot, slot.wantK, slot.wantWarn, s) then
+        and BB.ShowFrame(slot, slot.wantK, slot.wantWarn, s, testing) then
       slot.k, slot.warn, slot.drawnAt = slot.wantK, slot.wantWarn, now
     end
   end

@@ -746,37 +746,45 @@ return function(t)
     t.eq(H.S.frames.toolbox_uvtest, nil)
   end)
 
-  t.test("sweeps are redrawn by new Images, at most SWEEP_BUDGET a tick; the rest catch up", function()
+  -- The frame a slot's sweep shows (normal or red set alike), from its Image's uv.
+  local function shownFrame(slot)
+    local c = B().CLOCK
+    local uv = sweep(slot).uv
+    if not uv then return 0 end
+    local k = math.floor(uv[1] * c.COLS + 0.5) + math.floor(uv[2] * c.ROWS * c.SETS + 0.5) * c.COLS
+    return k % (c.COLS * c.ROWS)
+  end
+
+  t.test("sweeps are redrawn by new Images, at most SWEEP_RATE a second; they take turns", function()
     bootSettled()
     H.S.durationMode = "remaining"
     H.chat("/tbx buffs")
     local list = {}
-    for i = 1, 20 do list[i] = { name = "Buff" .. i, remaining = 6 + i * 0.01, icon = i } end
-    for i = 1, 10 do                                  -- 30 sweeps changing every tick: over the budget
-      list[20 + i] = { name = "Bane" .. i, remaining = 6 + i * 0.01, icon = 40 + i, debuff = true }
-    end
+    for i = 1, 12 do list[i] = { name = "Buff" .. i, remaining = 120 + i * 0.01, icon = i } end   -- 12 frames/s wanted
     H.addBuffs(list)
-    H.advance(0.5, 0.5)
-    local worst = 0
-    for _ = 1, 8 do
-      local before = H.S.constructed or 0
-      H.advance(0.5, 0.5)
-      worst = math.max(worst, (H.S.constructed or 0) - before)
+    H.advance(1, 0.5)
+    local before = H.S.constructed or 0
+    H.advance(30, 0.5)
+    local made = (H.S.constructed or 0) - before
+    t.ok(made <= 30 * B().SWEEP_RATE + B().SWEEP_BURST, "new Images in 30 s: " .. made)
+    -- 31 s of 120 used: about frame 31; each sweep redrawn every few seconds, none far behind
+    for i, slot in ipairs(H.slots("buffs")) do
+      local k = shownFrame(slot)
+      t.ok(k >= 25 and k <= 33, "slot " .. i .. " frame " .. k)
     end
-    t.ok(worst <= B().SWEEP_BUDGET + 2, "created per tick: " .. worst)
-    -- 4.5 s of a 6 s buff used: every slot near frame 95 (79 %), none left behind
-    local c = B().CLOCK
-    local all = H.slots("buffs")
-    for _, slot in ipairs(H.slots("debuffs")) do all[#all + 1] = slot end
-    t.eq(#all, 30)
-    for i, slot in ipairs(all) do
-      local uv = sweep(slot).uv
-      local k = math.floor(uv[1] * c.COLS + 0.5) + math.floor(uv[2] * c.ROWS * c.SETS + 0.5) * c.COLS
-      k = k % (c.COLS * c.ROWS)                       -- red or not
-      -- a 6 s buff moves 10 frames a tick; with 30 sweeps and a budget of 24, a slot may wait a tick,
-      -- but the oldest go first, so none falls more than two ticks behind
-      t.ok(k >= 75 and k <= 100, "slot " .. i .. " frame " .. k)
-    end
+  end)
+
+  t.test("a short debuff among long buffs keeps up: the sweep furthest behind goes first", function()
+    bootSettled()
+    H.S.durationMode = "remaining"
+    H.chat("/tbx buffs")
+    local list = {}
+    for i = 1, 12 do list[i] = { name = "Buff" .. i, remaining = 120 + i * 0.01, icon = i } end
+    list[13] = { name = "Bleed", remaining = 12, icon = 50, debuff = true }        -- 10 frames a second
+    H.addBuffs(list)
+    H.advance(6.5, 0.5)
+    local k = shownFrame(H.slots("debuffs")[1])
+    t.ok(k >= 55 and k <= 70, "half of the 12 s debuff gone: frame " .. k)
   end)
 
   t.test("/tbx buffs trace says which sweep frame is on screen", function()
