@@ -6,6 +6,7 @@
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "section", "Added" },
+  { "item", "Buff bar: a buff about to run out flashes a red border for its last seconds (the alert time, sound or not). \"Flash icons about to run out\" in settings, /toolbox buffs flash on|off." },
   { "item", "XP: \"Subtract XP lost (net change)\" in settings. Off (the default), XP figures count gains only; on, XP lost (for example on death) is subtracted from last hour, XP/hour, session and today's XP, which can then go negative." },
   { "item", "Notifications: a window tells you what's new since you last saw it: your guild's message of the day, new mail, mail about to expire, ransoms, new rewards and guild applications. It opens at login, after a reload, or as soon as something changes, with everything new together; nothing already seen shows again. Each can be switched on or off in settings (Notifications) or with /toolbox notify <name> on|off; /toolbox notify show shows everything current, /toolbox motd the guild message." },
   { "item", "Notification HUD: any notification can go to a HUD strip instead of the window (settings, or /toolbox notify <name> via hud). It lists the latest 20, newest on top, one line each; hover a line for the whole notice. It shows when something arrives and hides after 10 seconds (or a time you choose, or never), and stays while the pointer is on it. While the settings window is open it shows so you can place it, with a short note when it has nothing to list yet." },

@@ -1412,4 +1412,25 @@ return function(t)
     t.eq(g.children[2].style.width, 40, "resized too")
     t.eq(g.children[2].style.paddingLeft, 2, "and still nudged")
   end)
+
+  t.test("a buff about to run out blinks a red border until it ends", function()
+    bootWithSounds()
+    H.chat("/tbx buffs")
+    H.chat("/tbx buffalert 5")
+    H.addBuffs({ { name = "Heal", remaining = 12, icon = 101 } })
+    local function border() return H.slots("buffs")[1].style.borderWidth end
+    H.advance(4, 0.5)
+    t.eq(border(), 0, "no flash before the alert time")
+    local seen = {}
+    for _ = 1, 8 do
+      H.advance(0.5, 0.5)
+      if H.slots("buffs")[1] then seen[border()] = true end
+    end
+    t.ok(seen[2] and seen[0], "on and off in the last seconds")
+    H.chat("/tbx buffs flash off")
+    t.eq(H.saved("buffbar").flash, false)
+    H.S.buffs[1].remaining = 4                  -- still in the last seconds
+    H.advance(1, 0.5)
+    t.eq(border(), 0, "no flash when switched off")
+  end)
 end

@@ -159,6 +159,9 @@ function C.BuffBarSection()
       style = { marginTop = 6 }, onChange = function(_, v) B.SetExpireAlert(v) end },
     slider("expire_seconds", "Seconds before it runs out", B.ALERT_MIN, B.ALERT_MAX, 1, B.GetExpireSeconds(),
       "How long before a buff ends to play the alert", function(n) B.SetExpireSeconds(n) end),
+    UI.Toggle{ id = "buff_flash", text = "Flash icons about to run out", value = B.GetFlash(),
+      tooltip = "A red border blinks on a buff for the seconds above, before it runs out (sound or not)",
+      onChange = function(_, v) B.SetFlash(v) end },
     UI.Toggle{ id = "debuff_alert", text = "Sound when a debuff lands", value = B.GetDebuffAlert(),
       style = { marginTop = 6 }, onChange = function(_, v) B.SetDebuffAlert(v) end },
     UI.Toggle{ id = "buff_replace", text = "Replace the game's buff bar", value = B.GetReplace(),
@@ -294,7 +297,7 @@ local function build()
                 "show_combat", "combat_pet", "combat_scale", "combat_scale_value", "combat_stats", "combat_pos",
                 "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "buff_group",
                 "buff_replace", "buff_dismiss", "buff_group_after",
-                "buffs_combat_only", "dd_values", "xp_net" }
+                "buffs_combat_only", "dd_values", "xp_net", "buff_flash" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -446,6 +449,7 @@ function C.Sync()
   end
   el.expire_alert:SetValue(B.GetExpireAlert())
   el.debuff_alert:SetValue(B.GetDebuffAlert())
+  el.buff_flash:SetValue(B.GetFlash())
   el.buff_replace:SetValue(B.GetReplace())
   el.buff_dismiss:SetValue(B.GetClickDismiss())
   el.buff_group_after:SetValue(B.GroupAfterLabel(B.GetGroupAfter()) or "15 minutes")

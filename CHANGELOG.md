@@ -6,6 +6,8 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Buff bar: a buff about to run out flashes a red border for its last seconds (the alert time,
+  sound or not). "Flash icons about to run out" in settings, /toolbox buffs flash on|off.
 - XP: "Subtract XP lost (net change)" in settings. Off (the default), XP figures count gains only;
   on, XP lost (for example on death) is subtracted from last hour, XP/hour, session and today's XP,
   which can then go negative.

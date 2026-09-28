@@ -283,7 +283,7 @@ including the "no character" sentinel.
 | `daily` | see the header comment of `daily.lua` (format `v = 1`) |
 | `daily_window` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, hx, hy }` |
 | `daily_detail` | `{ open = bool, x = number, y = number, values = bool }` |
-| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), group = { name parts }, replaceStock, clickDismiss, combatOnly, x, y }` |
+| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, flash, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), group = { name parts }, replaceStock, clickDismiss, combatOnly, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { buff_expiring = "...", debuff_landed = "..." } }` |
 | `buff_timers` | `{ v = 3, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload (v1/v2 ignored) |
 | `vitals` | `{ show, width = 100..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, x, y }` |

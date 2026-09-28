@@ -452,9 +452,15 @@ function T.MoveCommand(m, cmd, what, args)
 end
 
 add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off; add|remove <name>|reset]; "
-    .. "combat on|off (only during combat); replace on|off; "
+    .. "combat on|off (only during combat); flash on|off; replace on|off; "
     .. "dismiss on|off; debug; raw; trace [name])", function(rest)
   local word, name = T.ParseArgs(rest)
+  if word == "flash" then
+    local B, arg = T.BuffBar, name:lower()
+    if arg == "on" or arg == "off" then B.SetFlash(arg == "on") end
+    T.Print("Flash icons about to run out: " .. (B.GetFlash() and "on" or "off") .. ".")
+    return
+  end
   if word == "combat" then
     local B, arg = T.BuffBar, name:lower()
     if arg == "on" or arg == "off" then B.SetCombatOnly(arg == "on") end

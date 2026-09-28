@@ -284,7 +284,7 @@ local function defaults()
   for i, p in ipairs(BB.GROUP_DEFAULT) do parts[i] = p end
   return { show = false, size = BB.SIZE_DEFAULT, expire = true, expireSeconds = BB.ALERT_DEFAULT, debuff = true,
            group = parts, groupAfter = BB.GROUP_AFTER_DEFAULT, replaceStock = false, clickDismiss = false,
-           combatOnly = false }
+           combatOnly = false, flash = true }
 end
 
 local function savePrefs()
@@ -648,8 +648,15 @@ function BB.SavePosition(x, y)
 end
 
 -- Puts entry e (or nothing) into a slot, touching only what changed. `warn` shows the
--- red sweep (the buff's expiry alert has fired).
-local function fill(slot, e, fraction, warn)
+-- red sweep (the buff's expiry alert has fired); `flash` also blinks a red border, on and off
+-- with each tick (owner, 2026-09-28: "flash red when it's about to run out").
+local function fill(slot, e, fraction, warn, flash)
+  local blink = flash == true and math.floor(T.Now() * 2) % 2 == 0
+  if not e then blink = false end
+  if blink ~= (slot.blink == true) then
+    slot.blink = blink
+    slot.row:SetStyle{ borderWidth = blink and 2 or 0 }
+  end
   if not e then
     if slot.used then slot.row:SetVisible(false) end
     slot.used, slot.name, slot.label, slot.k, slot.warn = false, nil, nil, nil, nil
@@ -795,7 +802,7 @@ function BB.Tick()
     BB.SortByExpiry(shownDebuffs)
     for i = 1, BB.BUFF_SLOTS do
       local s = shownBuffs[i]
-      if s then fill(slots.buffs[i], s.e, s.fraction, s.warn) else fill(slots.buffs[i], nil) end
+      if s then fill(slots.buffs[i], s.e, s.fraction, s.warn, s.warn and prefs.flash) else fill(slots.buffs[i], nil) end
     end
     for i = 1, BB.DEBUFF_SLOTS do
       local s = shownDebuffs[i]
@@ -971,6 +978,7 @@ function BB.Init()
     prefs.replaceStock = saved.replaceStock == true
     prefs.clickDismiss = saved.clickDismiss == true
     prefs.combatOnly = saved.combatOnly == true
+    prefs.flash = saved.flash ~= false
     -- A list saved exactly as an earlier default is taken as unset (the time rule replaced it).
     local old = false
     if type(saved.group) == "table" then
@@ -1117,6 +1125,16 @@ function BB.SetDebuffAlert(on)
 end
 
 function BB.GetDebuffAlert() return prefs.debuff end
+
+-- A red border blinks on a buff once its expiry alert time is reached (with or without the sound).
+function BB.GetFlash() return prefs.flash ~= false end
+
+function BB.SetFlash(on)
+  prefs.flash = on == true
+  savePrefs()
+  if content and BB.IsShown() then BB.Tick() end
+  T.Config.Sync()
+end
 
 function BB.GetReplace() return prefs.replaceStock == true end
 
