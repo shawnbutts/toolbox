@@ -5,6 +5,14 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-28 (beta 3)
+
+Third beta. Notifications (guild message, mail, rewards, ...) in a window or on a HUD strip;
+the buff bar can replace the game's, groups long buffs, sorts by time left, flashes before a buff
+runs out, can show only in combat, and finally reads the game's full buff durations and debuffs;
+optional estimated item values from SOTA.net; alert sounds ship with the add-on (needs Lua API
+15); XP keeps counting after XP is lost; and fixes for errors that could stop Toolbox.
+
 ### Added
 - Buff bar: a buff about to run out flashes a red border for its last seconds (the alert time,
   sound or not). "Flash icons about to run out" in settings, /toolbox buffs flash on|off.
