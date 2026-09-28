@@ -94,7 +94,7 @@ return function(t)
     gluedWithBoth()
     H.S.files["toolbox_buff_expiring.ogg"] = true
     H.reload()
-    H.advance(5)
+    H.advance(Toolbox.BuffBar.SETTLE)    -- a buff added next counts as cast
     H.chat("/tbx buffalert 5")
     H.addBuffs({ { name = "Ward", remaining = 12, icon = 9 } })
     H.advance(8, 0.5)

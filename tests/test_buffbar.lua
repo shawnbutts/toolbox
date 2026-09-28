@@ -18,8 +18,13 @@ return function(t)
     H.S.files["toolbox_buff_expiring.ogg"] = true
     H.S.files["toolbox_debuff_landed.ogg"] = true
     H.reload()
-    H.advance(1)
-    H.advance(Toolbox.BuffBar.DEBUFF_SUPPRESS)       -- past the start-up quiet period
+    H.advance(Toolbox.BuffBar.SETTLE)                -- past the start-up quiet periods
+  end
+
+  -- Boots and waits out the start-up settling, so a buff added next counts as cast.
+  local function bootSettled()
+    H.boot()
+    H.advance(Toolbox.BuffBar.SETTLE)
   end
 
   -- model -------------------------------------------------------------------
@@ -135,9 +140,11 @@ return function(t)
   end)
 
   t.test("the clock overlay sweeps as time runs down; none for permanent buffs", function()
-    H.boot()
+    bootSettled()
     H.chat("/tbx buffs")
-    H.addBuffs({ { name = "Heal", remaining = 24, icon = 101 }, { name = "Aura", remaining = -1, permanent = true } })
+    H.addBuffs({ { name = "Aura", remaining = -1, permanent = true } })
+    H.advance(0.5, 0.5)
+    H.addBuffs({ { name = "Heal", remaining = 24, icon = 101 } })   -- cast on its own
     H.advance(0.5, 0.5)
     local heal, aura = H.slots("buffs")[1], H.slots("buffs")[2]
     t.eq(heal.children[2].visible, false, "full time: no shading yet")
@@ -166,8 +173,10 @@ return function(t)
   t.test("red only follows the alert: short buffs and debuffs never turn red", function()
     bootWithSounds()
     H.chat("/tbx buffs")
-    H.addBuffs({ { name = "Quick", remaining = 6, icon = 1 }, { name = "Bleed", remaining = 20, debuff = true } })
-    H.advance(4, 0.5)
+    H.addBuffs({ { name = "Quick", remaining = 6, icon = 1 } })
+    H.advance(0.5, 0.5)
+    H.addBuffs({ { name = "Bleed", remaining = 20, debuff = true } })
+    H.advance(3.5, 0.5)
     t.ok(H.slots("buffs")[1].children[2].uv[2] < 0.5, "a buff that started under the threshold")
     H.advance(12, 0.5)
     t.ok(H.slots("debuffs")[1].children[2].uv[2] < 0.5, "debuffs keep the normal sweep")
@@ -494,7 +503,7 @@ return function(t)
   end)
 
   t.test("a buff seen cast teaches its duration for next time it is already running", function()
-    H.boot()
+    bootSettled()
     H.S.durationMode = "absent"
     H.chat("/tbx buffs")
     H.addBuffs({ { name = "Light", remaining = 225, icon = 5 } })   -- cast while running: learned
@@ -519,7 +528,7 @@ return function(t)
   end)
 
   t.test("a buff that vanishes during a scene load keeps its timer", function()
-    H.boot()
+    bootSettled()
     H.S.durationMode = "absent"
     H.chat("/tbx buffs")
     H.addBuffs({ { name = "Light", remaining = 200, icon = 5 } })
@@ -536,7 +545,7 @@ return function(t)
   end)
 
   t.test("without durations, a /lua reload keeps each buff's progress", function()
-    H.boot()                                         -- no durations reported (mode nil)
+    bootSettled()                                    -- no durations reported (mode nil)
     H.chat("/tbx buffs")
     H.addBuffs({ { name = "Light", remaining = 40, icon = 5 } })
     H.advance(30, 0.5)                               -- 10 s left, 75 % done
@@ -547,7 +556,7 @@ return function(t)
   end)
 
   t.test("a remembered timer that doesn't line up falls back to the learned duration", function()
-    H.boot()
+    bootSettled()
     H.chat("/tbx buffs")
     H.addBuffs({ { name = "Light", remaining = 40, icon = 5 } })
     H.advance(30, 0.5)
@@ -1171,5 +1180,60 @@ return function(t)
     t.eq(H.config():Find("buff_group_after").value, "Off")
     H.reload()
     t.eq(Toolbox.BuffBar.GetGroupAfter(), 0, "kept across a reload")
+  end)
+
+  t.test("buffs that load in after login aren't taken for casts (reported in game)", function()
+    H.boot()
+    H.S.char.present = false               -- the add-on starts before the character is in
+    H.reload()
+    H.advance(30)
+    H.S.char.present = true                -- logged in: the buff list fills in later, one by one
+    H.advance(8)
+    H.addBuffs({ { name = "Light", remaining = 500, icon = 5 } })
+    H.advance(1)
+    t.eq(H.saved("buff_durations"), nil, "time left at login is not a full duration")
+    H.clearLogs()
+    H.chat("/tbx buffs debug")
+    t.ok(H.logged("Light: .*unknown: cast it once"))
+  end)
+
+  t.test("buffs showing up together are a load, not casts", function()
+    bootSettled()
+    H.chat("/tbx buffs")
+    H.addBuffs({ { name = "Light", remaining = 500, icon = 5 }, { name = "Ward", remaining = 400, icon = 6 } })
+    H.advance(1)
+    t.eq(H.saved("buff_durations"), nil)
+    H.addBuffs({ { name = "Heal", remaining = 30, icon = 7 } })   -- then one on its own: a cast
+    H.advance(1)
+    t.near(H.saved("buff_durations").durations.Heal, 30, 1.01, "learned from the cast")
+    t.eq(H.saved("buff_durations").v, 2)
+  end)
+
+  t.test("a scene change or another character settles too", function()
+    bootSettled()
+    H.callback("ShroudOnSceneLoaded", "Town")
+    H.advance(5)
+    H.addBuffs({ { name = "Light", remaining = 500, icon = 5 } })
+    H.advance(1)
+    t.eq(H.saved("buff_durations"), nil, "within the settling time after a scene load")
+    H.advance(Toolbox.BuffBar.SETTLE)
+    H.S.char.name = "Alt"
+    H.advance(2)
+    H.addBuffs({ { name = "Ward", remaining = 400, icon = 6 } })
+    H.advance(1)
+    t.eq(H.saved("buff_durations"), nil, "within the settling time after a character change")
+  end)
+
+  t.test("durations and timers saved before the settling fix are ignored", function()
+    H.boot({ ["character:Tester"] = {
+      buff_durations = { BlessingOfStamina = 300435 },                        -- unversioned
+      buff_timers = { v = 2, timers = { Light = { total = 50, remaining = 40, at = 90 } } },
+    } })
+    H.clearLogs()
+    H.addBuffs({ { name = "BlessingOfStamina", remaining = 298000, icon = 5 } })
+    H.advance(1)
+    H.chat("/tbx buffs debug")
+    t.ok(H.logged("BlessingOfStamina: .*unknown: cast it once"), "the old learned duration is dropped")
+    t.eq(Toolbox.BuffBar.Recall("Light", 30), nil, "v2 timers are dropped")
   end)
 end

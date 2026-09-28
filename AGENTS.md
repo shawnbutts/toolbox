@@ -232,12 +232,12 @@ including the "no character" sentinel.
 | `daily_detail` | `{ open = bool, x = number, y = number }` |
 | `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), group = { name parts }, replaceStock, clickDismiss, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { buff_expiring = "...", debuff_landed = "..." } }` |
-| `buff_timers` | `{ v = 2, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload |
+| `buff_timers` | `{ v = 3, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload (v1/v2 ignored) |
 | `vitals` | `{ show, width = 100..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, x, y }` |
 | `hud` | `{ glued = bool, x, y }` (the glued strip's position) |
 | `combat` | `{ show, scale = 75..250, pet, stats = { "MagicResistance", ... }, bg = None/Dark/Light, bgOpacity = 10..100, x, y }` |
 | `guild_motd` | `{ show = bool, seen = "text" }`: the last guild message shown to this character |
-| `buff_durations` | `{ [rune name] = seconds }`: full durations learned from casts |
+| `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts (unversioned ignored) |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
 you read back (`Toolbox.XP.IsValid`) and fall back to defaults.
@@ -416,8 +416,13 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     a trace of an ordinary cast buff. The bar's own end-time clock covers a stale value either way.
     Second trace, 18 min later: 6270 (was 9870), constant again for 10 s. It dropped 3600 in ~1100 real
     seconds, so it moves in coarse steps and/or not in real seconds: a moon-phase timer, not a normal buff.
-    `buff_timers` is `{ v = 2, timers = ... }` holding trusted totals only; unversioned (v1) saves are
-    ignored because they could hold wrong totals. Vanished buffs keep their timer for `GRACE` seconds.
+    FOUND in game 2026-09-28 ("sweep doesn't match the game's"): buffs that load in after login were taken
+    for casts (the start-up snapshot was empty, the scene quiet window only 3 s), so time left at login was
+    learned as the full duration: seven potions "learned" 300418..300435 s, each exactly 2416 s more than
+    its time left. Fix: newly seen buffs are never `fresh` within `BB.SETTLE` (15 s) of start, a scene
+    change or a player-name change, nor when 2+ names are new in one tick (`lastSeen`). Old learned data
+    is dropped by versioning: `buff_durations` v2 and `buff_timers` v3.
+    Vanished buffs keep their timer for `GRACE` seconds.
 23. Sounds: `ShroudLoadSound`'s path base ("the addon's Lua folder" vs the Lua root) and what clip names
     `ShroudListSound` reports. `Toolbox.Sounds` tries both bases and matches the file stem, falling back
     to "the one new clip". `/toolbox sounds` shows what was found.

@@ -12,6 +12,7 @@ Toolbox.CHANGELOG = {
   { "item", "Buff bar: buffs and debuffs are sorted by time left, the one that runs out soonest on the left. Buffs that never run out come next, and the long-lasting group stays at the right end." },
   { "item", "/toolbox api lists which newer game functions this client has (buff bar, crafting, friends and guild), to check the client against the docs." },
   { "section", "Fixed" },
+  { "item", "Buff bar: the sweep no longer lags the game's own buff bar. Buffs that load in after you log in (or zone) were taken for fresh casts, so their time left at that moment was remembered as their full length. Buffs that appear in the first 15 seconds after logging in, zoning or switching characters, or several at once, now count as already running. Lengths learned the old way are forgotten once; cast a buff again to teach it." },
   { "item", "Combat stats HUD: no more lines between the rows of the Dark background. It is now one flat black panel at the chosen opacity instead of the theme's panel look, whose shaded edges showed at every row." },
   { "version", "0.2.1 - 2026-09-27 (beta 2)" },
   { "para", "Second beta: the XP and Today windows can be HUD strips, /tbx version opens a changelog window, and fixes for the combat stats padding and the Docs command colours. Only the .ogg alert sounds ship now." },

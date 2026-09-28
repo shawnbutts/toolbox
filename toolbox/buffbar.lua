@@ -56,6 +56,11 @@ BB.GROUP_LEN = 40                  -- characters per name part
 BB.HOME = { 40, 220 }         -- where the bar starts, and where Reset puts it
 BB.NUDGE = 10                 -- pixels per nudge button press
 BB.DEBUFF_SUPPRESS = 3        -- seconds after start / a scene change with no debuff alerts
+-- Seconds after start, a scene change or a character change during which newly seen buffs count
+-- as already running, not cast. At login the buff list fills in well after the add-on starts:
+-- buffs taken for casts then had their time left learned as their full duration, and the sweep
+-- lagged the game's for the rest of the run (found in game 2026-09-28).
+BB.SETTLE = 15
 BB.DEBUFF_COOLDOWN = 1        -- at most one debuff sound a second
 
 -- The clock sprite sheet (art/clock.py): FRAMES frames in a COLS x ROWS grid, once per SET
@@ -249,7 +254,9 @@ local runes = {}          -- rune name -> { debuff, icon, total } from ShroudGet
 local remembered = {}     -- rune name -> { total, remaining, at } saved before a reload
 local learned = {}        -- rune name -> full duration (s), seen from a cast (saved: buff_durations)
 local preexisting = {}    -- names already present when the add-on started (not seen cast)
-local sceneQuietUntil = 0 -- buffs first seen before this (scene load) aren't "fresh"
+local sceneQuietUntil = 0 -- buffs first seen before this (start, scene load) aren't "fresh"
+local lastPlayer = nil    -- the character seen last tick (a change settles like a scene load)
+local lastSeen = {}       -- names in the effect list last tick
 BB.GRACE = 10             -- seconds a vanished buff keeps its timer (scene loads)
 local lastTimerSave = -math.huge
 BB.TIMER_SAVE = 5         -- seconds between saves of the running timers (for a reload)
@@ -335,7 +342,7 @@ end
 
 function BB.SceneChange()
   BB.Quiet()
-  sceneQuietUntil = T.Now() + BB.DEBUFF_SUPPRESS
+  sceneQuietUntil = T.Now() + BB.SETTLE
 end
 
 -- One entry per rune in the game's order: { name, remaining, index (first flat index) }.
@@ -602,13 +609,25 @@ function BB.Tick()
   local seen, grouped, shownBuffs, shownDebuffs = {}, {}, {}, {}
   local threshold = prefs.expireSeconds or BB.ALERT_DEFAULT
   local expiring = false
+  local who = ShroudGetPlayerName()
+  if who ~= lastPlayer then
+    lastPlayer = who
+    sceneQuietUntil = math.max(sceneQuietUntil, T.Now() + BB.SETTLE)   -- logged in, or another character
+  end
+  -- Two or more buffs appearing in the same tick came in with a login or a zone change, not from
+  -- casts: nobody casts two buffs within half a second.
+  local newNow = 0
+  for _, e in ipairs(effects) do
+    if not lastSeen[e.name] then newNow = newNow + 1 end
+  end
+  local settling = T.Now() < sceneQuietUntil or newNow >= 2
   for _, e in ipairs(effects) do
     seen[e.name] = true
     local rune = runes[e.name] or {}
     local known = rune.total
     if not known and not timers[e.name] then known = BB.Recall(e.name, e.remaining) end
     if not known then known = learned[e.name] end
-    local fresh = not preexisting[e.name] and T.Now() >= sceneQuietUntil
+    local fresh = not preexisting[e.name] and not settling
     local st, fraction, fire = BB.Track(timers[e.name], e.remaining, threshold, known, nil, fresh)
     if st and st.learn then
       st.learn = nil
@@ -629,6 +648,7 @@ function BB.Tick()
       end
     end
   end
+  lastSeen = seen
   -- A vanished buff keeps its timer for BB.GRACE seconds (a scene load empties the list).
   for name, st in pairs(timers) do
     if not seen[name] then
@@ -733,10 +753,12 @@ function BB.Trace(filter)
 end
 
 -- Records a buff's full duration, seen from a cast, for next time it is already running.
+-- Saved as { v = 2, durations = { [name] = seconds } }: unversioned saves were learned before the
+-- login settling (BB.SETTLE) and may hold time left at login instead of a full duration.
 function BB.Learn(name, total)
   if type(total) ~= "number" or total <= 0 or learned[name] == total then return end
   learned[name] = math.floor(total * 10 + 0.5) / 10
-  T.Save("buff_durations", learned)
+  T.Save("buff_durations", { v = 2, durations = learned })
 end
 
 -- Remembers the running timers so a /lua reload can pick them up (ShroudTime keeps running
@@ -749,8 +771,8 @@ function BB.SaveTimers()
       out[name] = { total = st.total, remaining = st.last, at = T.Now() }
     end
   end
-  -- v2: only trusted totals. v1 (unversioned) saves could hold a wrong "first seen" total.
-  T.Save("buff_timers", { v = 2, timers = out })
+  -- v3: only trusted totals, learned with the login settling. v1/v2 saves could hold a wrong total.
+  T.Save("buff_timers", { v = 3, timers = out })
 end
 
 -- A remembered full duration for a buff seen for the first time since start, when its
@@ -806,15 +828,19 @@ function BB.Init()
   timers, debuffs, runes, groupedCache, stockHidden = {}, {}, {}, {}, false
   T.Hud.Register("buffs", BB)
   local savedTimers = T.Load("buff_timers")
-  remembered = (type(savedTimers) == "table" and savedTimers.v == 2 and type(savedTimers.timers) == "table")
+  remembered = (type(savedTimers) == "table" and savedTimers.v == 3 and type(savedTimers.timers) == "table")
     and savedTimers.timers or {}
   learned = {}
   local savedDurations = T.Load("buff_durations")
-  for name, v in pairs(type(savedDurations) == "table" and savedDurations or {}) do
+  local durations = type(savedDurations) == "table" and savedDurations.v == 2
+    and type(savedDurations.durations) == "table" and savedDurations.durations or {}
+  for name, v in pairs(durations) do
     if type(name) == "string" and type(v) == "number" and v > 0 then learned[name] = v end
   end
-  preexisting, sceneQuietUntil = {}, 0
+  preexisting, sceneQuietUntil, lastPlayer = {}, T.Now() + BB.SETTLE, ShroudGetPlayerName()
   for _, e in ipairs(readEffects()) do preexisting[e.name] = true end
+  lastSeen = {}
+  for name in pairs(preexisting) do lastSeen[name] = true end
   BB.Quiet()
   BB.OnBuffsChanged()                  -- the change callback only fires on changes
   ShroudRegisterPeriodic(PERIODIC, BB.Tick, BB.TICK, true)

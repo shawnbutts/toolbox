@@ -24,6 +24,11 @@ store submission needs a higher version than any submitted before (rejected ones
   guild), to check the client against the docs.
 
 ### Fixed
+- Buff bar: the sweep no longer lags the game's own buff bar. Buffs that load in after you log in
+  (or zone) were taken for fresh casts, so their time left at that moment was remembered as their
+  full length. Buffs that appear in the first 15 seconds after logging in, zoning or switching
+  characters, or several at once, now count as already running. Lengths learned the old way are
+  forgotten once; cast a buff again to teach it.
 - Combat stats HUD: no more lines between the rows of the Dark background. It is now one flat
   black panel at the chosen opacity instead of the theme's panel look, whose shaded edges showed at
   every row.
