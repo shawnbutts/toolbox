@@ -714,7 +714,7 @@ local frameTest = nil          -- { k, warn, till } while a test runs
 -- Load (owner, 2026-09-28: "50 a second seems like a lot"): at most BB.SWEEP_RATE new Images a second
 -- for all sweeps together (a token bucket, BB.SWEEP_BURST deep, so a few new buffs start at once).
 -- Sweeps that can't all be redrawn take turns by how far behind they are (drawSweeps).
-BB.SWEEP_RATE, BB.SWEEP_BURST = 4, 6
+BB.SWEEP_RATE, BB.SWEEP_BURST = 8, 10
 local sweepTokens, sweepAt = BB.SWEEP_BURST, nil
 
 -- A slot's overlay holder for an s px icon: empty and hidden until a frame is shown.

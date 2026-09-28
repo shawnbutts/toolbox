@@ -173,7 +173,7 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     `Row` over the icon via a negative left margin (`BB.SweepHolder`), holding one `Image` of `clock.png` (`CLOCK`
     must match `art/clock.py`) that is REPLACED for every new frame, with `uv` in its spec: this client draws an
     Image's UV only at creation (item 48). `fill` only records the wanted frame; `drawSweeps` then draws the
-    pending ones most urgent first (turning red, then the most frames behind), at most `BB.SWEEP_RATE` (4) new
+    pending ones most urgent first (turning red, then the most frames behind), at most `BB.SWEEP_RATE` (8; was 4, raised by the owner: rarely 12+ icons at once) new
     Images a second for all sweeps (a token bucket, `BB.SWEEP_BURST` deep; owner 2026-09-28) (`BB.ShowFrame` /
     `BB.HideFrame`, shared with the equipment bar, which retries on `G.Tick`). `/toolbox buffs frame <k> [red]`
     holds one frame on every icon; `/toolbox buffs uvtest` shows six ways of stepping frames side by side.
@@ -778,7 +778,7 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     nothing on screen, nor with `SetTexture` first, a hide / `SetUV` / show at once, the show 0.1 s later, or
     an `IconButton`; the docs say "step x to animate a sprite strip". So a sweep stayed at the frame it first
     showed (why it "lined up after /lua reload, then lagged"). Fix: a new Image per frame (item 20's creation
-    cap, and the owner's wish for a light load: `BB.SWEEP_RATE` 4 a second, most behind first). Report it to the devs; if a client update fixes SetUV
+    cap, and the owner's wish for a light load: `BB.SWEEP_RATE` 8 a second, most behind first). Report it to the devs; if a client update fixes SetUV
     (uvtest way 1 sweeps), the holder could go back to one Image stepped with `SetUV`.
     Also seen in the same session: `/toolbox buffs frame 30` "didn't show on the first icon", consistent with
     this (its overlay was already showing).
