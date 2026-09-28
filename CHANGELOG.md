@@ -5,6 +5,9 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Changed
+- Health & focus bars: the bar length can now go down to 20 (was 100), for a compact strip.
+
 ### Fixed
 - "Couldn't build the notify HUD: elements are being created too fast" at login. A HUD strip that
   runs into the game's limit on how fast add-ons may create elements is now built again a moment

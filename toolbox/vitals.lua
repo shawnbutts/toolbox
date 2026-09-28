@@ -19,7 +19,7 @@ local FRAME_ID = "toolbox_vitals"
 local PERIODIC = "toolbox_vitals"
 
 V.TICK = 0.2
-V.WIDTH_MIN, V.WIDTH_MAX, V.WIDTH_DEFAULT = 100, 400, 220   -- bar length at 100% size
+V.WIDTH_MIN, V.WIDTH_MAX, V.WIDTH_DEFAULT = 20, 400, 220    -- bar length at 100% size
 V.SCALE_MIN, V.SCALE_MAX, V.SCALE_DEFAULT = 75, 250, 100    -- percent
 V.BASE_FONT = 12                                             -- text size at 100%
 

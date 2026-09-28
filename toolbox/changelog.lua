@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Changed" },
+  { "item", "Health & focus bars: the bar length can now go down to 20 (was 100), for a compact strip." },
   { "section", "Fixed" },
   { "item", "\"Couldn't build the notify HUD: elements are being created too fast\" at login. A HUD strip that runs into the game's limit on how fast add-ons may create elements is now built again a moment later, without an error in chat; and one part failing at start-up no longer stops the others." },
   { "version", "0.3.1 - 2026-09-28 (beta 4)" },
