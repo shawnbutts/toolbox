@@ -1386,4 +1386,30 @@ return function(t)
     H.chat("/tbx buffs debug")
     t.ok(H.logged("^Last new debuff: Bleed, 0 s ago: not played: the debuff alert is off%.$"))
   end)
+
+  t.test("the count has a dark outline: four black copies under the bright number", function()
+    H.boot()
+    H.chat("/tbx buffs")
+    H.addBuffs({ { name = "Potion", remaining = 300000, icon = 3 } })
+    H.advance(1)
+    local g = H.slots("buffs")[1]
+    t.eq(#g.children, 6, "icon, four outline copies, the count")
+    local count = g.children[6]
+    t.eq(count.text, "1")
+    t.eq(count.class, "bright", "the count on top, in the theme's bright colour")
+    local nudges = {}
+    for i = 2, 5 do
+      local c = g.children[i]
+      t.eq(c.text, "1")
+      t.eq(c.style.color, "#000000")
+      t.eq(c.tooltip, count.tooltip, "every copy shows the list on hover")
+      nudges[#nudges + 1] = c.style.paddingLeft .. "," .. c.style.paddingRight .. "," .. c.style.paddingTop
+    end
+    local base = count.style.paddingTop
+    t.eq(table.concat(nudges, " "), "2,0," .. base .. " 0,2," .. base .. " 0,0," .. (base + 1) .. " 0,0,"
+      .. (base - 1), "right, left, down, up")
+    Toolbox.BuffBar.SetSize(40)
+    t.eq(g.children[2].style.width, 40, "resized too")
+    t.eq(g.children[2].style.paddingLeft, 2, "and still nudged")
+  end)
 end

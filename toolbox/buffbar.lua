@@ -577,19 +577,41 @@ local function countFont(s) return math.max(9, math.min(32, math.floor(s * 0.5))
 
 -- The long-lasting buffs' slot: the first one's icon with the count over it (the same overlap
 -- by negative margin as the clock). Both take the pointer so the tooltip shows anywhere on it.
+-- The count has a dark outline so it reads on any icon: Shroud.UI has no text outline or shadow,
+-- so it is drawn four times in black, nudged a pixel each way, under the bright one (owner,
+-- 2026-09-28: "blends in on some icons"). Black because the theme has no dark text colour.
+BB.COUNT_OUTLINE = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }   -- (dx, dy) px of the dark copies
+BB.OUTLINE_COLOR = "#000000"
+
+-- A count label's style for icon size s, font f, nudged dx, dy pixels (padding on one side moves
+-- centred text half as far, so it is doubled).
+local function countStyle(s, f, dx, dy)
+  local top = math.max(1, math.floor((s - f * 1.2) / 2))
+  return { width = s, height = s, minHeight = s, maxHeight = s, marginLeft = -s, marginRight = 0,
+           marginTop = 0, marginBottom = 0, paddingTop = math.max(0, top + dy),
+           paddingLeft = dx > 0 and 2 * dx or 0, paddingRight = dx < 0 and -2 * dx or 0,
+           fontSize = f, fontStyle = "bold", textAlign = "center" }
+end
+
 local function makeGroupSlot()
   local s = size()
   local f = countFont(s)
   local iconSpec = { width = s, height = s, onClick = function() end }
   if clockTex >= 0 then iconSpec.texture = clockTex end
   local icon = UI.Image(iconSpec)
-  local count = UI.Label{ text = "", class = "bright",
-    style = { width = s, height = s, minHeight = s, maxHeight = s, marginLeft = -s, marginRight = 0,
-              marginTop = 0, marginBottom = 0, paddingTop = math.max(0, math.floor((s - f * 1.2) / 2)),
-              fontSize = f, fontStyle = "bold", textAlign = "center" } }
-  local row = UI.Row{ visible = false, children = { icon, count },
+  local children, counts = { icon }, {}
+  for _, d in ipairs(BB.COUNT_OUTLINE) do
+    local style = countStyle(s, f, d[1], d[2])
+    style.color = BB.OUTLINE_COLOR
+    counts[#counts + 1] = UI.Label{ text = "", style = style }
+    children[#children + 1] = counts[#counts]
+  end
+  local count = UI.Label{ text = "", class = "bright", style = countStyle(s, f, 0, 0) }   -- on top
+  counts[#counts + 1] = count
+  children[#children + 1] = count
+  local row = UI.Row{ visible = false, children = children,
     style = { width = s, height = s, marginRight = BB.GAP, backgroundColor = "#00000066" } }
-  return { row = row, icon = icon, count = count, used = false }
+  return { row = row, icon = icon, count = count, counts = counts, used = false }
 end
 
 -- Builds the icon rows (a fixed slot pool) and returns them; Toolbox.Hud puts them in a strip.
@@ -685,13 +707,13 @@ local function fillGroup(list)
   end
   if #list ~= group.n then
     group.n = #list
-    group.count:SetText(tostring(#list))
+    for _, c in ipairs(group.counts) do c:SetText(tostring(#list)) end
   end
   local tip = BB.GroupTooltip(list)
   if tip ~= group.tip then
     group.tip = tip
     group.icon:SetTooltip(tip)
-    group.count:SetTooltip(tip)
+    for _, c in ipairs(group.counts) do c:SetTooltip(tip) end
   end
 end
 
@@ -1057,8 +1079,10 @@ function BB.SetSize(n)
       local f = countFont(n)
       group.row:SetStyle{ width = n, height = n }
       group.icon:SetSize(n, n)
-      group.count:SetStyle{ width = n, height = n, minHeight = n, maxHeight = n, marginLeft = -n, fontSize = f,
-                            paddingTop = math.max(0, math.floor((n - f * 1.2) / 2)) }
+      for i, c in ipairs(group.counts) do
+        local d = BB.COUNT_OUTLINE[i] or { 0, 0 }              -- the last is the bright one
+        c:SetStyle(countStyle(n, f, d[1], d[2]))
+      end
     end
     BB.Tick()                                  -- re-fits the strip for the new icon size
   end

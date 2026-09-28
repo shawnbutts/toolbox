@@ -41,6 +41,7 @@ store submission needs a higher version than any submitted before (rejected ones
   guild), to check the client against the docs.
 
 ### Changed
+- Buff bar: the long-lasting slot's count has a dark outline, so it reads on light icons too.
 - New debuff sound: a little longer (0.8 s), starting high and falling, so it carries in a fight.
 - The alert sounds now come with the add-on (game clients at Lua API 15 or newer allow sounds in
   add-on packages), so there's nothing to copy by hand. Toolbox now needs Lua API 15. Your own

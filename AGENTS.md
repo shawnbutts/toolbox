@@ -130,7 +130,8 @@ Run all three before calling a change done.
     game settings (requested 2026-09-28; function name unknown); the player's choice then applies only
     when the game's can't be read.
     CONFIRMED in game 2026-09-27 (build bca2d21): the seven potions collapse into one slot with the count,
-    and the hover list shows.
+    and the hover list shows. The count's dark outline is faked (no outline/shadow style exists): four
+    `#000000` copies nudged 1 px by padding (`BB.COUNT_OUTLINE`), the bright label last so it draws on top.
     `IsEnabled()` is the "Show buff bar" setting; `IsShown()` (what Hud asks) adds `combatOnly`: shown in
     combat (`OnCombatMode` from core's `ShroudOnCombatModeChanged`), `COMBAT_LINGER` s after, or while the
     settings window is open (to place it). `Tick` refreshes the HUD when `IsShown()` changes.
