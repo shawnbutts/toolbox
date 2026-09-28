@@ -478,8 +478,11 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     scheme-less URL against https://localhost/. (On Windows "C:\..." parses as an absolute file URI, so it
     probably works there.) Client fix: `"file://" + path` / `new System.Uri(path).AbsoluteUri`. Passing
     "file://..." from Lua can't help: the client prefixes the Lua root itself.
-    FIXED 2026-09-28: the owner reports sounds now work (a client update). Pending: `/toolbox sounds
-    debug` output, to record which path and format loaded.
+    FIXED 2026-09-28: the owner reports sounds now work (a client update). `/toolbox sounds debug` (build
+    2286142): `ShroudListSound()` = plain strings, the file stem ({ "toolbox_buff_expiring",
+    "toolbox_debuff_landed" }), as documented (so 23c's table entries are gone); both loaded from the Lua
+    root's loose `toolbox_<name>.ogg` (replacements left from an early install) on the first try, and the
+    ffmpeg-encoded .ogg plays (item 24 settled). Pending: the package default `toolbox/<name>.ogg`.
 23g. FOUND 2026-09-27 (build ac17b29): `ShroudLoadSound` returned TRUE for every path, even ones that can't
     exist, so "true" only means "request accepted" (the docs say "path exists"). After 12 accepted loads
     (.ogg and .wav, Lua root and package folder) `ShroudListSound()` stayed empty (0 keys). Either every
