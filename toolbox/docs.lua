@@ -46,10 +46,12 @@ D.SECTIONS = {
       .. "for its tooltip.",
     "Options: icon size; a sound before a buff runs out (/toolbox buffalert 10 = ten seconds "
       .. "before); a sound when a debuff lands (/toolbox debuffalert on/off).",
-    "Long-lasting buffs (the Obsidian potions, BlessingOf...) share one slot at the end of the row, showing how "
-      .. "many there are; hover it for each one and its time left. They're picked by name: "
-      .. "/toolbox buffs group add <part of a name> adds more, remove takes one off, and "
-      .. "/toolbox buffs group lists them.",
+    "Buffs with more than 15 minutes left (Obsidian potions, for example) share one slot at the end of "
+      .. "the row, showing how many there are; hover it for each one and its time left. A buff moves back "
+      .. "onto the bar once it has less than that left. Change the time in settings (Group buffs lasting "
+      .. "longer than) or with /toolbox buffs group after 30 (minutes; off turns it off). To always group "
+      .. "a buff, add part of its name: /toolbox buffs group add <name> (remove <name> takes it off; "
+      .. "/toolbox buffs debug shows buffs' names).",
     "Two settings on newer game clients: Replace the game's buff bar hides the game's own bar while "
       .. "this one is showing (it comes back whenever this one is off), and Click a buff to dismiss it "
       .. "works like the game's right-click Dismiss. Chat: /toolbox buffs replace on|off, "

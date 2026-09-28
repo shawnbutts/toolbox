@@ -243,7 +243,8 @@ function T.MoveCommand(m, cmd, what, args)
     .. " (to see the grip, untick Options > Interface > Nameplates & Chat Bubbles > Lock Status Movement).")
 end
 
-add("buffs", "show or hide the buff bar (move [x y]; group [add|remove <name>|reset]; replace on|off; "
+add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off; add|remove <name>|reset]; "
+    .. "replace on|off; "
     .. "dismiss on|off; debug; trace [name])", function(rest)
   local word, name = T.ParseArgs(rest)
   if word == "replace" or word == "dismiss" then
@@ -260,17 +261,32 @@ add("buffs", "show or hide the buff bar (move [x y]; group [add|remove <name>|re
   if word == "group" then
     local B, c = T.BuffBar, "/" .. T.commands[1] .. " buffs group"
     local verb, part = T.ParseArgs(name)
-    if verb == "add" or verb == "remove" then
+    if verb == "after" then
+      local arg = part:lower()
+      local minutes = tonumber(arg)
+      local seconds = (arg == "off" and 0) or (minutes and math.floor(minutes * 60 + 0.5)) or -1
+      if not B.SetGroupAfter(seconds) then
+        local choices = {}
+        for _, ch in ipairs(B.GROUP_AFTER_CHOICES) do
+          if ch[1] > 0 then choices[#choices + 1] = tostring(math.floor(ch[1] / 60)) end
+        end
+        T.Print("Use " .. c .. " after off, or a number of minutes: " .. table.concat(choices, ", ") .. ".")
+        return
+      end
+    elseif verb == "add" or verb == "remove" then
       local _, msg = (verb == "add" and B.AddGroupPart or B.RemoveGroupPart)(part)
       T.Print(msg)
     elseif verb == "reset" then
       B.ResetGroup()
     elseif verb ~= "" then
-      T.Print("Use " .. c .. " add <name>, remove <name> or reset.")
+      T.Print("Use " .. c .. " after <minutes>|off, add <name>, remove <name> or reset.")
       return
     end
+    local after = B.GetGroupAfter()
+    T.Print("Grouped into one slot: buffs lasting longer than " .. (after > 0 and B.GroupAfterLabel(after) or "(off)")
+      .. ".")
     local parts = B.GroupParts()
-    T.Print("Grouped into one slot (by name): " .. (#parts > 0 and table.concat(parts, ", ") or "nothing") .. ".")
+    T.Print("Also by name: " .. (#parts > 0 and table.concat(parts, ", ") or "none") .. ".")
     return
   end
   if word == "move" then

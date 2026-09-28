@@ -100,10 +100,14 @@ Run all three before calling a change done.
     `OnBuffsChanged` reads `ShroudGetPlayerBuff()` (debuff flags, icons) and raises the debuff alert;
     its own 0.5 s periodic reads the flat effect list, runs the expiry alert and fills a fixed slot pool
     (never create elements per change). Each row is sorted by time left every tick (`SortByExpiry`: soonest
-    left, permanent ones last, ties by name; the group slot always after them). Buffs whose rune or displayed name contains a `prefs.group` part
-    (default: the 7 Obsidian potion runes, `BlessingOf...` by full name) go into one extra "group" slot:
-    count label over the first one's icon, list + time left in the tooltip. By name because the API has
-    no long-lasting flag and no full duration (owner's choice, 2026-09-27); they still get expiry alerts.
+    left, permanent ones last, ties by name; the group slot always after them). A buff goes into one extra
+    "group" slot (count label over the first one's icon, list + time left in the tooltip) when it has more
+    than `BB.GroupAfter()` left (`groupAfter`, default 900 s; permanent effects never) or its rune or
+    displayed name contains a `prefs.group` part (power-user extra, empty by default; saved lists equal
+    to an earlier default, `GROUP_OLD_DEFAULTS`, are cleared). Grouped buffs still get expiry alerts.
+    `BB.GroupAfter()` is the one place to read the game's own buff bar setting once add-ons can read
+    game settings (requested 2026-09-28; function name unknown); the player's choice then applies only
+    when the game's can't be read.
     CONFIRMED in game 2026-09-27 (build bca2d21): the seven potions collapse into one slot with the count,
     and the hover list shows.
     API 16 (feature-detected, `CanReplace`/`CanDismiss`): `replaceStock` hides the game's bar only while ours
@@ -226,7 +230,7 @@ including the "no character" sentinel.
 | `daily` | see the header comment of `daily.lua` (format `v = 1`) |
 | `daily_window` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, hx, hy }` |
 | `daily_detail` | `{ open = bool, x = number, y = number }` |
-| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, group = { "BlessingOfStamina", ... }, replaceStock, clickDismiss, x, y }` |
+| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), group = { name parts }, replaceStock, clickDismiss, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { buff_expiring = "...", debuff_landed = "..." } }` |
 | `buff_timers` | `{ v = 2, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload |
 | `vitals` | `{ show, width = 100..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, x, y }` |
@@ -298,6 +302,9 @@ docking, no `ShroudOnBuffBarMoved`.
 4. Still missing: buff durations (item 22). Keep the learning code.
 5. Ideas, not agreed yet: a "lock position" setting (only if a strip's grip can be turned off), and snap
    presets next to Reset.
+6. Game settings (requested from the devs 2026-09-28, not in any docs yet): if a read-only settings API
+   appears (e.g. a list of settings + a getter), first use: the game's buff bar "stack buffs lasting
+   longer than" option feeds `BB.GroupAfter()`, and the settings dropdown shows it as the game's value.
 
 **API 18: crafting and gathering** (`daily.lua`, `dailydetail.lua`). The API map says v15 for the
 crafting/social getters, but the reference says "Added in API 18" for all of them and for the result

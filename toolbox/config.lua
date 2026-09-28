@@ -166,10 +166,17 @@ function C.BuffBarSection()
       tooltip = B.CanDismiss() and "Like the game's right-click Dismiss; only buffs the game lets you dismiss"
         or "Needs a newer game client (Lua API 16)",
       onChange = function(_, v) C.OnDismiss(v) end },
-    UI.Label{ id = "buff_group", text = "", class = "text", style = { whiteSpace = "wrap", marginTop = 4 },
-      tooltip = "Buffs whose names contain these are shown as one slot with a count; hover it for the list" },
-    UI.Label{ text = "Change it with /toolbox buffs group add <name> or remove <name>.",
-      class = "dim", style = { whiteSpace = "wrap" } },
+    UI.Row{ style = { alignItems = "center", marginTop = 6 }, children = {
+      UI.Label{ text = "Group buffs lasting longer than", class = "text",
+        style = { flexGrow = 1, whiteSpace = "wrap" } },
+      UI.Dropdown{ id = "buff_group_after", choices = C.GroupAfterLabels(),
+        value = B.GroupAfterLabel(B.GetGroupAfter()) or "15 minutes",
+        tooltip = "Buffs with more time left than this share one slot with a count at the end of the row;"
+          .. " hover it for the list. They move back onto the bar as they near their end.",
+        onChange = function(_, value) C.OnGroupAfter(value) end },
+    } },
+    UI.Label{ id = "buff_group", text = "", class = "dim", style = { whiteSpace = "wrap" },
+      tooltip = "Buffs whose names contain these are always grouped" },
     slider("volume", "Alert volume", 0, 100, 5, S.GetVolume(), "0 mutes the alerts",
       function(n) S.SetVolume(n) end),
   }
@@ -270,7 +277,7 @@ local function build()
                 "vitals_flash", "vitals_flash_below", "vitals_flash_below_value", "vitals_glue",
                 "show_combat", "combat_pet", "combat_scale", "combat_scale_value", "combat_stats", "combat_pos",
                 "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "guild_motd", "buff_group",
-                "buff_replace", "buff_dismiss" }
+                "buff_replace", "buff_dismiss", "buff_group_after" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -307,6 +314,19 @@ end
 function C.OnShowDaily(value)
   if not T.Daily.SetOpen(value == true) then
     el.show_daily:SetValue(T.Daily.IsShown())
+  end
+end
+
+-- "Group buffs lasting longer than" choices, as shown in the dropdown.
+function C.GroupAfterLabels()
+  local out = {}
+  for i, ch in ipairs(T.BuffBar.GROUP_AFTER_CHOICES) do out[i] = ch[2] end
+  return out
+end
+
+function C.OnGroupAfter(label)
+  for _, ch in ipairs(T.BuffBar.GROUP_AFTER_CHOICES) do
+    if ch[2] == label then T.BuffBar.SetGroupAfter(ch[1]) return end
   end
 end
 
@@ -353,8 +373,10 @@ function C.Sync()
   el.debuff_alert:SetValue(B.GetDebuffAlert())
   el.buff_replace:SetValue(B.GetReplace())
   el.buff_dismiss:SetValue(B.GetClickDismiss())
+  el.buff_group_after:SetValue(B.GroupAfterLabel(B.GetGroupAfter()) or "15 minutes")
   local parts = B.GroupParts()
-  el.buff_group:SetText("Grouped into one slot: " .. (#parts > 0 and table.concat(parts, ", ") or "nothing"))
+  el.buff_group:SetText("Also grouped by name: " .. (#parts > 0 and table.concat(parts, ", ") or "none")
+    .. " (/toolbox buffs group add <name>)")
   el.show_vitals:SetValue(T.Vitals.IsShown())
   el.vitals_width:SetValue(T.Vitals.GetWidth())
   el.vitals_width_value:SetText(fontLabel(T.Vitals.GetWidth()))

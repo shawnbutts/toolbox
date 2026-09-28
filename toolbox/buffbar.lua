@@ -16,8 +16,9 @@
 --
 -- Long-lasting buffs (Obsidian potions last days, and several can run at once) are grouped
 -- into one slot at the end of the buff row: a count over the first one's icon, with each
--- buff and its time left in the tooltip. The API has no "long-lasting" flag and doesn't give
--- a buff's full duration, so they are picked by name (BB.GROUP_DEFAULT; /toolbox buffs group).
+-- buff and its time left in the tooltip. A buff goes there when it has more than
+-- "group after" left (default 15 minutes; it moves back onto the bar once it drops below), or
+-- when its name matches the player's list (a power-user extra, empty by default).
 --
 -- Data: ShroudGetPlayerBuff() (grouped by rune: IsDebuff, IconId) is read when
 -- ShroudOnBuffsChanged fires; the flat per-effect list (names, time remaining, tooltips)
@@ -37,12 +38,19 @@ BB.BUFF_SLOTS, BB.DEBUFF_SLOTS = 20, 10
 BB.SIZE_MIN, BB.SIZE_MAX, BB.SIZE_DEFAULT = 20, 48, 32
 BB.ALERT_MIN, BB.ALERT_MAX, BB.ALERT_DEFAULT = 1, 60, 10
 BB.GAP = 3
--- Name parts of the buffs grouped by default: the Obsidian potions' rune names (seen in game
--- 2026-09-27; ~3.5 days each). Listed one by one: other "BlessingOf" runes may not be potions.
-BB.GROUP_DEFAULT = {
-  "BlessingOfCapacity", "BlessingOfConservation", "BlessingOfExpedience", "BlessingOfPrecision",
-  "BlessingOfPrevention", "BlessingOfReclamation", "BlessingOfStamina",
+BB.GROUP_DEFAULT = {}               -- name parts grouped by default: none (the time rule does it)
+-- Earlier defaults, cleared when found saved as they were: the Obsidian potions' rune names.
+BB.GROUP_OLD_DEFAULTS = {
+  { "Obsidian" },
+  { "BlessingOfCapacity", "BlessingOfConservation", "BlessingOfExpedience", "BlessingOfPrecision",
+    "BlessingOfPrevention", "BlessingOfReclamation", "BlessingOfStamina" },
 }
+-- "Group buffs lasting longer than": the choices (seconds; 0 = off) and the default.
+BB.GROUP_AFTER_CHOICES = {
+  { 0, "Off" }, { 300, "5 minutes" }, { 600, "10 minutes" }, { 900, "15 minutes" }, { 1800, "30 minutes" },
+  { 3600, "1 hour" }, { 7200, "2 hours" }, { 14400, "4 hours" }, { 43200, "12 hours" }, { 86400, "1 day" },
+}
+BB.GROUP_AFTER_DEFAULT = 900
 BB.GROUP_MAX = 20                  -- name parts kept
 BB.GROUP_LEN = 40                  -- characters per name part
 BB.HOME = { 40, 220 }         -- where the bar starts, and where Reset puts it
@@ -166,6 +174,20 @@ function BB.NewNames(before, now)
   return out
 end
 
+-- Whether a buff with `remaining` seconds left goes in the group by time: more than `after`
+-- left (after > 0). Permanent effects (0 or less) don't: they have no time to go by.
+function BB.GroupedByTime(remaining, after)
+  return type(after) == "number" and after > 0 and type(remaining) == "number" and remaining > after
+end
+
+-- The label for a "group after" value in seconds ("15 minutes"), or nil when it isn't a choice.
+function BB.GroupAfterLabel(seconds)
+  for _, c in ipairs(BB.GROUP_AFTER_CHOICES) do
+    if c[1] == seconds then return c[2] end
+  end
+  return nil
+end
+
 -- True when the rune name or the displayed name contains one of the name parts (any case).
 function BB.Grouped(name, label, parts)
   local a, b = (name or ""):lower(), (label or ""):lower()
@@ -247,7 +269,7 @@ local function defaults()
   local parts = {}
   for i, p in ipairs(BB.GROUP_DEFAULT) do parts[i] = p end
   return { show = false, size = BB.SIZE_DEFAULT, expire = true, expireSeconds = BB.ALERT_DEFAULT, debuff = true,
-           group = parts, replaceStock = false, clickDismiss = false }
+           group = parts, groupAfter = BB.GROUP_AFTER_DEFAULT, replaceStock = false, clickDismiss = false }
 end
 
 local function savePrefs()
@@ -265,8 +287,17 @@ local function plainLabel(index, fallback)
   return label ~= "" and label or fallback
 end
 
--- Whether a buff goes in the long-lasting group (debuffs never do).
+-- The "group after" limit in use, in seconds (0 = off). This is where a game setting would come
+-- in: the game's own buff bar has the same option, but add-ons can't read game settings yet
+-- (asked for 2026-09-28). When they can, read it here, and let the player's choice apply only
+-- when the game's can't be read.
+function BB.GroupAfter()
+  return prefs.groupAfter or BB.GROUP_AFTER_DEFAULT
+end
+
+-- Whether a buff goes in the long-lasting group (debuffs never do): by time left, or by name.
 local function isGrouped(e)
+  if BB.GroupedByTime(e.remaining, BB.GroupAfter()) then return true end
   local g = groupedCache[e.name]
   if g == nil then
     g = BB.Grouped(e.name, plainLabel(e.index, e.name), prefs.group)
@@ -750,10 +781,18 @@ function BB.Init()
       prefs.expireSeconds = math.floor(saved.expireSeconds)
     end
     prefs.debuff = saved.debuff ~= false
+    if BB.GroupAfterLabel(saved.groupAfter) then prefs.groupAfter = saved.groupAfter end
     prefs.replaceStock = saved.replaceStock == true
     prefs.clickDismiss = saved.clickDismiss == true
-    -- { "Obsidian" } alone was the first default, which matches no potion's name: take it as unset.
-    local old = type(saved.group) == "table" and #saved.group == 1 and saved.group[1] == "Obsidian"
+    -- A list saved exactly as an earlier default is taken as unset (the time rule replaced it).
+    local old = false
+    if type(saved.group) == "table" then
+      for _, d in ipairs(BB.GROUP_OLD_DEFAULTS) do
+        local same = #saved.group == #d
+        for i = 1, #d do if saved.group[i] ~= d[i] then same = false end end
+        if same then old = true end
+      end
+    end
     if type(saved.group) == "table" and not old then
       prefs.group = {}
       for _, p in ipairs(saved.group) do
@@ -919,6 +958,18 @@ function BB.RemoveGroupPart(part)
   if not found then return false, "'" .. part .. "' isn't in the list." end
   setGroup(kept)
   return true, "Buffs with '" .. found .. "' in their name show on the bar again."
+end
+
+function BB.GetGroupAfter() return prefs.groupAfter or BB.GROUP_AFTER_DEFAULT end
+
+-- Seconds, one of BB.GROUP_AFTER_CHOICES (0 = off). Returns false for anything else.
+function BB.SetGroupAfter(seconds)
+  if not BB.GroupAfterLabel(seconds) then return false end
+  prefs.groupAfter = seconds
+  savePrefs()
+  if content and prefs.show then BB.Tick() end
+  T.Config.Sync()
+  return true
 end
 
 function BB.ResetGroup()
