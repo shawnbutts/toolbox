@@ -45,6 +45,8 @@ C.DARK_TEXT = "#1a1a1a"
 C.DAMAGE_KINDS = { hit = true, critical = true, glancing = true, ultraslay = true }
 C.HEAL_KINDS = { heal = true, criticalHeal = true }
 C.AVOID_KINDS = { dodge = true, parry = true, block = true }
+C.SLICE = 2                    -- seconds per column of the damage timeline
+C.TIMELINE = 60                -- seconds the timeline covers
 
 -- ---------------------------------------------------------------------------
 -- Fight model (no API calls)
@@ -52,35 +54,150 @@ C.AVOID_KINDS = { dodge = true, parry = true, block = true }
 
 function C.NewFight(now)
   return { start = now, last = now, ended = nil, out = 0, taken = 0, healed = 0, hits = 0, crits = 0,
-           attacksIn = 0, avoided = 0, dropped = 0, recent = {} }
+           attacksIn = 0, avoided = 0, dropped = 0, recent = {}, overheal = 0, runes = {} }
 end
 
--- Adds one combat line. `pet` counts your pet's damage as yours.
-function C.Add(f, e, now, pet)
+-- The whole session: the same numbers summed over every fight (API 17 per-skill details too),
+-- `active` = seconds of finished fights, and the damage timeline (C.SLICE-second slices keyed by
+-- slice number: { out, taken }), which runs across fights.
+function C.NewSession(now)
+  local s = C.NewFight(now)
+  s.active, s.fights, s.timeline = 0, 0, {}
+  return s
+end
+
+-- One skill's numbers (by runeId, the same in every language; by name when there is no id;
+-- "(other)" when the line names no skill).
+local function runeStats(stats, e)
+  local id = type(e.runeId) == "number" and e.runeId > 0 and e.runeId or nil
+  local name = type(e.rune) == "string" and e.rune ~= "" and e.rune or nil
+  if not name and type(e.skill) == "string" and e.skill ~= "" then name = e.skill end
+  local key = id or (name and ("n:" .. name)) or "other"
+  local r = stats.runes[key]
+  if not r then
+    r = { name = name or "(other)", dmg = 0, hits = 0, crits = 0, dots = 0, heal = 0, overheal = 0 }
+    stats.runes[key] = r
+  end
+  return r
+end
+
+-- Adds a line's per-skill and healing details (API 17 fields; absent fields count as nothing).
+local function addDetails(stats, e, amount, kind)
+  if kind == "out" then
+    local r = runeStats(stats, e)
+    r.dmg, r.hits = r.dmg + amount, r.hits + 1
+    if e.kind == "critical" then r.crits = r.crits + 1 end
+    if e.dot == true then r.dots = r.dots + 1 end
+  elseif kind == "heal" then
+    local over = type(e.overheal) == "number" and e.overheal > 0 and e.overheal or 0
+    local r = runeStats(stats, e)
+    r.heal, r.overheal = r.heal + amount, r.overheal + over
+    stats.overheal = stats.overheal + over
+  end
+end
+
+-- Puts damage in the session's timeline slice for the line's time.
+function C.AddTimeline(s, t, out, taken)
+  local k = math.floor(t / C.SLICE)
+  local slot = s.timeline[k]
+  if not slot then
+    slot = { out = 0, taken = 0 }
+    s.timeline[k] = slot
+  end
+  slot.out, slot.taken = slot.out + (out or 0), slot.taken + (taken or 0)
+end
+
+-- The last C.TIMELINE seconds as per-second rates, oldest first: { { out, taken } ... }, and the
+-- slices older than that dropped.
+function C.Timeline(s, now)
+  local n = math.floor(C.TIMELINE / C.SLICE)
+  local last = math.floor(now / C.SLICE)
+  for k in pairs(s.timeline) do
+    if k <= last - n then s.timeline[k] = nil end
+  end
+  local out = {}
+  for i = 1, n do
+    local slot = s.timeline[last - n + i]
+    out[i] = { out = slot and slot.out / C.SLICE or 0, taken = slot and slot.taken / C.SLICE or 0 }
+  end
+  return out
+end
+
+-- Skills by damage, most first (at most `n`): { name, dmg, share (0-1 of all damage), hits,
+-- crits, dots }.
+function C.TopRunes(stats, n)
+  local list = {}
+  for _, r in pairs(stats.runes) do
+    if r.dmg > 0 then list[#list + 1] = r end
+  end
+  table.sort(list, function(a, b)
+    if a.dmg ~= b.dmg then return a.dmg > b.dmg end
+    return a.name < b.name
+  end)
+  local out = {}
+  for i = 1, math.min(n, #list) do
+    local r = list[i]
+    out[i] = { name = r.name, dmg = r.dmg, share = stats.out > 0 and r.dmg / stats.out or 0, hits = r.hits,
+               crits = r.crits, dots = r.dots }
+  end
+  return out
+end
+
+-- Overheal as a percentage of all healing done (healed + wasted), or nil when nothing healed.
+function C.OverhealPct(stats)
+  local total = stats.healed + stats.overheal
+  if total <= 0 then return nil end
+  return 100 * stats.overheal / total
+end
+
+-- Adds one combat line to a fight (and, when given, the session). `pet` counts your pet's damage
+-- as yours.
+function C.Add(f, e, now, pet, session)
   if type(e) ~= "table" then return end
   local amount = type(e.amount) == "number" and e.amount > 0 and e.amount or 0
   local mine = e.fromYou == true or (pet and e.fromYourPet == true)
   local atMe = e.toYou == true
+  local t = type(e.time) == "number" and e.time or now     -- API 17: the line's own time
+  local targets = { f }
+  if session then targets[2] = session end
+  for _, s in ipairs(targets) do
+    if mine and C.DAMAGE_KINDS[e.kind] and not atMe then
+      s.out = s.out + amount
+      s.hits = s.hits + 1
+      if e.kind == "critical" then s.crits = s.crits + 1 end
+      addDetails(s, e, amount, "out")
+    elseif e.fromYou == true and C.HEAL_KINDS[e.kind] then
+      s.healed = s.healed + amount
+      addDetails(s, e, amount, "heal")
+    end
+    if atMe and not e.fromYou then
+      if C.DAMAGE_KINDS[e.kind] then
+        s.taken = s.taken + amount
+        s.attacksIn = s.attacksIn + 1
+      elseif C.AVOID_KINDS[e.kind] then
+        s.attacksIn = s.attacksIn + 1
+        s.avoided = s.avoided + 1
+      end
+    end
+    s.last = now
+  end
   if mine and C.DAMAGE_KINDS[e.kind] and not atMe then
-    f.out = f.out + amount
-    f.hits = f.hits + 1
-    if e.kind == "critical" then f.crits = f.crits + 1 end
     f.recent[#f.recent + 1] = { t = now, out = amount }
+    if session then C.AddTimeline(session, t, amount, 0) end
   elseif e.fromYou == true and C.HEAL_KINDS[e.kind] then
-    f.healed = f.healed + amount
     f.recent[#f.recent + 1] = { t = now, heal = amount }
   end
-  if atMe and not e.fromYou then
-    if C.DAMAGE_KINDS[e.kind] then
-      f.taken = f.taken + amount
-      f.attacksIn = f.attacksIn + 1
-      f.recent[#f.recent + 1] = { t = now, taken = amount }
-    elseif C.AVOID_KINDS[e.kind] then
-      f.attacksIn = f.attacksIn + 1
-      f.avoided = f.avoided + 1
-    end
+  if atMe and not e.fromYou and C.DAMAGE_KINDS[e.kind] then
+    f.recent[#f.recent + 1] = { t = now, taken = amount }
+    if session then C.AddTimeline(session, t, 0, amount) end
   end
-  f.last = now
+end
+
+-- Seconds of fighting in the session: finished fights, plus the current one while it runs.
+function C.SessionDuration(s, current, now)
+  local d = s.active
+  if current and not current.ended then d = d + C.Duration(current, now) end
+  return d
 end
 
 -- Drops "recent" entries older than the window.
@@ -124,6 +241,7 @@ function C.AvoidPct(f) return f.attacksIn > 0 and 100 * f.avoided / f.attacksIn 
 
 local prefs = {}
 local fight = nil            -- current or last fight
+local session = nil          -- every fight since start (or /toolbox combat reset)
 local inCombat = false
 local content = nil
 local el = {}
@@ -140,7 +258,13 @@ local function startFight()
 end
 
 local function endFight()
-  if fight and not fight.ended then fight.ended = fight.last > fight.start and fight.last or T.Now() end
+  if fight and not fight.ended then
+    fight.ended = fight.last > fight.start and fight.last or T.Now()
+    if session then
+      session.active = session.active + C.Duration(fight, fight.ended)
+      session.fights = session.fights + 1
+    end
+  end
 end
 
 function C.OnCombatMode(on)
@@ -182,14 +306,15 @@ function C.OnEvents(events, dropped)
       and (e.fromYou or e.toYou or e.fromYourPet)
     if relevant then
       if not fight or fight.ended then startFight() end
-      C.Add(fight, e, now, prefs.pet ~= false)
+      session = session or C.NewSession(now)
+      C.Add(fight, e, now, prefs.pet ~= false, session)
     end
   end
   if fight and type(dropped) == "number" and dropped > 0 then fight.dropped = fight.dropped + dropped end
 end
 
 function C.Reset()
-  fight = nil
+  fight, session = nil, nil
   if inCombat then startFight() end
   shownText = {}
   C.Tick()
@@ -383,6 +508,9 @@ end
 
 local mover = T.Hud.MoverFor("combat", C.HOME)
 C.GetPosition, C.MoveTo, C.Nudge, C.ResetPosition = mover.Get, mover.MoveTo, mover.Nudge, mover.Reset
+
+-- The current fight and the session (for the Combat Detailed window and tests).
+function C.Current() return fight, session end
 
 function C.Init()
   local saved = T.Load("combat")
