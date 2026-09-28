@@ -19,6 +19,10 @@ store submission needs a higher version than any submitted before (rejected ones
 - /toolbox combat events prints the next combat events' fields, to check what the game sends.
 
 ### Fixed
+- The XP HUD strip failed to load and its refresh then errored every second until the game turned
+  Toolbox off. A strip that fails to build is now left empty instead of half-built, XP Detailed is
+  built when first shown instead of at start-up (less to build at once), and the Docs and version
+  windows share one window so Toolbox stays within the game's 8 windows per add-on.
 - "Elements are being created too fast" errors at start-up with Combat Detailed pinned open: the
   charts use half as many elements, a pinned Combat Detailed opens a few seconds after start-up, and
   the first-run settings window opens a moment after the welcome.

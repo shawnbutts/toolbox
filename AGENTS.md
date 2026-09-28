@@ -479,7 +479,13 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     Budget: a plain start-up is ~370 elements (XP Detailed ~80, buff bar 100, combat HUD 75, HUD strips
     38, notification HUD 24...). Keep big windows lazy (built on first show), open pinned big windows
     after a delay (`CD.OPEN_DELAY`), open the first-run settings after `T.WELCOME_DELAY`, and draw charts
-    with one element per column. Container `Add`/`Clear` and the element-creation rate cap: the Today Detailed
+    with one element per column. XP Detailed is built on first show now (was at start-up, ~80).
+    OTHER DOCUMENTED LIMITS (per add-on): 8 windows, 8 HUD frames covering <= 35% of the screen, 2,000
+    elements, 64 KiB of text, nesting 24 deep. Toolbox has 7 lasting windows (XP, XP Detailed, Today,
+    Today Detailed, settings, Notifications, Combat Detailed); Docs and version share the 8th (opening one
+    destroys the other). The harness enforces the 8 windows (`H.MAX_WINDOWS`). A new window needs a slot.
+    HUD strip builds are atomic (`Hud.TextStrip` fills `strip.el` only once built): a half-built XP strip
+    crashed its refresh every tick in game (2026-09-28). Container `Add`/`Clear` and the element-creation rate cap: the Today Detailed
     list keeps rebuilds to at most 3 x `MAX_ROWS` elements and one per `RESORT_SECONDS`. If a rebuild
     ever raises, lower `MAX_ROWS`.
 21. Buff bar layout. CONFIRMED in game 2026-09-27: an `Image` overlapping another via

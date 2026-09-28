@@ -313,4 +313,19 @@ return function(t)
     t.ok(H.logged("^Readings lower than recorded, ignored: %d+; the last .* ago: adventurer 1,000,400 %(recorded "
       .. "1,000,500%)"), H.lastLog())
   end)
+
+  t.test("every window open at once stays within the game's 8 windows", function()
+    H.boot()
+    for _, c in ipairs({ "/tbx xp", "/tbx xpdetailed", "/tbx daily", "/tbx dd", "/tbx config", "/tbx combat detail",
+                         "/tbx notify show", "/tbx docs", "/tbx version", "/tbx docs", "/tbx version" }) do
+      H.chat(c)
+    end
+    H.setGuild("Knights", "Raid at 8")            -- the Notifications window too
+    H.advance(2)
+    local n = 0
+    for _ in pairs(H.S.windows) do n = n + 1 end
+    t.ok(n <= 8, n .. " windows")
+    t.ok(H.S.windows.toolbox_version:IsShown(), "the version window, opened last")
+    t.eq(H.S.windows.toolbox_docs, nil, "Docs made way for it")
+  end)
 end

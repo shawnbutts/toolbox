@@ -253,16 +253,21 @@ function Hud.TextStrip(spec)
     end
   end
 
+  -- Labels go into `building` and only become strip.el once the whole strip is built: a build that
+  -- raised halfway (the element-creation cap) left strip.el with only the title, and the XP window's
+  -- refresh then failed every second until the game turned Toolbox off (2026-09-28).
+  local building, buildingStyled = {}, {}
   local function label(key, text, class, fn)
     local e = UI.Label{ id = key, text = text, class = class, style = fn() }   -- ids as in the window form
-    strip.el[key] = e
-    styled[#styled + 1] = { e, fn }
+    building[key] = e
+    buildingStyled[#buildingStyled + 1] = { e, fn }
     return e
   end
 
   function strip.BuildContent()
     local m = strip.Metrics()
     strip.el, styled = {}, {}
+    building, buildingStyled = {}, {}
     local function full() return strip.Metrics().w end
     local function names() return strip.Metrics().labelW end
     local function values() return strip.Metrics().valueW end
@@ -276,11 +281,13 @@ function Hud.TextStrip(spec)
           label(line.id, "", "text", style(values, "right", 0)),
         } }
     end
-    return UI.Column{ id = "strip", class = "inset",
+    local column = UI.Column{ id = "strip", class = "inset",
       onHover = function(_, over) spec.hover:Report("t:hud", over) end,
       style = { paddingLeft = m.pad, paddingRight = m.pad, paddingTop = m.pad, paddingBottom = m.pad,
                 marginLeft = 0, marginRight = 0, marginTop = 0, marginBottom = 0 },
       children = rows }
+    strip.el, styled = building, buildingStyled
+    return column
   end
 
   function strip.ContentSize()

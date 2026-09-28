@@ -35,6 +35,7 @@ H.copy = copy
 local S   -- current host state
 
 H.CREATE_BURST, H.CREATE_RATE = 500, 200
+H.MAX_WINDOWS = 8
 
 -- A player action (typing a command, clicking, changing a control) happens at human speed, long
 -- after start-up, so the creation budget has refilled by then.
@@ -487,6 +488,7 @@ function Element:SetVisible(v) self.visible = v end
 function Element:Destroy()
   self.destroyed = true
   for id, f in pairs(S.frames) do if f == self then S.frames[id] = nil end end
+  for id, w in pairs(S.windows) do if w == self then S.windows[id] = nil end end
 end
 -- Theme classes, as a set (the class field may be a name or a list).
 local KNOWN_CLASSES = { button = 1, heading = 1, inset = 1, card = 1, badge = 1, warning = 1, good = 1, bad = 1,
@@ -565,6 +567,12 @@ function H.makeUI()
       end
       if kind == "Window" then
         assert(type(spec.id) == "string", "Window id required")
+        -- Docs: at most 8 windows per add-on (a window rebuilt under the same id replaces its old one).
+        local live = 0
+        for id, w in pairs(S.windows) do
+          if id ~= spec.id and not w.destroyed then live = live + 1 end
+        end
+        if live >= H.MAX_WINDOWS then error("Shroud.UI: too many windows (" .. H.MAX_WINDOWS .. " per add-on)", 2) end
         e.x, e.y = spec.x or 200, spec.y or 120
         e.shown = spec.visible == true
         S.windows[spec.id] = e
@@ -943,7 +951,11 @@ function H.saved(key, scope)
   return t and t[key]
 end
 
-function H.window() return S.windows.toolbox_xp end
+-- XP Detailed, or while it has never been built (it is built on first show) a stand-in that says
+-- it isn't shown.
+local NOT_BUILT = { IsShown = function() return false end,
+                    Find = function() error("XP Detailed isn't built yet: open it first", 2) end }
+function H.window() return S.windows.toolbox_xp or NOT_BUILT end
 function H.config() return S.windows.toolbox_config end
 function H.compact() return S.windows.toolbox_compact end
 function H.compactText(id) return H.compact():Find(id).text end

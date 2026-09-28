@@ -17,6 +17,16 @@ local UI = Shroud.UI
 local WINDOW_ID = "toolbox_docs"
 local GUTTER = 10
 local win = nil
+local vwin = nil         -- the version window (below)
+
+-- The Docs and version windows share one of the add-on's 8 windows (docs: "8 windows" per
+-- add-on; Toolbox has 7 others): opening one removes the other.
+local function drop(which)
+  local w = which == "docs" and win or vwin
+  if not w then return end
+  pcall(function() w:Destroy() end)
+  if which == "docs" then win = nil else vwin = nil end
+end
 
 -- { heading, paragraph, paragraph, ... }. Plain text: markup is never interpreted.
 D.SECTIONS = {
@@ -161,7 +171,10 @@ function D.IsShown()
 end
 
 function D.Toggle()
-  if not win then build() end
+  if not win then
+    drop("version")
+    build()
+  end
   if win:IsShown() then
     win:Hide()
   elseif not win:Show() then
@@ -170,7 +183,10 @@ function D.Toggle()
 end
 
 function D.Open()
-  if not win then build() end
+  if not win then
+    drop("version")
+    build()
+  end
   if not win:IsShown() and not win:Show() then
     T.Print("The Docs window can't reopen right now; try again in a few seconds.")
   end
@@ -181,7 +197,6 @@ end
 -- ---------------------------------------------------------------------------
 
 local VERSION_ID = "toolbox_version"
-local vwin = nil
 
 -- Labels for the changelog entries ({ kind, text }; see changelog.lua).
 function D.ChangelogLabels()
@@ -222,7 +237,10 @@ end
 
 -- Opens the version window (leaves it open if it already is), with the version line current.
 function D.OpenVersion()
-  if not vwin then buildVersion() end
+  if not vwin then
+    drop("docs")
+    buildVersion()
+  end
   vwin:Find("version_line"):SetText(T.VersionLine())
   if not vwin:IsShown() and not vwin:Show() then
     T.Print("The version window can't reopen right now; try again in a few seconds.")

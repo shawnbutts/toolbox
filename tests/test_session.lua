@@ -162,6 +162,7 @@ return function(t)
 
   t.test("sections have a side gutter so bars don't touch the window edge", function()
     H.boot()
+    H.chat("/tbx xpdetailed")
     local w = H.window()
     local header = w.children[1]
     local scroll = w.children[2]
@@ -197,6 +198,7 @@ return function(t)
 
   t.test("font size: default, set, persisted, applied after reload", function()
     H.boot()
+    H.chat("/tbx xpdetailed")
     local label = function() return H.window():Find("a_gain") end
     t.eq(label().style.fontSize, 12, "default")
     H.clearLogs()

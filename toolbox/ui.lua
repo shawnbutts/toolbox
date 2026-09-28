@@ -304,8 +304,11 @@ function W.Init()
     end
     prefs.net = saved.net == true
   end
-  build()
+  -- Built only when first shown (pinned now, or popped up later): it is ~80 elements, and start-up
+  -- builds everything at once against the game's element-creation cap.
+  win, el = nil, {}
   if prefs.open then
+    build()
     if not win:Show() then T.Print("XP Detailed window could not reopen yet; use /toolbox xpdetailed.") end
   end
   W.Refresh()
