@@ -21,6 +21,9 @@ store submission needs a higher version than any submitted before (rejected ones
 - Health & focus bars: the bar length can now go down to 20 (was 100), for a compact strip.
 
 ### Fixed
+- Buff bar: a buff whose skill applies several effects could get its sweep's length from the wrong
+  one, so the sweep sat out of step with the game's bar. The full length now comes from the effect
+  whose time left matches, read the way the game reports it.
 - "Couldn't build the notify HUD: elements are being created too fast" at login. A HUD strip that
   runs into the game's limit on how fast add-ons may create elements is now built again a moment
   later, without an error in chat (only the strips that failed are built again); and one part failing

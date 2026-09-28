@@ -78,20 +78,23 @@ BB.CLOCK = { path = "toolbox/clock.png", FRAMES = 120, COLS = 20, ROWS = 6, SETS
 -- ---------------------------------------------------------------------------
 
 -- A buff's full duration in seconds from its ShroudGetPlayerBuff() Effects, or nil.
--- TotalDuration / CurrentDuration have no documented units or meaning, so a reading is
--- used only when it agrees with the documented seconds remaining: in seconds or
--- milliseconds, with CurrentDuration as either the time elapsed or the time remaining.
+-- CONFIRMED in game 2026-09-28 (`/toolbox buffs raw`): TotalDuration is the full length in seconds
+-- and CurrentDuration the seconds left. A rune can apply several effects of different lengths, and
+-- `remaining` is the rune's (its longest-running effect's), so the total comes from the effect whose
+-- time left matches it. (This used to also accept milliseconds and "CurrentDuration = time elapsed",
+-- guesses from before the fields could be read, and took the LONGEST total that fitted any of them:
+-- another effect of the same rune could then set the sweep's length, putting it out of step with the
+-- game's bar.)
 function BB.TotalFromEffects(remaining, effects)
   if type(remaining) ~= "number" or remaining <= 0 or type(effects) ~= "table" then return nil end
-  local best = nil
+  local best, bestGap = nil, nil
   for _, e in ipairs(effects) do
-    local tot, cur = type(e) == "table" and e.TotalDuration, type(e) == "table" and e.CurrentDuration
-    if type(tot) == "number" and type(cur) == "number" and tot > 0 then
-      for _, scale in ipairs({ 1, 1000 }) do
-        local total, current = tot / scale, cur / scale
-        local fits = total >= remaining - 0.5 and
-          (math.abs((total - current) - remaining) <= 1.5 or math.abs(current - remaining) <= 1.5)
-        if fits and (not best or total > best) then best = total end
+    local tot, cur = nil, nil
+    if type(e) == "table" then tot, cur = e.TotalDuration, e.CurrentDuration end
+    if type(tot) == "number" and type(cur) == "number" and tot > 0 and tot >= remaining - 0.5 then
+      local gap = math.abs(cur - remaining)
+      if gap <= 1.5 and (bestGap == nil or gap < bestGap or (gap == bestGap and tot > best)) then
+        best, bestGap = tot, gap
       end
     end
   end

@@ -93,7 +93,7 @@ return function(t)
 
   t.test("a long buff's sweep keeps moving (at most 1/FRAMES of its time per step)", function()
     H.boot()
-    H.S.durationMode = "elapsed"
+    H.S.durationMode = "remaining"
     H.chat("/tbx buffs")
     H.chat("/tbx buffs group after off")   -- 20 minutes would be grouped
     H.addBuffs({ { name = "Light", remaining = 1200, icon = 5 } })
@@ -465,14 +465,25 @@ return function(t)
   t.test("full duration: trusted only when it agrees with the time remaining", function()
     H.boot()
     local F = B().TotalFromEffects
-    t.eq(F(15, { { TotalDuration = 60, CurrentDuration = 45 } }), 60, "current = elapsed, seconds")
-    t.eq(F(15, { { TotalDuration = 60, CurrentDuration = 15 } }), 60, "current = remaining, seconds")
-    t.eq(F(15, { { TotalDuration = 60000, CurrentDuration = 45000 } }), 60, "milliseconds")
+    t.eq(F(15, { { TotalDuration = 60, CurrentDuration = 15 } }), 60, "seconds, CurrentDuration = time left")
+    t.eq(F(15, { { TotalDuration = 60, CurrentDuration = 14.2 } }), 60, "a moment apart")
+    t.eq(F(15, { { TotalDuration = 60, CurrentDuration = 45 } }), nil, "not 'time elapsed' (a guess, now settled)")
+    t.eq(F(15, { { TotalDuration = 60000, CurrentDuration = 15000 } }), nil, "not milliseconds")
     t.eq(F(15, { { TotalDuration = 60, CurrentDuration = 30 } }), nil, "disagrees: not trusted")
     t.eq(F(15, { { TotalDuration = 10, CurrentDuration = 0 } }), nil, "shorter than what's left")
     t.eq(F(15, { { TotalDuration = 0, CurrentDuration = 0 } }), nil)
     t.eq(F(-1, { { TotalDuration = 60, CurrentDuration = 45 } }), nil, "permanent")
     t.eq(F(15, nil), nil)
+  end)
+
+  t.test("full duration: a rune with several effects takes the one whose time left matches", function()
+    H.boot()
+    local F = B().TotalFromEffects
+    -- the stat part runs 40 s (15 left); a longer part was 585 s in, so its ELAPSED time is 15:
+    -- the old guesses took the longest total (600) and the sweep sat far from the game's
+    t.eq(F(15, { { TotalDuration = 600, CurrentDuration = 585 }, { TotalDuration = 40, CurrentDuration = 15 } }), 40)
+    t.eq(F(15, { { TotalDuration = 30, CurrentDuration = 14 }, { TotalDuration = 40, CurrentDuration = 15 } }), 40,
+      "the closest match")
   end)
 
   -- A 40 s buff with 10 s left (75 % done) when the add-on starts.
@@ -487,19 +498,16 @@ return function(t)
     return H.slots("buffs")[1].children[2]
   end
 
-  for _, mode in ipairs({ "elapsed", "remaining", "ms" }) do
-    t.test("a buff already running at start shows its real progress (durations as " .. mode .. ")", function()
-      local overlay = startMidBuff(mode)
-      t.eq(overlay.visible, true)
-      sameUV(t, overlay.uv, 9.5 / 40, "9.5 of 40 s left")
-    end)
-  end
+  t.test("a buff already running at start shows its real progress (the game's durations)", function()
+    local overlay = startMidBuff("remaining")
+    t.eq(overlay.visible, true)
+    sameUV(t, overlay.uv, 9.5 / 40, "9.5 of 40 s left")
+  end)
 
   t.test("unknown full duration: no sweep rather than a wrong one", function()
-    local overlay = startMidBuff("nonsense")
-    t.eq(overlay.visible, false)
-    overlay = startMidBuff("absent")
-    t.eq(overlay.visible, false, "as in game: no duration fields")
+    for _, mode in ipairs({ "nonsense", "absent", "elapsed", "ms" }) do
+      t.eq(startMidBuff(mode).visible, false, mode)
+    end
   end)
 
   t.test("a buff seen cast teaches its duration for next time it is already running", function()
@@ -580,12 +588,12 @@ return function(t)
 
   t.test("/tbx buffs debug lists each buff's timing data", function()
     H.boot()
-    H.S.durationMode = "elapsed"
+    H.S.durationMode = "remaining"
     H.addBuffs({ { name = "Light", remaining = 40, icon = 5 }, { name = "Bleed", remaining = 8, debuff = true } })
     H.advance(1, 0.5)
     H.clearLogs()
     H.chat("/tbx buffs debug")
-    t.ok(H.logged("^Light: 39 s left; TotalDuration 40, CurrentDuration 1; full duration 40 s %(from the game%)$"),
+    t.ok(H.logged("^Light: 39 s left; TotalDuration 40, CurrentDuration 39; full duration 40 s %(from the game%)$"),
       H.logs()[1])
     t.ok(H.logged("^Bleed %(debuff%): 7 s left"), H.logs()[2])
     t.eq(H.frame().visible, false, "debug doesn't toggle the bar")
@@ -610,7 +618,7 @@ return function(t)
   t.test("the sweep keeps pace with a game value that refreshes only every 30 s", function()
     H.boot()
     H.S.staleEvery = 30
-    H.S.durationMode = "elapsed"
+    H.S.durationMode = "remaining"
     H.chat("/tbx buffs")
     H.addBuffs({ { name = "Ward", remaining = 120, icon = 9 } })
     local changes, last = 0, nil
@@ -637,7 +645,7 @@ return function(t)
 
   t.test("/tbx buffs trace logs raw and shown values once a second", function()
     H.boot()
-    H.S.durationMode = "elapsed"
+    H.S.durationMode = "remaining"
     H.addBuffs({ { name = "Ward", remaining = 60, icon = 9 } })
     H.advance(1, 0.5)
     H.clearLogs()
@@ -1352,7 +1360,7 @@ return function(t)
   t.test("game objects instead of tables (as in game): debuff flag, icons and durations are read", function()
     H.boot()
     H.S.buffObjects = true
-    H.S.durationMode = "elapsed"                -- as the docs describe the Effects
+    H.S.durationMode = "remaining"              -- as the game reports the Effects
     H.S.files["toolbox_debuff_landed.ogg"] = true
     H.reload()
     H.advance(Toolbox.BuffBar.SETTLE)

@@ -339,13 +339,13 @@ local function install_api()
         out[#out + 1] = r
       end
       r.StackCount = r.StackCount + 1
-      -- Durations as the game might report them (H.S.durationMode): unknown to the add-on.
+      -- Durations by H.S.durationMode: "remaining" is what the game reports (seconds; CurrentDuration = left).
       local total, rem, cur, tot = e.total or e.remaining or 0, e.remaining or 0, 0, 0
       if S.durationMode == "elapsed" then tot, cur = total, total - rem
       elseif S.durationMode == "remaining" then tot, cur = total, rem
       elseif S.durationMode == "ms" then tot, cur = total * 1000, (total - rem) * 1000
       elseif S.durationMode == "nonsense" then tot, cur = 7, 3 end
-      if S.durationMode == "absent" then                      -- what the game really reports
+      if S.durationMode == "absent" then       -- what the game seemed to report while its objects went unread
         r.Effects[#r.Effects + 1] = { Description = "", Value = 0 }
       else
         r.Effects[#r.Effects + 1] = { Description = "", Value = 0, CurrentDuration = cur, TotalDuration = tot,
