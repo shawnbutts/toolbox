@@ -228,4 +228,20 @@ return function(t)
     t.eq(H.daily().x, 50)
     t.eq(H.saved("daily_window").open, true)
   end)
+
+  t.test("daily XP: a loss that holds is believed; counting carries on from it", function()
+    H.boot()
+    local Day = Toolbox.Daily
+    local d = Day.New("local:2026-09-28")
+    Day.ObserveXP(d, 1000, 500, 0)
+    Day.ObserveXP(d, 1200, 500, 1)
+    t.eq(d.a, 200)
+    Day.ObserveXP(d, 900, 600, 2)
+    t.eq(d.a, 200, "adventurer drop not believed yet")
+    t.eq(d.p, 100, "producer still counts")
+    Day.ObserveXP(d, 900, 600, 4)
+    Day.ObserveXP(d, 900, 600, 8)                    -- held: a loss
+    Day.ObserveXP(d, 950, 600, 9)
+    t.eq(d.a, 250, "gains after the loss count; the loss isn't subtracted")
+  end)
 end

@@ -49,6 +49,10 @@ store submission needs a higher version than any submitted before (rejected ones
 - /toolbox sounds debug is simpler; /toolbox sounds try is gone (sounds work in current clients).
 
 ### Fixed
+- XP: after losing XP (for example on death), "last hour", XP/hour and today's XP stopped counting,
+  on both adventurer and producer, until the total climbed back past its old high. A drop that
+  holds for a few seconds is now accepted (and counted as no gain), and the two tracks are counted
+  separately. /toolbox xp debug shows the numbers.
 - Buff bar: debuffs weren't recognised (no debuff sound, no red row), and buff icons and full
   durations from the game's buff list were never read. The game hands add-ons its buff list as game
   objects rather than the documented plain tables, which Toolbox skipped; it now reads them.

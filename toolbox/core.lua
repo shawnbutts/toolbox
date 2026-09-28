@@ -337,6 +337,11 @@ function T.XPDebugLines()
       .. "adventurer %s (recorded %s), producer %s (recorded %s).", low.count, T.FormatDuration(now - low.at),
       T.FormatNumber(low.a), T.FormatNumber(low.ca), T.FormatNumber(low.p), T.FormatNumber(low.cp))
     or "Readings lower than recorded, ignored: none."
+  local off = type(s.offset) == "table" and s.offset or {}
+  if (off.a or 0) > 0 or (off.p or 0) > 0 then
+    lines[#lines + 1] = "XP lost this session (not counted against gains): adventurer "
+      .. T.FormatNumber(off.a or 0) .. ", producer " .. T.FormatNumber(off.p or 0) .. "."
+  end
   return lines
 end
 
@@ -1051,7 +1056,8 @@ function T.Sample()
   T.Daily.ObserveTotals(adv, prod)
   if not T.session or T.session.ended then return end
   local cur = T.XP.Current(T.session)
-  if adv < cur.a or prod < cur.p then        -- ignored by XP.Record; counted for /toolbox xp debug
+  if T.XP.Adjusted(T.session, "a", adv) < cur.a or T.XP.Adjusted(T.session, "p", prod) < cur.p then
+    -- lower than recorded: ignored until it holds (XP.Record); counted for /toolbox xp debug
     local low = T.xpLow or { count = 0 }
     low.count, low.at, low.a, low.p, low.ca, low.cp = low.count + 1, T.Now(), adv, prod, cur.a, cur.p
     T.xpLow = low

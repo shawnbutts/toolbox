@@ -100,19 +100,34 @@ function D.Roll(d, key)
   return true
 end
 
--- XP totals: only increases count. A lower reading is treated as a bad read (a 0
--- while a scene loads) and ignored, as in the session model.
-local function observeTrack(d, key, v)
+-- XP totals: only increases count. A lower reading is a bad read (a 0 while a scene loads)
+-- until Toolbox.XP.ConfirmDrop believes it (it held for a few seconds: XP lost, e.g. on death);
+-- then counting carries on from it. Before 2026-09-28 a real loss stopped the count until the
+-- total climbed back.
+local pending = {}     -- per track: since when a lower total has held (not saved)
+
+local function observeTrack(d, key, v, now)
   local last = d.last[key]
-  if last ~= nil and v <= last then return false end
-  if last ~= nil then d[key] = d[key] + (v - last) end
-  d.last[key] = v
-  return true
+  if last == nil or v > last then
+    if last ~= nil then d[key] = d[key] + (v - last) end
+    d.last[key], pending[key] = v, nil
+    return true
+  end
+  if v == last then
+    pending[key] = nil
+    return false
+  end
+  if T.XP.ConfirmDrop(pending, key, v, now) then
+    d.last[key] = v                  -- a loss: count on from here, nothing subtracted
+    return true
+  end
+  return false
 end
 
-function D.ObserveXP(d, adv, prod)
-  local a = observeTrack(d, "a", adv)
-  local p = observeTrack(d, "p", prod)
+function D.ObserveXP(d, adv, prod, now)
+  now = now or T.Now()
+  local a = observeTrack(d, "a", adv, now)
+  local p = observeTrack(d, "p", prod, now)
   return a or p
 end
 
@@ -135,6 +150,7 @@ end
 -- running (gold from a player vendor while logged out) don't count.
 function D.Rebase(d, adv, prod, gold)
   d.last.a, d.last.p = adv, prod
+  pending = {}
   d.last.gold = (type(gold) == "number" and gold >= 0) and gold or nil
 end
 

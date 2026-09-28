@@ -10,6 +10,8 @@
 --   base     = { a = n, p = n },  -- total adventurer / producer XP at the start
 --   samples  = { { t = s, a = n, p = n }, ... },  -- ascending t; last one = current
 --   ended    = true|nil,          -- set at logout
+--   offset   = { a = n, p = n }|nil,  -- XP lost so far (added to readings: a loss isn't negative gain)
+--   pending  = { a = t, p = t }|nil,  -- since when a track has read lower than recorded
 -- }
 -- Samples are kept only for the longest rolling window, XP.KEEP (plus one anchor older than it).
 
@@ -22,6 +24,7 @@ XP.HOUR = 3600         -- "last hour" window, seconds
 XP.KEEP = XP.HOUR      -- sample history kept: the longest window in use
 XP.BUCKET = 10         -- samples closer together than this are merged
 XP.MIN_RATE_SPAN = 1   -- no rate is reported over less than this many seconds
+XP.DROP_CONFIRM = 5    -- seconds a lower total must hold before it is believed (XP lost, e.g. on death)
 XP.TRACKS = {
   { key = "a", name = "Adventurer", progress = "adventurer" },
   { key = "p", name = "Producer", progress = "producer" },
@@ -46,6 +49,8 @@ function XP.IsValid(s)
   if not (isNum(s.start) and isNum(s.clock) and type(s.player) == "string") then return false end
   if type(s.base) ~= "table" or not (isNum(s.base.a) and isNum(s.base.p)) then return false end
   if type(s.samples) ~= "table" or #s.samples == 0 then return false end
+  if s.offset ~= nil and type(s.offset) ~= "table" then return false end
+  if s.pending ~= nil and type(s.pending) ~= "table" then return false end
   local prev = -math.huge
   for i = 1, #s.samples do
     local x = s.samples[i]
@@ -71,23 +76,60 @@ function XP.Prune(s, now)
   end
 end
 
--- Records a reading of the totals. Returns true when the session changed.
--- A reading lower than the current one is treated as a bad read (for example a
--- 0 during a scene change) and ignored; totals are not expected to go down.
-function XP.Record(s, now, adv, prod)
-  local cur = XP.Current(s)
-  if adv < cur.a or prod < cur.p then return false end
-  if adv == cur.a and prod == cur.p then
-    XP.Prune(s, now)
+-- A total that should only grow read lower than recorded. `pending` (the caller's table, by key)
+-- remembers since when. True once it has stayed lower for XP.DROP_CONFIRM seconds: a real loss
+-- (the adventurer total fell 943,678 in game, 2026-09-28, most likely a death); false while it may
+-- be a bad read (a 0 while a scene loads). A reading of 0 or less is never believed.
+function XP.ConfirmDrop(pending, key, value, now)
+  if type(value) ~= "number" or value <= 0 then return false end
+  local since = pending[key]
+  if not since then
+    pending[key] = now
     return false
   end
+  if now - since < XP.DROP_CONFIRM then return false end
+  pending[key] = nil
+  return true
+end
+
+-- Records a reading of the totals. Returns true when the session changed. Each track on its
+-- own: a lower reading is ignored until XP.ConfirmDrop believes it; then the session carries on
+-- from it, the loss added to s.offset so it counts as no gain rather than negative gain.
+-- (Before 2026-09-28 any lower reading was ignored, on both tracks, until the total climbed back:
+-- after a death, all XP tracking froze.)
+function XP.Record(s, now, adv, prod)
+  local cur = XP.Current(s)
+  s.offset = s.offset or {}
+  s.pending = s.pending or {}
+  local vals, changed = {}, false
+  for _, key in ipairs({ "a", "p" }) do
+    local v = (key == "a" and adv or prod) + (s.offset[key] or 0)
+    if v >= cur[key] then
+      s.pending[key] = nil
+    elseif XP.ConfirmDrop(s.pending, key, v - (s.offset[key] or 0), now) then
+      s.offset[key] = (s.offset[key] or 0) + (cur[key] - v)
+      v, changed = cur[key], true
+    else
+      v = cur[key]
+    end
+    vals[key] = v
+  end
+  if vals.a == cur.a and vals.p == cur.p then
+    XP.Prune(s, now)
+    return changed
+  end
   if #s.samples >= 2 and now - cur.t < XP.BUCKET then
-    cur.a, cur.p = adv, prod          -- merge into the recent sample, keep its time
+    cur.a, cur.p = vals.a, vals.p     -- merge into the recent sample, keep its time
   else
-    s.samples[#s.samples + 1] = { t = now, a = adv, p = prod }
+    s.samples[#s.samples + 1] = { t = now, a = vals.a, p = vals.p }
   end
   XP.Prune(s, now)
   return true
+end
+
+-- A track's reading as the session counts it (with XP lost so far added back).
+function XP.Adjusted(s, key, raw)
+  return raw + (type(s.offset) == "table" and s.offset[key] or 0)
 end
 
 function XP.Elapsed(s, now)

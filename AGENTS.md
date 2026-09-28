@@ -421,7 +421,11 @@ Things the docs don't settle. Verify in game before depending on them more heavi
    are ignored.
 8. The shape of `ShroudGetLevelProgress()` at the level cap (docs: `percent` reads 0). We treat
    `percent == 0` with `intoLevel > 0` as capped and show no ETA.
-9. Whether total XP can ever go down. Lower readings are treated as bad reads and ignored.
+9. Whether total XP can ever go down. CONFIRMED 2026-09-28: YES. The adventurer total fell 943,678 (most
+   likely XP lost on death), and since every lower reading was ignored, on both tracks, all XP tracking
+   froze for 1.5 h (`/toolbox xp debug`: 1 sample, 51 ignored readings). Now each track stands alone, a
+   lower reading is ignored only until it has held `XP.DROP_CONFIRM` (5 s; `XP.ConfirmDrop`, also used by
+   the daily stats), and a believed loss goes into `session.offset` so it counts as no gain.
 10. Whether `fontSize` is inherited from a container. We set it on every label and button.
     Also whether a `Bar` honours a `height` style (we set it to half the font size, min 4).
 11. Whether the window's `width`/`height` apply once the host has remembered a size. We assume
