@@ -416,6 +416,10 @@ NH.KEEP = 20              -- notices kept (and rows built)
 NH.LINES = 5              -- lines shown; the rest scroll
 NH.WIDTH = 320            -- pixels
 NH.PAD = 4
+-- Room left for the Scroll's vertical scrollbar: lines as wide as the Scroll overflowed sideways
+-- and showed a horizontal scrollbar (reported 2026-09-28). The bar's width isn't documented.
+NH.SCROLLBAR = 16
+NH.EMPTY_TEXT = "Notifications will show here, newest on top."
 NH.HIDE_CHOICES = { { 0, "Never" }, { 5, "5 seconds" }, { 10, "10 seconds" }, { 20, "20 seconds" },
                     { 30, "30 seconds" }, { 60, "1 minute" } }
 NH.HIDE_DEFAULT = 10
@@ -424,6 +428,7 @@ local hprefs = { hideAfter = NH.HIDE_DEFAULT }
 local history = {}        -- newest first: { when, title, text }
 local hudRows = {}
 local hudScroll = nil
+local hudEmpty = nil
 local visibleUntil = 0
 local hovered = {}
 local hudShown = nil      -- NH.IsShown() at the last check, to refresh the HUD when it changes
@@ -470,6 +475,9 @@ function NH.IsShown()
 end
 
 -- Puts `history` into the rows (and the scroll's height to the lines used).
+-- Lines the strip shows: the list (at most NH.LINES), or the one empty-state line.
+local function shownLines() return math.max(1, math.min(#history, NH.LINES)) end
+
 function NH.Fill()
   if not hudScroll then return end
   for i = 1, NH.KEEP do
@@ -481,7 +489,10 @@ function NH.Fill()
     end
     row:SetVisible(e ~= nil)
   end
-  hudScroll:SetStyle{ height = math.max(1, math.min(#history, NH.LINES)) * lineHeight() }
+  local empty = #history == 0             -- only seen in settings, to place the strip
+  hudEmpty:SetVisible(empty)
+  hudScroll:SetVisible(not empty)
+  hudScroll:SetStyle{ height = shownLines() * lineHeight() }
 end
 
 local function hover(k, over)
@@ -498,20 +509,23 @@ function NH.BuildContent()
   local rows = {}
   for i = 1, NH.KEEP do
     hudRows[i] = UI.Label{ id = "nh_" .. i, text = "", class = "text", visible = false,
-      style = T.Window.TextStyle{ width = NH.WIDTH, whiteSpace = "nowrap", marginLeft = 0, marginRight = 0 },
+      style = T.Window.TextStyle{ width = NH.WIDTH - NH.SCROLLBAR, whiteSpace = "nowrap", marginLeft = 0,
+                                  marginRight = 0 },
       onHover = function(_, over) hover("row" .. i, over) end }
     rows[i] = hudRows[i]
   end
   hudScroll = UI.Scroll{ id = "nh_scroll", style = { width = NH.WIDTH, height = lineHeight() },
     children = { UI.Column{ children = rows } } }
+  hudEmpty = UI.Label{ id = "nh_empty", text = NH.EMPTY_TEXT, class = "dim", visible = false,
+    style = T.Window.TextStyle{ width = NH.WIDTH, whiteSpace = "nowrap", marginLeft = 0, marginRight = 0 } }
   local content = UI.Column{ id = "nh_panel", style = { padding = NH.PAD, backgroundColor = "#00000099" },
-    onHover = function(_, over) hover("panel", over) end, children = { hudScroll } }
+    onHover = function(_, over) hover("panel", over) end, children = { hudEmpty, hudScroll } }
   NH.Fill()
   return content
 end
 
 function NH.ContentSize()
-  return NH.WIDTH + 2 * NH.PAD, math.max(1, math.min(#history, NH.LINES)) * lineHeight() + 2 * NH.PAD
+  return NH.WIDTH + 2 * NH.PAD, shownLines() * lineHeight() + 2 * NH.PAD
 end
 
 function NH.GetSavedPosition() return hprefs.x, hprefs.y end

@@ -350,4 +350,21 @@ return function(t)
     H.advance(1)
     t.eq(H.notice("motd").text, Toolbox.Trim(long))
   end)
+
+  t.test("the HUD in settings: an empty-state line; lines leave room for the scrollbar", function()
+    settled()
+    H.chat("/tbx notify mail via hud")
+    H.chat("/tbx config")
+    H.advance(1)
+    local hud = H.nhud()
+    t.ok(hud.visible ~= false)
+    t.ok(hud:Find("nh_empty").visible ~= false, "the empty-state line")
+    t.eq(hud:Find("nh_empty").text, Toolbox.Notify.Hud.EMPTY_TEXT)
+    t.eq(hud:Find("nh_scroll").visible, false, "no empty scroll area")
+    H.setNotes{ unreadMail = 1 }
+    t.eq(hud:Find("nh_empty").visible, false)
+    t.ok(hud:Find("nh_scroll").visible ~= false)
+    local NH = Toolbox.Notify.Hud
+    t.eq(hud:Find("nh_1").style.width, NH.WIDTH - NH.SCROLLBAR, "narrower than the scroll area")
+  end)
 end

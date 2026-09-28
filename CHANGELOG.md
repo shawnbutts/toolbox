@@ -18,7 +18,8 @@ store submission needs a higher version than any submitted before (rejected ones
 - Notification HUD: any notification can go to a HUD strip instead of the window (settings, or
   /toolbox notify <name> via hud). It lists the latest 20, newest on top, one line each; hover a
   line for the whole notice. It shows when something arrives and hides after 10 seconds (or a
-  time you choose, or never), and stays while the pointer is on it.
+  time you choose, or never), and stays while the pointer is on it. While the settings window is
+  open it shows so you can place it, with a short note when it has nothing to list yet.
 - Buff bar: buffs with more than 15 minutes left (Obsidian potions, for example) share one slot at
   the end of the row with a count; hover it to see each one and its time left. A buff moves back
   onto the bar once it has less than that left. The time is a setting ("Group buffs lasting longer

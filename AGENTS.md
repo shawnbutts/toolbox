@@ -598,6 +598,9 @@ Things the docs don't settle. Verify in game before depending on them more heavi
 44. Notifications (`ShroudGetNotifications`, API 14; built 2026-09-28). Unconfirmed in game: that the
     counts read 0 (or nil) until loaded after login (hence `N.SETTLE`), what "ransoms" and "newRewards"
     look like in practice, and `guildApplications` for a recruiter. Check with `/toolbox notify show`.
-45. Notification HUD (built 2026-09-28): a `Scroll` inside a HudFrame (scrolls with the wheel?), `whiteSpace
+45. Notification HUD (built 2026-09-28). REPORTED 2026-09-28: in settings it showed empty with a HORIZONTAL
+    scrollbar: rows as wide as the Scroll overflow once its vertical bar takes room. Rows are now
+    `NH.WIDTH - NH.SCROLLBAR` (16 px, an estimate), and an empty list shows `nh_empty` instead of the
+    Scroll. Also: a `Scroll` inside a HudFrame (scrolls with the wheel?), `whiteSpace
     = "nowrap"` labels ending in "..." when too long (the docs say labels do), and hover on a HUD strip
     (item 40) keeping it shown. Unconfirmed in game.
