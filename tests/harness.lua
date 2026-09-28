@@ -82,6 +82,7 @@ local function scopeOf(scope)
 end
 
 local realDate = os.date
+local realTime = os.time
 
 local function install_api()
   ShroudLuaApiVersion = 14
@@ -94,6 +95,12 @@ local function install_api()
   os.date = function(fmt, ...)
     if fmt == "%Y-%m-%d" and S.date then return S.date end
     return realDate(fmt, ...)
+  end
+  -- The local clock (Toolbox.Clock): H.S.clock when set; H.S.noClock = true: none.
+  os.time = function(...)
+    if S.noClock then return nil end
+    if S.clock and select("#", ...) == 0 then return S.clock end
+    return realTime(...)
   end
 
   ShroudConsoleLog = function(msg)

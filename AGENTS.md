@@ -96,7 +96,9 @@ Run all three before calling a change done.
     `ShroudHttpGet` (manifest `permissions: ["network"]`, `network_hosts: ["shroudoftheavatar.net"]`;
     the player must also switch Internet on in the add-on manager). Names are queued by `RefreshValues`
     (only while the window shows), sent one request at a time `P.GAP` apart from `P.Tick` (core Tick),
-    answered in core's `ShroudOnHttpResponse` -> `P.OnResponse`; cached per account for the local day.
+    answered in core's `ShroudOnHttpResponse` -> `P.OnResponse`; cached per account for `P.MAX_AGE` (24 h)
+    by `Toolbox.Clock()` (os.time, feature-detected; without it, until local midnight), `P.Fresh`;
+    `/toolbox dd values refresh` = `P.Forget`. Harness: `H.S.clock` / `H.S.noClock` drive os.time.
     JSON via `Toolbox.JsonDecode` (core.lua; the sandbox has none), URLs via `Toolbox.UrlEncode`.
     `/toolbox dd values test [item]` (`P.Test`/`P.Report`): one lookup regardless of the setting, each step
     (refusal reason, HTTP error, price) printed in chat; the first thing to run in game.
@@ -248,7 +250,7 @@ including the "no character" sentinel.
 | `vitals` | `{ show, width = 100..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, x, y }` |
 | `hud` | `{ glued = bool, x, y }` (the glued strip's position) |
 | `combat` | `{ show, scale = 75..250, pet, stats = { "MagicResistance", ... }, bg = None/Dark/Light, bgOpacity = 10..100, x, y }` |
-| `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last = ISO date, day = Toolbox.Today() key } } }`, at most `P.MAX_KEEP` |
+| `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last = ISO date, day = Toolbox.Today() key, at = Toolbox.Clock() when known } } }`, at most `P.MAX_KEEP` |
 | `guild_motd` | `{ show = bool, seen = "text" }`: the last guild message shown to this character |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts (unversioned ignored) |
 

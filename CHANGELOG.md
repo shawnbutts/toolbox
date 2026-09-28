@@ -27,7 +27,8 @@ store submission needs a higher version than any submitted before (rejected ones
   sale price from SOTA.net's public price list (player-uploaded receipts), and the header a total
   for the day; hover a value for the price each. Items with no recent sales stay blank. Off by
   default: switch on "Estimated values (SOTA.net)" in settings (or /toolbox dd values on) and
-  Internet for Toolbox in the add-on manager. Only item names are sent; prices are kept for the day.
+  Internet for Toolbox in the add-on manager. Only item names are sent; each price is kept for 24
+  hours, across reloads and restarts (/toolbox dd values refresh looks them up again).
   /toolbox dd values test [item] checks the connection with one lookup and prints the answer.
 - /toolbox api lists which newer game functions this client has (buff bar, crafting, friends and
   guild), to check the client against the docs.

@@ -43,6 +43,17 @@ end
 --                   a string"; the format isn't documented, so the time of day is
 --                   stripped and whatever date text remains is used as the key);
 --   nil:            no usable clock.
+-- Seconds since 1970 from the local clock (os.time, undocumented in the SotA docs, so feature-
+-- detected like os.date in T.Today), or nil when there's no usable clock.
+function T.Clock()
+  local osTable = rawget(_G, "os")
+  local time = type(osTable) == "table" and osTable.time
+  if type(time) ~= "function" then return nil end
+  local ok, now = pcall(time)
+  if ok and type(now) == "number" then return now end
+  return nil
+end
+
 function T.Today()
   local osTable = rawget(_G, "os")
   local date = type(osTable) == "table" and osTable.date
@@ -309,12 +320,19 @@ add("daily", "show or hide today's stats (gold, kills, XP; resets at midnight; h
 end)
 
 add("dailydetailed", "show or hide Today Detailed (every item gained today, with counts; values on|off: "
-    .. "estimated values from SOTA.net; values test [item]: check the connection)", function(rest)
+    .. "estimated values from SOTA.net; values test [item]: check the connection; values refresh: "
+    .. "look prices up again)", function(rest)
   local word, arg = T.ParseArgs(rest)
   if word == "values" then
     local sub, item = T.ParseArgs(arg)
     if sub == "test" then
       T.Prices.Test(item)
+      return
+    end
+    if sub == "refresh" then
+      local n = T.Prices.Forget()
+      T.Print("Forgot " .. n .. " cached price" .. (n == 1 and "" or "s")
+        .. "; Today Detailed looks them up again while it's open.")
       return
     end
     arg = arg:lower()

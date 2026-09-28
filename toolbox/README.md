@@ -64,9 +64,10 @@ sold in 90 days stay blank.
 
 It is off by default and needs two switches: this setting, and **Internet** for Toolbox in the
 add-on manager (off until you turn it on). When on, Toolbox sends only the names of the items in
-Today Detailed to shroudoftheavatar.net, at most one request every few seconds, and remembers the
-prices for the rest of the day. Like any website, that site can see your IP address. Toolbox
-contacts no other site.
+Today Detailed to shroudoftheavatar.net, at most one request every few seconds, and remembers each
+price for 24 hours (across reloads and restarts), so an item is looked up at most once a day.
+`/toolbox dd values refresh` forgets them and looks them up again. Like any website, that site can
+see your IP address. Toolbox contacts no other site.
 
 ## Buff bar
 

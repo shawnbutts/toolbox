@@ -301,11 +301,13 @@ end
 -- days), sold90d, lastPrice, lastSoldAt } }, missing = { names with no sales } }.
 -- Through ShroudHttpGet: the manifest declares "network" and the host, and the player must
 -- switch Internet on for Toolbox in the add-on manager. Only item names are sent. Prices are
--- kept per account for the local day (they barely move: 90-day averages), so each name is
--- looked up at most once a day. Requests are spaced P.GAP apart (the client allows about 6 a
--- minute), one at a time; one that never answers is given up after P.TIMEOUT.
+-- kept per account, across reloads and restarts, for P.MAX_AGE (24 hours) after they were
+-- fetched (by the local clock; without one, until local midnight): they barely move (90-day
+-- averages), so each name is looked up at most once a day. /toolbox dd values refresh forgets
+-- them all. Requests are spaced P.GAP apart (the client allows about 6 a minute), one at a
+-- time; one that never answers is given up after P.TIMEOUT.
 -- Saved var "prices" (account scope): { v = 1, items = { [lower name] = { avg = n|false,
--- sold = n, last = "ISO date"|"", day = Toolbox.Today() key } } }.
+-- sold = n, last = "ISO date"|"", day = Toolbox.Today() key, at = Toolbox.Clock() (if any) } } }.
 
 Toolbox.Prices = P
 
@@ -316,6 +318,7 @@ P.GAP = 12            -- seconds between requests
 P.RETRY = 60          -- seconds after a failed or refused request
 P.TIMEOUT = 40        -- seconds before a request with no answer is given up (a reload drops it)
 P.MAX_KEEP = 2000     -- prices kept (saved-var size)
+P.MAX_AGE = 86400     -- seconds a price is used before it is looked up again
 
 local cache = {}      -- lower name -> { avg, sold, last, day }
 local queue = {}      -- names (as looted) waiting for a lookup
@@ -354,6 +357,7 @@ local function readCache()
           and (e.avg == false or type(e.avg) == "number") then
         cache[k] = { avg = e.avg, sold = type(e.sold) == "number" and e.sold or 0,
                      last = type(e.last) == "string" and e.last or "", day = e.day }
+        if type(e.at) == "number" then cache[k].at = e.at end
       end
     end
   end
@@ -388,13 +392,21 @@ function P.Tooltip(name)
     .. " sold in the last 90 days" .. when .. " (SOTA.net, from player-uploaded receipts)"
 end
 
--- Queues a name for a lookup unless it has a price from today or is already waiting.
+-- Whether a cached price is still good: under P.MAX_AGE old by the local clock, or (no clock,
+-- or saved without a time) from today.
+function P.Fresh(e)
+  if type(e) ~= "table" then return false end
+  local now = T.Clock()
+  if now and type(e.at) == "number" then return now >= e.at and now - e.at < P.MAX_AGE end
+  return e.day == T.Today()
+end
+
+-- Queues a name for a lookup unless it has a fresh price or is already waiting.
 function P.Want(name)
   readCache()
   local k = key(name)
   if queued[k] then return end
-  local e = cache[k]
-  if e and e.day == T.Today() then return end
+  if P.Fresh(cache[k]) then return end
   queued[k] = true
   queue[#queue + 1] = name
 end
@@ -464,22 +476,39 @@ end
 
 -- Stores the answer for `names`: a price for each item listed, "no sales" for the rest.
 function P.Apply(names, data)
-  local today = T.Today()
+  local today, clock = T.Today(), T.Clock()
+  local function put(k, e)
+    e.day = today
+    if clock then e.at = clock end
+    cache[k] = e
+  end
   local found = {}
   for _, it in ipairs(type(data) == "table" and type(data.items) == "table" and data.items or {}) do
     if type(it) == "table" and type(it.item) == "string" then
       local avg = type(it.avg90d) == "number" and it.avg90d or false
-      cache[key(it.item)] = { avg = avg, sold = type(it.sold90d) == "number" and it.sold90d or 0,
-                              last = type(it.lastSoldAt) == "string" and it.lastSoldAt or "", day = today }
+      put(key(it.item), { avg = avg, sold = type(it.sold90d) == "number" and it.sold90d or 0,
+                          last = type(it.lastSoldAt) == "string" and it.lastSoldAt or "" })
       found[key(it.item)] = true
     end
   end
   for _, name in ipairs(names) do
     local k = key(name)
-    if not found[k] then cache[k] = { avg = false, sold = 0, last = "", day = today } end
+    if not found[k] then put(k, { avg = false, sold = 0, last = "" }) end
     queued[k] = nil
   end
   writeCache()
+end
+
+-- /toolbox dd values refresh: forgets every cached price; what's on screen is looked up again.
+function P.Forget()
+  readCache()
+  local n = 0
+  for _ in pairs(cache) do n = n + 1 end
+  cache = {}
+  writeCache()
+  nextAt, status = 0, nil
+  DD.Refresh()
+  return n
 end
 
 -- /toolbox dd values test [item]: one lookup now, whatever the setting, each step in chat. For
