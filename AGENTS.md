@@ -77,6 +77,8 @@ Run all three before calling a change done.
     which deep-copy), formatting, the command table and dispatcher, session lifecycle, all callbacks.
   - `xp.lua`: `Toolbox.XP`, a pure model over a plain-data session table. No API calls, so it is
     storable in saved vars and trivially testable. Time is always passed in.
+  - `ui.lua` also draws the last-hour chart per track (`W.CHART_*`, pure `XP.Series` over the samples,
+    bottom-aligned columns like Combat Detailed's timeline).
   - `ui.lua`: `Toolbox.Window`, the **XP Detailed** window (`/toolbox xpdetailed`, `xpd`). Internal names
     (`Toolbox.Window`, id `toolbox_xp`, saved var `window`) predate the rename; keep them so players keep
     their positions and settings. Build every text label's style with

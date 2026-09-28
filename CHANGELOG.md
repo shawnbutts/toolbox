@@ -6,6 +6,9 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- XP Detailed: the last hour as a column chart under each track (2-minute columns of XP gained,
+  gold for adventurer, green for producer), with the best rate per hour. It follows the "Subtract
+  XP lost" setting.
 - Combat Detailed: a window that pops up when you hover the combat HUD (or /toolbox combat detail).
   Damage by skill as bars, longest first, with hits, crits and over-time ticks on hover; the last
   minute as a column chart, damage done up and damage taken down; and healing with the share wasted

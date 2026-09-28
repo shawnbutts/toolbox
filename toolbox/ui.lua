@@ -29,7 +29,9 @@ end
 -- button follows the font only).
 local TEXT_IDS = { "elapsed" }
 for _, track in ipairs(T.XP.TRACKS) do
-  for _, suffix in ipairs({ "_head", "_gain", "_eta" }) do TEXT_IDS[#TEXT_IDS + 1] = track.key .. suffix end
+  for _, suffix in ipairs({ "_head", "_gain", "_eta", "_chart_note" }) do
+    TEXT_IDS[#TEXT_IDS + 1] = track.key .. suffix
+  end
 end
 
 -- Side gutter, set on each section rather than relying on the window body's padding
@@ -70,6 +72,27 @@ local function barHeight()
   return math.max(4, math.floor(fontSize() / 2))
 end
 
+-- The last hour as a column chart under each track: W.CHART_COLS columns of XP gained, bottom
+-- aligned (the same layout as Combat Detailed's timeline, which works in game).
+W.CHART_COLS, W.CHART_SPAN = 30, 3600       -- 2-minute columns over the last hour
+W.CHART_COL_W, W.CHART_GAP, W.CHART_H = 5, 1, 24
+W.CHART_COLORS = { a = "@gold", p = "@green" }
+local chartCols = {}                          -- track key -> the column blocks
+
+local function chart(track)
+  local k = track.key
+  local cols = {}
+  chartCols[k] = {}
+  for i = 1, W.CHART_COLS do
+    local block = UI.Column{ visible = false,
+      style = { width = W.CHART_COL_W, height = 1, backgroundColor = W.CHART_COLORS[k] or "@gold" } }
+    chartCols[k][i] = block
+    cols[i] = UI.Column{ style = { width = W.CHART_COL_W, height = W.CHART_H, justifyContent = "end",
+      marginLeft = i > 1 and W.CHART_GAP or 0 }, children = { block } }
+  end
+  return UI.Row{ id = k .. "_chart", style = { marginTop = 2 }, children = cols }
+end
+
 local function trackRows(track)
   local k = track.key
   return UI.Column{ style = { marginTop = 3, paddingLeft = W.GUTTER, paddingRight = W.GUTTER },
@@ -79,7 +102,27 @@ local function trackRows(track)
         style = { height = barHeight(), marginTop = 1, marginBottom = 1 } },
       UI.Label{ id = k .. "_gain", text = "", class = "text", style = W.TextStyle() },
       UI.Label{ id = k .. "_eta", text = "", class = "text", style = W.TextStyle() },
+      chart(track),
+      UI.Label{ id = k .. "_chart_note", text = "", class = "dim", style = W.TextStyle() },
     } }
+end
+
+-- Puts a track's last hour into its chart, scaled to the busiest column.
+local function fillChart(s, k, now, net)
+  local series = T.XP.Series(s, k, now, W.CHART_COLS, W.CHART_SPAN, net)
+  local peak = 0
+  for _, g in ipairs(series) do
+    if g and g > peak then peak = g end
+  end
+  for i, block in ipairs(chartCols[k] or {}) do
+    local g = series[i]
+    local h = (g and peak > 0) and math.floor(W.CHART_H * math.max(0, g) / peak + 0.5) or 0
+    block:SetVisible(h > 0)
+    if h > 0 then block:SetStyle{ height = h } end
+  end
+  local per = W.CHART_SPAN / W.CHART_COLS
+  el[k .. "_chart_note"]:SetText("Last hour, " .. math.floor(per / 60) .. "-min columns; best "
+    .. T.FormatNumber(peak * 3600 / per) .. "/h")
 end
 
 local function build()
@@ -380,6 +423,7 @@ function W.Refresh()
   for _, track in ipairs(T.XP.TRACKS) do
     local k = track.key
     local net = W.GetNet()
+    fillChart(s, k, now, net)
     local sessionRate = T.XP.SessionRate(s, k, now, net)
     el[k .. "_gain"]:SetText(T.XP.Signed(T.XP.Gained(s, k, net)) .. "  " .. rateText(sessionRate)
       .. "  (10m " .. rateText(T.XP.WindowRate(s, k, now, net)) .. ")")

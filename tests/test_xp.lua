@@ -249,4 +249,46 @@ return function(t)
     H.reload()
     t.eq(Toolbox.Window.GetNet(), true, "kept")
   end)
+
+  t.test("Series: XP gained per slice of the last hour; before the session is false", function()
+    H.boot()
+    local X = Toolbox.XP
+    local s = X.NewSession(1000, 0, 0, "Tester")
+    X.Record(s, 1030, 100, 0)
+    X.Record(s, 1250, 400, 0)
+    X.Record(s, 1250 + 20, 500, 0)                   -- later in the same 2-minute slice
+    local series = X.Series(s, "a", 1320, 30, 3600, false)
+    t.eq(#series, 30)
+    t.eq(series[1], false, "before the session")
+    local total = 0
+    for _, g in ipairs(series) do total = total + (g or 0) end
+    t.eq(total, 500, "every gain lands in some slice")
+    t.eq(series[30], 400, "slice 1200-1320: 100 -> 500")
+    t.eq(series[29], 0, "slice 1080-1200: nothing")
+    t.eq(series[28], 100, "slice 960-1080: the session started at 1000, +100 at 1030")
+  end)
+
+  t.test("XP Detailed shows the last hour as columns under each track", function()
+    H.boot()
+    H.chat("/tbx xpdetailed")
+    H.advance(200)
+    H.gain(3000, 0)
+    H.advance(130)
+    H.gain(1000, 500)
+    H.advance(2)
+    local chart = H.window():Find("a_chart")
+    local shown, tallest = 0, 0
+    for _, col in ipairs(chart.children) do
+      local b = col.children[1]
+      if b.visible ~= false then shown, tallest = shown + 1, math.max(tallest, b.style.height) end
+    end
+    t.eq(shown, 2, "two slices with XP")
+    t.eq(tallest, Toolbox.Window.CHART_H, "the busiest fills the chart")
+    t.ok(H.text("a_chart_note"):find("^Last hour, 2%-min columns; best 90,000/h$"), H.text("a_chart_note"))
+    local pshown = 0
+    for _, col in ipairs(H.window():Find("p_chart").children) do
+      if col.children[1].visible ~= false then pshown = pshown + 1 end
+    end
+    t.eq(pshown, 1, "producer has its own chart")
+  end)
 end

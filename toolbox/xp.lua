@@ -194,6 +194,41 @@ function XP.LastHour(s, key, now, net)
   return (XP.WindowGain(s, key, now, XP.HOUR, net))
 end
 
+-- XP gained on a track in each of `n` equal slices of the last `span` seconds, oldest first (for
+-- XP Detailed's chart). A slice's value is the total at its end minus the total at its start, the
+-- total at a time being the newest sample at or before it (the base before the session). With
+-- `net`, losses inside the slice are subtracted. Slices before the session started are `false`.
+-- One pass over the samples for all the slice edges.
+function XP.Series(s, key, now, n, span, net)
+  local lkey = "l" .. key
+  local w = span / n
+  local edges = {}
+  for i = 0, n do edges[i] = now - span + i * w end
+  local vals, losses = {}, {}
+  local j, v, l = 0, s.base[key], 0
+  local samples = s.samples
+  if #samples > 0 and samples[1].t > s.start then v, l = samples[1][key], samples[1][lkey] or 0 end
+  for i = 0, n do
+    local t = edges[i]
+    while j < #samples and samples[j + 1].t <= t do
+      j = j + 1
+      v, l = samples[j][key], samples[j][lkey] or 0
+    end
+    if t <= s.start then vals[i], losses[i] = s.base[key], 0 else vals[i], losses[i] = v, l end
+  end
+  local out = {}
+  for i = 1, n do
+    if edges[i] <= s.start then
+      out[i] = false
+    else
+      local g = math.max(0, vals[i] - vals[i - 1])
+      if net then g = g - (losses[i] - losses[i - 1]) end
+      out[i] = g
+    end
+  end
+  return out
+end
+
 -- "+1,234" / "-567": a gain, or with the net option a change, for display.
 function XP.Signed(n)
   return (n >= 0 and "+" or "") .. Toolbox.FormatNumber(n)

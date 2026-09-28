@@ -35,6 +35,9 @@ D.SECTIONS = {
     "Smaller: /toolbox xp hud (or \"As a HUD strip\" in settings) shows the XP window as a HUD strip, "
       .. "with no title bar or frame. Move it by its grip or /toolbox xp move <x> <y>; hovering still "
       .. "pops up XP Detailed. /toolbox xp window turns it back into a window." },
+  { "XP over the last hour",
+    "XP Detailed shows the last hour under each track as columns: XP gained in each 2-minute slice, "
+      .. "tallest for your best stretch, with that best rate per hour beneath." },
   { "Today",
     "Today (/toolbox daily): gold picked up, kills by you or your pet, and adventurer and "
       .. "producer XP since midnight. Rest the pointer on it for Today Detailed: every item that "
