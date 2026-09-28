@@ -2,6 +2,13 @@
 local H = require("harness")
 
 return function(t)
+  -- A slot's sweep as drawn: the overlay holder's visibility and style, and its Image's uv (the
+  -- Image is replaced for each frame: the game draws a UV only when the Image is created).
+  local function sweep(slot)
+    local h = slot.children[2]
+    local img = h.children and h.children[1]
+    return { visible = h.visible, uv = img and img.uv, style = h.style, image = img }
+  end
   local SWORD = { name = "Iron Longsword", durability = 180, maxDurability = 200 }
   local HELM = { name = "Chain Coif", durability = 90, maxDurability = 100 }
 
@@ -196,7 +203,7 @@ return function(t)
     local slot = H.gearSlots()[1]
     t.eq(slotSize(slot), 40)
     t.eq(slot.children[1].width, 40, "the icon")
-    t.eq(slot.children[2].style.marginLeft, -40, "the sweep still covers it")
+    t.eq(sweep(slot).style.marginLeft, -40, "the sweep still covers it")
     t.eq(H.gearFrame().width, Toolbox.Window.GRIP + 40 + Toolbox.BuffBar.GAP + 8, "the strip re-fits")
   end)
 

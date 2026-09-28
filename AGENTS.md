@@ -169,8 +169,13 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     API 16 (feature-detected, `CanReplace`/`CanDismiss`): `replaceStock` hides the game's bar only while ours
     is shown and built (`applyStock`, end of every tick; the game releases a hide on reload), and restores it
     otherwise. `clickDismiss`: a slot's icon `onClick` re-finds the index by name, then `ShroudDismissBuff`;
-    refusals go to chat; dismissable buffs get a "Click to dismiss" tooltip line. The clock overlay is a second `Image` over the icon via a
-    negative left margin, showing one `SetUV` frame of `clock.png` (`CLOCK` must match `art/clock.py`).
+    refusals go to chat; dismissable buffs get a "Click to dismiss" tooltip line. The clock overlay is a holder
+    `Row` over the icon via a negative left margin (`BB.SweepHolder`), holding one `Image` of `clock.png` (`CLOCK`
+    must match `art/clock.py`) that is REPLACED for every new frame, with `uv` in its spec: this client draws an
+    Image's UV only at creation (item 48). `fill` only records the wanted frame; `drawSweeps` then draws the
+    pending ones oldest first, at most `BB.SWEEP_BUDGET` new Images per `BB.TICK` (`BB.ShowFrame` /
+    `BB.HideFrame`, shared with the equipment bar, which retries on `G.Tick`). `/toolbox buffs frame <k> [red]`
+    holds one frame on every icon; `/toolbox buffs uvtest` shows six ways of stepping frames side by side.
     The file also holds `Toolbox.Gear` (in it to reuse the clock sweep and not spend the 16th Lua file):
     the equipment bar (HUD module "gear", `G.SLOTS` fixed slots; worn items below `threshold`, lowest
     first, all while settings are open) and the model for the "durability" notification source
@@ -297,7 +302,8 @@ in chat.
   accept paths it can't load; `H.S.played` / `H.playedNames()`; `H.frame()` / `H.vitals()` / `H.hud()` (the glued strip); `H.combatHud()`, `H.combatRows()`,
   `H.setCombat(on)` (combat mode + callback); `H.submit(win, id, text)`;
   `H.setGear{ { name, durability, maxDurability }, ... }` (worn items; no callback, as in game), `H.gearFrame()`,
-  `H.gearSlots()`; `H.setVigor{ vigor = 64, ... }` / `H.setVigor(nil)` (+ `ShroudOnVigorChanged`; `H.S.vigor` without
+  `H.gearSlots()`; the harness's `SetUV` records `uvSet` but doesn't change `uv` (what is drawn), as in game:
+  read a sweep through the test's `sweep(slot)`; `H.setVigor{ vigor = 64, ... }` / `H.setVigor(nil)` (+ `ShroudOnVigorChanged`; `H.S.vigor` without
   the callback); `H.setGuild(name, motd)` (no callback; the next tick sees it), `H.setMotd(text)` (+ `ShroudOnSocialChanged`),
   `H.setNotes{ unreadMail = 2, ... }` (+ `ShroudOnNotificationsChanged`), `H.notify()` (the window),
   `H.notice(key)` -> `{ shown, title, text }`; `H.nhud()` (the notification HUD), `H.nhudRow(i)` -> text,
@@ -766,3 +772,13 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     its icon and sweep lay out at exactly the buff slot's size (30.09 for size 30: UI scale), and the rows share
     one width (a Column stretches its rows). Gear slots now set `borderWidth = 0` like the buff slots; the
     "gear icons look larger / start further left" report went away with that build.
+48. Sprite-sheet frames (`Image` `uv` / `SetUV`, API 13). FOUND in game 2026-09-28 (`/toolbox buffs uvtest`, owner):
+    only an Image created with `uv` in its spec showed the right frame. `SetUV` on an existing Image changed
+    nothing on screen, nor with `SetTexture` first, a hide / `SetUV` / show at once, the show 0.1 s later, or
+    an `IconButton`; the docs say "step x to animate a sprite strip". So a sweep stayed at the frame it first
+    showed (why it "lined up after /lua reload, then lagged"). Fix: a new Image per frame (item 20's creation
+    cap: `BB.SWEEP_BUDGET` a tick, oldest first). Report it to the devs; if a client update fixes SetUV
+    (uvtest way 1 sweeps), the holder could go back to one Image stepped with `SetUV`.
+    Also seen in the same session: `/toolbox buffs frame 30` "didn't show on the first icon", consistent with
+    this (its overlay was already showing).
+

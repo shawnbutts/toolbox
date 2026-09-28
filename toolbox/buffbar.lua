@@ -593,11 +593,9 @@ local function makeSlot(debuff)
   local slotRef = {}
   local iconSpec = { width = s, height = s,  -- an Image only takes the pointer (tooltip) with a click handler
     onClick = function() clickSlot(slotRef) end }
-  local overlaySpec = { width = s, height = s, visible = false,
-    style = { marginLeft = -s } }      -- no absolute positioning: overlap by a negative margin
-  if clockTex >= 0 then iconSpec.texture, overlaySpec.texture = clockTex, clockTex end
+  if clockTex >= 0 then iconSpec.texture = clockTex end
   local icon = UI.Image(iconSpec)
-  local overlay = UI.Image(overlaySpec)
+  local overlay = BB.SweepHolder(s)
   local slot = UI.Row{ visible = false, children = { icon, overlay },
     style = { width = s, height = s, marginRight = BB.GAP, backgroundColor = "#00000066",
               borderWidth = debuff and 2 or 0, borderColor = "@red" } }
@@ -691,8 +689,11 @@ end
 -- Clears a slot's sweep and flash for its next buff. Slots are reused (never created per buff),
 -- and a red sweep stayed on the next buff in the slot after one ran out (reported 2026-09-28): so
 -- a new occupant starts from a clean slot, not from what the last one left.
+local pendingSweeps = {}      -- slots whose sweep needs a new frame (see drawSweeps)
+
 local function resetSlot(slot)
-  slot.overlay:SetVisible(false)
+  BB.HideFrame(slot)
+  slot.wantK, slot.wantWarn = nil, nil
   if slot.blink ~= false then slot.row:SetStyle{ borderWidth = 0 } end
   slot.k, slot.warn, slot.blink, slot.tip = nil, nil, false, nil
 end
@@ -703,31 +704,52 @@ end
 BB.FRAME_TEST_SECONDS = 15
 local frameTest = nil          -- { k, warn, till } while a test runs
 
--- How a new sweep frame is put on screen. REPORTED 2026-09-28 (`/toolbox buffs frame`): a frame set
--- while the overlay was hidden showed correctly, but SetUV on an overlay already showing changed
--- nothing on screen, so a sweep stayed at the frame it appeared with ("lags", "barely moves").
--- `/toolbox buffs redraw <method>` picks one for this session, to find which makes the game redraw:
---   uv       SetUV alone (the documented way: "step x to animate a sprite strip")
---   texture  SetTexture(clock) again, then SetUV
---   toggle   hide, SetUV, show
---   size     SetUV, then SetSize to the same size
---   all      texture + toggle + size
-BB.REDRAW_METHODS = { "uv", "texture", "toggle", "size", "all" }
-BB.redraw = "uv"
+-- How a sweep frame reaches the screen. FOUND in game 2026-09-28 (`/toolbox buffs uvtest`): this
+-- client draws an Image's UV only when the Image is created. SetUV on an existing one changes nothing
+-- on screen (also after SetTexture, a hide/show, or with an IconButton), so a sweep stayed at the frame
+-- it first showed: it "lagged", "barely moved", and sat under half covered at the expiry alert. So
+-- each slot's overlay is a holder (a Row over the icon, by negative margin) whose Image is replaced,
+-- with `uv` in its spec, whenever the frame changes. At most BB.SWEEP_BUDGET replacements per buff
+-- bar tick (the game limits element creation); a slot left over keeps its old frame and is redrawn
+-- next tick. If a client update makes SetUV redraw, the uvtest will show it (way 1 sweeping).
+BB.SWEEP_BUDGET = 24
+local sweepBudget, sweepRefilledAt = BB.SWEEP_BUDGET, -math.huge
 
-function BB.SetRedraw(method)
-  for _, m in ipairs(BB.REDRAW_METHODS) do
-    if m == method then
-      BB.redraw = method
-      for _, pool in pairs(slots) do
-        for _, slot in ipairs(pool) do slot.k = nil end      -- redraw every sweep now, the new way
-      end
-      if T.Gear then T.Gear.Redraw() end
-      BB.Tick()
-      return true
-    end
+-- A slot's overlay holder for an s px icon: empty and hidden until a frame is shown.
+function BB.SweepHolder(s)
+  return UI.Row{ visible = false, style = { width = s, height = s, marginLeft = -s } }
+end
+
+local function replaceSweep(holder, k, warn, s)
+  local x, y, w, h = BB.FrameUV(k, warn)
+  holder:Clear()
+  holder:Add(UI.Image{ texture = clockTex, width = s, height = s, uv = { x, y, w, h } })
+end
+
+-- Shows clock frame k (> 0) of the normal or red set in `slot.overlay` (an s px holder). Returns
+-- false when this tick's budget is spent (nothing changed: try again next tick).
+function BB.ShowFrame(slot, k, warn, s)
+  local now = T.Now()
+  if now - sweepRefilledAt >= BB.TICK then sweepBudget, sweepRefilledAt = BB.SWEEP_BUDGET, now end
+  if sweepBudget <= 0 then return false end
+  local ok = pcall(replaceSweep, slot.overlay, k, warn, s)
+  if not ok then                         -- the creation cap: leave it for the next tick
+    sweepBudget = 0
+    return false
   end
-  return false
+  sweepBudget = sweepBudget - 1
+  if slot.sweepShown ~= true then
+    slot.overlay:SetVisible(true)
+    slot.sweepShown = true
+  end
+  return true
+end
+
+function BB.HideFrame(slot)
+  if slot.sweepShown ~= false then
+    slot.overlay:SetVisible(false)
+    slot.sweepShown = false
+  end
 end
 
 -- /toolbox buffs uvtest: a standalone check of how the game redraws a sprite-sheet frame, away from
@@ -835,16 +857,6 @@ function BB.UVTest()
   return true
 end
 
--- Shows clock frame k (> 0) of the normal or red set on an overlay Image `img` of `s` px.
-function BB.ShowFrame(img, k, warn, s)
-  local m = BB.redraw
-  if m == "toggle" or m == "all" then img:SetVisible(false) end
-  if m == "texture" or m == "all" then img:SetTexture(clockTex) end
-  img:SetUV(BB.FrameUV(k, warn))
-  if (m == "size" or m == "all") and s then img:SetSize(s, s) end
-  img:SetVisible(true)
-end
-
 -- Starts (k = 0..FRAMES-1) or ends (k = nil) a frame test. Returns the number of icons it covers,
 -- or nil and a reason.
 function BB.FrameTest(k, warn)
@@ -917,11 +929,34 @@ local function fill(slot, e, fraction, warn, flash)
     end
   end
   if k ~= slot.k or warn ~= slot.warn then
-    slot.k, slot.warn = k, warn
     if k and k > 0 and clockTex >= 0 then
-      BB.ShowFrame(slot.overlay, k, warn, size())
+      slot.wantK, slot.wantWarn = k, warn        -- drawn by drawSweeps, oldest first, within the budget
+      if not slot.pending then
+        slot.pending = true
+        pendingSweeps[#pendingSweeps + 1] = slot
+      end
     else
-      slot.overlay:SetVisible(false)
+      BB.HideFrame(slot)
+      slot.k, slot.warn = k, warn
+    end
+  end
+end
+
+-- Redraws the sweeps fill() asked for, the longest-waiting first, as far as the budget goes (the
+-- rest stay pending: fill asks again next tick). Without the order, 30 sweeps changing every tick
+-- starved the last slots for good.
+local function byDrawnAt(a, b) return (a.drawnAt or -math.huge) < (b.drawnAt or -math.huge) end
+local function drawSweeps()
+  if #pendingSweeps == 0 then return end
+  table.sort(pendingSweeps, byDrawnAt)
+  local s, now = size(), T.Now()
+  for i = 1, #pendingSweeps do
+    local slot = pendingSweeps[i]
+    pendingSweeps[i] = nil
+    slot.pending = false
+    if slot.used and slot.wantK and (slot.wantK ~= slot.k or slot.wantWarn ~= slot.warn)
+        and BB.ShowFrame(slot, slot.wantK, slot.wantWarn, s) then
+      slot.k, slot.warn, slot.drawnAt = slot.wantK, slot.wantWarn, now
     end
   end
 end
@@ -1066,6 +1101,7 @@ function BB.Tick()
       if s then fill(slots.debuffs[i], s.e, s.fraction) else fill(slots.debuffs[i], nil) end
     end
     fillGroup(grouped)                 -- always last: the longest-lasting buffs
+    drawSweeps()
     fitFrame(math.min(#shownBuffs, BB.BUFF_SLOTS) + (#grouped > 0 and 1 or 0),
       math.min(#shownDebuffs, BB.DEBUFF_SLOTS))
   end
@@ -1364,8 +1400,8 @@ function BB.SetSize(n)
       for _, slot in ipairs(pool) do
         slot.row:SetStyle{ width = n, height = n }
         slot.icon:SetSize(n, n)
-        slot.overlay:SetSize(n, n)
-        slot.overlay:SetStyle{ marginLeft = -n }
+        slot.overlay:SetStyle{ width = n, height = n, marginLeft = -n }
+        slot.k = nil                           -- redraw the sweep at the new size
       end
     end
     if group then
@@ -1658,9 +1694,8 @@ function G.BuildRow()
   gSlots = {}
   for i = 1, G.SLOTS do
     local iconSpec = { width = s, height = s, onClick = function() end }   -- a click handler: tooltips show
-    local overlaySpec = { width = s, height = s, visible = false, style = { marginLeft = -s } }
-    if clockTex >= 0 then iconSpec.texture, overlaySpec.texture = clockTex, clockTex end
-    local icon, overlay = UI.Image(iconSpec), UI.Image(overlaySpec)
+    if clockTex >= 0 then iconSpec.texture = clockTex end
+    local icon, overlay = UI.Image(iconSpec), BB.SweepHolder(s)
     local slot = UI.Row{ visible = false, children = { icon, overlay },     -- as the buff slots' style
       style = { width = s, height = s, marginRight = BB.GAP, backgroundColor = "#00000066", borderWidth = 0 } }
     gSlots[i] = { row = slot, icon = icon, overlay = overlay }
@@ -1672,20 +1707,15 @@ function G.BuildRow()
 end
 G.BuildContent = G.BuildRow
 
--- Redraw every sweep on the next poll (BB.SetRedraw changed how).
-function G.Redraw()
-  for _, slot in ipairs(gSlots) do slot.k = nil end
-  lastPoll = -math.huge
-end
-
 -- The buff bar's icon size changed (BB.SetSize).
 function G.ApplySize(n)
   for _, slot in ipairs(gSlots) do
     slot.row:SetStyle{ width = n, height = n }
     slot.icon:SetSize(n, n)
-    slot.overlay:SetSize(n, n)
-    slot.overlay:SetStyle{ marginLeft = -n }
+    slot.overlay:SetStyle{ width = n, height = n, marginLeft = -n }
+    slot.k = nil                                -- redraw the sweep at the new size
   end
+  lastPoll = -math.huge                         -- ... on the next tick
   if G.Glued() then BB.Tick() else T.Hud.Refresh() end    -- re-fit the strip
 end
 
@@ -1707,8 +1737,11 @@ G.GetPosition, G.MoveTo, G.Nudge, G.ResetPosition = gearMover.Get, gearMover.Mov
   gearMover.Reset
 
 -- Puts gShownList into the slots (only what changed) and refits the strip when that changes.
+-- `gPending`: a sweep couldn't be drawn (the budget was spent); G.Tick tries again next second.
+local gPending = false
 local function fillGear()
   if not gContent then return end
+  gPending = false
   for i, slot in ipairs(gSlots) do
     local it = gShownList[i]
     if it then
@@ -1720,11 +1753,15 @@ local function fillGear()
       local k = it.dur <= 0 and (BB.CLOCK.FRAMES - 1) or BB.Frame(it.pct)
       local warn = stage ~= nil
       if k ~= slot.k or warn ~= slot.warn then
-        slot.k, slot.warn = k, warn
         if k > 0 and clockTex >= 0 then
-          BB.ShowFrame(slot.overlay, k, warn, size())
+          if BB.ShowFrame(slot, k, warn, size()) then
+            slot.k, slot.warn = k, warn
+          else
+            gPending = true
+          end
         else
-          slot.overlay:SetVisible(false)
+          BB.HideFrame(slot)
+          slot.k, slot.warn = k, warn
         end
       end
       T.SetTooltip(slot.icon, string.format("%s\nDurability %s / %s (%d%%)%s", it.name, T.FormatNumber(it.dur),
@@ -1753,7 +1790,10 @@ function G.Poll(force)
 end
 
 -- From Toolbox.Tick (1 s).
-function G.Tick() G.Poll(false) end
+function G.Tick()
+  G.Poll(false)
+  if gPending then fillGear() end
+end
 
 function G.Init()
   local saved = T.Load("gear")

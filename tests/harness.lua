@@ -527,7 +527,9 @@ end
 function Element:RemoveClass(name) self:Classes()[name] = nil end
 function Element:SetTexture(id) self.texture = id end
 function Element:SetColor(c) self.color = c end
-function Element:SetUV(x, y, w, h) self.uv = { x, y, w, h } end
+-- As in game (2026-09-28, /toolbox buffs uvtest): the client draws an Image's UV only when the Image
+-- is created, so SetUV is recorded (uvSet) but doesn't change what is drawn (uv).
+function Element:SetUV(x, y, w, h) self.uvSet = { x, y, w, h } end
 function Element:SetSize(w, h) self.width, self.height = w, h end
 -- Laid-out size. Models a theme class with a minimum height (H.S.themeMinHeight):
 -- an explicit minHeight overrides it; maxHeight caps the result.
