@@ -589,8 +589,19 @@ end
 
 add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off; add|remove <name>|reset]; "
     .. "combat on|off (only during combat); flash on|off; replace on|off; "
-    .. "dismiss on|off; debug; raw; trace [name]; frame <0-119> [red]|off)", function(rest)
+    .. "dismiss on|off; debug; raw; trace [name]; frame <0-119> [red]|off; redraw <way>)", function(rest)
   local word, name = T.ParseArgs(rest)
+  if word == "redraw" then
+    local B = T.BuffBar
+    local m = name:lower()
+    if m ~= "" and not B.SetRedraw(m) then
+      T.Print("Use /" .. T.commands[1] .. " buffs redraw " .. table.concat(B.REDRAW_METHODS, "|") .. ".")
+      return
+    end
+    T.Print("Sweeps are redrawn with: " .. B.redraw .. " (until /lua reload). Test it: /" .. T.commands[1]
+      .. " buffs frame 30, then frame 60: the icons should change from a quarter to half shaded.")
+    return
+  end
   if word == "frame" then
     local B = T.BuffBar
     local arg, extra = T.ParseArgs(name)

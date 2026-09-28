@@ -703,6 +703,43 @@ end
 BB.FRAME_TEST_SECONDS = 15
 local frameTest = nil          -- { k, warn, till } while a test runs
 
+-- How a new sweep frame is put on screen. REPORTED 2026-09-28 (`/toolbox buffs frame`): a frame set
+-- while the overlay was hidden showed correctly, but SetUV on an overlay already showing changed
+-- nothing on screen, so a sweep stayed at the frame it appeared with ("lags", "barely moves").
+-- `/toolbox buffs redraw <method>` picks one for this session, to find which makes the game redraw:
+--   uv       SetUV alone (the documented way: "step x to animate a sprite strip")
+--   texture  SetTexture(clock) again, then SetUV
+--   toggle   hide, SetUV, show
+--   size     SetUV, then SetSize to the same size
+--   all      texture + toggle + size
+BB.REDRAW_METHODS = { "uv", "texture", "toggle", "size", "all" }
+BB.redraw = "uv"
+
+function BB.SetRedraw(method)
+  for _, m in ipairs(BB.REDRAW_METHODS) do
+    if m == method then
+      BB.redraw = method
+      for _, pool in pairs(slots) do
+        for _, slot in ipairs(pool) do slot.k = nil end      -- redraw every sweep now, the new way
+      end
+      if T.Gear then T.Gear.Redraw() end
+      BB.Tick()
+      return true
+    end
+  end
+  return false
+end
+
+-- Shows clock frame k (> 0) of the normal or red set on an overlay Image `img` of `s` px.
+function BB.ShowFrame(img, k, warn, s)
+  local m = BB.redraw
+  if m == "toggle" or m == "all" then img:SetVisible(false) end
+  if m == "texture" or m == "all" then img:SetTexture(clockTex) end
+  img:SetUV(BB.FrameUV(k, warn))
+  if (m == "size" or m == "all") and s then img:SetSize(s, s) end
+  img:SetVisible(true)
+end
+
 -- Starts (k = 0..FRAMES-1) or ends (k = nil) a frame test. Returns the number of icons it covers,
 -- or nil and a reason.
 function BB.FrameTest(k, warn)
@@ -777,8 +814,7 @@ local function fill(slot, e, fraction, warn, flash)
   if k ~= slot.k or warn ~= slot.warn then
     slot.k, slot.warn = k, warn
     if k and k > 0 and clockTex >= 0 then
-      slot.overlay:SetUV(BB.FrameUV(k, warn))
-      slot.overlay:SetVisible(true)
+      BB.ShowFrame(slot.overlay, k, warn, size())
     else
       slot.overlay:SetVisible(false)
     end
@@ -1531,6 +1567,12 @@ function G.BuildRow()
 end
 G.BuildContent = G.BuildRow
 
+-- Redraw every sweep on the next poll (BB.SetRedraw changed how).
+function G.Redraw()
+  for _, slot in ipairs(gSlots) do slot.k = nil end
+  lastPoll = -math.huge
+end
+
 -- The buff bar's icon size changed (BB.SetSize).
 function G.ApplySize(n)
   for _, slot in ipairs(gSlots) do
@@ -1574,8 +1616,11 @@ local function fillGear()
       local warn = stage ~= nil
       if k ~= slot.k or warn ~= slot.warn then
         slot.k, slot.warn = k, warn
-        if k > 0 and clockTex >= 0 then slot.overlay:SetUV(BB.FrameUV(k, warn)) end
-        T.SetVisible(slot.overlay, k > 0 and clockTex >= 0)
+        if k > 0 and clockTex >= 0 then
+          BB.ShowFrame(slot.overlay, k, warn, size())
+        else
+          slot.overlay:SetVisible(false)
+        end
       end
       T.SetTooltip(slot.icon, string.format("%s\nDurability %s / %s (%d%%)%s", it.name, T.FormatNumber(it.dur),
         T.FormatNumber(it.max), math.floor(it.pct * 100), stage == "broken" and "\nBroken: repair it"

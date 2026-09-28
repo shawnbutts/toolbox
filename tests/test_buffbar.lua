@@ -708,6 +708,29 @@ return function(t)
     t.ok(H.logged("a frame from 0 to 119"))
   end)
 
+  t.test("/tbx buffs redraw picks how sweeps are redrawn; every way shows the right frame", function()
+    bootSettled()
+    H.S.durationMode = "remaining"
+    H.chat("/tbx buffs")
+    H.addBuffs({ { name = "Ward", remaining = 60, icon = 9 } })
+    H.advance(1, 0.5)
+    local c = B().CLOCK
+    for _, way in ipairs(B().REDRAW_METHODS) do
+      H.chat("/tbx buffs redraw " .. way)
+      t.eq(B().redraw, way)
+      H.chat("/tbx buffs frame 60")
+      local ov = H.slots("buffs")[1].children[2]
+      t.eq(math.floor(ov.uv[1] * c.COLS + 0.5) + math.floor(ov.uv[2] * c.ROWS * c.SETS + 0.5) * c.COLS, 60, way)
+      t.eq(ov.visible, true, way)
+      t.eq(ov.width, B().GetSize(), way .. ": still the icon's size")
+    end
+    H.clearLogs()
+    H.chat("/tbx buffs redraw sideways")
+    t.ok(H.logged("uv|texture|toggle|size|all"))
+    H.reload()
+    t.eq(B().redraw, "uv", "a reload goes back to the documented way")
+  end)
+
   t.test("/tbx buffs trace says which sweep frame is on screen", function()
     bootSettled()
     H.S.durationMode = "remaining"
