@@ -335,6 +335,14 @@ local function install_api()
     return e.remaining
   end
   ShroudGetBuffIcon = function(i) local e = effect(i); return e and (e.icon or -1) or -1 end
+  -- Buff categories (API 23). H.S.noCategories = true: an older client.
+  if not S.noCategories then
+    ShroudBuffCategories = { "Other", "Food", "Potion", "Blessing", "Poison", "Skill", "Song", "Pet", "Consumable",
+                             "Equipment", "Event", "Environment", "Creature" }
+    ShroudGetBuffCategory = function(i) local e = effect(i); return e and H.categoryOf(e) or nil end
+  else
+    ShroudBuffCategories, ShroudGetBuffCategory = nil, nil
+  end
   ShroudGetBuffDescription = function(i) local e = effect(i); return e and (e.label or e.name) or "Invalid" end
   ShroudGetBuffTooltip = function(i)
     local e = effect(i)
@@ -349,6 +357,7 @@ local function install_api()
       if not r then
         r = { RuneName = e.name, RuneId = #out + 1, IsDebuff = e.debuff == true, IconId = e.icon or -1,
               StackCount = 0, Effects = {} }
+        if not S.noCategories then r.Category = H.categoryOf(e) end
         by[e.name] = r
         out[#out + 1] = r
       end
@@ -977,6 +986,18 @@ end
 function H.setMotd(motd)
   S.social.guildMotd = motd
   return H.callback("ShroudOnSocialChanged")
+end
+
+-- A buff's category as the game gives it (API 23): `category` when a test sets one, otherwise from the
+-- names seen in game (food, Obsidian potions, shrine blessings), Creature for a debuff, else Skill.
+function H.categoryOf(e)
+  if e.category then return e.category end
+  local n = e.name or ""
+  if n:find("^RuneFood_") then return "Food" end
+  if n:find("^BlessingOf") then return "Potion" end
+  if n:find("^POT_") or n:find("^Rune_Reward_Blessing") then return "Blessing" end
+  if e.debuff then return "Creature" end
+  return "Skill"
 end
 
 -- API 18 result events, with the documented fields (see the reference): a list of results + dropped.

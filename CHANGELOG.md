@@ -6,6 +6,11 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- The consumables bar uses the game's buff categories (API 23): food, potions, weapon poisons and
+  combat consumables (caltrops, bombs) by default, one checkbox per category in settings (or
+  `/toolbox consumables cat <Category> on|off`). Names containing Scroll, Torch or Bait stay off it
+  (`/toolbox consumables exclude add|remove <name>`). Older clients keep the name rules for food and
+  potions. `/toolbox buffs raw` shows each buff's category; `/toolbox api` lists the new functions.
 - Crafted and Gathered in Today Detailed: a Show dropdown switches between Looted, Crafted (items
   you took off crafting stations today, your crafts per recipe with exceptional and failed, and
   crafting XP; `/toolbox crafted`) and Gathered (what the nodes you harvested held, nodes, failed

@@ -379,7 +379,7 @@ including the "no character" sentinel.
 | `notify` | `{ v = 1, sources = { [key] = { on = bool, seen = last value delivered, via = "window" } } }` (keys: motd, mail, expiring, ransoms, rewards, applications, durability; durability's `seen` is a table `{ [item key] = "low"/"broken" }`, read back as string keys and values only); the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), x, y }` |
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most `Notify.Hud.KEEP` (20) |
-| `consumables` | `{ show = bool (default true), glue = bool, extra = { name parts, <= 20 }, x, y }` |
+| `consumables` | `{ show = bool (default true), glue = bool, extra = { name parts, <= 20 }, cats = { [category] = true } (absent: defaults), exclude = { name parts } (absent: Scroll, Torch, Bait), x, y }` |
 | `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` (the equipment bar) |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts (unversioned ignored) |
 
@@ -486,7 +486,12 @@ docking, no `ShroudOnBuffBarMoved`.
    sweeps), go back to one overlay Image per slot stepped with SetUV (`BB.ShowFrame`). If a radial fill
    (`SetFill`) or a client-run sweep (`SetSweep(start, duration)`) appears, feature-detect it in
    `BB.ShowFrame` / `BB.HideFrame` and keep the new-Image path as the fallback.
-2. **Buff category metadata** (the owner expects it). Use it to replace the name guesses: consumables
+2. **Buff category metadata**: ARRIVED in API 23 (2026-09-29) and USED for the consumables bar
+   (`BB.TakesConsumable`, pure; `K.Categories`, `K.HasCategories`; checkboxes `cons_cat_<Key>`; defaults Food,
+   Potion, Poison, Consumable, owner: "combat focused"; `exclude` name parts Scroll/Torch/Bait because the
+   Consumable category also holds scrolls, torches and bait). Unconfirmed in game: the rune names of those
+   (the exclude parts are guesses; `/toolbox buffs raw` shows names and categories), and that a weapon poison
+   shows as a Poison buff that isn't IsDebuff. Not used yet for the buff bar's grouping. Was: (the owner expects it). Use it to replace the name guesses: consumables
    (`BB.ConsumableKind`: food, potions, and weapon poisons, which aren't visible by name at all yet) and
    the buff bar's grouping. Keep the name rules as the fallback for older clients, and read the new field
    through `BB.ReadRunes`' userdata-safe accessor. Don't guess the field's name or values: wait for the docs.

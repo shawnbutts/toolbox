@@ -112,13 +112,18 @@ D.SECTIONS = {
       .. "fight and the whole session with the dropdown (or /toolbox combat detail session). /toolbox "
       .. "combat reset clears both." },
   { "Consumables bar",
-    "Food and Obsidian potions in effect get their own bar: their icons with the sweep, soonest to run "
-      .. "out first, and off the buff bar. When one is about to run out it flashes red and the buff "
+    "Food, potions (Obsidian ones included), weapon poisons and combat consumables like caltrops get their "
+      .. "own bar, by the kind the game gives each buff. Pick the kinds in settings (Consumables & gear, one "
+      .. "checkbox each) or with /toolbox consumables cat <Kind> on|off; names containing Scroll, Torch or "
+      .. "Bait are left out (/toolbox consumables exclude add|remove <name>).",
+    "They show as icons with the sweep, soonest to run out first, and leave the buff bar. "
+      .. "When one is about to run out it flashes red and the buff "
       .. "alert sounds (the buff bar's alert settings), and once it has run out it goes. Glue it to the "
       .. "buff bar (settings, or /toolbox consumables glue on) to make it a row under the debuffs.",
     "Other buffs can go on it too: /toolbox consumables add <name or part of one> (remove to undo). "
       .. "/toolbox consumables lists what is in effect; /toolbox consumables bar off puts food and potions "
-      .. "back on the buff bar. Weapon poisons: if yours shows as a buff, add its name." },
+      .. "back on the buff bar. On a game client without buff categories only food and potions are "
+      .. "recognised (by name)." },
   { "Gear repair",
     "The equipment bar shows worn items that need repair: each item's icon with a red sweep for the "
       .. "durability it has lost, lowest first; hover one for its durability. It shows only items below "

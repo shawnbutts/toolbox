@@ -967,37 +967,70 @@ add("combat", "combat stats HUD; add stats while playing: /toolbox combat help",
   end
 end)
 
-add("consumables", "food and potions in effect, on their own bar (bar on|off; glue on|off: under the buff bar; "
-    .. "add|remove <name>: track more; move [x y])", function(rest)
+add("consumables", "food, potions and combat items in effect, on their own bar (bar on|off; glue on|off; "
+    .. "cat <Category> on|off: which kinds; add|remove <name>: always on it; exclude add|remove <name>: "
+    .. "never; move [x y])", function(rest)
   local K = T.Consumables
   local word, args = T.ParseArgs(rest)
   local a = args:lower()
+  local c = "/" .. T.commands[1] .. " consumables "
   if word == "" then
-    local list = K.Current()
+    local cats = {}
+    for _, key in ipairs(K.Categories()) do
+      if K.GetCategory(key) then cats[#cats + 1] = key end
+    end
     T.Print("Consumables bar: " .. (K.GetShow() and "on" or "off") .. (K.GetGlue() and ", glued to the buff bar" or "")
-      .. ". Tracked: food (RuneFood_...), Obsidian potions (BlessingOf...)"
-      .. (#K.Extra() > 0 and (", and names containing " .. table.concat(K.Extra(), ", ")) or "") .. ".")
+      .. ". Kinds: " .. (#cats > 0 and table.concat(cats, ", ") or "none")
+      .. (K.HasCategories() and "" or " (this client has no buff categories: Food and Potion go by name)") .. ".")
+    if #K.Exclude() > 0 then T.Print("Left out: names containing " .. table.concat(K.Exclude(), ", ") .. ".") end
+    if #K.Extra() > 0 then T.Print("Always on it: names containing " .. table.concat(K.Extra(), ", ") .. ".") end
+    local list = K.Current()
     if #list == 0 then T.Print("None in effect.") end
-    for _, c in ipairs(list) do
-      T.Print(string.format("  %s (%s, %s): %s left", c.label, c.kind, c.name, T.FormatDuration(c.remaining)))
+    for _, e in ipairs(list) do
+      T.Print(string.format("  %s (%s, %s): %s left", e.label, e.category, e.name, T.FormatDuration(e.remaining)))
     end
   elseif word == "bar" then
     if a == "on" or a == "off" then K.SetShow(a == "on") end
-    T.Print("Consumables bar: " .. (K.GetShow() and "on" or "off (food and potions stay on the buff bar)") .. ".")
+    T.Print("Consumables bar: " .. (K.GetShow() and "on" or "off (they stay on the buff bar)") .. ".")
   elseif word == "glue" then
     if a == "on" or a == "off" then K.SetGlue(a == "on") end
     T.Print("Consumables bar glued under the buff bar: " .. (K.GetGlue() and "on" or "off")
       .. (K.GetGlue() and not T.BuffBar.IsEnabled() and " (the buff bar is off, so it has its own strip)" or "")
       .. ".")
+  elseif word == "cat" then
+    local name, onoff = T.ParseArgs(args)
+    local key = nil
+    for _, k in ipairs(K.Categories()) do
+      if k:lower() == name:lower() then key = k end
+    end
+    onoff = onoff:lower()
+    if not key or (onoff ~= "on" and onoff ~= "off") then
+      T.Print("Use " .. c .. "cat <Category> on|off. Categories: " .. table.concat(K.Categories(), ", ") .. ".")
+      return
+    end
+    K.SetCategory(key, onoff == "on")
+    T.Print(key .. " on the consumables bar: " .. onoff .. ".")
   elseif word == "add" or word == "remove" then
     local ok, msg = nil, nil
     if word == "add" then ok, msg = K.AddExtra(args) else ok, msg = K.RemoveExtra(args) end
     T.Print(msg)
     return ok
+  elseif word == "exclude" then
+    local verb, part = T.ParseArgs(args)
+    local ok, msg = nil, nil
+    if verb == "add" then
+      ok, msg = K.AddExclude(part)
+    elseif verb == "remove" then
+      ok, msg = K.RemoveExclude(part)
+    else
+      msg = "Use " .. c .. "exclude add <name> or exclude remove <name>."
+    end
+    T.Print(msg)
+    return ok
   elseif word == "move" then
     T.MoveCommand(K, "consumables", "Consumables bar", args)
   else
-    T.Print("Unknown: /" .. T.commands[1] .. " consumables " .. word .. ". Try /" .. T.commands[1] .. " help.")
+    T.Print("Unknown: " .. c .. word .. ". Try /" .. T.commands[1] .. " help.")
   end
 end)
 
@@ -1159,6 +1192,10 @@ function T.ApiLines()
       { "ShroudGetGuildMembers", has(ShroudGetGuildMembers) },
       { "ShroudGetGuildMotd", has(ShroudGetGuildMotd) } } },
     { "Vigor (API 20)", { { "ShroudGetVigor", has(ShroudGetVigor) } } },
+    { "Buff categories (API 23)", {
+      { "ShroudGetBuffCategory", has(ShroudGetBuffCategory) },
+      { "ShroudGetTargetBuffCategory", has(ShroudGetTargetBuffCategory) },
+      { "ShroudBuffCategories", type(ShroudBuffCategories) == "table" } } },
   }
   local lines = { "Lua API " .. tostring(ShroudLuaApiVersion) .. " (the docs describe 22)." }
   for _, g in ipairs(groups) do

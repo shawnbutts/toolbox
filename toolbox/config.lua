@@ -240,6 +240,10 @@ function C.ConsumablesGearSection()
       tooltip = "Food and Obsidian potions in effect, with the buff bar's sweep, flash and alert; they leave"
         .. " the buff bar. Off: they stay on the buff bar.",
       onChange = function(_, v) K.SetShow(v) end },
+    C.CategoryToggles(),
+    UI.Label{ id = "cons_exclude", text = "", class = "dim", style = { whiteSpace = "wrap", marginTop = 4 },
+      tooltip = "Buffs whose names contain these stay off the bar (the Consumable kind also has scrolls, torches"
+        .. " and bait)" },
     UI.Label{ id = "consumables_extra", text = "", class = "dim", style = { whiteSpace = "wrap" },
       tooltip = "Buffs whose names contain these go on the bar too" },
     heading("Equipment bar"),
@@ -254,6 +258,29 @@ function C.ConsumablesGearSection()
     UI.Label{ text = "Glue either bar to the buff bar, and place them, under HUD layout.", class = "dim",
       style = { whiteSpace = "wrap", marginTop = 6 } },
   } }
+end
+
+-- A checkbox per buff category for the consumables bar (the game's categories, API 23).
+local CATEGORY_TIPS = {
+  Food = "Food and drink", Potion = "Potions, Obsidian ones included", Blessing = "Shrine, store, reward, virtue"
+    .. " and event blessings", Poison = "Weapon poisons (a poison on you stays a debuff)",
+  Consumable = "Bombs, caltrops, scrolls, torches, bait (see Left out below)", Skill = "Effects of your skills",
+  Song = "Bard songs", Pet = "Pet effects", Equipment = "Armor and weapon procs", Event = "Fireworks, event powerups",
+  Environment = "Hazards and fields", Creature = "Effects from creatures", Other = "Anything else",
+}
+function C.CategoryToggles()
+  local K = T.Consumables
+  local children = {
+    UI.Label{ text = "Kinds on the bar", class = "text", style = { marginTop = 6 },
+      tooltip = K.HasCategories() and "The game sorts every buff into one of these"
+        or "This game client has no buff categories (Lua API 23): Food and Potion go by name" },
+  }
+  for _, key in ipairs(K.Categories()) do
+    children[#children + 1] = UI.Toggle{ id = "cons_cat_" .. key, text = key, value = K.GetCategory(key),
+      style = { marginLeft = 16 }, tooltip = CATEGORY_TIPS[key] or key,
+      onChange = function(_, v) K.SetCategory(key, v) end }
+  end
+  return UI.Column{ children = children }
 end
 
 -- The "Health bars" category.
@@ -442,6 +469,8 @@ for _, src in ipairs(T.Notify.Sources()) do
   ALL_IDS[#ALL_IDS + 1] = "notify_" .. src.key .. "_via"
 end
 for _, p in ipairs(POSITIONED) do ALL_IDS[#ALL_IDS + 1] = p[1] .. "_pos" end
+for _, key in ipairs(T.Consumables.Categories()) do ALL_IDS[#ALL_IDS + 1] = "cons_cat_" .. key end
+ALL_IDS[#ALL_IDS + 1] = "cons_exclude"
 
 -- Shows one category (by key or label), building it the first time. Returns true when it shows.
 function C.ShowCategory(which)
@@ -664,7 +693,15 @@ function C.Sync()
   setEnabled("buff_replace", buffsOn and B.CanReplace())
   setEnabled("buff_dismiss", buffsOn and B.CanDismiss())
   -- Consumables & gear
-  setValue("show_consumables", T.Consumables.GetShow())
+  local K = T.Consumables
+  setValue("show_consumables", K.GetShow())
+  for _, key in ipairs(K.Categories()) do
+    setValue("cons_cat_" .. key, K.GetCategory(key))
+    setEnabled("cons_cat_" .. key, K.GetShow() and (K.HasCategories() or key == "Food" or key == "Potion"))
+  end
+  local left = K.Exclude()
+  setText("cons_exclude", "Left out by name: " .. (#left > 0 and table.concat(left, ", ") or "none")
+    .. " (/toolbox consumables exclude add <name>)")
   local extra = T.Consumables.Extra()
   setText("consumables_extra", "Also tracked by name: " .. (#extra > 0 and table.concat(extra, ", ") or "none")
     .. " (/toolbox consumables add <name>)")

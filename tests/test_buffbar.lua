@@ -1502,7 +1502,7 @@ return function(t)
     t.ok(H.logged("^ShroudGetPlayerBuff%(%): table, 2 entries %(2 read%); 2 RuneNames match the 2 names from "
       .. "ShroudGetBuffName$"))
     t.ok(H.logged("^  %[2%] table: RuneName=WolfSpecialAttack2; RuneId=2; IsDebuff=true; IconId=6; StackCount=1; "
-      .. "Effects=1 %[1%] {Description=, Value=0, "))
+      .. "Category=Creature; Effects=1 %[1%] {Description=, Value=0, "))
   end)
 
   t.test("game objects instead of tables (as in game): debuff flag, icons and durations are read", function()

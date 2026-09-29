@@ -184,6 +184,46 @@ function BB.ConsumableKind(name, label, extra)
   return nil
 end
 
+-- The game's buff categories (API 23), in its order; ShroudBuffCategories replaces this where it exists.
+-- A key the add-on doesn't know (a later client) counts as "Other".
+BB.CATEGORIES = { "Other", "Food", "Potion", "Blessing", "Poison", "Skill", "Song", "Pet", "Consumable",
+                  "Equipment", "Event", "Environment", "Creature" }
+
+local function knownCategory(key)
+  for _, k in ipairs(BB.CATEGORIES) do
+    if k == key then return true end
+  end
+  return false
+end
+
+local function containsAny(name, label, parts)
+  local lname, llabel = name:lower(), type(label) == "string" and label:lower() or ""
+  for _, part in ipairs(parts or {}) do
+    local l = part:lower()
+    if l ~= "" and (lname:find(l, 1, true) or llabel:find(l, 1, true)) then return true end
+  end
+  return false
+end
+
+-- Whether a buff goes on the consumables bar (pure). `category`: the game's (API 23) or nil on an older
+-- client (then the name rules, BB.ConsumableKind, stand for Food and Potion). `cats`: category -> true for
+-- the ticked ones. `exclude`: name parts left out ("scroll": the Consumable category mixes combat items
+-- like caltrops with scrolls, torches and bait; owner, 2026-09-29). `extra`: name parts always taken.
+-- Debuffs never (a poison on you is Poison + IsDebuff).
+function BB.TakesConsumable(name, label, category, debuff, cats, exclude, extra)
+  if debuff or type(name) ~= "string" then return false end
+  if containsAny(name, label, exclude) then return false end
+  if containsAny(name, label, extra) then return true end
+  local cat = category
+  if cat == nil then
+    local kind = BB.ConsumableKind(name, label, nil)
+    if kind == "food" then cat = "Food" elseif kind == "potion" then cat = "Potion" end
+  elseif not knownCategory(cat) then
+    cat = "Other"
+  end
+  return cat ~= nil and cats[cat] == true
+end
+
 -- Clock frame for a fraction remaining: 0 = full time left (no shading). The NEAREST frame: rounding
 -- down kept the shading behind the true position by up to a frame (1/120 of the buff; 7.5 s of a
 -- 15-minute one), and the game's own bar sweeps smoothly (reported 2026-09-28: "ours lags behind").
@@ -420,7 +460,7 @@ local function items(list)
   return out
 end
 
-BB.RUNE_FIELDS = { "RuneName", "RuneId", "IsDebuff", "IconId", "StackCount" }
+BB.RUNE_FIELDS = { "RuneName", "RuneId", "IsDebuff", "IconId", "StackCount", "Category" }   -- Category: API 23
 BB.EFFECT_FIELDS = { "Description", "Value", "CurrentDuration", "TotalDuration", "TotalTick" }
 
 -- ShroudGetPlayerBuff()'s answer as { { RuneName, RuneId, IsDebuff, IconId, StackCount,
@@ -459,8 +499,10 @@ function BB.OnBuffsChanged(from)
   for _, rune in ipairs(list) do
     runes[rune.RuneName] = { debuff = rune.IsDebuff == true, icon = rune.IconId,
       total = BB.TotalFromEffects(remainingByName[rune.RuneName], rune.Effects) }
+    if type(rune.Category) == "string" and rune.Category ~= "" then runes[rune.RuneName].category = rune.Category end
     if rune.IsDebuff == true then now[rune.RuneName] = true end
   end
+  K.Forget()                           -- categories may have arrived: decide consumables again
   local new = BB.NewNames(debuffs, now)
   debuffs = now
   if #new == 0 then return end
@@ -1981,7 +2023,22 @@ K.HOME = { 40, 340 }
 K.SLOTS = 10
 K.EXTRA_MAX = 20
 
-local kprefs = { show = true, glue = false, extra = {} }
+K.DEFAULT_CATS = { Food = true, Potion = true, Poison = true, Consumable = true }   -- combat focused (owner)
+K.DEFAULT_EXCLUDE = { "Scroll", "Torch", "Bait" }
+
+local function defaultCats()
+  local out = {}
+  for k in pairs(K.DEFAULT_CATS) do out[k] = true end
+  return out
+end
+
+local function defaultExclude()
+  local out = {}
+  for i, p in ipairs(K.DEFAULT_EXCLUDE) do out[i] = p end
+  return out
+end
+
+local kprefs = { show = true, glue = false, extra = {}, cats = defaultCats(), exclude = defaultExclude() }
 local kCache = {}              -- rune name -> kind or false (a rune's name and label don't change)
 local kShown = nil             -- K.IsShown() last time, to refresh the HUD when it changes
 
@@ -2001,13 +2058,49 @@ end
 -- Whether effect e goes on the consumables bar (it is on, and e is food, a potion or an added name).
 function K.Takes(e)
   if kprefs.show ~= true then return false end
-  local kind = kCache[e.name]
-  if kind == nil then
-    kind = BB.ConsumableKind(e.name, labelFor(e), kprefs.extra) or false
-    kCache[e.name] = kind
+  local take = kCache[e.name]
+  if take == nil then
+    local rune = runes[e.name] or NOTHING
+    take = BB.TakesConsumable(e.name, labelFor(e), rune.category, rune.debuff == true, kprefs.cats,
+      kprefs.exclude, kprefs.extra)
+    kCache[e.name] = take
   end
-  return kind ~= false
+  return take
 end
+
+-- Forgets the decisions (the buff list's categories or the settings changed).
+function K.Forget() kCache = {} end
+
+-- The category keys, in the game's order.
+function K.Categories()
+  if type(ShroudBuffCategories) == "table" and #ShroudBuffCategories > 0 then
+    local out = {}
+    for i, k in ipairs(ShroudBuffCategories) do out[i] = k end
+    return out
+  end
+  return BB.CATEGORIES
+end
+
+-- Whether this client reports buff categories (API 23); without them only Food and Potion (by name) work.
+function K.HasCategories() return type(ShroudGetBuffCategory) == "function" end
+
+function K.GetCategory(key) return kprefs.cats[key] == true end
+
+function K.SetCategory(key, on)
+  local known = false
+  for _, k in ipairs(K.Categories()) do
+    if k == key then known = true end
+  end
+  if not known then return false end
+  if on then kprefs.cats[key] = true else kprefs.cats[key] = nil end
+  kSave()
+  kCache = {}
+  BB.Tick()
+  T.Config.Sync()
+  return true
+end
+
+function K.Exclude() return kprefs.exclude end
 
 function K.IsShown()
   if kprefs.show ~= true or K.Glued() then return false end
@@ -2067,32 +2160,44 @@ function K.Fill(list)
   kShown = shownNow
 end
 
--- The consumables in effect now, for /toolbox consumables: { label, kind, remaining }.
+-- The consumables in effect now, for /toolbox consumables: { label, name, category }.
 function K.Current()
   local out = {}
   for _, e in ipairs(readEffects()) do
     local rune = runes[e.name] or NOTHING
-    if not rune.debuff then
-      local kind = BB.ConsumableKind(e.name, labelFor(e), kprefs.extra)
-      if kind then out[#out + 1] = { label = labelFor(e), name = e.name, kind = kind, remaining = e.remaining } end
+    if BB.TakesConsumable(e.name, labelFor(e), rune.category, rune.debuff == true, kprefs.cats, kprefs.exclude,
+        kprefs.extra) then
+      out[#out + 1] = { label = labelFor(e), name = e.name, category = rune.category or "by name",
+                        remaining = e.remaining }
     end
+  end
+  return out
+end
+
+-- A saved list of name parts, keeping strings only, at most K.EXTRA_MAX.
+local function nameParts(list)
+  local out = {}
+  for _, part in ipairs(type(list) == "table" and list or {}) do
+    if type(part) == "string" and part ~= "" and #out < K.EXTRA_MAX then out[#out + 1] = part end
   end
   return out
 end
 
 function K.Init()
   local saved = T.Load("consumables")
-  kprefs = { show = true, glue = false, extra = {} }
+  kprefs = { show = true, glue = false, extra = {}, cats = defaultCats(), exclude = defaultExclude() }
   if type(saved) == "table" then
     kprefs.show = saved.show ~= false
     kprefs.glue = saved.glue == true
-    if type(saved.extra) == "table" then
-      for _, part in ipairs(saved.extra) do
-        if type(part) == "string" and part ~= "" and #kprefs.extra < K.EXTRA_MAX then
-          kprefs.extra[#kprefs.extra + 1] = part
-        end
+    kprefs.extra = nameParts(saved.extra)
+    -- categories arrived later (API 23): a save without them keeps the defaults
+    if type(saved.cats) == "table" then
+      kprefs.cats = {}
+      for k, v in pairs(saved.cats) do
+        if type(k) == "string" and v == true then kprefs.cats[k] = true end
       end
     end
+    if type(saved.exclude) == "table" then kprefs.exclude = nameParts(saved.exclude) end
     if type(saved.x) == "number" and type(saved.y) == "number" then kprefs.x, kprefs.y = saved.x, saved.y end
   end
   kCache, kCount, kShown, kContent = {}, 0, nil, nil
@@ -2123,33 +2228,53 @@ function K.SetGlue(on)
 end
 
 -- Adds / removes a name part (any case; matched in the rune name or the displayed name). Returns ok, message.
-function K.AddExtra(part)
-  part = T.Trim(part or "")
-  if part == "" then return false, "Give a name, or part of one: /" .. T.commands[1] .. " consumables add Poison" end
-  for _, p in ipairs(kprefs.extra) do
-    if p:lower() == part:lower() then return false, "Already tracked: " .. p .. "." end
-  end
-  if #kprefs.extra >= K.EXTRA_MAX then return false, "At most " .. K.EXTRA_MAX .. " names." end
-  kprefs.extra[#kprefs.extra + 1] = part
+local function changedLists()
   kSave()
   kCache = {}
   BB.Tick()
   T.Config.Sync()
-  return true, "Buffs matching '" .. part .. "' now go on the consumables bar."
 end
 
-function K.RemoveExtra(part)
+-- Adds a name part to a list ("extra": always on the bar; "exclude": never). Returns ok, message.
+local function addPart(list, part, done, example)
+  part = T.Trim(part or "")
+  if part == "" then return false, "Give a name, or part of one: " .. example end
+  for _, p in ipairs(list) do
+    if p:lower() == part:lower() then return false, "Already in the list: " .. p .. "." end
+  end
+  if #list >= K.EXTRA_MAX then return false, "At most " .. K.EXTRA_MAX .. " names." end
+  list[#list + 1] = part
+  changedLists()
+  return true, string.format(done, part)
+end
+
+local function removePart(list, part, done)
   part = T.Trim(part or ""):lower()
-  for i, p in ipairs(kprefs.extra) do
+  for i, p in ipairs(list) do
     if p:lower() == part then
-      table.remove(kprefs.extra, i)
-      kSave()
-      kCache = {}
-      BB.Tick()
-      T.Config.Sync()
-      return true, "No longer tracked: " .. p .. "."
+      table.remove(list, i)
+      changedLists()
+      return true, string.format(done, p)
     end
   end
   return false, "Not in the list: " .. part .. "."
+end
+
+function K.AddExtra(part)
+  return addPart(kprefs.extra, part, "Buffs matching '%s' now go on the consumables bar.",
+    "/" .. T.commands[1] .. " consumables add Poison")
+end
+
+function K.RemoveExtra(part)
+  return removePart(kprefs.extra, part, "No longer always on the bar: %s.")
+end
+
+function K.AddExclude(part)
+  return addPart(kprefs.exclude, part, "Buffs matching '%s' stay off the consumables bar.",
+    "/" .. T.commands[1] .. " consumables exclude add Scroll")
+end
+
+function K.RemoveExclude(part)
+  return removePart(kprefs.exclude, part, "No longer left out: %s.")
 end
 

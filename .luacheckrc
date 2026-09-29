@@ -78,7 +78,7 @@ local api_values = {
   "ShroudPlayerX", "ShroudPlayerY", "ShroudPlayerZ", "ShroudPlayerCurrentHealth", "ShroudPlayerCurrentFocus",
   "ShroudPlayerGold", "ShroudTime", "ShroudDeltaTime", "ShroudRealDeltaTime", "ShroudServerTime",
   "ShroudMouseX", "ShroudMouseY",
-  "ShroudLuaApiVersion", "ShroudLuaPath", "ShroudDataPath", "InvalidStatResult",
+  "ShroudLuaApiVersion", "ShroudLuaPath", "ShroudDataPath", "InvalidStatResult", "ShroudBuffCategories",
   "UI", "ButtonMode", "Transition", "ContentType", "AudioType", "TextAnchor", "LuaVector2", "LuaVector3",
 }
 
@@ -87,6 +87,7 @@ local api_values = {
 local api_probed = {
   "ShroudGetRecipe", "ShroudGetCraftingState", "ShroudGetFriends", "ShroudGetGuildMembers", "ShroudGetGuildMotd",
   "ShroudGetVigor",                                         -- API 20
+  "ShroudGetBuffCategory", "ShroudGetTargetBuffCategory",  -- API 23
 }
 
 -- Callbacks an add-on may define. Listed as writable globals.
