@@ -333,12 +333,22 @@ appears, feature-detect it in `BB.ShowFrame` / `HideFrame`); a read-only game se
 game's "stack buffs lasting longer than" option feeding `BB.GroupAfter()`). Reported, see
 `tmp/client-issues.md`: `ShroudPlayerCurrentHealth` / `Focus` nil, the `card` class drawing nothing,
 `ShroudGetPlayerBuff()` entries being userdata, `primaryDurability` undocumented, no max health / focus
-getter, `ShroudGetTargetName()`'s "Entity with no name (...)" fallback.
+getter, `ShroudGetTargetName()`'s "Entity with no name (...)" fallback. Worth requesting for the Party Toolbelt: party
+members' buffs / debuffs (a `ShroudGetPartyMemberBuff*` family) and a party-changed event.
 
 **Agreed for later:** a combat stat picker in settings (the chosen stats, a search field, a dropdown of
 matching stats, Add / Remove like `C.NameList`; keep the chat commands).
 
-**Ideas, not agreed:** target options (effects shown, icon count); compact XP / Today windows (API 19); a
+**Ideas, not agreed:** a **Party Toolbelt** (owner, 2026-09-29): a dedicated party strip, separate from the
+player's own Toolbelt, so a healer keeps their Toolbelt for themselves and watches the party on its own
+strip: a row per member (name, health and focus bars sized like the player's, members in another scene
+dimmed, the lowest health flagged). Party API (base API; see the reference's "Party" section):
+`ShroudGetPartyMemberCount` / `Name(slot)` (slots aren't dense), health and focus by slot or, preferred, by
+name (`...InScene(name)`, `ShroudGetPartyMemberNamesInScene`); only members in your scene have vitals (else
+-1); no party-change or vitals events (poll); NO party member buffs (a request for the devs), and player
+targets expose only vitals; combat events carry a `party` flag. It needs a HUD frame of its own: with all
+9 strips on there are only 8 frames, so decide what gives way (or merge rarely-used strips) first. Also:
+target options (effects shown, icon count); compact XP / Today windows (API 19); a
 sound per notification source; a crafting skill tracker and a recipe lookup / shopping list (as Today
 Detailed views: no window slot left); a gathering session HUD; lock-position / snap presets for strips
 (only if a strip's grip can be hidden).
