@@ -849,5 +849,9 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     The product reached the bags (`ShroudOnItemsGained`) 23 s later, when taken off the station, so pairing by
     time doesn't work. Plan: crafted rows by recipe (crafts, exceptional, failed, XP); products counted as the
     items gained while a crafting window is open (`T.probe.stationItems`); report the `item` field to the devs.
-    Pending: gathered names vs items gained (the probe now reports it).
+    CONFIRMED 2026-09-29 (second probe run): gathered names match the items gained exactly (Raw Cotton,
+    Beetle Carapace, Hopper (Bait) from a Cotton Plant), and items gained while a crafting window was open
+    caught the product ("Crimson Pine Board x2"; the result said `crafted=1`, `item=Recipe: Crimson Pine
+    Board`). Recipe names don't always carry a station suffix, and item names can have brackets ("Hopper
+    (Bait)"): don't derive product names from recipe names beyond dropping "Recipe: ". Salvage: not seen yet.
 
