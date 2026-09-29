@@ -5,6 +5,11 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Changed
+- Target HUD in the Toolbelt: no name line (it's in the tooltip); the health and focus bars are the same
+  length and thickness as your own (the health bars' Size and Bar length), with the percent beside them.
+  On its own strip it keeps the name.
+
 ### Fixed
 - Target HUD: creatures the game has no display name for (it reports "Entity with no name (Stag_04_Large(Clone))")
   show a readable name ("Stag Large"); the game's text is in the tooltip.

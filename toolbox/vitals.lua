@@ -443,6 +443,7 @@ function V.Toggle() V.SetShown(not prefs.show) end
 
 -- Re-applies the sizes to every element and the strip (after a width or size change).
 local function applySize()
+  if T.Target then T.Target.ApplySize() end   -- the Toolbelt's target bars match these
   if not content then return end
   local m = V.Metrics()
   for _, bar in ipairs(V.BARS) do
@@ -708,36 +709,83 @@ local function wantRow() return tHas == true or T.Config.IsShown() end
 
 function TG.IsShown() return TG.Wanted() and wantRow() end
 
+-- Cells the name block takes (set when built; the Toolbelt's depends on the health bars' size).
+local tInfoCells = TG.INFO_CELLS
+local tBelt = false          -- built as the Toolbelt's row: no name, bars sized like the player's
+local tPct = nil             -- the Toolbelt form's "73%" label
+
 -- Cells the row takes in the Toolbelt (0 when hidden or not glued).
 function TG.GluedCount()
   if not TG.Glued() or not wantRow() then return 0 end
-  return TG.INFO_CELLS + #tList
+  return tInfoCells + #tList
 end
 
-local function infoWidth(s) return TG.INFO_CELLS * (s + T.BuffBar.GAP) - T.BuffBar.GAP end
+-- The name block's sizes for icon size s. Own strip: the name over a thin health and focus bar, INFO_CELLS
+-- wide. In the Toolbelt (owner, 2026-09-29: the name adds little there): no name, the bars the length and
+-- thickness of the player's health bars (V.Metrics: their Size and Bar length), and "73%" beside them.
+local function infoLayout(s)
+  local gap, cell = T.BuffBar.GAP, s + T.BuffBar.GAP
+  local L = {}
+  if tBelt then
+    local m = V.Metrics()
+    L.barW = math.floor(V.GetWidth() * V.GetScale() / 100 + 0.5)
+    L.hBar, L.fBar = m.barH, m.barH
+    L.font = m.font
+    L.pctW = math.ceil(m.font * 3.4)             -- room for "100%" / "hidden"
+    L.gap = m.gap
+    local w = L.barW + L.gap + L.pctW
+    L.cells = math.max(1, math.ceil((w + gap) / cell))
+    L.w = L.cells * cell - gap
+  else
+    L.cells = TG.INFO_CELLS
+    L.w = TG.INFO_CELLS * cell - gap
+    L.barW = L.w
+    L.font = math.max(9, math.floor(s * 0.4))
+    L.hBar = math.max(3, math.floor(s * 0.22))
+    L.fBar = math.max(2, math.floor(s * 0.12))
+  end
+  return L
+end
 
-local function infoStyles(s)
-  local w = infoWidth(s)
-  local f = math.max(9, math.floor(s * 0.4))
-  local hBar = math.max(3, math.floor(s * 0.22))
-  local fBar = math.max(2, math.floor(s * 0.12))
-  return { width = w, height = s, marginRight = T.BuffBar.GAP },
-    { fontSize = f, width = w, height = s - hBar - fBar - 2, minHeight = s - hBar - fBar - 2,
-      maxHeight = s - hBar - fBar - 2, whiteSpace = "nowrap", marginLeft = 0, marginRight = 0,
-      marginTop = 0, marginBottom = 0, paddingTop = 0, paddingBottom = 0 },
-    { width = w, height = hBar, minHeight = hBar, maxHeight = hBar, marginBottom = 2 },
-    { width = w, height = fBar, minHeight = fBar, maxHeight = fBar }
+local function barStyleT(w, h, below)
+  return { width = w, height = h, minHeight = h, maxHeight = h, marginBottom = below or 0 }
+end
+
+-- Applies infoLayout to the built name block (at build, and when a size changes).
+local function styleInfo(s)
+  local L = infoLayout(s)
+  tInfoCells = L.cells
+  tInfo:SetStyle{ width = L.w, height = s, marginRight = T.BuffBar.GAP }
+  tHealth:SetStyle(barStyleT(L.barW, L.hBar, 2))
+  tFocus:SetStyle(barStyleT(L.barW, L.fBar, 0))
+  if tBelt then
+    tPct:SetStyle{ fontSize = L.font, width = L.pctW, marginLeft = L.gap, marginRight = 0, whiteSpace = "nowrap" }
+  else
+    local h = s - L.hBar - L.fBar - 2
+    tName:SetStyle{ fontSize = L.font, width = L.w, height = h, minHeight = h, maxHeight = h,
+                    whiteSpace = "nowrap", marginLeft = 0, marginRight = 0, marginTop = 0, marginBottom = 0,
+                    paddingTop = 0, paddingBottom = 0 }
+  end
 end
 
 -- The row: the name block and the effect slots. The target strip's content, or the Toolbelt's last row.
 function TG.BuildRow()
   T.BuffBar.ClockReady()
   local s = iconSize()
-  local boxStyle, nameStyle, healthStyle, focusStyle = infoStyles(s)
-  tName = UI.Label{ id = "target_name", text = "", class = "text", style = nameStyle }
-  tHealth = UI.Bar{ id = "target_health", value = 0, color = "@red", style = healthStyle }
-  tFocus = UI.Bar{ id = "target_focus", value = 0, color = "@blue", visible = false, style = focusStyle }
-  tInfo = UI.Column{ id = "target_info", style = boxStyle, children = { tName, tHealth, tFocus } }
+  tBelt = TG.inBuffBar == true
+  tHealth = UI.Bar{ id = "target_health", value = 0, color = "@red" }
+  tFocus = UI.Bar{ id = "target_focus", value = 0, color = "@blue", visible = false }
+  if tBelt then
+    tName = nil
+    tPct = UI.Label{ id = "target_pct", text = "", class = "text" }
+    tInfo = UI.Row{ id = "target_info", style = { alignItems = "center" }, children = {
+      UI.Column{ children = { tHealth, tFocus } }, tPct } }
+  else
+    tPct = nil
+    tName = UI.Label{ id = "target_name", text = "", class = "text" }
+    tInfo = UI.Column{ id = "target_info", children = { tName, tHealth, tFocus } }
+  end
+  styleInfo(s)
   local children = { tInfo }
   tSlots = {}
   for i = 1, TG.SLOTS do
@@ -749,7 +797,7 @@ function TG.BuildRow()
     tSlots[i] = { row = row, icon = icon, overlay = overlay }
     children[#children + 1] = row
   end
-  tContent = UI.Row{ id = "target", visible = false, children = children }
+  tContent = UI.Row{ id = "target", visible = false, style = { alignItems = "center" }, children = children }
   tShownCount, tHas, tId, tCount, tGroupAt = nil, nil, nil, nil, -math.huge
   return tContent
 end
@@ -761,19 +809,30 @@ end
 
 -- For Toolbox.Hud (and BB.Unbuilt when in the Toolbelt): the row was destroyed; the poll skips it.
 function TG.Unbuilt()
-  tContent, tInfo, tName, tHealth, tFocus, TG.inBuffBar = nil, nil, nil, nil, nil, false
+  tContent, tInfo, tName, tHealth, tFocus, tPct, TG.inBuffBar = nil, nil, nil, nil, nil, nil, false
   tSlots, tShownCount = {}, nil
 end
 
 function TG.ContentSize()
   local cell = iconSize() + T.BuffBar.GAP
-  return (TG.INFO_CELLS + #tList) * cell, cell
+  return (tInfoCells + #tList) * cell, cell
 end
 
--- The buff bar's icon size changed: rebuild at the new size.
+-- A size changed (the buff bar's icon size, or the health bars' Size / Bar length): resized in place
+-- (sliders fire many changes; rebuilding each time would hit the element-creation cap), then re-fitted.
 function TG.ApplySize()
   if not tContent then return end
-  if TG.Glued() then T.Hud.Build() else T.Hud.Build(true) end
+  local s = iconSize()
+  styleInfo(s)
+  for _, slot in ipairs(tSlots) do
+    slot.row:SetStyle{ width = s, height = s }
+    slot.icon:SetSize(s, s)
+    slot.overlay:SetStyle{ width = s, height = s, marginLeft = -s }
+    slot.k = nil                                -- redraw the sweep at the new size
+  end
+  tShownCount = nil
+  TG.Poll(false)
+  if TG.Glued() then T.BuffBar.Tick() else T.Hud.Refresh() end
 end
 
 -- Fills the effect slots from tList.
@@ -841,7 +900,8 @@ function TG.Poll(force)
     local pct = TG.HealthText(cur, max, hidden, dead)
     local raw = ShroudGetTargetName()
     local name = TG.CleanName(raw)
-    T.SetText(tName, name .. (pct ~= "" and ("  " .. pct) or ""))
+    if tName then T.SetText(tName, name .. (pct ~= "" and ("  " .. pct) or "")) end
+    if tPct then T.SetText(tPct, (pct == "health hidden") and "hidden" or pct) end
     local fill = 0
     if not dead and type(cur) == "number" and type(max) == "number" and max > 0 then
       fill = math.max(0, math.min(1, cur / max))
@@ -859,7 +919,8 @@ function TG.Poll(force)
     T.SetTooltip(tInfo, tip)
   else
     for j = 1, #tList do tList[j] = nil end
-    T.SetText(tName, T.Config.IsShown() and "Target (none)" or "")
+    if tName then T.SetText(tName, T.Config.IsShown() and "Target (none)" or "") end
+    if tPct then T.SetText(tPct, T.Config.IsShown() and "none" or "") end
     T.SetValue(tHealth, 0)
     T.SetVisible(tFocus, false)
     T.SetTooltip(tInfo, "Your target's health and effects show here")
@@ -868,7 +929,7 @@ function TG.Poll(force)
   fillSlots(s)
   local show = has or T.Config.IsShown()
   T.SetVisible(tContent, show)
-  local cells = show and (TG.INFO_CELLS + #tList) or 0
+  local cells = show and (tInfoCells + #tList) or 0
   if has ~= tHas or cells ~= tShownCount then
     tHas, tShownCount = has, cells
     if TG.Glued() then T.BuffBar.Tick() else T.Hud.Refresh() end
