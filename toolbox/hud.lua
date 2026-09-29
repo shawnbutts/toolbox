@@ -382,10 +382,12 @@ Hud.STRIP_INDENT = 10
 
 function Hud.TextStrip(spec)
   local strip = { FRAME_ID = spec.FRAME_ID, HOME = spec.HOME, el = {} }
-  function strip.Unbuilt() strip.el = {} end   -- the owner's refresh skips a strip without labels
   -- Built only while the HUD form is in use: Toolbox may have at most 8 HUD frames.
   function strip.Wanted() return spec.prefs.hud == true end
   local styled = {}                   -- { element, function() -> style }, re-applied by ApplyText
+  -- The strip was destroyed: drop its labels AND the restyle list (ApplyText after a switch to a window
+  -- touched a destroyed label: "this Label was destroyed", 2026-09-29). The refresh skips an empty strip.
+  function strip.Unbuilt() strip.el, styled = {}, {} end
 
   function strip.Metrics()
     local font = T.Window.GetFont()

@@ -158,6 +158,23 @@ return function(t)
     t.eq(H.S.windows.toolbox_compact:IsShown(), true)
   end)
 
+  t.test("from a HUD strip to a compact window: no destroyed labels restyled", function()
+    H.boot()
+    H.chat("/tbx xp")
+    H.chat("/tbx xp hud")                      -- the strip is built ...
+    H.advance(1)
+    H.chat("/tbx xp compact")                  -- ... then destroyed; restyling it raised in game
+    H.chat("/tbx font 14")
+    H.chat("/tbx daily")
+    H.chat("/tbx daily hud")
+    H.advance(1)
+    H.chat("/tbx config")
+    H.change("toolbox_config", "daily_mode", "Compact window")
+    H.chat("/tbx spacing 4")
+    t.eq(H.S.windows.toolbox_daily.compact, true)
+    t.eq(H.S.windows.toolbox_compact.compact, true)
+  end)
+
   t.test("Today as a compact window; hovering it still pops up Today Detailed", function()
     H.boot()
     H.chat("/tbx daily")                          -- open; the form commands keep open / closed as it is

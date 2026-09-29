@@ -5,6 +5,10 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Fixed
+- "Shroud.UI: this Label was destroyed" (hud.lua) after switching XP or Today from a HUD strip to a
+  window or compact window: the strip's labels were restyled after the strip was gone.
+
 ### Added
 - XP and Today can be compact windows (settings: Compact window, or `/toolbox xp compact` and
   `/toolbox daily compact`): the title bar shows only while the pointer is on it, laid over the text, so
