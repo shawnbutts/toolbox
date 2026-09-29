@@ -368,6 +368,7 @@ end
 -- The "Combat" category.
 function C.CombatSection()
   local M = T.Combat
+  C.statShownSig, C.statFilled = nil, false     -- new controls: filled by the next Sync
   return UI.Column{ children = {
     heading("Combat stats", true),
     UI.Toggle{ id = "show_combat", text = "Show combat stats", value = M.IsShown(),
@@ -388,14 +389,132 @@ function C.CombatSection()
     slider("combat_bg_opacity", "Background opacity (%)", M.OPACITY_MIN, M.OPACITY_MAX, 5,
       select(2, M.GetBackground()), "How solid the panel is; the text stays solid",
       function(n) M.SetBackground((M.GetBackground()), n) end),
-    UI.Label{ id = "combat_stats", text = "", class = "text", style = { whiteSpace = "wrap", marginTop = 4 } },
-    UI.Label{ text = "Add a stat while playing: /toolbox stats <word> finds its name, then "
-      .. "/toolbox combat stat add <Name>. /toolbox combat help lists every option.",
+    heading("Character stats on the HUD"),
+    UI.Label{ id = "combat_stats", text = "", class = "text", style = { whiteSpace = "wrap" } },
+    UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
+      UI.TextField{ id = "stat_find", text = "", placeholder = "Find a stat: resist, dodge, regen...",
+        maxLength = 40, style = { flexGrow = 1, flexShrink = 1 },
+        tooltip = "Part of a stat's name, as the game or its internal name spells it",
+        onSubmit = function(_, text) C.FindStats(text) end },
+      UI.Button{ id = "stat_search", text = "Search", style = { marginLeft = 4 },
+        onClick = function() C.FindStats() end },
+    } },
+    UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
+      UI.Dropdown{ id = "stat_results", choices = { C.STAT_NONE }, value = C.STAT_NONE,
+        style = { flexGrow = 1, flexShrink = 1 }, tooltip = "Matching stats: label (internal name) = your value now",
+        onChange = function() setText("stat_msg", "") end },
+      UI.Button{ id = "stat_add", text = "Add", style = { marginLeft = 4 },
+        onClick = function() C.AddPickedStat() end },
+    } },
+    UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
+      UI.Dropdown{ id = "stat_shown", choices = { C.STAT_NONE }, value = C.STAT_NONE,
+        style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The stats the combat HUD shows",
+        onChange = function() setText("stat_msg", "") end },
+      UI.Button{ id = "stat_remove", text = "Remove", style = { marginLeft = 4 },
+        onClick = function() C.RemovePickedStat() end },
+    } },
+    UI.Label{ id = "stat_msg", text = "", class = "dim", style = { whiteSpace = "wrap" } },
+    UI.Label{ text = "Also in chat: /toolbox stats <word>, /toolbox combat stat add|remove <Name>.",
       class = "dim", style = { whiteSpace = "wrap" } },
     UI.Row{ style = { justifyContent = "end", marginTop = 2 }, children = {
       UI.Button{ id = "combat_reset", text = "Reset fight", onClick = function() M.Reset() end },
     } },
   } }
+end
+
+-- The combat HUD's stat picker (owner, 2026-09-29): a search over the readable character stats
+-- (T.StatMatches), a results dropdown (label (internal name) = value), Add, and a Remove dropdown of the
+-- shown stats. With an empty search the results are C.STAT_SUGGESTIONS (the ones worth starting with).
+C.STAT_NONE = "(none)"
+C.STAT_RESULTS_MAX = 30
+C.STAT_SUGGESTIONS = { "MagicResistance", "CombatHealthRegen", "CombatFocusRegen" }
+local statPicks = {}            -- a results label -> the stat's internal name
+
+local function statChoice(st)
+  local v = st.value
+  local shown = type(v) == "number" and string.format("%g", v) or tostring(v)
+  if st.label ~= "" and st.label ~= st.name then return st.label .. " (" .. st.name .. ") = " .. shown end
+  return st.name .. " = " .. shown
+end
+
+-- Fills the results dropdown for `filter` ("" = the suggestions) and says what it found.
+function C.FindStats(filter)
+  local field = el.stat_find
+  if filter == nil then filter = field and field:GetText() or "" end
+  filter = T.Trim(filter)
+  local list, total, hidden = {}, 0, 0
+  if filter == "" then
+    for _, name in ipairs(C.STAT_SUGGESTIONS) do
+      local found = T.StatMatches(name, 1)
+      if found[1] and found[1].name == name then list[#list + 1] = found[1] end
+    end
+    total = #list
+  else
+    list, total, hidden = T.StatMatches(filter, C.STAT_RESULTS_MAX)
+  end
+  statPicks = {}
+  local labels = {}
+  for _, st in ipairs(list) do
+    local label = statChoice(st)
+    labels[#labels + 1] = label
+    statPicks[label] = st.name
+  end
+  local msg = nil
+  if filter == "" then
+    msg = #labels > 0 and "Suggestions. Search for more." or "Search for a stat by part of its name."
+  elseif total == 0 then
+    msg = "No readable stat matches '" .. filter .. "'"
+      .. (hidden > 0 and (" (" .. hidden .. " hidden from add-ons).") or ".")
+  else
+    msg = total .. (total == 1 and " stat matches" or " stats match") .. " '" .. filter .. "'"
+      .. (total > #labels and (": the first " .. #labels .. "; narrow it down.") or ".")
+  end
+  if #labels == 0 then labels[1] = C.STAT_NONE end
+  local drop = el.stat_results
+  if drop then
+    drop:SetChoices(labels)
+    drop:SetValue(labels[1])
+  end
+  setEnabled("stat_add", statPicks[labels[1]] ~= nil)
+  setText("stat_msg", msg)
+end
+
+function C.AddPickedStat()
+  local drop = el.stat_results
+  local name = drop and statPicks[drop:GetValue()]
+  if not name then
+    setText("stat_msg", "Search for a stat first, then pick it.")
+    return
+  end
+  local _, msg = T.Combat.AddStat(name)
+  setText("stat_msg", msg or "")
+  C.Sync()
+end
+
+function C.RemovePickedStat()
+  local drop = el.stat_shown
+  local name = drop and drop:GetValue()
+  if not name or name == C.STAT_NONE then return end
+  local _, msg = T.Combat.RemoveStat(name)
+  setText("stat_msg", msg or "")
+  C.Sync()
+end
+
+-- The Remove dropdown follows the shown stats (only when they change: SetChoices is a UI call).
+local function syncShownStats(list)
+  local drop = el.stat_shown
+  if not drop then return end
+  if not C.statFilled then            -- the Combat page was just built: the suggestions first
+    C.statFilled = true
+    C.FindStats("")
+  end
+  local sig = table.concat(list, ",")
+  if sig == C.statShownSig then return end
+  C.statShownSig = sig
+  local choices = #list > 0 and list or { C.STAT_NONE }
+  drop:SetChoices(choices)
+  drop:SetValue(choices[1])
+  setEnabled("stat_remove", #list > 0)
 end
 
 -- The "Notifications" category: one toggle and delivery dropdown per source (Toolbox.Notify.SOURCES).
@@ -580,6 +699,7 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "vitals_show_text", "vitals_vigor", "vitals_bg", "vitals_flash", "vitals_flash_below", "vitals_flash_below_value",
   "vitals_flash_test", "show_combat", "combat_detail", "combat_detail_hover", "combat_pet", "combat_scale",
   "combat_scale_value", "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "combat_stats",
+  "stat_find", "stat_results", "stat_add", "stat_shown", "stat_remove", "stat_msg",
   "nhud_hide", "volume", "volume_value", "hud_summary", "toolbelt_show",
   "toolbelt_vitals", "toolbelt_consumables", "toolbelt_gear", "toolbelt_target", "target_place", "target_mirror",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
@@ -877,7 +997,8 @@ function C.Sync()
   setValue("combat_detail_hover", M.Detail.GetHover())
   sliderValue("combat_scale", M.GetScale())
   local shownStats = M.Stats()
-  setText("combat_stats", "Stats shown: " .. (#shownStats > 0 and table.concat(shownStats, ", ") or "none"))
+  setText("combat_stats", "Shown: " .. (#shownStats > 0 and table.concat(shownStats, ", ") or "none"))
+  syncShownStats(shownStats)
   local cbg, cop = M.GetBackground()
   setValue("combat_bg", cbg)
   sliderValue("combat_bg_opacity", cop)

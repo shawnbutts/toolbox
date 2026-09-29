@@ -312,8 +312,9 @@ be changed at any time, mid-fight included, without a reload (up to 8, saved per
 2. Add it: `/toolbox combat stat add CombatHealthRegen`.
 3. Remove it: `/toolbox combat stat remove CombatHealthRegen`; list: `/toolbox combat stats`.
 
-Unreadable stats show "n/a". `/toolbox combat help` prints all of this in game, and the settings
-window's Combat stats section shows the current list with the same hint. The store readme
+Unreadable stats show "n/a". The settings window's Combat page does the same with a stat picker: a
+search field, a results dropdown (label, internal name and your value now; suggestions when the search
+is empty), Add, and a Remove dropdown of the shown stats. `/toolbox combat help` prints the chat way. The store readme
 (`toolbox/README.md`) has the player-facing version. The strip has its own Size and
 position, and stays separate when the health & focus bars are glued to the buff bar.
 

@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Added" },
+  { "item", "Choose the combat HUD's character stats in settings (Combat: Character stats on the HUD): search by part of a name, pick from the matches (each shows your value now; a few suggestions when the search is empty), Add, and Remove from a list of the shown ones. The chat commands still work." },
   { "version", "0.6.1 - 2026-09-29 (beta 8)" },
   { "section", "Added" },
   { "item", "Target HUD on its own strip can be mirrored too: bars filling from the right, up to 5 icons to the left, at a fixed width so the bars don't move." },

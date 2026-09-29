@@ -184,6 +184,9 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
   out. `C.NameList` is the text box + Add / Remove editor. `C.TOOLBELT_PARTS` + `C.PlaceOf` / `C.SetPlace`
   give each bar Off / Own strip / In Toolbelt. The Toolbelt page also has Show the Toolbelt, Only during
   combat, the target's Target row and Mirrored, and `C.HudSummary()`.
+  The Combat page's stat picker: `T.StatMatches` (core; readable stats by name or label) feeds
+  `C.FindStats` (the `stat_results` dropdown via `SetChoices`, suggestions `C.STAT_SUGGESTIONS` when empty),
+  `C.AddPickedStat` / `C.RemovePickedStat` (`Combat.AddStat` / `RemoveStat`), `stat_shown` follows the list.
 - THE TOOLBELT: the player-facing name for the buff bar with the health bars glued beside it and the
   consumables / equipment / target rows joined to it; "the main selling point". Player text says
   "Toolbelt", never "glue"; code and saved vars keep the glue names. The buff bar is its base: with it off,
@@ -335,9 +338,6 @@ game's "stack buffs lasting longer than" option feeding `BB.GroupAfter()`). Repo
 `ShroudGetPlayerBuff()` entries being userdata, `primaryDurability` undocumented, no max health / focus
 getter, `ShroudGetTargetName()`'s "Entity with no name (...)" fallback. Worth requesting for the Party Toolbelt: party
 members' buffs / debuffs (a `ShroudGetPartyMemberBuff*` family) and a party-changed event.
-
-**Agreed for later:** a combat stat picker in settings (the chosen stats, a search field, a dropdown of
-matching stats, Add / Remove like `C.NameList`; keep the chat commands).
 
 **Ideas, not agreed:** a **Party Toolbelt** (owner, 2026-09-29): a dedicated party strip, separate from the
 player's own Toolbelt, so a healer keeps their Toolbelt for themselves and watches the party on its own

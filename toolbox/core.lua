@@ -844,6 +844,30 @@ end)
 -- Lists character stats whose internal or displayed name contains `filter` (any case):
 -- index, names, value, and whether add-ons may read it. For finding stat names in game.
 T.STATS_MAX_LINES = 40
+-- The readable character stats whose internal name or label contains `filter` (any case; "" = all):
+-- { name, label, value } in the game's order, at most `max`. Also returns how many matched in all and how
+-- many matching ones are hidden from add-ons. Used by the settings' stat picker.
+function T.StatMatches(filter, max)
+  filter = (filter or ""):lower()
+  local out, total, hidden = {}, 0, 0
+  local count = ShroudGetStatCount() or 0
+  for i = 0, count - 1 do
+    local name = ShroudGetStatNameByNumber(i)
+    local label = ShroudGetStatDescriptionByNumber(i)
+    name = type(name) == "string" and name or ""
+    label = type(label) == "string" and label or ""
+    if name ~= "" and (filter == "" or name:lower():find(filter, 1, true) or label:lower():find(filter, 1, true)) then
+      if ShroudIsStatVisible(i) then
+        total = total + 1
+        if #out < max then out[#out + 1] = { name = name, label = label, value = ShroudGetStatValueByNumber(i) } end
+      else
+        hidden = hidden + 1
+      end
+    end
+  end
+  return out, total, hidden
+end
+
 function T.StatLines(filter)
   filter = (filter or ""):lower()
   local lines, hidden, shown = {}, 0, 0

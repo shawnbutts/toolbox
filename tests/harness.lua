@@ -644,6 +644,13 @@ function Element:SetText(t) self.text = t end
 function Element:SetTooltip(t) self.tooltip = t end
 function Element:GetText() return self.text end
 function Element:SetValue(v) self.value = v end
+-- Dropdown (docs): replace or read the choices; the 1-based index of the current one (0 for none).
+function Element:SetChoices(list) self.choices = copy(list) end
+function Element:GetChoices() return copy(self.choices or {}) end
+function Element:GetIndex()
+  for i, c in ipairs(self.choices or {}) do if c == self.value then return i end end
+  return 0
+end
 function Element:GetValue() return self.value end
 function Element:Show()
   if S.showRefused then return false end

@@ -5,6 +5,11 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Added
+- Choose the combat HUD's character stats in settings (Combat: Character stats on the HUD): search by part
+  of a name, pick from the matches (each shows your value now; a few suggestions when the search is
+  empty), Add, and Remove from a list of the shown ones. The chat commands still work.
+
 ## [0.6.1] - 2026-09-29 (beta 8)
 
 ### Added

@@ -148,9 +148,11 @@ D.SECTIONS = {
   { "Combat stats",
     "/toolbox combat: fight timer, DPS (last 5 seconds and fight average), damage taken and "
       .. "healing per second, crit % and avoided %, plus character stats you choose.",
-    "Add a stat mid-fight: /toolbox stats resist finds names (any word: absorb, dodge, crit, "
-      .. "regen...); /toolbox combat stat add CombatHealthRegen adds one; stat remove takes it "
-      .. "off. Up to 8. /toolbox combat help has more.",
+    "Choose the stats in settings (Combat: Character stats on the HUD): type part of a name (resist, "
+      .. "dodge, crit, regen...) and Search, pick one from the list (it shows your value now) and Add; "
+      .. "pick a shown one and Remove. With an empty search it suggests a few. Up to 8, changed at any "
+      .. "time, mid-fight too. In chat: /toolbox stats resist finds names, /toolbox combat stat add "
+      .. "CombatHealthRegen adds one, stat remove takes it off. /toolbox combat help has more.",
     "Combat Detailed (hover the combat HUD, or /toolbox combat detail): your damage by skill as "
       .. "bars, longest first (hover one for hits, crits and over-time ticks); the last minute as a "
       .. "chart, damage done up and damage taken down; and healing with how much was wasted as "

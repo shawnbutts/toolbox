@@ -89,7 +89,7 @@ any website, that site can see your IP address. **Test connection** in the setti
 ## Combat stats
 
 A small HUD with your fight timer, DPS, damage taken and healing per second, crit and avoid rates, and up
-to 8 character stats you choose (such as magic resistance). **Combat Detailed** adds each skill's damage,
+to 8 character stats you choose in settings (search, pick, Add), such as magic resistance. **Combat Detailed** adds each skill's damage,
 per-target damage, damage types, a timeline and your recent fights. `/toolbox combat help` lists every
 option.
 
