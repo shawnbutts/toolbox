@@ -257,6 +257,22 @@ return function(t)
     t.eq(#H.S.requests, 2, "a test that times out isn't sent again")
   end)
 
+  t.test("the settings' Test connection button: one lookup, the result shown under it", function()
+    H.boot()
+    H.chat("/tbx config")
+    H.S.httpRefuse = "not_permitted"
+    H.click("toolbox_config", "dd_values_test")
+    t.ok(H.config():Find("dd_values_msg").text:find("^the game refused the request: not_permitted"))
+    H.S.httpRefuse = nil
+    H.advance(Toolbox.Prices.GAP)
+    H.click("toolbox_config", "dd_values_test")
+    t.eq(H.requestedItems(#H.S.requests)[1], "Iron Ore")
+    t.eq(H.config():Find("dd_values_msg").text, "asked SotANET for 'Iron Ore'...")
+    H.httpRespond(#H.S.requests, true, 200, ANSWER)
+    t.ok(H.config():Find("dd_values_msg").text:find("^connected%. 'Iron Ore': ~5g each"))
+    t.ok(H.logged("Price test: connected"), "in chat too")
+  end)
+
   t.test("the setting and the command follow each other; off hides the column", function()
     H.boot()
     H.chat("/tbx dd")

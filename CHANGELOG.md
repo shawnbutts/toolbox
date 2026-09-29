@@ -17,6 +17,8 @@ store submission needs a higher version than any submitted before (rejected ones
   element limit): a strip that is rebuilt or removed now lets go of its old elements at once.
 
 ### Added
+- A "Test connection" button under Estimated values (SotANET) in settings: looks up one item now, even
+  with values off, and shows what happened under the button (and in chat), as `/toolbox dd values test` does.
 - The name lists can be edited in settings: the buff bar's "Always group by name" (Buffs) and the
   consumables bar's "Always on it" and "Left out" names (Consumables & gear) each get a text box with
   Add and Remove, instead of only the chat commands.

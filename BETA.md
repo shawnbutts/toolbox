@@ -110,7 +110,7 @@ From beta 3:
       - Settings: "Replace the game's buff bar", "Click a buff to dismiss it", "Only during combat".
   * Estimated values: switch on "Estimated values (SotANET)" in settings and Internet for Toolbox in
     the add-on manager. Today Detailed then shows each item's value from SotANET's price list.
-    /tbx dd values test checks the connection.
+    Test connection in settings (or /tbx dd values test) checks the connection.
   * Sounds: /tbx sounds test plays both alerts; the "Alert volume" slider sets how loud.
   * XP after you die: "last hour" and XP/hour should keep counting. "Subtract XP lost" in settings
     shows the net change instead.

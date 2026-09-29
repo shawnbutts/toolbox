@@ -67,7 +67,8 @@ D.SECTIONS = {
       .. "each item's count times its 90-day average sale price from shroudoftheavatar.net (player-"
       .. "uploaded receipts) and a total; hover a value for the price each. Items with no recent sales "
       .. "stay blank. Only item names are sent, and each price is kept for 24 hours; /toolbox dd values "
-      .. "refresh looks them up again, and /toolbox dd values test [item] checks the connection.",
+      .. "refresh looks them up again, and Test connection in settings (or /toolbox dd values test "
+      .. "[item]) checks the connection.",
     "Like XP, it can be a HUD strip: /toolbox daily hud (and daily window, daily move <x> <y>)." },
   { "Toolbelt",
     "The Toolbelt is your buff bar with your health, focus and Vigor bars beside it and your consumables "

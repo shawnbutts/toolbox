@@ -521,6 +521,15 @@ P.TIMEOUT = 40        -- seconds before a request with no answer is given up (a 
 P.MAX_KEEP = 2000     -- prices kept (saved-var size)
 P.MAX_AGE = 86400     -- seconds a price is used before it is looked up again
 
+-- A connection test's steps go to chat and to the settings window's line under its button
+-- (P.testStatus, shown by Toolbox.Config.Sync).
+P.testStatus = ""
+local function testSay(msg)
+  T.Print("Price test: " .. msg)
+  P.testStatus = msg
+  if T.Config and T.Config.Sync then T.Config.Sync() end
+end
+
 local cache = {}      -- lower name -> { avg, sold, last, day }
 P.version = 0         -- bumped when the cache changes (Today Detailed redraws its values then)
 local queue = {}      -- names (as looted) waiting for a lookup
@@ -642,7 +651,7 @@ function P.Tick()
   if inflight then
     if now - inflight.at < P.TIMEOUT then return end
     if inflight.test then
-      T.Print("Price test: no answer after " .. P.TIMEOUT .. " s (network_error or a dropped request).")
+      testSay("no answer after " .. P.TIMEOUT .. " s (network_error or a dropped request).")
     else
       for _, name in ipairs(inflight.names) do queue[#queue + 1] = name end   -- never answered
     end
@@ -731,25 +740,25 @@ function P.Test(name)
   name = T.Trim(name)
   if name == "" then name = P.TEST_ITEM end
   if type(ShroudHttpGet) ~= "function" then
-    T.Print("Price test: this game client has no internet access for add-ons (no ShroudHttpGet).")
+    testSay("this game client has no internet access for add-ons (no ShroudHttpGet).")
     return
   end
   if inflight then
-    T.Print("Price test: a lookup is already running; try again in a few seconds.")
+    testSay("a lookup is already running; try again in a few seconds.")
     return
   end
   local _, url = P.NextBatch({ name })
   local ok, id, reason = pcall(ShroudHttpGet, url)
   if not ok then
-    T.Print("Price test: ShroudHttpGet raised an error: " .. tostring(id))
+    testSay("ShroudHttpGet raised an error: " .. tostring(id))
     return
   end
   if not id then
-    T.Print("Price test: the game refused the request: " .. tostring(reason)
+    testSay("the game refused the request: " .. tostring(reason)
       .. (REFUSALS[reason] and (" (" .. REFUSALS[reason] .. ")") or ""))
     return
   end
-  T.Print("Price test: asked SotANET for '" .. name .. "'...")
+  testSay("asked SotANET for '" .. name .. "'...")
   inflight = { id = id, names = { name }, at = T.Now(), test = true }
   nextAt = T.Now() + P.GAP
 end
@@ -758,20 +767,20 @@ end
 function P.Report(name, ok, code, body, err, data)
   if not ok then
     local snippet = type(body) == "string" and body ~= "" and (": " .. body:sub(1, 120)) or ""
-    T.Print("Price test: failed, " .. tostring(err) .. " (HTTP " .. tostring(code) .. ")" .. snippet)
+    testSay("failed, " .. tostring(err) .. " (HTTP " .. tostring(code) .. ")" .. snippet)
     return
   end
   if type(data) ~= "table" then
-    T.Print("Price test: the answer wasn't JSON: " .. tostring(body):sub(1, 120))
+    testSay("the answer wasn't JSON: " .. tostring(body):sub(1, 120))
     return
   end
   local it = type(data.items) == "table" and data.items[1] or nil
   if type(it) ~= "table" or type(it.avg90d) ~= "number" then
-    T.Print("Price test: connected. '" .. name .. "' has no sales on SotANET in the last 90 days"
+    testSay("connected. '" .. name .. "' has no sales on SotANET in the last 90 days"
       .. " (or no item has that exact name).")
     return
   end
-  T.Print(string.format("Price test: connected. '%s': ~%s each (90-day average), %s sold in 90 days, last sold %s.",
+  testSay(string.format("connected. '%s': ~%s each (90-day average), %s sold in 90 days, last sold %s.",
     tostring(it.item), P.Format(it.avg90d), T.FormatNumber(it.sold90d or 0),
     type(it.lastSoldAt) == "string" and it.lastSoldAt:sub(1, 10) or "?"))
 end

@@ -199,6 +199,13 @@ function C.XPSection()
         .. " shroudoftheavatar.net (player-uploaded receipts); blank when it hasn't sold. Sends item"
         .. " names to that site. Also switch Internet on for Toolbox in the add-on manager.",
       onChange = function(_, value) T.DailyDetail.SetValues(value) end },
+    UI.Row{ style = { alignItems = "center", marginLeft = 32 }, children = {
+      UI.Button{ id = "dd_values_test", text = "Test connection",
+        tooltip = "Looks up one item (" .. T.Prices.TEST_ITEM .. ") on shroudoftheavatar.net now, even with"
+          .. " estimated values off, and says what happened (also in chat)",
+        onClick = function() T.Prices.Test("") end },
+    } },
+    UI.Label{ id = "dd_values_msg", text = "", class = "dim", style = { whiteSpace = "wrap", marginLeft = 32 } },
     UI.Toggle{ id = "dd_include", text = "Include crafted and gathered items", value = T.DailyDetail.GetInclude(),
       style = { marginLeft = 16 }, enabled = T.Daily.HasResults(),
       tooltip = T.Daily.HasResults() and "Off: Today Detailed's Looted list leaves out what you crafted or"
@@ -512,7 +519,7 @@ end
 
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
 local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "xp_mode", "daily_mode", "show_xp",
-  "show_daily_detail", "dd_values", "dd_include", "hover_popup", "hover_daily",
+  "show_daily_detail", "dd_values", "dd_values_msg", "dd_include", "hover_popup", "hover_daily",
   "show_buffs", "buffs_combat_only", "buff_replace", "buff_dismiss", "buff_size", "buff_size_value",
   "expire_alert", "expire_seconds", "expire_seconds_value", "buff_flash", "debuff_alert", "buff_group_after",
   "buff_group", "show_consumables", "consumables_extra", "show_gear", "gear_threshold",
@@ -736,6 +743,7 @@ function C.Sync()
   setValue("daily_mode", C.ModeOf(T.Daily))
   setValue("show_daily_detail", T.DailyDetail.IsOpen())
   setValue("dd_values", T.DailyDetail.GetValues())
+  setText("dd_values_msg", T.Prices.testStatus)
   setValue("dd_include", T.DailyDetail.GetInclude())
   setValue("hover_popup", T.Compact.GetHover())
   setValue("hover_daily", T.Daily.GetHover())
