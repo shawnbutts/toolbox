@@ -272,6 +272,19 @@ function V.Unbuilt()
   content, vigorRowShown = nil, nil
 end
 
+-- The health and focus rows' heights as laid out (GetSize; nil before the first layout or unbuilt).
+-- The mirrored target copies them, so its bars sit level with these (owner, 2026-09-29: "lower than mine").
+function V.RowHeights()
+  if not content then return nil, nil end
+  local function h(e)
+    if not e then return nil end
+    local ok, _, height = pcall(e.GetSize, e)
+    if ok and type(height) == "number" and height > 0 then return height end
+    return nil
+  end
+  return h(el.health_row), h(el.focus_row)
+end
+
 function V.ContentSize()
   local m = V.Metrics()
   return m.contentW, m.contentH
@@ -744,6 +757,9 @@ local tBelt = false          -- built for the Toolbelt: no text, bars sized like
 local tBelow = false         -- ... and across both of its columns (TG.Below)
 local tLeft = false          -- ... mirrored to the left of the health bars (TG.Mirrored)
 local tRows = {}             -- the mirrored form's two bar rows (health, focus)
+local tRowH = {}             -- ... their heights, measured from the health bars' rows (V.RowHeights)
+local tSyncUntil, tSyncAt = 0, -math.huge
+TG.SYNC_FOR, TG.SYNC_EVERY = 5, 10   -- measure for this long after a build or resize, then this often
 
 -- Cells the row takes in the Toolbelt (0 when hidden or not glued).
 function TG.GluedCount()
@@ -793,6 +809,26 @@ end
 
 -- Applies infoLayout to the built name block (at build, and when a size changes).
 local tBlockW, tBlockH = 0, 0
+
+-- Mirrored: copies the health bars' rows' laid-out heights to the target's two rows (their asked-for height
+-- isn't what the game lays out), so each target bar sits level with the player's. Returns true on a change.
+local function syncRows(s)
+  local changed = false
+  local h1, h2 = V.RowHeights()
+  local gap = V.Metrics().rowGap
+  for i, h in ipairs({ h1 or false, h2 or false }) do
+    if h and tRows[i] and h ~= tRowH[i] then
+      tRowH[i] = h
+      tRows[i]:SetStyle{ height = h, minHeight = h, maxHeight = h, marginBottom = gap }
+      changed = true
+    end
+  end
+  if changed then
+    tBlockH = math.max(s, (tRowH[1] or 0) + (tRowH[2] or 0) + 2 * gap)
+    tContent:SetStyle{ height = tBlockH, minHeight = tBlockH }
+  end
+  return changed
+end
 local function styleInfo(s)
   local L = infoLayout(s)
   tInfoCells = L.cells
@@ -807,6 +843,7 @@ local function styleInfo(s)
     tHealth:SetStyle(bar)
     tFocus:SetStyle(bar)
     if tContent then tContent:SetStyle{ width = tBlockW, minWidth = tBlockW, height = tBlockH, minHeight = tBlockH } end
+    tRowH, tSyncUntil = {}, T.Now() + TG.SYNC_FOR  -- measure the health bars' rows again
     return
   end
   tInfo:SetStyle{ width = L.w, height = s, marginRight = T.BuffBar.GAP }
@@ -989,6 +1026,13 @@ function TG.Poll(force)
     tId, tCount = nil, nil
   end
   fillSlots(s)
+  if tLeft then
+    local now = T.Now()
+    if now < tSyncUntil or now - tSyncAt >= TG.SYNC_EVERY then
+      tSyncAt = now
+      if syncRows(s) then tShownCount = nil end      -- re-fit the strip below
+    end
+  end
   local show = has or T.Config.IsShown() or reserved()
   T.SetVisible(tContent, show)
   T.SetVisible(tInfo, has or T.Config.IsShown())     -- kept space only: empty, not a bar at 0

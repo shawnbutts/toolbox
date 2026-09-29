@@ -283,6 +283,32 @@ return function(t)
     t.eq(H.config():Find("target_place").value, "Left of your bars (mirrored)")
   end)
 
+  t.test("mirrored: its rows copy the health bars' rows as laid out, so the bars sit level", function()
+    H.boot()
+    H.chat("/tbx buffs")
+    H.chat("/tbx vitals")
+    H.chat("/tbx vitals glue on")
+    H.chat("/tbx target on")
+    H.chat("/tbx target place left")
+    H.setTarget(copy(WOLF))
+    local glued = H.hud()
+    glued:Find("health_row").laidOut = { 200, 13 }   -- the game lays them out shorter than asked
+    glued:Find("focus_row").laidOut = { 200, 13 }
+    H.advance(1)
+    local info = H.targetRow():Find("target_info")
+    local gap = Toolbox.Vitals.Metrics().rowGap
+    t.eq(info.children[1].style.height, 13, "the health row")
+    t.eq(info.children[2].style.height, 13, "the focus row")
+    t.eq(info.children[1].style.marginBottom, gap, "the same gap as yours")
+    local calls = 0
+    local mt = getmetatable(glued)
+    local get = mt.GetSize
+    mt.GetSize = function(self) calls = calls + 1; return get(self) end
+    H.advance(30)
+    mt.GetSize = get
+    t.ok(calls <= 10, "measured now and then, not every poll: " .. calls)
+  end)
+
   t.test("rebuilding the Toolbelt lets go of the old row (no 'this Row was destroyed')", function()
     H.boot()
     H.chat("/tbx buffs")

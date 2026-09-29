@@ -632,6 +632,7 @@ function Element:SetSize(w, h) self.width, self.height = w, h end
 -- Laid-out size. Models a theme class with a minimum height (H.S.themeMinHeight):
 -- an explicit minHeight overrides it; maxHeight caps the result.
 function Element:GetSize()
+  if self.laidOut then return self.laidOut[1], self.laidOut[2] end   -- a test sets what the game laid out
   local st = self.style or {}
   local h = st.height or 20
   h = math.max(h, st.minHeight or S.themeMinHeight or 0)

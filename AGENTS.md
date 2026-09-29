@@ -225,6 +225,10 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     bars rotated 180 (`rotate` style) in rows as tall as the health bars' rows, icons in reverse order. To
     remove it: drop "left" from `TG.PLACES` / `PLACE_ORDER`, the `tLeft` branches, and `placeOf`'s "left".
     Unconfirmed in game: that `rotate = 180` on a Bar mirrors its fill.
+    REPORTED 2026-09-29: the mirrored bars sat lower than the player's, with more space between them: rows
+    built to the asked-for line height lay out taller than the vitals rows do. Now `syncRows` copies the
+    vitals rows' laid-out heights (`V.RowHeights`, GetSize) for `TG.SYNC_FOR` s after a build or resize, then
+    every `TG.SYNC_EVERY` s. Harness: `element.laidOut = { w, h }` sets what GetSize reports.
     Layouts (owner, 2026-09-29): own strip = name + percent over thin bars (`TG.INFO_CELLS` wide). In the
     Toolbelt = no text, bars `V.Metrics()`-sized like the player's. With the health bars glued too (`TG.Below`),
     Toolbox.Hud builds it as a `Hud.BELOW` part: a row under both glued columns from the strip's left edge,

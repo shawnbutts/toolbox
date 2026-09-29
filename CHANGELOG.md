@@ -11,7 +11,8 @@ store submission needs a higher version than any submitted before (rejected ones
   bars in the Toolbelt too, the target runs under the whole Toolbelt: its bars start where yours do and
   its icons line up with your buffs. It sits above the buffs by default (its space is kept when you have
   no target, so the buffs don't jump), under everything, or mirrored to the left of your health bars (its
-  bars fill from the right, lined up with yours; up to 5 icons outward; its space is kept): settings
+  bars fill from the right, level with yours: its rows copy your health bars' rows as the game lays them
+  out; up to 5 icons outward; its space is kept): settings
   (Toolbelt, Target row) or `/toolbox target place top|bottom|left`. On its own strip it keeps the name and percent.
 
 ### Fixed
