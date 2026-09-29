@@ -272,7 +272,7 @@ character" sentinel.
 | `combat_detail` | `{ open = bool (pinned), x, y, scope = "fight"/"session", hover = bool }` |
 | `consumables` | `{ show = bool (default true), glue = bool, extra = { name parts, <= 20 }, cats = { [category] = true } (absent: defaults), exclude = { name parts } (absent: Scroll, Torch, Bait), max = 1..10, combatOnly = bool, x, y }` |
 | `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` |
-| `target` | `{ show = bool (default false), glue = bool (default true), place = "top" (default) / "bottom", mirror = bool, x, y }` (a saved place "left", from beta 7, reads as mirror) |
+| `target` | `{ show = bool (default false), glue = bool (default true), place = "top" (default) / "bottom", mirror = bool, effects = "all"/"debuffs"/"none", icons = 1..8 (unset: 8, or 5 mirrored), x, y }` (a saved place "left", from beta 7, reads as mirror) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
 | `notify` | `{ v = 1, compact = bool (the window), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), x, y }` |
@@ -353,7 +353,7 @@ name (`...InScene(name)`, `ShroudGetPartyMemberNamesInScene`); only members in y
 -1); no party-change or vitals events (poll); NO party member buffs (a request for the devs), and player
 targets expose only vitals; combat events carry a `party` flag. It needs a HUD frame of its own: with all
 9 strips on there are only 8 frames, so decide what gives way (or merge rarely-used strips) first. Also:
-target options (effects shown, icon count); a
+a
 sound per notification source; a crafting skill tracker and a recipe lookup / shopping list (as Today
 Detailed views: no window slot left); a gathering session HUD; lock-position / snap presets for strips
 (only if a strip's grip can be hidden).
