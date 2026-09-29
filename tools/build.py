@@ -80,6 +80,10 @@ BARE_LOCAL_RE = re.compile(r"^\s*local\s+[A-Za-z_]\w*(\s*,\s*[A-Za-z_]\w*)*\s*(-
 
 # Project rule: persistence goes through saved vars only; no file or OS access. The one
 # exception is reading the local clock (os.date / os.time) for the daily reset.
+# The price site is "SotANET" or shroudoftheavatar.net; "sota.net" is a different domain and must not
+# appear in anything players read (owner, 2026-09-29).
+WRONG_SITE_RE = re.compile(r"sota\.net", re.I)
+
 FORBIDDEN_LIB_RE = re.compile(r"\bio\s*\.|\bos\s*\.(?!(date|time)\b)")
 
 
@@ -323,6 +327,9 @@ def check_sources(report: Report, manifest: dict) -> None:
                 report.error(f"{f}:{lineno}: pattern '{m.group(0)}': the game's Lua gives up on a lazy (.-) match"
                              " anchored at the end over long text ('pattern too complex'); use Toolbox.Trim or"
                              " plain find/sub")
+            m = WRONG_SITE_RE.search(line)
+            if m:
+                report.error(f"{f}:{lineno}: '{m.group(0)}' is another domain: write SotANET or shroudoftheavatar.net")
             m = FORBIDDEN_LIB_RE.search(line)
             if m:
                 report.error(f"{f}:{lineno}: '{m.group(0)}' - use saved vars, not io/os (only os.date/os.time allowed)")
@@ -335,6 +342,18 @@ def check_changelog(report: Report, manifest: dict) -> None:
         report.warn("CHANGELOG.md is missing")
     elif isinstance(version, str) and f"[{version}]" not in changelog.read_text(encoding="utf-8"):
         report.warn(f"CHANGELOG.md has no [{version}] entry")
+
+
+def check_site_name(report: Report) -> None:
+    """The store README and manifest (the Lua files are checked line by line) never say "sota.net"."""
+    for name in ("README.md", "manifest.json"):
+        path = PACKAGE / name
+        if not path.is_file():
+            continue
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            m = WRONG_SITE_RE.search(line)
+            if m:
+                report.error(f"{name}:{lineno}: '{m.group(0)}' is another domain: write SotANET or shroudoftheavatar.net")
 
 
 def check_readme_api(report: Report, manifest: dict) -> None:
@@ -486,6 +505,7 @@ def main() -> int:
         check_sources(report, manifest)
         check_changelog(report, manifest)
         check_readme_api(report, manifest)
+        check_site_name(report)
         check_version_constant(report, manifest)
 
     zip_path = None

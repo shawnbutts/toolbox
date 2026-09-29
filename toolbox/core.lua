@@ -260,7 +260,7 @@ end
 
 -- Decodes JSON text: objects -> tables, arrays -> lists, null -> nil (a null in an array
 -- leaves a hole; `n` is not kept). Returns the value, or nil and an error message. The
--- sandbox has no JSON library; used for the SOTA.net price API's answers.
+-- sandbox has no JSON library; used for the SotANET price API's answers.
 function T.JsonDecode(s)
   if type(s) ~= "string" then return nil, "not text" end
   local pos = 1
@@ -501,7 +501,7 @@ end)
 
 add("dailydetailed", "show or hide Today Detailed (every item gained today, with counts; view looted|crafted|"
     .. "gathered; include on|off: crafted and gathered items in Looted; values on|off: estimated values from"
-    .. " SOTA.net; values test [item]: check the connection; values refresh: look prices up again)", function(rest)
+    .. " SotANET; values test [item]: check the connection; values refresh: look prices up again)", function(rest)
   local word, arg = T.ParseArgs(rest)
   local DD = T.DailyDetail
   if word == "view" then
@@ -534,7 +534,7 @@ add("dailydetailed", "show or hide Today Detailed (every item gained today, with
     end
     arg = arg:lower()
     if arg == "on" or arg == "off" then T.DailyDetail.SetValues(arg == "on") end
-    T.Print("Estimated values (SOTA.net): " .. (T.DailyDetail.GetValues() and "on" or "off") .. "."
+    T.Print("Estimated values (SotANET): " .. (T.DailyDetail.GetValues() and "on" or "off") .. "."
       .. (T.DailyDetail.GetValues() and " Switch Internet on for Toolbox in the add-on manager too." or ""))
     return
   end
@@ -1614,7 +1614,7 @@ function T.Tick()
     T.unflushed = false
   end
   T.Sounds.Poll()
-  T.Prices.Tick()                    -- estimated values: the next SOTA.net lookup, when due
+  T.Prices.Tick()                    -- estimated values: the next SotANET lookup, when due
   T.Hud.Tick()                       -- remember where the HUD strips are
   T.Gear.Tick()                      -- worn gear's durability, every Gear.POLL seconds
   T.Config.SyncLive()
@@ -1735,7 +1735,7 @@ function ShroudOnNotificationsChanged()
   T.Notify.Check()
 end
 
--- Web answers (only the SOTA.net price lookups ask for any).
+-- Web answers (only the SotANET price lookups ask for any).
 function ShroudOnHttpResponse(requestId, ok, status, body, err)
   T.Prices.OnResponse(requestId, ok, status, body, err)
 end

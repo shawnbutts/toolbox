@@ -147,7 +147,7 @@ leaves more room for other add-ons, and fixes for start-up errors.
 Third beta. Notifications (guild message, mail, rewards, ...) in a window or on a HUD strip;
 the buff bar can replace the game's, groups long buffs, sorts by time left, flashes before a buff
 runs out, can show only in combat, and finally reads the game's full buff durations and debuffs;
-optional estimated item values from SOTA.net; alert sounds ship with the add-on (needs Lua API
+optional estimated item values from SotANET; alert sounds ship with the add-on (needs Lua API
 15); XP keeps counting after XP is lost; and fixes for errors that could stop Toolbox.
 
 ### Added
@@ -182,9 +182,9 @@ optional estimated item values from SOTA.net; alert sounds ship with the add-on 
   window is open, so you can place it. /toolbox buffs combat on|off. Alerts work either way.
   When the health & focus bars are glued to the buff bar, they hide and show with it.
 - Today Detailed: optional estimated values. Each item shows its count times its 90-day average
-  sale price from SOTA.net's public price list (player-uploaded receipts), and the header a total
+  sale price from SotANET's public price list (player-uploaded receipts), and the header a total
   for the day; hover a value for the price each. Items with no recent sales stay blank. Off by
-  default: switch on "Estimated values (SOTA.net)" in settings (or /toolbox dd values on) and
+  default: switch on "Estimated values (SotANET)" in settings (or /toolbox dd values on) and
   Internet for Toolbox in the add-on manager. Only item names are sent; each price is kept for 24
   hours, across reloads and restarts (/toolbox dd values refresh looks them up again).
   /toolbox dd values test [item] checks the connection with one lookup and prints the answer.

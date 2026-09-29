@@ -40,6 +40,8 @@ Guidance for AI coding agents (and humans) working on Toolbox, a Shroud of the A
   (2026-09-28), despite the docs; `type(x) == "table"` checks silently skipped them. Read fields by name
   through a pcall'd accessor (see `BB.ReadRunes`), never `pairs` over game objects. The harness can
   return such objects (`H.S.buffObjects`; real userdata on LuaJIT).
+- **The price site is "SotANET" (its name) or "shroudoftheavatar.net" (its domain), never "SOTA.net"**: that
+  is a different domain (owner, 2026-09-29). `tools/build.py` refuses "sota.net" in package files.
 - **Avoid `a and b or c` when `b` can be false/nil**; it has already caused a bug (vitals "not both off").
 - **Don't guess at API behaviour.** If the docs are unclear, pick the conservative option, write
   down the assumption (README or a comment), and add it to "Unconfirmed API behaviour" below.
@@ -119,7 +121,7 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     only when the window is shown, the rows are out of order, and `RESORT_SECONDS` have passed.
     Rows have no ids (item names aren't valid ids); handles are kept in a Lua table.
     Also `Toolbox.Prices` (bottom of the file): optional estimated values (`daily_detail.values`) from
-    SOTA.net's `GET /api/v1/receipts/prices?item=..` (<= 50 names, `avg90d` null = no sales) via
+    SotANET's `GET /api/v1/receipts/prices?item=..` (<= 50 names, `avg90d` null = no sales) via
     `ShroudHttpGet` (manifest `permissions: ["network"]`, `network_hosts: ["shroudoftheavatar.net"]`;
     the player must also switch Internet on in the add-on manager). Names are queued by `RefreshValues`
     (only while the window shows), sent one request at a time `P.GAP` apart from `P.Tick` (core Tick),
@@ -826,7 +828,7 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     CONFIRMED in game 2026-09-27 (build 7fe0014): both work as built.
 43. Web requests (`ShroudHttpGet`, built 2026-09-28 for estimated values): unconfirmed in game that the
     shard has it switched on, how the add-on manager's Internet switch appears, and whether looted item
-    names (`ShroudOnItemsGained`, localized) match SOTA.net's (English, matched whole, any case). The API
+    names (`ShroudOnItemsGained`, localized) match SotANET's (English, matched whole, any case). The API
     asks for a descriptive User-Agent; the client allows no headers. The store guide says to declare only
     hosts you control; shroudoftheavatar.net publishes this API for tools, but a reviewer may ask.
 44. Notifications (`ShroudGetNotifications`, API 14; built 2026-09-28). Unconfirmed in game: that the

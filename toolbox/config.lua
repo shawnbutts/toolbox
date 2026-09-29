@@ -165,7 +165,7 @@ function C.XPSection()
       onChange = function(_, value) T.Daily.SetHover(value) end },
     UI.Toggle{ id = "show_daily_detail", text = "Show Today Detailed window", value = T.DailyDetail.IsOpen(),
       onChange = function(_, value) C.OnShowDailyDetail(value) end },
-    UI.Toggle{ id = "dd_values", text = "Estimated values (SOTA.net)", value = T.DailyDetail.GetValues(),
+    UI.Toggle{ id = "dd_values", text = "Estimated values (SotANET)", value = T.DailyDetail.GetValues(),
       style = { marginLeft = 16 },
       tooltip = "Adds each item's value to Today Detailed: count x its 90-day average sale price from"
         .. " shroudoftheavatar.net (player-uploaded receipts); blank when it hasn't sold. Sends item"

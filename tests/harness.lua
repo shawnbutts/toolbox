@@ -895,7 +895,7 @@ function H.detailRows()
   return out
 end
 
--- The item names a recorded web request asked SOTA.net for.
+-- The item names a recorded web request asked SotANET for.
 function H.requestedItems(n)
   local out = {}
   for v in S.requests[n].url:gmatch("item=([^&]*)") do

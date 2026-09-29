@@ -62,7 +62,7 @@ D.SECTIONS = {
       .. "reaches your bags from a station and is named like a recipe you crafted; other things you take "
       .. "off a station (materials back, salvage returns) are listed apart. Crafted also lists the "
       .. "materials your crafts used (from each recipe's ingredients; tools and optional ones left out).",
-    "Estimated values (optional): switch on Estimated values (SOTA.net) in settings, or /toolbox dd "
+    "Estimated values (optional): switch on Estimated values (SotANET) in settings, or /toolbox dd "
       .. "values on, and switch Internet on for Toolbox in the add-on manager. Today Detailed then shows "
       .. "each item's count times its 90-day average sale price from shroudoftheavatar.net (player-"
       .. "uploaded receipts) and a total; hover a value for the price each. Items with no recent sales "

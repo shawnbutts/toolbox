@@ -108,8 +108,8 @@ From beta 3:
       - A buff about to run out flashes a red border (and plays a sound).
       - Getting a debuff plays a sound and shows it in the red second row.
       - Settings: "Replace the game's buff bar", "Click a buff to dismiss it", "Only during combat".
-  * Estimated values: switch on "Estimated values (SOTA.net)" in settings and Internet for Toolbox in
-    the add-on manager. Today Detailed then shows each item's value from SOTA.net's price list.
+  * Estimated values: switch on "Estimated values (SotANET)" in settings and Internet for Toolbox in
+    the add-on manager. Today Detailed then shows each item's value from SotANET's price list.
     /tbx dd values test checks the connection.
   * Sounds: /tbx sounds test plays both alerts; the "Alert volume" slider sets how loud.
   * XP after you die: "last hour" and XP/hour should keep counting. "Subtract XP lost" in settings

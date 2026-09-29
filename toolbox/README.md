@@ -23,7 +23,7 @@ under **Keys**.
 - `/toolbox reset`: start a new XP session
 - `/toolbox daily`: show or hide today's stats: gold picked up, kills, adventurer and producer XP (resets at midnight)
 - `/toolbox dailydetailed` (or `dd`): show or hide Today Detailed: every item gained today, with counts
-- `/toolbox dd values on` / `off`: estimated values in Today Detailed, from SOTA.net (see below)
+- `/toolbox dd values on` / `off`: estimated values in Today Detailed, from SotANET (see below)
 - `/toolbox buffs`: show or hide the buff bar
 - `/toolbox buffalert <1-60>` (or `on` / `off`): sound this many seconds before a buff runs out
 - `/toolbox debuffalert on` / `off`: sound when a debuff lands
@@ -69,7 +69,7 @@ items you took off crafting stations, crafts per recipe with exceptional and fai
 
 ### Estimated values (optional, uses the internet)
 
-Turn on **Estimated values (SOTA.net)** in settings (or `/toolbox dd values on`) and Today Detailed
+Turn on **Estimated values (SotANET)** in settings (or `/toolbox dd values on`) and Today Detailed
 adds each item's estimated value: its count times its average sale price over the last 90 days,
 from the public price list at shroudoftheavatar.net (built from receipts players upload), plus a
 total for the day. Hover a value for the price per unit and how many sold. Items that haven't

@@ -16,7 +16,7 @@
 -- counts come from Toolbox.Daily (daily.lua).
 --
 -- Optional estimated values (Toolbox.Prices, below the window code): each row's count times
--- the item's 90-day average sale price from SOTA.net's public price API, and a total in the
+-- the item's 90-day average sale price from SotANET's public price API, and a total in the
 -- header. Off by default; it also needs the player to switch Internet on for Toolbox in the
 -- add-on manager. Items with no recent sales stay blank.
 
@@ -428,9 +428,9 @@ function DD.ValueLine()
   if line then return line end
   local total, priced, kinds = valued.total, valued.priced, valued.kinds
   if kinds == 0 then return "Estimated value: nothing gained yet" end
-  if priced == 0 and P.Idle() then return "Estimated value: none of today's items sold recently (SOTA.net)" end
-  if priced == 0 then return "Estimated value: looking up prices on SOTA.net..." end
-  return "Estimated value ~" .. P.Format(total) .. " (" .. priced .. " of " .. kinds .. " kinds priced, SOTA.net)"
+  if priced == 0 and P.Idle() then return "Estimated value: none of today's items sold recently (SotANET)" end
+  if priced == 0 then return "Estimated value: looking up prices on SotANET..." end
+  return "Estimated value ~" .. P.Format(total) .. " (" .. priced .. " of " .. kinds .. " kinds priced, SotANET)"
 end
 
 function DD.GetValues() return prefs.values == true end
@@ -495,7 +495,7 @@ function DD.SetValues(on)
 end
 
 -- ---------------------------------------------------------------------------
--- Estimated values (Toolbox.Prices): SOTA.net's 90-day average sale prices
+-- Estimated values (Toolbox.Prices): SotANET's 90-day average sale prices
 -- ---------------------------------------------------------------------------
 -- GET https://shroudoftheavatar.net/api/v1/receipts/prices?item=A&item=B (up to 50 names,
 -- matched whole and case-insensitively) -> { items = { { item, avg90d (null: no sales in 90
@@ -535,7 +535,7 @@ local STATUS = {
   unavailable = "Estimated values: this game client can't reach the internet",
   disabled = "Estimated values: internet access is switched off on this server",
   quota = "Estimated values: too many lookups this session; they resume after a restart",
-  failed = "Estimated values: SOTA.net didn't answer; trying again in a minute",
+  failed = "Estimated values: SotANET didn't answer; trying again in a minute",
 }
 
 -- Gold for display: "1,234g", "12g", "4.5g", "<1g".
@@ -588,11 +588,11 @@ end
 function P.Tooltip(name)
   readCache()
   local e = cache[key(name)]
-  if not e then return "Looking up its price on SOTA.net..." end
-  if type(e.avg) ~= "number" then return "No sales on SOTA.net in the last 90 days" end
+  if not e then return "Looking up its price on SotANET..." end
+  if type(e.avg) ~= "number" then return "No sales on SotANET in the last 90 days" end
   local when = e.last ~= "" and ("; last sold " .. e.last:sub(1, 10)) or ""
   return "~" .. P.Format(e.avg) .. " each: the average of " .. T.FormatNumber(e.sold)
-    .. " sold in the last 90 days" .. when .. " (SOTA.net, from player-uploaded receipts)"
+    .. " sold in the last 90 days" .. when .. " (SotANET, from player-uploaded receipts)"
 end
 
 -- Whether a cached price is still good: under P.MAX_AGE old by the local clock, or (no clock,
@@ -749,7 +749,7 @@ function P.Test(name)
       .. (REFUSALS[reason] and (" (" .. REFUSALS[reason] .. ")") or ""))
     return
   end
-  T.Print("Price test: asked SOTA.net for '" .. name .. "'...")
+  T.Print("Price test: asked SotANET for '" .. name .. "'...")
   inflight = { id = id, names = { name }, at = T.Now(), test = true }
   nextAt = T.Now() + P.GAP
 end
@@ -767,7 +767,7 @@ function P.Report(name, ok, code, body, err, data)
   end
   local it = type(data.items) == "table" and data.items[1] or nil
   if type(it) ~= "table" or type(it.avg90d) ~= "number" then
-    T.Print("Price test: connected. '" .. name .. "' has no sales on SOTA.net in the last 90 days"
+    T.Print("Price test: connected. '" .. name .. "' has no sales on SotANET in the last 90 days"
       .. " (or no item has that exact name).")
     return
   end
