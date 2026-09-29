@@ -16,7 +16,7 @@ crafted and gathered today with its market value, DPS and combat stats, and noti
 - **XP tracking:** XP per hour, time to next level and a last-hour chart, for adventurer and producer XP.
 - **Today:** gold, kills, XP, and every item looted, crafted or gathered, with optional values from shroudoftheavatar.net.
 - **Combat stats:** DPS, damage taken, healing, crits, each skill's share, per-target damage and a fight timeline.
-- **Notifications:** guild message, mail, rewards and gear needing repair, in a window or on the HUD.
+- **Notifications:** guild message, mail, rewards and gear needing repair, in a window, on the HUD or in chat, with an optional sound.
 - **All set up in one settings window,** with a guide to every feature in the game. No files to edit.
 
 **Getting started:** type `/toolbox` (or `/tbx`, or press **Ctrl+;**) to open the settings window and
@@ -37,7 +37,7 @@ like, the seconds counting down at the end. It can sound an alert a set number o
 runs out (the icon flashes red) and when a debuff lands. Buffs lasting longer than you choose, and whole
 kinds such as blessings, fold into one icon with a count; hover it for the list. It can replace the
 game's own buff bar, and a click can dismiss a buff. To use your own sounds, put
-`toolbox_buff_expiring.ogg` / `toolbox_debuff_landed.ogg` (or `.wav`) in your Lua folder, beside the
+`toolbox_buff_expiring.ogg` / `toolbox_debuff_landed.ogg` / `toolbox_notify.ogg` (or `.wav`) in your Lua folder, beside the
 `toolbox` folder, or choose any file in the settings.
 
 ## Consumables bar
@@ -82,7 +82,8 @@ option.
 ## Notifications
 
 Your guild's message of the day, unread and expiring mail, ransoms, new rewards, guild applications and
-gear needing repair, in a Notifications window or a small HUD list. Each one can be turned off.
+gear needing repair, in a Notifications window, a small HUD list or a chat line, each with an optional
+sound. Each one can be turned off.
 
 ## Commands
 

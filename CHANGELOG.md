@@ -6,6 +6,9 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Notifications can also go to chat, and each can play a sound (a new rising chime, `notify.ogg`, replaceable
+  like the alerts): the dropdown next to each in settings offers Window, HUD or Chat, each with or without
+  "+ sound". `/toolbox notify [<name>] via chat` and `/toolbox notify [<name>] sound on|off`.
 - The guild message of the day notification uses the game's own guild message getter and change event
   (Lua API 18) when the client has them: a new message shows at once. Older clients keep reading it from
   the social summary.

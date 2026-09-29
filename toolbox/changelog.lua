@@ -6,6 +6,7 @@
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "section", "Added" },
+  { "item", "Notifications can also go to chat, and each can play a sound (a new rising chime, notify.ogg, replaceable like the alerts): the dropdown next to each in settings offers Window, HUD or Chat, each with or without \"+ sound\". /toolbox notify [<name>] via chat and /toolbox notify [<name>] sound on|off." },
   { "item", "The guild message of the day notification uses the game's own guild message getter and change event (Lua API 18) when the client has them: a new message shows at once. Older clients keep reading it from the social summary." },
   { "item", "If the game refuses to write Toolbox's saved settings to disk, Toolbox says so in chat (at most every 5 minutes) instead of failing silently." },
   { "item", "The Docs' Buff bar topic lists the cues that don't rely on colour (the debuff row, the blinking border, the alert sound, the seconds countdown, the sweep's size)." },

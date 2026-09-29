@@ -402,19 +402,20 @@ end
 function C.NotifySection()
   local children = {
     heading("Notifications", true),
-    UI.Label{ text = "Tells you what's new since you last saw it, in a window or on the notification HUD.",
+    UI.Label{ text = "Tells you what's new since you last saw it: in a window, on the notification HUD or in"
+      .. " chat, with a sound if you like.",
       class = "dim", style = { whiteSpace = "wrap" } },
   }
-  local vias = {}
-  for i, v in ipairs(T.Notify.VIAS) do vias[i] = v[2] end
+  local vias = T.Notify.Choices()
   for _, src in ipairs(T.Notify.Sources()) do
     local key = src.key
     children[#children + 1] = UI.Row{ style = { alignItems = "center" }, children = {
       UI.Toggle{ id = "notify_" .. key, text = src.label, value = T.Notify.IsOn(key), style = { flexGrow = 1 },
         tooltip = src.tip, onChange = function(_, v) T.Notify.SetOn(key, v) end },
       UI.Dropdown{ id = "notify_" .. key .. "_via", choices = vias,
-        value = T.Notify.ViaLabel(T.Notify.GetVia(key)) or vias[1],
-        tooltip = "Where it shows: the Notifications window, or the notification HUD",
+        value = T.Notify.ChoiceLabel(key),
+        tooltip = "Where it shows: the Notifications window, the notification HUD or a chat line; \"+ sound\""
+          .. " also plays the notification sound (Sounds)",
         onChange = function(_, label) C.OnNotifyVia(key, label) end },
     } }
   end
@@ -671,9 +672,10 @@ function C.OnShowXP(value)
 end
 
 function C.OnNotifyVia(key, label)
-  for _, v in ipairs(T.Notify.VIAS) do
-    if v[2] == label then T.Notify.SetVia(key, v[1]) end
-  end
+  local via, sound = T.Notify.ParseChoice(label)
+  if not via then return end
+  T.Notify.SetVia(key, via)
+  T.Notify.SetSound(key, sound)
 end
 
 function C.OnNotifyHide(label)
@@ -861,7 +863,7 @@ function C.Sync()
   -- Notifications
   for _, src in ipairs(T.Notify.Sources()) do
     setValue("notify_" .. src.key, T.Notify.IsOn(src.key))
-    setValue("notify_" .. src.key .. "_via", T.Notify.ViaLabel(T.Notify.GetVia(src.key)) or "Window")
+    setValue("notify_" .. src.key .. "_via", T.Notify.ChoiceLabel(src.key))
   end
   setValue("nhud_hide", T.Notify.Hud.HideLabel(T.Notify.Hud.GetHideAfter()) or "Never")
   -- Sounds

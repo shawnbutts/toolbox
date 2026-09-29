@@ -1176,7 +1176,7 @@ local function notifyList()
   local parts = {}
   for _, src in ipairs(T.Notify.Sources()) do
     parts[#parts + 1] = src.key .. " (" .. src.label .. ") " .. (T.Notify.IsOn(src.key) and "on" or "off")
-      .. (T.Notify.GetVia(src.key) == "hud" and " (HUD)" or "")
+      .. (T.Notify.ChoiceLabel(src.key) ~= "Window" and (" (" .. T.Notify.ChoiceLabel(src.key) .. ")") or "")
   end
   return "Notifications: " .. table.concat(parts, ", ") .. "."
 end
@@ -1204,7 +1204,7 @@ local function notifyHud(args)
   end
 end
 
-add("notify", "notifications: list them; <name> on|off; [<name>] via window|hud; show; hud (hide, move, clear)",
+add("notify", "notifications: list; <name> on|off; [<name>] via window|hud|chat; [<name>] sound on|off; show; hud",
     function(rest)
   local c = "/" .. T.commands[1] .. " notify"
   local word, arg = T.ParseArgs(rest)
@@ -1219,14 +1219,27 @@ add("notify", "notifications: list them; <name> on|off; [<name>] via window|hud;
   if word == "via" or (T.Notify.Label(word) and arg:lower():match("^via%s")) then
     local via = (word == "via" and arg or arg:match("^%S+%s+(.*)$") or ""):lower()
     if not T.Notify.ViaLabel(via) then
-      T.Print("Use " .. c .. " [<name>] via window|hud.")
+      T.Print("Use " .. c .. " [<name>] via window|hud|chat.")
       return
     end
     for _, src in ipairs(T.Notify.Sources()) do
       if word == "via" or src.key == word then T.Notify.SetVia(src.key, via) end
     end
-    T.Print((word == "via" and "All notifications" or T.Notify.Label(word)) .. " now show in the "
-      .. (via == "hud" and "notification HUD." or "Notifications window."))
+    local where = { hud = "in the notification HUD.", chat = "in chat.", window = "in the Notifications window." }
+    T.Print((word == "via" and "All notifications" or T.Notify.Label(word)) .. " now show " .. where[via])
+    return
+  end
+  if word == "sound" or (T.Notify.Label(word) and arg:lower():match("^sound%s")) then
+    local onoff = (word == "sound" and arg or arg:match("^%S+%s+(.*)$") or ""):lower()
+    if onoff ~= "on" and onoff ~= "off" then
+      T.Print("Use " .. c .. " [<name>] sound on|off.")
+      return
+    end
+    for _, src in ipairs(T.Notify.Sources()) do
+      if word == "sound" or src.key == word then T.Notify.SetSound(src.key, onoff == "on") end
+    end
+    T.Print((word == "sound" and "All notifications" or T.Notify.Label(word))
+      .. (onoff == "on" and " now play the notification sound." or " play no sound."))
     return
   end
   if word ~= "" then

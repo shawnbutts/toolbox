@@ -54,7 +54,7 @@ Built clean-room from the official docs only:
 | `/toolbox buffs` (`group` / `combat` / `flash` / `replace` / `dismiss` / `debug` / `raw` / `trace [name]` / `frame <k>` / `uvtest`) | show or hide the buff bar; its options; diagnostics (`debug`: each buff's timing; `trace light`: log buffs matching "light" once a second for 10 s; `frame`: hold one sweep frame; `uvtest`: sprite-frame redraw test) |
 | `/toolbox consumables` (`bar` / `glue` / `add\|remove <name>` / `move`) | list food and potions in effect; the consumables bar's options |
 | `/toolbox gear` (`bar` / `glue` / `repair <%>` / `move` / `debug`) | worn items' durability; the equipment bar's options |
-| `/toolbox notify` (`<name> on\|off` / `via window\|hud` / `show` / `hud ...`) and `/toolbox motd` | notifications; the guild message of the day |
+| `/toolbox notify` (`<name> on\|off` / `via window\|hud\|chat` / `sound on\|off` / `show` / `hud ...`) and `/toolbox motd` | notifications; the guild message of the day |
 | `/toolbox buffalert <1-60>` / `on` / `off` | alert this many seconds before a buff runs out (default 10) |
 | `/toolbox debuffalert on` / `off` | alert when a debuff lands |
 | `/toolbox sounds [0-100]` | show which sound files the alerts use; with a number, set the volume |
@@ -218,12 +218,12 @@ all sweeps together.
   log in or change scene, when the game rebuilds the buff list.
 
 **Sounds.** The default sounds live in the add-on's folder (`Lua/toolbox/buff_expiring.ogg`,
-`Lua/toolbox/debuff_landed.ogg`); to use your own, put a replacement in the folder above it. Each
+`Lua/toolbox/debuff_landed.ogg`, `Lua/toolbox/notify.ogg` for notifications); to use your own, put a replacement in the folder above it. Each
 alert takes the first that loads of:
 
 1. a custom path you set in `/toolbox config` (any `.ogg`/`.wav`/`.mp3` inside your Lua folder);
-2. a replacement beside the add-on: `Lua/toolbox_buff_expiring.ogg` / `Lua/toolbox_debuff_landed.ogg`
-   (or `.wav`), which store updates don't touch;
+2. a replacement beside the add-on: `Lua/toolbox_buff_expiring.ogg` / `Lua/toolbox_debuff_landed.ogg` /
+   `Lua/toolbox_notify.ogg` (or `.wav`), which store updates don't touch;
 3. the default in the add-on's folder, `Lua/toolbox/<name>.ogg`.
 
 The defaults ship in the package (API 15 allows sounds; the package needs `min_api_version` 23

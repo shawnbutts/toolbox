@@ -12,6 +12,8 @@ Alerts:
   buff_expiring   two soft bell chimes falling a fourth (A5 -> E5), 0.9 s: "winding down"
   debuff_landed   three hollow notes stepping down from high to low (E6 -> B5 -> E5), each bending
                   down as it sounds, 0.8 s: a falling "uh-oh" that starts high
+  notify          two soft bell chimes rising a fifth (E5 -> B5), 0.8 s: "something new" (the
+                  opposite way to buff_expiring's fall)
 Tweak the constants in each render_* function and re-run.
 """
 
@@ -64,9 +66,8 @@ def normalize(samples: list[float]) -> list[float]:
 # buff_expiring: two soft bell chimes, falling
 # ---------------------------------------------------------------------------
 
-def render_buff_expiring() -> list[float]:
-    duration = 0.9
-    notes = [(0.00, 880.00, 1.0), (0.17, 659.25, 0.9)]   # (start s, Hz, loudness): A5 then E5
+def render_chimes(duration: float, notes: list[tuple[float, float, float]]) -> list[float]:
+    """Soft bell chimes: notes = (start s, Hz, loudness)."""
     # Bell partials: (ratio, amplitude, decay 1/s). Higher partials are slightly inharmonic
     # and die away faster, which is what makes it sound like a chime.
     partials = [(1.0, 1.00, 5.0), (2.0, 0.35, 8.0), (2.76, 0.22, 11.0), (5.4, 0.08, 18.0)]
@@ -81,6 +82,14 @@ def render_buff_expiring() -> list[float]:
     dry = [sum(loud * chime(i / RATE - start, f) for start, f, loud in notes) for i in range(n)]
     out = add_echoes(dry, [(0.075, 0.22), (0.15, 0.10)])
     return normalize(fade_out(out, 0.08))
+
+
+def render_buff_expiring() -> list[float]:
+    return render_chimes(0.9, [(0.00, 880.00, 1.0), (0.17, 659.25, 0.9)])   # A5 then E5: falling
+
+
+def render_notify() -> list[float]:
+    return render_chimes(0.8, [(0.00, 659.25, 0.85), (0.14, 987.77, 1.0)])   # E5 then B5: rising
 
 
 # ---------------------------------------------------------------------------
@@ -148,6 +157,7 @@ def render_debuff(p: dict) -> list[float]:
 ALERTS = {
     "buff_expiring": render_buff_expiring,
     "debuff_landed": lambda: render_debuff(DEBUFF),
+    "notify": render_notify,
 }
 
 

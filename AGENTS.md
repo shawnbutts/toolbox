@@ -252,9 +252,9 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     `D.ChangelogVersions` splits `Toolbox.CHANGELOG` per version, pure),
     and `Toolbox.Notify`, notifications (`/toolbox notify`, `/toolbox motd`), built to grow in three parts:
     `N.SOURCES` (key, label, tip, default, `Check(seen, ctx)` -> notice `{ title?, text, seen }` or nil, plus
-    an optional quiet value; `countCheck` / `flagCheck` build the common kinds), `N.DELIVERY` (by name;
-    only "window" so far: one "Notifications" window with a fixed section per source; a chat line, sound
-    or other window style is a new entry + a settings control, sources untouched), and `N.Check` (tick,
+    an optional quiet value; `countCheck` / `flagCheck` build the common kinds), `N.DELIVERY` (by name: "window", one "Notifications" window with a fixed section per source; "hud"; "chat",
+    a chat line each; plus a per-source `sound` flag: the "notify" sound once per check that delivered one of
+    its notices. The settings dropdown shows `N.Choices()`: each via, and each "+ sound"), and `N.Check` (tick,
     `ShroudOnStart`, `ShroudOnSocialChanged`, `ShroudOnNotificationsChanged`), which remembers a notice
     as seen only once delivered. Off sources are tracked quietly; `N.SETTLE` s after start or a character
     change, counts going down aren't remembered (they read 0 while loading). Settings: `C.NotifySection`
@@ -305,7 +305,8 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
 - `toolbox/*.ogg` alert sounds (shipped in the package: API 15, so `min_api_version` is 15), generated
   by `python3 art/alerts.py [name ...]` (stdlib synthesis + ffmpeg's built-in Vorbis encoder, which plays
   fine in game; intermediate `art/*.wav`, git-ignored): `buff_expiring` (two falling bell chimes, 0.9 s)
-  and `debuff_landed` (three hollow notes stepping down from high to low, E6 -> B5 -> E5, 0.8 s). Re-encoding changes the .ogg bytes (random
+  and `debuff_landed` (three hollow notes stepping down from high to low, E6 -> B5 -> E5, 0.8 s), and
+  `notify` (two chimes rising E5 -> B5, 0.8 s: notifications with "+ sound"). Re-encoding changes the .ogg bytes (random
   stream serial) even when the audio is identical, so `git checkout` an .ogg you didn't mean to change.
   `tools/build.py` checks the documented sound rules (<= 32, <= 2 MiB, lower-case .ogg/.wav, OggS /
   RIFF....WAVE header). DEFAULTS live in the package folder (path "toolbox/<name>"); a player's
@@ -394,7 +395,7 @@ including the "no character" sentinel.
 | `combat_detail` | `{ open = bool (pinned), x, y, scope = "fight"/"session", hover = bool }` |
 | `combat` | `{ show, scale = 75..250, pet, stats = { "MagicResistance", ... }, bg = None/Dark/Light, bgOpacity = 10..100, x, y }` |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last = ISO date, day = Toolbox.Today() key, at = Toolbox.Clock() when known } } }`, at most `P.MAX_KEEP` |
-| `notify` | `{ v = 1, sources = { [key] = { on = bool, seen = last value delivered, via = "window" } } }` (keys: motd, mail, expiring, ransoms, rewards, applications, durability; durability's `seen` is a table `{ [item key] = "low"/"broken" }`, read back as string keys and values only); the older `guild_motd` `{ show, seen }` is read once to take over |
+| `notify` | `{ v = 1, sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool } } }` (keys: motd, mail, expiring, ransoms, rewards, applications, durability; durability's `seen` is a table `{ [item key] = "low"/"broken" }`, read back as string keys and values only); the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), x, y }` |
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most `Notify.Hud.KEEP` (20) |
 | `consumables` | `{ show = bool (default true), glue = bool, extra = { name parts, <= 20 }, cats = { [category] = true } (absent: defaults), exclude = { name parts } (absent: Scroll, Torch, Bait), max = 1..10 (icons before grouping), combatOnly = bool, x, y }` |

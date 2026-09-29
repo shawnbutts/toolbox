@@ -173,15 +173,17 @@ D.SECTIONS = {
     "Switch each one on or off in settings (Notifications), or with /toolbox notify <name> on|off "
       .. "(names: motd, mail, expiring, ransoms, rewards, applications, durability). /toolbox notify lists them; "
       .. "/toolbox notify show shows everything current; /toolbox motd shows the guild message.",
-    "Each can show in the Notifications window or on the notification HUD (the dropdown next to it in "
-      .. "settings, or /toolbox notify <name> via hud; /toolbox notify via hud for all). The HUD lists the "
+    "Each can show in the Notifications window, on the notification HUD or as a chat line, with or "
+      .. "without a sound (the dropdown next to it in settings, e.g. HUD + sound; or /toolbox notify <name> "
+      .. "via window|hud|chat and /toolbox notify <name> sound on|off, or leave out the name for all). The "
+      .. "sound is a rising chime, different from the buff alerts. The HUD lists the "
       .. "latest 20, newest on top, one line each (hover a line for all of it; scroll for older ones). It "
       .. "shows when something arrives and hides after 10 seconds, or never (HUD: hide after, or "
       .. "/toolbox notify hud hide 30); it stays while the pointer is on it. Move it like the other HUD "
       .. "strips (settings, or /toolbox notify hud move <x> <y>); /toolbox notify hud clear deletes its history." },
   { "Sounds",
     "The alert sounds live in the add-on's folder. To use your own, put "
-      .. "toolbox_buff_expiring.ogg or toolbox_debuff_landed.ogg (or .wav) in your Lua folder, "
+      .. "toolbox_buff_expiring.ogg, toolbox_debuff_landed.ogg or toolbox_notify.ogg (or .wav) in your Lua folder, "
       .. "beside the toolbox folder, or pick any file in settings. /toolbox sounds shows what "
       .. "each alert uses; /toolbox sounds 50 sets the volume." },
 }
@@ -448,7 +450,8 @@ end
 --     doesn't bring up old news. For N.SETTLE seconds after start or a character change, counts
 --     going down are not remembered: at login they read 0 until the game has loaded them.
 -- Saved var "notify" (character scope): { v = 1, sources = { [key] = { on = bool, seen = any,
--- via = "window"|"hud" } } }. The older "guild_motd" ({ show, seen }) is taken over once.
+-- via = "window"|"hud"|"chat", sound = bool } } }. The older "guild_motd" ({ show, seen }) is taken over once.
+-- `sound`: the "notify" sound (Toolbox.Sounds) plays once per check that delivered one of the source's notices.
 -- The HUD's: "notify_hud" { hideAfter = seconds (0 = never), x, y } and "notify_history"
 -- { v = 1, list = { { when = "HH:MM", title, text } } } (newest first, at most N.Hud.KEEP).
 
@@ -777,6 +780,14 @@ function NH.Tick()
 end
 
 -- "hud": each notice goes on top of the list; the HUD shows for hideAfter seconds.
+-- "chat": each notice as a chat line, "Title: text". Always delivered.
+N.DELIVERY.chat = function(list)
+  for _, item in ipairs(list) do
+    T.Print((item.notice.title or item.source.label) .. ": " .. item.notice.text)
+  end
+  return true
+end
+
 N.DELIVERY.hud = function(list)
   for _, item in ipairs(list) do
     table.insert(history, 1, { when = clockText(), title = item.notice.title or item.source.label,
@@ -868,8 +879,9 @@ local function prefsNow()
   nprefs = { v = 1, sources = {} }
   for _, src in ipairs(N.SOURCES) do
     local s = type(stored[src.key]) == "table" and stored[src.key] or {}
-    local sp = { on = src.default, via = N.DELIVERY_DEFAULT }
+    local sp = { on = src.default, via = N.DELIVERY_DEFAULT, sound = false }
     if type(s.on) == "boolean" then sp.on = s.on end
+    if s.sound == true then sp.sound = true end
     if type(s.via) == "string" and N.DELIVERY[s.via] then sp.via = s.via end
     if type(s.seen) == "table" then
       sp.seen = plainStrings(s.seen)
@@ -903,15 +915,21 @@ local function context()
 end
 
 -- Hands each delivery its notices; remembers them as seen once delivered. Returns true if any.
-local function deliver(byVia)
-  local p, any = nprefs, false
+-- `withSound`: play the notification sound once if a delivered source asks for it.
+local function deliver(byVia, withSound)
+  local p, any, sound = nprefs, false, false
   for via, list in pairs(byVia) do
     local ok, done = pcall(N.DELIVERY[via], list)
     if ok and done then
-      for _, item in ipairs(list) do p.sources[item.source.key].seen = item.notice.seen end
+      for _, item in ipairs(list) do
+        local sp = p.sources[item.source.key]
+        sp.seen = item.notice.seen
+        if sp.sound then sound = true end
+      end
       any = true
     end
   end
+  if sound and withSound then T.Sounds.Play("notify") end
   return any
 end
 
@@ -934,7 +952,7 @@ function N.Check()
       sp.seen, changed = quiet, true
     end
   end
-  if deliver(byVia) then changed = true end
+  if deliver(byVia, true) then changed = true end
   if changed then save() end
   NH.Tick()
 end
@@ -993,7 +1011,50 @@ function N.SetOn(key, on)
 end
 
 -- The deliveries, in the order settings offer them: { name, label }.
-N.VIAS = { { "window", "Window" }, { "hud", "HUD" } }
+N.VIAS = { { "window", "Window" }, { "hud", "HUD" }, { "chat", "Chat" } }
+N.SOUND_SUFFIX = " + sound"
+
+-- The settings dropdown's choices: each delivery, and each with the sound ("Window + sound").
+function N.Choices()
+  local out = {}
+  for _, v in ipairs(N.VIAS) do
+    out[#out + 1] = v[2]
+    out[#out + 1] = v[2] .. N.SOUND_SUFFIX
+  end
+  return out
+end
+
+function N.ChoiceLabel(key)
+  local label = N.ViaLabel(N.GetVia(key)) or N.VIAS[1][2]
+  if N.GetSound(key) then label = label .. N.SOUND_SUFFIX end
+  return label
+end
+
+-- A choice back to (via, sound), or nil for an unknown label.
+function N.ParseChoice(label)
+  if type(label) ~= "string" then return nil end
+  local sound = label:sub(-#N.SOUND_SUFFIX) == N.SOUND_SUFFIX
+  local base = sound and label:sub(1, #label - #N.SOUND_SUFFIX) or label
+  for _, v in ipairs(N.VIAS) do
+    if v[2] == base then return v[1], sound end
+  end
+  return nil
+end
+
+function N.GetSound(key)
+  local sp = prefsNow().sources[key]
+  return sp ~= nil and sp.sound == true
+end
+
+-- Plays the notification sound with a source's notices, or not. Returns false for an unknown key.
+function N.SetSound(key, on)
+  local sp = prefsNow().sources[key]
+  if not sp then return false end
+  sp.sound = on == true
+  save()
+  T.Config.Sync()
+  return true
+end
 
 function N.ViaLabel(via)
   for _, v in ipairs(N.VIAS) do if v[1] == via then return v[2] end end
