@@ -771,20 +771,20 @@ function BB.BuildContent()
   end
   sizedFor = nil
   contentW, contentH = contentSize(1, 1)
-  local extraRows = K.Glued() or T.Gear.Glued() or T.Target.Glued()
+  local extraRows = K.Glued() or T.Gear.Glued() or T.Target.InBuffColumn()
   local rows = {
     UI.Row{ id = "buffs", style = { marginBottom = BB.GAP }, children = buffRow },
     UI.Row{ id = "debuffs", style = { marginBottom = extraRows and BB.GAP or 0 }, children = debuffRow },
   }
   -- which rows live in this strip (BB.Unbuilt drops them with it, whatever the settings are by then)
-  K.inBuffBar, T.Gear.inBuffBar, T.Target.inBuffBar = K.Glued(), T.Gear.Glued(), T.Target.Glued()
+  K.inBuffBar, T.Gear.inBuffBar, T.Target.inBuffBar = K.Glued(), T.Gear.Glued(), T.Target.InBuffColumn()
   if K.Glued() then                     -- the consumables bar as the next row
-    rows[#rows + 1] = K.BuildRow(T.Gear.Glued() or T.Target.Glued())
+    rows[#rows + 1] = K.BuildRow(T.Gear.Glued() or T.Target.InBuffColumn())
   end
   if T.Gear.Glued() then                -- the equipment bar as the next row
     rows[#rows + 1] = T.Gear.BuildRow()
   end
-  if T.Target.Glued() then              -- the target HUD as the last row
+  if T.Target.InBuffColumn() then              -- the target HUD as the last row
     local row = T.Target.BuildRow()
     if T.Gear.Glued() then row:SetStyle{ marginTop = BB.GAP } end
     rows[#rows + 1] = row

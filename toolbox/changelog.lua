@@ -6,7 +6,7 @@
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "section", "Changed" },
-  { "item", "Target HUD in the Toolbelt: no name line (it's in the tooltip); the health and focus bars are the same length and thickness as your own (the health bars' Size and Bar length), with the percent beside them. On its own strip it keeps the name." },
+  { "item", "Target HUD in the Toolbelt: no text (the name and numbers are in the tooltip); the health and focus bars are the same length and thickness as your own (the health bars' Size and Bar length). With your health bars in the Toolbelt too, the target runs under the whole Toolbelt: its bars start where yours do and its icons line up under your buffs. On its own strip it keeps the name and percent." },
   { "section", "Fixed" },
   { "item", "Target HUD: creatures the game has no display name for (it reports \"Entity with no name (Stag_04_Large(Clone))\") show a readable name (\"Stag Large\"); the game's text is in the tooltip." },
   { "section", "Added" },

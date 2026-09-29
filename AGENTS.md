@@ -217,6 +217,12 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     `TG.HealthText` are pure. Polled every `TG.POLL` s (own periodic) and on `ShroudOnTargetChanged` (core);
     the grouped `ShroudGetTargetBuff` (debuff flags, `TotalDuration`) only when the target or its effect count
     changes, or every `TG.GROUP_EVERY` s. The API doesn't say who applied an effect: every effect is listed.
+    Layouts (owner, 2026-09-29): own strip = name + percent over thin bars (`TG.INFO_CELLS` wide). In the
+    Toolbelt = no text, bars `V.Metrics()`-sized like the player's. With the health bars glued too (`TG.Below`),
+    Toolbox.Hud builds it as a `Hud.BELOW` part: a row under both glued columns from the strip's left edge,
+    its name block as wide as the vitals column + `Hud.GAP` so the icons line up under the buffs. Otherwise
+    (`TG.InBuffColumn`) the buff bar builds it as its last row. Sizes change in place (`TG.ApplySize`, called
+    from the buff bar's icon size and the vitals' `applySize`).
   - `combat.lua`: `Toolbox.Combat`, the combat stats HUD. Fight model (`NewFight`, `Add`, `Rates`, `CritPct`,
     `AvoidPct`, and `NewSession`, `TopRunes`, `Timeline`, `OverhealPct`, `SessionDuration`) is pure: each fight
     and the session (every fight since start/reset) keep per-skill stats (`runes`, by runeId), overheal, and

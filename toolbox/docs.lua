@@ -88,8 +88,10 @@ D.SECTIONS = {
       .. "It shows what the game's target frame shows: a creature hiding its health reads \"health hidden\". "
       .. "The game doesn't say who applied an effect, so every effect on the target is listed. Hover for "
       .. "details.",
-    "In the Toolbelt it leaves out the name (hover for it) and its bars match yours: the health bars' "
-      .. "length and thickness (Health bars: Size and Bar length), with the percent beside them.",
+    "In the Toolbelt it has no text (hover for the name and numbers) and its bars match yours: the health "
+      .. "bars' length and thickness (Health bars: Size and Bar length). With your health bars in the "
+      .. "Toolbelt too, it runs under the whole Toolbelt: its bars start where yours do and its icons line "
+      .. "up under your buffs.",
     "It joins the Toolbelt as its last row, or has its own strip (settings: Toolbelt, Target; or /toolbox "
       .. "target toolbelt on|off). With no target it hides, except while the settings window is open, so you "
       .. "can place it (/toolbox target move <x> <y>). /toolbox target debug shows what the game reports." },

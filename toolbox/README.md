@@ -52,8 +52,8 @@ and add or leave out buffs by name.
 Your target's name and health (and focus), then its effects as icons with a sweep for the time left,
 debuffs first. It shows what the game's own target frame shows, so a creature hiding its health reads
 "health hidden", and it lists every effect on the target (the game doesn't say who applied them). It joins
-the Toolbelt as its last row, where it drops the name (hover for it) and its bars match yours, or has its
-own strip.
+the Toolbelt as its last row, with no text (hover for it) and bars lined up with and sized like your own
+health bars, or has its own strip.
 
 ## Gear repair
 

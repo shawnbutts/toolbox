@@ -701,8 +701,16 @@ function TG.GetGlue() return tprefs.glue ~= false end
 -- In the Toolbelt right now (the setting, and the buff bar switched on).
 function TG.Glued() return tprefs.show == true and tprefs.glue ~= false and T.BuffBar.IsEnabled() end
 
--- For Toolbox.Hud: its own strip only when on and not in the Toolbelt.
-function TG.Wanted() return tprefs.show == true and not TG.Glued() end
+-- In the Toolbelt with the health bars there too: Toolbox.Hud puts the row under both columns, so the
+-- target's bars start at the health bars' left end (owner, 2026-09-29). Otherwise, in the Toolbelt, it is
+-- the buff column's last row.
+function TG.Below() return TG.Glued() and T.Hud.IsGlued() end
+
+-- The buff column's last row (in the Toolbelt, the health bars not).
+function TG.InBuffColumn() return TG.Glued() and not TG.Below() end
+
+-- For Toolbox.Hud: built by it on its own strip, or under the Toolbelt's columns (Below).
+function TG.Wanted() return tprefs.show == true and (not TG.Glued() or TG.Below()) end
 
 -- Whether there is something to show: a target, or the settings window open (to place it).
 local function wantRow() return tHas == true or T.Config.IsShown() end
@@ -711,18 +719,19 @@ function TG.IsShown() return TG.Wanted() and wantRow() end
 
 -- Cells the name block takes (set when built; the Toolbelt's depends on the health bars' size).
 local tInfoCells = TG.INFO_CELLS
-local tBelt = false          -- built as the Toolbelt's row: no name, bars sized like the player's
-local tPct = nil             -- the Toolbelt form's "73%" label
+local tBelt = false          -- built for the Toolbelt: no text, bars sized like the player's
+local tBelow = false         -- ... and under both of its columns (TG.Below)
 
 -- Cells the row takes in the Toolbelt (0 when hidden or not glued).
 function TG.GluedCount()
-  if not TG.Glued() or not wantRow() then return 0 end
+  if not TG.Glued() or TG.Below() or not wantRow() then return 0 end
   return tInfoCells + #tList
 end
 
 -- The name block's sizes for icon size s. Own strip: the name over a thin health and focus bar, INFO_CELLS
--- wide. In the Toolbelt (owner, 2026-09-29: the name adds little there): no name, the bars the length and
--- thickness of the player's health bars (V.Metrics: their Size and Bar length), and "73%" beside them.
+-- wide. In the Toolbelt (owner, 2026-09-29: no name or percent there; hover for them): just the bars, the
+-- length and thickness of the player's health bars (V.Metrics: their Size and Bar length). Under the
+-- columns (Below) the block is as wide as the health bars' column, so the icons line up under the buffs.
 local function infoLayout(s)
   local gap, cell = T.BuffBar.GAP, s + T.BuffBar.GAP
   local L = {}
@@ -730,12 +739,13 @@ local function infoLayout(s)
     local m = V.Metrics()
     L.barW = math.floor(V.GetWidth() * V.GetScale() / 100 + 0.5)
     L.hBar, L.fBar = m.barH, m.barH
-    L.font = m.font
-    L.pctW = math.ceil(m.font * 3.4)             -- room for "100%" / "hidden"
-    L.gap = m.gap
-    local w = L.barW + L.gap + L.pctW
-    L.cells = math.max(1, math.ceil((w + gap) / cell))
-    L.w = L.cells * cell - gap
+    if tBelow then
+      L.w = math.max(L.barW, (V.ContentSize()) + T.Hud.GAP - gap)
+      L.cells = (L.w + gap) / cell                -- not whole cells: ContentSize adds the icons
+    else
+      L.cells = math.max(1, math.ceil((L.barW + gap) / cell))
+      L.w = L.cells * cell - gap
+    end
   else
     L.cells = TG.INFO_CELLS
     L.w = TG.INFO_CELLS * cell - gap
@@ -758,9 +768,7 @@ local function styleInfo(s)
   tInfo:SetStyle{ width = L.w, height = s, marginRight = T.BuffBar.GAP }
   tHealth:SetStyle(barStyleT(L.barW, L.hBar, 2))
   tFocus:SetStyle(barStyleT(L.barW, L.fBar, 0))
-  if tBelt then
-    tPct:SetStyle{ fontSize = L.font, width = L.pctW, marginLeft = L.gap, marginRight = 0, whiteSpace = "nowrap" }
-  else
+  if not tBelt then
     local h = s - L.hBar - L.fBar - 2
     tName:SetStyle{ fontSize = L.font, width = L.w, height = h, minHeight = h, maxHeight = h,
                     whiteSpace = "nowrap", marginLeft = 0, marginRight = 0, marginTop = 0, marginBottom = 0,
@@ -772,16 +780,14 @@ end
 function TG.BuildRow()
   T.BuffBar.ClockReady()
   local s = iconSize()
-  tBelt = TG.inBuffBar == true
+  tBelow = TG.inBuffBar ~= true and TG.Below()
+  tBelt = TG.inBuffBar == true or tBelow
   tHealth = UI.Bar{ id = "target_health", value = 0, color = "@red" }
   tFocus = UI.Bar{ id = "target_focus", value = 0, color = "@blue", visible = false }
   if tBelt then
     tName = nil
-    tPct = UI.Label{ id = "target_pct", text = "", class = "text" }
-    tInfo = UI.Row{ id = "target_info", style = { alignItems = "center" }, children = {
-      UI.Column{ children = { tHealth, tFocus } }, tPct } }
+    tInfo = UI.Column{ id = "target_info", style = { justifyContent = "center" }, children = { tHealth, tFocus } }
   else
-    tPct = nil
     tName = UI.Label{ id = "target_name", text = "", class = "text" }
     tInfo = UI.Column{ id = "target_info", children = { tName, tHealth, tFocus } }
   end
@@ -809,13 +815,13 @@ end
 
 -- For Toolbox.Hud (and BB.Unbuilt when in the Toolbelt): the row was destroyed; the poll skips it.
 function TG.Unbuilt()
-  tContent, tInfo, tName, tHealth, tFocus, tPct, TG.inBuffBar = nil, nil, nil, nil, nil, nil, false
+  tContent, tInfo, tName, tHealth, tFocus, TG.inBuffBar = nil, nil, nil, nil, nil, false
   tSlots, tShownCount = {}, nil
 end
 
 function TG.ContentSize()
   local cell = iconSize() + T.BuffBar.GAP
-  return (tInfoCells + #tList) * cell, cell
+  return math.ceil((tInfoCells + #tList) * cell), iconSize()
 end
 
 -- A size changed (the buff bar's icon size, or the health bars' Size / Bar length): resized in place
@@ -832,7 +838,7 @@ function TG.ApplySize()
   end
   tShownCount = nil
   TG.Poll(false)
-  if TG.Glued() then T.BuffBar.Tick() else T.Hud.Refresh() end
+  if TG.Glued() and not TG.Below() then T.BuffBar.Tick() else T.Hud.Refresh() end
 end
 
 -- Fills the effect slots from tList.
@@ -901,7 +907,6 @@ function TG.Poll(force)
     local raw = ShroudGetTargetName()
     local name = TG.CleanName(raw)
     if tName then T.SetText(tName, name .. (pct ~= "" and ("  " .. pct) or "")) end
-    if tPct then T.SetText(tPct, (pct == "health hidden") and "hidden" or pct) end
     local fill = 0
     if not dead and type(cur) == "number" and type(max) == "number" and max > 0 then
       fill = math.max(0, math.min(1, cur / max))
@@ -920,7 +925,6 @@ function TG.Poll(force)
   else
     for j = 1, #tList do tList[j] = nil end
     if tName then T.SetText(tName, T.Config.IsShown() and "Target (none)" or "") end
-    if tPct then T.SetText(tPct, T.Config.IsShown() and "none" or "") end
     T.SetValue(tHealth, 0)
     T.SetVisible(tFocus, false)
     T.SetTooltip(tInfo, "Your target's health and effects show here")
@@ -932,7 +936,7 @@ function TG.Poll(force)
   local cells = show and (tInfoCells + #tList) or 0
   if has ~= tHas or cells ~= tShownCount then
     tHas, tShownCount = has, cells
-    if TG.Glued() then T.BuffBar.Tick() else T.Hud.Refresh() end
+    if TG.Glued() and not TG.Below() then T.BuffBar.Tick() else T.Hud.Refresh() end
   end
 end
 

@@ -26,6 +26,9 @@ Hud.GLUED_HOME = { 40, 260 }
 Hud.ORDER = { "vitals", "buffs", "consumables", "combat", "gear", "xp", "daily", "notify", "target" }   -- build order
 Hud.MAX_FRAMES = 8                    -- HUD frames per add-on (docs); strips past it aren't built
 Hud.GLUE = { vitals = true, buffs = true }     -- the ones that share a strip when glued (left to right as in ORDER)
+-- Parts that go UNDER the glued strip's columns, full width from its left edge, when their module's Below()
+-- says so (the target's bars line up with the health bars' left end; owner, 2026-09-29).
+Hud.BELOW = { target = true }
 Hud.GAP = 6                           -- between the parts of the glued strip
 Hud.PAD = 8                           -- the strip's own padding
 
@@ -49,7 +52,11 @@ function Hud.FrameFor(key)
   return frames[key]
 end
 
-local function gluedHere(key) return prefs.glued and Hud.GLUE[key] end
+local function below(key)
+  local m = modules[key]
+  return prefs.glued and Hud.BELOW[key] and m ~= nil and m.Below ~= nil and m.Below() == true
+end
+local function gluedHere(key) return prefs.glued and (Hud.GLUE[key] or below(key)) end
 
 -- Registered, and wanted as a strip (optional module method `Wanted`: the equipment bar glued
 -- into the buff bar has no strip of its own).
@@ -149,7 +156,22 @@ function Hud.Build(missingOnly)
         parts[#parts + 1] = contents[key]
       end
     end
+    local under = {}
+    for _, key in ipairs(Hud.ORDER) do
+      if present(key) and below(key) then
+        contents[key] = build(key)
+        under[#under + 1] = contents[key]
+      end
+    end
     local ok, row = pcall(UI.Row, { style = { paddingLeft = T.Window.GRIP, alignItems = "start" }, children = parts })
+    if ok and #under > 0 then
+      local column = { row }
+      for _, c in ipairs(under) do
+        c:SetStyle{ marginLeft = T.Window.GRIP, marginTop = Hud.GAP }
+        column[#column + 1] = c
+      end
+      ok, row = pcall(UI.Column, { children = column })
+    end
     if ok then
       frames[Hud.GLUED_ID] = newFrame("glued", { id = Hud.GLUED_ID, x = prefs.x or Hud.GLUED_HOME[1],
         y = prefs.y or Hud.GLUED_HOME[2], width = 100, height = 40, visible = false,
@@ -212,6 +234,17 @@ function Hud.Refresh()
           local cw, ch = modules[key].ContentSize()
           content:SetStyle{ marginLeft = any and Hud.GAP or 0 }
           w, h, any = w + (any and Hud.GAP or 0) + cw, math.max(h, ch), true
+        end
+      end
+    end
+    for _, key in ipairs(Hud.ORDER) do          -- the parts under the columns
+      local content = Hud.BELOW[key] and below(key) and contents[key]
+      if content then
+        local shown = any and modules[key].IsShown()
+        T.SetVisible(content, shown)
+        if shown then
+          local cw, ch = modules[key].ContentSize()
+          w, h = math.max(w, cw), h + Hud.GAP + ch
         end
       end
     end
