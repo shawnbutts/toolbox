@@ -784,10 +784,15 @@ function BB.BuildContent()
   if T.Gear.Glued() then                -- the equipment bar as the next row
     rows[#rows + 1] = T.Gear.BuildRow()
   end
-  if T.Target.InBuffColumn() then              -- the target HUD as the last row
+  if T.Target.InBuffColumn() then              -- the target HUD: the first row (top) or the last
     local row = T.Target.BuildRow()
-    if T.Gear.Glued() then row:SetStyle{ marginTop = BB.GAP } end
-    rows[#rows + 1] = row
+    if T.Target.Place() == "bottom" then
+      if T.Gear.Glued() then row:SetStyle{ marginTop = BB.GAP } end
+      rows[#rows + 1] = row
+    else
+      row:SetStyle{ marginBottom = BB.GAP }
+      table.insert(rows, 1, row)
+    end
   end
   content = UI.Column{ id = "buffbar", children = rows }
   return content

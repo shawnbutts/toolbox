@@ -581,7 +581,10 @@ function V.ApplyText() end
 -- Read every TG.POLL seconds while built and at once on ShroudOnTargetChanged (core.lua). The grouped
 -- list (ShroudGetTargetBuff: debuff flags and full durations) is read only when the target or its effect
 -- count changes, or every TG.GROUP_EVERY seconds; the flat getters give names, time left, icons, tooltips.
--- Saved var "target": { show = bool (default false), glue = bool (default true), x, y }.
+-- Saved var "target": { show = bool (default false), glue = bool (default true), place = "top"|"bottom"
+-- (in the Toolbelt: above the buffs, the default, or under everything), x, y }.
+-- On top its row keeps its height while there's no target, so the buffs under it don't jump each time
+-- you pick up or drop a target (the strip is anchored at its top-left grip).
 
 local TG = {}
 Toolbox.Target = TG
@@ -592,9 +595,10 @@ TG.SLOTS = 8                 -- effect icons at most
 TG.INFO_CELLS = 4            -- the name block's width, in icon cells
 TG.POLL = 0.25
 TG.GROUP_EVERY = 2
+TG.PLACES = { top = "Above the buffs", bottom = "Under everything" }
 local TPERIODIC = "toolbox_target"
 
-local tprefs = { show = false, glue = true }
+local tprefs = { show = false, glue = true, place = "top" }
 local tContent, tInfo, tName, tHealth, tFocus = nil, nil, nil, nil, nil
 local tSlots = {}
 local tShownCount = nil      -- cells the row takes (for the strip's size), when it last changed
@@ -712,8 +716,13 @@ function TG.InBuffColumn() return TG.Glued() and not TG.Below() end
 -- For Toolbox.Hud: built by it on its own strip, or under the Toolbelt's columns (Below).
 function TG.Wanted() return tprefs.show == true and (not TG.Glued() or TG.Below()) end
 
--- Whether there is something to show: a target, or the settings window open (to place it).
-local function wantRow() return tHas == true or T.Config.IsShown() end
+function TG.Place() return tprefs.place == "bottom" and "bottom" or "top" end
+
+-- On top in the Toolbelt: the row keeps its space with no target (nothing under it moves).
+local function reserved() return TG.Place() == "top" and TG.Glued() end
+
+-- Whether the row shows: a target, the settings window open (to place it), or its space kept.
+local function wantRow() return tHas == true or T.Config.IsShown() or reserved() end
 
 function TG.IsShown() return TG.Wanted() and wantRow() end
 
@@ -803,7 +812,8 @@ function TG.BuildRow()
     tSlots[i] = { row = row, icon = icon, overlay = overlay }
     children[#children + 1] = row
   end
-  tContent = UI.Row{ id = "target", visible = false, style = { alignItems = "center" }, children = children }
+  tContent = UI.Row{ id = "target", visible = false, style = { alignItems = "center", height = s, minHeight = s },
+    children = children }
   tShownCount, tHas, tId, tCount, tGroupAt = nil, nil, nil, nil, -math.huge
   return tContent
 end
@@ -931,13 +941,26 @@ function TG.Poll(force)
     tId, tCount = nil, nil
   end
   fillSlots(s)
-  local show = has or T.Config.IsShown()
+  local show = has or T.Config.IsShown() or reserved()
   T.SetVisible(tContent, show)
+  T.SetVisible(tInfo, has or T.Config.IsShown())     -- kept space only: empty, not a bar at 0
   local cells = show and (tInfoCells + #tList) or 0
   if has ~= tHas or cells ~= tShownCount then
     tHas, tShownCount = has, cells
     if TG.Glued() and not TG.Below() then T.BuffBar.Tick() else T.Hud.Refresh() end
   end
+end
+
+-- In the Toolbelt: "top" (above the buffs) or "bottom" (under everything). Returns false for anything else.
+function TG.SetPlace(where)
+  if not TG.PLACES[where] then return false end
+  tprefs.place = where
+  tSave()
+  if TG.Glued() then T.Hud.Build() end
+  TG.Poll(true)
+  T.BuffBar.Tick()
+  T.Config.Sync()
+  return true
 end
 
 -- ShroudOnTargetChanged (core.lua): a new target, or none.
@@ -959,10 +982,11 @@ TG.GetPosition, TG.MoveTo, TG.Nudge, TG.ResetPosition = targetMover.Get, targetM
 
 function TG.Init()
   local saved = T.Load("target")
-  tprefs = { show = false, glue = true }
+  tprefs = { show = false, glue = true, place = "top" }
   if type(saved) == "table" then
     tprefs.show = saved.show == true
     tprefs.glue = saved.glue ~= false
+    if saved.place == "bottom" then tprefs.place = "bottom" end
     if type(saved.x) == "number" and type(saved.y) == "number" then tprefs.x, tprefs.y = saved.x, saved.y end
   end
   tList, tRaw, tInfoBy = {}, {}, {}

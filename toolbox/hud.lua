@@ -26,8 +26,9 @@ Hud.GLUED_HOME = { 40, 260 }
 Hud.ORDER = { "vitals", "buffs", "consumables", "combat", "gear", "xp", "daily", "notify", "target" }   -- build order
 Hud.MAX_FRAMES = 8                    -- HUD frames per add-on (docs); strips past it aren't built
 Hud.GLUE = { vitals = true, buffs = true }     -- the ones that share a strip when glued (left to right as in ORDER)
--- Parts that go UNDER the glued strip's columns, full width from its left edge, when their module's Below()
--- says so (the target's bars line up with the health bars' left end; owner, 2026-09-29).
+-- Parts that go ABOVE or UNDER the glued strip's columns, full width from its left edge, when their
+-- module's Below() says so; its Place() says "top" or "bottom" (the target's bars line up with the health
+-- bars' left end; owner, 2026-09-29: on top by default).
 Hud.BELOW = { target = true }
 Hud.GAP = 6                           -- between the parts of the glued strip
 Hud.PAD = 8                           -- the strip's own padding
@@ -57,6 +58,11 @@ local function below(key)
   return prefs.glued and Hud.BELOW[key] and m ~= nil and m.Below ~= nil and m.Below() == true
 end
 local function gluedHere(key) return prefs.glued and (Hud.GLUE[key] or below(key)) end
+local function placeOf(key)
+  local m = modules[key]
+  if m and m.Place and m.Place() == "bottom" then return "bottom" end
+  return "top"
+end
 
 -- Registered, and wanted as a strip (optional module method `Wanted`: the equipment bar glued
 -- into the buff bar has no strip of its own).
@@ -156,20 +162,27 @@ function Hud.Build(missingOnly)
         parts[#parts + 1] = contents[key]
       end
     end
-    local under = {}
+    local over, under = {}, {}
     for _, key in ipairs(Hud.ORDER) do
       if present(key) and below(key) then
         contents[key] = build(key)
-        under[#under + 1] = contents[key]
+        if contents[key] then
+          if placeOf(key) == "bottom" then
+            contents[key]:SetStyle{ marginLeft = T.Window.GRIP, marginTop = Hud.GAP }
+            under[#under + 1] = contents[key]
+          else
+            contents[key]:SetStyle{ marginLeft = T.Window.GRIP, marginBottom = Hud.GAP }
+            over[#over + 1] = contents[key]
+          end
+        end
       end
     end
     local ok, row = pcall(UI.Row, { style = { paddingLeft = T.Window.GRIP, alignItems = "start" }, children = parts })
-    if ok and #under > 0 then
-      local column = { row }
-      for _, c in ipairs(under) do
-        c:SetStyle{ marginLeft = T.Window.GRIP, marginTop = Hud.GAP }
-        column[#column + 1] = c
-      end
+    if ok and #over + #under > 0 then
+      local column = {}
+      for _, c in ipairs(over) do column[#column + 1] = c end
+      column[#column + 1] = row
+      for _, c in ipairs(under) do column[#column + 1] = c end
       ok, row = pcall(UI.Column, { children = column })
     end
     if ok then
