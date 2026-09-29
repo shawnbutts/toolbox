@@ -6,6 +6,8 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- A sound per notification source (Sounds page: Notification sounds): Chime, Ping, Tap (two new sounds),
+  Bell or Low notes. Several arriving together play each sound once. `/toolbox notify <name> sound <sound>`.
 - Target HUD options (settings, Toolbelt): Target effects (All, Debuffs only, None: just the bars) and Most
   target icons (1-8; 8 by default, 5 mirrored). `/toolbox target effects all|debuffs|none`,
   `/toolbox target icons <n>`.

@@ -109,7 +109,8 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
   while shown. `Toolbox.Prices` (bottom): estimated values from SotANET's
   `GET /api/v1/receipts/prices?item=..` (<= 50 names) via `ShroudHttpGet`, one request `P.GAP` apart,
   cached per account for `P.MAX_AGE`; `P.Test` backs the Test connection button.
-- `sounds.lua`: `Toolbox.Sounds`, three sounds (`S.DEFS`: buff_expiring, debuff_landed, notify). Candidates in
+- `sounds.lua`: `Toolbox.Sounds`, five sounds (`S.DEFS`: buff_expiring, debuff_landed, and notify, ping, tap
+  for notifications: each source picks one, `N.SOUNDS` / `soundKey`). Candidates in
   order: the custom path, `Lua/toolbox_<file>` (.ogg, .wav), the shipped `toolbox/<file>`. A load counts once
   its clip appears in `ShroudListSound()` (async); clips are found by name at play time. Never call
   `ShroudListSoundReset` (it clears every add-on's clips). If sounds go silent, look in the game's Player.log.
@@ -197,7 +198,7 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
 - `art/`: `icon.svg` (-> `toolbox/icon.png`, 256x256: `rsvg-convert -w 256 -h 256 art/icon.svg -o
   toolbox/icon.png`), `clock.py` (-> `toolbox/clock.png`: a normal and a red set of 120 frames; keep in sync
   with `BuffBar.CLOCK`), `alerts.py` (-> `toolbox/*.ogg` via ffmpeg's Vorbis encoder: buff_expiring falls,
-  debuff_landed steps down, notify rises). Re-encoding changes the bytes even when the audio is the same:
+  debuff_landed steps down, notify rises; ping and tap are the other notification sounds). Re-encoding changes the bytes even when the audio is the same:
   `git checkout` an .ogg you didn't mean to change. A player's own `Lua/toolbox_<name>` sounds win.
 - `tools/`: `check.py` (all checks), `build.py` (packaging rules, the source checks, the store README
   renderer's rules, the support URL's form, the root README's API line, the changelog section, the docs API
@@ -274,7 +275,7 @@ character" sentinel.
 | `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` |
 | `target` | `{ show = bool (default false), glue = bool (default true), place = "top" (default) / "bottom", mirror = bool, effects = "all"/"debuffs"/"none", icons = 1..8 (unset: 8, or 5 mirrored), x, y }` (a saved place "left", from beta 7, reads as mirror) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
-| `notify` | `{ v = 1, compact = bool (the window), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
+| `notify` | `{ v = 1, compact = bool (the window), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), x, y }` |
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most 20 |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last, day, at } } }`, at most `P.MAX_KEEP` |
@@ -353,8 +354,7 @@ name (`...InScene(name)`, `ShroudGetPartyMemberNamesInScene`); only members in y
 -1); no party-change or vitals events (poll); NO party member buffs (a request for the devs), and player
 targets expose only vitals; combat events carry a `party` flag. It needs a HUD frame of its own: with all
 9 strips on there are only 8 frames, so decide what gives way (or merge rarely-used strips) first. Also:
-a
-sound per notification source; a crafting skill tracker and a recipe lookup / shopping list (as Today
+a crafting skill tracker and a recipe lookup / shopping list (as Today
 Detailed views: no window slot left); a gathering session HUD; lock-position / snap presets for strips
 (only if a strip's grip can be hidden).
 
