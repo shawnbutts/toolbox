@@ -752,6 +752,8 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     "gold picked up") is in the same documented group as the nil vitals globals; if it is nil too, daily
     gold never counts. Asked the owner 2026-09-27 to check and run `/toolbox stats gold` for a fallback.
     `ShroudServerTime` is only the daily reset's fallback clock (os.date is used first).
+    CONFIRMED 2026-09-29: `ShroudPlayerGold` works (Today's gold rose 0 -> 8 when the owner looted 8 gold);
+    only `ShroudPlayerCurrentHealth` / `ShroudPlayerCurrentFocus` are nil (reported, tmp/client-issues.md).
 29. Theme classes `inset` / `card`: the docs say they "apply the game's own look" but not which is darker.
     In game (2026-09-27) `inset` gives a dark panel behind a label, `card` shows NOTHING. So Light is a panel
     in the theme colour `@text` on a wrapper Row (a colour set on the label can't be unset and would cover
