@@ -235,7 +235,8 @@ return function(t)
     end
     t.ok(mine, "this version is in the list")
     t.eq(#w:Find("version_body").children, 1, "only the version shown is built")
-    H.call(function() pick.onChange(pick, mine) end)
+    local oldest = pick.choices[#pick.choices]              -- never the one shown first
+    H.call(function() pick.onChange(pick, oldest) end)
     local body = w:Find("version_body").children
     t.eq(#body, 2, "the picked one is built")
     t.eq(body[1].visible, false, "the one before is hidden")

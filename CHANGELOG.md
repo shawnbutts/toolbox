@@ -3,7 +3,11 @@
 All notable changes to Toolbox are recorded here. Versions follow `N.N.N`; every
 store submission needs a higher version than any submitted before (rejected ones included).
 
-## [Unreleased]
+## [0.4.0] - 2026-09-29 (beta 5)
+
+Fifth beta. Buff sweeps that keep pace with the game's own bar, a consumables bar for food and
+potions, an equipment bar with repair alerts, a Vigor bar, a reorganised settings window, lighter
+Docs and version windows, and performance fixes found by new stress tests.
 
 ### Added
 - Gear repair: an equipment bar (a HUD strip) shows worn items below a repair threshold (20% by

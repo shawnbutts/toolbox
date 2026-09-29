@@ -57,15 +57,18 @@ folder: two copies tangle each other. /tbx version says "copies loaded: 1" when 
 
 /toolbox works everywhere /tbx does.
 
-The settings window has a checkbox for each part:
-  * XP: session time, pools, XP in the last hour. Hover it for XP Detailed.
-  * Today: gold picked up, kills and XP since midnight. Hover it for every item gained today.
-  * Buff bar, Health & focus bars and Combat stats: HUD strips.
-  * Notifications: what's new since you last looked (guild message, mail, rewards...).
+The settings window's "Show" dropdown picks a part to set up:
+  * XP & Today: session time, pools, XP in the last hour; gold, kills and XP since midnight. Each
+    can be hidden, a window or a HUD strip. Hover them for XP Detailed / Today Detailed.
+  * Buffs, Consumables & gear, Health bars, Combat: the HUD strips.
+  * Notifications: what's new since you last looked (guild message, mail, rewards, gear to repair...).
+  * Sounds: alert volume and sound files.
+  * HUD layout: which strips share one strip, and every strip's position.
+Options that do nothing while their part is off are greyed out.
 
 Moving the HUD strips: drag the small grip at a strip's top-left corner. If you can't see the grip,
 untick Options > Interface > Nameplates & Chat Bubbles > "Lock Status Movement". Or use the
-Position buttons in settings, or e.g.  /tbx buffs move 600 40
+Position buttons in settings (HUD layout), or e.g.  /tbx buffs move 600 40
 
 Shortcut: Ctrl+Shift+; opens the settings. You can change it in the add-on manager, on Toolbox's
 row under "Keys".
@@ -75,13 +78,23 @@ row under "Keys".
 --------------
 
 Anything you like, but especially what's new in this beta (/tbx version lists it all):
+  * Buff sweeps: they should now keep pace with the game's own buff bar all the way down (before,
+    they froze at the step they first showed). Compare a buff's sweep on both bars for a minute.
+  * Consumables bar: food and Obsidian potions get their own bar (and leave the buff bar). It flashes
+    red with the buff alert when one is about to run out. Try gluing it under the buffs (settings,
+    HUD layout). If you use weapon poisons: do they show as a buff at all? (/tbx buffs raw)
+  * Equipment bar: worn items below 20% durability show with a sweep for what they've lost, and a
+    "Gear needs repair" notification comes when one drops below it and again when it breaks.
+    /tbx gear lists your gear. Do the percentages match the game's tooltips?
+  * Vigor: a gold third bar under health and focus (past the level where Vigor applies). Hover it
+    for the regen and crit bonuses. Does the percentage match the game's Vigor bar?
+  * The settings window: one part at a time from the "Show" dropdown, a Hidden / Window / HUD strip
+    choice for XP and Today, greyed-out options, and a HUD layout part. Is anything hard to find?
+  * The Docs (/tbx help) and version (/tbx version) windows: pick a topic or version from the dropdown.
+From beta 4:
   * Combat Detailed: rest the pointer on the combat stats HUD (or /tbx combat detail). Damage by
-    skill as bars, the last minute as a chart (damage done up, taken down), healing and overheal,
-    your targets with kill times, damage types, and your last 10 fights. Switch between this fight
-    and the session with the dropdown. Do the numbers match your combat chat?
-  * XP Detailed: the last hour as small columns under each track. Does it match how you played?
-  * Toolbox should feel lighter: it now does far less work each second. If anything that used to
-    update stops updating (a number, a bar, a sweep), please report it.
+    skill, the last minute as a chart, healing, targets with kill times, damage types, last fights.
+  * XP Detailed: the last hour as small columns under each track.
 From beta 3:
   * Notifications: a window with what's new since you last looked: your guild's message of the
     day, new mail, mail about to expire, ransoms, rewards, guild applications. Each can go to the
@@ -118,8 +131,12 @@ From beta 3:
   * Alert sounds need a recent game client: older macOS clients failed to load add-on sound files
     (a game bug, now fixed). If /tbx sounds test is silent, update the game, and check for old
     toolbox_*.ogg files loose in your Lua folder (see Install).
-  * Some buff sweeps may still not line up exactly with the game's own bar; if you see it, please
-    say which buff and how far apart they are (a screenshot of both bars helps most).
+  * The game only draws a sweep step when a new picture is made, so Toolbox makes a new one for each
+    step, at most 8 a second for all sweeps together. With many short buffs at once some sweeps may
+    step a little later than others. (Reported to the game's developers.)
+  * The settings window is wider now; if the game remembered its old width, drag it wider once.
+  * Weapon poisons: unknown whether the game shows them to add-ons. If one shows as a buff,
+    /tbx consumables add <part of its name> puts it on the consumables bar.
   * The Ctrl+Shift+; shortcut may not take on some setups. If it does nothing, set a key for
     Toolbox in the add-on manager under "Keys".
   * Buffs with no fixed length (like the moon indicator) have no sweep until Toolbox sees them
@@ -139,6 +156,7 @@ Please include:
   4. For a specific part, its debug command's output:
        /tbx buffs debug     /tbx vitals debug     /tbx combat debug     /tbx sounds debug
        /tbx xp debug        /tbx notify show      /tbx dd values test   /tbx combat events 5
+       /tbx gear            /tbx consumables      /tbx buffs trace <name>
   5. A screenshot if it's about how something looks.
 
 
