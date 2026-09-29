@@ -189,6 +189,14 @@ local function install_api()
     if not S.char.present or not S.vigor then return nil end
     return copy(S.vigor)
   end
+  -- Crafting window state (API 18; current clients have it). H.S.noCrafting = true: an older client.
+  if not S.noCrafting then
+    ShroudGetCraftingState = function()
+      return copy(S.craftingState or { open = false, station = "", busy = false })
+    end
+  else
+    ShroudGetCraftingState = nil
+  end
   -- Worn items (documented fields; empty slots skipped). Game objects when H.S.buffObjects is set.
   ShroudGetEquipmentItems = function()
     if not S.char.present then return {} end
@@ -969,7 +977,10 @@ end
 -- API 18 result events, with the documented fields (see the reference): a list of results + dropped.
 function H.craftResults(results, dropped) return H.callback("ShroudOnCraftResults", results, dropped or 0) end
 function H.gatherResults(results, dropped) return H.callback("ShroudOnGatherResults", results, dropped or 0) end
-function H.craftingState(state) return H.callback("ShroudOnCraftingStateChanged", state) end
+function H.craftingState(state)
+  S.craftingState = state
+  return H.callback("ShroudOnCraftingStateChanged", state)
+end
 
 -- Worn gear: { { name, durability, maxDurability [, icon] }, ... }. No event: the game has none.
 function H.setGear(list) S.gear = list end

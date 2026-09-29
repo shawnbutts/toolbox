@@ -10,6 +10,11 @@
 -- DD.RESORT_SECONDS; rows are capped at DD.MAX_ROWS (4 elements each) to stay well
 -- inside the burst.
 --
+-- Views (API 18 clients; a "Show" dropdown): Looted (today's items, less what was crafted or
+-- gathered unless the "include" option is on), Crafted (items taken off crafting stations, with the
+-- crafts per recipe) and Gathered (what harvested nodes held). Switching rebuilds the rows. The
+-- counts come from Toolbox.Daily (daily.lua).
+--
 -- Optional estimated values (Toolbox.Prices, below the window code): each row's count times
 -- the item's 90-day average sale price from SOTA.net's public price API, and a total in the
 -- header. Off by default; it also needs the player to switch Internet on for Toolbox in the
@@ -32,10 +37,13 @@ local order = {}       -- item names in row order
 local rowCount = 0
 local lastRebuild = -math.huge
 local listKey = nil    -- day key the rows were built for
-local prefs = { open = false, values = false }
+local prefs = { open = false, values = false, view = "looted", include = false }
 local popup = false
+local shown = {}       -- the counts the rows show (name -> n), for the current view
 
-local HEADER_IDS = { "date", "summary", "items_summary", "value_summary", "more" }
+DD.VIEWS = { { "looted", "Looted" }, { "crafted", "Crafted" }, { "gathered", "Gathered" } }
+
+local HEADER_IDS = { "date", "summary", "items_summary", "view_note", "value_summary", "more" }
 local P = {}           -- Toolbox.Prices (defined below)
 
 local function text(id, class, extra)
@@ -56,15 +64,45 @@ local function addRow(name)
   return true
 end
 
--- (Re)creates the item rows for the current day, sorted by count.
+-- The view in use: the saved one, or Looted where the client has no crafting results.
+function DD.View()
+  if not T.Daily.HasResults() then return "looted" end
+  return prefs.view
+end
+
+-- name -> count for a view of a day (Looted leaves crafted and gathered items out unless included).
+function DD.Counts(day, view, include)
+  if view == "crafted" then return day.crafted end
+  if view == "gathered" then return day.gathered end
+  if include or not T.Daily.HasResults() then return day.items end
+  local out = {}
+  for name in pairs(day.items) do
+    local n = T.Daily.Looted(day, name)
+    if n > 0 then out[name] = n end
+  end
+  return out
+end
+
+local function sortedNames(counts)
+  local names = {}
+  for name in pairs(counts) do names[#names + 1] = name end
+  table.sort(names, function(x, y)
+    if counts[x] ~= counts[y] then return counts[x] > counts[y] end
+    return x < y
+  end)
+  return names
+end
+
+-- (Re)creates the item rows for the current day and view, sorted by count.
 local function rebuildList()
   el.list:Clear()
   rows, order, rowCount = {}, {}, 0
   lastRebuild = T.Now()
   local day = T.Daily.day
-  listKey = day and day.key
+  listKey = day and (day.key .. "/" .. DD.View())
   if not day then return end
-  for _, name in ipairs(T.Daily.SortedItems(day)) do
+  shown = DD.Counts(day, DD.View(), prefs.include)
+  for _, name in ipairs(sortedNames(shown)) do
     if not addRow(name) then break end
   end
 end
@@ -90,7 +128,16 @@ local function build()
         children = {
           text("date", "title"),
           text("summary", "text"),
+          UI.Row{ id = "view_row", visible = T.Daily.HasResults(), style = { alignItems = "center", marginTop = 3 },
+            children = {
+              UI.Label{ text = "Show", class = "text", style = T.Window.TextStyle{ flexGrow = 1 } },
+              UI.Dropdown{ id = "dd_view", choices = DD.ViewLabels(), value = DD.ViewLabel(DD.View()),
+                tooltip = "Looted: items gained today (crafted and gathered ones left out, unless you include"
+                  .. " them in settings). Crafted: items taken off crafting stations. Gathered: what you harvested.",
+                onChange = function(_, label) DD.SetView(DD.ViewKey(label)) end },
+            } },
           text("items_summary", "heading", { marginTop = 3 }),
+          text("view_note", "text", { whiteSpace = "wrap" }),
           text("value_summary", "dim"),
         } },
       UI.Scroll{ id = "body", style = { flexGrow = 1 },
@@ -101,7 +148,7 @@ local function build()
         } },
     },
   }
-  el = { list = win:Find("list") }
+  el = { list = win:Find("list"), dd_view = win:Find("dd_view") }
   for _, id in ipairs(HEADER_IDS) do el[id] = win:Find(id) end
   rebuildList()
 end
@@ -111,10 +158,10 @@ end
 local function outOfOrder()
   local day = T.Daily.day
   if not day then return false end
-  local sorted = T.Daily.SortedItems(day)
-  local shown = math.min(#sorted, DD.MAX_ROWS)
-  if rowCount ~= shown then return true end
-  for i = 1, shown do
+  local sorted = sortedNames(DD.Counts(day, DD.View(), prefs.include))
+  local fit = math.min(#sorted, DD.MAX_ROWS)
+  if rowCount ~= fit then return true end
+  for i = 1, fit do
     if order[i] ~= sorted[i] then return true end
   end
   return false
@@ -144,11 +191,15 @@ end
 
 function DD.Init()
   local saved = T.Load("daily_detail")
-  prefs = { open = false }
+  prefs = { open = false, view = "looted" }
   popup = false
   if type(saved) == "table" then
     prefs.open = saved.open == true
     prefs.values = saved.values == true
+    prefs.include = saved.include == true
+    for _, v in ipairs(DD.VIEWS) do
+      if saved.view == v[1] then prefs.view = v[1] end
+    end
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
   build()
@@ -222,19 +273,65 @@ end
 DD.FULL_EVERY = 60
 local drawn = { items = nil, prices = nil, values = nil, at = -math.huge, gold = nil, kills = nil }
 
-local function byCountThenName(day)
+local function byCountThenName(counts)
   return function(x, y)
-    if day.items[x] ~= day.items[y] then return day.items[x] > day.items[y] end
+    if counts[x] ~= counts[y] then return counts[x] > counts[y] end
     return x < y
   end
 end
+
+-- The view's totals line: crafts and recipes, or nodes; or what Looted leaves out.
+local function viewNote(day, view)
+  local F = T.FormatNumber
+  if view == "crafted" then
+    local c = day.craft
+    local line = "Crafts " .. F(c.n)
+    if c.n > 0 then
+      line = line .. " (" .. F(c.exc) .. " exceptional, " .. math.floor(c.exc * 100 / c.n) .. "%"
+        .. (c.fail > 0 and (", " .. F(c.fail) .. " failed") or "") .. ")"
+    end
+    if c.salvaged > 0 then line = line .. ", salvaged " .. F(c.salvaged) end
+    line = line .. ". XP " .. F(c.xp) .. "."
+    local recipes = {}
+    for name in pairs(day.recipes) do recipes[#recipes + 1] = name end
+    table.sort(recipes, function(x, y)
+      if day.recipes[x].n ~= day.recipes[y].n then return day.recipes[x].n > day.recipes[y].n end
+      return x < y
+    end)
+    for _, name in ipairs(recipes) do
+      local r = day.recipes[name]
+      local extra = {}
+      if r.exc > 0 then extra[#extra + 1] = F(r.exc) .. " exc" end
+      if r.fail > 0 then extra[#extra + 1] = F(r.fail) .. " failed" end
+      line = line .. "\n" .. name .. ": " .. F(r.n) .. (r.n == 1 and " craft" or " crafts")
+        .. (#extra > 0 and (" (" .. table.concat(extra, ", ") .. ")") or "")
+    end
+    return line
+  end
+  if view == "gathered" then
+    local g = day.gather
+    return "Nodes " .. F(g.nodes) .. (g.failed > 0 and (" (" .. F(g.failed) .. " failed)") or "")
+      .. ". XP " .. F(g.xp) .. "."
+  end
+  if T.Daily.HasResults() and not prefs.include and (next(day.crafted) or next(day.gathered)) then
+    return "Crafted and gathered items are left out (see Crafted and Gathered)."
+  end
+  return ""
+end
+
+local SUMMARY = {
+  looted = { "Items looted: ", "No items looted yet" },
+  gained = { "Items gained: ", "No items gained yet" },      -- Looted with crafted and gathered in
+  crafted = { "Items made: ", "Nothing taken off a crafting station yet" },
+  gathered = { "Items gathered: ", "Nothing gathered yet" },
+}
 
 function DD.Refresh(force)
   if not DD.IsShown() then return end
   local day = T.Daily.day
   if not day then return end
   local now = T.Now()
-  if day.key ~= listKey then
+  if day.key .. "/" .. DD.View() ~= listKey then
     rebuildList()
     force = true
   end
@@ -249,26 +346,35 @@ function DD.Refresh(force)
   end
   drawn.items, drawn.prices, drawn.values, drawn.at = T.Daily.itemsVersion, P.version, prefs.values, now
   T.SetText(el.date, (T.Daily.DateText()))
+  local view = DD.View()
+  shown = DD.Counts(day, view, prefs.include)
 
   local kinds, total, new = 0, 0, {}
-  for name, n in pairs(day.items) do
+  for name, n in pairs(shown) do
     kinds, total = kinds + 1, total + n
     if not rows[name] then new[#new + 1] = name end
   end
   -- Append new names highest count first, so a batch lands in a sensible order.
-  if #new > 1 then table.sort(new, byCountThenName(day)) end
+  if #new > 1 then table.sort(new, byCountThenName(shown)) end
   for _, name in ipairs(new) do
     if not addRow(name) then break end
   end
-  for name, r in pairs(rows) do T.SetText(r.count, T.FormatNumber(day.items[name] or 0)) end
-  DD.RefreshValues(day)
+  for name, r in pairs(rows) do T.SetText(r.count, T.FormatNumber(shown[name] or 0)) end
+  DD.RefreshValues()
   local hidden = kinds - rowCount
-  T.SetText(el.items_summary, kinds == 0 and "No items gained yet"
-    or ("Items gained: " .. T.FormatNumber(total) .. " (" .. kinds .. (kinds == 1 and " kind)" or " kinds)")))
+  local words = SUMMARY[view]
+  if view == "looted" and (prefs.include or not T.Daily.HasResults()) then words = SUMMARY.gained end
+  T.SetText(el.items_summary, kinds == 0 and words[2]
+    or (words[1] .. T.FormatNumber(total) .. " (" .. kinds .. (kinds == 1 and " kind)" or " kinds)")))
+  local note = viewNote(day, view)
+  T.SetText(el.view_note, note)
+  T.SetVisible(el.view_note, note ~= "")
 
   local notes = {}
   if hidden > 0 then notes[#notes + 1] = "+" .. hidden .. " more kinds not listed" end
-  if day.dropped > 0 then notes[#notes + 1] = "+" .. day.dropped .. " kinds the game didn't itemise" end
+  if view == "looted" and day.dropped > 0 then
+    notes[#notes + 1] = "+" .. day.dropped .. " kinds the game didn't itemise"
+  end
   if prefs.values and hidden > 0 then notes[#notes + 1] = "the value includes them" end
   T.SetText(el.more, table.concat(notes, "; "))
   T.SetVisible(el.more, #notes > 0)
@@ -276,11 +382,11 @@ end
 
 -- The value column and the header's value line (estimated values on), or hides them.
 local valued = { total = 0, priced = 0, kinds = 0 }   -- the totals behind the value line
-function DD.RefreshValues(day)
+function DD.RefreshValues()
   T.SetVisible(el.value_summary, prefs.values == true)
   if not prefs.values then return end
   local total, priced, kinds = 0, 0, 0
-  for name, n in pairs(day.items) do
+  for name, n in pairs(shown) do
     if name ~= T.Daily.OTHER then
       kinds = kinds + 1
       P.Want(name)
@@ -292,7 +398,7 @@ function DD.RefreshValues(day)
   end
   for name, r in pairs(rows) do
     local each = P.Average(name)
-    local n = day.items[name] or 0
+    local n = shown[name] or 0
     T.SetText(r.value, each and ("~" .. P.Format(n * each)) or "")
     T.SetTooltip(r.value, P.Tooltip(name))
   end
@@ -312,6 +418,56 @@ function DD.ValueLine()
 end
 
 function DD.GetValues() return prefs.values == true end
+
+function DD.ViewLabels()
+  local out = {}
+  for i, v in ipairs(DD.VIEWS) do out[i] = v[2] end
+  return out
+end
+
+function DD.ViewLabel(key)
+  for _, v in ipairs(DD.VIEWS) do
+    if v[1] == key then return v[2] end
+  end
+  return DD.VIEWS[1][2]
+end
+
+-- The view key for a label or key (any case), or nil.
+function DD.ViewKey(labelOrKey)
+  local l = tostring(labelOrKey or ""):lower()
+  for _, v in ipairs(DD.VIEWS) do
+    if v[1] == l or v[2]:lower() == l then return v[1] end
+  end
+  return nil
+end
+
+-- Switches the view ("looted" / "crafted" / "gathered"); returns false for an unknown one or when the
+-- client has no crafting results.
+function DD.SetView(view)
+  if not view or not DD.ViewKey(view) then return false end
+  if view ~= "looted" and not T.Daily.HasResults() then return false end
+  prefs.view = view
+  DD.SavePrefs()
+  if el.dd_view then el.dd_view:SetValue(DD.ViewLabel(view)) end
+  if win then
+    rebuildList()
+    DD.Refresh(true)
+  end
+  return true
+end
+
+-- Whether Looted includes crafted and gathered items (off by default).
+function DD.GetInclude() return prefs.include == true end
+
+function DD.SetInclude(on)
+  prefs.include = on == true
+  DD.SavePrefs()
+  if win then
+    rebuildList()
+    DD.Refresh(true)
+  end
+  T.Config.Sync()
+end
 
 function DD.SetValues(on)
   prefs.values = on == true
@@ -489,10 +645,10 @@ function P.Tick()
     -- Refused before anything was sent: wait, and say why in the header (a busy client is normal).
     local waits = { rate_limited = P.GAP, too_many_in_flight = P.GAP, not_permitted = P.RETRY,
                     disabled = 600, quota_exceeded = 3600 }
-    local shown = { not_permitted = "needs_permission", disabled = "disabled", quota_exceeded = "quota" }
+    local says = { not_permitted = "needs_permission", disabled = "disabled", quota_exceeded = "quota" }
     nextAt = now + (waits[reason] or P.RETRY)
-    if shown[reason] then
-      status = shown[reason]
+    if says[reason] then
+      status = says[reason]
     elseif not waits[reason] then
       status = "failed"
     end

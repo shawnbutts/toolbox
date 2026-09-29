@@ -54,6 +54,12 @@ D.SECTIONS = {
     "Today (/toolbox daily): gold picked up, kills by you or your pet, and adventurer and "
       .. "producer XP since midnight. Rest the pointer on it for Today Detailed: every item that "
       .. "arrived in your bags today, with counts.",
+    "Today Detailed's Show dropdown: Looted (what you picked up; what you crafted or gathered is left "
+      .. "out unless you tick Include crafted and gathered items in settings, or /toolbox dd include on), "
+      .. "Crafted (/toolbox crafted: the items you took off crafting stations, your crafts per recipe with "
+      .. "exceptional and failed, and crafting XP) and Gathered (/toolbox gathered: what the nodes you "
+      .. "harvested held, the nodes, failed harvests and gathering XP). What you make is counted as it "
+      .. "reaches your bags from a station, because the game doesn't say what a craft made.",
     "Estimated values (optional): switch on Estimated values (SOTA.net) in settings, or /toolbox dd "
       .. "values on, and switch Internet on for Toolbox in the add-on manager. Today Detailed then shows "
       .. "each item's count times its 90-day average sale price from shroudoftheavatar.net (player-"

@@ -58,6 +58,11 @@ and which windows are open are saved per character.
 gained today. It resets at local midnight. Rest the pointer on it and **Today Detailed** pops up
 with every item that arrived in your bags today and how many.
 
+Today Detailed's **Show** dropdown switches between **Looted** (what you picked up; crafted and
+gathered items are left out unless you include them in settings), **Crafted** (`/toolbox crafted`:
+items you took off crafting stations, crafts per recipe with exceptional and failed, crafting XP) and
+**Gathered** (`/toolbox gathered`: what you harvested, nodes, failed harvests, gathering XP).
+
 ### Estimated values (optional, uses the internet)
 
 Turn on **Estimated values (SOTA.net)** in settings (or `/toolbox dd values on`) and Today Detailed

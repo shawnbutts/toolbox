@@ -499,10 +499,27 @@ add("daily", "show or hide today's stats (gold, kills, XP; resets at midnight; h
   formCommand(T.Daily, "daily", "Today", rest)
 end)
 
-add("dailydetailed", "show or hide Today Detailed (every item gained today, with counts; values on|off: "
-    .. "estimated values from SOTA.net; values test [item]: check the connection; values refresh: "
-    .. "look prices up again)", function(rest)
+add("dailydetailed", "show or hide Today Detailed (every item gained today, with counts; view looted|crafted|"
+    .. "gathered; include on|off: crafted and gathered items in Looted; values on|off: estimated values from"
+    .. " SOTA.net; values test [item]: check the connection; values refresh: look prices up again)", function(rest)
   local word, arg = T.ParseArgs(rest)
+  local DD = T.DailyDetail
+  if word == "view" then
+    if not DD.SetView(DD.ViewKey(arg)) then
+      T.Print(T.Daily.HasResults() and "Use /" .. T.commands[1] .. " dd view looted, crafted or gathered."
+        or "This game client doesn't report crafting and gathering (it needs Lua API 18).")
+      return
+    end
+    if not DD.IsShown() then DD.SetOpen(true) end
+    return
+  end
+  if word == "include" then
+    local a = arg:lower()
+    if a == "on" or a == "off" then DD.SetInclude(a == "on") end
+    T.Print("Crafted and gathered items in Today Detailed's Looted list: "
+      .. (DD.GetInclude() and "included" or "left out") .. ".")
+    return
+  end
   if word == "values" then
     local sub, item = T.ParseArgs(arg)
     if sub == "test" then
@@ -523,6 +540,21 @@ add("dailydetailed", "show or hide Today Detailed (every item gained today, with
   end
   T.DailyDetail.Toggle()
 end, { "dd" })
+
+-- Today Detailed on its Crafted / Gathered view.
+local function openView(view)
+  if not T.DailyDetail.SetView(view) then
+    T.Print("This game client doesn't report crafting and gathering (it needs Lua API 18).")
+    return
+  end
+  if not T.DailyDetail.IsShown() then T.DailyDetail.SetOpen(true) end
+end
+
+add("crafted", "today's crafting: items made, crafts per recipe, exceptional and XP (Today Detailed)",
+  function() openView("crafted") end)
+
+add("gathered", "today's gathering: items harvested, nodes and XP (Today Detailed)",
+  function() openView("gathered") end)
 
 add("config", "open or close the settings window", function()
   T.Config.Toggle()
@@ -1549,6 +1581,7 @@ function ShroudOnStart()
   T.RegisterCommands()
   T.RegisterKeybind()
   step("today's stats", T.Daily.Load)  -- before the session: a new login re-bases daily gold
+  step("the crafting state", T.Daily.ReadCraftingState)
   T.ResumeOrStart()
   T.Sample()                         -- XP gained since the last save (e.g. across a reload)
   step("XP Detailed", T.Window.Init)
@@ -1630,16 +1663,19 @@ function ShroudOnItemsGained(items, dropped)
   T.ProbeItems(items)
 end
 
--- API 18 result events: only probed for now (see T.ProbeEvent).
+-- API 18 result events: today's crafting and gathering (Toolbox.Daily), and the /toolbox api probe.
 function ShroudOnCraftResults(results, dropped)
+  T.Daily.OnCraftResults(results)
   T.ProbeEvent("craft", results, dropped)
 end
 
 function ShroudOnGatherResults(results, dropped)
+  T.Daily.OnGatherResults(results)
   T.ProbeEvent("gather", results, dropped)
 end
 
 function ShroudOnCraftingStateChanged(state)
+  T.Daily.OnCraftingState(state)
   T.ProbeEvent("state", state)
 end
 

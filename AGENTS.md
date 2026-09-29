@@ -367,7 +367,7 @@ including the "no character" sentinel.
 | `compact` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, hx, hy }` (hx/hy: the HUD strip) |
 | `daily` | see the header comment of `daily.lua` (format `v = 1`) |
 | `daily_window` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, hx, hy }` |
-| `daily_detail` | `{ open = bool, x = number, y = number, values = bool }` |
+| `daily_detail` | `{ open = bool, x = number, y = number, values = bool, view = "looted"/"crafted"/"gathered", include = bool }` |
 | `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, flash, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), group = { name parts }, replaceStock, clickDismiss, combatOnly, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { buff_expiring = "...", debuff_landed = "..." } }` |
 | `buff_timers` | `{ v = 3, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload (v1/v2 ignored) |
@@ -491,7 +491,13 @@ docking, no `ShroudOnBuffBarMoved`.
    the buff bar's grouping. Keep the name rules as the fallback for older clients, and read the new field
    through `BB.ReadRunes`' userdata-safe accessor. Don't guess the field's name or values: wait for the docs.
 
-**API 18: crafting and gathering** (`daily.lua`, `dailydetail.lua`). The API map says v15 for the
+**API 18: crafting and gathering** (`daily.lua`, `dailydetail.lua`). BUILT 2026-09-29, as views of Today
+Detailed (owner: a Show dropdown Looted / Crafted / Gathered, no new windows), not separate windows. The
+craft result doesn't say what was made (item = the recipe's name, `crafted` = crafts; item 50), so Crafted's
+rows are the items gained while a crafting window is open (`day.crafted`), with crafts per recipe in the
+view's note. The day gained `crafted`, `gathered`, `recipes`, `craft`, `gather` (filled in by
+`D.Upgrade`; still `v = 1`). Looted = `items` minus `crafted` and `gathered` (`D.Looted`) unless
+`include`. `D.HasResults()` (the crafting getter exists) gates the views. The original plan follows. The API map says v15 for the
 crafting/social getters, but the reference says "Added in API 18" for all of them and for the result
 events, so gate on the functions existing, never on the version number.
 

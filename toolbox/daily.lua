@@ -10,7 +10,16 @@
 --   items = { [name] = n },  -- items gained today, by name (at most D.MAX_KINDS names)
 --   dropped = n,             -- item kinds the game didn't itemise (past 20 in one call)
 --   last  = { gold = n|nil, a = n|nil, p = n|nil },  -- last readings, to diff against
+--   -- crafting and gathering (API 18 result events; added 2026-09-29, filled in for older days):
+--   crafted  = { [name] = n },   -- items gained while a crafting window was open (taken off a station)
+--   gathered = { [name] = n },   -- what harvested nodes' loot windows held
+--   recipes  = { [recipe] = { n = crafts, exc = n, fail = n } },   -- "Recipe: " removed from the name
+--   craft    = { n = crafts, exc = n, fail = n, salvaged = n, xp = n },
+--   gather   = { nodes = n, failed = n, xp = n },
 -- }
+-- The loot list (Today Detailed, "Looted") is `items` minus `crafted` and `gathered`, per name, unless
+-- the player includes them. In game (2026-09-29) a craft result's `item` is the recipe's name and
+-- `crafted` counts crafts, not items made, so what was made is counted as it reaches the bags.
 
 local T = Toolbox
 local D = {}
@@ -27,8 +36,11 @@ D.OTHER = "(other items)"         -- where kinds past D.MAX_KINDS are counted
 -- Model (plain data, no API calls)
 -- ---------------------------------------------------------------------------
 
+D.MAX_RECIPES = 100               -- recipes kept per day
+
 function D.New(key)
-  return { v = D.FORMAT, key = key, gold = 0, kills = 0, a = 0, p = 0, items = {}, dropped = 0, last = {} }
+  return D.Upgrade({ v = D.FORMAT, key = key, gold = 0, kills = 0, a = 0, p = 0, items = {}, dropped = 0,
+                     last = {} })
 end
 
 local function isCount(x) return type(x) == "number" and x == x and x >= 0 end
@@ -51,25 +63,129 @@ function D.IsValid(d)
   return true
 end
 
--- Fills in fields added after the first v1 saves.
+-- A name -> count table from a save, keeping only valid entries (crafting fields: a bad entry is
+-- dropped, not the whole day).
+local function counts(t)
+  local out = {}
+  if type(t) ~= "table" then return out end
+  for name, n in pairs(t) do
+    if type(name) == "string" and isCount(n) then out[name] = n end
+  end
+  return out
+end
+
+local function totals(t, keys)
+  local out = {}
+  for _, k in ipairs(keys) do
+    local v = type(t) == "table" and t[k] or nil
+    out[k] = isCount(v) and v or 0
+  end
+  return out
+end
+
+-- Fills in fields added after the first v1 saves (and cleans the crafting ones).
 function D.Upgrade(d)
   d.items = d.items or {}
   d.dropped = d.dropped or 0
+  d.crafted, d.gathered = counts(d.crafted), counts(d.gathered)
+  local recipes = {}
+  if type(d.recipes) == "table" then
+    for name, r in pairs(d.recipes) do
+      if type(name) == "string" and type(r) == "table" then recipes[name] = totals(r, { "n", "exc", "fail" }) end
+    end
+  end
+  d.recipes = recipes
+  d.craft = totals(d.craft, { "n", "exc", "fail", "salvaged", "xp" })
+  d.gather = totals(d.gather, { "nodes", "failed", "xp" })
   return d
 end
 
--- Adds one ShroudOnItemsGained batch. Returns true when anything was counted.
-function D.AddItems(d, items, dropped)
+-- Adds `qty` of `name` to a name -> count table, capped at D.MAX_KINDS names (the rest go to D.OTHER).
+local function addCount(t, name, qty)
+  if t[name] == nil then
+    local kinds = 0
+    for _ in pairs(t) do kinds = kinds + 1 end
+    if kinds >= D.MAX_KINDS then name = D.OTHER end
+  end
+  t[name] = (t[name] or 0) + qty
+end
+
+-- A recipe's name as a row shows it: "Recipe: Crimson Pine Board" -> "Crimson Pine Board". Nothing
+-- more is guessed (item names can have brackets too: "Hopper (Bait)").
+function D.RecipeName(name)
+  if type(name) ~= "string" then return nil end
+  if name:sub(1, 8) == "Recipe: " then name = name:sub(9) end
+  return name ~= "" and name or nil
+end
+
+local function num(r, k)
+  local v = T.Field(r, k)
+  return isCount(v) and v or 0
+end
+
+-- Adds one ShroudOnCraftResults batch (results may be game objects). Returns true when counted.
+function D.AddCraftResults(d, results)
+  local changed = false
+  for _, r in ipairs(T.List(results)) do
+    local kind = T.Field(r, "kind")
+    if kind == "salvage" then
+      d.craft.salvaged = d.craft.salvaged + math.max(1, num(r, "quantity"))   -- returns counted as they arrive
+      d.craft.xp = d.craft.xp + num(r, "experience")
+      changed = true
+    elseif kind == "craft" or kind == "refine" then
+      local made, exc, fail = num(r, "crafted"), num(r, "exceptional"), num(r, "failed")
+      d.craft.n, d.craft.exc, d.craft.fail = d.craft.n + made, d.craft.exc + exc, d.craft.fail + fail
+      d.craft.xp = d.craft.xp + num(r, "experience")
+      local name = D.RecipeName(T.Field(r, "recipeName")) or D.RecipeName(T.Field(r, "item"))
+      if name then
+        local rec = d.recipes[name]
+        if not rec then
+          local n = 0
+          for _ in pairs(d.recipes) do n = n + 1 end
+          if n < D.MAX_RECIPES then
+            rec = { n = 0, exc = 0, fail = 0 }
+            d.recipes[name] = rec
+          end
+        end
+        if rec then rec.n, rec.exc, rec.fail = rec.n + made, rec.exc + exc, rec.fail + fail end
+      end
+      changed = true
+    end
+  end
+  return changed
+end
+
+-- Adds one ShroudOnGatherResults batch. Returns true when counted.
+function D.AddGatherResults(d, results)
+  local changed = false
+  for _, r in ipairs(T.List(results)) do
+    d.gather.nodes = d.gather.nodes + 1
+    if T.Field(r, "failed") == true then d.gather.failed = d.gather.failed + 1 end
+    d.gather.xp = d.gather.xp + num(r, "experience")
+    for _, it in ipairs(T.List(T.Field(r, "items"))) do
+      local name, qty = T.Field(it, "name"), T.Field(it, "quantity")
+      if type(name) == "string" and name ~= "" and isCount(qty) and qty > 0 then addCount(d.gathered, name, qty) end
+    end
+    changed = true
+  end
+  return changed
+end
+
+-- The looted count of `name`: gained, less what was made or gathered (never below 0).
+function D.Looted(d, name)
+  local n = (d.items[name] or 0) - (d.crafted[name] or 0) - (d.gathered[name] or 0)
+  return n > 0 and n or 0
+end
+
+-- Adds one ShroudOnItemsGained batch. `atStation`: a crafting window is open, so the items came off
+-- a station (made, or salvage returns): also counted as crafted. Returns true when anything was counted.
+function D.AddItems(d, items, dropped, atStation)
   local changed = false
   for _, item in ipairs(type(items) == "table" and items or {}) do
     local name, qty = type(item) == "table" and item.name, type(item) == "table" and item.quantity
     if type(name) == "string" and name ~= "" and isCount(qty) and qty > 0 then
-      if d.items[name] == nil then
-        local kinds = 0
-        for _ in pairs(d.items) do kinds = kinds + 1 end
-        if kinds >= D.MAX_KINDS then name = D.OTHER end
-      end
-      d.items[name] = (d.items[name] or 0) + qty
+      addCount(d.items, name, qty)
+      if atStation then addCount(d.crafted, name, qty) end
       changed = true
     end
   end
@@ -97,6 +213,8 @@ function D.Roll(d, key)
   if key == nil or d.key == key then return false end
   d.key, d.gold, d.kills, d.a, d.p = key, 0, 0, 0, 0
   d.items, d.dropped, d.la, d.lp = {}, 0, 0, 0
+  d.crafted, d.gathered, d.recipes, d.craft, d.gather = {}, {}, {}, nil, nil
+  D.Upgrade(d)                       -- zeroed craft and gather totals
   return true
 end
 
@@ -231,11 +349,39 @@ end
 -- Bumped whenever today's items change, so Today Detailed redraws its list only then.
 D.itemsVersion = 0
 
+-- A crafting window is open (ShroudOnCraftingStateChanged; read at start where the client has it).
+D.stationOpen = false
+
+-- Whether this client reports crafting and gathering results (API 18). The result callbacks can't be
+-- probed, so this goes by the crafting getter the same group added.
+function D.HasResults() return type(ShroudGetCraftingState) == "function" end
+
+local function changed()
+  D.unsaved = true
+  D.itemsVersion = D.itemsVersion + 1
+end
+
 function D.OnItems(items, dropped)
-  if D.day and D.AddItems(D.day, items, dropped) then
-    D.unsaved = true
-    D.itemsVersion = D.itemsVersion + 1
-  end
+  if D.day and D.AddItems(D.day, items, dropped, D.stationOpen) then changed() end
+end
+
+function D.OnCraftResults(results)
+  if D.day and D.AddCraftResults(D.day, results) then changed() end
+end
+
+function D.OnGatherResults(results)
+  if D.day and D.AddGatherResults(D.day, results) then changed() end
+end
+
+function D.OnCraftingState(state)
+  D.stationOpen = T.Field(state, "open") == true
+end
+
+-- At start: whether a crafting window is already open (a /lua reload at a station).
+function D.ReadCraftingState()
+  if not D.HasResults() then return end
+  local ok, state = pcall(ShroudGetCraftingState)
+  if ok then D.OnCraftingState(state) end
 end
 
 function D.OnCombat(events)
