@@ -881,11 +881,22 @@ local function prefsNow()
   return nprefs
 end
 
--- What the sources read this check, once.
+-- What the sources read this check, once. The guild message comes from its own getter when the client
+-- has it (API 18: "" outside a guild), else from the social summary; `guildSocial` is reused (every tick).
+local guildSocial = {}
 local function context()
   local ctx = {}
   local ok, social = pcall(ShroudGetSocialSummary)
   if ok and type(social) == "table" then ctx.social = social end
+  if type(ShroudGetGuildMotd) == "function" then
+    local okMotd, motd = pcall(ShroudGetGuildMotd)
+    if okMotd and type(motd) == "string" then
+      guildSocial.guildMotd = motd
+      guildSocial.inGuild = (ctx.social ~= nil and ctx.social.inGuild == true) or motd ~= ""
+      guildSocial.guildName = ctx.social ~= nil and ctx.social.guildName or ""
+      ctx.social = guildSocial
+    end
+  end
   local ok2, notes = pcall(ShroudGetNotifications)
   if ok2 and type(notes) == "table" then ctx.notes = notes end
   return ctx

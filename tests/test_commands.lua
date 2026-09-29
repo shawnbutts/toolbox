@@ -368,6 +368,22 @@ return function(t)
 
   -- result-event probe (API 18) ------------------------------------------------
 
+  t.test("a save the game refuses is reported in chat, not every time", function()
+    H.boot()
+    H.S.flushFails = true
+    H.clearLogs()
+    H.chat("/tbx reset")                                -- saves and flushes
+    H.gain(100, 0)
+    H.advance(Toolbox.flushSeconds + 1)
+    t.ok(H.logged("Couldn't write Toolbox's saved settings to disk"), H.lastLog())
+    local warned = #H.logs()
+    H.gain(100, 0)
+    H.advance(Toolbox.flushSeconds + 1)
+    t.eq(#H.logs(), warned, "at most every few minutes")
+    t.ok((Toolbox.flushFailures or 0) >= 2, "each failure is counted")
+    H.S.flushFails = nil
+  end)
+
   t.test("/tbx api shows made and the last recipe's yield (API 24)", function()
     H.boot()
     H.S.recipes = { [7] = { id = 7, name = "Crimson Pine Binding", ingredients = {},

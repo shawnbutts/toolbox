@@ -6,6 +6,11 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- The guild message of the day notification uses the game's own guild message getter and change event
+  (Lua API 18) when the client has them: a new message shows at once. Older clients keep reading it from
+  the social summary.
+- If the game refuses to write Toolbox's saved settings to disk, Toolbox says so in chat (at most every
+  5 minutes) instead of failing silently.
 - The Docs' Buff bar topic lists the cues that don't rely on colour (the debuff row, the blinking border,
   the alert sound, the seconds countdown, the sweep's size).
 

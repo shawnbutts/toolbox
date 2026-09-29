@@ -17,7 +17,7 @@ H.PACKAGE = ROOT .. "/toolbox"
 local CALLBACKS = {
   "ShroudOnStart", "ShroudOnUpdate", "ShroudOnExperienceGain", "ShroudOnExperienceChanged",
   "ShroudOnLogOut", "ShroudOnDisableScript", "ShroudOnSceneLoaded", "ShroudOnSceneUnloaded",
-  "ShroudOnSocialChanged", "ShroudOnHttpResponse",
+  "ShroudOnSocialChanged", "ShroudOnHttpResponse", "ShroudOnGuildMotdChanged",
 }
 
 local function copy(v)
@@ -217,6 +217,15 @@ local function install_api()
     if not S.char.present then return nil end
     return copy(S.social)
   end
+  -- API 18: the guild message ("" outside a guild). H.S.noGuildMotd = true: an older client.
+  if S.noGuildMotd then
+    ShroudGetGuildMotd = nil
+  else
+    ShroudGetGuildMotd = function()
+      if not S.char.present or not S.social.inGuild then return "" end
+      return S.social.motdGetter or S.social.guildMotd or ""
+    end
+  end
   ShroudGetTotalAdventurerExperience = function() return S.char.present and S.char.adv or 0 end
   ShroudGetTotalProducerExperience = function() return S.char.present and S.char.prod or 0 end
   -- Character stats: { name, label, value, hidden } (H.S.stats).
@@ -268,6 +277,7 @@ local function install_api()
     return true
   end
   ShroudFlushSavedVars = function()
+    if S.flushFails then return false end     -- H.S.flushFails: the game refuses the write
     S.disk = copy(S.memory)
     S.flushes = S.flushes + 1
     S.dirty = false
@@ -1001,12 +1011,21 @@ function H.setGuild(name, motd)
   S.social.inGuild = name ~= nil
   S.social.guildName = name or ""
   S.social.guildMotd = motd or ""
+  S.social.motdGetter = nil
 end
 
 -- The guild message changes while playing: the host notices and fires ShroudOnSocialChanged.
 function H.setMotd(motd)
   S.social.guildMotd = motd
+  S.social.motdGetter = nil
   return H.callback("ShroudOnSocialChanged")
+end
+
+-- API 18: only the guild message getter changes, and ShroudOnGuildMotdChanged fires (the social summary
+-- keeps its old copy).
+function H.guildMotdChanged(motd)
+  S.social.motdGetter = motd
+  return H.callback("ShroudOnGuildMotdChanged", motd)
 end
 
 -- A buff's category as the game gives it (API 23): `category` when a test sets one, otherwise from the

@@ -467,7 +467,7 @@ What each version added (from the reference's "Added in API N" notes):
   successful craft's fixed yield `{ { name, quantity } }` (empty for a rolled result; `result` when exactly one).
   Products sit on the table until taken, so the result is "the one place to count them" (reference).
 - Also in the docs now: `ShroudFlushSavedVars()` returns false when a write failed or a table passed 256 KB
-  (we ignore it; could report it in chat); an optional manifest `support_url` (a store "Support" link, any API
+  (`T.Flush` reports it in chat, at most every `T.FLUSH_WARN_EVERY` s; harness `H.S.flushFails`); an optional manifest `support_url` (a store "Support" link, any API
   version; for when the repo is public). The equipment example uses `durability / maxDurability < 0.2`, as
   `Toolbox.Gear` does; `primaryDurability` is still undefined. "Shift is not a modifier" is still written
   (item 38 found it works in game).
@@ -871,7 +871,10 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     clicks through, but not whether hover reaches a strip's panel and rows. The XP / Today strips report
     hover on their panel and each row (`t:hud`, `t:hud_<id>`). Unconfirmed in game: if the pop-up never
     appears over a strip, this is the place to look.
-41. Guild message of the day (`ShroudGetSocialSummary().guildMotd`, API 14). Unconfirmed in game: whether it
+41. Guild message of the day. Since 2026-09-29 read from `ShroudGetGuildMotd()` (API 18, feature-detected; docs
+    `context()`, a reused table) and re-checked on `ShroudOnGuildMotdChanged`; the social summary is the
+    fallback. Harness: `H.guildMotdChanged(text)` (getter + event only), `H.S.noGuildMotd`. Originally
+    (`ShroudGetSocialSummary().guildMotd`, API 14): Unconfirmed in game: whether it
     is "" (or the summary nil / `inGuild` false) until the guild data loads after login; an empty message is
     never treated as new, so a late load just shows on a later tick. Also whether the text carries markup
     (shown as plain text) and whether `ShroudOnSocialChanged` fires when the data first loads (the 1 s tick

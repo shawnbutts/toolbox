@@ -239,8 +239,20 @@ function T.Save(key, value)
   return ok
 end
 
+-- Writes the saved vars to disk. The game answers false when a write failed or a table passed 256 KB;
+-- say so in chat (at most every T.FLUSH_WARN_EVERY seconds) rather than lose settings silently.
+T.FLUSH_WARN_EVERY = 300
 function T.Flush()
-  return ShroudFlushSavedVars()
+  local ok = ShroudFlushSavedVars()
+  if ok == false then
+    T.flushFailures = (T.flushFailures or 0) + 1
+    if not T.flushWarnedAt or T.Now() - T.flushWarnedAt >= T.FLUSH_WARN_EVERY then
+      T.flushWarnedAt = T.Now()
+      T.Print("Couldn't write Toolbox's saved settings to disk (the game refused it). Recent changes may be lost"
+        .. " if the game closes; please report it with /" .. T.commands[1] .. " version.")
+    end
+  end
+  return ok
 end
 
 -- 1234567 -> "1,234,567" (rounded to a whole number).
@@ -1775,6 +1787,11 @@ end
 
 -- Guild or friends changed (twice a second at most): maybe a new guild message of the day.
 function ShroudOnSocialChanged()
+  T.Notify.Check()
+end
+
+-- The guild message of the day changed (API 18; the game checks twice a second).
+function ShroudOnGuildMotdChanged()
   T.Notify.Check()
 end
 

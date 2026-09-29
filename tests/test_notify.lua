@@ -80,6 +80,30 @@ return function(t)
     t.eq(H.notice("motd").text, "Siege tonight")
   end)
 
+  t.test("API 18: the guild message's own getter and event (the summary's copy can lag)", function()
+    H.boot()
+    H.setGuild("Knights", "Raid at 8")
+    H.advance(1)
+    H.closeWindow("toolbox_notify")
+    H.guildMotdChanged("Siege tonight")               -- the summary still says "Raid at 8"
+    t.ok(H.notice("motd").shown, "shown at once, from the event")
+    t.eq(H.notice("motd").text, "Siege tonight")
+    t.eq(seen("motd"), "Siege tonight")
+    H.closeWindow("toolbox_notify")
+    H.advance(2)
+    t.no(H.notify():IsShown(), "not again: the getter is read each check, not the stale summary")
+  end)
+
+  t.test("an older client without the getter uses the social summary", function()
+    H.boot()
+    H.S.noGuildMotd = true
+    H.reload()
+    t.eq(ShroudGetGuildMotd, nil)
+    H.setGuild("Knights", "Raid at 8")
+    H.advance(1)
+    t.eq(H.notice("motd").text, "Raid at 8")
+  end)
+
   t.test("a refused window is retried and not marked seen", function()
     H.boot()
     H.S.showRefused = true
