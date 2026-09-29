@@ -704,6 +704,12 @@ local function hover(k, over)
   end
 end
 
+-- For Toolbox.Hud: the strip was destroyed; the HUD's refresh skips it until BuildContent runs again.
+function NH.Unbuilt()
+  hudScroll, hudEmpty = nil, nil
+  hudRows = {}
+end
+
 function NH.BuildContent()
   hudRows = {}
   local rows = {}

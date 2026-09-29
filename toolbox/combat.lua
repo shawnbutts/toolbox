@@ -531,6 +531,9 @@ local function slab(h)
     borderRadius = 0 } }
 end
 
+-- For Toolbox.Hud: the strip was destroyed; the HUD's updates skip it until BuildContent runs again.
+function C.Unbuilt() content = nil end
+
 function C.BuildContent()
   local m = C.Metrics()
   local groups = {}

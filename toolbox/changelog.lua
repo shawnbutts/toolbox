@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Fixed" },
+  { "item", "\"Shroud.UI: this Row was destroyed\" after switching the consumables bar off (glued or not), and the same risk for every HUD strip after a rebuild (gluing, or a strip rebuilt after the game's element limit): a strip that is rebuilt or removed now lets go of its old elements at once." },
   { "section", "Added" },
   { "item", "The consumables bar uses the game's buff categories (API 23): food, potions, weapon poisons and combat consumables (caltrops, bombs) by default, one checkbox per category in settings (or /toolbox consumables cat <Category> on|off). Names containing Scroll, Torch or Bait stay off it (/toolbox consumables exclude add|remove <name>). Older clients keep the name rules for food and potions. /toolbox buffs raw shows each buff's category; /toolbox api lists the new functions." },
   { "item", "Crafted and Gathered in Today Detailed: a Show dropdown switches between Looted, Crafted (items you took off crafting stations today, your crafts per recipe with exceptional and failed, and crafting XP; /toolbox crafted) and Gathered (what the nodes you harvested held, nodes, failed harvests and gathering XP; /toolbox gathered). Looted now leaves crafted and gathered items out; \"Include crafted and gathered items\" in settings (or /toolbox dd include on) puts them back. Crafted also lists the materials your crafts used (each recipe's ingredients times the crafts attempted; tools and optional ones left out), and, apart from what you made, anything else you took off a station (materials back, salvage returns). Needs a game client with Lua API 18." },

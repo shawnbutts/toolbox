@@ -5,6 +5,11 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Fixed
+- "Shroud.UI: this Row was destroyed" after switching the consumables bar off (glued or not), and
+  the same risk for every HUD strip after a rebuild (gluing, or a strip rebuilt after the game's
+  element limit): a strip that is rebuilt or removed now lets go of its old elements at once.
+
 ### Added
 - The consumables bar uses the game's buff categories (API 23): food, potions, weapon poisons and
   combat consumables (caltrops, bombs) by default, one checkbox per category in settings (or

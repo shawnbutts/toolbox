@@ -76,11 +76,20 @@ local function failed(what, err)
   end
 end
 
+-- Tells a module its content is gone (optional method Unbuilt): it must drop every element it holds
+-- and skip its updates until built again. Otherwise its next update touches a destroyed element
+-- ("Shroud.UI: this Row was destroyed", reported 2026-09-29 after switching the consumables bar off).
+local function unbuilt(key)
+  local m = modules[key]
+  if m and m.Unbuilt then pcall(m.Unbuilt) end
+end
+
 -- A module's content, or nil when building it raised (so one broken strip doesn't stop the others
 -- from being built and shown).
 local function build(key)
   local ok, result = pcall(modules[key].BuildContent)
   if ok then return result end
+  unbuilt(key)                        -- a half-built content (the creation cap) isn't used either
   failed(key, result)
   return nil
 end
@@ -95,6 +104,7 @@ end
 
 local function destroyAll()
   for _, frame in pairs(frames) do pcall(function() frame:Destroy() end) end
+  for key in pairs(contents) do unbuilt(key) end
   frames, contents, sized = {}, {}, {}
 end
 
@@ -107,6 +117,7 @@ function Hud.Build(missingOnly)
   for key, frame in pairs(frames) do
     if modules[key] and not present(key) then     -- a HUD frame slot is freed (8 per add-on)
       pcall(function() frame:Destroy() end)
+      unbuilt(key)
       frames[key], contents[key], sized[frame] = nil, nil, nil
     end
   end
@@ -294,6 +305,7 @@ Hud.STRIP_INDENT = 10
 
 function Hud.TextStrip(spec)
   local strip = { FRAME_ID = spec.FRAME_ID, HOME = spec.HOME, el = {} }
+  function strip.Unbuilt() strip.el = {} end   -- the owner's refresh skips a strip without labels
   -- Built only while the HUD form is in use: Toolbox may have at most 8 HUD frames.
   function strip.Wanted() return spec.prefs.hud == true end
   local styled = {}                   -- { element, function() -> style }, re-applied by ApplyText

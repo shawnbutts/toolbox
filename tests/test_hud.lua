@@ -177,4 +177,51 @@ return function(t)
     H.CREATE_BURST = burst
     if not ok then error(err, 0) end
   end)
+
+  -- rebuilds never leave a module holding destroyed elements ---------------------
+
+  -- Every glue / on / off change, with buffs and a consumable running, then ticks: nothing may touch
+  -- an element the rebuild destroyed ("this Row was destroyed", reported 2026-09-29).
+  local SEQUENCES = {
+    { "/tbx buffs", "/tbx consumables glue on", "/tbx consumables bar off" },
+    { "/tbx buffs", "/tbx consumables bar off", "/tbx consumables bar on", "/tbx consumables glue on" },
+    { "/tbx buffs", "/tbx consumables glue on", "/tbx gear glue on", "/tbx buffs", "/tbx buffs" },
+    { "/tbx buffs", "/tbx vitals", "/tbx vitals glue on", "/tbx consumables glue on", "/tbx vitals glue off",
+      "/tbx consumables bar off" },
+    { "/tbx buffs", "/tbx gear glue on", "/tbx gear bar off", "/tbx gear bar on", "/tbx gear glue off" },
+    { "/tbx combat", "/tbx notify via hud", "/tbx xp", "/tbx xp hud", "/tbx vitals", "/tbx vitals glue on",
+      "/tbx xp window", "/tbx combat" },
+  }
+  for n, seq in ipairs(SEQUENCES) do
+    t.test("rebuilds leave no destroyed elements behind (sequence " .. n .. ")", function()
+      H.boot()
+      H.S.durationMode = "remaining"
+      H.setGear{ { name = "Sword", durability = 5, maxDurability = 100 } }
+      H.addBuffs({ { name = "RuneFood_Pie", remaining = 2700, total = 14544, icon = 46 },
+                   { name = "Light", remaining = 100, total = 127, icon = 5 } })
+      H.advance(2)
+      for _, cmd in ipairs(seq) do
+        H.chat(cmd)
+        H.advance(1.5, 0.5)
+      end
+      H.advance(12)
+      t.no(H.logged("destroyed"), "no chat error")
+    end)
+  end
+
+  t.test("strips that fail at the creation cap mid-rebuild don't break the updates meanwhile", function()
+    H.boot()
+    H.S.durationMode = "remaining"
+    for _, c in ipairs({ "/tbx buffs", "/tbx vitals", "/tbx combat", "/tbx notify via hud" }) do H.chat(c) end
+    H.addBuffs({ { name = "RuneFood_Pie", remaining = 2700, total = 14544, icon = 46 },
+                 { name = "Light", remaining = 100, total = 127, icon = 5 } })
+    H.advance(2)
+    H.S.createBucket.tokens = 20                         -- the next rebuild runs out part way
+    H.call(function() Toolbox.Hud.Build() end)
+    H.advance(Toolbox.Hud.RETRY_DELAY * (Toolbox.Hud.RETRY_MAX + 1) + 2, 0.5)   -- ticks while it retries
+    t.no(H.logged("destroyed"))
+    t.ok(H.frame() and H.frame().visible, "the buff bar is back")
+    t.eq(#H.slots("buffs"), 1, "with its buff")
+  end)
 end
+

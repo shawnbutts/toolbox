@@ -740,6 +740,8 @@ function BB.BuildContent()
     UI.Row{ id = "buffs", style = { marginBottom = BB.GAP }, children = buffRow },
     UI.Row{ id = "debuffs", style = { marginBottom = extraRows and BB.GAP or 0 }, children = debuffRow },
   }
+  -- which rows live in this strip (BB.Unbuilt drops them with it, whatever the settings are by then)
+  K.inBuffBar, T.Gear.inBuffBar = K.Glued(), T.Gear.Glued()
   if K.Glued() then                     -- the consumables bar as the next row
     rows[#rows + 1] = K.BuildRow(T.Gear.Glued())
   end
@@ -935,6 +937,17 @@ function BB.UVTest()
   uvtest = { frame = frame, cells = cells, k = BB.UVTEST_FRAMES_PER_STEP, started = T.Now(), size = s }
   ShroudRegisterPeriodic("toolbox_uvtest", uvtestStep, BB.UVTEST_STEP, true)
   return true
+end
+
+-- For Toolbox.Hud: the strip holding the buff rows was destroyed (a rebuild): drop the slots, the
+-- group slot and pending sweeps; BB.Tick skips the rows until BuildContent runs again. Glued rows of
+-- the consumables and equipment bars went with it.
+function BB.Unbuilt()
+  content, group, sizedFor = nil, nil, nil
+  slots.buffs, slots.debuffs = {}, {}
+  for i = #pendingSweeps, 1, -1 do pendingSweeps[i] = nil end
+  if K.inBuffBar then K.Unbuilt() end
+  if T.Gear.inBuffBar then T.Gear.Unbuilt() end
 end
 
 -- Starts (k = 0..FRAMES-1) or ends (k = nil) a frame test. Returns the number of icons it covers,
@@ -1813,7 +1826,16 @@ function G.BuildRow()
   lastPoll = -math.huge                 -- new slots: fill them on the next tick
   return gContent
 end
-G.BuildContent = G.BuildRow
+function G.BuildContent()
+  G.inBuffBar = false
+  return G.BuildRow()
+end
+
+-- For Toolbox.Hud (and BB.Unbuilt when glued): the row was destroyed; fillGear skips it until rebuilt.
+function G.Unbuilt()
+  gContent, gShown, G.inBuffBar = nil, nil, false
+  gSlots = {}
+end
 
 -- The buff bar's icon size changed (BB.SetSize).
 function G.ApplySize(n)
@@ -2121,7 +2143,16 @@ function K.BuildRow(gapBelow)
   kShown = nil
   return kContent
 end
-function K.BuildContent() return K.BuildRow(false) end
+function K.BuildContent()
+  K.inBuffBar = false
+  return K.BuildRow(false)
+end
+
+-- For Toolbox.Hud (and BB.Unbuilt when glued): the row was destroyed; K.Fill skips it until rebuilt.
+function K.Unbuilt()
+  kContent, kShown, K.inBuffBar = nil, nil, false
+  slots.consumables = {}
+end
 
 function K.ContentSize()
   local cell = size() + BB.GAP

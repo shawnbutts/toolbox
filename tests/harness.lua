@@ -486,6 +486,15 @@ local FIELDS = {
   Toggle = { text = 1, value = 1, onChange = 1, enabled = 1 },
 }
 
+-- As in game: destroying an element destroys everything inside it, and using a destroyed element
+-- raises "Shroud.UI: this <Kind> was destroyed" (reported 2026-09-29 after gluing a strip).
+local function destroyTree(e)
+  if type(e) ~= "table" or e.destroyed then return end
+  e.destroyed = true
+  for _, c in ipairs(e.children or {}) do destroyTree(c) end
+end
+H.destroyTree = destroyTree
+
 local Element = {}
 Element.__index = Element
 
@@ -524,6 +533,7 @@ function Element:Add(child)
 end
 function Element:Clear()
   S.destroyed = (S.destroyed or 0) + #(self.children or {})
+  for _, c in ipairs(self.children or {}) do destroyTree(c) end   -- cleared children are destroyed
   self.children = {}
 end
 function Element:SetVisible(v) self.visible = v end
@@ -531,7 +541,7 @@ function Element:SetVisible(v) self.visible = v end
 function Element:SetEnabled(on) self.enabled = on == true end
 function Element:IsEnabled() return self.enabled ~= false end
 function Element:Destroy()
-  self.destroyed = true
+  destroyTree(self)
   for id, f in pairs(S.frames) do if f == self then S.frames[id] = nil end end
   for id, w in pairs(S.windows) do if w == self then S.windows[id] = nil end end
 end
@@ -581,6 +591,18 @@ function Element:Hide() self.shown = false end
 function Element:IsShown() return self.shown == true end
 function Element:GetPosition() return self.x, self.y end
 function Element:SetPosition(x, y) self.x, self.y = x, y end
+
+-- Every method but Destroy raises on a destroyed element, as the game does.
+for name, fn in pairs(Element) do
+  if type(fn) == "function" and name ~= "Destroy" then
+    Element[name] = function(self, ...)
+      if type(self) == "table" and self.destroyed then
+        error("Shroud.UI: this " .. tostring(self.kind or "element") .. " was destroyed", 2)
+      end
+      return fn(self, ...)
+    end
+  end
+end
 
 function H.makeUI()
   local UI = {}

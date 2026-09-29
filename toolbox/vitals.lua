@@ -265,6 +265,11 @@ function V.BuildContent()
   return content
 end
 
+-- For Toolbox.Hud: the strip was destroyed; V.Tick skips the bars until BuildContent runs again.
+function V.Unbuilt()
+  content, vigorRowShown = nil, nil
+end
+
 function V.ContentSize()
   local m = V.Metrics()
   return m.contentW, m.contentH
