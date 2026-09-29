@@ -456,6 +456,18 @@ docking, no `ShroudOnBuffBarMoved`.
    appears (e.g. a list of settings + a getter), first use: the game's buff bar "stack buffs lasting
    longer than" option feeds `BB.GroupAfter()`, and the settings dropdown shows it as the game's value.
 
+**Waiting on the developers (2026-09-29):**
+
+1. **SetUV redraw bug + cooldown sweep feature request**, posted to the devs on Discord (the text is in the
+   owner's `tmp/sweep-report.md`, repro `tmp/uvbug.lua`; item 48). When a client fixes SetUV (uvtest way 1
+   sweeps), go back to one overlay Image per slot stepped with SetUV (`BB.ShowFrame`). If a radial fill
+   (`SetFill`) or a client-run sweep (`SetSweep(start, duration)`) appears, feature-detect it in
+   `BB.ShowFrame` / `BB.HideFrame` and keep the new-Image path as the fallback.
+2. **Buff category metadata** (the owner expects it). Use it to replace the name guesses: consumables
+   (`BB.ConsumableKind`: food, potions, and weapon poisons, which aren't visible by name at all yet) and
+   the buff bar's grouping. Keep the name rules as the fallback for older clients, and read the new field
+   through `BB.ReadRunes`' userdata-safe accessor. Don't guess the field's name or values: wait for the docs.
+
 **API 18: crafting and gathering** (`daily.lua`, `dailydetail.lua`). The API map says v15 for the
 crafting/social getters, but the reference says "Added in API 18" for all of them and for the result
 events, so gate on the functions existing, never on the version number.
