@@ -70,7 +70,7 @@ Moving the HUD strips: drag the small grip at a strip's top-left corner. If you 
 untick Options > Interface > Nameplates & Chat Bubbles > "Lock Status Movement". Or use the
 Position buttons in settings (HUD layout), or e.g.  /tbx buffs move 600 40
 
-Shortcut: Ctrl+Shift+; opens the settings. You can change it in the add-on manager, on Toolbox's
+Shortcut: Ctrl+; opens the settings. You can change it in the add-on manager, on Toolbox's
 row under "Keys".
 
 
@@ -137,7 +137,7 @@ From beta 3:
   * The settings window is wider now; if the game remembered its old width, drag it wider once.
   * Weapon poisons: unknown whether the game shows them to add-ons. If one shows as a buff,
     /tbx consumables add <part of its name> puts it on the consumables bar.
-  * The Ctrl+Shift+; shortcut may not take on some setups. If it does nothing, set a key for
+  * The Ctrl+; shortcut may not take on some setups. If it does nothing, set a key for
     Toolbox in the add-on manager under "Keys".
   * Buffs with no fixed length (like the moon indicator) have no sweep until Toolbox sees them
     start.

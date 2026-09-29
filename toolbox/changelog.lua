@@ -5,6 +5,9 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Changed" },
+  { "item", "The price site is called SotANET (or by its address, shroudoftheavatar.net) everywhere; the short name used before is a different domain." },
+  { "item", "The settings shortcut is suggested as Ctrl+; (the game doesn't use Shift as a modifier, so the old Ctrl+Shift+; suggestion couldn't work; a Ctrl+Shift+; set in the add-on manager is recorded as Ctrl+;)." },
   { "section", "Fixed" },
   { "item", "\"Shroud.UI: this Row was destroyed\" after switching the consumables bar off (glued or not), and the same risk for every HUD strip after a rebuild (gluing, or a strip rebuilt after the game's element limit): a strip that is rebuilt or removed now lets go of its old elements at once." },
   { "section", "Added" },

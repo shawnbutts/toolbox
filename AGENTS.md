@@ -804,9 +804,13 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     already uses Ctrl+;. The player changes keys in the add-on manager (Toolbox's row, "Keys").
     REPORTED 2026-09-27: shown as bound in the add-on manager, but Ctrl+; did nothing. `/toolbox key` now
     counts presses (0 = never delivered). RESULT: 0 presses for the suggested "Ctrl+Semicolon", but the
-    owner setting Ctrl+Shift+; in the add-on manager WORKS, so Shift IS usable (docs wrong). Suggestions
+    owner setting Ctrl+Shift+; in the add-on manager works (see the correction below: it is recorded as Ctrl+;). Suggestions
     are now tried in order `T.KEY_SUGGESTIONS` = Ctrl+Shift+Semicolon, Ctrl+Semicolon. Pending: the exact
     key string the game reports for the player-set binding (`/toolbox key`), to use as the suggestion.
+    CORRECTED 2026-09-29 (owner): the player-set binding is recorded as "Ctrl + ;": Shift ISN'T a modifier
+    (the docs are right; it was dropped). `T.KEY_SUGGESTIONS` = { "Ctrl+Semicolon" } only. Still unexplained:
+    the earlier 0 presses for the suggested Ctrl+Semicolon (perhaps Ctrl+Shift+; was pressed, or another
+    binding had it); re-test with `/toolbox key`. Player-facing text says "Ctrl+;".
 39. Label side margins: labels carry side margins from the theme unless set. FOUND in game 2026-09-27
     (`/toolbox combat debug`): a combat row laid out ~8 px wider than name + value + padding, so the values
     sat on the panel's right edge. Set `marginLeft`/`marginRight` = 0 on labels whose widths must add up.

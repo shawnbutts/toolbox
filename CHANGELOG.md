@@ -5,6 +5,12 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Changed
+- The price site is called SotANET (or by its address, shroudoftheavatar.net) everywhere; the short
+  name used before is a different domain.
+- The settings shortcut is suggested as Ctrl+; (the game doesn't use Shift as a modifier, so the old
+  Ctrl+Shift+; suggestion couldn't work; a Ctrl+Shift+; set in the add-on manager is recorded as Ctrl+;).
+
 ### Fixed
 - "Shroud.UI: this Row was destroyed" after switching the consumables bar off (glued or not), and
   the same risk for every HUD strip after a rebuild (gluing, or a strip rebuilt after the game's

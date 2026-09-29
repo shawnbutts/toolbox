@@ -1404,11 +1404,12 @@ end)
 -- Shortcut key
 -- ---------------------------------------------------------------------------
 -- Shroud.Keybind: the player sees and changes it in the add-on manager, on Toolbox's row
--- under "Keys". The docs say Shift is never a modifier, but in game a player-set Ctrl+Shift+;
--- works while the suggested "Ctrl+Semicolon" showed as bound yet never arrived. So the
--- owner's Ctrl+Shift+; is suggested first, then Ctrl+;, then none: an unusable key raises.
+-- under "Keys". Shift is never a modifier (docs; CONFIRMED 2026-09-29: the owner's Ctrl+Shift+; is
+-- recorded as "Ctrl + ;" and works). Ctrl+; is suggested; an unusable key raises, and then none is.
+-- (Earlier the suggested Ctrl+Semicolon showed as bound but counted 0 presses; unexplained, pending a
+-- re-test: /toolbox key counts presses.)
 T.KEY_ID = "settings"
-T.KEY_SUGGESTIONS = { "Ctrl+Shift+Semicolon", "Ctrl+Semicolon" }
+T.KEY_SUGGESTIONS = { "Ctrl+Semicolon" }
 
 function T.RegisterKeybind()
   if not ShroudLuaApiVersion or ShroudLuaApiVersion < 14 then return end
