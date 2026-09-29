@@ -228,6 +228,13 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     consumables, combat, gear, xp, daily, notify = 8 with all on; a module's optional `Wanted()` keeps a strip
     unbuilt when not in use (the XP / Today strips only in their HUD form, consumables / gear when glued or off),
     and `Hud.Build(true)` builds what is missing and destroys what is no longer wanted. A new strip needs a slot.
+    `Unbuilt()` (optional, but every module holding elements must have it): called when its content is
+    destroyed (a full rebuild, a strip no longer wanted, a build that failed part way); the module drops
+    every element it holds and its updates skip until `BuildContent` runs again. Missing it meant "this Row
+    was destroyed" (2026-09-29: the consumables bar switched off). The buff bar drops the consumables /
+    equipment rows it built itself (`K.inBuffBar` / `G.inBuffBar`), whatever the glue settings are by then.
+    The harness destroys whole element trees (Destroy, container Clear) and raises on any call to a
+    destroyed element, as the game does.
     `Hud.TextStrip(spec)` is the HUD form of the XP and Today windows (`prefs.hud`, `/toolbox xp hud`):
     a module registered from `Compact.Init` / `Daily.InitWindow` (they load before hud.lua, so never at
     top level), with labels under the window's ids; those modules write to `active()`, whichever form is in use.
