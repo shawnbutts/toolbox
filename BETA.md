@@ -1,12 +1,13 @@
 Toolbox beta: install and testing guide
 =======================================
 
-Thanks for testing Toolbox! It's a Shroud of the Avatar add-on with XP windows, daily stats, a buff
-bar, a consumables bar, health, focus & Vigor bars, a combat stats HUD, an equipment repair bar and
+Thanks for testing Toolbox! It's a Shroud of the Avatar add-on. Its headline is the Toolbelt: your
+buffs and debuffs, health, focus and Vigor, food and potions, and gear needing repair in one strip you
+can put anywhere. Around it: XP windows, today's loot, crafting and gathering, a combat stats HUD and
 notifications. This is a beta: please tell us what breaks.
 
-You need a game client with Lua add-on API 15 or newer (older clients skip Toolbox with a chat line
-saying it needs a newer client). Some options need a newer one still; settings greys them out.
+You need a game client with Lua add-on API 23 or newer (older clients skip Toolbox with a chat line
+saying it needs a newer client).
 
 
 1. Find your Lua folder
@@ -57,13 +58,15 @@ folder: two copies tangle each other. /tbx version says "copies loaded: 1" when 
 
 /toolbox works everywhere /tbx does.
 
-The settings window's "Settings" dropdown picks a part to set up:
+The settings window's "Settings" dropdown picks a part to set up. It opens on the first:
+  * Toolbelt: show it, and put the health bars, consumables bar and equipment bar Off, on their own
+    strip, or In Toolbelt. The quickest way to get started.
   * XP & Today: session time, pools, XP in the last hour; gold, kills and XP since midnight. Each
     can be hidden, a window or a HUD strip. Hover them for XP Detailed / Today Detailed.
   * Buffs, Consumables & gear, Health bars, Combat: the HUD strips.
   * Notifications: what's new since you last looked (guild message, mail, rewards, gear to repair...).
   * Sounds: alert volume and sound files.
-  * HUD layout: which strips share one strip, and every strip's position.
+  * HUD layout: every strip's position.
 Options that do nothing while their part is off are greyed out.
 
 Moving the HUD strips: drag the small grip at a strip's top-left corner. If you can't see the grip,
@@ -78,11 +81,26 @@ row under "Keys".
 --------------
 
 Anything you like, but especially what's new in this beta (/tbx version lists it all):
+  * The Toolbelt page (the first page of settings): turn on the Toolbelt and put each bar In Toolbelt.
+    Does it come together as one strip you can move by its grip? Try "Only during combat".
+  * Crafting and gathering: Today Detailed's "Show" dropdown switches between Looted, Crafted and
+    Gathered (/tbx crafted, /tbx gathered). Craft something, take it off the table, harvest a node:
+    do the counts look right? Materials you take back off a station should NOT show as made.
+  * Consumables bar: long-lasting ones share one icon with a count, and "Most icons" caps the icons.
+    Pick which kinds go on it (settings, Consumables & gear). Food, potions and combat items like
+    caltrops by default; scrolls, torches and bait stay off.
+  * Name lists in settings: "Always group by name" (Buffs) and the consumables' "Always on it" and
+    "Left out" names now have a text box with Add and Remove.
+  * "Show seconds left near the end" (Buffs): whole seconds over icons about to run out.
+  * "Always group these kinds" (Buffs): e.g. every Blessing in the group slot.
+  * Health, focus and Vigor bars are thinner, with more space between them.
+  * Estimated values: the new "Test connection" button in settings (XP & Today).
+From beta 5:
   * Buff sweeps: they should now keep pace with the game's own buff bar all the way down (before,
     they froze at the step they first showed). Compare a buff's sweep on both bars for a minute.
   * Consumables bar: food and Obsidian potions get their own bar (and leave the buff bar). It flashes
-    red with the buff alert when one is about to run out. Try gluing it under the buffs (settings,
-    HUD layout). If you use weapon poisons: do they show as a buff at all? (/tbx buffs raw)
+    red with the buff alert when one is about to run out. If you use weapon poisons: do they show as a
+    buff at all? (/tbx buffs raw)
   * Equipment bar: worn items below 20% durability show with a sweep for what they've lost, and a
     "Gear needs repair" notification comes when one drops below it and again when it breaks.
     /tbx gear lists your gear. Do the percentages match the game's tooltips?
@@ -121,8 +139,7 @@ From beta 3:
   * Combat stats in a fight: do DPS and damage taken look believable? Try adding a stat:
       /tbx stats resist      (finds stat names; any word works: absorb, dodge, crit, regen)
       /tbx combat stat add CombatHealthRegen
-  * Moving, resizing and glueing the HUD strips (/tbx vitals glue on), then /lua reload: does
-    everything come back where you left it?
+  * Moving and resizing the HUD strips, then /lua reload: does everything come back where you left it?
 
 
 5. Known issues
@@ -135,6 +152,10 @@ From beta 3:
     step, at most 8 a second for all sweeps together. With many short buffs at once some sweeps may
     step a little later than others. (Reported to the game's developers.)
   * The settings window is wider now; if the game remembered its old width, drag it wider once.
+  * Crafted counts: on this game client (API 23) what you made is counted when you take it off the
+    crafting table, matched by name to the recipes you crafted today. A product named differently from
+    its recipe may show under "Also off stations". The next game update (API 24) tells add-ons exactly
+    what each craft made; Toolbox already uses it when it's there.
   * Weapon poisons: unknown whether the game shows them to add-ons. If one shows as a buff,
     /tbx consumables add <part of its name> puts it on the consumables bar.
   * The Ctrl+; shortcut may not take on some setups. If it does nothing, set a key for

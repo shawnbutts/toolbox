@@ -5,7 +5,10 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-29 (beta 6)
+
 ### Changed
+- Needs a game client with Lua API 23 or newer (the live client's version); older clients skip Toolbox.
 - The Toolbelt page in settings sets the whole thing up: Show the Toolbelt, and for the health bars,
   consumables bar and equipment bar one choice each: Off, Own strip or In Toolbelt (picking In Toolbelt
   switches the bar on, and the Toolbelt too). It's now the first page the settings window opens on.

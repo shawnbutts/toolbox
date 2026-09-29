@@ -9,8 +9,8 @@ Guidance for AI coding agents (and humans) working on Toolbox, a Shroud of the A
   - https://catnipgames.net/lua/agent.html (dense API map; read first)
   - https://catnipgames.net/lua/reference.html (full reference)
   - https://catnipgames.net/lua/guide.html (packaging, sandbox, store)
-- **Target Lua API 15 on MoonSharp (Lua 5.2 semantics)** (`min_api_version` 15 since 2026-09-28, for
-  package sounds; newer functions are feature-detected). No 5.3+ features: no integer division
+- **Target Lua API 23 on MoonSharp (Lua 5.2 semantics)** (`min_api_version` 23 since 0.5.0, 2026-09-29: the
+  live client's version; was 15, for package sounds; newer functions are still feature-detected). No 5.3+ features: no integer division
   `//`, no bitwise operators, no `utf8` library, no `math.tointeger`/`math.type`, no `<const>`/`<close>`.
   Also avoid `goto` and `table.unpack`/`unpack` so the tests run on LuaJIT too. Pass whole numbers to
   `%d` (use `math.floor`); `string.format("%d", 1.5)` errors on 5.3+.

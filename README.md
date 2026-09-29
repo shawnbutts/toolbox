@@ -1,6 +1,6 @@
 # Toolbox
 
-A Shroud of the Avatar Lua add-on. It needs Lua API 15 (`min_api_version` in the manifest) and uses
+A Shroud of the Avatar Lua add-on. It needs Lua API 23 (`min_api_version` in the manifest) and uses
 newer functions (up to API 24) when the game client has them. Features:
 
 - **Toolbelt**: your buffs and debuffs, health, focus and Vigor, consumables and gear repair in one
@@ -224,8 +224,8 @@ alert takes the first that loads of:
    (or `.wav`), which store updates don't touch;
 3. the default in the add-on's folder, `Lua/toolbox/<name>.ogg`.
 
-The defaults ship in the package (API 15 allows sounds, so the package needs `min_api_version`
-15); paths are relative to the Lua folder (`ShroudLuaPath`).
+The defaults ship in the package (API 15 allows sounds; the package needs `min_api_version` 23
+anyway); paths are relative to the Lua folder (`ShroudLuaPath`).
 
 Missing files are fine: that alert is just silent. `/toolbox sounds` says which file each alert
 uses; `/toolbox sounds test` (or the Test buttons in settings) plays them and reports whether the
