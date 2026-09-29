@@ -188,7 +188,7 @@ return function(t)
     t.ok(H.logged('^Health: ShroudPlayerCurrentHealth = nil nil; stat CurrentHealth = 943; stat Health = 942.23; '
       .. 'using stat %-> "943 / 943", fill 1.00$'), H.logs()[1])
     t.ok(H.logged('^Focus: ShroudPlayerCurrentFocus = 700; .*using global'), H.logs()[2])
-    t.ok(H.logged("^Layout: asked bar %d+x11, row 15 high, 5 px between rows; laid out: health bar "), H.lastLog())
+    t.ok(H.logged("^Layout: asked bar %d+x8, row 15 high, 2 px between rows; laid out: health bar "), H.lastLog())
   end)
 
   -- numbers / bars / background ---------------------------------------------

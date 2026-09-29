@@ -25,7 +25,8 @@ local PERIODIC = "toolbox_vitals"
 V.TICK = 0.2
 V.WIDTH_MIN, V.WIDTH_MAX, V.WIDTH_DEFAULT = 20, 400, 220    -- bar length at 100% size
 V.SCALE_MIN, V.SCALE_MAX, V.SCALE_DEFAULT = 75, 250, 100    -- percent
-V.ROW_GAP = 5                                                 -- px between rows at 100% (was 2: "looks like a flag")
+V.ROW_GAP = 2                                                 -- px between rows at 100%
+V.BAR_THICKNESS = 0.5     -- bar height / line height (was 0.7: the bars touched, "looks like a flag")
 V.BASE_FONT = 12                                             -- text size at 100%
 
 -- Backgrounds for the numbers, from the game's theme so they follow the player's skin.
@@ -190,11 +191,11 @@ function V.Metrics()
   local line = math.ceil(font * 1.15) + 1
   local m = {
     font = font, line = line,
-    barH = math.max(4, math.floor(line * 0.7 + 0.5)),
+    barH = math.max(3, math.floor(line * V.BAR_THICKNESS + 0.5)),
     barW = math.floor(width() * f + 0.5),
     gap = math.max(2, math.floor(4 * f + 0.5)),
     textW = math.ceil(font * 5.2),        -- room for "9999 / 9999"
-    rowGap = math.max(2, math.floor(V.ROW_GAP * f + 0.5)),   -- space between the bars (5 px at 100%)
+    rowGap = math.max(2, math.floor(V.ROW_GAP * f + 0.5)),   -- rows are a text line high
   }
   local hasBg = V.BackgroundClass() or V.BackgroundPanel()
   m.pad = hasBg and math.max(2, math.floor(3 * f + 0.5)) or 0   -- room around the text on a background
