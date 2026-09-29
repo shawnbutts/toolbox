@@ -1079,7 +1079,7 @@ function H.targetSlots()
   local out = {}
   local row = H.targetRow()
   for _, slot in ipairs(row and row.children or {}) do
-    if slot.id ~= "target_info" and slot.visible ~= false then out[#out + 1] = slot end
+    if slot.id ~= "target_info" and slot.id ~= "target_hint" and slot.visible ~= false then out[#out + 1] = slot end
   end
   return out
 end

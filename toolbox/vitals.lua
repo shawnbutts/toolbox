@@ -611,6 +611,7 @@ TG.GROUP_EVERY = 2
 TG.PLACES = { top = "Above the buffs", bottom = "Under everything", left = "Left of your bars (mirrored)" }
 TG.PLACE_ORDER = { "top", "bottom", "left" }
 TG.LEFT_SLOTS = 5            -- icons when mirrored on the left (its width is always kept: keep it small)
+TG.HINT = "Target"           -- shown in its kept space while settings are open and there's no target
 local TPERIODIC = "toolbox_target"
 
 local tprefs = { show = false, glue = true, place = "top" }
@@ -738,8 +739,9 @@ function TG.Place()
 end
 function TG.GetPlace() return tprefs.place end
 
--- Mirrored to the left of the health bars (owner, 2026-09-29, "may remove it"): only with the health bars
--- in the Toolbelt too (TG.Below); otherwise "left" works like "top".
+-- Mirrored to the left of the health bars (owner, 2026-09-29; an official option since): only with the
+-- health bars in the Toolbelt too (TG.Below); otherwise "left" works like "top". Its space is always kept,
+-- so there is a blank area left of the bars with no target (labelled TG.HINT while settings are open).
 function TG.Mirrored() return tprefs.place == "left" and TG.Below() end
 
 -- Above or to the left in the Toolbelt: the row keeps its space with no target (the strip is anchored at
@@ -757,6 +759,7 @@ local tBelt = false          -- built for the Toolbelt: no text, bars sized like
 local tBelow = false         -- ... and across both of its columns (TG.Below)
 local tLeft = false          -- ... mirrored to the left of the health bars (TG.Mirrored)
 local tRows = {}             -- the mirrored form's two bar rows (health, focus)
+local tHint = nil            -- the Toolbelt forms' "Target" label in the kept space (settings open, no target)
 local tRowH = {}             -- ... their heights, measured from the health bars' rows (V.RowHeights)
 local tSyncUntil, tSyncAt = 0, -math.huge
 TG.SYNC_FOR, TG.SYNC_EVERY = 5, 10   -- measure for this long after a build or resize, then this often
@@ -881,6 +884,11 @@ function TG.BuildRow()
   end
   styleInfo(s)
   local children = { tInfo }
+  tHint = nil
+  if tBelt then
+    tHint = UI.Label{ id = "target_hint", text = TG.HINT, class = "dim", visible = false,
+      style = { fontSize = math.max(9, math.floor(s * 0.4)), whiteSpace = "nowrap", marginRight = T.BuffBar.GAP } }
+  end
   tSlots = {}
   for i = 1, (tLeft and TG.LEFT_SLOTS or TG.SLOTS) do
     local icon = UI.Image{ width = s, height = s, onClick = function() end }   -- a click handler: tooltips show
@@ -891,6 +899,7 @@ function TG.BuildRow()
     tSlots[i] = { row = row, icon = icon, overlay = overlay }
     if tLeft then table.insert(children, 1, row) else children[#children + 1] = row end   -- mirrored: outward
   end
+  if tHint then table.insert(children, 1, tHint) end
   if tLeft then           -- a fixed block, its contents against the health bars (right)
     tContent = UI.Row{ id = "target", visible = false, style = { alignItems = "start", justifyContent = "end",
       width = tBlockW, minWidth = tBlockW, height = tBlockH, minHeight = tBlockH }, children = children }
@@ -909,7 +918,7 @@ end
 
 -- For Toolbox.Hud (and BB.Unbuilt when in the Toolbelt): the row was destroyed; the poll skips it.
 function TG.Unbuilt()
-  tContent, tInfo, tName, tHealth, tFocus, TG.inBuffBar = nil, nil, nil, nil, nil, false
+  tContent, tInfo, tName, tHealth, tFocus, tHint, TG.inBuffBar = nil, nil, nil, nil, nil, nil, false
   tSlots, tRows, tShownCount = {}, {}, nil
 end
 
@@ -1036,6 +1045,7 @@ function TG.Poll(force)
   local show = has or T.Config.IsShown() or reserved()
   T.SetVisible(tContent, show)
   T.SetVisible(tInfo, has or T.Config.IsShown())     -- kept space only: empty, not a bar at 0
+  if tHint then T.SetVisible(tHint, not has and T.Config.IsShown()) end   -- names the blank area while placing
   local cells = show and (tInfoCells + #tList) or 0
   if has ~= tHas or cells ~= tShownCount then
     tHas, tShownCount = has, cells

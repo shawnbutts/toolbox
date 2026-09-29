@@ -219,11 +219,13 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     changes, or every `TG.GROUP_EVERY` s. The API doesn't say who applied an effect: every effect is listed.
     Place (owner, 2026-09-29): "top" (default; above the buffs, and its row keeps its height with no target
     so nothing under it jumps: the strip is anchored at its top-left grip) or "bottom" (hidden with no
-    target). `Hud.BELOW` parts ask `Place()`. "left" (BUILT 2026-09-29 on trial: the owner "may remove it"):
+    target). `Hud.BELOW` parts ask `Place()`. "left" (BUILT 2026-09-29; made official by the owner the same day):
     `TG.Mirrored()` (only with the health bars glued; else it acts as "top", `GetPlace` keeps the choice) puts a
     fixed block (`TG.LEFT_SLOTS` icons + the bar length, always reserved) first in the glued columns' row:
     bars rotated 180 (`rotate` style) in rows as tall as the health bars' rows, icons in reverse order. To
     remove it: drop "left" from `TG.PLACES` / `PLACE_ORDER`, the `tLeft` branches, and `placeOf`'s "left".
+    The kept space is a blank area between the grip and the health bars (documented for players, in the
+    guide and README); `tHint` ("Target", dim) marks it while settings are open.
     Unconfirmed in game: that `rotate = 180` on a Bar mirrors its fill.
     REPORTED 2026-09-29: the mirrored bars sat lower than the player's, with more space between them: rows
     built to the asked-for line height lay out taller than the vitals rows do. Now `syncRows` copies the
