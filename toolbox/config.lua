@@ -139,12 +139,13 @@ end
 -- XP and Today: Hidden / Window / HUD strip
 -- ---------------------------------------------------------------------------
 
-C.MODES = { "Hidden", "Window", "HUD strip" }
+C.MODES = { "Hidden", "Window", "Compact window", "HUD strip" }
 
 -- The display mode of Toolbox.Compact (XP) or Toolbox.Daily (Today).
 function C.ModeOf(m)
   if not m.IsShown() then return "Hidden" end
   if m.GetHud() then return "HUD strip" end
+  if m.GetCompact() then return "Compact window" end
   return "Window"
 end
 
@@ -152,8 +153,9 @@ end
 function C.SetMode(m, label)
   if label == "Hidden" then return m.SetOpen(false) ~= false end
   local hud = label == "HUD strip"
-  if label ~= "Window" and not hud then return false end
+  if label ~= "Window" and label ~= "Compact window" and not hud then return false end
   local ok = m.SetHud(hud)
+  if ok ~= false and not hud then ok = m.SetCompact(label == "Compact window") end
   if ok ~= false then ok = m.SetOpen(true) end
   return ok ~= false
 end

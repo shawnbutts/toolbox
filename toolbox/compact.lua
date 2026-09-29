@@ -65,9 +65,10 @@ local function build()
 
   win = UI.Window{
     id = WINDOW_ID, title = "XP",
+    compact = prefs.compact == true,  -- API 19: the title bar only on hover, over the content (no fields in it)
     width = 190, height = 130, minWidth = 140, minHeight = 50,
     x = prefs.x or T.Window.DEFAULT_X, y = prefs.y or T.Window.DEFAULT_Y,   -- never nil in a spec
-    escCloses = true,
+    escCloses = prefs.compact ~= true,  -- a compact window's close button only shows on hover
     onClose = function()
       prefs.open = false
       C.SavePrefs()
@@ -111,6 +112,7 @@ function C.Init()
     prefs.open = saved.open == true
     prefs.hover = saved.hover ~= false
     prefs.hud = saved.hud == true
+    prefs.compact = saved.compact == true
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
     if type(saved.hx) == "number" and type(saved.hy) == "number" then prefs.hx, prefs.hy = saved.hx, saved.hy end
   end
@@ -183,6 +185,32 @@ end
 function C.GetHud()
   return prefs.hud
 end
+
+-- The window form as a compact window (API 19: its title bar shows only on hover, laid over the content)
+-- or a normal one. A window's fields are fixed when it's made, so it is rebuilt; open stays open.
+function C.SetCompact(on)
+  on = on == true
+  if on == (prefs.compact == true) then return true end
+  local open = not prefs.hud and win ~= nil and win:IsShown()
+  hover:Clear("t:")
+  if win then pcall(function() win:Destroy() end) end
+  win = nil
+  prefs.compact = on
+  build()
+  local ok = true
+  if open then
+    ok = win:Show() ~= false
+    if not ok then T.Print("The XP window can't reopen right now; try again in a few seconds.") end
+    prefs.open = ok
+  end
+  C.SavePrefs()
+  C.ApplyText()
+  C.Refresh()
+  T.Config.Sync()
+  return ok
+end
+
+function C.GetCompact() return prefs.compact == true end
 
 -- The strip's position (for /toolbox xp move); nil while it isn't laid out.
 function C.GetPosition()

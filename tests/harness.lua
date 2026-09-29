@@ -533,7 +533,7 @@ end
 local COMMON = { id = true, class = true, style = true, visible = true, tooltip = true, onHover = true }
 local FIELDS = {
   Window = { title = 1, width = 1, height = 1, x = 1, y = 1, minWidth = 1, minHeight = 1, resizable = 1,
-             escCloses = 1, onClose = 1, children = 1 },
+             escCloses = 1, onClose = 1, children = 1, compact = 1 },
   Row = { children = 1 }, Column = { children = 1 }, Scroll = { children = 1 },
   Grid = { columns = 1, children = 1 },
   Label = { text = 1 },
@@ -720,8 +720,19 @@ function H.makeUI()
           if id ~= spec.id and not w.destroyed then live = live + 1 end
         end
         if live >= H.MAX_WINDOWS then error("Shroud.UI: too many windows (" .. H.MAX_WINDOWS .. " per add-on)", 2) end
+        -- Docs (API 19): a compact window can't hold a TextField or a Dropdown.
+        if spec.compact then
+          local function scan(x)
+            if x.kind == "TextField" or x.kind == "Dropdown" then
+              error("Shroud.UI: a compact window can't hold a " .. x.kind, 3)
+            end
+            for _, c in ipairs(x.children or {}) do scan(c) end
+          end
+          scan(e)
+        end
         e.x, e.y = spec.x or 200, spec.y or 120
         e.shown = spec.visible == true
+        e.compact = spec.compact == true
         S.windows[spec.id] = e
       end
       return e

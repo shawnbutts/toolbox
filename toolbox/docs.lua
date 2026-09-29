@@ -48,7 +48,11 @@ D.SECTIONS = {
       .. "A session starts when you log in or press Reset, and survives /lua reload.",
     "Smaller: /toolbox xp hud (or XP window: HUD strip in settings) shows the XP window as a HUD strip, "
       .. "with no title bar or frame. Move it by its grip or /toolbox xp move <x> <y>; hovering still "
-      .. "pops up XP Detailed. /toolbox xp window turns it back into a window." },
+      .. "pops up XP Detailed. /toolbox xp window turns it back into a window.",
+    "Or a compact window (XP window: Compact window in settings, or /toolbox xp compact): a window whose "
+      .. "title bar only shows while the pointer is on it, over the top of the text, so it looks like a "
+      .. "strip but can be resized and faded like any window (right-click it for opacity). Unlike a HUD "
+      .. "strip it doesn't use one of Toolbox's 8 HUD strips." },
   { "XP over the last hour",
     "XP Detailed shows the last hour under each track as columns: XP gained in each 2-minute slice, "
       .. "tallest for your best stretch, with that best rate per hour beneath." },
@@ -72,7 +76,8 @@ D.SECTIONS = {
       .. "stay blank. Only item names are sent, and each price is kept for 24 hours; /toolbox dd values "
       .. "refresh looks them up again, and Test connection in settings (or /toolbox dd values test "
       .. "[item]) checks the connection.",
-    "Like XP, it can be a HUD strip: /toolbox daily hud (and daily window, daily move <x> <y>)." },
+    "Like XP, it can be a compact window or a HUD strip: /toolbox daily compact, daily hud (and daily "
+      .. "window, daily move <x> <y>)." },
   { "Toolbelt",
     "The Toolbelt is your buff bar with your health, focus and Vigor bars beside it and your consumables, "
       .. "gear repair and target under it: one strip with everything you watch in a fight, moved as one. Build "

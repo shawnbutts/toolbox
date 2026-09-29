@@ -70,7 +70,8 @@ The **XP** window shows the session time, your adventurer and producer pools, an
 the last hour. Rest the pointer on it and **XP Detailed** pops up with skill levels gained and deaths this
 session, XP this session, XP per hour
 (session and last 10 minutes), your level and progress, the time to your next level, and a chart of the
-last hour. Sessions survive `/lua reload`.
+last hour. Sessions survive `/lua reload`. The XP and Today windows can also be compact windows (the title
+bar shows only on hover) or HUD strips.
 
 ## Today
 

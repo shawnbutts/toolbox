@@ -449,9 +449,12 @@ end)
 -- for the HUD strip.
 local function formCommand(m, cmd, name, rest)
   local word, args = T.ParseArgs(rest)
-  if word == "hud" or word == "window" then
-    if m.SetHud(word == "hud") then
-      T.Print(name .. " shows as a " .. (word == "hud" and "HUD strip" or "window") .. ".")
+  if word == "hud" or word == "window" or word == "compact" then
+    local ok = m.SetHud(word == "hud")
+    if ok and word ~= "hud" then ok = m.SetCompact(word == "compact") end
+    if ok then
+      local form = { hud = "HUD strip", window = "window", compact = "compact window (title bar on hover)" }
+      T.Print(name .. " shows as a " .. form[word] .. ".")
     end
   elseif word == "move" then
     if not m.GetHud() then
@@ -493,7 +496,7 @@ function T.XPDebugLines()
   return lines
 end
 
-add("xp", "show or hide the XP window (session time, pools, XP in the last hour; hud / window; move [x y]; "
+add("xp", "show or hide the XP window (session time, pools, XP in the last hour; hud / window / compact; move [x y]; "
     .. "debug)", function(rest)
   if T.ParseArgs(rest) == "debug" then
     for _, line in ipairs(T.XPDebugLines()) do T.Print(line) end
@@ -506,7 +509,7 @@ add("xpdetailed", "show or hide the XP Detailed window (levels, rates, Reset)", 
   T.Window.Toggle()
 end, { "xpd" })
 
-add("daily", "show or hide today's stats (gold, kills, XP; resets at midnight; hud / window; move [x y])",
+add("daily", "show or hide today's stats (gold, kills, XP; resets at midnight; hud / window / compact; move [x y])",
     function(rest)
   formCommand(T.Daily, "daily", "Today", rest)
 end)

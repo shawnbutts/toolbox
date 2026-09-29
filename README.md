@@ -7,7 +7,7 @@ newer functions (up to API 24) when the game client has them. Features:
 
 - **Toolbelt**: your buffs and debuffs, health, focus and Vigor, consumables, gear repair and target in
   one movable strip, optionally only during combat (the buff bar with the other bars joined to it).
-- **XP**: a small window (or HUD strip) with session time, your adventurer and producer pools, and XP
+- **XP**: a small window (or a compact window, API 19, or a HUD strip) with session time, your adventurer and producer pools, and XP
   earned in the last hour. Hover it for **XP Detailed**: levels, progress bars, XP/hour, time to the
   next level, and the last hour as a chart.
 - **Today**: gold picked up, kills, and XP gained since midnight. Hover it for **Today Detailed**:

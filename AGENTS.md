@@ -258,9 +258,9 @@ character" sentinel.
 | --- | --- |
 | `session` | see the header comment of `xp.lua` (format `v = 1`); also `skills`, `deaths` (counts) |
 | `window` | `{ open = bool, x = number, y = number, font = 9..32, spacing = 0..12, net = bool }` (net: subtract XP lost) |
-| `compact` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, hx, hy }` (hx/hy: the HUD strip) |
+| `compact` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, compact = bool, hx, hy }` (hx/hy: the HUD strip; compact: an API 19 compact window) |
 | `daily` | see the header comment of `daily.lua` (format `v = 1`) |
-| `daily_window` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, hx, hy }` |
+| `daily_window` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, compact = bool, hx, hy }` |
 | `daily_detail` | `{ open = bool, x = number, y = number, values = bool, view = "looted"/"crafted"/"gathered", include = bool }` |
 | `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, flash, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), groupCats = { [category] = true }, countdown = bool, countdownSecs = 5..120, group = { name parts }, replaceStock, clickDismiss, combatOnly, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { [sound key] = "..." } }` |
@@ -323,7 +323,9 @@ What each newer API added and what Toolbox does with it (all feature-detected):
 - **API 18**: crafting / gathering results (<= 20 per call + `dropped`), `ShroudGetRecipe`,
   `ShroudGetCraftingState`; friends / guild members and their online events (<= 50 + `dropped`; login isn't
   a change); `ShroudGetGuildMotd` / `ShroudOnGuildMotdChanged`. All used.
-- **API 19**: `compact = true` windows (title bar only on hover; no TextField / Dropdown in them). Unused.
+- **API 19**: `compact = true` windows (title bar only on hover; no TextField / Dropdown in them): the XP and
+  Today windows' "Compact window" form (`SetCompact` rebuilds the window: its fields are fixed at creation;
+  Esc doesn't close it). It frees HUD frames. The harness refuses fields in a compact window.
 - **API 20**: Vigor (`ShroudGetVigor`, `ShroudOnVigorChanged`). Used.
 - **API 21 / 22**: more package sound formats; package `data_files` (`ShroudLoadData`). Unused.
 - **API 23**: buff categories (player and target). Used.
@@ -348,7 +350,7 @@ name (`...InScene(name)`, `ShroudGetPartyMemberNamesInScene`); only members in y
 -1); no party-change or vitals events (poll); NO party member buffs (a request for the devs), and player
 targets expose only vitals; combat events carry a `party` flag. It needs a HUD frame of its own: with all
 9 strips on there are only 8 frames, so decide what gives way (or merge rarely-used strips) first. Also:
-target options (effects shown, icon count); compact XP / Today windows (API 19); a
+target options (effects shown, icon count); a
 sound per notification source; a crafting skill tracker and a recipe lookup / shopping list (as Today
 Detailed views: no window slot left); a gathering session HUD; lock-position / snap presets for strips
 (only if a strip's grip can be hidden).

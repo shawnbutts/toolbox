@@ -6,6 +6,7 @@
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "section", "Added" },
+  { "item", "XP and Today can be compact windows (settings: Compact window, or /toolbox xp compact and /toolbox daily compact): the title bar shows only while the pointer is on it, laid over the text, so it looks like a strip but resizes and fades like a window. It doesn't use one of the 8 HUD strips." },
   { "item", "Choose the combat HUD's character stats in settings (Combat: Character stats on the HUD): search by part of a name, pick from the matches (each shows your value now; a few suggestions when the search is empty), Add, and Remove from a list of the shown ones. The chat commands still work." },
   { "version", "0.6.1 - 2026-09-29 (beta 8)" },
   { "section", "Added" },
