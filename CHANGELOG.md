@@ -6,10 +6,12 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
-- Target HUD on its own strip can be mirrored too: name right-aligned, bars filling from the right, up to
-  5 icons to the left, at a fixed width so the bars don't move.
+- Target HUD on its own strip can be mirrored too: bars filling from the right, up to 5 icons to the left,
+  at a fixed width so the bars don't move.
 
 ### Changed
+- Target HUD on its own strip: no name or percent any more (they're in the tooltip, with the exact
+  numbers), and its bars are the size of your health bars, health and focus alike, as in the Toolbelt.
 - Target HUD: one Mirrored checkbox (Toolbelt page, or `/toolbox target mirror on|off`) instead of a Target
   row choice: in the Toolbelt it puts the target left of your health bars, on its own strip it mirrors
   the strip. Target row is back to Above the buffs / Under everything. A saved "Left of your bars" becomes
@@ -36,7 +38,7 @@ store submission needs a higher version than any submitted before (rejected ones
   above and under run across the whole Toolbelt: its bars start where yours do and its icons line up with
   your buffs. Above and on the left its space is kept with no target, so your bars and buffs don't jump
   when you pick one up; on the left that is a transparent blank area between the grip and your bars,
-  labelled "Target" while settings are open. On its own strip it shows the name and percent. Creatures the
+  labelled "Target" while settings are open. Creatures the
   game gives no display name ("Entity with no name (Stag_04_Large(Clone))") show a readable one ("Stag
   Large").
 - Toolbox can show at most 8 HUD strips at once (a game limit); a strip past that now says so in chat

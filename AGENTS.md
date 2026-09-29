@@ -212,7 +212,8 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     The file also holds `Toolbox.Target` (TG, at the end; built 2026-09-29): the target HUD, HUD module "target"
     (LAST in `Hud.ORDER`, so it's the strip left out when all 9 are on), or the Toolbelt's last row
     (`TG.Glued`, built by `BB.BuildContent` like the consumables / equipment rows; `TG.inBuffBar`, `TG.Unbuilt`).
-    One row: a name block (`target_info`: "Name  73%", thin health and focus `Bar`s) and `TG.SLOTS` effect slots
+    One row: a bars block (`target_info`: health and focus `Bar`s the size of the player's; no text, the name
+    and numbers in its tooltip, in every form since 2026-09-29) and `TG.SLOTS` effect slots
     with the buff bar's clock sweep (`BB.ShowFrame`, the shared budget; `BB.ClockReady`). `TG.Collect` and
     `TG.HealthText` are pure. Polled every `TG.POLL` s (own periodic) and on `ShroudOnTargetChanged` (core);
     the grouped `ShroudGetTargetBuff` (debuff flags, `TotalDuration`) only when the target or its effect count
@@ -227,8 +228,8 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     ONE setting since 2026-09-29 (owner: "merge the two mirrored options"): `tprefs.mirror`. In the Toolbelt
     with the health bars glued, `TG.Mirrored()` -> `Place()` "left" (Target row greyed out); without them,
     `TG.CanMirror()` is false (checkbox greyed out) and the top/bottom place applies. On its own strip,
-    `tOwnMirror`: the same reversed children and rotated bars, name right-aligned, a fixed-width block
-    (`LEFT_SLOTS` icons + INFO_CELLS) so the bars stay put. `/toolbox target place left` = mirror on.
+    the mirrored block too (`tLeft`: reversed children, rotated bars, `LEFT_SLOTS` icons + the bar length,
+    fixed width) so the bars stay put. `/toolbox target place left` = mirror on.
     The kept space is a blank area between the grip and the health bars (documented for players, in the
     guide and README); `tHint` ("Target", dim) marks it while settings are open.
     Unconfirmed in game: that `rotate = 180` on a Bar mirrors its fill.
@@ -236,10 +237,9 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     built to the asked-for line height lay out taller than the vitals rows do. Now `syncRows` copies the
     vitals rows' laid-out heights (`V.RowHeights`, GetSize) for `TG.SYNC_FOR` s after a build or resize, then
     every `TG.SYNC_EVERY` s. Harness: `element.laidOut = { w, h }` sets what GetSize reports.
-    Layouts (owner, 2026-09-29): own strip = name + percent over thin bars (`TG.INFO_CELLS` wide). In the
-    Toolbelt = no text, bars `V.Metrics()`-sized like the player's. With the health bars glued too (`TG.Below`),
+    Layouts (owner, 2026-09-29): every form = no text, bars `V.Metrics()`-sized like the player's. With the health bars glued too (`TG.Below`),
     Toolbox.Hud builds it as a `Hud.BELOW` part: a row under both glued columns from the strip's left edge,
-    its name block as wide as the vitals column + `Hud.GAP` so the icons line up under the buffs. Otherwise
+    its bars block as wide as the vitals column + `Hud.GAP` so the icons line up under the buffs. Otherwise
     (`TG.InBuffColumn`) the buff bar builds it as its last row. Sizes change in place (`TG.ApplySize`, called
     from the buff bar's icon size and the vitals' `applySize`).
   - `combat.lua`: `Toolbox.Combat`, the combat stats HUD. Fight model (`NewFight`, `Add`, `Rates`, `CritPct`,

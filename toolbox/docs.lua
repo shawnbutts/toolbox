@@ -98,8 +98,7 @@ D.SECTIONS = {
       .. "and up to 5 icons run to the left, most urgent nearest, at a fixed width. In the Toolbelt, with your "
       .. "health bars there too, it goes to the LEFT of your bars, each target bar level with yours (Target "
       .. "row doesn't apply then; without your health bars in the Toolbelt there's nothing to mirror against, "
-      .. "so the checkbox is greyed out). On its own strip, the strip is mirrored: the name right-aligned "
-      .. "above the bars.",
+      .. "so the checkbox is greyed out). On its own strip, the whole strip is mirrored.",
     "The blank area: above the buffs and on the left, the target's space is always kept, even with no "
       .. "target, so your bars and buffs never jump when you pick one up (the Toolbelt is anchored at its "
       .. "grip, top left). On the left that leaves an empty area between the grip and your bars, as wide as "

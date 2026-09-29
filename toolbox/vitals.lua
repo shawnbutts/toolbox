@@ -584,7 +584,8 @@ function V.ApplyText() end
 -- ===========================================================================
 -- Toolbox.Target: the target HUD (/toolbox target)
 -- ===========================================================================
--- One row: the target's name with its health (and focus) as thin bars, then its effects as icons with
+-- One row: the target's health and focus as bars the size of the player's (no text: the name and numbers
+-- are in the tooltip; owner, 2026-09-29), then its effects as icons with
 -- the buff bar's clock sweep: debuffs (outlined) first, then the soonest to end. Its own strip, or the
 -- Toolbelt's last row (built by the buff bar, like the consumables and equipment rows: TG.BuildRow,
 -- TG.Glued, TG.GluedCount). Every value is what the game's own target frame shows: a creature hiding its
@@ -605,7 +606,6 @@ Toolbox.Target = TG
 TG.FRAME_ID = "toolbox_target"
 TG.HOME = { 40, 420 }
 TG.SLOTS = 8                 -- effect icons at most
-TG.INFO_CELLS = 4            -- the name block's width, in icon cells
 TG.POLL = 0.25
 TG.GROUP_EVERY = 2
 TG.PLACES = { top = "Above the buffs", bottom = "Under everything", left = "Left of your bars (mirrored)" }
@@ -615,7 +615,7 @@ TG.HINT = "Target"           -- shown in its kept space while settings are open 
 local TPERIODIC = "toolbox_target"
 
 local tprefs = { show = false, glue = true, place = "top", mirror = false }
-local tContent, tInfo, tName, tHealth, tFocus = nil, nil, nil, nil, nil
+local tContent, tInfo, tHealth, tFocus = nil, nil, nil, nil
 local tSlots = {}
 local tShownCount = nil      -- cells the row takes (for the strip's size), when it last changed
 local tHas = nil             -- whether the last poll had a target
@@ -755,12 +755,10 @@ local function wantRow() return tHas == true or T.Config.IsShown() or reserved()
 
 function TG.IsShown() return TG.Wanted() and wantRow() end
 
--- Cells the name block takes (set when built; the Toolbelt's depends on the health bars' size).
-local tInfoCells = TG.INFO_CELLS
-local tBelt = false          -- built for the Toolbelt: no text, bars sized like the player's
+-- Cells the bars block takes (set when built; it depends on the health bars' size).
+local tInfoCells = 1
 local tBelow = false         -- ... and across both of its columns (TG.Below)
 local tLeft = false          -- ... mirrored to the left of the health bars (TG.Mirrored)
-local tOwnMirror = false     -- on its own strip, mirrored (tprefs.mirror): bars from the right, icons left
 local tRows = {}             -- the mirrored form's two bar rows (health, focus)
 local tHint = nil            -- the Toolbelt forms' "Target" label in the kept space (settings open, no target)
 local tRowH = {}             -- ... their heights, measured from the health bars' rows (V.RowHeights)
@@ -773,14 +771,13 @@ function TG.GluedCount()
   return tInfoCells + #tList
 end
 
--- The name block's sizes for icon size s. Own strip: the name over a thin health and focus bar, INFO_CELLS
--- wide. In the Toolbelt (owner, 2026-09-29: no name or percent there; hover for them): just the bars, the
--- length and thickness of the player's health bars (V.Metrics: their Size and Bar length). Under the
--- columns (Below) the block is as wide as the health bars' column, so the icons line up under the buffs.
+-- The bars block's sizes for icon size s: just the bars, the length and thickness of the player's health
+-- bars (V.Metrics: their Size and Bar length), in every form. Under the Toolbelt's columns (Below) the block
+-- is as wide as the health bars' column, so the icons line up under the buffs.
 local function infoLayout(s)
   local gap, cell = T.BuffBar.GAP, s + T.BuffBar.GAP
   local L = {}
-  if tBelt then
+  do
     local m = V.Metrics()
     L.barW = math.floor(V.GetWidth() * V.GetScale() / 100 + 0.5)
     L.hBar, L.fBar = m.barH, m.barH
@@ -798,17 +795,6 @@ local function infoLayout(s)
       L.cells = math.max(1, math.ceil((L.barW + gap) / cell))
       L.w = L.cells * cell - gap
     end
-  else
-    L.cells = TG.INFO_CELLS
-    L.w = TG.INFO_CELLS * cell - gap
-    if tOwnMirror then                          -- a fixed block, so the bars stay put as icons come and go
-      L.blockW = TG.LEFT_SLOTS * cell + L.w
-      L.blockH = s
-    end
-    L.barW = L.w
-    L.font = math.max(9, math.floor(s * 0.4))
-    L.hBar = math.max(3, math.floor(s * 0.22))
-    L.fBar = math.max(2, math.floor(s * 0.12))
   end
   return L
 end
@@ -817,7 +803,7 @@ local function barStyleT(w, h, below)
   return { width = w, height = h, minHeight = h, maxHeight = h, marginBottom = below or 0 }
 end
 
--- Applies infoLayout to the built name block (at build, and when a size changes).
+-- Applies infoLayout to the built bars block (at build, and when a size changes).
 local tBlockW, tBlockH = 0, 0
 
 -- Mirrored: copies the health bars' rows' laid-out heights to the target's two rows (their asked-for height
@@ -856,55 +842,36 @@ local function styleInfo(s)
     tRowH, tSyncUntil = {}, T.Now() + TG.SYNC_FOR  -- measure the health bars' rows again
     return
   end
-  tInfo:SetStyle{ width = L.w, height = s, marginRight = tOwnMirror and 0 or T.BuffBar.GAP }
-  local hStyle, fStyle = barStyleT(L.barW, L.hBar, 2), barStyleT(L.barW, L.fBar, 0)
-  if tOwnMirror then hStyle.rotate, fStyle.rotate = 180, 180 end   -- fill from the right
-  tHealth:SetStyle(hStyle)
-  tFocus:SetStyle(fStyle)
-  if not tBelt then
-    local h = s - L.hBar - L.fBar - 2
-    tName:SetStyle{ fontSize = L.font, width = L.w, height = h, minHeight = h, maxHeight = h,
-                    whiteSpace = "nowrap", marginLeft = 0, marginRight = 0, marginTop = 0, marginBottom = 0,
-                    paddingTop = 0, paddingBottom = 0, textAlign = tOwnMirror and "right" or "left" }
-  end
-  if tOwnMirror then
-    tBlockW, tBlockH = L.blockW, L.blockH
-    if tContent then tContent:SetStyle{ width = tBlockW, minWidth = tBlockW, height = tBlockH, minHeight = tBlockH } end
-  end
+  tInfo:SetStyle{ width = L.w, height = s, marginRight = T.BuffBar.GAP }
+  tHealth:SetStyle(barStyleT(L.barW, L.hBar, 2))
+  tFocus:SetStyle(barStyleT(L.barW, L.fBar, 0))
 end
 
--- The row: the name block and the effect slots. The target strip's content, or the Toolbelt's last row.
+-- The row: the bars block and the effect slots. The target strip's content, or a Toolbelt row.
 function TG.BuildRow()
   T.BuffBar.ClockReady()
   local s = iconSize()
   tBelow = TG.inBuffBar ~= true and TG.Below()
-  tBelt = TG.inBuffBar == true or tBelow
-  tLeft = tBelow and TG.Mirrored()
-  tOwnMirror = not tBelt and tprefs.mirror == true
+  -- Every form has the same bars (owner, 2026-09-29: no name or percent on its own strip either; they're in
+  -- the tooltip). Mirrored = the fixed mirrored block: left of the health bars in the Toolbelt, or the
+  -- whole own strip.
+  tLeft = (tBelow and TG.Mirrored()) or (not TG.Glued() and tprefs.mirror == true)
   tHealth = UI.Bar{ id = "target_health", value = 0, color = "@red" }
   tFocus = UI.Bar{ id = "target_focus", value = 0, color = "@blue", visible = false }
   tRows = {}
   if tLeft then
-    tName = nil
     tRows[1] = UI.Row{ style = { alignItems = "center", justifyContent = "end" }, children = { tHealth } }
     tRows[2] = UI.Row{ style = { alignItems = "center", justifyContent = "end" }, children = { tFocus } }
     tInfo = UI.Column{ id = "target_info", children = { tRows[1], tRows[2] } }
-  elseif tBelt then
-    tName = nil
-    tInfo = UI.Column{ id = "target_info", style = { justifyContent = "center" }, children = { tHealth, tFocus } }
   else
-    tName = UI.Label{ id = "target_name", text = "", class = "text" }
-    tInfo = UI.Column{ id = "target_info", children = { tName, tHealth, tFocus } }
+    tInfo = UI.Column{ id = "target_info", style = { justifyContent = "center" }, children = { tHealth, tFocus } }
   end
   styleInfo(s)
   local children = { tInfo }
-  tHint = nil
-  if tBelt then
-    tHint = UI.Label{ id = "target_hint", text = TG.HINT, class = "dim", visible = false,
-      style = { fontSize = math.max(9, math.floor(s * 0.4)), whiteSpace = "nowrap", marginRight = T.BuffBar.GAP } }
-  end
+  tHint = UI.Label{ id = "target_hint", text = TG.HINT, class = "dim", visible = false,
+    style = { fontSize = math.max(9, math.floor(s * 0.4)), whiteSpace = "nowrap", marginRight = T.BuffBar.GAP } }
   tSlots = {}
-  local mirrored = tLeft or tOwnMirror
+  local mirrored = tLeft
   for i = 1, (mirrored and TG.LEFT_SLOTS or TG.SLOTS) do
     local icon = UI.Image{ width = s, height = s, onClick = function() end }   -- a click handler: tooltips show
     local overlay = T.BuffBar.SweepHolder(s)
@@ -915,10 +882,7 @@ function TG.BuildRow()
     if mirrored then table.insert(children, 1, row) else children[#children + 1] = row end   -- mirrored: outward
   end
   if tHint then table.insert(children, 1, tHint) end
-  if tOwnMirror then      -- a fixed block, its contents against the right
-    tContent = UI.Row{ id = "target", visible = false, style = { alignItems = "center", justifyContent = "end",
-      width = tBlockW, minWidth = tBlockW, height = tBlockH, minHeight = tBlockH }, children = children }
-  elseif tLeft then       -- a fixed block, its contents against the health bars (right)
+  if tLeft then       -- a fixed block, its contents against the health bars (right)
     tContent = UI.Row{ id = "target", visible = false, style = { alignItems = "start", justifyContent = "end",
       width = tBlockW, minWidth = tBlockW, height = tBlockH, minHeight = tBlockH }, children = children }
   else
@@ -936,12 +900,12 @@ end
 
 -- For Toolbox.Hud (and BB.Unbuilt when in the Toolbelt): the row was destroyed; the poll skips it.
 function TG.Unbuilt()
-  tContent, tInfo, tName, tHealth, tFocus, tHint, TG.inBuffBar = nil, nil, nil, nil, nil, nil, false
+  tContent, tInfo, tHealth, tFocus, tHint, TG.inBuffBar = nil, nil, nil, nil, nil, false
   tSlots, tRows, tShownCount = {}, {}, nil
 end
 
 function TG.ContentSize()
-  if (tLeft or tOwnMirror) and tContent then return tBlockW, tBlockH end
+  if tLeft and tContent then return tBlockW, tBlockH end
   local cell = iconSize() + T.BuffBar.GAP
   return math.ceil((tInfoCells + #tList) * cell), iconSize()
 end
@@ -1028,7 +992,6 @@ function TG.Poll(force)
     local pct = TG.HealthText(cur, max, hidden, dead)
     local raw = ShroudGetTargetName()
     local name = TG.CleanName(raw)
-    if tName then T.SetText(tName, name .. (pct ~= "" and ("  " .. pct) or "")) end
     local fill = 0
     if not dead and type(cur) == "number" and type(max) == "number" and max > 0 then
       fill = math.max(0, math.min(1, cur / max))
@@ -1040,13 +1003,12 @@ function TG.Poll(force)
     if hasFocus then T.SetValue(tFocus, math.max(0, math.min(1, fcur / fmax))) end
     local tip = name .. ((raw ~= name and type(raw) == "string") and ("\n(" .. raw .. ")") or "")
       .. (hidden and "\nHealth hidden" or ((type(cur) == "number" and type(max) == "number"
-      and max > 0) and string.format("\nHealth %s / %s", T.FormatNumber(cur), T.FormatNumber(max)) or ""))
+      and max > 0) and string.format("\nHealth %s / %s (%s)", T.FormatNumber(cur), T.FormatNumber(max), pct) or ""))
       .. (hasFocus and string.format("\nFocus %s / %s", T.FormatNumber(fcur), T.FormatNumber(fmax)) or "")
       .. (dead and "\nDead" or "")
     T.SetTooltip(tInfo, tip)
   else
     for j = 1, #tList do tList[j] = nil end
-    if tName then T.SetText(tName, T.Config.IsShown() and "Target (none)" or "") end
     T.SetValue(tHealth, 0)
     T.SetVisible(tFocus, false)
     T.SetTooltip(tInfo, "Your target's health and effects show here")
