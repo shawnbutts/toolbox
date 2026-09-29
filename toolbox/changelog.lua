@@ -13,6 +13,8 @@ Toolbox.CHANGELOG = {
   { "section", "Fixed" },
   { "item", "\"Shroud.UI: this Row was destroyed\" after switching the consumables bar off (glued or not), and the same risk for every HUD strip after a rebuild (gluing, or a strip rebuilt after the game's element limit): a strip that is rebuilt or removed now lets go of its old elements at once." },
   { "section", "Added" },
+  { "item", "Crafted counts what was made exactly on a game client with Lua API 24: each craft's result says what it made and how many (a craft of Crimson Pine Binding makes 4), counted as the craft finishes, not when you take it off the table. Leftovers such as an empty vial are listed apart, not as made. Older clients keep matching items taken off a station by name." },
+  { "item", "Crafted and Gathered say when the game had more results than it could list (\"+3 results the game didn't list\"), so a total that's short is never shown as exact." },
   { "item", "A \"Test connection\" button under Estimated values (SotANET) in settings: looks up one item now, even with values off, and shows what happened under the button (and in chat), as /toolbox dd values test does." },
   { "item", "The name lists can be edited in settings: the buff bar's \"Always group by name\" (Buffs) and the consumables bar's \"Always on it\" and \"Left out\" names (Consumables & gear) each get a text box with Add and Remove, instead of only the chat commands." },
   { "item", "An empty buff bar (or Toolbelt) and consumables bar show their name while the settings window is open, so they can be found and placed before anything is on them." },

@@ -21,6 +21,12 @@ store submission needs a higher version than any submitted before (rejected ones
   element limit): a strip that is rebuilt or removed now lets go of its old elements at once.
 
 ### Added
+- Crafted counts what was made exactly on a game client with Lua API 24: each craft's result says what it
+  made and how many (a craft of Crimson Pine Binding makes 4), counted as the craft finishes, not when
+  you take it off the table. Leftovers such as an empty vial are listed apart, not as made. Older clients
+  keep matching items taken off a station by name.
+- Crafted and Gathered say when the game had more results than it could list ("+3 results the game didn't
+  list"), so a total that's short is never shown as exact.
 - A "Test connection" button under Estimated values (SotANET) in settings: looks up one item now, even
   with values off, and shows what happened under the button (and in chat), as `/toolbox dd values test` does.
 - The name lists can be edited in settings: the buff bar's "Always group by name" (Buffs) and the

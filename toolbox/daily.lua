@@ -15,15 +15,21 @@
 --                                -- and named like a recipe crafted today (D.IsProduct)
 --   station  = { [name] = n },   -- other items gained at a station (materials taken back, salvage returns)
 --   used     = { [name] = n },   -- materials the crafts used (ShroudGetRecipe's ingredients x attempts)
---   products = { [name] = true }, -- products named by craft results (`item`, once the client fills it in)
+--   products = { [name] = true }, -- products named by craft results (`item`, API 24)
+--   pending  = { [name] = n },   -- API 24: counted from a craft result (made, or left over) but not yet taken
+--                                -- off the station; what is taken there uses this up instead of counting again
+--   early    = { [name] = n },   -- taken off a station and counted by name before a craft result named it;
+--                                -- a later API 24 result uses this up instead of counting again
 --   gathered = { [name] = n },   -- what harvested nodes' loot windows held
 --   recipes  = { [recipe] = { n = crafts, exc = n, fail = n } },   -- "Recipe: " removed from the name
---   craft    = { n = crafts, exc = n, fail = n, salvaged = n, xp = n },
---   gather   = { nodes = n, failed = n, xp = n },
+--   craft    = { n = crafts, exc = n, fail = n, salvaged = n, xp = n, dropped = results not delivered },
+--   gather   = { nodes = n, failed = n, xp = n, dropped = results not delivered },
 -- }
--- The loot list (Today Detailed, "Looted") is `items` minus `crafted` and `gathered`, per name, unless
--- the player includes them. In game (2026-09-29) a craft result's `item` is the recipe's name and
--- `crafted` counts crafts, not items made, so what was made is counted as it reaches the bags.
+-- The loot list (Today Detailed, "Looted") is `items` minus `crafted`, `station` and `gathered` (plus
+-- `pending`, which isn't in `items` yet), per name, unless the player includes them.
+-- What was made: from API 24 a craft result says it (`item` x `made`, and `items` = everything it put
+-- out), counted at once. Before that (2026-09-29 in game: `item` = the recipe's name, no `made`) it is
+-- counted as it reaches the bags at a station, by name (D.IsProduct).
 
 local T = Toolbox
 local D = {}
@@ -92,7 +98,8 @@ function D.Upgrade(d)
   d.items = d.items or {}
   d.dropped = d.dropped or 0
   d.crafted, d.gathered = counts(d.crafted), counts(d.gathered)
-  d.station, d.used = counts(d.station), counts(d.used)
+  d.station, d.used, d.pending = counts(d.station), counts(d.used), counts(d.pending)
+  d.early = counts(d.early)
   local products = {}
   if type(d.products) == "table" then
     for name, v in pairs(d.products) do
@@ -107,8 +114,8 @@ function D.Upgrade(d)
     end
   end
   d.recipes = recipes
-  d.craft = totals(d.craft, { "n", "exc", "fail", "salvaged", "xp" })
-  d.gather = totals(d.gather, { "nodes", "failed", "xp" })
+  d.craft = totals(d.craft, { "n", "exc", "fail", "salvaged", "xp", "dropped" })
+  d.gather = totals(d.gather, { "nodes", "failed", "xp", "dropped" })
   return d
 end
 
@@ -177,10 +184,77 @@ local function addUsed(d, r, getRecipe)
   end
 end
 
+-- API 24: what one craft result put out, counted at once. `item` x `made` is what was made; the rest of
+-- `items` (leftovers such as an empty vial) goes to `station`, and so do other names in `items` unless the
+-- recipe's fixed yield (`ShroudGetRecipe(id).results`) names them as products. All of it is also `pending`
+-- until taken off the station (D.AddItems).
+local function markProduct(d, name)
+  if d.products[name] then return end
+  local n = 0
+  for _ in pairs(d.products) do n = n + 1 end
+  if n < D.MAX_RECIPES then d.products[name] = true end
+end
+
+-- Counts `qty` of `name` from a craft result as made (`product`) or not, unless it was already taken off
+-- the station and counted by name (`early`): then only moves it to made if the name rule had it apart.
+local function place(d, name, qty, product)
+  local seen = math.min(qty, d.early[name] or 0)
+  if seen > 0 then
+    d.early[name] = d.early[name] > seen and d.early[name] - seen or nil
+    local wrong = product and math.min(seen, d.station[name] or 0) or 0
+    if wrong > 0 then
+      d.station[name] = d.station[name] > wrong and d.station[name] - wrong or nil
+      addCount(d.crafted, name, wrong)
+    end
+  end
+  local rest = qty - seen
+  if rest > 0 then
+    addCount(product and d.crafted or d.station, name, rest)
+    addCount(d.pending, name, rest)
+  end
+  if product then markProduct(d, name) end
+end
+
+local function addMade(d, r, getRecipe, made)
+  local item = T.Field(r, "item")
+  local products = {}
+  if type(item) == "string" and item ~= "" then products[item] = true end
+  local id = T.Field(r, "recipeId")
+  if type(getRecipe) == "function" and type(id) == "number" then
+    local ok, recipe = pcall(getRecipe, id)
+    if ok and recipe ~= nil then
+      for _, res in ipairs(T.List(T.Field(recipe, "results"))) do
+        local name = T.Field(res, "name")
+        if type(name) == "string" and name ~= "" then products[name] = true end
+      end
+    end
+  end
+  local left = made                    -- product items still to place (made, from `items` or else `item`)
+  local listed = false
+  for _, it in ipairs(T.List(T.Field(r, "items"))) do
+    local name, qty = T.Field(it, "name"), T.Field(it, "quantity")
+    if type(name) == "string" and name ~= "" and isCount(qty) and qty > 0 then
+      listed = true
+      if products[name] then
+        place(d, name, qty, true)               -- a product (even past `made`: trust the list)
+        left = math.max(0, left - qty)
+      else
+        place(d, name, qty, false)
+      end
+    end
+  end
+  if not listed and left > 0 and type(item) == "string" and item ~= "" then place(d, item, left, true) end
+end
+
 -- Adds one ShroudOnCraftResults batch (results may be game objects). `getRecipe`: ShroudGetRecipe, for
--- the materials used. Returns true when counted.
-function D.AddCraftResults(d, results, getRecipe)
+-- the materials used and (API 24) the fixed yield. `dropped`: results past the 20 one call carries.
+-- Returns true when counted.
+function D.AddCraftResults(d, results, getRecipe, dropped)
   local changed = false
+  if isCount(dropped) and dropped > 0 then
+    d.craft.dropped = d.craft.dropped + dropped
+    changed = true
+  end
   for _, r in ipairs(T.List(results)) do
     local kind = T.Field(r, "kind")
     if kind == "salvage" then
@@ -205,8 +279,10 @@ function D.AddCraftResults(d, results, getRecipe)
         if rec then rec.n, rec.exc, rec.fail = rec.n + made, rec.exc + exc, rec.fail + fail end
       end
       addUsed(d, r, getRecipe)
-      -- `item` should name what was made (the docs); in game it was the recipe's name ("Recipe: ...") until a
-      -- client fix (expected 2026-09-29). Once it's a real item name, it marks that item as a product.
+      local itemsMade = T.Field(r, "made")
+      if isCount(itemsMade) then addMade(d, r, getRecipe, itemsMade) end
+      -- `item` names what was made from API 24 (before, the recipe's name: "Recipe: ..."). It marks that
+      -- item as a product for items taken off a station beyond what the results counted.
       local item = T.Field(r, "item")
       if type(item) == "string" and item ~= "" and item:sub(1, 8) ~= "Recipe: " and item ~= T.Field(r, "recipeName")
           and not d.products[item] then
@@ -220,9 +296,14 @@ function D.AddCraftResults(d, results, getRecipe)
   return changed
 end
 
--- Adds one ShroudOnGatherResults batch. Returns true when counted.
-function D.AddGatherResults(d, results)
+-- Adds one ShroudOnGatherResults batch. `dropped`: results past the 20 one call carries. Returns true
+-- when counted.
+function D.AddGatherResults(d, results, dropped)
   local changed = false
+  if isCount(dropped) and dropped > 0 then
+    d.gather.dropped = d.gather.dropped + dropped
+    changed = true
+  end
   for _, r in ipairs(T.List(results)) do
     d.gather.nodes = d.gather.nodes + 1
     if T.Field(r, "failed") == true then d.gather.failed = d.gather.failed + 1 end
@@ -237,9 +318,10 @@ function D.AddGatherResults(d, results)
 end
 
 -- The looted count of `name`: gained, less what was made, came off a station or was gathered (never
--- below 0).
+-- below 0). What a craft result counted but is still on the table (`pending`) isn't in `items` yet.
 function D.Looted(d, name)
   local n = (d.items[name] or 0) - (d.crafted[name] or 0) - (d.station[name] or 0) - (d.gathered[name] or 0)
+    + (d.pending[name] or 0)
   return n > 0 and n or 0
 end
 
@@ -253,7 +335,14 @@ function D.AddItems(d, items, dropped, atStation)
     if type(name) == "string" and name ~= "" and isCount(qty) and qty > 0 then
       addCount(d.items, name, qty)
       if atStation then
-        if D.IsProduct(d, name) then addCount(d.crafted, name, qty) else addCount(d.station, name, qty) end
+        -- first what a craft result already counted (API 24), then the name rule for the rest
+        local ahead = d.pending[name] or 0
+        local rest = qty - math.min(qty, ahead)
+        if ahead > 0 then d.pending[name] = ahead > qty and ahead - qty or nil end
+        if rest > 0 then
+          if D.IsProduct(d, name) then addCount(d.crafted, name, rest) else addCount(d.station, name, rest) end
+          addCount(d.early, name, rest)
+        end
       end
       changed = true
     end
@@ -283,7 +372,7 @@ function D.Roll(d, key)
   d.key, d.gold, d.kills, d.a, d.p = key, 0, 0, 0, 0
   d.items, d.dropped, d.la, d.lp = {}, 0, 0, 0
   d.crafted, d.gathered, d.recipes, d.craft, d.gather = {}, {}, {}, nil, nil
-  d.station, d.used, d.products = {}, {}, {}
+  d.station, d.used, d.products, d.pending, d.early = {}, {}, {}, {}, {}
   D.Upgrade(d)                       -- zeroed craft and gather totals
   return true
 end
@@ -436,14 +525,14 @@ function D.OnItems(items, dropped)
   if D.day and D.AddItems(D.day, items, dropped, D.stationOpen) then changed() end
 end
 
-function D.OnCraftResults(results)
+function D.OnCraftResults(results, dropped)
   local getRecipe = nil
   if type(ShroudGetRecipe) == "function" then getRecipe = ShroudGetRecipe end
-  if D.day and D.AddCraftResults(D.day, results, getRecipe) then changed() end
+  if D.day and D.AddCraftResults(D.day, results, getRecipe, dropped) then changed() end
 end
 
-function D.OnGatherResults(results)
-  if D.day and D.AddGatherResults(D.day, results) then changed() end
+function D.OnGatherResults(results, dropped)
+  if D.day and D.AddGatherResults(D.day, results, dropped) then changed() end
 end
 
 function D.OnCraftingState(state)

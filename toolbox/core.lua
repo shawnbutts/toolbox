@@ -1345,6 +1345,22 @@ function T.ProbeEvent(key, results, dropped)
   if #list == 0 then return end
   p.last = T.DescribeResult(list[#list], spec.fields)
   if key ~= "state" then p.lastItem = T.Field(list[#list], "item") end
+  if key == "craft" then           -- API 24: the recipe's fixed yield
+    local id = T.Field(list[#list], "recipeId")
+    if type(id) == "number" and type(ShroudGetRecipe) == "function" then
+      local ok, recipe = pcall(ShroudGetRecipe, id)
+      local res = ok and recipe ~= nil and T.Field(recipe, "results") or nil
+      if res == nil then
+        p.yield = "no results field (before API 24)"
+      else
+        local names = {}
+        for _, it in ipairs(T.List(res)) do
+          names[#names + 1] = tostring(T.Field(it, "name")) .. " x" .. tostring(T.Field(it, "quantity"))
+        end
+        p.yield = #names > 0 and table.concat(names, ", ") or "empty (a rolled result)"
+      end
+    end
+  end
   if key == "state" then T.probe.stationOpen = T.Field(list[#list], "open") == true end
   if key == "gather" then          -- the names a node's loot window held, to find among the items gained
     for _, r in ipairs(list) do
@@ -1394,6 +1410,7 @@ function T.ProbeLines()
         p.dropped and (", " .. p.dropped .. " dropped") or "", math.floor(now - p.at))
       lines[#lines + 1] = "    first: " .. (p.first or "?")
       if p.last and p.last ~= p.first then lines[#lines + 1] = "    last: " .. p.last end
+      if p.yield then lines[#lines + 1] = "    last recipe's yield: " .. p.yield end
     end
   end
   local items = T.probe.items
@@ -1779,12 +1796,12 @@ end
 
 -- API 18 result events: today's crafting and gathering (Toolbox.Daily), and the /toolbox api probe.
 function ShroudOnCraftResults(results, dropped)
-  T.Daily.OnCraftResults(results)
+  T.Daily.OnCraftResults(results, dropped)
   T.ProbeEvent("craft", results, dropped)
 end
 
 function ShroudOnGatherResults(results, dropped)
-  T.Daily.OnGatherResults(results)
+  T.Daily.OnGatherResults(results, dropped)
   T.ProbeEvent("gather", results, dropped)
 end
 

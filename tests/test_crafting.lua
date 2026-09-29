@@ -187,6 +187,112 @@ return function(t)
     t.eq(day().used["Wax"], 11)
   end)
 
+  -- API 24: the result names the product (`item`), how many were made (`made`) and everything it put out.
+  local function craft24(recipe, product, crafted, made, items, extra)
+    local r = { kind = "craft", recipeId = 7, recipeName = recipe, item = product, quantity = crafted,
+                crafted = crafted, exceptional = 0, failed = 0, made = made, outcome = "success",
+                experience = 1000, items = items or { { name = product, quantity = made } } }
+    for k, v in pairs(extra or {}) do r[k] = v end
+    return r
+  end
+  local function atStation(list)
+    H.craftingState({ open = true, station = "Milling Station +5", busy = false })
+    H.items(list)
+    H.craftingState({ open = false, station = "", busy = false })
+  end
+
+  t.test("API 24: made counts at once, and taking it off the station doesn't count it again", function()
+    H.boot()
+    H.craftResults({ craft24("Crimson Pine Binding (Milling)", "Crimson Pine Binding", 1, 4) })
+    t.eq(day().crafted["Crimson Pine Binding"], 4, "4 bindings from one craft, before they're taken")
+    t.eq(day().recipes["Crimson Pine Binding (Milling)"].n, 1, "one craft")
+    t.eq(D().Looted(day(), "Crimson Pine Binding"), 0)
+    H.items({ { "Crimson Pine Binding", 2 } })                  -- the same name looted meanwhile
+    t.eq(D().Looted(day(), "Crimson Pine Binding"), 2, "still on the table doesn't hide real loot")
+    atStation({ { "Crimson Pine Binding", 4 }, { "Crimson Pine Timber", 3 } })
+    t.eq(day().crafted["Crimson Pine Binding"], 4, "not counted twice")
+    t.eq(day().station["Crimson Pine Timber"], 3, "materials taken back: apart, as before")
+    t.eq(D().Looted(day(), "Crimson Pine Binding"), 2)
+    t.eq(next(day().pending), nil, "nothing left waiting")
+  end)
+
+  t.test("API 24: leftovers, a failed craft, a Quick Craft group and exceptional results", function()
+    H.boot()
+    H.craftResults({ craft24("Healing Potion", "Healing Potion", 1, 1,
+      { { name = "Healing Potion", quantity = 1 }, { name = "Empty Vial", quantity = 1 } }) })
+    t.eq(day().crafted["Healing Potion"], 1)
+    t.eq(day().crafted["Empty Vial"], nil, "a leftover isn't made")
+    t.eq(day().station["Empty Vial"], 1)
+    H.craftResults({ craft24("Iron Ingot", "Iron Ingot", 0, 0, { { name = "Iron Ore", quantity = 1 } },
+      { failed = 1, quantity = 1, outcome = "failed" }) })
+    t.eq(day().crafted["Iron Ingot"], nil, "a failure made nothing")
+    t.eq(day().station["Iron Ore"], 1, "its leftovers are apart")
+    t.eq(day().craft.fail, 1)
+    H.craftResults({ craft24("Iron Ingot", "Iron Ingot", 10, 13, nil,
+      { exceptional = 3, quantity = 10, outcome = "mixed" }) })
+    t.eq(day().crafted["Iron Ingot"], 13, "a Quick Craft group: every item made, exceptional included")
+    t.eq(day().craft.n, 11)
+    t.eq(day().craft.exc, 3)
+    atStation({ { "Healing Potion", 1 }, { "Empty Vial", 1 }, { "Iron Ore", 1 }, { "Iron Ingot", 13 } })
+    t.eq(day().crafted["Iron Ingot"], 13)
+    t.eq(day().station["Empty Vial"], 1)
+    t.eq(next(day().pending), nil)
+  end)
+
+  t.test("API 24: the recipe's fixed yield marks other products; no items list falls back to item x made", function()
+    H.boot()
+    H.S.recipes = { [7] = { id = 7, name = "Leather Kit", ingredients = {},
+                            results = { { name = "Leather Strap", quantity = 2 },
+                                        { name = "Leather Patch", quantity = 1 } } } }
+    H.craftResults({ craft24("Leather Kit", "Leather Strap", 1, 3,
+      { { name = "Leather Strap", quantity = 2 }, { name = "Leather Patch", quantity = 1 } }) })
+    t.eq(day().crafted["Leather Strap"], 2)
+    t.eq(day().crafted["Leather Patch"], 1, "named by the recipe's results")
+    t.ok(day().products["Leather Patch"])
+    H.S.recipes = nil
+    H.craftResults({ craft24("Board", "Crimson Pine Board", 1, 2, {}) })
+    t.eq(day().crafted["Crimson Pine Board"], 2, "an empty list: item x made")
+  end)
+
+  t.test("API 24: taken off the station before its result arrives, still counted once", function()
+    H.boot()
+    atStation({ { "Crimson Pine Board", 2 } })               -- no recipe crafted yet: kept apart by name
+    t.eq(day().station["Crimson Pine Board"], 2)
+    H.craftResults({ craft24("Crimson Pine Board", "Crimson Pine Board", 1, 2) })
+    t.eq(day().crafted["Crimson Pine Board"], 2, "the result moves it to made")
+    t.eq(day().station["Crimson Pine Board"], nil)
+    t.eq(day().items["Crimson Pine Board"], 2)
+    t.eq(next(day().pending), nil, "nothing waiting: it's already in the bags")
+    t.eq(D().Looted(day(), "Crimson Pine Board"), 0)
+  end)
+
+  t.test("an older client without made: the name rule, as before", function()
+    H.boot()
+    H.craftResults({ craft("Crimson Pine Binding (Milling)", 1) })
+    t.eq(next(day().crafted), nil, "nothing counted until it reaches the bags")
+    t.eq(next(day().pending), nil)
+    atStation({ { "Crimson Pine Binding", 4 } })
+    t.eq(day().crafted["Crimson Pine Binding"], 4)
+  end)
+
+  t.test("results the game didn't list are counted and shown", function()
+    H.boot()
+    H.craftResults({ craft("Board", 1) }, 3)
+    H.gatherResults({ { node = "Tree", failed = false, experience = 5, items = {} } }, 2)
+    t.eq(day().craft.dropped, 3)
+    t.eq(day().gather.dropped, 2)
+    H.advance(1)
+    H.reload()
+    t.eq(day().craft.dropped, 3, "saved")
+    H.chat("/tbx crafted")
+    t.ok(H.detail():Find("view_note").text:find("+3 results the game didn't list", 1, true))
+    H.chat("/tbx gathered")
+    t.ok(H.detail():Find("view_note").text:find("+2 harvests the game didn't list", 1, true))
+    H.S.date = "2026-09-28"
+    H.advance(1)
+    t.eq(day().craft.dropped, 0, "a new day starts at 0")
+  end)
+
   -- Today Detailed views ---------------------------------------------------------
 
   -- A day with some of everything.

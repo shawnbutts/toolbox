@@ -368,6 +368,25 @@ return function(t)
 
   -- result-event probe (API 18) ------------------------------------------------
 
+  t.test("/tbx api shows made and the last recipe's yield (API 24)", function()
+    H.boot()
+    H.S.recipes = { [7] = { id = 7, name = "Crimson Pine Binding", ingredients = {},
+                            results = { { name = "Crimson Pine Binding", quantity = 4 } } } }
+    H.craftResults({ { kind = "craft", recipeId = 7, recipeName = "Crimson Pine Binding", item = "Crimson Pine Binding",
+                       quantity = 1, crafted = 1, exceptional = 0, failed = 0, made = 4, outcome = "success",
+                       experience = 100, items = { { name = "Crimson Pine Binding", quantity = 4 } } } })
+    H.clearLogs()
+    H.chat("/tbx api")
+    t.ok(H.logged("failed=0; made=4; outcome=success"))
+    t.ok(H.logged("^    last recipe's yield: Crimson Pine Binding x4$"))
+    H.S.recipes = { [7] = { id = 7, name = "Crimson Pine Binding", ingredients = {} } }
+    H.craftResults({ { kind = "craft", recipeId = 7, recipeName = "Recipe: Crimson Pine Binding", item = "x",
+                       quantity = 1, crafted = 1, exceptional = 0, failed = 0, outcome = "success", experience = 1 } })
+    H.clearLogs()
+    H.chat("/tbx api")
+    t.ok(H.logged("^    last recipe's yield: no results field %(before API 24%)$"))
+  end)
+
   t.test("/tbx api reports the result events: not yet, then counts, fields and name matching", function()
     H.boot()
     H.clearLogs()

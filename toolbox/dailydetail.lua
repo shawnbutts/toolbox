@@ -304,6 +304,7 @@ local function viewNote(day, view)
     end
     if c.salvaged > 0 then line = line .. ", salvaged " .. F(c.salvaged) end
     line = line .. ". XP " .. F(c.xp) .. "."
+    if c.dropped > 0 then line = line .. " (+" .. F(c.dropped) .. " results the game didn't list)" end
     local recipes = {}
     for name in pairs(day.recipes) do recipes[#recipes + 1] = name end
     table.sort(recipes, function(x, y)
@@ -328,6 +329,7 @@ local function viewNote(day, view)
     local g = day.gather
     return "Nodes " .. F(g.nodes) .. (g.failed > 0 and (" (" .. F(g.failed) .. " failed)") or "")
       .. ". XP " .. F(g.xp) .. "."
+      .. (g.dropped > 0 and (" (+" .. F(g.dropped) .. " harvests the game didn't list)") or "")
   end
   if T.Daily.HasResults() and not prefs.include and (next(day.crafted) or next(day.gathered)) then
     return "Crafted and gathered items are left out (see Crafted and Gathered)."
@@ -338,7 +340,7 @@ end
 local SUMMARY = {
   looted = { "Items looted: ", "No items looted yet" },
   gained = { "Items gained: ", "No items gained yet" },      -- Looted with crafted and gathered in
-  crafted = { "Items made: ", "Nothing taken off a crafting station yet" },
+  crafted = { "Items made: ", "Nothing crafted yet" },
   gathered = { "Items gathered: ", "Nothing gathered yet" },
 }
 
