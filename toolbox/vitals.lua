@@ -595,7 +595,9 @@ TG.SLOTS = 8                 -- effect icons at most
 TG.INFO_CELLS = 4            -- the name block's width, in icon cells
 TG.POLL = 0.25
 TG.GROUP_EVERY = 2
-TG.PLACES = { top = "Above the buffs", bottom = "Under everything" }
+TG.PLACES = { top = "Above the buffs", bottom = "Under everything", left = "Left of your bars (mirrored)" }
+TG.PLACE_ORDER = { "top", "bottom", "left" }
+TG.LEFT_SLOTS = 5            -- icons when mirrored on the left (its width is always kept: keep it small)
 local TPERIODIC = "toolbox_target"
 
 local tprefs = { show = false, glue = true, place = "top" }
@@ -716,10 +718,20 @@ function TG.InBuffColumn() return TG.Glued() and not TG.Below() end
 -- For Toolbox.Hud: built by it on its own strip, or under the Toolbelt's columns (Below).
 function TG.Wanted() return tprefs.show == true and (not TG.Glued() or TG.Below()) end
 
-function TG.Place() return tprefs.place == "bottom" and "bottom" or "top" end
+function TG.Place()
+  if tprefs.place == "bottom" then return "bottom" end
+  if TG.Mirrored() then return "left" end
+  return "top"
+end
+function TG.GetPlace() return tprefs.place end
 
--- On top in the Toolbelt: the row keeps its space with no target (nothing under it moves).
-local function reserved() return TG.Place() == "top" and TG.Glued() end
+-- Mirrored to the left of the health bars (owner, 2026-09-29, "may remove it"): only with the health bars
+-- in the Toolbelt too (TG.Below); otherwise "left" works like "top".
+function TG.Mirrored() return tprefs.place == "left" and TG.Below() end
+
+-- Above or to the left in the Toolbelt: the row keeps its space with no target (the strip is anchored at
+-- its top-left grip, so anything appearing above or left of the bars would push them).
+local function reserved() return tprefs.place ~= "bottom" and TG.Glued() end
 
 -- Whether the row shows: a target, the settings window open (to place it), or its space kept.
 local function wantRow() return tHas == true or T.Config.IsShown() or reserved() end
@@ -729,7 +741,9 @@ function TG.IsShown() return TG.Wanted() and wantRow() end
 -- Cells the name block takes (set when built; the Toolbelt's depends on the health bars' size).
 local tInfoCells = TG.INFO_CELLS
 local tBelt = false          -- built for the Toolbelt: no text, bars sized like the player's
-local tBelow = false         -- ... and under both of its columns (TG.Below)
+local tBelow = false         -- ... and across both of its columns (TG.Below)
+local tLeft = false          -- ... mirrored to the left of the health bars (TG.Mirrored)
+local tRows = {}             -- the mirrored form's two bar rows (health, focus)
 
 -- Cells the row takes in the Toolbelt (0 when hidden or not glued).
 function TG.GluedCount()
@@ -748,7 +762,14 @@ local function infoLayout(s)
     local m = V.Metrics()
     L.barW = math.floor(V.GetWidth() * V.GetScale() / 100 + 0.5)
     L.hBar, L.fBar = m.barH, m.barH
-    if tBelow then
+    L.line, L.rowGap = m.line, m.rowGap
+    if tLeft then
+      -- a fixed block: the icons, then the bars (their rows as tall as the health bars' rows)
+      L.w = L.barW
+      L.blockW = TG.LEFT_SLOTS * cell + L.barW
+      L.blockH = math.max(s, 2 * (m.line + m.rowGap))
+      L.cells = 0
+    elseif tBelow then
       L.w = math.max(L.barW, (V.ContentSize()) + T.Hud.GAP - gap)
       L.cells = (L.w + gap) / cell                -- not whole cells: ContentSize adds the icons
     else
@@ -771,9 +792,23 @@ local function barStyleT(w, h, below)
 end
 
 -- Applies infoLayout to the built name block (at build, and when a size changes).
+local tBlockW, tBlockH = 0, 0
 local function styleInfo(s)
   local L = infoLayout(s)
   tInfoCells = L.cells
+  if tLeft then
+    tBlockW, tBlockH = L.blockW, L.blockH
+    tInfo:SetStyle{ width = L.w, marginRight = 0 }
+    for _, r in ipairs(tRows) do
+      r:SetStyle{ width = L.w, height = L.line, minHeight = L.line, maxHeight = L.line, marginBottom = L.rowGap }
+    end
+    local bar = barStyleT(L.barW, L.hBar, 0)
+    bar.rotate = 180                             -- fills from the right: a mirror of the player's bars
+    tHealth:SetStyle(bar)
+    tFocus:SetStyle(bar)
+    if tContent then tContent:SetStyle{ width = tBlockW, minWidth = tBlockW, height = tBlockH, minHeight = tBlockH } end
+    return
+  end
   tInfo:SetStyle{ width = L.w, height = s, marginRight = T.BuffBar.GAP }
   tHealth:SetStyle(barStyleT(L.barW, L.hBar, 2))
   tFocus:SetStyle(barStyleT(L.barW, L.fBar, 0))
@@ -791,9 +826,16 @@ function TG.BuildRow()
   local s = iconSize()
   tBelow = TG.inBuffBar ~= true and TG.Below()
   tBelt = TG.inBuffBar == true or tBelow
+  tLeft = tBelow and TG.Mirrored()
   tHealth = UI.Bar{ id = "target_health", value = 0, color = "@red" }
   tFocus = UI.Bar{ id = "target_focus", value = 0, color = "@blue", visible = false }
-  if tBelt then
+  tRows = {}
+  if tLeft then
+    tName = nil
+    tRows[1] = UI.Row{ style = { alignItems = "center", justifyContent = "end" }, children = { tHealth } }
+    tRows[2] = UI.Row{ style = { alignItems = "center", justifyContent = "end" }, children = { tFocus } }
+    tInfo = UI.Column{ id = "target_info", children = { tRows[1], tRows[2] } }
+  elseif tBelt then
     tName = nil
     tInfo = UI.Column{ id = "target_info", style = { justifyContent = "center" }, children = { tHealth, tFocus } }
   else
@@ -803,17 +845,22 @@ function TG.BuildRow()
   styleInfo(s)
   local children = { tInfo }
   tSlots = {}
-  for i = 1, TG.SLOTS do
+  for i = 1, (tLeft and TG.LEFT_SLOTS or TG.SLOTS) do
     local icon = UI.Image{ width = s, height = s, onClick = function() end }   -- a click handler: tooltips show
     local overlay = T.BuffBar.SweepHolder(s)
     local row = UI.Row{ visible = false, children = { icon, overlay },
       style = { width = s, height = s, marginRight = T.BuffBar.GAP, backgroundColor = "#00000066",
                 borderWidth = 0, borderColor = "@red" } }
     tSlots[i] = { row = row, icon = icon, overlay = overlay }
-    children[#children + 1] = row
+    if tLeft then table.insert(children, 1, row) else children[#children + 1] = row end   -- mirrored: outward
   end
-  tContent = UI.Row{ id = "target", visible = false, style = { alignItems = "center", height = s, minHeight = s },
-    children = children }
+  if tLeft then           -- a fixed block, its contents against the health bars (right)
+    tContent = UI.Row{ id = "target", visible = false, style = { alignItems = "start", justifyContent = "end",
+      width = tBlockW, minWidth = tBlockW, height = tBlockH, minHeight = tBlockH }, children = children }
+  else
+    tContent = UI.Row{ id = "target", visible = false, style = { alignItems = "center", height = s, minHeight = s },
+      children = children }
+  end
   tShownCount, tHas, tId, tCount, tGroupAt = nil, nil, nil, nil, -math.huge
   return tContent
 end
@@ -826,10 +873,11 @@ end
 -- For Toolbox.Hud (and BB.Unbuilt when in the Toolbelt): the row was destroyed; the poll skips it.
 function TG.Unbuilt()
   tContent, tInfo, tName, tHealth, tFocus, TG.inBuffBar = nil, nil, nil, nil, nil, false
-  tSlots, tShownCount = {}, nil
+  tSlots, tRows, tShownCount = {}, {}, nil
 end
 
 function TG.ContentSize()
+  if tLeft and tContent then return tBlockW, tBlockH end
   local cell = iconSize() + T.BuffBar.GAP
   return math.ceil((tInfoCells + #tList) * cell), iconSize()
 end
@@ -910,7 +958,7 @@ function TG.Poll(force)
       local left = ShroudGetTargetBuffTimeRemaining(i - 1)
       r.remaining = (type(left) == "number" and left > 0) and left or 0
     end
-    TG.Collect(tRaw, n, tInfoBy, tList, TG.SLOTS)
+    TG.Collect(tRaw, n, tInfoBy, tList, #tSlots)
     local cur, max = ShroudGetTargetCurrentHealth(), ShroudGetTargetMaxHealth()
     local hidden, dead = ShroudIsTargetHealthHidden() == true, ShroudIsTargetDead() == true
     local pct = TG.HealthText(cur, max, hidden, dead)
@@ -951,7 +999,8 @@ function TG.Poll(force)
   end
 end
 
--- In the Toolbelt: "top" (above the buffs) or "bottom" (under everything). Returns false for anything else.
+-- In the Toolbelt: "top" (above the buffs), "bottom" (under everything) or "left" (mirrored, left of the
+-- health bars). Returns false for anything else.
 function TG.SetPlace(where)
   if not TG.PLACES[where] then return false end
   tprefs.place = where

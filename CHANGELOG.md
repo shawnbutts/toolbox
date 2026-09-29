@@ -10,8 +10,9 @@ store submission needs a higher version than any submitted before (rejected ones
   are the same length and thickness as your own (the health bars' Size and Bar length). With your health
   bars in the Toolbelt too, the target runs under the whole Toolbelt: its bars start where yours do and
   its icons line up with your buffs. It sits above the buffs by default (its space is kept when you have
-  no target, so the buffs don't jump), or under everything: settings (Toolbelt, Target row) or
-  `/toolbox target place top|bottom`. On its own strip it keeps the name and percent.
+  no target, so the buffs don't jump), under everything, or mirrored to the left of your health bars (its
+  bars fill from the right, lined up with yours; up to 5 icons outward; its space is kept): settings
+  (Toolbelt, Target row) or `/toolbox target place top|bottom|left`. On its own strip it keeps the name and percent.
 
 ### Fixed
 - Target HUD: creatures the game has no display name for (it reports "Entity with no name (Stag_04_Large(Clone))")

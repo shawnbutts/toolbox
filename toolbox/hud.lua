@@ -60,7 +60,8 @@ end
 local function gluedHere(key) return prefs.glued and (Hud.GLUE[key] or below(key)) end
 local function placeOf(key)
   local m = modules[key]
-  if m and m.Place and m.Place() == "bottom" then return "bottom" end
+  local p = m and m.Place and m.Place()
+  if p == "bottom" or p == "left" then return p end
   return "top"
 end
 
@@ -167,7 +168,10 @@ function Hud.Build(missingOnly)
       if present(key) and below(key) then
         contents[key] = build(key)
         if contents[key] then
-          if placeOf(key) == "bottom" then
+          if placeOf(key) == "left" then           -- first in the columns' row, against the health bars
+            contents[key]:SetStyle{ marginRight = Hud.GAP }
+            table.insert(parts, 1, contents[key])
+          elseif placeOf(key) == "bottom" then
             contents[key]:SetStyle{ marginLeft = T.Window.GRIP, marginTop = Hud.GAP }
             under[#under + 1] = contents[key]
           else
@@ -250,14 +254,18 @@ function Hud.Refresh()
         end
       end
     end
-    for _, key in ipairs(Hud.ORDER) do          -- the parts under the columns
+    for _, key in ipairs(Hud.ORDER) do          -- the parts above, under or left of the columns
       local content = Hud.BELOW[key] and below(key) and contents[key]
       if content then
         local shown = any and modules[key].IsShown()
         T.SetVisible(content, shown)
         if shown then
           local cw, ch = modules[key].ContentSize()
-          w, h = math.max(w, cw), h + Hud.GAP + ch
+          if placeOf(key) == "left" then
+            w, h = w + Hud.GAP + cw, math.max(h, ch)
+          else
+            w, h = math.max(w, cw), h + Hud.GAP + ch
+          end
         end
       end
     end

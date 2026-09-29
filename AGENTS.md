@@ -219,9 +219,12 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     changes, or every `TG.GROUP_EVERY` s. The API doesn't say who applied an effect: every effect is listed.
     Place (owner, 2026-09-29): "top" (default; above the buffs, and its row keeps its height with no target
     so nothing under it jumps: the strip is anchored at its top-left grip) or "bottom" (hidden with no
-    target). `Hud.BELOW` parts ask `Place()`. A mirrored target LEFT of the health bars was discussed: doable
-    (a Bar rotated 180 fills right to left; icons in reverse) but it must keep its width reserved or
-    everything shifts; not built, waiting on how Top looks in game.
+    target). `Hud.BELOW` parts ask `Place()`. "left" (BUILT 2026-09-29 on trial: the owner "may remove it"):
+    `TG.Mirrored()` (only with the health bars glued; else it acts as "top", `GetPlace` keeps the choice) puts a
+    fixed block (`TG.LEFT_SLOTS` icons + the bar length, always reserved) first in the glued columns' row:
+    bars rotated 180 (`rotate` style) in rows as tall as the health bars' rows, icons in reverse order. To
+    remove it: drop "left" from `TG.PLACES` / `PLACE_ORDER`, the `tLeft` branches, and `placeOf`'s "left".
+    Unconfirmed in game: that `rotate = 180` on a Bar mirrors its fill.
     Layouts (owner, 2026-09-29): own strip = name + percent over thin bars (`TG.INFO_CELLS` wide). In the
     Toolbelt = no text, bars `V.Metrics()`-sized like the player's. With the health bars glued too (`TG.Below`),
     Toolbox.Hud builds it as a `Hud.BELOW` part: a row under both glued columns from the strip's left edge,
@@ -423,7 +426,7 @@ is an event number that restarts with the add-on, so it is never read back; `N.O
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most `Notify.Hud.KEEP` (20) |
 | `consumables` | `{ show = bool (default true), glue = bool, extra = { name parts, <= 20 }, cats = { [category] = true } (absent: defaults), exclude = { name parts } (absent: Scroll, Torch, Bait), max = 1..10 (icons before grouping), combatOnly = bool, x, y }` |
 | `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` (the equipment bar) |
-| `target` | `{ show = bool (default false), glue = bool (default true: in the Toolbelt), place = "top" (default) / "bottom", x, y }` (the target HUD) |
+| `target` | `{ show = bool (default false), glue = bool (default true: in the Toolbelt), place = "top" (default) / "bottom" / "left", x, y }` (the target HUD) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` (`D.SkillGains`; skills gained today / this session are `daily.skills` / `session.skills`, deaths `daily.deaths` / `session.deaths`) |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts (unversioned ignored) |
 

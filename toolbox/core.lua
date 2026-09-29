@@ -1153,7 +1153,7 @@ add("gear", "worn gear's durability, lowest first (bar on|off: the equipment bar
 end)
 
 add("target", "your target's health and effects (on|off; toolbelt on|off: in the Toolbelt or its own strip; "
-    .. "place top|bottom: in the Toolbelt; move [x y]; debug)", function(rest)
+    .. "place top|bottom|left: in the Toolbelt; move [x y]; debug)", function(rest)
   local TG = T.Target
   local word, args = T.ParseArgs(rest)
   word = word:lower()
@@ -1166,19 +1166,19 @@ add("target", "your target's health and effects (on|off; toolbelt on|off: in the
     return
   elseif word == "place" then
     if not TG.SetPlace(args:lower()) then
-      T.Print("Use /" .. T.commands[1] .. " target place top|bottom (where it goes in the Toolbelt).")
+      T.Print("Use /" .. T.commands[1] .. " target place top|bottom|left (where it goes in the Toolbelt).")
       return
     end
   elseif word == "move" then
     T.MoveCommand(TG, "target", "Target HUD", args)
     return
   elseif word ~= "" then
-    T.Print("Use /" .. T.commands[1] .. " target on|off, toolbelt on|off, place top|bottom, move [x y] or debug.")
+    T.Print("Use /" .. T.commands[1] .. " target on|off, toolbelt on|off, place top|bottom|left, move [x y] or debug.")
     return
   end
   T.Print("Target HUD: " .. (TG.GetShow() and "on" or "off")
-    .. (TG.GetShow() and (TG.Glued() and (", in the Toolbelt, " .. (TG.Place() == "top" and "above the buffs"
-      or "under everything")) or ", its own strip") or "")
+    .. (TG.GetShow() and (TG.Glued() and (", in the Toolbelt, " .. TG.PLACES[TG.Place()]:lower()) or ", its own strip")
+      or "")
     .. (TG.GetShow() and TG.GetGlue() and not T.BuffBar.IsEnabled() and " (the Toolbelt is off)" or "") .. ".")
 end)
 

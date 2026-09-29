@@ -515,11 +515,13 @@ function C.ToolbeltSection()
       value = C.PlaceOf(part), tooltip = "Off, on its own strip, or in the Toolbelt (" .. part.tip:lower() .. ")",
       onChange = function(_, label) C.SetPlace(part, label) end })
   end
-  local placeLabels = { T.Target.PLACES.top, T.Target.PLACES.bottom }
+  local placeLabels = {}
+  for i, key in ipairs(T.Target.PLACE_ORDER) do placeLabels[i] = T.Target.PLACES[key] end
   children[#children + 1] = dropdownRow("Target row", { id = "target_place", choices = placeLabels,
-    value = T.Target.PLACES[T.Target.Place()],
-    tooltip = "In the Toolbelt: above the buffs (its space is kept with no target, so nothing jumps) or under"
-      .. " everything (hidden with no target)",
+    value = T.Target.PLACES[T.Target.GetPlace()],
+    tooltip = "In the Toolbelt: above the buffs (its space is kept with no target, so nothing jumps), under"
+      .. " everything (hidden with no target), or mirrored to the left of your health bars (they must be in"
+      .. " the Toolbelt too; its space is kept)",
     onChange = function(_, label)
       for key, l in pairs(T.Target.PLACES) do if l == label then T.Target.SetPlace(key) end end
     end })
@@ -890,7 +892,7 @@ function C.Sync()
   setEnabled("toolbelt_combat", buffsOn)
   setValue("toolbelt_show", B.IsEnabled())
   for _, part in ipairs(C.TOOLBELT_PARTS) do setValue("toolbelt_" .. part.key, C.PlaceOf(part)) end
-  setValue("target_place", T.Target.PLACES[T.Target.Place()])
+  setValue("target_place", T.Target.PLACES[T.Target.GetPlace()])
   setEnabled("target_place", T.Target.GetShow() and T.Target.GetGlue())
   setText("hud_summary", C.HudSummary())
   C.SyncLive()

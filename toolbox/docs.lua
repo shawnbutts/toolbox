@@ -92,8 +92,10 @@ D.SECTIONS = {
       .. "bars' length and thickness (Health bars: Size and Bar length). With your health bars in the "
       .. "Toolbelt too, it runs across the whole Toolbelt: its bars start where yours do and its icons line "
       .. "up with your buffs. It goes above the buffs (the default; its space stays when you have no target, "
-      .. "so nothing jumps) or under everything (hidden with no target): settings, Toolbelt, Target row, or "
-      .. "/toolbox target place top|bottom.",
+      .. "so nothing jumps), under everything (hidden with no target), or mirrored to the left of your "
+      .. "health bars: its bars fill from the right, lined up with yours, and up to 5 icons run outward, most "
+      .. "urgent nearest (its space stays too). Settings, Toolbelt, Target row, or /toolbox target place "
+      .. "top|bottom|left. Left needs your health bars in the Toolbelt; without them it goes on top.",
     "It joins the Toolbelt as its last row, or has its own strip (settings: Toolbelt, Target; or /toolbox "
       .. "target toolbelt on|off). With no target it hides, except while the settings window is open, so you "
       .. "can place it (/toolbox target move <x> <y>). /toolbox target debug shows what the game reports." },
