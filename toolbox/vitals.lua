@@ -611,10 +611,14 @@ TG.GROUP_EVERY = 2
 TG.PLACES = { top = "Above the buffs", bottom = "Under everything", left = "Left of your bars (mirrored)" }
 TG.PLACE_ORDER = { "top", "bottom" }  -- the Target row choices; "left" comes from the Mirrored checkbox
 TG.LEFT_SLOTS = 5            -- icons when mirrored on the left (its width is always kept: keep it small)
+-- Options (owner, 2026-09-29): which effects show ("all", "debuffs" only, or "none": just the bars) and
+-- how many icons at most (1..TG.SLOTS; unset = TG.SLOTS, or TG.LEFT_SLOTS mirrored).
+TG.EFFECTS = { "all", "debuffs", "none" }
+TG.EFFECT_LABELS = { all = "All", debuffs = "Debuffs only", none = "None (just the bars)" }
 TG.HINT = "Target"           -- shown in its kept space while settings are open and there's no target
 local TPERIODIC = "toolbox_target"
 
-local tprefs = { show = false, glue = true, place = "top", mirror = false }
+local tprefs = { show = false, glue = true, place = "top", mirror = false, effects = "all" }
 local tContent, tInfo, tHealth, tFocus = nil, nil, nil, nil
 local tSlots = {}
 local tShownCount = nil      -- cells the row takes (for the strip's size), when it last changed
@@ -670,21 +674,24 @@ end
 -- Groups the flat effects (`raw`, entries { name, remaining, index }) by name, keeping the longest time
 -- left, fills in debuff and full duration from `infoBy`, sorts them (TG.Before) and writes at most `max`
 -- into `out` (reused entries). Returns how many. Pure.
-function TG.Collect(raw, n, infoBy, out, max)
+function TG.Collect(raw, n, infoBy, out, max, debuffsOnly)
   local count = 0
   for i = 1, n do
     local r = raw[i]
     local found = nil
+    local info = infoBy[r.name]
+    local skip = debuffsOnly == true and not (info ~= nil and info.debuff == true)
     for j = 1, count do
       if out[j].name == r.name then found = out[j] end
     end
-    if found then
+    if skip then                                     -- a buff, with debuffs only: left out
+      found = nil
+    elseif found then
       if r.remaining > found.remaining then found.remaining, found.index = r.remaining, r.index end
     else
       count = count + 1
       local e = out[count] or {}
       out[count] = e
-      local info = infoBy[r.name]
       e.name, e.remaining, e.index = r.name, r.remaining, r.index
       e.debuff = info ~= nil and info.debuff == true
       e.total = info ~= nil and info.total or 0
@@ -785,7 +792,7 @@ local function infoLayout(s)
     if tLeft then
       -- a fixed block: the icons, then the bars (their rows as tall as the health bars' rows)
       L.w = L.barW
-      L.blockW = TG.LEFT_SLOTS * cell + L.barW
+      L.blockW = TG.SlotCount(true) * cell + L.barW
       L.blockH = math.max(s, 2 * (m.line + m.rowGap))
       L.cells = 0
     elseif tBelow then
@@ -872,7 +879,7 @@ function TG.BuildRow()
     style = { fontSize = math.max(9, math.floor(s * 0.4)), whiteSpace = "nowrap", marginRight = T.BuffBar.GAP } }
   tSlots = {}
   local mirrored = tLeft
-  for i = 1, (mirrored and TG.LEFT_SLOTS or TG.SLOTS) do
+  for i = 1, TG.SlotCount(mirrored) do
     local icon = UI.Image{ width = s, height = s, onClick = function() end }   -- a click handler: tooltips show
     local overlay = T.BuffBar.SweepHolder(s)
     local row = UI.Row{ visible = false, children = { icon, overlay },
@@ -986,7 +993,7 @@ function TG.Poll(force)
       local left = ShroudGetTargetBuffTimeRemaining(i - 1)
       r.remaining = (type(left) == "number" and left > 0) and left or 0
     end
-    TG.Collect(tRaw, n, tInfoBy, tList, #tSlots)
+    TG.Collect(tRaw, n, tInfoBy, tList, #tSlots, tprefs.effects == "debuffs")
     local cur, max = ShroudGetTargetCurrentHealth(), ShroudGetTargetMaxHealth()
     local hidden, dead = ShroudIsTargetHealthHidden() == true, ShroudIsTargetDead() == true
     local pct = TG.HealthText(cur, max, hidden, dead)
@@ -1050,6 +1057,46 @@ function TG.SetPlace(where)
   return true
 end
 
+-- How many effect slots to build: none with effects "none"; else the Most icons setting, or by default
+-- TG.SLOTS (TG.LEFT_SLOTS mirrored, whose width is always kept).
+function TG.SlotCount(mirrored)
+  if tprefs.effects == "none" then return 0 end
+  if tprefs.icons then return tprefs.icons end
+  return mirrored and TG.LEFT_SLOTS or TG.SLOTS
+end
+
+function TG.GetEffects() return tprefs.effects end
+function TG.GetIcons() return tprefs.icons or (TG.Mirrored() and TG.LEFT_SLOTS or TG.SLOTS) end
+
+-- A slot count change means other elements: rebuilt (rare; player actions only).
+local function rebuildTarget()
+  if not tprefs.show then return end
+  T.Hud.Build()
+  TG.Poll(true)
+  T.BuffBar.Tick()
+end
+
+-- "all", "debuffs" or "none". Returns false for anything else.
+function TG.SetEffects(which)
+  if which ~= "all" and which ~= "debuffs" and which ~= "none" then return false end
+  local was = TG.SlotCount(false)
+  tprefs.effects = which
+  tSave()
+  if TG.SlotCount(false) ~= was then rebuildTarget() else TG.Poll(true) end
+  T.Config.Sync()
+  return true
+end
+
+-- 1..TG.SLOTS. Returns false for anything else.
+function TG.SetIcons(n)
+  if type(n) ~= "number" or n ~= math.floor(n) or n < 1 or n > TG.SLOTS then return false end
+  tprefs.icons = n
+  tSave()
+  rebuildTarget()
+  T.Config.Sync()
+  return true
+end
+
 -- Mirrored: left of the health bars in the Toolbelt, or a mirrored own strip (see TG.Mirrored).
 function TG.GetMirror() return tprefs.mirror == true end
 function TG.SetMirror(on)
@@ -1082,12 +1129,16 @@ TG.GetPosition, TG.MoveTo, TG.Nudge, TG.ResetPosition = targetMover.Get, targetM
 
 function TG.Init()
   local saved = T.Load("target")
-  tprefs = { show = false, glue = true, place = "top", mirror = false }
+  tprefs = { show = false, glue = true, place = "top", mirror = false, effects = "all" }
   if type(saved) == "table" then
     tprefs.show = saved.show == true
     tprefs.glue = saved.glue ~= false
     if saved.place == "bottom" then tprefs.place = "bottom" end
     tprefs.mirror = saved.mirror == true or saved.place == "left"   -- beta 7 saved the mirror as place "left"
+    if saved.effects == "debuffs" or saved.effects == "none" then tprefs.effects = saved.effects end
+    if type(saved.icons) == "number" and saved.icons >= 1 and saved.icons <= TG.SLOTS then
+      tprefs.icons = math.floor(saved.icons)
+    end
     if type(saved.x) == "number" and type(saved.y) == "number" then tprefs.x, tprefs.y = saved.x, saved.y end
   end
   tList, tRaw, tInfoBy = {}, {}, {}

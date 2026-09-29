@@ -1180,7 +1180,8 @@ add("gear", "worn gear's durability, lowest first (bar on|off: the equipment bar
 end)
 
 add("target", "your target's health and effects (on|off; toolbelt on|off: in the Toolbelt or its own strip; "
-    .. "place top|bottom: in the Toolbelt; mirror on|off; move [x y]; debug)", function(rest)
+    .. "place top|bottom: in the Toolbelt; mirror on|off; effects all|debuffs|none; icons <1-8>; move [x y]; "
+    .. "debug)", function(rest)
   local TG = T.Target
   local word, args = T.ParseArgs(rest)
   word = word:lower()
@@ -1191,6 +1192,16 @@ add("target", "your target's health and effects (on|off; toolbelt on|off: in the
   elseif word == "debug" then
     for _, line in ipairs(TG.DebugLines()) do T.Print(line) end
     return
+  elseif word == "effects" then
+    if not TG.SetEffects(args:lower()) then
+      T.Print("Use /" .. T.commands[1] .. " target effects all|debuffs|none.")
+      return
+    end
+  elseif word == "icons" then
+    if not TG.SetIcons(tonumber(args)) then
+      T.Print("Use /" .. T.commands[1] .. " target icons <1-" .. TG.SLOTS .. ">.")
+      return
+    end
   elseif word == "mirror" then
     if args:lower() ~= "on" and args:lower() ~= "off" then
       T.Print("Use /" .. T.commands[1] .. " target mirror on|off (bars fill from the right; in the Toolbelt, "
@@ -1214,7 +1225,9 @@ add("target", "your target's health and effects (on|off; toolbelt on|off: in the
   T.Print("Target HUD: " .. (TG.GetShow() and "on" or "off")
     .. (TG.GetShow() and (TG.Glued() and (", in the Toolbelt, " .. TG.PLACES[TG.Place()]:lower())
       or (", its own strip" .. (TG.GetMirror() and ", mirrored" or ""))) or "")
-    .. (TG.GetShow() and TG.GetGlue() and not T.BuffBar.IsEnabled() and " (the Toolbelt is off)" or "") .. ".")
+    .. (TG.GetShow() and TG.GetGlue() and not T.BuffBar.IsEnabled() and " (the Toolbelt is off)" or "")
+    .. (TG.GetShow() and ("; effects: " .. TG.EFFECT_LABELS[TG.GetEffects()]:lower()
+      .. (TG.GetEffects() ~= "none" and (", up to " .. TG.GetIcons()) or "")) or "") .. ".")
 end)
 
 add("welcome", "show the first-run welcome again (reset: show it at the next /lua reload)", function(rest)

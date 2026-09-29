@@ -5,6 +5,11 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Added
+- Target HUD options (settings, Toolbelt): Target effects (All, Debuffs only, None: just the bars) and Most
+  target icons (1-8; 8 by default, 5 mirrored). `/toolbox target effects all|debuffs|none`,
+  `/toolbox target icons <n>`.
+
 ### Fixed
 - "Shroud.UI: this Label was destroyed" (hud.lua) after switching XP or Today from a HUD strip to a
   window or compact window: the strip's labels were restyled after the strip was gone.

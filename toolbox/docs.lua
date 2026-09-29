@@ -104,6 +104,9 @@ D.SECTIONS = {
       .. "health bars there too, it goes to the LEFT of your bars, each target bar level with yours (Target "
       .. "row doesn't apply then; without your health bars in the Toolbelt there's nothing to mirror against, "
       .. "so the checkbox is greyed out). On its own strip, the whole strip is mirrored.",
+    "Target effects (settings, Toolbelt): All, Debuffs only, or None (just the bars); Most target icons "
+      .. "sets how many show at once (8 by default, 5 mirrored). Or /toolbox target effects "
+      .. "all|debuffs|none and /toolbox target icons <1-8>.",
     "The blank area: above the buffs and on the left, the target's space is always kept, even with no "
       .. "target, so your bars and buffs never jump when you pick one up (the Toolbelt is anchored at its "
       .. "grip, top left). On the left that leaves an empty area between the grip and your bars, as wide as "

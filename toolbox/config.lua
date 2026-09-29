@@ -654,6 +654,17 @@ function C.ToolbeltSection()
       .. " goes left of your health bars (they must be in the Toolbelt too; its space is kept, a blank area"
       .. " between the grip and your bars); on its own strip, the strip is mirrored",
     onChange = function(_, v) T.Target.SetMirror(v) end }
+  local effectLabels = {}
+  for i, key in ipairs(T.Target.EFFECTS) do effectLabels[i] = T.Target.EFFECT_LABELS[key] end
+  children[#children + 1] = dropdownRow("Target effects", { id = "target_effects", choices = effectLabels,
+    value = T.Target.EFFECT_LABELS[T.Target.GetEffects()],
+    tooltip = "Which of your target's effects show as icons: all, debuffs only, or none (just the bars)",
+    onChange = function(_, label)
+      for key, l in pairs(T.Target.EFFECT_LABELS) do if l == label then T.Target.SetEffects(key) end end
+    end })
+  children[#children + 1] = slider("target_icons", "Most target icons", 1, T.Target.SLOTS, 1, T.Target.GetIcons(),
+    "How many of your target's effects show at once (mirrored, its width is kept for this many)",
+    function(n) T.Target.SetIcons(n) end)
   children[#children + 1] = UI.Label{ id = "hud_summary", text = "", class = "dim",
     style = { whiteSpace = "wrap", marginTop = 6 } }
   children[#children + 1] = UI.Label{ text = "Place it under HUD layout (Buff bar), or drag its grip. Each bar's"
@@ -707,6 +718,7 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "stat_find", "stat_results", "stat_add", "stat_shown", "stat_remove", "stat_msg",
   "nhud_hide", "notify_compact", "volume", "volume_value", "hud_summary", "toolbelt_show",
   "toolbelt_vitals", "toolbelt_consumables", "toolbelt_gear", "toolbelt_target", "target_place", "target_mirror",
+  "target_effects", "target_icons", "target_icons_value",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
   "buff_countdown_secs_value" }
 for _, def in ipairs(T.Sounds.DEFS) do
@@ -1027,6 +1039,10 @@ function C.Sync()
   setValue("target_place", T.Target.PLACES[T.Target.GetPlace()] or T.Target.PLACES.top)
   setEnabled("target_place", T.Target.GetShow() and T.Target.GetGlue() and not T.Target.Mirrored())
   setValue("target_mirror", T.Target.GetMirror())
+  setValue("target_effects", T.Target.EFFECT_LABELS[T.Target.GetEffects()])
+  sliderValue("target_icons", T.Target.GetIcons())
+  setEnabled("target_effects", T.Target.GetShow())
+  setEnabled("target_icons", T.Target.GetShow() and T.Target.GetEffects() ~= "none")
   setEnabled("target_mirror", T.Target.GetShow() and T.Target.CanMirror())
   setText("hud_summary", C.HudSummary())
   C.SyncLive()
