@@ -873,6 +873,7 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     (uvtest way 1 sweeps), the holder could go back to one Image stepped with `SetUV`.
     Also seen in the same session: `/toolbox buffs frame 30` "didn't show on the first icon", consistent with
     this (its overlay was already showing).
+    RE-TESTED 2026-09-29 on the latest client (API 23): still broken, only uvtest way 5 (a new Image) moves.
 49. Consumables (built 2026-09-28). Weapon poisons: not seen in `/toolbox buffs raw` yet; unknown whether a
     weapon coating shows as a buff on the player at all (if not, the API can't see it). Other potions
     (healing etc.): names not seen yet; `/toolbox consumables add <part>` covers them. Bag counts ("x12 left")
