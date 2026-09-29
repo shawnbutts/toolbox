@@ -6,6 +6,7 @@
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "section", "Changed" },
+  { "item", "The Toolbelt page in settings sets the whole thing up: Show the Toolbelt, and for the health bars, consumables bar and equipment bar one choice each: Off, Own strip or In Toolbelt (picking In Toolbelt switches the bar on, and the Toolbelt too). It's now the first page the settings window opens on." },
   { "item", "Health, focus and Vigor bars are thinner (half the text line, was 70%), so they read as separate bars with the strip no taller than before. /toolbox vitals debug also shows the size asked for next to the size laid out." },
   { "item", "Listed as \"Toolbox: Toolbelt, HUDs, Trackers and more.\", with a Support link to the project's page (github.com/shawnbutts/toolbox)." },
   { "item", "The settings window's category dropdown is called Settings (was Show), and Getting started in the Docs mentions the Toolbelt. The Consumables & gear page points to the Toolbelt page for adding its bars." },

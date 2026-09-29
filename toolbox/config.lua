@@ -459,30 +459,63 @@ local POSITIONED = {
 -- one strip moved as one (owner, 2026-09-29: "this combined bar will be the main selling point").
 -- Underneath it is the glue machinery: Hud.SetGlued (health bars beside the buffs) and the consumables
 -- and equipment bars' glue (rows under the buffs).
+-- The Toolbelt's parts: each is Off, on its Own strip, or In Toolbelt (joined to the buff bar).
+C.PLACES = { "Off", "Own strip", "In Toolbelt" }
+C.TOOLBELT_PARTS = {
+  { key = "vitals", label = "Health, focus & Vigor", tip = "On the left of the buffs",
+    shown = function() return T.Vitals.IsShown() end, show = function(on) return T.Vitals.SetShown(on) end,
+    glued = function() return T.Hud.IsGlued() end, glue = function(on) return T.Hud.SetGlued(on) end },
+  { key = "consumables", label = "Consumables", tip = "Food, potions and combat items: a row under the debuffs",
+    shown = function() return T.Consumables.GetShow() end, show = function(on) return T.Consumables.SetShow(on) end,
+    glued = function() return T.Consumables.GetGlue() end, glue = function(on) return T.Consumables.SetGlue(on) end },
+  { key = "gear", label = "Equipment", tip = "Worn items needing repair: the last row",
+    shown = function() return T.Gear.GetShow() end, show = function(on) return T.Gear.SetShow(on) end,
+    glued = function() return T.Gear.GetGlue() end, glue = function(on) return T.Gear.SetGlue(on) end },
+}
+
+function C.PlaceOf(part)
+  if not part.shown() then return "Off" end
+  return part.glued() and "In Toolbelt" or "Own strip"
+end
+
+-- Puts a part where the player chose. "In Toolbelt" also shows the Toolbelt (the buff bar is its base).
+function C.SetPlace(part, label)
+  if label == "Off" then
+    part.show(false)
+  elseif label == "Own strip" or label == "In Toolbelt" then
+    local inBelt = label == "In Toolbelt"
+    if part.glued() ~= inBelt then part.glue(inBelt) end
+    if not part.shown() then part.show(true) end
+    if inBelt and not T.BuffBar.IsEnabled() then T.BuffBar.SetShown(true) end
+  end
+  C.Sync()
+end
+
 function C.ToolbeltSection()
-  return UI.Column{ children = {
+  local children = {
     heading("Toolbelt", true),
-    UI.Label{ text = "Your buff bar with your health, focus and Vigor bars beside it and your consumables and"
-      .. " gear repair under it: one strip, moved as one.", class = "text", style = { whiteSpace = "wrap" } },
-    UI.Label{ id = "hud_summary", text = "", class = "dim", style = { whiteSpace = "wrap", marginTop = 4 } },
+    UI.Label{ text = "Everything you watch in a fight in one strip, moved as one: your buffs and debuffs, with"
+      .. " your health, focus and Vigor beside them and your consumables and gear repair under them.",
+      class = "text", style = { whiteSpace = "wrap" } },
+    UI.Toggle{ id = "toolbelt_show", text = "Show the Toolbelt", value = T.BuffBar.IsEnabled(),
+      style = { marginTop = 6 }, tooltip = "Its base is the buff bar (the same as Buffs: Show buff bar)",
+      onChange = function(_, v) T.BuffBar.SetShown(v) end },
     UI.Toggle{ id = "toolbelt_combat", text = "Only during combat", value = T.BuffBar.GetCombatOnly(),
-      style = { marginTop = 6 },
       tooltip = "The whole Toolbelt shows only in combat (and a few seconds after), and while this window is open",
       onChange = function(_, v) T.BuffBar.SetCombatOnly(v) end },
-    heading("In the Toolbelt"),
-    UI.Toggle{ id = "vitals_glue", text = "Health, focus & Vigor bars", value = T.Hud.IsGlued(),
-      tooltip = "On the left of the buffs",
-      onChange = function(_, v) T.Hud.SetGlued(v) end },
-    UI.Toggle{ id = "consumables_glue", text = "Consumables bar", value = T.Consumables.GetGlue(),
-      tooltip = "A row under the debuffs",
-      onChange = function(_, v) T.Consumables.SetGlue(v) end },
-    UI.Toggle{ id = "gear_glue", text = "Equipment bar", value = T.Gear.GetGlue(),
-      tooltip = "The last row",
-      onChange = function(_, v) T.Gear.SetGlue(v) end },
-    UI.Label{ text = "The buff bar is the Toolbelt's base: with it off, the others use their own strips. Place"
-      .. " it under HUD layout (Buff bar), or drag its grip.", class = "dim",
-      style = { whiteSpace = "wrap", marginTop = 6 } },
-  } }
+    heading("What goes where"),
+  }
+  for _, part in ipairs(C.TOOLBELT_PARTS) do
+    children[#children + 1] = dropdownRow(part.label, { id = "toolbelt_" .. part.key, choices = C.PLACES,
+      value = C.PlaceOf(part), tooltip = "Off, on its own strip, or in the Toolbelt (" .. part.tip:lower() .. ")",
+      onChange = function(_, label) C.SetPlace(part, label) end })
+  end
+  children[#children + 1] = UI.Label{ id = "hud_summary", text = "", class = "dim",
+    style = { whiteSpace = "wrap", marginTop = 6 } }
+  children[#children + 1] = UI.Label{ text = "Place it under HUD layout (Buff bar), or drag its grip. Each bar's"
+    .. " own options are on its page (Buffs, Consumables & gear, Health bars).", class = "dim",
+    style = { whiteSpace = "wrap", marginTop = 4 } }
+  return UI.Column{ children = children }
 end
 
 -- The "HUD layout" category: every strip's position, in one place.
@@ -499,8 +532,8 @@ end
 
 -- key, label, builder. The first is shown when the window first opens.
 C.CATEGORIES = {
-  { key = "xp", label = "XP & Today", build = function() return C.XPSection() end },
   { key = "toolbelt", label = "Toolbelt", build = function() return C.ToolbeltSection() end },
+  { key = "xp", label = "XP & Today", build = function() return C.XPSection() end },
   { key = "buffs", label = "Buffs", build = function() return C.BuffBarSection() end },
   { key = "gear", label = "Consumables & gear", build = function() return C.ConsumablesGearSection() end },
   { key = "vitals", label = "Health bars", build = function() return C.VitalsSection() end },
@@ -527,7 +560,8 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "vitals_show_text", "vitals_vigor", "vitals_bg", "vitals_flash", "vitals_flash_below", "vitals_flash_below_value",
   "vitals_flash_test", "show_combat", "combat_detail", "combat_detail_hover", "combat_pet", "combat_scale",
   "combat_scale_value", "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "combat_stats",
-  "nhud_hide", "volume", "volume_value", "hud_summary", "vitals_glue", "consumables_glue", "gear_glue",
+  "nhud_hide", "volume", "volume_value", "hud_summary", "toolbelt_show",
+  "toolbelt_vitals", "toolbelt_consumables", "toolbelt_gear",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
   "buff_countdown_secs_value" }
 for _, def in ipairs(T.Sounds.DEFS) do
@@ -701,17 +735,17 @@ function C.HudSummary()
     if #parts > 1 then
       lines[#lines + 1] = "Toolbelt: " .. table.concat(parts, " + ") .. "."
     else
-      lines[#lines + 1] = "Toolbelt: just the buff bar so far. Add bars below."
+      lines[#lines + 1] = "Toolbelt: just the buff bar so far. Add bars above."
     end
   else
     local waiting = {}
     if K.GetGlue() and K.GetShow() then waiting[#waiting + 1] = "Consumables" end
     if G.GetGlue() and G.GetShow() then waiting[#waiting + 1] = "Equipment" end
     if #waiting > 0 then
-      lines[#lines + 1] = "The buff bar is off (the Toolbelt's base), so " .. table.concat(waiting, " and ")
+      lines[#lines + 1] = "The Toolbelt is off, so " .. table.concat(waiting, " and ")
         .. (#waiting > 1 and " use their own strips." or " uses its own strip.")
     else
-      lines[#lines + 1] = "The buff bar is off: the Toolbelt needs it (Buffs: Show buff bar)."
+      lines[#lines + 1] = "The Toolbelt is off (Show the Toolbelt)."
     end
   end
   if V.IsShown() and not (T.Hud.IsGlued() and B.IsEnabled()) then own[#own + 1] = "Health bars" end
@@ -835,11 +869,8 @@ function C.Sync()
   -- Toolbelt
   setValue("toolbelt_combat", B.GetCombatOnly())
   setEnabled("toolbelt_combat", buffsOn)
-  setValue("vitals_glue", T.Hud.IsGlued())
-  setValue("consumables_glue", T.Consumables.GetGlue())
-  setValue("gear_glue", T.Gear.GetGlue())
-  setEnabled("consumables_glue", T.Consumables.GetShow())
-  setEnabled("gear_glue", T.Gear.GetShow())
+  setValue("toolbelt_show", B.IsEnabled())
+  for _, part in ipairs(C.TOOLBELT_PARTS) do setValue("toolbelt_" .. part.key, C.PlaceOf(part)) end
   setText("hud_summary", C.HudSummary())
   C.SyncLive()
 end

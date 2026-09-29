@@ -32,8 +32,8 @@ end
 D.SECTIONS = {
   { "Getting started",
     "Type /toolbox (or /tbx) to open the settings window and tick what you want on screen. Its Settings "
-      .. "dropdown picks a category: XP & Today, Toolbelt (the quickest start: your buffs, health bars, "
-      .. "consumables and gear in one strip), Buffs, Consumables & gear, Health bars, Combat, "
+      .. "dropdown picks a category: Toolbelt (first, and the quickest start: your buffs, health bars, "
+      .. "consumables and gear in one strip), XP & Today, Buffs, Consumables & gear, Health bars, Combat, "
       .. "Notifications, Sounds, and HUD layout (what shares a strip, and every strip's position). Options "
       .. "that do nothing while their feature is off are greyed out. Everything is saved per character. "
       .. "/toolbox help opens this guide; /toolbox commands lists the commands in chat.",
@@ -74,7 +74,8 @@ D.SECTIONS = {
   { "Toolbelt",
     "The Toolbelt is your buff bar with your health, focus and Vigor bars beside it and your consumables "
       .. "and gear repair under it: one strip with everything you watch in a fight, moved as one. Build it "
-      .. "in settings (Toolbelt: tick the bars to add) or with /toolbox toolbelt vitals|consumables|gear on.",
+      .. "on the settings window's Toolbelt page: Show the Toolbelt, then put each bar Off, on its Own strip "
+      .. "or In Toolbelt. Or use /toolbox toolbelt vitals|consumables|gear on.",
     "Only during combat (settings, or /toolbox toolbelt combat on) shows the whole Toolbelt only in combat "
       .. "and a few seconds after, and while the settings window is open so you can place it. Move it by its "
       .. "grip, with HUD layout's Buff bar buttons, or /toolbox toolbelt move <x> <y>. The buff bar is its "

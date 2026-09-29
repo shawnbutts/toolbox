@@ -269,8 +269,11 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
   - THE TOOLBELT (owner's name, 2026-09-29; "the main selling point"): the user-facing name for the buff bar
     with the health bars glued beside it (`Hud.SetGlued`) and the consumables / equipment bars glued under it
     (`K.SetGlue`, `G.SetGlue`). Player-facing text says "Toolbelt" ("in the Toolbelt"), never "glue"; code
-    and saved vars keep the glue names. Settings category `toolbelt` (`C.ToolbeltSection`: summary, only
-    during combat = the buff bar's `combatOnly`, the three join toggles); `/toolbox toolbelt`. The buff bar is
+    and saved vars keep the glue names. Settings category `toolbelt`, the FIRST one (`C.ToolbeltSection`,
+    2026-09-29 after the second review): Show the Toolbelt (= the buff bar's `show`), only during combat (= its
+    `combatOnly`), and per part (`C.TOOLBELT_PARTS`: vitals, consumables, gear) an Off / Own strip / In Toolbelt
+    dropdown (`C.PlaceOf` / `C.SetPlace`; In Toolbelt also shows the part and the Toolbelt; Off keeps the glue
+    choice), then the summary; `/toolbox toolbelt`. The buff bar is
     its base: with the buff bar off, the other bars fall back to their own strips.
   - `config.lua`: `Toolbox.Config`, the settings window. Controls call the owning module's setters; the
     setters call `Toolbox.Config.Sync()` so the controls follow chat commands and the close button.
