@@ -558,7 +558,15 @@ a station is made only when `D.IsProduct` (named like a recipe crafted today, or
 apart, not loot). `D.Reclassify` fixes days saved before that. Materials used: `day.used`, from
 `ShroudGetRecipe(recipeId).ingredients` (not tools / optional) x the result's `quantity` (attempts).
 Unconfirmed: that failed crafts use materials (counted as used), and the fixed `item` (the devs expected a
-fix 2026-09-29). The original plan follows. The API map says v15 for the
+fix 2026-09-29). The original plan follows.
+API 24 (built 2026-09-29, `addMade` / `place` in daily.lua): when a craft result has a numeric `made`, it is the
+authority: `item` x `made` (or the `items` entries named by `item` or the recipe's `results`) go to `crafted` at
+once, other `items` (leftovers) to `station`, and all of it to `pending` until taken off the station, where
+`D.AddItems` uses `pending` up before the name rule (so nothing counts twice). `D.Looted` adds `pending` back
+(counted, not yet in the bags). Items counted by name at a station BEFORE their result (`early`) are used up by
+the result instead. Without `made` (clients before 24) everything works as before. `craft.dropped` /
+`gather.dropped` count results the game didn't deliver (shown in the view notes). Unconfirmed in game: all of
+it (the owner's client reported API 23 on 2026-09-29); `/toolbox api` shows `made` and the recipe's yield. The API map says v15 for the
 crafting/social getters, but the reference says "Added in API 18" for all of them and for the result
 events, so gate on the functions existing, never on the version number.
 
