@@ -81,6 +81,34 @@ local function soundRows(def)
   } }
 end
 
+-- A name list the player edits: the current names (label `listId`, set by Sync), a text field and
+-- Add / Remove buttons; the result goes in a line under it. `add(text)` / `remove(text)` return
+-- ok, message (as the matching chat commands do). Ids: listId, listId_field, _add, _remove, _msg.
+function C.NameList(listId, tip, add, remove)
+  local fieldId, msgId = listId .. "_field", listId .. "_msg"
+  local function act(fn, typed)
+    local field = el[fieldId]
+    local text = typed or (field and field:GetText()) or ""
+    local ok, msg = fn(text)
+    setText(msgId, msg or "")
+    if ok and field then field:SetText("") end
+    C.Sync()
+  end
+  return UI.Column{ style = { marginTop = 4 }, children = {
+    UI.Label{ id = listId, text = "", class = "text", style = { whiteSpace = "wrap" }, tooltip = tip },
+    UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
+      UI.TextField{ id = fieldId, text = "", placeholder = "a name, or part of one", maxLength = 40,
+        style = { flexGrow = 1, flexShrink = 1 },
+        tooltip = "Matched in the buff's name or its displayed name, any case",
+        onSubmit = function(_, text) act(add, text) end },
+      UI.Button{ id = listId .. "_add", text = "Add", style = { marginLeft = 4 }, onClick = function() act(add) end },
+      UI.Button{ id = listId .. "_remove", text = "Remove", style = { marginLeft = 2 },
+        onClick = function() act(remove) end },
+    } },
+    UI.Label{ id = msgId, text = "", class = "dim", style = { whiteSpace = "wrap" } },
+  } }
+end
+
 -- "Position  x, y" and < ^ v > Reset buttons for a HUD strip. `m` has GetPosition, Nudge,
 -- ResetPosition and NUDGE; ids are <prefix>_pos, _left, _up, _down, _right, _reset.
 C.NUDGE = 10
@@ -233,8 +261,8 @@ function C.BuffBarSection()
         .. " hover it for the list. They move back onto the bar as they near their end.",
       onChange = function(_, value) C.OnGroupAfter(value) end }),
     C.CategoryToggles("buff_cat_", "Always group these kinds", B.GetGroupCategory, B.SetGroupCategory),
-    UI.Label{ id = "buff_group", text = "", class = "dim", style = { whiteSpace = "wrap" },
-      tooltip = "Buffs whose names contain these are always grouped" },
+    C.NameList("buff_group", "Buffs whose names contain these are always grouped", B.AddGroupPart,
+      B.RemoveGroupPart),
   } }
 end
 
@@ -254,11 +282,10 @@ function C.ConsumablesGearSection()
       "Icons before the rest share one slot with a count (hover it). Long-lasting ones share it too (Buffs:"
         .. " Group buffs lasting longer than).", function(n) K.SetMax(n) end),
     C.CategoryToggles("cons_cat_", "Kinds on the bar", K.GetCategory, K.SetCategory),
-    UI.Label{ id = "cons_exclude", text = "", class = "dim", style = { whiteSpace = "wrap", marginTop = 4 },
-      tooltip = "Buffs whose names contain these stay off the bar (the Consumable kind also has scrolls, torches"
-        .. " and bait)" },
-    UI.Label{ id = "consumables_extra", text = "", class = "dim", style = { whiteSpace = "wrap" },
-      tooltip = "Buffs whose names contain these go on the bar too" },
+    C.NameList("cons_exclude", "Buffs whose names contain these stay off the bar (the Consumable kind also has"
+      .. " scrolls, torches and bait)", K.AddExclude, K.RemoveExclude),
+    C.NameList("consumables_extra", "Buffs whose names contain these go on the bar, whatever their kind",
+      K.AddExtra, K.RemoveExtra),
     heading("Equipment bar"),
     UI.Toggle{ id = "show_gear", text = "Show worn gear needing repair", value = G.GetShow(),
       tooltip = "Icons of worn items below the threshold, the sweep showing durability used up. Every worn"
@@ -509,7 +536,9 @@ for _, key in ipairs(T.Consumables.Categories()) do
   ALL_IDS[#ALL_IDS + 1] = "cons_cat_" .. key
   ALL_IDS[#ALL_IDS + 1] = "buff_cat_" .. key
 end
-ALL_IDS[#ALL_IDS + 1] = "cons_exclude"
+for _, list in ipairs({ "buff_group", "cons_exclude", "consumables_extra" }) do
+  for _, suffix in ipairs({ "", "_field", "_msg" }) do ALL_IDS[#ALL_IDS + 1] = list .. suffix end
+end
 
 -- Shows one category (by key or label), building it the first time. Returns true when it shows.
 function C.ShowCategory(which)
@@ -728,8 +757,7 @@ function C.Sync()
   setEnabled("buff_countdown_secs", B.GetCountdown())
   setValue("buff_group_after", B.GroupAfterLabel(B.GetGroupAfter()) or "15 minutes")
   local parts = B.GroupParts()
-  setText("buff_group", "Also grouped by name: " .. (#parts > 0 and table.concat(parts, ", ") or "none")
-    .. " (/toolbox buffs group add <name>)")
+  setText("buff_group", "Always group by name: " .. (#parts > 0 and table.concat(parts, ", ") or "none"))
   -- (not the icon size: the consumables and equipment bars use it too)
   for _, id in ipairs({ "buffs_combat_only", "buff_flash", "buff_group_after" }) do
     setEnabled(id, buffsOn)
@@ -752,11 +780,9 @@ function C.Sync()
     setEnabled("cons_cat_" .. key, K.GetShow() and (K.HasCategories() or key == "Food" or key == "Potion"))
   end
   local left = K.Exclude()
-  setText("cons_exclude", "Left out by name: " .. (#left > 0 and table.concat(left, ", ") or "none")
-    .. " (/toolbox consumables exclude add <name>)")
+  setText("cons_exclude", "Left out by name: " .. (#left > 0 and table.concat(left, ", ") or "none"))
   local extra = T.Consumables.Extra()
-  setText("consumables_extra", "Also tracked by name: " .. (#extra > 0 and table.concat(extra, ", ") or "none")
-    .. " (/toolbox consumables add <name>)")
+  setText("consumables_extra", "Always on it by name: " .. (#extra > 0 and table.concat(extra, ", ") or "none"))
   setValue("show_gear", T.Gear.GetShow())
   setValue("gear_threshold", T.Gear.Threshold() .. "%")
   -- Health bars

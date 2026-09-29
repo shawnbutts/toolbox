@@ -244,7 +244,7 @@ where each buff's duration came from.
 
 **Consumables bar.** Food (`RuneFood_...`) and Obsidian potions (`BlessingOf...`) move to their own
 bar, with the same sweep, flash and alert (`/toolbox consumables`; glue it under the buffs, or add
-more names with `/toolbox consumables add <name>`). Shrine blessings stay on the buff bar.
+more names in settings or with `/toolbox consumables add <name>`). Shrine blessings stay on the buff bar.
 
 **Equipment bar.** Worn items below the repair threshold (20% by default) show with a red sweep for
 the durability they've lost, lowest first; a "Gear needs repair" notification comes when one drops

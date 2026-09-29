@@ -17,6 +17,9 @@ store submission needs a higher version than any submitted before (rejected ones
   element limit): a strip that is rebuilt or removed now lets go of its old elements at once.
 
 ### Added
+- The name lists can be edited in settings: the buff bar's "Always group by name" (Buffs) and the
+  consumables bar's "Always on it" and "Left out" names (Consumables & gear) each get a text box with
+  Add and Remove, instead of only the chat commands.
 - An empty buff bar (or Toolbelt) and consumables bar show their name while the settings window is
   open, so they can be found and placed before anything is on them.
 - "Show seconds left near the end" (Buffs settings, or `/toolbox buffs countdown on|off|<seconds>`):

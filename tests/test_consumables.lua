@@ -17,7 +17,7 @@ return function(t)
     local frame = strip() or H.S.frames.toolbox_buffs or H.S.frames.toolbox_hud
     local out = {}
     for _, slot in ipairs(frame:Find("consumables").children) do
-      if slot.visible ~= false then out[#out + 1] = slot end
+      if slot.visible ~= false and slot.id ~= "consumables_placeholder" then out[#out + 1] = slot end
     end
     return out
   end
@@ -271,6 +271,28 @@ return function(t)
     t.eq(#consSlots(), 1)
     H.chat("/tbx config")
     t.ok(H.config():Find("cons_exclude").text:find("Scroll, Torch, Bait"))
+  end)
+
+  t.test("the settings edit the left-out and always-on names", function()
+    H.boot()
+    H.addBuffs({ { name = "Caltrops", category = "Consumable", remaining = 60, icon = 9 } })
+    H.advance(1)
+    t.eq(#consSlots(), 1)
+    H.chat("/tbx config")
+    H.submit("toolbox_config", "cons_exclude_field", "caltrop")
+    H.advance(1)
+    t.eq(#consSlots(), 0, "left out from the settings")
+    t.eq(H.config():Find("cons_exclude").text, "Left out by name: Scroll, Torch, Bait, caltrop")
+    H.config():Find("cons_exclude_field"):SetText("caltrop")
+    H.click("toolbox_config", "cons_exclude_remove")
+    H.advance(1)
+    t.eq(#consSlots(), 1, "back on it")
+    H.config():Find("consumables_extra_field"):SetText("Light")
+    H.click("toolbox_config", "consumables_extra_add")
+    t.eq(Toolbox.Consumables.Extra()[#Toolbox.Consumables.Extra()], "Light")
+    t.ok(H.config():Find("consumables_extra").text:find("^Always on it by name: .*Light"))
+    H.click("toolbox_config", "consumables_extra_add")
+    t.ok(H.config():Find("consumables_extra_msg").text ~= "", "an empty add says why")
   end)
 
   t.test("an older client without categories: food and potions by name; other kinds greyed out", function()

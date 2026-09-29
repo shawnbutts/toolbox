@@ -88,7 +88,8 @@ D.SECTIONS = {
       .. "the row, showing how many there are; hover it for each one and its time left. A buff moves back "
       .. "onto the bar once it has less than that left. Change the time in settings (Group buffs lasting "
       .. "longer than) or with /toolbox buffs group after 30 (minutes; off turns it off). To always group "
-      .. "a buff, add part of its name: /toolbox buffs group add <name> (remove <name> takes it off; "
+      .. "a buff, add part of its name in settings (Buffs, Always group by name) or with /toolbox buffs "
+      .. "group add <name> (remove <name> takes it off; "
       .. "/toolbox buffs debug shows buffs' names).",
     "Show seconds left near the end (settings, or /toolbox buffs countdown on) puts the whole seconds "
       .. "over an icon in its last 30 seconds (or what you choose, /toolbox buffs countdown 10), on the "
@@ -126,14 +127,15 @@ D.SECTIONS = {
     "Food, potions (Obsidian ones included), weapon poisons and combat consumables like caltrops get their "
       .. "own bar, by the kind the game gives each buff. Pick the kinds in settings (Consumables & gear, one "
       .. "checkbox each) or with /toolbox consumables cat <Kind> on|off; names containing Scroll, Torch or "
-      .. "Bait are left out (/toolbox consumables exclude add|remove <name>).",
+      .. "Bait are left out (settings: Left out by name, or /toolbox consumables exclude add|remove <name>).",
     "They show as icons with the sweep, soonest to run out first, and leave the buff bar. "
       .. "When one is about to run out it flashes red and the buff "
       .. "alert sounds (the buff bar's alert settings), and once it has run out it goes. Long-lasting ones "
       .. "(the buff bar's Group buffs lasting longer than) and any past Most icons share one slot with a "
       .. "count; hover it for the list. On its own strip it can show only during combat. It can join the "
       .. "Toolbelt as a row under the debuffs (/toolbox toolbelt consumables on).",
-    "Other buffs can go on it too: /toolbox consumables add <name or part of one> (remove to undo). "
+    "Other buffs can go on it too: add a name or part of one in settings (Always on it by name) or "
+      .. "with /toolbox consumables add <name> (remove to undo). "
       .. "/toolbox consumables lists what is in effect; /toolbox consumables bar off puts food and potions "
       .. "back on the buff bar. On a game client without buff categories only food and potions are "
       .. "recognised (by name)." },
