@@ -811,6 +811,9 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     (the docs are right; it was dropped). `T.KEY_SUGGESTIONS` = { "Ctrl+Semicolon" } only. Still unexplained:
     the earlier 0 presses for the suggested Ctrl+Semicolon (perhaps Ctrl+Shift+; was pressed, or another
     binding had it); re-test with `/toolbox key`. Player-facing text says "Ctrl+;".
+    CONFIRMED 2026-09-29: the suggested Ctrl+Semicolon works (`/toolbox key`: 6 presses), and the game refuses
+    "Ctrl+Shift+Semicolon" ("key must be a letter, digit, F-key, keypad, punctuation or navigation key,
+    optionally after Ctrl+ or Alt+"). Not a client bug.
 39. Label side margins: labels carry side margins from the theme unless set. FOUND in game 2026-09-27
     (`/toolbox combat debug`): a combat row laid out ~8 px wider than name + value + padding, so the values
     sat on the panel's right edge. Set `marginLeft`/`marginRight` = 0 on labels whose widths must add up.
