@@ -840,4 +840,14 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     weapon coating shows as a buff on the player at all (if not, the API can't see it). Other potions
     (healing etc.): names not seen yet; `/toolbox consumables add <part>` covers them. Bag counts ("x12 left")
     were left out: no reliable link from a rune name (RuneFood_Stew_Dragon) to the bag item's name.
+50. API 18 result events. CONFIRMED in game 2026-09-29 (`/toolbox api` probe, API 22 client): all three fire.
+    `ShroudOnCraftingStateChanged` on open / close and a craft starting / stopping (`station` = "Milling
+    Station +5"; "" when closed). `ShroudOnGatherResults`: `node=Rabbit; failed=false; experience=20; items:
+    Rabbit Carcass x1`. `ShroudOnCraftResults` DIFFERS FROM THE DOCS: `item` is the recipe's name
+    ("Recipe: Crimson Pine Binding (Milling)", = `recipeName`), not what was made, and `crafted` counts crafts,
+    not items (one craft gave "Crimson Pine Binding x4"). `ShroudGetRecipe` has no product or yield either.
+    The product reached the bags (`ShroudOnItemsGained`) 23 s later, when taken off the station, so pairing by
+    time doesn't work. Plan: crafted rows by recipe (crafts, exceptional, failed, XP); products counted as the
+    items gained while a crafting window is open (`T.probe.stationItems`); report the `item` field to the devs.
+    Pending: gathered names vs items gained (the probe now reports it).
 

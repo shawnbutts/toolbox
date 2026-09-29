@@ -396,6 +396,14 @@ return function(t)
     t.ok(H.logged("^  ShroudOnCraftingStateChanged: 1 time"))
     t.ok(H.logged("open=true; station=Smelter; busy=false"))
     t.ok(H.logged("^  Last items gained %(%d+s ago%): Iron Ingot x5"))
+    t.ok(H.logged("^  Gathered names also seen gained: none; not seen gained %(yet%): Iron Ore$"))
+    H.items({ { "Iron Ore", 3 } })                     -- looted from the node; the station is still open
+    H.craftingState({ open = false, station = "", busy = false })
+    H.items({ { "Wolf Pelt", 1 } })                    -- not from the station
+    H.clearLogs()
+    H.chat("/tbx api")
+    t.ok(H.logged("^  Gathered names also seen gained: Iron Ore$"))
+    t.ok(H.logged("^  Gained while a crafting window was open: Iron Ore x3$"), "only while it was open")
   end)
 
   t.test("the probe reads results that are game objects, and says when names differ", function()

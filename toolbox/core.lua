@@ -1163,7 +1163,9 @@ T.PROBE_EVENTS = {
   gather = { event = "ShroudOnGatherResults", fields = { "node", "failed", "experience" } },
   state = { event = "ShroudOnCraftingStateChanged", fields = { "open", "station", "busy" } },
 }
-T.probe = { craft = { n = 0 }, gather = { n = 0 }, state = { n = 0 }, items = nil }
+T.probe = { craft = { n = 0 }, gather = { n = 0 }, state = { n = 0 }, items = nil, gained = {}, gatheredNames = {},
+            stationItems = {} }
+T.PROBE_KEEP = 40          -- item names remembered for the name checks
 
 -- One result (a table or a game object) as "field=value; ..., items: A x2, B x1".
 function T.DescribeResult(r, fields)
@@ -1198,6 +1200,17 @@ function T.ProbeEvent(key, results, dropped)
   if #list == 0 then return end
   p.last = T.DescribeResult(list[#list], spec.fields)
   if key ~= "state" then p.lastItem = T.Field(list[#list], "item") end
+  if key == "state" then T.probe.stationOpen = T.Field(list[#list], "open") == true end
+  if key == "gather" then          -- the names a node's loot window held, to find among the items gained
+    for _, r in ipairs(list) do
+      for _, it in ipairs(T.List(T.Field(r, "items"))) do
+        local name = T.Field(it, "name")
+        if type(name) == "string" and #T.probe.gatheredNames < T.PROBE_KEEP then
+          T.probe.gatheredNames[#T.probe.gatheredNames + 1] = name
+        end
+      end
+    end
+  end
   if not p.first then
     p.first = T.DescribeResult(list[1], spec.fields)
     T.Print("Probe: " .. spec.event .. " fired: " .. p.first .. " (/" .. T.commands[1] .. " api for more)")
@@ -1212,6 +1225,15 @@ function T.ProbeItems(items)
     if type(name) == "string" then names[#names + 1] = name .. " x" .. tostring(T.Field(it, "quantity")) end
   end
   if #names > 0 then T.probe.items = { at = T.Now(), text = table.concat(names, ", ") } end
+  for _, it in ipairs(T.List(items)) do
+    local name = T.Field(it, "name")
+    if type(name) == "string" then
+      T.probe.gained[name] = true
+      if T.probe.stationOpen and #T.probe.stationItems < T.PROBE_KEEP then   -- taken off a crafting station
+        T.probe.stationItems[#T.probe.stationItems + 1] = name .. " x" .. tostring(T.Field(it, "quantity"))
+      end
+    end
+  end
 end
 
 function T.ProbeLines()
@@ -1238,6 +1260,17 @@ function T.ProbeLines()
       lines[#lines + 1] = "  Last craft's item \"" .. item .. "\" " .. (same and "matches a gained item's name"
         or "isn't among them (compare the names)")
     end
+  end
+  local found, missing = {}, {}
+  for _, name in ipairs(T.probe.gatheredNames) do
+    if T.probe.gained[name] then found[#found + 1] = name else missing[#missing + 1] = name end
+  end
+  if #found + #missing > 0 then
+    lines[#lines + 1] = "  Gathered names also seen gained: " .. (#found > 0 and table.concat(found, ", ") or "none")
+      .. (#missing > 0 and ("; not seen gained (yet): " .. table.concat(missing, ", ")) or "")
+  end
+  if #T.probe.stationItems > 0 then
+    lines[#lines + 1] = "  Gained while a crafting window was open: " .. table.concat(T.probe.stationItems, ", ")
   end
   lines[#lines + 1] = "  To check: craft something, harvest a node, open and close a crafting station,"
     .. " then run this again."
