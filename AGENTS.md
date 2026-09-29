@@ -491,7 +491,11 @@ docking, no `ShroudOnBuffBarMoved`.
    Potion, Poison, Consumable, owner: "combat focused"; `exclude` name parts Scroll/Torch/Bait because the
    Consumable category also holds scrolls, torches and bait). Unconfirmed in game: the rune names of those
    (the exclude parts are guesses; `/toolbox buffs raw` shows names and categories), and that a weapon poison
-   shows as a Poison buff that isn't IsDebuff. Not used yet for the buff bar's grouping. Was: (the owner expects it). Use it to replace the name guesses: consumables
+   shows as a Poison buff that isn't IsDebuff. Not used yet for the buff bar's grouping.
+   CONFIRMED in game 2026-09-29 (`/toolbox buffs raw`, API 23): Category=Food (RuneFood_Pie_WolfSurprise),
+   Potion (all seven Obsidian BlessingOf...), Blessing (POT_Blessing_*, Rune_Reward_Blessing_Shrine_*), Other
+   (Stillness, MoonlightWatch). The docs version is `T.DOCS_API` in core.lua (and `CLIENT_API_VERSION` in
+   build.py): update both with each docs check. Was: (the owner expects it). Use it to replace the name guesses: consumables
    (`BB.ConsumableKind`: food, potions, and weapon poisons, which aren't visible by name at all yet) and
    the buff bar's grouping. Keep the name rules as the fallback for older clients, and read the new field
    through `BB.ReadRunes`' userdata-safe accessor. Don't guess the field's name or values: wait for the docs.

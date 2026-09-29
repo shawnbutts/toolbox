@@ -1175,6 +1175,9 @@ end)
 -- /toolbox api: which functions from newer APIs this client really has. The docs (API 17 on
 -- 2026-09-27) lag the client (API 20), and a documented crafting/social group was withdrawn,
 -- so ask the game. Names are referenced directly: no lookup by a built name.
+-- The Lua API version the official docs described when this build was made (update with each docs check).
+T.DOCS_API = 23
+
 function T.ApiLines()
   local function has(f) return type(f) == "function" end
   local groups = {
@@ -1197,7 +1200,8 @@ function T.ApiLines()
       { "ShroudGetTargetBuffCategory", has(ShroudGetTargetBuffCategory) },
       { "ShroudBuffCategories", type(ShroudBuffCategories) == "table" } } },
   }
-  local lines = { "Lua API " .. tostring(ShroudLuaApiVersion) .. " (the docs describe 22)." }
+  local lines = { "Lua API " .. tostring(ShroudLuaApiVersion) .. " (the docs described " .. T.DOCS_API
+    .. " when this build was made)." }
   for _, g in ipairs(groups) do
     local missing, count = {}, #g[2]
     for _, fn in ipairs(g[2]) do
