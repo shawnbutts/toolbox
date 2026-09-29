@@ -14,3 +14,6 @@ __pycache__/
 
 # Generated audio intermediates (the .ogg is the deliverable)
 /art/*.wav
+
+# Local working area (scratch files, captured logs); never committed
+/tmp/

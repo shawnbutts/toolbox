@@ -253,6 +253,8 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     setters call `Toolbox.Config.Sync()` so the controls follow chat commands and the close button.
     To add a setting: a setter + getter on the owning module (persisted there), a control here, a line
     in `Sync()`, and tests in `tests/test_config.lua`.
+- `tmp/`: a local working area (scratch files, captured logs, screenshots); git-ignored and skipped by
+  luacheck. Never reference it from the package, tests or tools.
 - `tests/`: `harness.lua` is a fake host (see below); `test_*.lua` suites; `run.lua` the runner.
 - `art/icon.svg`: source of `toolbox/icon.png`. Re-render with
   `rsvg-convert -w 256 -h 256 art/icon.svg -o toolbox/icon.png` (keep it 256x256, well under 256 KiB).
