@@ -23,7 +23,8 @@ Toolbox.Hud = Hud
 
 Hud.GLUED_ID = "toolbox_hud"
 Hud.GLUED_HOME = { 40, 260 }
-Hud.ORDER = { "vitals", "buffs", "consumables", "combat", "gear", "xp", "daily", "notify" }   -- build order
+Hud.ORDER = { "vitals", "buffs", "consumables", "combat", "gear", "xp", "daily", "notify", "target" }   -- build order
+Hud.MAX_FRAMES = 8                    -- HUD frames per add-on (docs); strips past it aren't built
 Hud.GLUE = { vitals = true, buffs = true }     -- the ones that share a strip when glued (left to right as in ORDER)
 Hud.GAP = 6                           -- between the parts of the glued strip
 Hud.PAD = 8                           -- the strip's own padding
@@ -108,6 +109,23 @@ local function destroyAll()
   frames, contents, sized = {}, {}, {}
 end
 
+-- Strips past Hud.MAX_FRAMES aren't built; the player is told once (until it fits again).
+Hud.NAMES = { vitals = "health bars", buffs = "buff bar", consumables = "consumables bar", combat = "combat stats",
+              gear = "equipment bar", xp = "XP", daily = "Today", notify = "notification", target = "target" }
+local noRoomSaid = {}
+local function frameCount()
+  local n = 0
+  for _ in pairs(frames) do n = n + 1 end
+  return n
+end
+local function noRoom(key)
+  Hud.errors[key] = "no room: at most " .. Hud.MAX_FRAMES .. " HUD strips"
+  if noRoomSaid[key] then return end
+  noRoomSaid[key] = true
+  T.Print("No room for the " .. (Hud.NAMES[key] or key) .. " strip: Toolbox can show " .. Hud.MAX_FRAMES
+    .. " HUD strips at once. Put some bars in the Toolbelt, or switch a strip off.")
+end
+
 -- (Re)builds every strip for the current glue setting.
 -- `missingOnly` (the retry after the creation cap, or a module's Wanted() changing): keep the strips
 -- that were built, remove the ones no longer wanted, and build only the missing ones, so it costs what
@@ -144,7 +162,12 @@ function Hud.Build(missingOnly)
   for _, key in ipairs(Hud.ORDER) do
     local have = frames[key] ~= nil
     if present(key) and not gluedHere(key) and not have then
-      contents[key] = build(key)
+      if frameCount() >= Hud.MAX_FRAMES then
+        noRoom(key)
+      else
+        noRoomSaid[key] = nil
+        contents[key] = build(key)
+      end
     end
     if contents[key] and not gluedHere(key) and not have then
       local m = modules[key]

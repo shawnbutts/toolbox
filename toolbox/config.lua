@@ -454,6 +454,7 @@ local POSITIONED = {
   { "buff", T.BuffBar, "Buff bar" }, { "vitals", T.Vitals, "Health bars" },
   { "consumables", T.Consumables, "Consumables bar" }, { "gear", T.Gear, "Equipment bar" },
   { "combat", T.Combat, "Combat stats" }, { "nhud", T.Notify.Hud, "Notification HUD" },
+  { "target", T.Target, "Target HUD" },
 }
 
 -- The "Toolbelt" category: the buff bar with the health bars, consumables and gear repair joined to it,
@@ -469,9 +470,12 @@ C.TOOLBELT_PARTS = {
   { key = "consumables", label = "Consumables", tip = "Food, potions and combat items: a row under the debuffs",
     shown = function() return T.Consumables.GetShow() end, show = function(on) return T.Consumables.SetShow(on) end,
     glued = function() return T.Consumables.GetGlue() end, glue = function(on) return T.Consumables.SetGlue(on) end },
-  { key = "gear", label = "Equipment", tip = "Worn items needing repair: the last row",
+  { key = "gear", label = "Equipment", tip = "Worn items needing repair: a row under the consumables",
     shown = function() return T.Gear.GetShow() end, show = function(on) return T.Gear.SetShow(on) end,
     glued = function() return T.Gear.GetGlue() end, glue = function(on) return T.Gear.SetGlue(on) end },
+  { key = "target", label = "Target", tip = "Your target's health and effects: the last row",
+    shown = function() return T.Target.GetShow() end, show = function(on) return T.Target.SetShow(on) end,
+    glued = function() return T.Target.GetGlue() end, glue = function(on) return T.Target.SetGlue(on) end },
 }
 
 function C.PlaceOf(part)
@@ -496,7 +500,7 @@ function C.ToolbeltSection()
   local children = {
     heading("Toolbelt", true),
     UI.Label{ text = "Everything you watch in a fight in one strip, moved as one: your buffs and debuffs, with"
-      .. " your health, focus and Vigor beside them and your consumables and gear repair under them.",
+      .. " your health, focus and Vigor beside them, and your consumables, gear repair and target under them.",
       class = "text", style = { whiteSpace = "wrap" } },
     UI.Toggle{ id = "toolbelt_show", text = "Show the Toolbelt", value = T.BuffBar.IsEnabled(),
       style = { marginTop = 6 }, tooltip = "Its base is the buff bar (the same as Buffs: Show buff bar)",
@@ -562,7 +566,7 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "vitals_flash_test", "show_combat", "combat_detail", "combat_detail_hover", "combat_pet", "combat_scale",
   "combat_scale_value", "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "combat_stats",
   "nhud_hide", "volume", "volume_value", "hud_summary", "toolbelt_show",
-  "toolbelt_vitals", "toolbelt_consumables", "toolbelt_gear",
+  "toolbelt_vitals", "toolbelt_consumables", "toolbelt_gear", "toolbelt_target",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
   "buff_countdown_secs_value" }
 for _, def in ipairs(T.Sounds.DEFS) do
@@ -734,6 +738,7 @@ function C.HudSummary()
     if T.Hud.IsGlued() and V.IsShown() then table.insert(parts, 1, "Health bars") end
     if K.Glued() then parts[#parts + 1] = "Consumables" end
     if G.Glued() then parts[#parts + 1] = "Equipment" end
+    if T.Target.Glued() then parts[#parts + 1] = "Target" end
     if #parts > 1 then
       lines[#lines + 1] = "Toolbelt: " .. table.concat(parts, " + ") .. "."
     else
@@ -743,8 +748,11 @@ function C.HudSummary()
     local waiting = {}
     if K.GetGlue() and K.GetShow() then waiting[#waiting + 1] = "Consumables" end
     if G.GetGlue() and G.GetShow() then waiting[#waiting + 1] = "Equipment" end
+    if T.Target.GetGlue() and T.Target.GetShow() then waiting[#waiting + 1] = "Target" end
     if #waiting > 0 then
-      lines[#lines + 1] = "The Toolbelt is off, so " .. table.concat(waiting, " and ")
+      local list = #waiting > 1 and (table.concat(waiting, ", ", 1, #waiting - 1) .. " and " .. waiting[#waiting])
+        or waiting[1]
+      lines[#lines + 1] = "The Toolbelt is off, so " .. list
         .. (#waiting > 1 and " use their own strips." or " uses its own strip.")
     else
       lines[#lines + 1] = "The Toolbelt is off (Show the Toolbelt)."
@@ -753,6 +761,7 @@ function C.HudSummary()
   if V.IsShown() and not (T.Hud.IsGlued() and B.IsEnabled()) then own[#own + 1] = "Health bars" end
   if K.GetShow() and not K.Glued() then own[#own + 1] = "Consumables" end
   if G.GetShow() and not G.Glued() then own[#own + 1] = "Equipment" end
+  if T.Target.GetShow() and not T.Target.Glued() then own[#own + 1] = "Target" end
   if T.Combat.IsShown() then own[#own + 1] = "Combat stats" end
   if T.Compact.GetHud() and T.Compact.IsShown() then own[#own + 1] = "XP" end
   if T.Daily.GetHud() and T.Daily.IsShown() then own[#own + 1] = "Today" end

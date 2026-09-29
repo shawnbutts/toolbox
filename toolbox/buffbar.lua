@@ -655,18 +655,21 @@ local placeholderShown = false
 local function fitFrame(buffsShown, debuffsShown)
   local gear = T.Gear.GluedCount()     -- the equipment bar's row under the debuffs, when glued
   local cons = K.GluedCount()          -- the consumables row (above the equipment), when glued
-  local used = math.max(buffsShown, debuffsShown, gear, cons)
+  local target = T.Target.GluedCount() -- the target row (the last), when in the Toolbelt
+  local used = math.max(buffsShown, debuffsShown, gear, cons, target)
   -- nothing on it while the settings window is open: its name, to place it by
   local empty = used == 0 and T.Config.IsShown()
   if placeholder and empty ~= placeholderShown then
     placeholderShown = empty
     placeholder:SetVisible(empty)
     if empty then
-      placeholder:SetText((T.Hud.IsGlued() or K.Glued() or T.Gear.Glued()) and "Toolbelt" or "Buff bar")
+      placeholder:SetText((T.Hud.IsGlued() or K.Glued() or T.Gear.Glued() or T.Target.Glued()) and "Toolbelt"
+        or "Buff bar")
     end
   end
   if empty then used = BB.PLACEHOLDER_CELLS end
   local rows = 1 + (debuffsShown > 0 and 1 or 0) + (gear > 0 and 1 or 0) + (cons > 0 and 1 or 0)
+    + (target > 0 and 1 or 0)
   local key = used .. "," .. rows .. "," .. size()
   if key == sizedFor or not content then return end
   sizedFor = key
@@ -768,18 +771,23 @@ function BB.BuildContent()
   end
   sizedFor = nil
   contentW, contentH = contentSize(1, 1)
-  local extraRows = K.Glued() or T.Gear.Glued()
+  local extraRows = K.Glued() or T.Gear.Glued() or T.Target.Glued()
   local rows = {
     UI.Row{ id = "buffs", style = { marginBottom = BB.GAP }, children = buffRow },
     UI.Row{ id = "debuffs", style = { marginBottom = extraRows and BB.GAP or 0 }, children = debuffRow },
   }
   -- which rows live in this strip (BB.Unbuilt drops them with it, whatever the settings are by then)
-  K.inBuffBar, T.Gear.inBuffBar = K.Glued(), T.Gear.Glued()
+  K.inBuffBar, T.Gear.inBuffBar, T.Target.inBuffBar = K.Glued(), T.Gear.Glued(), T.Target.Glued()
   if K.Glued() then                     -- the consumables bar as the next row
-    rows[#rows + 1] = K.BuildRow(T.Gear.Glued())
+    rows[#rows + 1] = K.BuildRow(T.Gear.Glued() or T.Target.Glued())
   end
-  if T.Gear.Glued() then                -- the equipment bar as the last row
+  if T.Gear.Glued() then                -- the equipment bar as the next row
     rows[#rows + 1] = T.Gear.BuildRow()
+  end
+  if T.Target.Glued() then              -- the target HUD as the last row
+    local row = T.Target.BuildRow()
+    if T.Gear.Glued() then row:SetStyle{ marginTop = BB.GAP } end
+    rows[#rows + 1] = row
   end
   content = UI.Column{ id = "buffbar", children = rows }
   return content
@@ -831,6 +839,13 @@ BB.SWEEP_RATE, BB.SWEEP_BURST = 8, 10
 local sweepTokens, sweepAt = BB.SWEEP_BURST, nil
 
 -- A slot's overlay holder for an s px icon: empty and hidden until a frame is shown.
+-- Loads the clock sheet if it isn't yet (a row built outside BuildContent: the equipment bar, the
+-- target HUD). True when it loaded.
+function BB.ClockReady()
+  if clockTex < 0 then clockTex = ShroudLoadTexture(BB.CLOCK.path) end
+  return clockTex >= 0
+end
+
 function BB.SweepHolder(s)
   return UI.Row{ visible = false, style = { width = s, height = s, marginLeft = -s } }
 end
@@ -983,6 +998,7 @@ function BB.Unbuilt()
   for i = #pendingSweeps, 1, -1 do pendingSweeps[i] = nil end
   if K.inBuffBar then K.Unbuilt() end
   if T.Gear.inBuffBar then T.Gear.Unbuilt() end
+  if T.Target.inBuffBar then T.Target.Unbuilt() end
 end
 
 -- Starts (k = 0..FRAMES-1) or ends (k = nil) a frame test. Returns the number of icons it covers,
@@ -1605,6 +1621,7 @@ function BB.SetSize(n)
     BB.Tick()                                  -- re-fits the strip for the new icon size
   end
   T.Gear.ApplySize(n)                          -- the equipment bar uses the same icon size
+  T.Target.ApplySize()                         -- and the target HUD
   T.Config.Sync()
   return true
 end

@@ -209,6 +209,14 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     `V.VIGOR_POLL` s; `V.ReadVigor` / `V.FormatVigor` are pure, formatted once per reading (not per 0.2 s tick).
     Its row (`vigor_row`) hides while there is no reading (below Vigor's level; nil) or `prefs.vigor` is off,
     and `V.Metrics` counts only shown rows. Vigor never flashes. Feature-detected: `V.HasVigor()`.
+    The file also holds `Toolbox.Target` (TG, at the end; built 2026-09-29): the target HUD, HUD module "target"
+    (LAST in `Hud.ORDER`, so it's the strip left out when all 9 are on), or the Toolbelt's last row
+    (`TG.Glued`, built by `BB.BuildContent` like the consumables / equipment rows; `TG.inBuffBar`, `TG.Unbuilt`).
+    One row: a name block (`target_info`: "Name  73%", thin health and focus `Bar`s) and `TG.SLOTS` effect slots
+    with the buff bar's clock sweep (`BB.ShowFrame`, the shared budget; `BB.ClockReady`). `TG.Collect` and
+    `TG.HealthText` are pure. Polled every `TG.POLL` s (own periodic) and on `ShroudOnTargetChanged` (core);
+    the grouped `ShroudGetTargetBuff` (debuff flags, `TotalDuration`) only when the target or its effect count
+    changes, or every `TG.GROUP_EVERY` s. The API doesn't say who applied an effect: every effect is listed.
   - `combat.lua`: `Toolbox.Combat`, the combat stats HUD. Fight model (`NewFight`, `Add`, `Rates`, `CritPct`,
     `AvoidPct`, and `NewSession`, `TopRunes`, `Timeline`, `OverhealPct`, `SessionDuration`) is pure: each fight
     and the session (every fight since start/reset) keep per-skill stats (`runes`, by runeId), overheal, and
@@ -227,7 +235,8 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     `Hud.SetGlued`); only modules in `Hud.GLUE` share it, others (combat) keep their own strip. Call `Hud.Refresh()` when a module's content size or shown state changes; `Hud.Tick()`
     (1 s) remembers positions (per module unglued, `hud.x/y` glued). Movers: `Hud.MoverFor(key, home)`.
     HUD FRAMES: at most 8 per add-on (docs; the harness enforces `H.MAX_HUD_FRAMES`). Strips: vitals, buffs,
-    consumables, combat, gear, xp, daily, notify = 8 with all on; a module's optional `Wanted()` keeps a strip
+    consumables, combat, gear, xp, daily, notify, target = 9 with all on, so `Hud.Build` stops at
+    `Hud.MAX_FRAMES` and says so in chat once per strip (`noRoom`), the last in `Hud.ORDER` first; a module's optional `Wanted()` keeps a strip
     unbuilt when not in use (the XP / Today strips only in their HUD form, consumables / gear when glued or off),
     and `Hud.Build(true)` builds what is missing and destroys what is no longer wanted. A new strip needs a slot.
     `Unbuilt()` (optional, but every module holding elements must have it): called when its content is
@@ -361,7 +370,9 @@ in chat.
   accept paths it can't load; `H.S.played` / `H.playedNames()`; `H.frame()` / `H.vitals()` / `H.hud()` (the glued strip); `H.combatHud()`, `H.combatRows()`,
   `H.setCombat(on)` (combat mode + callback); `H.submit(win, id, text)`;
   `H.setGear{ { name, durability, maxDurability }, ... }` (worn items; no callback, as in game), `H.gearFrame()`,
-  `H.gearSlots()`; the harness's `SetUV` records `uvSet` but doesn't change `uv` (what is drawn), as in game:
+  `H.gearSlots()`; `H.setTarget{ id, name, hp, maxHp, focus, maxFocus, dead, hidden, effects = { { name, remaining,
+  total, icon, debuff, category, tooltip } } }` / `H.setTarget(nil)` (+ `ShroudOnTargetChanged`; change `H.S.target`
+  for no callback), `H.targetFrame()`, `H.targetRow()`, `H.targetSlots()`, `H.S.targetBuffReads`; the harness's `SetUV` records `uvSet` but doesn't change `uv` (what is drawn), as in game:
   read a sweep through the test's `sweep(slot)`; `H.setVigor{ vigor = 64, ... }` / `H.setVigor(nil)` (+ `ShroudOnVigorChanged`; `H.S.vigor` without
   the callback); `H.setGuild(name, motd)` (no callback; the next tick sees it), `H.setMotd(text)` (+ `ShroudOnSocialChanged`),
   `H.setNotes{ unreadMail = 2, ... }` (+ `ShroudOnNotificationsChanged`), `H.notify()` (the window),
@@ -400,6 +411,7 @@ including the "no character" sentinel.
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most `Notify.Hud.KEEP` (20) |
 | `consumables` | `{ show = bool (default true), glue = bool, extra = { name parts, <= 20 }, cats = { [category] = true } (absent: defaults), exclude = { name parts } (absent: Scroll, Torch, Bait), max = 1..10 (icons before grouping), combatOnly = bool, x, y }` |
 | `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` (the equipment bar) |
+| `target` | `{ show = bool (default false), glue = bool (default true: the Toolbelt's last row), x, y }` (the target HUD) |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts (unversioned ignored) |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
@@ -611,8 +623,8 @@ events, so gate on the functions existing, never on the version number.
 All but the undocumented-getter ones use documented API 13/14 calls; check the docs again before
 building, and remember the per-add-on budgets (8 windows, the element-creation cap, test_perf.lua).
 
-1. **Target HUD**: your target's health (and focus) plus your debuffs on it, reusing the buff bar's
-   icons and sweep. `ShroudHasTarget`, `ShroudGetTargetName`, `ShroudIsTargetDead`,
+1. **Target HUD**: BUILT 2026-09-29 (`Toolbox.Target`, vitals.lua). Was: your target's health (and focus) plus
+   your debuffs on it, reusing the buff bar's icons and sweep. `ShroudHasTarget`, `ShroudGetTargetName`, `ShroudIsTargetDead`,
    `ShroudIsTargetHealthHidden`, `ShroudGetTargetCurrentHealth` / `MaxHealth` (and Focus),
    `ShroudGetTargetBuff*` (may be userdata like the player's list: read through `T.Field`),
    `ShroudOnTargetChanged`.
@@ -938,6 +950,10 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     weapon coating shows as a buff on the player at all (if not, the API can't see it). Other potions
     (healing etc.): names not seen yet; `/toolbox consumables add <part>` covers them. Bag counts ("x12 left")
     were left out: no reliable link from a rune name (RuneFood_Stew_Dragon) to the bag item's name.
+51. Target HUD (built 2026-09-29). Unconfirmed in game: all of it, in particular that the target getters'
+    effect indices line up with `ShroudGetTargetBuffIcon` / `Tooltip`, that `ShroudGetTargetBuff` entries are
+    userdata like the player's (read through `T.Field`, so either works), and that `TotalDuration` is filled for
+    target effects (else no sweep). `/toolbox target debug` prints the raw values.
 50. API 18 result events. CONFIRMED in game 2026-09-29 (`/toolbox api` probe, API 22 client): all three fire.
     `ShroudOnCraftingStateChanged` on open / close and a craft starting / stopping (`station` = "Milling
     Station +5"; "" when closed). `ShroudOnGatherResults`: `node=Rabbit; failed=false; experience=20; items:

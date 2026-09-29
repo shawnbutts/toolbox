@@ -566,3 +566,367 @@ end
 -- The strip has its own Size setting, so the global text size and spacing don't change it.
 -- (Kept so Toolbox.Window.ApplyText can call every text user alike.)
 function V.ApplyText() end
+
+-- ===========================================================================
+-- Toolbox.Target: the target HUD (/toolbox target)
+-- ===========================================================================
+-- One row: the target's name with its health (and focus) as thin bars, then its effects as icons with
+-- the buff bar's clock sweep: debuffs (outlined) first, then the soonest to end. Its own strip, or the
+-- Toolbelt's last row (built by the buff bar, like the consumables and equipment rows: TG.BuildRow,
+-- TG.Glued, TG.GluedCount). Every value is what the game's own target frame shows: a creature hiding its
+-- health reads full ("health hidden"). The API doesn't say who applied an effect, so every effect on the
+-- target is listed, not only yours.
+--
+-- Read every TG.POLL seconds while built and at once on ShroudOnTargetChanged (core.lua). The grouped
+-- list (ShroudGetTargetBuff: debuff flags and full durations) is read only when the target or its effect
+-- count changes, or every TG.GROUP_EVERY seconds; the flat getters give names, time left, icons, tooltips.
+-- Saved var "target": { show = bool (default false), glue = bool (default true), x, y }.
+
+local TG = {}
+Toolbox.Target = TG
+
+TG.FRAME_ID = "toolbox_target"
+TG.HOME = { 40, 420 }
+TG.SLOTS = 8                 -- effect icons at most
+TG.INFO_CELLS = 4            -- the name block's width, in icon cells
+TG.POLL = 0.25
+TG.GROUP_EVERY = 2
+local TPERIODIC = "toolbox_target"
+
+local tprefs = { show = false, glue = true }
+local tContent, tInfo, tName, tHealth, tFocus = nil, nil, nil, nil, nil
+local tSlots = {}
+local tShownCount = nil      -- cells the row takes (for the strip's size), when it last changed
+local tHas = nil             -- whether the last poll had a target
+local tId, tCount, tGroupAt = nil, nil, -math.huge
+local tInfoBy = {}           -- rune name -> { debuff = bool, total = seconds }, from the grouped list
+local tRaw = {}              -- reused: one entry per effect this poll
+local tList = {}             -- reused: what the slots show, sorted
+local tPending = false       -- a sweep couldn't be drawn (the shared budget); tried again next poll
+
+local function tSave() T.Save("target", tprefs) end
+local function iconSize() return T.BuffBar.GetSize() end
+
+-- "73%", "health hidden" or "dead" for the name line (pure).
+function TG.HealthText(cur, max, hidden, dead)
+  if dead then return "dead" end
+  if hidden then return "health hidden" end
+  if type(cur) ~= "number" or type(max) ~= "number" or max <= 0 then return "" end
+  return math.floor(math.max(0, math.min(1, cur / max)) * 100 + 0.5) .. "%"
+end
+
+-- Sorts effects for the row (pure): debuffs first, then the soonest to end (permanent ones, 0 left,
+-- last), then by name.
+function TG.Before(a, b)
+  if a.debuff ~= b.debuff then return a.debuff end
+  local ra = (a.remaining > 0) and a.remaining or math.huge
+  local rb = (b.remaining > 0) and b.remaining or math.huge
+  if ra ~= rb then return ra < rb end
+  return a.name < b.name
+end
+
+-- Groups the flat effects (`raw`, entries { name, remaining, index }) by name, keeping the longest time
+-- left, fills in debuff and full duration from `infoBy`, sorts them (TG.Before) and writes at most `max`
+-- into `out` (reused entries). Returns how many. Pure.
+function TG.Collect(raw, n, infoBy, out, max)
+  local count = 0
+  for i = 1, n do
+    local r = raw[i]
+    local found = nil
+    for j = 1, count do
+      if out[j].name == r.name then found = out[j] end
+    end
+    if found then
+      if r.remaining > found.remaining then found.remaining, found.index = r.remaining, r.index end
+    else
+      count = count + 1
+      local e = out[count] or {}
+      out[count] = e
+      local info = infoBy[r.name]
+      e.name, e.remaining, e.index = r.name, r.remaining, r.index
+      e.debuff = info ~= nil and info.debuff == true
+      e.total = info ~= nil and info.total or 0
+    end
+  end
+  for j = count + 1, #out do out[j] = nil end
+  table.sort(out, TG.Before)
+  for j = max + 1, #out do out[j] = nil end
+  return math.min(count, max)
+end
+
+-- The grouped list's debuff flags and full durations, by rune name (game objects read by field).
+local function readGroups()
+  tInfoBy = {}
+  local ok, list = pcall(ShroudGetTargetBuff)
+  if not ok then return end
+  for _, rune in ipairs(T.List(list)) do
+    local name = T.Field(rune, "RuneName")
+    if type(name) == "string" then
+      local total = 0
+      for _, e in ipairs(T.List(T.Field(rune, "Effects"))) do
+        local td = T.Field(e, "TotalDuration")
+        if type(td) == "number" and td > total then total = td end
+      end
+      tInfoBy[name] = { debuff = T.Field(rune, "IsDebuff") == true, total = total }
+    end
+  end
+end
+
+function TG.IsEnabled() return tprefs.show == true end
+function TG.GetShow() return tprefs.show == true end
+function TG.GetGlue() return tprefs.glue ~= false end
+
+-- In the Toolbelt right now (the setting, and the buff bar switched on).
+function TG.Glued() return tprefs.show == true and tprefs.glue ~= false and T.BuffBar.IsEnabled() end
+
+-- For Toolbox.Hud: its own strip only when on and not in the Toolbelt.
+function TG.Wanted() return tprefs.show == true and not TG.Glued() end
+
+-- Whether there is something to show: a target, or the settings window open (to place it).
+local function wantRow() return tHas == true or T.Config.IsShown() end
+
+function TG.IsShown() return TG.Wanted() and wantRow() end
+
+-- Cells the row takes in the Toolbelt (0 when hidden or not glued).
+function TG.GluedCount()
+  if not TG.Glued() or not wantRow() then return 0 end
+  return TG.INFO_CELLS + #tList
+end
+
+local function infoWidth(s) return TG.INFO_CELLS * (s + T.BuffBar.GAP) - T.BuffBar.GAP end
+
+local function infoStyles(s)
+  local w = infoWidth(s)
+  local f = math.max(9, math.floor(s * 0.4))
+  local hBar = math.max(3, math.floor(s * 0.22))
+  local fBar = math.max(2, math.floor(s * 0.12))
+  return { width = w, height = s, marginRight = T.BuffBar.GAP },
+    { fontSize = f, width = w, height = s - hBar - fBar - 2, minHeight = s - hBar - fBar - 2,
+      maxHeight = s - hBar - fBar - 2, whiteSpace = "nowrap", marginLeft = 0, marginRight = 0,
+      marginTop = 0, marginBottom = 0, paddingTop = 0, paddingBottom = 0 },
+    { width = w, height = hBar, minHeight = hBar, maxHeight = hBar, marginBottom = 2 },
+    { width = w, height = fBar, minHeight = fBar, maxHeight = fBar }
+end
+
+-- The row: the name block and the effect slots. The target strip's content, or the Toolbelt's last row.
+function TG.BuildRow()
+  T.BuffBar.ClockReady()
+  local s = iconSize()
+  local boxStyle, nameStyle, healthStyle, focusStyle = infoStyles(s)
+  tName = UI.Label{ id = "target_name", text = "", class = "text", style = nameStyle }
+  tHealth = UI.Bar{ id = "target_health", value = 0, color = "@red", style = healthStyle }
+  tFocus = UI.Bar{ id = "target_focus", value = 0, color = "@blue", visible = false, style = focusStyle }
+  tInfo = UI.Column{ id = "target_info", style = boxStyle, children = { tName, tHealth, tFocus } }
+  local children = { tInfo }
+  tSlots = {}
+  for i = 1, TG.SLOTS do
+    local icon = UI.Image{ width = s, height = s, onClick = function() end }   -- a click handler: tooltips show
+    local overlay = T.BuffBar.SweepHolder(s)
+    local row = UI.Row{ visible = false, children = { icon, overlay },
+      style = { width = s, height = s, marginRight = T.BuffBar.GAP, backgroundColor = "#00000066",
+                borderWidth = 0, borderColor = "@red" } }
+    tSlots[i] = { row = row, icon = icon, overlay = overlay }
+    children[#children + 1] = row
+  end
+  tContent = UI.Row{ id = "target", visible = false, children = children }
+  tShownCount, tHas, tId, tCount, tGroupAt = nil, nil, nil, nil, -math.huge
+  return tContent
+end
+
+function TG.BuildContent()
+  TG.inBuffBar = false
+  return TG.BuildRow()
+end
+
+-- For Toolbox.Hud (and BB.Unbuilt when in the Toolbelt): the row was destroyed; the poll skips it.
+function TG.Unbuilt()
+  tContent, tInfo, tName, tHealth, tFocus, TG.inBuffBar = nil, nil, nil, nil, nil, false
+  tSlots, tShownCount = {}, nil
+end
+
+function TG.ContentSize()
+  local cell = iconSize() + T.BuffBar.GAP
+  return (TG.INFO_CELLS + #tList) * cell, cell
+end
+
+-- The buff bar's icon size changed: rebuild at the new size.
+function TG.ApplySize()
+  if not tContent then return end
+  if TG.Glued() then T.Hud.Build() else T.Hud.Build(true) end
+end
+
+-- Fills the effect slots from tList.
+local function fillSlots(s)
+  tPending = false
+  for i, slot in ipairs(tSlots) do
+    local e = tList[i]
+    if e then
+      local tex = ShroudGetTargetBuffIcon(e.index)
+      if tex ~= slot.tex then
+        slot.tex = tex
+        if type(tex) == "number" and tex >= 0 then slot.icon:SetTexture(tex) end
+      end
+      T.SetVisible(slot.icon, type(tex) == "number" and tex >= 0)
+      if e.debuff ~= slot.debuff then
+        slot.debuff = e.debuff
+        slot.row:SetStyle{ borderWidth = e.debuff and 2 or 0 }
+      end
+      if e.name ~= slot.name then
+        slot.name = e.name
+        slot.k = nil
+      end
+      local tip = ShroudGetTargetBuffTooltip(e.index)
+      T.SetTooltip(slot.icon, (type(tip) == "string" and tip ~= "") and tip or e.name)
+      local k = 0
+      if e.total > 0 and e.remaining > 0 then k = T.BuffBar.Frame(math.min(1, e.remaining / e.total)) end
+      if k ~= slot.k then
+        if k > 0 then
+          if T.BuffBar.ShowFrame(slot, k, false, s) then slot.k = k else tPending = true end
+        else
+          T.BuffBar.HideFrame(slot)
+          slot.k = k
+        end
+      end
+    end
+    T.SetVisible(slot.row, e ~= nil)
+  end
+end
+
+-- Reads the target and updates the row. `force`: re-read the grouped list too.
+function TG.Poll(force)
+  if not tContent then return end
+  local has = tprefs.show == true and ShroudHasTarget() == true
+  local s = iconSize()
+  if has then
+    local id = ShroudGetTargetId()
+    local n = ShroudGetTargetBuffCount()
+    if type(n) ~= "number" or n < 0 then n = 0 end
+    local now = T.Now()
+    if force or id ~= tId or n ~= tCount or now - tGroupAt >= TG.GROUP_EVERY then
+      tId, tCount, tGroupAt = id, n, now
+      readGroups()
+    end
+    for i = 1, n do
+      local r = tRaw[i] or {}
+      tRaw[i] = r
+      r.index = i - 1
+      r.name = ShroudGetTargetBuffName(i - 1)
+      local left = ShroudGetTargetBuffTimeRemaining(i - 1)
+      r.remaining = (type(left) == "number" and left > 0) and left or 0
+    end
+    TG.Collect(tRaw, n, tInfoBy, tList, TG.SLOTS)
+    local cur, max = ShroudGetTargetCurrentHealth(), ShroudGetTargetMaxHealth()
+    local hidden, dead = ShroudIsTargetHealthHidden() == true, ShroudIsTargetDead() == true
+    local pct = TG.HealthText(cur, max, hidden, dead)
+    local name = ShroudGetTargetName()
+    T.SetText(tName, tostring(name) .. (pct ~= "" and ("  " .. pct) or ""))
+    local fill = 0
+    if not dead and type(cur) == "number" and type(max) == "number" and max > 0 then
+      fill = math.max(0, math.min(1, cur / max))
+    end
+    T.SetValue(tHealth, fill)
+    local fcur, fmax = ShroudGetTargetCurrentFocus(), ShroudGetTargetMaxFocus()
+    local hasFocus = type(fmax) == "number" and fmax > 0 and type(fcur) == "number"
+    T.SetVisible(tFocus, hasFocus)
+    if hasFocus then T.SetValue(tFocus, math.max(0, math.min(1, fcur / fmax))) end
+    local tip = tostring(name) .. (hidden and "\nHealth hidden" or ((type(cur) == "number" and type(max) == "number"
+      and max > 0) and string.format("\nHealth %s / %s", T.FormatNumber(cur), T.FormatNumber(max)) or ""))
+      .. (hasFocus and string.format("\nFocus %s / %s", T.FormatNumber(fcur), T.FormatNumber(fmax)) or "")
+      .. (dead and "\nDead" or "")
+    T.SetTooltip(tInfo, tip)
+  else
+    for j = 1, #tList do tList[j] = nil end
+    T.SetText(tName, T.Config.IsShown() and "Target (none)" or "")
+    T.SetValue(tHealth, 0)
+    T.SetVisible(tFocus, false)
+    T.SetTooltip(tInfo, "Your target's health and effects show here")
+    tId, tCount = nil, nil
+  end
+  fillSlots(s)
+  local show = has or T.Config.IsShown()
+  T.SetVisible(tContent, show)
+  local cells = show and (TG.INFO_CELLS + #tList) or 0
+  if has ~= tHas or cells ~= tShownCount then
+    tHas, tShownCount = has, cells
+    if TG.Glued() then T.BuffBar.Tick() else T.Hud.Refresh() end
+  end
+end
+
+-- ShroudOnTargetChanged (core.lua): a new target, or none.
+function TG.OnTargetChanged()
+  TG.Poll(true)
+end
+
+function TG.GetSavedPosition() return tprefs.x, tprefs.y end
+function TG.SavePosition(x, y)
+  if x ~= tprefs.x or y ~= tprefs.y then
+    tprefs.x, tprefs.y = x, y
+    tSave()
+  end
+end
+
+local targetMover = T.Hud.MoverFor("target", TG.HOME)
+TG.GetPosition, TG.MoveTo, TG.Nudge, TG.ResetPosition = targetMover.Get, targetMover.MoveTo, targetMover.Nudge,
+  targetMover.Reset
+
+function TG.Init()
+  local saved = T.Load("target")
+  tprefs = { show = false, glue = true }
+  if type(saved) == "table" then
+    tprefs.show = saved.show == true
+    tprefs.glue = saved.glue ~= false
+    if type(saved.x) == "number" and type(saved.y) == "number" then tprefs.x, tprefs.y = saved.x, saved.y end
+  end
+  tList, tRaw, tInfoBy = {}, {}, {}
+  T.Hud.Register("target", TG)
+  ShroudRegisterPeriodic(TPERIODIC, function()
+    TG.Poll(false)
+  end, TG.POLL, true)
+end
+
+-- A sweep left undrawn (the shared budget) is retried on the next poll anyway; this is for tests.
+function TG.Pending() return tPending end
+
+-- Shows the target HUD, or not.
+function TG.SetShow(on)
+  tprefs.show = on == true
+  tSave()
+  if TG.Glued() or not on then T.Hud.Build() else T.Hud.Build(true) end
+  TG.Poll(true)
+  T.Config.Sync()
+end
+
+-- In the Toolbelt (its last row), or its own strip.
+function TG.SetGlue(on)
+  tprefs.glue = on == true
+  tSave()
+  T.Hud.Build()
+  TG.Poll(true)
+  T.BuffBar.Tick()
+  T.Config.Sync()
+end
+
+-- /toolbox target debug: what the game reports for the target.
+function TG.DebugLines()
+  local lines = {}
+  if not ShroudHasTarget() then
+    lines[1] = "No target (ShroudHasTarget false). Setting: " .. (tprefs.show and "on" or "off")
+      .. (TG.Glued() and ", in the Toolbelt" or (tprefs.show and ", own strip" or "")) .. "."
+    return lines
+  end
+  lines[#lines + 1] = string.format("Target %q (id %s): health %s / %s%s%s, focus %s / %s",
+    tostring(ShroudGetTargetName()),
+    tostring(ShroudGetTargetId()), tostring(ShroudGetTargetCurrentHealth()), tostring(ShroudGetTargetMaxHealth()),
+    ShroudIsTargetHealthHidden() and " (hidden)" or "", ShroudIsTargetDead() and " (dead)" or "",
+    tostring(ShroudGetTargetCurrentFocus()), tostring(ShroudGetTargetMaxFocus()))
+  local n = ShroudGetTargetBuffCount()
+  lines[#lines + 1] = "Effects (flat): " .. tostring(n)
+  for i = 0, math.min((tonumber(n) or 0), 20) - 1 do
+    local name = ShroudGetTargetBuffName(i)
+    local info = tInfoBy[name]
+    lines[#lines + 1] = string.format("  %d %s: %s s left, icon %s%s%s", i, tostring(name),
+      tostring(ShroudGetTargetBuffTimeRemaining(i)), tostring(ShroudGetTargetBuffIcon(i)),
+      info and info.debuff and ", debuff" or "", info and info.total > 0 and (", of " .. info.total .. " s") or "")
+  end
+  return lines
+end

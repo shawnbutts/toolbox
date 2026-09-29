@@ -554,14 +554,16 @@ add("dailydetailed", "show or hide Today Detailed (every item gained today, with
 end, { "dd" })
 
 -- The Toolbelt: the buff bar with the health bars, consumables and equipment bars joined to it.
-add("toolbelt", "the buff bar with your health bars, consumables and gear repair joined to it (vitals|consumables|"
-    .. "gear on|off: which bars join it; combat on|off: only during combat; move [x y])", function(rest)
+add("toolbelt", "the buff bar with your health bars, consumables, gear repair and target joined to it (vitals|"
+    .. "consumables|gear|target on|off: which bars join it; combat on|off: only during combat; move [x y])",
+    function(rest)
   local word, args = T.ParseArgs(rest)
   local a = args:lower()
   local c = "/" .. T.commands[1] .. " toolbelt "
   local joins = { vitals = { T.Hud.SetGlued, "Health, focus & Vigor bars" },
                   consumables = { T.Consumables.SetGlue, "Consumables bar" },
-                  gear = { T.Gear.SetGlue, "Equipment bar" } }
+                  gear = { T.Gear.SetGlue, "Equipment bar" },
+                  target = { T.Target.SetGlue, "Target HUD" } }
   if joins[word] then
     if a ~= "on" and a ~= "off" then
       T.Print("Use " .. c .. word .. " on|off.")
@@ -576,7 +578,7 @@ add("toolbelt", "the buff bar with your health bars, consumables and gear repair
     T.MoveCommand(T.BuffBar, "toolbelt", "Toolbelt", args)
     return
   elseif word ~= "" then
-    T.Print("Use " .. c .. "vitals|consumables|gear on|off, combat on|off, or move <x> <y>.")
+    T.Print("Use " .. c .. "vitals|consumables|gear|target on|off, combat on|off, or move <x> <y>.")
     return
   end
   for line in (T.Config.HudSummary() .. "\n"):gmatch("([^\n]*)\n") do T.Print(line) end
@@ -1148,6 +1150,30 @@ add("gear", "worn gear's durability, lowest first (bar on|off: the equipment bar
   else
     T.Print("Unknown: /" .. T.commands[1] .. " gear " .. word .. ". Try /" .. T.commands[1] .. " help.")
   end
+end)
+
+add("target", "your target's health and effects (on|off; toolbelt on|off: in the Toolbelt or its own strip; "
+    .. "move [x y]; debug)", function(rest)
+  local TG = T.Target
+  local word, args = T.ParseArgs(rest)
+  word = word:lower()
+  if word == "on" or word == "off" then
+    TG.SetShow(word == "on")
+  elseif word == "toolbelt" then
+    if args:lower() == "on" or args:lower() == "off" then TG.SetGlue(args:lower() == "on") end
+  elseif word == "debug" then
+    for _, line in ipairs(TG.DebugLines()) do T.Print(line) end
+    return
+  elseif word == "move" then
+    T.MoveCommand(TG, "target", "Target HUD", args)
+    return
+  elseif word ~= "" then
+    T.Print("Use /" .. T.commands[1] .. " target on|off, toolbelt on|off, move [x y] or debug.")
+    return
+  end
+  T.Print("Target HUD: " .. (TG.GetShow() and "on" or "off")
+    .. (TG.GetShow() and (TG.Glued() and ", in the Toolbelt" or ", its own strip") or "")
+    .. (TG.GetShow() and TG.GetGlue() and not T.BuffBar.IsEnabled() and " (the Toolbelt is off)" or "") .. ".")
 end)
 
 add("welcome", "show the first-run welcome again (reset: show it at the next /lua reload)", function(rest)
@@ -1749,12 +1775,14 @@ function ShroudOnStart()
   step("the health bars", T.Vitals.Init)
   step("combat stats", T.Combat.Init)
   step("the equipment bar", T.Gear.Init)
+  step("the target HUD", T.Target.Init)
   step("the consumables bar", T.Consumables.Init)
   step("the notification HUD", T.Notify.Hud.Init)
   step("the HUD strips", T.Hud.Init)  -- builds the HUD strips (glued or not); retries on the cap
   step("the buff bar", T.BuffBar.Tick)
   step("the health bars", T.Vitals.Tick)
   step("the equipment bar", function() T.Gear.Poll(true) end)
+  step("the target HUD", function() T.Target.Poll(true) end)
   ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
   T.Welcome()                        -- first run only: a chat line and the settings window
   step("notifications", T.Notify.Check)   -- anything new: the guild message, mail, ...
@@ -1799,6 +1827,11 @@ function ShroudOnSceneLoaded(_)
 end
 
 -- Guild or friends changed (twice a second at most): maybe a new guild message of the day.
+-- The target the game's target frame shows changed (a new one, or none).
+function ShroudOnTargetChanged()
+  T.Target.OnTargetChanged()
+end
+
 function ShroudOnSocialChanged()
   T.Notify.Check()
 end

@@ -2,13 +2,14 @@
 
 **Everything you watch in a fight, in one strip you can put anywhere.** Toolbox's **Toolbelt** joins
 your buffs and debuffs (with clock sweeps and a warning before they run out), your health, focus and
-Vigor, your food and potions, and any gear that needs repair into one movable HUD strip that can
-appear only in combat. Around it: XP per hour and time to your next level, everything you looted,
+Vigor, your food and potions, any gear that needs repair, and your target's health and effects into one
+movable HUD strip that can appear only in combat. Around it: XP per hour and time to your next level, everything you looted,
 crafted and gathered today with its market value, DPS and combat stats, and notifications.
 
 **Highlights**
 
-- **The Toolbelt:** buffs, debuffs, health, focus, Vigor, food, potions and worn-out gear in one strip, moved as one.
+- **The Toolbelt:** buffs, debuffs, health, focus, Vigor, food, potions, worn-out gear and your target in one strip, moved as one.
+- **Target HUD:** your target's health and focus, and its effects with the time left on each.
 - **Never let a buff drop:** a sound and a red flash before a buff runs out, and a sound when a debuff lands.
 - **A tidier buff bar:** long buffs and blessings fold into one icon with a count; it can replace the game's own bar.
 - **Food and potions on their own bar,** combat items too, with the same sweeps and warnings.
@@ -25,8 +26,8 @@ Change the key in the add-on manager, on Toolbox's row under **Keys**.
 
 ## The Toolbelt
 
-Your buff bar with your health, focus and Vigor bars beside it and your consumables and equipment bars
-under it: one strip, moved as one, with everything you watch in a fight. Pick what joins it in the
+Your buff bar with your health, focus and Vigor bars beside it and your consumables bar, equipment bar
+and target under it: one strip, moved as one, with everything you watch in a fight. Pick what joins it in the
 settings window (**Toolbelt**) or with `/toolbox toolbelt`, and tick **Only during combat** to have it
 appear only when you're fighting. Each bar also works on its own strip.
 
@@ -45,6 +46,13 @@ game's own buff bar, and a click can dismiss a buff. To use your own sounds, put
 Food, potions and combat items such as caltrops move to their own bar, soonest to run
 out first, with the same sweep, flash and alert. Pick the kinds in the settings, cap the number of icons,
 and add or leave out buffs by name.
+
+## Target HUD
+
+Your target's name and health (and focus), then its effects as icons with a sweep for the time left,
+debuffs first. It shows what the game's own target frame shows, so a creature hiding its health reads
+"health hidden", and it lists every effect on the target (the game doesn't say who applied them). It joins
+the Toolbelt as its last row, or has its own strip.
 
 ## Gear repair
 
@@ -91,7 +99,8 @@ sound. Each one can be turned off.
 
 - `/toolbox`: open the settings window
 - `/toolbox help`: open the Docs window, a guide to everything
-- `/toolbox toolbelt`: what's in your Toolbelt (`vitals|consumables|gear on|off`, `combat on|off`)
+- `/toolbox toolbelt`: what's in your Toolbelt (`vitals|consumables|gear|target on|off`, `combat on|off`)
+- `/toolbox target`: the target HUD (`on|off`, `toolbelt on|off`)
 - `/toolbox buffs`: show or hide the buff bar
 - `/toolbox consumables`: the consumables bar and what goes on it
 - `/toolbox gear`: your worn items' durability, lowest first

@@ -17,7 +17,7 @@ H.PACKAGE = ROOT .. "/toolbox"
 local CALLBACKS = {
   "ShroudOnStart", "ShroudOnUpdate", "ShroudOnExperienceGain", "ShroudOnExperienceChanged",
   "ShroudOnLogOut", "ShroudOnDisableScript", "ShroudOnSceneLoaded", "ShroudOnSceneUnloaded",
-  "ShroudOnSocialChanged", "ShroudOnHttpResponse", "ShroudOnGuildMotdChanged",
+  "ShroudOnSocialChanged", "ShroudOnHttpResponse", "ShroudOnGuildMotdChanged", "ShroudOnTargetChanged",
 }
 
 local function copy(v)
@@ -210,6 +210,53 @@ local function install_api()
       local item = { name = it.name, durability = it.durability, primaryDurability = it.primaryDurability or 0,
                      maxDurability = it.maxDurability, weight = 1, quantity = 1, value = 10, icon = it.icon or 7 }
       out[i] = item
+    end
+    return out
+  end
+  -- The target (H.S.target, set by H.setTarget): { id, name, hp, maxHp, focus, maxFocus, dead, hidden,
+  -- effects = { { name, remaining, total, icon, debuff, category, tooltip } } }. Sentinels as documented.
+  local function tg() return S.char.present and S.target or nil end
+  local function teff(i) local t = tg(); return t and t.effects and t.effects[i + 1] or nil end
+  ShroudHasTarget = function() return tg() ~= nil end
+  ShroudGetTargetName = function() local t = tg(); return t and t.name or "None" end
+  ShroudGetTargetId = function() local t = tg(); return t and t.id or -1 end
+  ShroudIsTargetDead = function() local t = tg(); return t ~= nil and t.dead == true end
+  ShroudIsTargetHealthHidden = function() local t = tg(); return t ~= nil and t.hidden == true end
+  ShroudGetTargetCurrentHealth = function()
+    local t = tg()
+    if not t then return -1 end
+    if t.hidden then return t.maxHp end
+    return t.hp
+  end
+  ShroudGetTargetMaxHealth = function() local t = tg(); return t and t.maxHp or -1 end
+  ShroudGetTargetCurrentFocus = function() local t = tg(); return t and (t.focus or 0) or -1 end
+  ShroudGetTargetMaxFocus = function() local t = tg(); return t and (t.maxFocus or 0) or -1 end
+  ShroudGetTargetBuffCount = function() local t = tg(); return t and t.effects and #t.effects or 0 end
+  ShroudGetTargetBuffName = function(i) local e = teff(i); return e and e.name or "Invalid" end
+  ShroudGetTargetBuffDescription = function(i) local e = teff(i); return e and (e.label or e.name) or "Invalid" end
+  ShroudGetTargetBuffTimeRemaining = function(i) local e = teff(i); return e and e.remaining or -1 end
+  ShroudGetTargetBuffIcon = function(i) local e = teff(i); return e and (e.icon or -1) or -1 end
+  ShroudGetTargetBuffTooltip = function(i)
+    local e = teff(i)
+    return e and (e.tooltip or (e.name .. "\n" .. math.floor(e.remaining or 0) .. "s")) or ""
+  end
+  ShroudGetTargetBuffCategory = function(i) local e = teff(i); return e and (e.category or "Other") or nil end
+  ShroudGetTargetBuff = function()
+    local t = tg()
+    if not t then return nil end
+    S.targetBuffReads = (S.targetBuffReads or 0) + 1
+    local out, by = {}, {}
+    for _, e in ipairs(t.effects or {}) do
+      local r = by[e.name]
+      if not r then
+        r = { RuneName = e.name, RuneId = #out + 1, IsDebuff = e.debuff == true, Category = e.category or "Other",
+              StackCount = 0, Effects = {} }
+        by[e.name] = r
+        out[#out + 1] = r
+      end
+      r.StackCount = r.StackCount + 1
+      r.Effects[#r.Effects + 1] = { Description = "", Value = 0, CurrentDuration = e.remaining or 0,
+                                    TotalDuration = e.total or 0, TotalTick = 0 }
     end
     return out
   end
@@ -986,6 +1033,31 @@ function H.slots(row)
   return out
 end
 -- The equipment bar's strip, and its visible slots (the icon's tooltip is slot.children[1].tooltip).
+-- The player targets something (a table as H.S.target describes) or nothing (nil), and the game fires
+-- ShroudOnTargetChanged. H.S.target can also be changed without the callback (health going down).
+function H.setTarget(t)
+  S.target = t
+  return H.callback("ShroudOnTargetChanged", t and t.id or -1, t and t.name or "")
+end
+function H.targetFrame() return S.frames.toolbox_target end
+-- The target row (own strip, or in the Toolbelt).
+function H.targetRow()
+  for _, id in ipairs({ "toolbox_target", "toolbox_buffs", "toolbox_hud" }) do
+    local f = S.frames[id]
+    local row = f and f:Find("target")
+    if row then return row end
+  end
+  return nil
+end
+-- Visible effect slots of the target row.
+function H.targetSlots()
+  local out = {}
+  local row = H.targetRow()
+  for _, slot in ipairs(row and row.children or {}) do
+    if slot.id ~= "target_info" and slot.visible ~= false then out[#out + 1] = slot end
+  end
+  return out
+end
 function H.gearFrame() return S.frames.toolbox_gear end
 function H.gearSlots()
   local out = {}

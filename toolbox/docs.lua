@@ -72,14 +72,23 @@ D.SECTIONS = {
       .. "[item]) checks the connection.",
     "Like XP, it can be a HUD strip: /toolbox daily hud (and daily window, daily move <x> <y>)." },
   { "Toolbelt",
-    "The Toolbelt is your buff bar with your health, focus and Vigor bars beside it and your consumables "
-      .. "and gear repair under it: one strip with everything you watch in a fight, moved as one. Build it "
-      .. "on the settings window's Toolbelt page: Show the Toolbelt, then put each bar Off, on its Own strip "
-      .. "or In Toolbelt. Or use /toolbox toolbelt vitals|consumables|gear on.",
+    "The Toolbelt is your buff bar with your health, focus and Vigor bars beside it and your consumables, "
+      .. "gear repair and target under it: one strip with everything you watch in a fight, moved as one. Build "
+      .. "it on the settings window's Toolbelt page: Show the Toolbelt, then put each bar Off, on its Own "
+      .. "strip or In Toolbelt. Or use /toolbox toolbelt vitals|consumables|gear|target on.",
     "Only during combat (settings, or /toolbox toolbelt combat on) shows the whole Toolbelt only in combat "
       .. "and a few seconds after, and while the settings window is open so you can place it. Move it by its "
       .. "grip, with HUD layout's Buff bar buttons, or /toolbox toolbelt move <x> <y>. The buff bar is its "
       .. "base: with the buff bar off, the other bars use their own strips. /toolbox toolbelt says what's in it." },
+  { "Target",
+    "/toolbox target on shows your target: its name and health (a thin red bar, and a blue one for focus "
+      .. "when it has some), then its effects as icons with the time left as a sweep, debuffs (outlined) first. "
+      .. "It shows what the game's target frame shows: a creature hiding its health reads \"health hidden\". "
+      .. "The game doesn't say who applied an effect, so every effect on the target is listed. Hover for "
+      .. "details.",
+    "It joins the Toolbelt as its last row, or has its own strip (settings: Toolbelt, Target; or /toolbox "
+      .. "target toolbelt on|off). With no target it hides, except while the settings window is open, so you "
+      .. "can place it (/toolbox target move <x> <y>). /toolbox target debug shows what the game reports." },
   { "Buff bar",
     "/toolbox buffs: your buffs and debuffs (outlined red) as their skill icons, the one that runs out "
       .. "soonest on the left. A darkening "
