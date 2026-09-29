@@ -1271,7 +1271,8 @@ local function notifyHud(args)
   end
 end
 
-add("notify", "notifications: list; <name> on|off; [<name>] via window|hud|chat; [<name>] sound on|off; show; hud",
+add("notify", "notifications: list; <name> on|off; [<name>] via window|hud|chat; [<name>] sound on|off; "
+    .. "compact on|off; show; hud",
     function(rest)
   local c = "/" .. T.commands[1] .. " notify"
   local word, arg = T.ParseArgs(rest)
@@ -1281,6 +1282,12 @@ add("notify", "notifications: list; <name> on|off; [<name>] via window|hud|chat;
   end
   if word == "hud" then
     notifyHud(arg)
+    return
+  end
+  if word == "compact" then
+    local a = arg:lower()
+    if a == "on" or a == "off" then T.Notify.SetCompact(a == "on") end
+    T.Print("Compact Notifications window: " .. (T.Notify.GetCompact() and "on" or "off") .. ".")
     return
   end
   if word == "via" or (T.Notify.Label(word) and arg:lower():match("^via%s")) then

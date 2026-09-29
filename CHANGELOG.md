@@ -10,6 +10,7 @@ store submission needs a higher version than any submitted before (rejected ones
   window or compact window: the strip's labels were restyled after the strip was gone.
 
 ### Added
+- The Notifications window can be compact too (Notifications settings, or `/toolbox notify compact on`).
 - XP and Today can be compact windows (settings: Compact window, or `/toolbox xp compact` and
   `/toolbox daily compact`): the title bar shows only while the pointer is on it, laid over the text, so
   it looks like a strip but resizes and fades like a window. It doesn't use one of the 8 HUD strips.

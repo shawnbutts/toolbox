@@ -526,6 +526,9 @@ function C.NotifySection()
     UI.Label{ text = "Tells you what's new since you last saw it: in a window, on the notification HUD or in"
       .. " chat, with a sound if you like.",
       class = "dim", style = { whiteSpace = "wrap" } },
+    UI.Toggle{ id = "notify_compact", text = "Compact Notifications window", value = T.Notify.GetCompact(),
+      tooltip = "Its title bar shows only while the pointer is on it, over the top of the text",
+      onChange = function(_, v) T.Notify.SetCompact(v) end },
   }
   local vias = T.Notify.Choices()
   for _, src in ipairs(T.Notify.Sources()) do
@@ -702,7 +705,7 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "vitals_flash_test", "show_combat", "combat_detail", "combat_detail_hover", "combat_pet", "combat_scale",
   "combat_scale_value", "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "combat_stats",
   "stat_find", "stat_results", "stat_add", "stat_shown", "stat_remove", "stat_msg",
-  "nhud_hide", "volume", "volume_value", "hud_summary", "toolbelt_show",
+  "nhud_hide", "notify_compact", "volume", "volume_value", "hud_summary", "toolbelt_show",
   "toolbelt_vitals", "toolbelt_consumables", "toolbelt_gear", "toolbelt_target", "target_place", "target_mirror",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
   "buff_countdown_secs_value" }
@@ -991,6 +994,7 @@ function C.Sync()
     setEnabled(id, vitalsOn)
   end
   setEnabled("vitals_vigor", vitalsOn and V.HasVigor())
+  setValue("notify_compact", T.Notify.GetCompact())
   -- Combat
   local combatOn = M.IsShown()
   setValue("show_combat", combatOn)

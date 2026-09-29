@@ -274,7 +274,7 @@ character" sentinel.
 | `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` |
 | `target` | `{ show = bool (default false), glue = bool (default true), place = "top" (default) / "bottom", mirror = bool, x, y }` (a saved place "left", from beta 7, reads as mirror) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
-| `notify` | `{ v = 1, sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
+| `notify` | `{ v = 1, compact = bool (the window), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), x, y }` |
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most 20 |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last, day, at } } }`, at most `P.MAX_KEEP` |
@@ -326,7 +326,8 @@ What each newer API added and what Toolbox does with it (all feature-detected):
 - **API 19**: `compact = true` windows (title bar only on hover; no TextField / Dropdown in them): the XP and
   Today windows' "Compact window" form (`SetCompact` rebuilds the window: its fields are fixed at creation;
   Esc doesn't close it). It frees HUD frames. The harness refuses fields in a compact window. Decided (owner,
-  2026-09-29): only XP and Today get it. HUD strips can't (a window needs one of the 8 window slots, all in
+  2026-09-29): XP, Today and the Notifications window (`N.SetCompact`, rebuilt keeping the notices it shows;
+  `notify.compact`) get it. HUD strips can't (a window needs one of the 8 window slots, all in
   use); the detail windows stay normal windows (lots of info, their dropdowns work, rarely kept open).
 - **API 20**: Vigor (`ShroudGetVigor`, `ShroudOnVigorChanged`). Used.
 - **API 21 / 22**: more package sound formats; package `data_files` (`ShroudLoadData`). Unused.

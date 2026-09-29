@@ -212,7 +212,9 @@ D.SECTIONS = {
     "Each can show in the Notifications window, on the notification HUD or as a chat line, with or "
       .. "without a sound (the dropdown next to it in settings, e.g. HUD + sound; or /toolbox notify <name> "
       .. "via window|hud|chat and /toolbox notify <name> sound on|off, or leave out the name for all). The "
-      .. "sound is a rising chime, different from the buff alerts. The HUD lists the "
+      .. "sound is a rising chime, different from the buff alerts. The window can be compact (settings: "
+      .. "Compact Notifications window, or /toolbox notify compact on): its title bar shows only on hover. "
+      .. "The HUD lists the "
       .. "latest 20, newest on top, one line each (hover a line for all of it; scroll for older ones). It "
       .. "shows when something arrives and hides after 10 seconds, or never (HUD: hide after, or "
       .. "/toolbox notify hud hide 30); it stays while the pointer is on it. Move it like the other HUD "
@@ -667,11 +669,13 @@ local function buildWindow()
           style = { whiteSpace = "wrap", marginTop = 2 } },
       } }
   end
+  local compact = N.GetCompact()
   nwin = UI.Window{
     id = N.WINDOW_ID, title = "Notifications",
+    compact = compact,          -- API 19: the title bar only on hover, over the content (setting: N.SetCompact)
     width = 380, height = 240, minWidth = 220, minHeight = 120,
     x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y,
-    escCloses = true,
+    escCloses = not compact,    -- a compact window's close button only shows on hover
     onClose = function() clearWindow() end,
     style = { paddingTop = 6, paddingBottom = 6 },
     children = {
@@ -956,7 +960,7 @@ local function prefsNow()
       stored = { motd = { on = old.show ~= false, seen = type(old.seen) == "string" and old.seen or "" } }
     end
   end
-  nprefs = { v = 1, sources = {} }
+  nprefs = { v = 1, sources = {}, compact = type(saved) == "table" and saved.compact == true }
   for _, src in ipairs(N.SOURCES) do
     local s = type(stored[src.key]) == "table" and stored[src.key] or {}
     local sp = { on = src.default, via = src.via or N.DELIVERY_DEFAULT, sound = false }
@@ -1090,6 +1094,39 @@ function N.SetOn(key, on)
   save()
   T.Config.Sync()
   return true
+end
+
+-- The Notifications window as a compact window (API 19: its title bar shows only on hover) or a normal
+-- one. A window's fields are fixed when it's made, so it is rebuilt, keeping what it shows.
+function N.GetCompact() return prefsNow().compact == true end
+
+function N.SetCompact(on)
+  local p = prefsNow()
+  on = on == true
+  if on == (p.compact == true) then return end
+  p.compact = on
+  save()
+  if nwin then
+    local open = nwin:IsShown()
+    local kept = {}
+    for _, src in ipairs(N.SOURCES) do
+      local sec = nwin:Find("n_" .. src.key)
+      if sec and sec:IsVisible() then
+        kept[#kept + 1] = { key = src.key, title = nwin:Find("n_" .. src.key .. "_title").text,
+                            text = nwin:Find("n_" .. src.key .. "_text").text }
+      end
+    end
+    pcall(function() nwin:Destroy() end)
+    nwin = nil
+    buildWindow()
+    for _, k in ipairs(kept) do
+      nwin:Find("n_" .. k.key .. "_title"):SetText(k.title)
+      nwin:Find("n_" .. k.key .. "_text"):SetText(k.text)
+      nwin:Find("n_" .. k.key):SetVisible(true)
+    end
+    if open then nwin:Show() end
+  end
+  T.Config.Sync()
 end
 
 -- The deliveries, in the order settings offer them: { name, label }.
