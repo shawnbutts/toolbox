@@ -410,6 +410,10 @@ Version numbers are single-use in the store, including rejected ones.
 THE STORE PAGE (addons.catnipgames.net, looked at 2026-09-29) is where most players first meet Toolbox:
 - The list is a grid of cards (>= 300 px wide, 3 across on a desktop): icon, **name** (shown in full), author,
   then a description clamped to 3 lines at 0.9rem (about 100-120 characters on a desktop), version, installs.
+- The manifest `name` is "Toolbox: Toolbelt, HUDs, Trackers, etc" (owner, 2026-09-29): the card's only text
+  always shown in full, so it sells too (<= 60 characters; wraps to two lines on a desktop card). The add-on is
+  still called Toolbox everywhere else; the slug stays `toolbox`. The author shown is taken from the
+  submitting account (owner), not from the manifest's `author`.
 - That description is NOT ours: "the reviewer writes the one-paragraph description you see on each entry"
   (guide), in its own words ("This addon lets you..."), apparently from the package (README, manifest, code),
   and it mentions what an update fixed. So `toolbox/README.md` opens with the pitch in its first sentence,
