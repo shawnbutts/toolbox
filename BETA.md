@@ -2,7 +2,8 @@ Toolbox beta: install and testing guide
 =======================================
 
 Thanks for testing Toolbox! It's a Shroud of the Avatar add-on with XP windows, daily stats, a buff
-bar, health & focus bars and a combat stats HUD. This is a beta: please tell us what breaks.
+bar, a consumables bar, health, focus & Vigor bars, a combat stats HUD, an equipment repair bar and
+notifications. This is a beta: please tell us what breaks.
 
 You need a game client with Lua add-on API 15 or newer (older clients skip Toolbox with a chat line
 saying it needs a newer client). Some options need a newer one still; settings greys them out.

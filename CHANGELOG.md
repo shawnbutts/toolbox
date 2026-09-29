@@ -24,6 +24,8 @@ store submission needs a higher version than any submitted before (rejected ones
   applies (needs a game client with Lua API 20). `/toolbox vitals vigor off` or settings hides it.
 
 ### Changed
+- The store description and the project README list every current feature (they still described the
+  add-on as it was two betas ago).
 - Health & focus bars: the bar length can now go down to 20 (was 100), for a compact strip.
 
 ### Fixed

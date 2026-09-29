@@ -337,6 +337,23 @@ def check_changelog(report: Report, manifest: dict) -> None:
         report.warn(f"CHANGELOG.md has no [{version}] entry")
 
 
+def check_readme_api(report: Report, manifest: dict) -> None:
+    """The root README's opening must state the manifest's min_api_version ("needs Lua API 15").
+
+    It said "API 14" for a while after the manifest moved to 15 (review, 2026-09-29).
+    """
+    readme = ROOT / "README.md"
+    api = manifest.get("min_api_version")
+    if not readme.is_file() or not isinstance(api, int):
+        return
+    opening = "\n".join(readme.read_text(encoding="utf-8").splitlines()[:12])
+    m = re.search(r"\bLua API (\d+)", opening)
+    if not m:
+        report.error(f"README.md: the opening should say which Lua API it needs (\"needs Lua API {api}\")")
+    elif int(m.group(1)) != api:
+        report.error(f"README.md says Lua API {m.group(1)}, but manifest min_api_version is {api}")
+
+
 def check_version_constant(report: Report, manifest: dict) -> None:
     core = PACKAGE / "core.lua"
     if not core.is_file():
@@ -468,6 +485,7 @@ def main() -> int:
         entries = check_entries(report, manifest)
         check_sources(report, manifest)
         check_changelog(report, manifest)
+        check_readme_api(report, manifest)
         check_version_constant(report, manifest)
 
     zip_path = None

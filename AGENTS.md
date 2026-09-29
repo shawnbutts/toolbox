@@ -271,7 +271,10 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
   REPLACEMENTS go in the Lua folder beside it (`Lua/toolbox_<name>`) and win (owner, 2026-09-27).
 - `tools/build.py` stamps `build = "<git short commit>[+]"` into dist's core.lua (the source keeps "dev");
   `/toolbox version` shows it, to tell exactly which build is installed.
-- `tools/build.py`: validates the store packaging rules and writes `dist/toolbox/` + zip.
+- `tools/build.py`: validates the store packaging rules and writes `dist/toolbox/` + zip. It also checks
+  that the root README's opening states the manifest's `min_api_version` ("needs Lua API 15") and that
+  CHANGELOG.md has a section for the manifest version. Keep the root README's feature list, the store
+  description (manifest) and BETA.md's intro in step with features (they drifted; review 2026-09-29).
 - `tools/install.py`: copies `dist/toolbox/` into a client's Lua folder.
 - `tools/beta.py` (`make beta`): builds, then zips `toolbox/` (+ default sounds) and `INSTALL.txt`
   (= `BETA.md`, the tester guide) as `dist/toolbox-<version>-beta.zip`. Update BETA.md's known issues

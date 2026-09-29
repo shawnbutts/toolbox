@@ -1,16 +1,25 @@
 # Toolbox
 
-A Shroud of the Avatar Lua add-on (API 14). Features so far:
+A Shroud of the Avatar Lua add-on. It needs Lua API 15 (`min_api_version` in the manifest) and uses
+newer functions (up to API 20) when the game client has them. Features:
 
-- **XP**: a small window with session time, your adventurer and producer pools, and XP earned in
-  the last hour. Hover it for **XP Detailed**: levels, progress bars, XP/hour, time to next level.
+- **XP**: a small window (or HUD strip) with session time, your adventurer and producer pools, and XP
+  earned in the last hour. Hover it for **XP Detailed**: levels, progress bars, XP/hour, time to the
+  next level, and the last hour as a chart.
 - **Today**: gold picked up, kills, and XP gained since midnight. Hover it for **Today Detailed**:
-  every item gained today, with counts.
-- **Health & focus bars**: your own health and focus on a movable HUD strip.
-- **Combat stats**: DPS, damage taken and healing per second, crit and avoid rates, a fight
-  timer and chosen character stats, on a movable HUD strip.
-- **Buff bar**: your buffs and debuffs as their skill icons, with a clock-style sweep instead of a
-  countdown, plus sound alerts when a buff is about to run out and when a debuff lands.
+  every item gained today, with counts and optional estimated values from shroudoftheavatar.net.
+- **Buff bar**: your buffs and debuffs as their skill icons with a clock-style sweep, long-lasting
+  buffs grouped into one slot, sound alerts and a red flash before a buff runs out, a sound when a
+  debuff lands, an only-in-combat option, and (API 16) replacing the game's own buff bar and
+  click-to-dismiss.
+- **Consumables bar**: food and Obsidian potions in effect on their own bar (or glued under the buffs).
+- **Health, focus & Vigor bars**: your own health, focus and (API 20) Vigor on a movable HUD strip.
+- **Combat stats**: DPS, damage taken and healing per second, crit and avoid rates, a fight timer and
+  chosen character stats; hover it for **Combat Detailed** (damage by skill, the last minute as a
+  chart, healing, targets, damage types, recent fights).
+- **Equipment bar and repair alerts**: worn items that need repair, with a durability sweep.
+- **Notifications**: guild message of the day, new mail, expiring mail, ransoms, rewards, guild
+  applications and gear needing repair, in a window or on a scrolling notification HUD.
 
 - Store slug and package folder: `toolbox`
 - Author: shawn butts
@@ -35,14 +44,18 @@ Built clean-room from the official docs only:
 | `/toolbox xpdetailed` (or `xpd`) | show or hide the XP Detailed window |
 | `/toolbox reset` | start a new XP session |
 | `/toolbox daily` | show or hide today's stats (gold, kills, XP) |
-| `/toolbox dailydetailed` (or `dd`) | show or hide Today Detailed (every item gained today) |
+| `/toolbox dailydetailed` (or `dd`) (`values on\|off\|test\|refresh`) | show or hide Today Detailed (every item gained today); estimated values |
 | `/toolbox buffs move [x y]` | place the buff bar (no numbers: say where it is) |
-| `/toolbox buffs` (`debug` / `trace [name]`) | show or hide the buff bar (`debug`: each buff's timing data; `trace light`: log the buffs whose name contains "light" once a second for 10 s) |
+| `/toolbox buffs` (`group` / `combat` / `flash` / `replace` / `dismiss` / `debug` / `raw` / `trace [name]` / `frame <k>` / `uvtest`) | show or hide the buff bar; its options; diagnostics (`debug`: each buff's timing; `trace light`: log buffs matching "light" once a second for 10 s; `frame`: hold one sweep frame; `uvtest`: sprite-frame redraw test) |
+| `/toolbox consumables` (`bar` / `glue` / `add\|remove <name>` / `move`) | list food and potions in effect; the consumables bar's options |
+| `/toolbox gear` (`bar` / `glue` / `repair <%>` / `move` / `debug`) | worn items' durability; the equipment bar's options |
+| `/toolbox notify` (`<name> on\|off` / `via window\|hud` / `show` / `hud ...`) and `/toolbox motd` | notifications; the guild message of the day |
 | `/toolbox buffalert <1-60>` / `on` / `off` | alert this many seconds before a buff runs out (default 10) |
 | `/toolbox debuffalert on` / `off` | alert when a debuff lands |
 | `/toolbox sounds [0-100]` | show which sound files the alerts use; with a number, set the volume |
 | `/toolbox vitals` (`size <75-250>` / `text on\|off` / `bars on\|off` / `bg none\|dark\|light` / `flash <1-95>\|on\|off\|test` / `glue on\|off` / `move [x y]` / `debug`) | show or hide the health & focus bars (or place them) |
-| `/toolbox combat` (`reset` / `size <n>` / `bg dark\|light\|none [%]` / `pet on\|off` / `stat add\|remove <Name>` / `stats` / `move [x y]`) | show or hide the combat stats HUD, and its options |
+| `/toolbox combat` (`reset` / `size <n>` / `bg dark\|light\|none [%]` / `pet on\|off` / `stat add\|remove <Name>` / `stats` / `detail` / `events [n]` / `move [x y]`) | show or hide the combat stats HUD, Combat Detailed, and its options |
+| `/toolbox api` | which newer API functions this game client has |
 | `/toolbox welcome` (`reset`) | show the first-run welcome again: the line and the settings window (`reset`: at the next reload, as on a first run) |
 | `/toolbox version` | the installed version and build (git commit), and whether more than one copy is loaded |
 | `/toolbox stats [word]` | list character stats whose name contains the word (for finding stat names) |
@@ -183,8 +196,12 @@ is locked: untick **Lock Status Movement** under **Nameplates & Chat Bubbles** o
 The strip is sized to the icons showing and grows to the right as buffs arrive; the game keeps
 it on screen, so a bar parked at the far right is pushed left as it grows.
 
-The game's own buff bar can't be hidden from an add-on, so this one sits alongside it. Icons are a
-fixed pool (20 buffs, 10 debuffs) built once, so buff changes never create UI elements.
+**Replacing the game's bar** (API 16, opt-in): "Replace the game's buff bar" hides the game's own
+bar while this one is showing (the game restores it on reload, so it is applied at every start), and
+"Click a buff to dismiss it" dismisses the buffs the game lets you dismiss. Icons are a fixed pool
+(20 buffs, 10 debuffs) built once. The sweep picture is replaced for each step of the sweep (this
+client draws a sprite frame only when the picture is created), at most 8 new pictures a second for
+all sweeps together.
 
 **Alerts** (they work with the bar hidden):
 
@@ -215,13 +232,20 @@ generates `toolbox/*.ogg`. (Older macOS clients failed every sound load; fixed i
 
 When a buff's expiry alert fires, its sweep turns from dark to red for the rest of that run.
 
-To draw the sweep the bar needs each buff's full duration, and the game doesn't report it (the
-documented `TotalDuration`/`CurrentDuration` come back empty). So the bar learns it: when a buff
-appears while the add-on is running, its first time left *is* its full duration, and that is
-remembered per character for the next time the buff is already running at login or reload.
-A buff that was already running and has never been seen cast shows **no sweep** until its next
-cast, rather than a wrong one. The expiry alert only needs the time left, so it works either way.
-`/toolbox buffs debug` says where each buff's duration came from.
+The sweep needs each buff's full duration: the game reports it (`TotalDuration` in
+`ShroudGetPlayerBuff()`, whose entries are game objects, not tables). For effects without one (the
+moon timer) the bar learns it: a buff that appears while the add-on is running shows its full
+duration as its first time left, remembered per character. Without either there is **no sweep**
+rather than a wrong one; the expiry alert only needs the time left. `/toolbox buffs debug` says
+where each buff's duration came from.
+
+**Consumables bar.** Food (`RuneFood_...`) and Obsidian potions (`BlessingOf...`) move to their own
+bar, with the same sweep, flash and alert (`/toolbox consumables`; glue it under the buffs, or add
+more names with `/toolbox consumables add <name>`). Shrine blessings stay on the buff bar.
+
+**Equipment bar.** Worn items below the repair threshold (20% by default) show with a red sweep for
+the durability they've lost, lowest first; a "Gear needs repair" notification comes when one drops
+below it and again when it breaks (`/toolbox gear`). It can be glued under the buff bar too.
 
 ## Health & focus bars
 
@@ -248,7 +272,11 @@ or the `CurrentHealth` / `CurrentFocus` stats when those aren't numbers (`/toolb
 shows which is used).
 The maximums have no documented getter: the readable stats `Health` and `Focus` equal the current
 values at full health and focus, so they are used as the maximums (never shown below the current
-value). There is no vigor bar: no stat the game exposes to add-ons matches "vigor".
+value).
+
+**Vigor** (API 20): a gold third bar with the percentage, from `ShroudGetVigor()` /
+`ShroudOnVigorChanged`; hover it for the regen and crit bonuses. It shows once you are past the level
+where Vigor applies; "Show Vigor" in settings or `/toolbox vitals vigor off` hides it.
 
 ## Combat stats
 

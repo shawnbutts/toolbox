@@ -12,6 +12,7 @@ Toolbox.CHANGELOG = {
   { "item", "The XP and Today HUD strips are only built while their HUD form is chosen (Toolbox may have at most 8 HUD strips)." },
   { "item", "A gold Vigor bar under health and focus, with its percentage; hover it for what Vigor adds to health regen, focus regen and critical chance. It shows once you are past the level where Vigor applies (needs a game client with Lua API 20). /toolbox vitals vigor off or settings hides it." },
   { "section", "Changed" },
+  { "item", "The store description and the project README list every current feature (they still described the add-on as it was two betas ago)." },
   { "item", "Health & focus bars: the bar length can now go down to 20 (was 100), for a compact strip." },
   { "section", "Fixed" },
   { "item", "Performance: once the settings window had been opened (the first-run welcome opens it), it kept updating its hidden labels every second (~9 UI calls a second). It now only does that while shown, and refreshes them as it opens. Also: the XP totals are read once a second instead of twice, the health & focus bars allocate nothing on a quiet tick, and HUD strips are only shown or hidden when that changes." },
