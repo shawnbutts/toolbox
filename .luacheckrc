@@ -102,7 +102,7 @@ local api_callbacks = {
   "ShroudOnTitlesChanged", "ShroudOnToggleChange", "ShroudOnUpdate",
   "ShroudOnVigorChanged",                                   -- API 20
   "ShroudOnCraftResults", "ShroudOnGatherResults", "ShroudOnCraftingStateChanged",   -- API 18
-  "ShroudOnGuildMotdChanged",                               -- API 18
+  "ShroudOnGuildMotdChanged", "ShroudOnFriendStatusChanged", "ShroudOnGuildMemberStatusChanged",   -- API 18
 }
 
 -- The early global `Shroud` (read-only userdata) and its documented fields.

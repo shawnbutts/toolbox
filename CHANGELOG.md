@@ -6,6 +6,8 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Notifications for friends coming online (on, as a chat line) and guild members coming online (off by
+  default), from the game's friend and guild events (Lua API 18). `/toolbox notify friends|guild on|off`.
 - Skill levels gained and deaths: two new lines in the Today window (since midnight) and one in XP Detailed
   (this session). A level counts when a skill's trained level passes the highest it has been, so a scene's
   skill cap, or unlearning and relearning, doesn't count.

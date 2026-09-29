@@ -6,6 +6,7 @@
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "section", "Added" },
+  { "item", "Notifications for friends coming online (on, as a chat line) and guild members coming online (off by default), from the game's friend and guild events (Lua API 18). /toolbox notify friends|guild on|off." },
   { "item", "Skill levels gained and deaths: two new lines in the Today window (since midnight) and one in XP Detailed (this session). A level counts when a skill's trained level passes the highest it has been, so a scene's skill cap, or unlearning and relearning, doesn't count." },
   { "item", "Target HUD (/toolbox target on, or settings: Toolbelt, Target): your target's name, health and focus as thin bars, and its effects as icons with the time left as a sweep, debuffs first. As the game's target frame shows it (\"health hidden\" for creatures that hide it). Joins the Toolbelt as its last row, or has its own strip. Off by default." },
   { "item", "Toolbox can show at most 8 HUD strips at once (a game limit); a strip past that now says so in chat instead of failing." },

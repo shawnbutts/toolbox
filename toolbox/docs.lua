@@ -182,7 +182,8 @@ D.SECTIONS = {
       .. "login, after /lua reload, or as soon as something changes, and shows everything new together. "
       .. "Nothing already seen shows again.",
     "Switch each one on or off in settings (Notifications), or with /toolbox notify <name> on|off "
-      .. "(names: motd, mail, expiring, ransoms, rewards, applications, durability). /toolbox notify lists them; "
+      .. "(names: motd, mail, expiring, ransoms, rewards, applications, durability, friends, guild). Friends and "
+      .. "guild members coming online arrive as chat lines by default (guild: off). /toolbox notify lists them; "
       .. "/toolbox notify show shows everything current; /toolbox motd shows the guild message.",
     "Each can show in the Notifications window, on the notification HUD or as a chat line, with or "
       .. "without a sound (the dropdown next to it in settings, e.g. HUD + sound; or /toolbox notify <name> "
@@ -524,6 +525,44 @@ local function plainStrings(t)
   return out
 end
 
+-- Friends and guild members coming online (API 18 events, not a state to compare): each event is queued
+-- with a running number, and the source's "seen" is the last number delivered. The numbers restart with
+-- the add-on, so these sources' `seen` isn't taken from the save (`transient`).
+N.ONLINE_KEEP = 20            -- queued names per source
+local online = { friends = { n = 0, list = {}, dropped = 0 }, guild = { n = 0, list = {}, dropped = 0 } }
+
+-- From ShroudOnFriendStatusChanged / ShroudOnGuildMemberStatusChanged (core.lua): queues who came online.
+function N.OnStatus(which, changes, dropped)
+  local q = online[which]
+  if not q then return end
+  for _, c in ipairs(T.List(changes)) do
+    local name = T.Field(c, "name")
+    if T.Field(c, "online") == true and type(name) == "string" and name ~= "" then
+      q.n = q.n + 1
+      q.list[#q.list + 1] = { id = q.n, name = name }
+      if #q.list > N.ONLINE_KEEP then table.remove(q.list, 1) end
+    end
+  end
+  if type(dropped) == "number" and dropped > 0 then q.dropped = q.dropped + dropped end
+  N.Check()
+end
+
+local function onlineCheck(which, title)
+  return function(seen)
+    local q = online[which]
+    local last = type(seen) == "number" and seen or 0
+    if q.n <= last then return nil end
+    local names = {}
+    for _, e in ipairs(q.list) do
+      if e.id > last then names[#names + 1] = e.name end
+    end
+    local text = table.concat(names, ", ") .. " came online."
+    if q.dropped > 0 then text = text .. " (And others the game didn't list.)" end
+    q.dropped = 0
+    return { title = title, text = text, seen = q.n }
+  end
+end
+
 N.SOURCES = {
   { key = "motd", label = "Guild message of the day", default = true,
     tip = "Your guild's message of the day, when it has changed since you last saw it",
@@ -568,6 +607,12 @@ N.SOURCES = {
       if notice then notice.title = "Gear needs repair" end
       return notice, quiet
     end },
+  { key = "friends", label = "Friends coming online", default = true, via = "chat", transient = true,
+    tip = "When a friend logs in (a chat line by default)",
+    Check = onlineCheck("friends", "Friends online") },
+  { key = "guild", label = "Guild members coming online", default = false, via = "chat", transient = true,
+    tip = "When a member of your guild logs in (off by default: a big guild is busy)",
+    Check = onlineCheck("guild", "Guild members online") },
 }
 
 local function sourceFor(key)
@@ -890,11 +935,13 @@ local function prefsNow()
   nprefs = { v = 1, sources = {} }
   for _, src in ipairs(N.SOURCES) do
     local s = type(stored[src.key]) == "table" and stored[src.key] or {}
-    local sp = { on = src.default, via = N.DELIVERY_DEFAULT, sound = false }
+    local sp = { on = src.default, via = src.via or N.DELIVERY_DEFAULT, sound = false }
     if type(s.on) == "boolean" then sp.on = s.on end
     if s.sound == true then sp.sound = true end
     if type(s.via) == "string" and N.DELIVERY[s.via] then sp.via = s.via end
-    if type(s.seen) == "table" then
+    if src.transient then
+      sp.seen = nil                          -- event numbers restart with the add-on
+    elseif type(s.seen) == "table" then
       sp.seen = plainStrings(s.seen)
     elseif s.seen ~= nil then
       sp.seen = s.seen

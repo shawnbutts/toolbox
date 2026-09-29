@@ -406,7 +406,8 @@ including the "no character" sentinel.
 | `combat_detail` | `{ open = bool (pinned), x, y, scope = "fight"/"session", hover = bool }` |
 | `combat` | `{ show, scale = 75..250, pet, stats = { "MagicResistance", ... }, bg = None/Dark/Light, bgOpacity = 10..100, x, y }` |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last = ISO date, day = Toolbox.Today() key, at = Toolbox.Clock() when known } } }`, at most `P.MAX_KEEP` |
-| `notify` | `{ v = 1, sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool } } }` (keys: motd, mail, expiring, ransoms, rewards, applications, durability; durability's `seen` is a table `{ [item key] = "low"/"broken" }`, read back as string keys and values only); the older `guild_motd` `{ show, seen }` is read once to take over |
+| `notify` | `{ v = 1, sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool } } }` (keys: motd, mail, expiring, ransoms, rewards, applications, durability, friends, guild (`transient`: their `seen`
+is an event number that restarts with the add-on, so it is never read back; `N.OnStatus` queues the events); durability's `seen` is a table `{ [item key] = "low"/"broken" }`, read back as string keys and values only); the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), x, y }` |
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most `Notify.Hud.KEEP` (20) |
 | `consumables` | `{ show = bool (default true), glue = bool, extra = { name parts, <= 20 }, cats = { [category] = true } (absent: defaults), exclude = { name parts } (absent: Scroll, Torch, Bait), max = 1..10 (icons before grouping), combatOnly = bool, x, y }` |
@@ -618,7 +619,8 @@ events, so gate on the functions existing, never on the version number.
    - ingredient have/need checklist for pinned recipes (`ShroudGetRecipe`; bags only, no bank/lot);
    - a gathering session HUD (nodes/items/XP per hour, idle timeout);
    - a crafting-station strip shown while the window is open, plus a "craft finished" sound;
-   - friends/guild online list, friend-online chat line or sound, guild MOTD change in chat.
+   - friends/guild online list, friend-online chat line or sound, guild MOTD change in chat. (BUILT 2026-09-29:
+     friend / guild member online notification sources, chat by default; the MOTD via its own event.)
 
 **Other ideas, not agreed yet** (discussed with the owner 2026-09-27/28, recorded so they aren't lost).
 All but the undocumented-getter ones use documented API 13/14 calls; check the docs again before

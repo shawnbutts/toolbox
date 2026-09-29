@@ -1828,6 +1828,15 @@ function ShroudOnSceneLoaded(_)
 end
 
 -- Guild or friends changed (twice a second at most): maybe a new guild message of the day.
+-- Friends / guild members came online or went offline (API 18).
+function ShroudOnFriendStatusChanged(changes, dropped)
+  T.Notify.OnStatus("friends", changes, dropped)
+end
+
+function ShroudOnGuildMemberStatusChanged(changes, dropped)
+  T.Notify.OnStatus("guild", changes, dropped)
+end
+
 -- A skill was learned, gained or lost a level (levelsChanged), or only gained experience.
 function ShroudOnSkillsChanged(levelsChanged)
   T.Daily.OnSkills(levelsChanged)
