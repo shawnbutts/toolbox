@@ -678,7 +678,7 @@ function H.makeUI()
       end
       S.constructed = (S.constructed or 0) + 1
       -- The game's element-creation cap: a burst of CREATE_BURST, refilling CREATE_RATE a second
-      -- (AGENTS item 20). Exceeding it raises, as in game (2026-09-28, Combat Detailed at start-up).
+      -- (AGENTS.md, "Limits"). Exceeding it raises, as in game (2026-09-28, Combat Detailed at start-up).
       local now = type(ShroudTime) == "number" and ShroudTime or 0
       local b = S.createBucket or { tokens = H.CREATE_BURST, at = now }
       b.tokens = math.min(H.CREATE_BURST, b.tokens + math.max(0, now - b.at) * H.CREATE_RATE)
