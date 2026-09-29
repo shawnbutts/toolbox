@@ -24,6 +24,8 @@
 --   recipes  = { [recipe] = { n = crafts, exc = n, fail = n } },   -- "Recipe: " removed from the name
 --   craft    = { n = crafts, exc = n, fail = n, salvaged = n, xp = n, dropped = results not delivered },
 --   gather   = { nodes = n, failed = n, xp = n, dropped = results not delivered },
+--   skills   = n,              -- skill levels gained today (D.SkillGains)
+--   deaths   = n,              -- times you died today (ShroudOnDeathChanged)
 -- }
 -- The loot list (Today Detailed, "Looted") is `items` minus `crafted`, `station` and `gathered` (plus
 -- `pending`, which isn't in `items` yet), per name, unless the player includes them.
@@ -114,6 +116,8 @@ function D.Upgrade(d)
     end
   end
   d.recipes = recipes
+  d.skills = isCount(d.skills) and d.skills or 0
+  d.deaths = isCount(d.deaths) and d.deaths or 0
   d.craft = totals(d.craft, { "n", "exc", "fail", "salvaged", "xp", "dropped" })
   d.gather = totals(d.gather, { "nodes", "failed", "xp", "dropped" })
   return d
@@ -373,6 +377,7 @@ function D.Roll(d, key)
   d.items, d.dropped, d.la, d.lp = {}, 0, 0, 0
   d.crafted, d.gathered, d.recipes, d.craft, d.gather = {}, {}, {}, nil, nil
   d.station, d.used, d.products, d.pending, d.early = {}, {}, {}, {}, {}
+  d.skills, d.deaths = 0, 0
   D.Upgrade(d)                       -- zeroed craft and gather totals
   return true
 end
@@ -502,6 +507,7 @@ end
 -- load its day and start counting from now.
 function D.OnLogin(adv, prod)
   D.Load()
+  D.skillHigh = nil                    -- another character's skills, or read again: start from its save
   D.Rebase(D.day, adv, prod, ShroudPlayerGold)
   D.unsaved = true
 end
@@ -519,6 +525,90 @@ function D.HasResults() return type(ShroudGetCraftingState) == "function" end
 local function changed()
   D.unsaved = true
   D.itemsVersion = D.itemsVersion + 1
+end
+
+-- ---------------------------------------------------------------------------
+-- Skill levels gained and deaths (shown in the Today window and XP Detailed)
+-- ---------------------------------------------------------------------------
+-- A skill level counts when a skill's trainedLevel (the level your experience bought; a scene's skill cap
+-- doesn't change it) rises above the highest seen for it on this character (saved var "skill_levels":
+-- { v = 1, high = { [skill key] = level } }). So unlearning and relearning doesn't count twice. A skill
+-- seen for the first time only sets its starting point (the sheet may load in parts at login), and so does
+-- the very first reading. Both the day (D.day.skills) and the XP session (T.session.skills) count them.
+
+D.skillHigh = nil          -- skill key -> highest trainedLevel seen; nil until read
+
+-- Pure: adds the rises in `skills` (entries { key, level }) over `high` to it, and returns how many
+-- levels were gained. Unknown keys set their starting point only.
+function D.SkillGains(high, skills)
+  local gained = 0
+  for _, sk in ipairs(skills) do
+    local was = high[sk.key]
+    if was == nil then
+      high[sk.key] = sk.level
+    elseif sk.level > was then
+      gained = gained + (sk.level - was)
+      high[sk.key] = sk.level
+    end
+  end
+  return gained
+end
+
+-- ShroudGetSkills as { key, level } (game objects read by field).
+local function readSkills()
+  if type(ShroudGetSkills) ~= "function" then return nil end
+  local ok, list = pcall(ShroudGetSkills)
+  if not ok or list == nil then return nil end
+  local out = {}
+  for _, sk in ipairs(T.List(list)) do
+    local key = T.Field(sk, "key")
+    if type(key) ~= "string" or key == "" then key = tostring(T.Field(sk, "id")) end
+    local level = T.Field(sk, "trainedLevel")
+    if type(level) == "number" and level >= 0 and key ~= "nil" then out[#out + 1] = { key = key, level = level } end
+  end
+  return out
+end
+
+-- Reads the skills and counts levels gained. At start and on ShroudOnSkillsChanged(levelsChanged).
+function D.OnSkills(levelsChanged)
+  if levelsChanged == false then return end          -- experience only
+  local skills = readSkills()
+  if not skills or #skills == 0 then return end
+  local first = D.skillHigh == nil
+  if first then
+    local saved = T.Load("skill_levels")
+    D.skillHigh = {}
+    if type(saved) == "table" and saved.v == 1 and type(saved.high) == "table" then
+      for k, v in pairs(saved.high) do
+        if type(k) == "string" and isCount(v) then D.skillHigh[k] = v end
+      end
+    end
+  end
+  local gained = D.SkillGains(D.skillHigh, skills)
+  if gained > 0 then
+    if D.day then
+      D.day.skills = D.day.skills + gained
+      changed()
+    end
+    if T.session then
+      T.session.skills = (T.session.skills or 0) + gained
+      T.unsaved = true
+    end
+  end
+  if gained > 0 or first then T.Save("skill_levels", { v = 1, high = D.skillHigh }) end
+end
+
+-- ShroudOnDeathChanged: one more death today and this session.
+function D.OnDeath(isDead)
+  if isDead ~= true then return end
+  if D.day then
+    D.day.deaths = D.day.deaths + 1
+    changed()
+  end
+  if T.session then
+    T.session.deaths = (T.session.deaths or 0) + 1
+    T.unsaved = true
+  end
 end
 
 function D.OnItems(items, dropped)
@@ -585,6 +675,8 @@ local LINES = {
   { id = "kills", label = "Kills", tooltip = "Kills by you or your pet today, from combat chat" },
   { id = "adv", label = "Adventurer XP" },
   { id = "prod", label = "Producer XP" },
+  { id = "skills", label = "Skill levels", tooltip = "Skill levels gained today (trained levels, not scene caps)" },
+  { id = "deaths", label = "Deaths", tooltip = "Times you died today" },
 }
 local TEXT_IDS = { "date" }
 for _, line in ipairs(LINES) do
@@ -605,7 +697,7 @@ local function build()
   for _, spec in ipairs(LINES) do rows[#rows + 1] = row(spec) end
   win = UI.Window{
     id = WINDOW_ID, title = "Today",
-    width = 200, height = 130, minWidth = 150, minHeight = 50,
+    width = 200, height = 170, minWidth = 150, minHeight = 50,
     x = prefs.x or T.Window.DEFAULT_X, y = prefs.y or T.Window.DEFAULT_Y,   -- never nil in a spec
     escCloses = true,
     onClose = function()
@@ -780,4 +872,6 @@ function D.Refresh()
   T.SetText(e.kills, T.FormatNumber(D.day.kills))
   T.SetText(e.adv, T.FormatNumber(D.XPToday(D.day, "a")))
   T.SetText(e.prod, T.FormatNumber(D.XPToday(D.day, "p")))
+  T.SetText(e.skills, T.FormatNumber(D.day.skills))
+  T.SetText(e.deaths, T.FormatNumber(D.day.deaths))
 end

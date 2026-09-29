@@ -18,6 +18,7 @@ local CALLBACKS = {
   "ShroudOnStart", "ShroudOnUpdate", "ShroudOnExperienceGain", "ShroudOnExperienceChanged",
   "ShroudOnLogOut", "ShroudOnDisableScript", "ShroudOnSceneLoaded", "ShroudOnSceneUnloaded",
   "ShroudOnSocialChanged", "ShroudOnHttpResponse", "ShroudOnGuildMotdChanged", "ShroudOnTargetChanged",
+  "ShroudOnSkillsChanged", "ShroudOnDeathChanged",
 }
 
 local function copy(v)
@@ -217,6 +218,11 @@ local function install_api()
   -- effects = { { name, remaining, total, icon, debuff, category, tooltip } } }. Sentinels as documented.
   local function tg() return S.char.present and S.target or nil end
   local function teff(i) local t = tg(); return t and t.effects and t.effects[i + 1] or nil end
+  -- Skills (H.S.skills, set by H.setSkills): { { id, key, name, trainedLevel, level }, ... }; nil = not loaded.
+  ShroudGetSkills = function()
+    if not S.char.present or not S.skills then return nil end
+    return copy(S.skills)
+  end
   ShroudHasTarget = function() return tg() ~= nil end
   ShroudGetTargetName = function() local t = tg(); return t and t.name or "None" end
   ShroudGetTargetId = function() local t = tg(); return t and t.id or -1 end
@@ -1040,6 +1046,24 @@ function H.setTarget(t)
   return H.callback("ShroudOnTargetChanged", t and t.id or -1, t and t.name or "")
 end
 function H.targetFrame() return S.frames.toolbox_target end
+
+-- The skills sheet changes (levels, when levelsChanged isn't false) and ShroudOnSkillsChanged fires.
+-- Entries: { key = "Fireball", trainedLevel = 40 } (id and name filled in).
+function H.setSkills(list, levelsChanged)
+  for i, sk in ipairs(list or {}) do
+    sk.id = sk.id or i
+    sk.name = sk.name or sk.key
+    sk.level = sk.level or sk.trainedLevel
+  end
+  S.skills = list
+  return H.callback("ShroudOnSkillsChanged", levelsChanged ~= false)
+end
+
+-- You die (true) or are resurrected (false): ShroudOnDeathChanged.
+function H.setDead(dead)
+  S.char.dead = dead == true
+  return H.callback("ShroudOnDeathChanged", dead == true)
+end
 -- The target row (own strip, or in the Toolbelt).
 function H.targetRow()
   for _, id in ipairs({ "toolbox_target", "toolbox_buffs", "toolbox_hud" }) do

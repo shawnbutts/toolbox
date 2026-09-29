@@ -1783,6 +1783,7 @@ function ShroudOnStart()
   step("the health bars", T.Vitals.Tick)
   step("the equipment bar", function() T.Gear.Poll(true) end)
   step("the target HUD", function() T.Target.Poll(true) end)
+  step("skill levels", function() T.Daily.OnSkills(true) end)
   ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
   T.Welcome()                        -- first run only: a chat line and the settings window
   step("notifications", T.Notify.Check)   -- anything new: the guild message, mail, ...
@@ -1827,6 +1828,16 @@ function ShroudOnSceneLoaded(_)
 end
 
 -- Guild or friends changed (twice a second at most): maybe a new guild message of the day.
+-- A skill was learned, gained or lost a level (levelsChanged), or only gained experience.
+function ShroudOnSkillsChanged(levelsChanged)
+  T.Daily.OnSkills(levelsChanged)
+end
+
+-- You died (true) or are alive again (false).
+function ShroudOnDeathChanged(isDead)
+  T.Daily.OnDeath(isDead)
+end
+
 -- The target the game's target frame shows changed (a new one, or none).
 function ShroudOnTargetChanged()
   T.Target.OnTargetChanged()

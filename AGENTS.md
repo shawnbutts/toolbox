@@ -412,6 +412,7 @@ including the "no character" sentinel.
 | `consumables` | `{ show = bool (default true), glue = bool, extra = { name parts, <= 20 }, cats = { [category] = true } (absent: defaults), exclude = { name parts } (absent: Scroll, Torch, Bait), max = 1..10 (icons before grouping), combatOnly = bool, x, y }` |
 | `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` (the equipment bar) |
 | `target` | `{ show = bool (default false), glue = bool (default true: the Toolbelt's last row), x, y }` (the target HUD) |
+| `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` (`D.SkillGains`; skills gained today / this session are `daily.skills` / `session.skills`, deaths `daily.deaths` / `session.deaths`) |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts (unversioned ignored) |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
@@ -628,7 +629,9 @@ building, and remember the per-add-on budgets (8 windows, the element-creation c
    `ShroudIsTargetHealthHidden`, `ShroudGetTargetCurrentHealth` / `MaxHealth` (and Focus),
    `ShroudGetTargetBuff*` (may be userdata like the player's list: read through `T.Field`),
    `ShroudOnTargetChanged`.
-2. **Skills gained and deaths** in the XP and Today windows: skill levels gained this session / today
+2. **Skills gained and deaths**: BUILT 2026-09-29 (daily.lua `D.OnSkills` / `D.OnDeath`, from core's
+   `ShroudOnSkillsChanged` / `ShroudOnDeathChanged`; Today rows, XP Detailed `session_extra`). Was: in the XP and
+   Today windows: skill levels gained this session / today
    (`ShroudGetSkills`, `ShroudOnSkillsChanged`) and deaths (`ShroudOnDeathChanged(isDead)`).
 3. **Gear durability alert**: BUILT 2026-09-28 (`Toolbox.Gear` in buffbar.lua), with an equipment
    bar. Owner's choices: warn below 20% (setting), warn again when broken, the bar shows only items

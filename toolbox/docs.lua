@@ -42,8 +42,9 @@ D.SECTIONS = {
   { "XP",
     "XP (/toolbox xp): session time, your adventurer and producer pools, and the XP you earned "
       .. "in the last hour. Rest the pointer on it and XP Detailed pops up.",
-    "XP Detailed (/toolbox xpdetailed): per track, XP gained, XP per hour (session and last "
-      .. "10 minutes), level, progress, XP needed and time to the next level, and a Reset button. "
+    "XP Detailed (/toolbox xpdetailed): skill levels gained and deaths this session, then per track, XP "
+      .. "gained, XP per hour (session and last 10 minutes), level, progress, XP needed and time to the next "
+      .. "level, and a Reset button. "
       .. "A session starts when you log in or press Reset, and survives /lua reload.",
     "Smaller: /toolbox xp hud (or XP window: HUD strip in settings) shows the XP window as a HUD strip, "
       .. "with no title bar or frame. Move it by its grip or /toolbox xp move <x> <y>; hovering still "
@@ -52,9 +53,10 @@ D.SECTIONS = {
     "XP Detailed shows the last hour under each track as columns: XP gained in each 2-minute slice, "
       .. "tallest for your best stretch, with that best rate per hour beneath." },
   { "Today",
-    "Today (/toolbox daily): gold picked up, kills by you or your pet, and adventurer and "
-      .. "producer XP since midnight. Rest the pointer on it for Today Detailed: every item that "
-      .. "arrived in your bags today, with counts.",
+    "Today (/toolbox daily): gold picked up, kills by you or your pet, adventurer and producer XP, skill "
+      .. "levels gained and deaths since midnight. A skill level counts when a skill's trained level passes "
+      .. "the highest it has been (so unlearning and relearning doesn't count twice). Rest the pointer on "
+      .. "it for Today Detailed: every item that arrived in your bags today, with counts.",
     "Today Detailed's Show dropdown: Looted (what you picked up; what you crafted or gathered is left "
       .. "out unless you tick Include crafted and gathered items in settings, or /toolbox dd include on), "
       .. "Crafted (/toolbox crafted: the items you took off crafting stations, your crafts per recipe with "

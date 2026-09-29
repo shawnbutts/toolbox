@@ -27,7 +27,7 @@ end
 
 -- Labels whose size and line height follow prefs.font / prefs.spacing (the Reset
 -- button follows the font only).
-local TEXT_IDS = { "elapsed" }
+local TEXT_IDS = { "elapsed", "session_extra" }
 for _, track in ipairs(T.XP.TRACKS) do
   for _, suffix in ipairs({ "_head", "_gain", "_eta", "_chart_note" }) do
     TEXT_IDS[#TEXT_IDS + 1] = track.key .. suffix
@@ -148,7 +148,9 @@ end
 
 local function build()
   local f = fontSize()
-  local rows = {}
+  local rows = { UI.Label{ id = "session_extra", text = "", class = "dim",
+    tooltip = "Skill levels gained (trained levels) and deaths this session",
+    style = W.TextStyle{ paddingLeft = W.GUTTER, paddingRight = W.GUTTER } } }
   for _, track in ipairs(T.XP.TRACKS) do rows[#rows + 1] = trackRows(track) end
 
   win = UI.Window{
@@ -433,6 +435,12 @@ function W.NextLevelText(progress, ratePerHour)
   return "Next level: --"
 end
 
+-- "Skill levels +3, deaths 1" for the session (pure).
+function W.SessionExtra(s)
+  local skills, deaths = s.skills or 0, s.deaths or 0
+  return "Skill levels +" .. T.FormatNumber(skills) .. ", deaths " .. T.FormatNumber(deaths)
+end
+
 function W.Refresh()
   if not W.IsShown() then return end
   local s = T.session
@@ -442,6 +450,7 @@ function W.Refresh()
   end
   local now = T.Now()
   T.SetText(el.elapsed, "Session " .. T.FormatDuration(T.XP.Elapsed(s, now)))
+  T.SetText(el.session_extra, W.SessionExtra(s))
 
   local progress = ShroudGetLevelProgress()
   for _, track in ipairs(T.XP.TRACKS) do

@@ -6,6 +6,9 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
+- Skill levels gained and deaths: two new lines in the Today window (since midnight) and one in XP Detailed
+  (this session). A level counts when a skill's trained level passes the highest it has been, so a scene's
+  skill cap, or unlearning and relearning, doesn't count.
 - Target HUD (`/toolbox target on`, or settings: Toolbelt, Target): your target's name, health and focus as
   thin bars, and its effects as icons with the time left as a sweep, debuffs first. As the game's target
   frame shows it ("health hidden" for creatures that hide it). Joins the Toolbelt as its last row, or has

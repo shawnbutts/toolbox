@@ -63,13 +63,15 @@ it, and again when it breaks.
 ## XP
 
 The **XP** window shows the session time, your adventurer and producer pools, and the XP you earned in
-the last hour. Rest the pointer on it and **XP Detailed** pops up with XP this session, XP per hour
+the last hour. Rest the pointer on it and **XP Detailed** pops up with skill levels gained and deaths this
+session, XP this session, XP per hour
 (session and last 10 minutes), your level and progress, the time to your next level, and a chart of the
 last hour. Sessions survive `/lua reload`.
 
 ## Today
 
-Gold picked up, kills, and adventurer and producer XP gained today (resets at local midnight). Rest the
+Gold picked up, kills, adventurer and producer XP, skill levels gained and deaths today (resets at local
+midnight). Rest the
 pointer on it and **Today Detailed** lists every item you gained today, as **Looted**, **Crafted** (with
 crafts per recipe, exceptional and failed, and materials used) or **Gathered** (nodes and harvests).
 
