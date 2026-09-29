@@ -90,6 +90,9 @@ D.SECTIONS = {
       .. "longer than) or with /toolbox buffs group after 30 (minutes; off turns it off). To always group "
       .. "a buff, add part of its name: /toolbox buffs group add <name> (remove <name> takes it off; "
       .. "/toolbox buffs debug shows buffs' names).",
+    "Show seconds left near the end (settings, or /toolbox buffs countdown on) puts the whole seconds "
+      .. "over an icon in its last 30 seconds (or what you choose, /toolbox buffs countdown 10), on the "
+      .. "buff, debuff and consumable icons.",
     "Only during combat (settings, or /toolbox buffs combat on|off) shows the bar only while you're "
       .. "in combat and for a few seconds after, so it can sit in your line of sight without being in "
       .. "the way. It also shows while the settings window is open, so you can place it. It's the "

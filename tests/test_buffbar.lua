@@ -1645,5 +1645,65 @@ return function(t)
     H.chat("/tbx config")
     t.eq(H.config():Find("buff_cat_Blessing").enabled, false)
   end)
+
+  -- seconds left near the end ------------------------------------------------------------
+
+  t.test("seconds left: off by default; when on, shown in the last N seconds, counting down", function()
+    bootSettled()
+    H.S.durationMode = "remaining"
+    H.chat("/tbx buffs")
+    H.addBuffs({ { name = "Ward", remaining = 25, icon = 9 },
+                 { name = "Bleed", remaining = 8, icon = 6, debuff = true } })
+    H.advance(1, 0.5)
+    local function cd(row, i) local slot = H.slots(row)[i]; return slot and slot.children[3] end
+    t.eq(cd("buffs", 1).visible, false, "off by default")
+    H.chat("/tbx buffs countdown on")
+    H.chat("/tbx buffs countdown 10")
+    t.eq(H.saved("buffbar").countdown, true)
+    t.eq(H.saved("buffbar").countdownSecs, 10)
+    H.advance(1, 0.5)
+    t.eq(cd("buffs", 1).visible, false, "23 s left: not yet")
+    t.eq(cd("debuffs", 1).visible, true, "debuffs too")
+    H.advance(13, 0.5)
+    t.eq(cd("buffs", 1).visible, true)
+    t.eq(cd("buffs", 1).text, "10")
+    local sets, set = 0, cd("buffs", 1).SetText
+    cd("buffs", 1).SetText = function(self, ...) sets = sets + 1; return set(self, ...) end
+    H.advance(4, 0.5)
+    t.eq(cd("buffs", 1).text, "6")
+    t.ok(sets <= 5, "only when the number changes: " .. sets)
+    cd("buffs", 1).SetText = nil
+    H.clearLogs()
+    H.chat("/tbx buffs countdown 200")
+    t.ok(H.logged("5%-120"))
+  end)
+
+  t.test("seconds left: on the consumables bar too, and gone when the buff ends", function()
+    bootSettled()
+    H.S.durationMode = "remaining"
+    H.chat("/tbx buffs countdown on")
+    H.addBuffs({ { name = "RuneFood_Pie", remaining = 12, total = 14544, icon = 46 } })
+    H.advance(1, 0.5)
+    local slot = H.S.frames.toolbox_consumables:Find("consumables").children[1]
+    t.eq(slot.children[3].visible, true)
+    t.eq(slot.children[3].text, "11")
+    H.advance(15, 0.5)
+    t.eq(slot.visible, false, "the pie ran out")
+    H.addBuffs({ { name = "RuneFood_Stew", remaining = 600, total = 14544, icon = 47 } })
+    H.chat("/tbx buffs group after off")
+    H.advance(1, 0.5)
+    t.eq(slot.children[3].visible, false, "the next one in the slot starts without a number")
+  end)
+
+  t.test("settings: the seconds-left option", function()
+    H.boot()
+    H.chat("/tbx buffs")
+    H.chat("/tbx config")
+    t.eq(H.config():Find("buff_countdown_secs").enabled, false, "greyed while off")
+    H.change("toolbox_config", "buff_countdown", true)
+    t.ok(Toolbox.BuffBar.GetCountdown())
+    H.change("toolbox_config", "buff_countdown_secs", 45)
+    t.eq(Toolbox.BuffBar.GetCountdownSeconds(), 45)
+  end)
 end
 

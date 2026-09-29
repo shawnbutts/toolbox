@@ -661,23 +661,6 @@ local function fitFrame(buffsShown, debuffsShown)
   T.Hud.Refresh()
 end
 
-local function makeSlot(debuff)
-  local s = size()
-  -- The clock texture is a placeholder until a buff's icon is set. It's left out, not set to
-  -- nil, when it didn't load: the game's Lua passes a nil entry on to the UI.
-  local slotRef = {}
-  local iconSpec = { width = s, height = s,  -- an Image only takes the pointer (tooltip) with a click handler
-    onClick = function() clickSlot(slotRef) end }
-  if clockTex >= 0 then iconSpec.texture = clockTex end
-  local icon = UI.Image(iconSpec)
-  local overlay = BB.SweepHolder(s)
-  local slot = UI.Row{ visible = false, children = { icon, overlay },
-    style = { width = s, height = s, marginRight = BB.GAP, backgroundColor = "#00000066",
-              borderWidth = debuff and 2 or 0, borderColor = "@red" } }
-  slotRef.row, slotRef.icon, slotRef.overlay, slotRef.used = slot, icon, overlay, false
-  return slotRef
-end
-
 -- The count text's size for an icon of s pixels.
 local function countFont(s) return math.max(9, math.min(32, math.floor(s * 0.5))) end
 
@@ -697,6 +680,25 @@ local function countStyle(s, f, dx, dy)
            marginTop = 0, marginBottom = 0, paddingTop = math.max(0, top + dy),
            paddingLeft = dx > 0 and 2 * dx or 0, paddingRight = dx < 0 and -2 * dx or 0,
            fontSize = f, fontStyle = "bold", textAlign = "center" }
+end
+
+local function makeSlot(debuff)
+  local s = size()
+  -- The clock texture is a placeholder until a buff's icon is set. It's left out, not set to
+  -- nil, when it didn't load: the game's Lua passes a nil entry on to the UI.
+  local slotRef = {}
+  local iconSpec = { width = s, height = s,  -- an Image only takes the pointer (tooltip) with a click handler
+    onClick = function() clickSlot(slotRef) end }
+  if clockTex >= 0 then iconSpec.texture = clockTex end
+  local icon = UI.Image(iconSpec)
+  local overlay = BB.SweepHolder(s)
+  -- seconds left near the end (BB.GetCountdown), over the icon like the group slot's count
+  local countdown = UI.Label{ text = "", class = "bright", visible = false, style = countStyle(s, countFont(s), 0, 0) }
+  local slot = UI.Row{ visible = false, children = { icon, overlay, countdown },
+    style = { width = s, height = s, marginRight = BB.GAP, backgroundColor = "#00000066",
+              borderWidth = debuff and 2 or 0, borderColor = "@red" } }
+  slotRef.row, slotRef.icon, slotRef.overlay, slotRef.countdown, slotRef.used = slot, icon, overlay, countdown, false
+  return slotRef
 end
 
 local function makeGroupSlot()
@@ -774,6 +776,8 @@ local pendingSweeps = {}      -- slots whose sweep needs a new frame (see drawSw
 
 local function resetSlot(slot)
   BB.HideFrame(slot)
+  if slot.countdown and slot.cd ~= nil and slot.cd ~= "" then slot.countdown:SetVisible(false) end
+  slot.cd = nil
   slot.wantK, slot.wantWarn = nil, nil
   if slot.blink ~= false then slot.row:SetStyle{ borderWidth = 0 } end
   slot.k, slot.warn, slot.blink, slot.tip = nil, nil, false, nil
@@ -1016,6 +1020,19 @@ local function fill(slot, e, fraction, warn, flash)
     local tip = (raw ~= "" and raw) or e.name
     if dismiss then tip = tip .. "\nClick to dismiss" end
     slot.icon:SetTooltip(tip)
+  end
+  -- seconds left, in the last BB.GetCountdownSeconds() (whole seconds; only redrawn when the number changes)
+  if slot.countdown then
+    local cd = ""
+    local left = e.remaining
+    if prefs.countdown and type(left) == "number" and left > 0 and left <= BB.GetCountdownSeconds() then
+      cd = tostring(math.ceil(left))
+    end
+    if cd ~= slot.cd then
+      if (cd ~= "") ~= (slot.cd ~= nil and slot.cd ~= "") then slot.countdown:SetVisible(cd ~= "") end
+      if cd ~= "" then slot.countdown:SetText(cd) end
+      slot.cd = cd
+    end
   end
   local k = fraction and BB.Frame(fraction) or nil
   warn = warn == true
@@ -1428,6 +1445,11 @@ function BB.Init()
     prefs.clickDismiss = saved.clickDismiss == true
     prefs.combatOnly = saved.combatOnly == true
     prefs.flash = saved.flash ~= false
+    prefs.countdown = saved.countdown == true
+    local cds = saved.countdownSecs
+    if type(cds) == "number" and cds == math.floor(cds) and cds >= BB.COUNTDOWN_MIN and cds <= BB.COUNTDOWN_MAX then
+      prefs.countdownSecs = cds
+    end
     if type(saved.groupCats) == "table" then
       prefs.groupCats = {}
       for k, v in pairs(saved.groupCats) do
@@ -1544,6 +1566,7 @@ function BB.SetSize(n)
         slot.row:SetStyle{ width = n, height = n }
         slot.icon:SetSize(n, n)
         slot.overlay:SetStyle{ width = n, height = n, marginLeft = -n }
+        if slot.countdown then slot.countdown:SetStyle(countStyle(n, countFont(n), 0, 0)) end
         slot.k = nil                           -- redraw the sweep at the new size
       end
     end
@@ -1662,6 +1685,28 @@ function BB.RemoveGroupPart(part)
 end
 
 function BB.GetGroupAfter() return prefs.groupAfter or BB.GROUP_AFTER_DEFAULT end
+
+-- Seconds left shown on an icon in its last BB.GetCountdownSeconds() (off by default; owner, 2026-09-29).
+BB.COUNTDOWN_MIN, BB.COUNTDOWN_MAX, BB.COUNTDOWN_DEFAULT = 5, 120, 30
+
+function BB.GetCountdown() return prefs.countdown == true end
+function BB.GetCountdownSeconds() return prefs.countdownSecs or BB.COUNTDOWN_DEFAULT end
+
+function BB.SetCountdown(on)
+  prefs.countdown = on == true
+  savePrefs()
+  if content then BB.Tick() end
+  T.Config.Sync()
+end
+
+function BB.SetCountdownSeconds(n)
+  if type(n) ~= "number" or n ~= math.floor(n) or n < BB.COUNTDOWN_MIN or n > BB.COUNTDOWN_MAX then return false end
+  prefs.countdownSecs = n
+  savePrefs()
+  if content then BB.Tick() end
+  T.Config.Sync()
+  return true
+end
 
 -- Categories always grouped (API 23 buff categories; none by default), whatever their time left.
 function BB.GetGroupCategory(key) return prefs.groupCats ~= nil and prefs.groupCats[key] == true end

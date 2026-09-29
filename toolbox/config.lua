@@ -220,6 +220,12 @@ function C.BuffBarSection()
       onChange = function(_, v) B.SetFlash(v) end },
     UI.Toggle{ id = "debuff_alert", text = "Sound when a debuff lands", value = B.GetDebuffAlert(),
       onChange = function(_, v) B.SetDebuffAlert(v) end },
+    UI.Toggle{ id = "buff_countdown", text = "Show seconds left near the end", value = B.GetCountdown(),
+      style = { marginTop = 6 }, tooltip = "Whole seconds over the icon of a buff, debuff or consumable about to run"
+        .. " out (the sweep also shows it)",
+      onChange = function(_, v) B.SetCountdown(v) end },
+    slider("buff_countdown_secs", "In the last (seconds)", B.COUNTDOWN_MIN, B.COUNTDOWN_MAX, 5,
+      B.GetCountdownSeconds(), "How long before the end the seconds appear", function(n) B.SetCountdownSeconds(n) end),
     heading("Grouping"),
     dropdownRow("Group buffs lasting longer than", { id = "buff_group_after", choices = C.GroupAfterLabels(),
       value = B.GroupAfterLabel(B.GetGroupAfter()) or "15 minutes",
@@ -488,7 +494,8 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "vitals_flash_test", "show_combat", "combat_detail", "combat_detail_hover", "combat_pet", "combat_scale",
   "combat_scale_value", "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "combat_stats",
   "nhud_hide", "volume", "volume_value", "hud_summary", "vitals_glue", "consumables_glue", "gear_glue",
-  "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value" }
+  "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
+  "buff_countdown_secs_value" }
 for _, def in ipairs(T.Sounds.DEFS) do
   ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_status"
   ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_path"
@@ -716,6 +723,9 @@ function C.Sync()
   sliderValue("expire_seconds", B.GetExpireSeconds())
   setValue("buff_flash", B.GetFlash())
   setValue("debuff_alert", B.GetDebuffAlert())
+  setValue("buff_countdown", B.GetCountdown())
+  sliderValue("buff_countdown_secs", B.GetCountdownSeconds())
+  setEnabled("buff_countdown_secs", B.GetCountdown())
   setValue("buff_group_after", B.GroupAfterLabel(B.GetGroupAfter()) or "15 minutes")
   local parts = B.GroupParts()
   setText("buff_group", "Also grouped by name: " .. (#parts > 0 and table.concat(parts, ", ") or "none")

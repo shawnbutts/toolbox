@@ -17,6 +17,9 @@ store submission needs a higher version than any submitted before (rejected ones
   element limit): a strip that is rebuilt or removed now lets go of its old elements at once.
 
 ### Added
+- "Show seconds left near the end" (Buffs settings, or `/toolbox buffs countdown on|off|<seconds>`):
+  whole seconds over the icon of a buff, debuff or consumable in its last 30 seconds (5-120). Off by
+  default.
 - Buff bar: "Always group these kinds" (Buffs settings, or `/toolbox buffs group cat <Category> on|off`)
   puts every buff of a category into the group slot, whatever its time left, e.g. Blessings.
 - The Toolbelt: the buff bar with your health, focus and Vigor bars, consumables bar and equipment bar
