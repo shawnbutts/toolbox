@@ -2,8 +2,8 @@ Toolbox beta: install and testing guide
 =======================================
 
 Thanks for testing Toolbox! It's a Shroud of the Avatar add-on. Its headline is the Toolbelt: your
-buffs and debuffs, health, focus and Vigor, food and potions, and gear needing repair in one strip you
-can put anywhere. Around it: XP windows, today's loot, crafting and gathering, a combat stats HUD and
+buffs and debuffs, health, focus and Vigor, food and potions, gear needing repair and your target in one
+strip you can put anywhere. Around it: XP windows, today's loot, crafting and gathering, a combat stats HUD and
 notifications. This is a beta: please tell us what breaks.
 
 You need a game client with Lua add-on API 23 or newer (older clients skip Toolbox with a chat line
@@ -81,6 +81,18 @@ row under "Keys".
 --------------
 
 Anything you like, but especially what's new in this beta (/tbx version lists it all):
+  * Target HUD (settings, Toolbelt: Target "In Toolbelt", or /tbx target on): your target's health,
+    focus and effects. Try each "Target row" place: Above the buffs (the default), Under everything,
+    and Left of your bars (mirrored). Do its bars line up with yours? On the left, do its bars fill from
+    the right? Mirrored and above keep their space with no target (so nothing jumps); on the left that is
+    a blank area between the grip and your bars, labelled "Target" while settings are open.
+    /tbx target debug shows what the game reports (odd creature names especially).
+  * Skill levels gained and deaths: two new lines in Today, one in XP Detailed. Train a skill, die once:
+    do they count?
+  * Notifications: friends coming online (a chat line), guild members (off by default), and a chat or
+    "+ sound" choice for every notification (settings, Notifications). /tbx sounds test plays the new
+    chime. A new guild message of the day should show at once.
+From beta 6:
   * The Toolbelt page (the first page of settings): turn on the Toolbelt and put each bar In Toolbelt.
     Does it come together as one strip you can move by its grip? Try "Only during combat".
   * Crafting and gathering: Today Detailed's "Show" dropdown switches between Looted, Crafted and
@@ -152,6 +164,11 @@ From beta 3:
     step, at most 8 a second for all sweeps together. With many short buffs at once some sweeps may
     step a little later than others. (Reported to the game's developers.)
   * The settings window is wider now; if the game remembered its old width, drag it wider once.
+  * Target HUD: the game doesn't say who applied an effect, so it lists every effect on your target,
+    not only yours. Some creatures have no display name in the game; Toolbox tidies the game's
+    "Entity with no name (...)" text (reported to the developers).
+  * Toolbox can show 8 HUD strips at once (a game limit). With everything on its own strip, the last
+    one says so in chat: put some bars in the Toolbelt.
   * Crafted counts: on this game client (API 23) what you made is counted when you take it off the
     crafting table, matched by name to the recipes you crafted today. A product named differently from
     its recipe may show under "Also off stations". The next game update (API 24) tells add-ons exactly

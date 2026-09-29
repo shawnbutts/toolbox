@@ -5,20 +5,7 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
-### Changed
-- Target HUD in the Toolbelt: no text (the name and numbers are in the tooltip); the health and focus bars
-  are the same length and thickness as your own (the health bars' Size and Bar length). With your health
-  bars in the Toolbelt too, the target runs under the whole Toolbelt: its bars start where yours do and
-  its icons line up with your buffs. It sits above the buffs by default (its space is kept when you have
-  no target, so the buffs don't jump), under everything, or mirrored to the left of your health bars (its
-  bars fill from the right, level with yours: its rows copy your health bars' rows as the game lays them
-  out; up to 5 icons outward; its space is kept, so there is a transparent blank area between the grip
-  and your bars, labelled "Target" while settings are open): settings
-  (Toolbelt, Target row) or `/toolbox target place top|bottom|left`. On its own strip it keeps the name and percent.
-
-### Fixed
-- Target HUD: creatures the game has no display name for (it reports "Entity with no name (Stag_04_Large(Clone))")
-  show a readable name ("Stag Large"); the game's text is in the tooltip.
+## [0.6.0] - 2026-09-29 (beta 7)
 
 ### Added
 - Notifications for friends coming online (on, as a chat line) and guild members coming online (off by
@@ -26,10 +13,19 @@ store submission needs a higher version than any submitted before (rejected ones
 - Skill levels gained and deaths: two new lines in the Today window (since midnight) and one in XP Detailed
   (this session). A level counts when a skill's trained level passes the highest it has been, so a scene's
   skill cap, or unlearning and relearning, doesn't count.
-- Target HUD (`/toolbox target on`, or settings: Toolbelt, Target): your target's name, health and focus as
-  thin bars, and its effects as icons with the time left as a sweep, debuffs first. As the game's target
-  frame shows it ("health hidden" for creatures that hide it). Joins the Toolbelt as its last row, or has
-  its own strip. Off by default.
+- Target HUD (`/toolbox target on`, or settings: Toolbelt, Target; off by default): your target's health
+  and focus as bars and its effects as icons with the time left as a sweep, debuffs first, as the game's
+  target frame shows it ("health hidden" for creatures that hide it). In the Toolbelt it has no text (the
+  name and numbers are in the tooltip) and its bars are the same size as yours (the health bars' Size and
+  Bar length). Where it goes (settings, Toolbelt, Target row, or `/toolbox target place top|bottom|left`):
+  above the buffs (the default), under everything, or mirrored to the left of your health bars (its bars
+  fill from the right, level with yours; up to 5 icons outward). With your health bars in the Toolbelt,
+  above and under run across the whole Toolbelt: its bars start where yours do and its icons line up with
+  your buffs. Above and on the left its space is kept with no target, so your bars and buffs don't jump
+  when you pick one up; on the left that is a transparent blank area between the grip and your bars,
+  labelled "Target" while settings are open. On its own strip it shows the name and percent. Creatures the
+  game gives no display name ("Entity with no name (Stag_04_Large(Clone))") show a readable one ("Stag
+  Large").
 - Toolbox can show at most 8 HUD strips at once (a game limit); a strip past that now says so in chat
   instead of failing.
 - Notifications can also go to chat, and each can play a sound (a new rising chime, `notify.ogg`, replaceable
