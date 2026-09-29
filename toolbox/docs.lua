@@ -170,27 +170,84 @@ function D.CommandLines()
   return lines
 end
 
-local function build()
-  local children = {}
+-- The Docs window shows one topic at a time, picked from a dropdown: each guide section, then
+-- Commands. Each is built the first time it's picked (the whole guide was built at once; owner,
+-- 2026-09-29, review item 11).
+D.COMMANDS_TOPIC = "Commands"
+
+-- The topic titles, in dropdown order. Pure.
+function D.Topics()
+  local out = {}
+  for i, section in ipairs(D.SECTIONS) do out[i] = section[1] end
+  out[#out + 1] = D.COMMANDS_TOPIC
+  return out
+end
+
+-- The labels for one topic.
+local function topicLabels(title)
+  local out = { heading(title) }
+  if title == D.COMMANDS_TOPIC then
+    out[#out + 1] = para("/" .. T.commands[1] .. " and /" .. T.commands[2] .. " do the same thing.")
+    for _, line in ipairs(D.CommandLines()) do
+      out[#out + 1] = para(line)    -- same colour as the rest (dim was hard to read)
+    end
+    return out
+  end
   for _, section in ipairs(D.SECTIONS) do
-    children[#children + 1] = heading(section[1])
-    for i = 2, #section do children[#children + 1] = para(section[i]) end
+    if section[1] == title then
+      for k = 2, #section do out[#out + 1] = para(section[k]) end
+    end
   end
-  children[#children + 1] = heading("Commands")
-  children[#children + 1] = para("/" .. T.commands[1] .. " and /" .. T.commands[2] .. " do the same thing.")
-  for _, line in ipairs(D.CommandLines()) do
-    children[#children + 1] = para(line)    -- same colour as the rest (dim was hard to read)
+  return out
+end
+
+local dbody = nil             -- the column the topics are added to
+local dbuilt = {}             -- title -> its column
+
+-- Shows one topic (by title), building it the first time. Returns true when shown.
+function D.ShowTopic(title)
+  if not win then return false end
+  local known = false
+  for _, t in ipairs(D.Topics()) do
+    if t == title then known = true end
   end
+  if not known then return false end
+  if not dbuilt[title] then
+    local ok, col = pcall(function() return dbody:Add(UI.Column{ children = topicLabels(title) }) end)
+    if not ok then
+      T.Print("That part of the guide can't be shown right now; pick it again in a moment.")
+      return false
+    end
+    dbuilt[title] = col
+  end
+  for t, col in pairs(dbuilt) do T.SetVisible(col, t == title) end
+  local pick = win:Find("docs_pick")
+  if pick then pick:SetValue(title) end
+  return true
+end
+
+local function build()
+  local topics = D.Topics()
+  dbody = UI.Column{ id = "docs_body", style = { paddingLeft = GUTTER, paddingRight = GUTTER } }
+  dbuilt = {}
   win = UI.Window{
     id = WINDOW_ID, title = "Toolbox Docs",
     width = 460, height = 520, minWidth = 300, minHeight = 200,
     x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y,
     escCloses = true,
     style = { paddingTop = 6, paddingBottom = 6 },
-    children = { UI.Scroll{ style = { flexGrow = 1 }, children = {
-      UI.Column{ id = "docs_body", style = { paddingLeft = GUTTER, paddingRight = GUTTER }, children = children },
-    } } },
+    children = {
+      UI.Row{ style = { alignItems = "center", paddingLeft = GUTTER, paddingRight = GUTTER, marginBottom = 4 },
+        children = {
+          UI.Label{ text = "Topic", class = "text", style = { flexGrow = 1 } },
+          UI.Dropdown{ id = "docs_pick", choices = topics, value = topics[1],
+            tooltip = "Which part of the guide to show; Commands lists every command",
+            onChange = function(_, title) D.ShowTopic(title) end },
+        } },
+      UI.Scroll{ style = { flexGrow = 1 }, children = { dbody } },
+    },
   }
+  D.ShowTopic(topics[1])
 end
 
 function D.IsShown()

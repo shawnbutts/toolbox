@@ -88,8 +88,19 @@ return function(t)
     local docs = H.S.windows.toolbox_docs
     t.ok(docs:IsShown())
     t.eq(docs.title, "Toolbox Docs")
-    local texts = {}
-    for _, label in ipairs(docs:Find("docs_body").children) do texts[#texts + 1] = label.text end
+    local pick = docs:Find("docs_pick")
+    t.eq(pick.value, "Getting started")
+    t.eq(#docs:Find("docs_body").children, 1, "only the first topic is built when it opens")
+    for _, topic in ipairs(pick.choices) do H.call(function() pick.onChange(pick, topic) end) end
+    t.eq(#docs:Find("docs_body").children, #pick.choices, "each topic built once picked")
+    local texts, labels = {}, {}
+    for _, col in ipairs(docs:Find("docs_body").children) do
+      for _, label in ipairs(col.children) do
+        texts[#texts + 1] = label.text
+        labels[#labels + 1] = label
+      end
+    end
+    t.eq(docs:Find("docs_body").children[1].visible, false, "only the picked topic shows")
     local all = table.concat(texts, "\n")
     for _, heading in ipairs({ "Getting started", "XP", "Today", "Buff bar", "Health, focus & Vigor bars",
                                "Combat stats", "Moving the HUD strips", "Sounds", "Commands" }) do
@@ -100,7 +111,7 @@ return function(t)
     end
     t.ok(all:find("/toolbox xpdetailed (or xpd) - ", 1, true), "aliases shown")
     t.ok(all:find("Lock Status Movement", 1, true), "the HUD lock tip")
-    for _, label in ipairs(docs:Find("docs_body").children) do
+    for _, label in ipairs(labels) do
       t.ok(label.class == "text" or label.class == "heading", "one text colour: " .. label.text)
     end
     H.chat("/tbx docs")
