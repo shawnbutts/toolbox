@@ -1,7 +1,7 @@
 # Toolbox
 
 A Shroud of the Avatar Lua add-on. It needs Lua API 15 (`min_api_version` in the manifest) and uses
-newer functions (up to API 20) when the game client has them. Features:
+newer functions (up to API 24) when the game client has them. Features:
 
 - **Toolbelt**: your buffs and debuffs, health, focus and Vigor, consumables and gear repair in one
   movable strip, optionally only during combat (the buff bar with the other bars joined to it).

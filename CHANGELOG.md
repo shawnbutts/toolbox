@@ -6,6 +6,10 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Changed
+- Listed as "Toolbox: Toolbelt, HUDs, Trackers and more.", with a Support link to the project's page
+  (github.com/shawnbutts/toolbox).
+- The settings window's category dropdown is called Settings (was Show), and Getting started in the Docs
+  mentions the Toolbelt. The Consumables & gear page points to the Toolbelt page for adding its bars.
 - The price site is called SotANET (or by its address, shroudoftheavatar.net) everywhere; the short
   name used before is a different domain.
 - The settings shortcut is suggested as Ctrl+; (the game doesn't use Shift as a modifier, so the old

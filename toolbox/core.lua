@@ -1249,7 +1249,7 @@ end)
 -- 2026-09-27) lag the client (API 20), and a documented crafting/social group was withdrawn,
 -- so ask the game. Names are referenced directly: no lookup by a built name.
 -- The Lua API version the official docs described when this build was made (update with each docs check).
-T.DOCS_API = 23
+T.DOCS_API = 24
 
 function T.ApiLines()
   local function has(f) return type(f) == "function" end
@@ -1298,14 +1298,13 @@ end
 -- ---------------------------------------------------------------------------
 -- Result-event probe (API 18)
 -- ---------------------------------------------------------------------------
--- The craft / gather result events are documented, but not yet seen firing in this client, and
--- the planned Crafted / Gathered Today windows depend on them (and on their item names matching
--- ShroudOnItemsGained's, for the loot window's filter). Until those are built, the events are only
--- recorded here and reported by /toolbox api (and one chat line the first time each fires).
+-- The craft / gather result events feed Today Detailed's Crafted / Gathered views (daily.lua); this
+-- probe also records them for /toolbox api (and one chat line the first time each fires), to check
+-- what a client really sends (it has differed from the docs: `item` before API 24).
 
 T.PROBE_EVENTS = {
   craft = { event = "ShroudOnCraftResults", fields = { "kind", "recipeId", "recipeName", "item", "quantity",
-    "crafted", "exceptional", "failed", "outcome", "experience" } },
+    "crafted", "exceptional", "failed", "made", "outcome", "experience" } },
   gather = { event = "ShroudOnGatherResults", fields = { "node", "failed", "experience" } },
   state = { event = "ShroudOnCraftingStateChanged", fields = { "open", "station", "busy" } },
 }

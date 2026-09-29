@@ -57,7 +57,7 @@ folder: two copies tangle each other. /tbx version says "copies loaded: 1" when 
 
 /toolbox works everywhere /tbx does.
 
-The settings window's "Show" dropdown picks a part to set up:
+The settings window's "Settings" dropdown picks a part to set up:
   * XP & Today: session time, pools, XP in the last hour; gold, kills and XP since midnight. Each
     can be hidden, a window or a HUD strip. Hover them for XP Detailed / Today Detailed.
   * Buffs, Consumables & gear, Health bars, Combat: the HUD strips.
@@ -88,7 +88,7 @@ Anything you like, but especially what's new in this beta (/tbx version lists it
     /tbx gear lists your gear. Do the percentages match the game's tooltips?
   * Vigor: a gold third bar under health and focus (past the level where Vigor applies). Hover it
     for the regen and crit bonuses. Does the percentage match the game's Vigor bar?
-  * The settings window: one part at a time from the "Show" dropdown, a Hidden / Window / HUD strip
+  * The settings window: one part at a time from the "Settings" dropdown, a Hidden / Window / HUD strip
     choice for XP and Today, greyed-out options, and a HUD layout part. Is anything hard to find?
   * The Docs (/tbx help) and version (/tbx version) windows: pick a topic or version from the dropdown.
 From beta 4:

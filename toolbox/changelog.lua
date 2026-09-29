@@ -6,6 +6,8 @@
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "section", "Changed" },
+  { "item", "Listed as \"Toolbox: Toolbelt, HUDs, Trackers and more.\", with a Support link to the project's page (github.com/shawnbutts/toolbox)." },
+  { "item", "The settings window's category dropdown is called Settings (was Show), and Getting started in the Docs mentions the Toolbelt. The Consumables & gear page points to the Toolbelt page for adding its bars." },
   { "item", "The price site is called SotANET (or by its address, shroudoftheavatar.net) everywhere; the short name used before is a different domain." },
   { "item", "The settings shortcut is suggested as Ctrl+; (the game doesn't use Shift as a modifier, so the old Ctrl+Shift+; suggestion couldn't work; a Ctrl+Shift+; set in the add-on manager is recorded as Ctrl+;)." },
   { "section", "Fixed" },

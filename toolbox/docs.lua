@@ -31,8 +31,9 @@ end
 -- { heading, paragraph, paragraph, ... }. Plain text: markup is never interpreted.
 D.SECTIONS = {
   { "Getting started",
-    "Type /toolbox (or /tbx) to open the settings window and tick what you want on screen. Its Show "
-      .. "dropdown picks a category: XP & Today, Buffs, Consumables & gear, Health bars, Combat, "
+    "Type /toolbox (or /tbx) to open the settings window and tick what you want on screen. Its Settings "
+      .. "dropdown picks a category: XP & Today, Toolbelt (the quickest start: your buffs, health bars, "
+      .. "consumables and gear in one strip), Buffs, Consumables & gear, Health bars, Combat, "
       .. "Notifications, Sounds, and HUD layout (what shares a strip, and every strip's position). Options "
       .. "that do nothing while their feature is off are greyed out. Everything is saved per character. "
       .. "/toolbox help opens this guide; /toolbox commands lists the commands in chat.",

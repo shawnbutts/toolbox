@@ -8,7 +8,7 @@ Also regenerates toolbox/changelog.lua from CHANGELOG.md (the add-on can't read 
 in-game changelog is baked in); --check fails when it is out of date.
 
 The rules come from the SotA Lua docs (agent reference, "Packaging" and "Sandbox";
-authoring guide, "Packages vs. flat files"), API version 14. Where the docs leave a
+authoring guide, "Packages vs. flat files"), checked against the docs for API 24. Where the docs leave a
 limit open, this script takes the stricter reading and says so in a comment.
 Standard library only.
 """
@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PACKAGE = ROOT / "toolbox"
 DIST = ROOT / "dist"
 
-CLIENT_API_VERSION = 23  # newest API the docs describe; min_api_version above this cannot load
+CLIENT_API_VERSION = 24  # newest API the docs describe (= Toolbox.DOCS_API); min_api_version above this cannot load
 
 SLUG_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
 # The docs list these "among" the reserved slugs; the full list is not published.
@@ -41,7 +41,7 @@ HOST_RE = re.compile(r"^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z
 
 MANIFEST_KEYS = {
     "manifest_version", "slug", "name", "version", "description", "author", "readme", "icon",
-    "files", "min_api_version", "permissions", "network_hosts", "dependencies",
+    "files", "min_api_version", "permissions", "network_hosts", "dependencies", "support_url",
 }
 FIXED_ENTRIES = {"manifest.json", "icon.png", "README.md"}
 
@@ -164,6 +164,16 @@ def check_manifest(report: Report) -> dict | None:
         if not isinstance(value, str) or not value.strip():
             # Optional for loading, but the store needs a description; keep both filled in.
             report.error(f"manifest: {key} must be a non-empty string")
+
+    # support_url (optional, any API version): https:// + a lower-case public host, no user or port, the
+    # URL characters the agent reference lists, <= 300. An invalid one gets the manifest refused.
+    support = manifest.get("support_url")
+    if support is not None:
+        m = re.match(r"^https://([^/?#]+)([/?#].*)?$", support) if isinstance(support, str) else None
+        if (not m or len(support) > 300 or not HOST_RE.match(m.group(1))
+                or not re.match(r"^[A-Za-z0-9\-._~!$&'()*+,;=:@%/?#]*$", m.group(2) or "")):
+            report.error("manifest: support_url must be https:// and a lower-case host (no user or port), "
+                         "<= 300 characters")
 
     api = manifest.get("min_api_version")
     if type(api) is not int or api < 1:
@@ -356,6 +366,17 @@ def check_site_name(report: Report) -> None:
                 report.error(f"{name}:{lineno}: '{m.group(0)}' is another domain: write SotANET or shroudoftheavatar.net")
 
 
+def check_docs_api(report: Report) -> None:
+    """core.lua's Toolbox.DOCS_API and CLIENT_API_VERSION here both name the API the docs describe."""
+    core = PACKAGE / "core.lua"
+    m = re.search(r"^T\.DOCS_API = (\d+)", core.read_text(encoding="utf-8"), re.M) if core.is_file() else None
+    if not m:
+        report.error("core.lua: no T.DOCS_API line")
+    elif int(m.group(1)) != CLIENT_API_VERSION:
+        report.error(f"core.lua: T.DOCS_API is {m.group(1)} but build.py's CLIENT_API_VERSION is "
+                     f"{CLIENT_API_VERSION}: update both after a docs check")
+
+
 def check_store_readme(report: Report) -> None:
     """The store renders README.md with a simple Markdown reader (seen 2026-09-29 on addons.catnipgames.net):
     a list item's wrapped continuation line becomes a separate paragraph, and tables and [links](...) show as
@@ -533,6 +554,7 @@ def main() -> int:
         check_readme_api(report, manifest)
         check_site_name(report)
         check_store_readme(report)
+        check_docs_api(report)
         check_version_constant(report, manifest)
 
     zip_path = None

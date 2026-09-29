@@ -302,7 +302,7 @@ function C.ConsumablesGearSection()
       tooltip = "Durability at which an item shows on the bar and the \"Gear needs repair\" notification"
         .. " comes (again when it breaks)",
       onChange = function(_, value) G.SetThreshold(tonumber((value:gsub("%%", "")))) end }),
-    UI.Label{ text = "Glue either bar to the buff bar, and place them, under HUD layout.", class = "dim",
+    UI.Label{ text = "Add either bar to the Toolbelt on the Toolbelt page; place them under HUD layout.", class = "dim",
       style = { whiteSpace = "wrap", marginTop = 6 } },
   } }
 end
@@ -601,7 +601,7 @@ local function build()
           UI.Button{ id = "docs", text = "Docs", tooltip = "How everything works, and every command",
             onClick = function() T.Docs.Open() end },
         } },
-        dropdownRow("Show", { id = "category", choices = labels, value = labels[1],
+        dropdownRow("Settings", { id = "category", choices = labels, value = labels[1],
           tooltip = "Which settings to show",
           onChange = function(_, label) C.ShowCategory(label) end }),
       } },

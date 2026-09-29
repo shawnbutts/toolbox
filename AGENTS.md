@@ -410,10 +410,15 @@ Version numbers are single-use in the store, including rejected ones.
 THE STORE PAGE (addons.catnipgames.net, looked at 2026-09-29) is where most players first meet Toolbox:
 - The list is a grid of cards (>= 300 px wide, 3 across on a desktop): icon, **name** (shown in full), author,
   then a description clamped to 3 lines at 0.9rem (about 100-120 characters on a desktop), version, installs.
-- The manifest `name` is "Toolbox: Toolbelt, HUDs, Trackers, etc" (owner, 2026-09-29): the card's only text
+- The manifest `name` is "Toolbox: Toolbelt, HUDs, Trackers and more." (owner, 2026-09-29): the card's only text
   always shown in full, so it sells too (<= 60 characters; wraps to two lines on a desktop card). The add-on is
   still called Toolbox everywhere else; the slug stays `toolbox`. The author shown is taken from the
   submitting account (owner), not from the manifest's `author`.
+- `support_url` = https://github.com/shawnbutts/toolbox (owner): a "Support" line in the Community Addons window.
+  The submit dialog has its own field for it (empty there removes it). `tools/build.py` checks the documented
+  form (https, lower-case host, no user/port, <= 300).
+- `min_api_version`: raise it at a release to what the LIVE client reports (`/toolbox api`), never just to what
+  the docs describe (the docs have run ahead of the client). Keep feature detection either way.
 - That description is NOT ours: "the reviewer writes the one-paragraph description you see on each entry"
   (guide), in its own words ("This addon lets you..."), apparently from the package (README, manifest, code),
   and it mentions what an update fixed. So `toolbox/README.md` opens with the pitch in its first sentence,
@@ -451,6 +456,13 @@ What each version added (from the reference's "Added in API N" notes):
 - **API 22**: package data files: `data_files` in the manifest (<= 16 .json, <= 256 KiB each, needs
   `min_api_version` 22), read with `ShroudLoadData(name)` (works at file top level; JSON null reads as `json.null`,
   whose library is otherwise undocumented, so `Toolbox.JsonDecode` stays). Nothing to use it for yet.
+- **API 23**: buff categories (`RuneEffects.Category`, `ShroudGetBuffCategory`, `ShroudBuffCategories`); used.
+- **API 24** (docs check 2026-09-29): `ShroudOnCraftResults` fixed and extended: `recipeName` = the recipe's name
+  (was "Recipe: ..."), `item` = the product (was the recipe's name; our report), `made` = items produced
+  (crafted = 1, made = 4 for a 4-binding craft; 0 for a failure / salvage), and `items` = everything a CRAFT put
+  out too (products plus leftovers, e.g. an empty vial; was salvage only). `ShroudGetRecipe(id).results` = one
+  successful craft's fixed yield `{ { name, quantity } }` (empty for a rolled result; `result` when exactly one).
+  Products sit on the table until taken, so the result is "the one place to count them" (reference).
 - Also in the docs now: `ShroudFlushSavedVars()` returns false when a write failed or a table passed 256 KB
   (we ignore it; could report it in chat); an optional manifest `support_url` (a store "Support" link, any API
   version; for when the repo is public). The equipment example uses `durability / maxDurability < 0.2`, as
@@ -613,7 +625,12 @@ building, and remember the per-add-on budgets (8 windows, the element-creation c
    counts, the first and last result's fields (userdata-safe, `T.DescribeResult`), the last items gained
    (`T.ProbeItems`) and whether the last craft's item name is among them. Pending: the owner's run in game
    (craft, harvest, open a station). Replace the probe with the real feature once the events are confirmed.
-9. **CI**: `tools/check.py` on Linux, macOS and Windows (and `--container`) for every push and pull
+9. **Combat stat picker in settings** (AGREED for a future release, owner 2026-09-29; a nice-to-have, after the
+   first public release): today choosing the combat HUD's stats is chat-only (`/toolbox stats <word>`, then
+   `/toolbox combat stat add <Name>`). In the Combat category: the chosen stats listed, a text field for part
+   of a stat name, a dropdown of matching stats (the `/toolbox stats` search), Add and Remove (like
+   `C.NameList`). Keep the chat commands.
+10. **CI**: `tools/check.py` on Linux, macOS and Windows (and `--container`) for every push and pull
    request, once the public repo's host is chosen (GitHub Actions and Forgejo/Gitea Actions are nearly
    the same format).
 
