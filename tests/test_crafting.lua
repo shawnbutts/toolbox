@@ -104,19 +104,87 @@ return function(t)
     t.eq(next(day().gathered), nil)
   end)
 
-  t.test("items gained while a crafting window is open count as made", function()
+  t.test("off a station: named like a crafted recipe is made; anything else is kept apart", function()
     H.boot()
+    H.craftResults({ craft("Crimson Pine Binding (Milling)", 1) })
     H.craftingState({ open = true, station = "Milling Station +5", busy = false })
-    H.items({ { "Crimson Pine Board", 2 } })
+    H.items({ { "Crimson Pine Binding", 4 }, { "Crimson Pine Timber", 3 }, { "Wax", 1 } })   -- product + materials back
     H.craftingState({ open = false, station = "", busy = false })
     H.items({ { "Wolf Pelt", 1 } })
-    t.eq(day().crafted["Crimson Pine Board"], 2)
-    t.eq(day().crafted["Wolf Pelt"], nil)
-    t.eq(day().items["Crimson Pine Board"], 2, "still in the day's items (for Include)")
+    t.eq(day().crafted["Crimson Pine Binding"], 4, "the product (recipe name + station in brackets)")
+    t.eq(day().crafted["Crimson Pine Timber"], nil, "a material taken back isn't made")
+    t.eq(day().station["Crimson Pine Timber"], 3)
+    t.eq(day().station["Wax"], 1)
+    t.eq(day().station["Wolf Pelt"], nil, "not at a station")
+    t.eq(D().Looted(day(), "Crimson Pine Timber"), 0, "and not loot either")
+    t.eq(day().items["Crimson Pine Board"], nil)
+  end)
+
+  t.test("a reload at a station reads the crafting window's state", function()
+    H.boot()
+    H.craftResults({ craft("Iron Ingot", 5) })
+    H.advance(1)                                             -- saved with the next tick
     H.S.craftingState = { open = true, station = "Smelter", busy = false }
-    H.reload()                                               -- a reload at a station: read at start
+    H.reload()
     H.items({ { "Iron Ingot", 5 } })
     t.eq(day().crafted["Iron Ingot"], 5)
+  end)
+
+  t.test("once the client names the product in `item`, that name counts as made", function()
+    H.boot()
+    local r = craft("Crimson Pine Binding (Milling)", 1)
+    r.item = "Crimson Pine Binding Kit"                      -- a product not named like its recipe
+    H.craftResults({ r })
+    t.ok(day().products["Crimson Pine Binding Kit"])
+    H.craftResults({ craft("Crimson Pine Board", 1) })       -- as today: item = "Recipe: ...", not a product
+    t.eq(day().products["Recipe: Crimson Pine Board"], nil)
+    H.craftingState({ open = true, station = "Milling Station +5", busy = false })
+    H.items({ { "Crimson Pine Binding Kit", 1 } })
+    t.eq(day().crafted["Crimson Pine Binding Kit"], 1)
+  end)
+
+  t.test("IsProduct and moving earlier miscounted materials out of made", function()
+    H.boot()
+    local d = D().New("k")
+    d.recipes = { ["Crimson Pine Board"] = { n = 1, exc = 0, fail = 0 },
+                  ["Crimson Pine Binding (Milling)"] = { n = 1, exc = 0, fail = 0 } }
+    t.ok(D().IsProduct(d, "Crimson Pine Board"))
+    t.ok(D().IsProduct(d, "Crimson Pine Binding"))
+    t.no(D().IsProduct(d, "Crimson Pine"), "a shorter name isn't")
+    t.no(D().IsProduct(d, "Wax"))
+    d.crafted = { ["Crimson Pine Binding"] = 4, ["Crimson Pine Timber"] = 3 }
+    D().Reclassify(d)
+    t.eq(d.crafted["Crimson Pine Binding"], 4)
+    t.eq(d.crafted["Crimson Pine Timber"], nil)
+    t.eq(d.station["Crimson Pine Timber"], 3)
+  end)
+
+  t.test("a saved day that counted materials as made is corrected when it loads", function()
+    H.boot({ ["character:Tester"] = { daily = { v = 1, key = "local:2026-09-27", gold = 0, kills = 0, a = 0, p = 0,
+      items = { ["Crimson Pine Binding"] = 4, Wax = 1 }, dropped = 0, last = {},
+      crafted = { ["Crimson Pine Binding"] = 4, Wax = 1 },
+      recipes = { ["Crimson Pine Binding (Milling)"] = { n = 1, exc = 0, fail = 0 } } } } })
+    t.eq(day().crafted.Wax, nil)
+    t.eq(day().station.Wax, 1)
+    t.eq(day().crafted["Crimson Pine Binding"], 4)
+  end)
+
+  t.test("materials used: the recipe's ingredients times the crafts attempted, not tools or optional ones", function()
+    H.boot()
+    H.S.recipes = { [7] = { id = 7, name = "Crimson Pine Binding", ingredients = {
+      { name = "Crimson Pine Timber", quantity = 2, have = 10, optional = false, tool = false },
+      { name = "Wax", quantity = 1, have = 5, optional = false, tool = false },
+      { name = "Carpentry Hammer", quantity = 1, have = 1, optional = false, tool = true },
+      { name = "Glue", quantity = 1, have = 0, optional = true, tool = false } } } }
+    H.craftResults({ craft("Crimson Pine Binding (Milling)", 1) })
+    H.craftResults({ craft("Crimson Pine Binding (Milling)", 8, 0, 2) })     -- a Quick Craft group of 10
+    t.eq(day().used["Crimson Pine Timber"], 22)
+    t.eq(day().used["Wax"], 11)
+    t.eq(day().used["Carpentry Hammer"], nil, "a tool isn't used up")
+    t.eq(day().used["Glue"], nil, "an optional ingredient: unknown whether it went in")
+    H.S.recipes = nil                                         -- a recipe not known: nothing to add
+    H.craftResults({ craft("Crimson Pine Binding (Milling)", 1) })
+    t.eq(day().used["Wax"], 11)
   end)
 
   -- Today Detailed views ---------------------------------------------------------
@@ -128,9 +196,11 @@ return function(t)
     H.gatherResults({ { node = "Cotton Plant", failed = false, experience = 2000,
                         items = { { name = "Raw Cotton", quantity = 2 } } } })
     H.items({ { "Raw Cotton", 2 } })
+    H.S.recipes = { [7] = { id = 7, name = "Crimson Pine Board", ingredients = {
+      { name = "Crimson Pine Log", quantity = 1, have = 4, optional = false, tool = false } } } }
     H.craftResults({ craft("Crimson Pine Board", 1, 1, 0, 9000) })
     H.craftingState({ open = true, station = "Milling Station +5", busy = false })
-    H.items({ { "Crimson Pine Board", 2 } })
+    H.items({ { "Crimson Pine Board", 2 }, { "Crimson Pine Log", 3 } })   -- the product, and logs taken back
     H.craftingState({ open = false, station = "", busy = false })
     H.chat("/tbx dd")
     H.advance(1)
@@ -148,8 +218,8 @@ return function(t)
     busyDay()
     H.chat("/tbx dd include on")
     t.eq(H.saved("daily_detail").include, true)
-    t.eq(rows(), "Wolf Pelt=3, Crimson Pine Board=2, Raw Cotton=2")
-    t.eq(H.detail():Find("items_summary").text, "Items gained: 7 (3 kinds)")
+    t.eq(rows(), "Crimson Pine Log=3, Wolf Pelt=3, Crimson Pine Board=2, Raw Cotton=2")
+    t.eq(H.detail():Find("items_summary").text, "Items gained: 10 (4 kinds)")
     t.eq(H.detail():Find("view_note").visible, false)
   end)
 
@@ -162,6 +232,8 @@ return function(t)
     local note = H.detail():Find("view_note").text
     t.ok(note:find("^Crafts 1 %(1 exceptional, 100%%%)%. XP 9,000%."), note)
     t.ok(note:find("\nCrimson Pine Board: 1 craft %(1 exc%)"), note)
+    t.ok(note:find("\nMaterials used: Crimson Pine Log 1"), note)
+    t.ok(note:find("\nAlso off stations, not made: Crimson Pine Log 3"), note)
     t.eq(H.saved("daily_detail").view, "crafted", "remembered")
   end)
 
@@ -204,7 +276,7 @@ return function(t)
     H.chat("/tbx config")
     H.change("toolbox_config", "dd_include", true)
     t.eq(DD().GetInclude(), true)
-    t.eq(rows(), "Wolf Pelt=3, Crimson Pine Board=2, Raw Cotton=2")
+    t.eq(rows(), "Crimson Pine Log=3, Wolf Pelt=3, Crimson Pine Board=2, Raw Cotton=2")
   end)
 
   t.test("the day's crafting survives a reload", function()

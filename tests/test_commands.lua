@@ -308,7 +308,7 @@ return function(t)
     H.chat("/tbx api")
     t.ok(H.logged("Buff bar %(API 16%): 2 of 5 present; missing ShroudIsBuffBarVisible, ShroudCanDismissBuff"))
     t.ok(H.logged("Friends & guild %(API 18%): 1 of 3 present"))
-    t.ok(H.logged("Crafting %(API 18%): 1 of 2 present; missing ShroudGetRecipe"))
+    t.ok(H.logged("Crafting %(API 18%): all 2 present"))
     ShroudSetBuffBarVisible, ShroudGetBuffBarRect, ShroudGetGuildMotd = nil, nil, nil
   end)
 

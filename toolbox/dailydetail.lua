@@ -280,6 +280,18 @@ local function byCountThenName(counts)
   end
 end
 
+DD.NOTE_ITEMS = 15      -- names listed on a note line (the rest summed up)
+
+-- "Label: A 8, B 4, +3 more" for a name -> count table, most first; nil when it's empty.
+local function countLine(label, counts)
+  local names = sortedNames(counts)
+  if #names == 0 then return nil end
+  local parts = {}
+  for i = 1, math.min(#names, DD.NOTE_ITEMS) do parts[i] = names[i] .. " " .. T.FormatNumber(counts[names[i]]) end
+  if #names > DD.NOTE_ITEMS then parts[#parts + 1] = "+" .. (#names - DD.NOTE_ITEMS) .. " more" end
+  return label .. ": " .. table.concat(parts, ", ")
+end
+
 -- The view's totals line: crafts and recipes, or nodes; or what Looted leaves out.
 local function viewNote(day, view)
   local F = T.FormatNumber
@@ -306,6 +318,10 @@ local function viewNote(day, view)
       line = line .. "\n" .. name .. ": " .. F(r.n) .. (r.n == 1 and " craft" or " crafts")
         .. (#extra > 0 and (" (" .. table.concat(extra, ", ") .. ")") or "")
     end
+    local used = countLine("Materials used", day.used)
+    if used then line = line .. "\n" .. used end
+    local other = countLine("Also off stations, not made", day.station)
+    if other then line = line .. "\n" .. other end
     return line
   end
   if view == "gathered" then

@@ -194,8 +194,13 @@ local function install_api()
     ShroudGetCraftingState = function()
       return copy(S.craftingState or { open = false, station = "", busy = false })
     end
+    -- A known recipe by id (H.S.recipes[id] = { name, ingredients = { { name, quantity, tool, optional } } }).
+    ShroudGetRecipe = function(id)
+      local r = S.recipes and S.recipes[id]
+      return r and copy(r) or nil
+    end
   else
-    ShroudGetCraftingState = nil
+    ShroudGetCraftingState, ShroudGetRecipe = nil, nil
   end
   -- Worn items (documented fields; empty slots skipped). Game objects when H.S.buffObjects is set.
   ShroudGetEquipmentItems = function()

@@ -59,7 +59,9 @@ D.SECTIONS = {
       .. "Crafted (/toolbox crafted: the items you took off crafting stations, your crafts per recipe with "
       .. "exceptional and failed, and crafting XP) and Gathered (/toolbox gathered: what the nodes you "
       .. "harvested held, the nodes, failed harvests and gathering XP). What you make is counted as it "
-      .. "reaches your bags from a station, because the game doesn't say what a craft made.",
+      .. "reaches your bags from a station and is named like a recipe you crafted; other things you take "
+      .. "off a station (materials back, salvage returns) are listed apart. Crafted also lists the "
+      .. "materials your crafts used (from each recipe's ingredients; tools and optional ones left out).",
     "Estimated values (optional): switch on Estimated values (SOTA.net) in settings, or /toolbox dd "
       .. "values on, and switch Internet on for Toolbox in the add-on manager. Today Detailed then shows "
       .. "each item's count times its 90-day average sale price from shroudoftheavatar.net (player-"

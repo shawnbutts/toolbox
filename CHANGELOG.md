@@ -11,7 +11,9 @@ store submission needs a higher version than any submitted before (rejected ones
   crafting XP; `/toolbox crafted`) and Gathered (what the nodes you harvested held, nodes, failed
   harvests and gathering XP; `/toolbox gathered`). Looted now leaves crafted and gathered items out;
   "Include crafted and gathered items" in settings (or `/toolbox dd include on`) puts them back.
-  Needs a game client with Lua API 18.
+  Crafted also lists the materials your crafts used (each recipe's ingredients times the crafts
+  attempted; tools and optional ones left out), and, apart from what you made, anything else you took
+  off a station (materials back, salvage returns). Needs a game client with Lua API 18.
 - `/toolbox api` now also reports whether the game's craft and gather result events have fired (a
   line in chat the first time each does), with the fields of the first and last result and whether
   a crafted item's name matches the loot event's, to check them before the planned Crafted Today and

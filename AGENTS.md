@@ -497,7 +497,14 @@ craft result doesn't say what was made (item = the recipe's name, `crafted` = cr
 rows are the items gained while a crafting window is open (`day.crafted`), with crafts per recipe in the
 view's note. The day gained `crafted`, `gathered`, `recipes`, `craft`, `gather` (filled in by
 `D.Upgrade`; still `v = 1`). Looted = `items` minus `crafted` and `gathered` (`D.Looted`) unless
-`include`. `D.HasResults()` (the crafting getter exists) gates the views. The original plan follows. The API map says v15 for the
+`include`. `D.HasResults()` (the crafting getter exists) gates the views.
+REPORTED by the owner 2026-09-29: materials taken back off a station showed as made. Now an item gained at
+a station is made only when `D.IsProduct` (named like a recipe crafted today, or like a craft result's
+`item` once the client names the product there: `day.products`); the rest goes to `day.station` (listed
+apart, not loot). `D.Reclassify` fixes days saved before that. Materials used: `day.used`, from
+`ShroudGetRecipe(recipeId).ingredients` (not tools / optional) x the result's `quantity` (attempts).
+Unconfirmed: that failed crafts use materials (counted as used), and the fixed `item` (the devs expected a
+fix 2026-09-29). The original plan follows. The API map says v15 for the
 crafting/social getters, but the reference says "Added in API 18" for all of them and for the result
 events, so gate on the functions existing, never on the version number.
 

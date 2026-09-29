@@ -11,7 +11,11 @@
 --   dropped = n,             -- item kinds the game didn't itemise (past 20 in one call)
 --   last  = { gold = n|nil, a = n|nil, p = n|nil },  -- last readings, to diff against
 --   -- crafting and gathering (API 18 result events; added 2026-09-29, filled in for older days):
---   crafted  = { [name] = n },   -- items gained while a crafting window was open (taken off a station)
+--   crafted  = { [name] = n },   -- products taken off a station: gained while a crafting window was open,
+--                                -- and named like a recipe crafted today (D.IsProduct)
+--   station  = { [name] = n },   -- other items gained at a station (materials taken back, salvage returns)
+--   used     = { [name] = n },   -- materials the crafts used (ShroudGetRecipe's ingredients x attempts)
+--   products = { [name] = true }, -- products named by craft results (`item`, once the client fills it in)
 --   gathered = { [name] = n },   -- what harvested nodes' loot windows held
 --   recipes  = { [recipe] = { n = crafts, exc = n, fail = n } },   -- "Recipe: " removed from the name
 --   craft    = { n = crafts, exc = n, fail = n, salvaged = n, xp = n },
@@ -88,6 +92,14 @@ function D.Upgrade(d)
   d.items = d.items or {}
   d.dropped = d.dropped or 0
   d.crafted, d.gathered = counts(d.crafted), counts(d.gathered)
+  d.station, d.used = counts(d.station), counts(d.used)
+  local products = {}
+  if type(d.products) == "table" then
+    for name, v in pairs(d.products) do
+      if type(name) == "string" and v == true then products[name] = true end
+    end
+  end
+  d.products = products
   local recipes = {}
   if type(d.recipes) == "table" then
     for name, r in pairs(d.recipes) do
@@ -123,8 +135,51 @@ local function num(r, k)
   return isCount(v) and v or 0
 end
 
--- Adds one ShroudOnCraftResults batch (results may be game objects). Returns true when counted.
-function D.AddCraftResults(d, results)
+-- Whether `name` is the product of a recipe crafted today: the recipe's name, or the recipe's name with
+-- a station in brackets ("Crimson Pine Binding" for "Crimson Pine Binding (Milling)"). In game
+-- (2026-09-29) both products seen were named that way. A material returned to the bags isn't.
+function D.IsProduct(d, name)
+  if type(name) ~= "string" or name == "" then return false end
+  if d.recipes[name] or d.products[name] then return true end
+  local prefix = name .. " ("
+  for recipe in pairs(d.recipes) do
+    if recipe:sub(1, #prefix) == prefix then return true end
+  end
+  return false
+end
+
+-- Moves items counted as made that aren't named like a crafted recipe to `station` (days recorded
+-- before that rule counted materials taken back off a station as made; owner, 2026-09-29).
+function D.Reclassify(d)
+  for name, n in pairs(d.crafted) do
+    if not D.IsProduct(d, name) then
+      d.station[name] = (d.station[name] or 0) + n
+      d.crafted[name] = nil
+    end
+  end
+end
+
+-- Adds the materials one result used: each ingredient that isn't a tool or optional, times the crafts
+-- attempted. `getRecipe(id)` is ShroudGetRecipe (or nil without it).
+local function addUsed(d, r, getRecipe)
+  local id = T.Field(r, "recipeId")
+  if type(getRecipe) ~= "function" or type(id) ~= "number" then return end
+  local ok, recipe = pcall(getRecipe, id)
+  if not ok or recipe == nil then return end
+  local attempts = num(r, "quantity")
+  if attempts == 0 then attempts = num(r, "crafted") + num(r, "failed") end
+  for _, ing in ipairs(T.List(T.Field(recipe, "ingredients"))) do
+    local name, per = T.Field(ing, "name"), T.Field(ing, "quantity")
+    if type(name) == "string" and isCount(per) and per > 0 and T.Field(ing, "tool") ~= true
+        and T.Field(ing, "optional") ~= true then
+      addCount(d.used, name, per * attempts)
+    end
+  end
+end
+
+-- Adds one ShroudOnCraftResults batch (results may be game objects). `getRecipe`: ShroudGetRecipe, for
+-- the materials used. Returns true when counted.
+function D.AddCraftResults(d, results, getRecipe)
   local changed = false
   for _, r in ipairs(T.List(results)) do
     local kind = T.Field(r, "kind")
@@ -149,6 +204,16 @@ function D.AddCraftResults(d, results)
         end
         if rec then rec.n, rec.exc, rec.fail = rec.n + made, rec.exc + exc, rec.fail + fail end
       end
+      addUsed(d, r, getRecipe)
+      -- `item` should name what was made (the docs); in game it was the recipe's name ("Recipe: ...") until a
+      -- client fix (expected 2026-09-29). Once it's a real item name, it marks that item as a product.
+      local item = T.Field(r, "item")
+      if type(item) == "string" and item ~= "" and item:sub(1, 8) ~= "Recipe: " and item ~= T.Field(r, "recipeName")
+          and not d.products[item] then
+        local n = 0
+        for _ in pairs(d.products) do n = n + 1 end
+        if n < D.MAX_RECIPES then d.products[item] = true end
+      end
       changed = true
     end
   end
@@ -171,21 +236,25 @@ function D.AddGatherResults(d, results)
   return changed
 end
 
--- The looted count of `name`: gained, less what was made or gathered (never below 0).
+-- The looted count of `name`: gained, less what was made, came off a station or was gathered (never
+-- below 0).
 function D.Looted(d, name)
-  local n = (d.items[name] or 0) - (d.crafted[name] or 0) - (d.gathered[name] or 0)
+  local n = (d.items[name] or 0) - (d.crafted[name] or 0) - (d.station[name] or 0) - (d.gathered[name] or 0)
   return n > 0 and n or 0
 end
 
--- Adds one ShroudOnItemsGained batch. `atStation`: a crafting window is open, so the items came off
--- a station (made, or salvage returns): also counted as crafted. Returns true when anything was counted.
+-- Adds one ShroudOnItemsGained batch. `atStation`: a crafting window is open, so the items came off a
+-- station: counted as made when named like a recipe crafted today, otherwise as other station items
+-- (materials taken back, salvage returns). Returns true when anything was counted.
 function D.AddItems(d, items, dropped, atStation)
   local changed = false
   for _, item in ipairs(type(items) == "table" and items or {}) do
     local name, qty = type(item) == "table" and item.name, type(item) == "table" and item.quantity
     if type(name) == "string" and name ~= "" and isCount(qty) and qty > 0 then
       addCount(d.items, name, qty)
-      if atStation then addCount(d.crafted, name, qty) end
+      if atStation then
+        if D.IsProduct(d, name) then addCount(d.crafted, name, qty) else addCount(d.station, name, qty) end
+      end
       changed = true
     end
   end
@@ -214,6 +283,7 @@ function D.Roll(d, key)
   d.key, d.gold, d.kills, d.a, d.p = key, 0, 0, 0, 0
   d.items, d.dropped, d.la, d.lp = {}, 0, 0, 0
   d.crafted, d.gathered, d.recipes, d.craft, d.gather = {}, {}, {}, nil, nil
+  d.station, d.used, d.products = {}, {}, {}
   D.Upgrade(d)                       -- zeroed craft and gather totals
   return true
 end
@@ -308,6 +378,7 @@ function D.Load()
   local key = today()
   if D.IsValid(saved) then
     D.day = D.Upgrade(saved)
+    D.Reclassify(D.day)
   else
     D.day = D.New(key or "none")
   end
@@ -366,7 +437,9 @@ function D.OnItems(items, dropped)
 end
 
 function D.OnCraftResults(results)
-  if D.day and D.AddCraftResults(D.day, results) then changed() end
+  local getRecipe = nil
+  if type(ShroudGetRecipe) == "function" then getRecipe = ShroudGetRecipe end
+  if D.day and D.AddCraftResults(D.day, results, getRecipe) then changed() end
 end
 
 function D.OnGatherResults(results)
