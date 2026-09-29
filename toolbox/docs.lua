@@ -92,19 +92,20 @@ D.SECTIONS = {
       .. "bars' length and thickness (Health bars: Size and Bar length). With your health bars in the "
       .. "Toolbelt too, it runs across the whole Toolbelt: its bars start where yours do and its icons line "
       .. "up with your buffs. It goes above the buffs (the default; its space stays when you have no target, "
-      .. "so nothing jumps), under everything (hidden with no target), or mirrored to the left of your "
-      .. "health bars: its bars fill from the right, lined up with yours, and up to 5 icons run outward, most "
-      .. "urgent nearest. Settings, Toolbelt, Target row, or /toolbox target place top|bottom|left. Left needs "
-      .. "your health bars in the Toolbelt; without them it goes on top.",
+      .. "so nothing jumps) or under everything (hidden with no target): settings, Toolbelt, Target row, or "
+      .. "/toolbox target place top|bottom.",
+    "Mirrored (settings, Toolbelt, Mirrored; or /toolbox target mirror on): its bars fill from the right "
+      .. "and up to 5 icons run to the left, most urgent nearest, at a fixed width. In the Toolbelt, with your "
+      .. "health bars there too, it goes to the LEFT of your bars, each target bar level with yours (Target "
+      .. "row doesn't apply then; without your health bars in the Toolbelt there's nothing to mirror against, "
+      .. "so the checkbox is greyed out). On its own strip, the strip is mirrored: the name right-aligned "
+      .. "above the bars.",
     "The blank area: above the buffs and on the left, the target's space is always kept, even with no "
       .. "target, so your bars and buffs never jump when you pick one up (the Toolbelt is anchored at its "
       .. "grip, top left). On the left that leaves an empty area between the grip and your bars, as wide as "
       .. "5 icons plus a bar. It's transparent and clicks pass through it; while the settings window is open "
       .. "it says \"Target\" so you can see it when placing the Toolbelt. Drag by the grip as usual: your "
       .. "bars sit that far to the right of it.",
-    "On its own strip it can be mirrored too (Toolbelt page: Mirror the target's own strip, or /toolbox "
-      .. "target mirror on): the name right-aligned, the bars filling from the right and up to 5 icons to "
-      .. "the left. Its width stays the same as effects come and go, so the bars don't move.",
     "It joins the Toolbelt as its last row, or has its own strip (settings: Toolbelt, Target; or /toolbox "
       .. "target toolbelt on|off). With no target it hides, except while the settings window is open, so you "
       .. "can place it (/toolbox target move <x> <y>). /toolbox target debug shows what the game reports." },

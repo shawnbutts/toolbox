@@ -518,17 +518,17 @@ function C.ToolbeltSection()
   local placeLabels = {}
   for i, key in ipairs(T.Target.PLACE_ORDER) do placeLabels[i] = T.Target.PLACES[key] end
   children[#children + 1] = dropdownRow("Target row", { id = "target_place", choices = placeLabels,
-    value = T.Target.PLACES[T.Target.GetPlace()],
-    tooltip = "In the Toolbelt: above the buffs (its space is kept with no target, so nothing jumps), under"
-      .. " everything (hidden with no target), or mirrored to the left of your health bars (they must be in"
-      .. " the Toolbelt too; its space is kept)",
+    value = T.Target.PLACES[T.Target.GetPlace()] or T.Target.PLACES.top,
+    tooltip = "In the Toolbelt: above the buffs (its space is kept with no target, so nothing jumps) or under"
+      .. " everything (hidden with no target). Not used while Mirrored puts it left of your health bars",
     onChange = function(_, label)
       for key, l in pairs(T.Target.PLACES) do if l == label then T.Target.SetPlace(key) end end
     end })
-  children[#children + 1] = UI.Toggle{ id = "target_mirror", text = "Mirror the target's own strip",
+  children[#children + 1] = UI.Toggle{ id = "target_mirror", text = "Mirrored",
     value = T.Target.GetMirror(), style = { marginLeft = 16 },
-    tooltip = "On its own strip: the bars fill from the right, the name is right-aligned and the icons run to"
-      .. " the left (up to 5; its width is fixed so the bars don't move)",
+    tooltip = "Bars filling from the right and up to 5 icons running left, at a fixed width. In the Toolbelt it"
+      .. " goes left of your health bars (they must be in the Toolbelt too; its space is kept, a blank area"
+      .. " between the grip and your bars); on its own strip, the strip is mirrored",
     onChange = function(_, v) T.Target.SetMirror(v) end }
   children[#children + 1] = UI.Label{ id = "hud_summary", text = "", class = "dim",
     style = { whiteSpace = "wrap", marginTop = 6 } }
@@ -897,10 +897,10 @@ function C.Sync()
   setEnabled("toolbelt_combat", buffsOn)
   setValue("toolbelt_show", B.IsEnabled())
   for _, part in ipairs(C.TOOLBELT_PARTS) do setValue("toolbelt_" .. part.key, C.PlaceOf(part)) end
-  setValue("target_place", T.Target.PLACES[T.Target.GetPlace()])
-  setEnabled("target_place", T.Target.GetShow() and T.Target.GetGlue())
+  setValue("target_place", T.Target.PLACES[T.Target.GetPlace()] or T.Target.PLACES.top)
+  setEnabled("target_place", T.Target.GetShow() and T.Target.GetGlue() and not T.Target.Mirrored())
   setValue("target_mirror", T.Target.GetMirror())
-  setEnabled("target_mirror", T.Target.GetShow() and not T.Target.Glued())
+  setEnabled("target_mirror", T.Target.GetShow() and T.Target.CanMirror())
   setText("hud_summary", C.HudSummary())
   C.SyncLive()
 end

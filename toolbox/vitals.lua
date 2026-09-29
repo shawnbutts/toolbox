@@ -609,7 +609,7 @@ TG.INFO_CELLS = 4            -- the name block's width, in icon cells
 TG.POLL = 0.25
 TG.GROUP_EVERY = 2
 TG.PLACES = { top = "Above the buffs", bottom = "Under everything", left = "Left of your bars (mirrored)" }
-TG.PLACE_ORDER = { "top", "bottom", "left" }
+TG.PLACE_ORDER = { "top", "bottom" }  -- the Target row choices; "left" comes from the Mirrored checkbox
 TG.LEFT_SLOTS = 5            -- icons when mirrored on the left (its width is always kept: keep it small)
 TG.HINT = "Target"           -- shown in its kept space while settings are open and there's no target
 local TPERIODIC = "toolbox_target"
@@ -733,20 +733,22 @@ function TG.InBuffColumn() return TG.Glued() and not TG.Below() end
 function TG.Wanted() return tprefs.show == true and (not TG.Glued() or TG.Below()) end
 
 function TG.Place()
-  if tprefs.place == "bottom" then return "bottom" end
   if TG.Mirrored() then return "left" end
+  if tprefs.place == "bottom" then return "bottom" end
   return "top"
 end
 function TG.GetPlace() return tprefs.place end
 
--- Mirrored to the left of the health bars (owner, 2026-09-29; an official option since): only with the
--- health bars in the Toolbelt too (TG.Below); otherwise "left" works like "top". Its space is always kept,
--- so there is a blank area left of the bars with no target (labelled TG.HINT while settings are open).
-function TG.Mirrored() return tprefs.place == "left" and TG.Below() end
+-- One "Mirrored" setting (owner, 2026-09-29: "merge the two mirrored options"): in the Toolbelt with the
+-- health bars there too (TG.Below), the target goes to the LEFT of them, mirrored; on its own strip, the
+-- strip is mirrored. In the Toolbelt without the health bars there's nothing to mirror against: the Target
+-- row place applies. On the left its space is always kept, so there is a blank area left of the bars with
+-- no target (labelled TG.HINT while settings are open).
+function TG.Mirrored() return tprefs.mirror == true and TG.Below() end
 
 -- Above or to the left in the Toolbelt: the row keeps its space with no target (the strip is anchored at
 -- its top-left grip, so anything appearing above or left of the bars would push them).
-local function reserved() return tprefs.place ~= "bottom" and TG.Glued() end
+local function reserved() return (tprefs.place ~= "bottom" or TG.Mirrored()) and TG.Glued() end
 
 -- Whether the row shows: a target, the settings window open (to place it), or its space kept.
 local function wantRow() return tHas == true or T.Config.IsShown() or reserved() end
@@ -1069,10 +1071,14 @@ function TG.Poll(force)
   end
 end
 
--- In the Toolbelt: "top" (above the buffs), "bottom" (under everything) or "left" (mirrored, left of the
--- health bars). Returns false for anything else.
+-- In the Toolbelt: "top" (above the buffs) or "bottom" (under everything); "left" is the Mirrored setting
+-- (kept for the command). Returns false for anything else.
 function TG.SetPlace(where)
-  if not TG.PLACES[where] then return false end
+  if where == "left" then
+    TG.SetMirror(true)
+    return true
+  end
+  if where ~= "top" and where ~= "bottom" then return false end
   tprefs.place = where
   tSave()
   if TG.Glued() then T.Hud.Build() end
@@ -1082,15 +1088,18 @@ function TG.SetPlace(where)
   return true
 end
 
--- On its own strip: mirrored (bars fill from the right, name right-aligned, icons to the left) or not.
+-- Mirrored: left of the health bars in the Toolbelt, or a mirrored own strip (see TG.Mirrored).
 function TG.GetMirror() return tprefs.mirror == true end
 function TG.SetMirror(on)
   tprefs.mirror = on == true
   tSave()
-  if TG.Wanted() and not TG.Below() then T.Hud.Build() end   -- its own strip: rebuilt the new way
+  if tprefs.show then T.Hud.Build() end        -- rebuilt the new way, wherever it is
   TG.Poll(true)
+  T.BuffBar.Tick()
   T.Config.Sync()
 end
+-- Whether Mirrored does anything where the target is now (not in the Toolbelt without the health bars).
+function TG.CanMirror() return not TG.Glued() or TG.Below() end
 
 -- ShroudOnTargetChanged (core.lua): a new target, or none.
 function TG.OnTargetChanged()
@@ -1115,8 +1124,8 @@ function TG.Init()
   if type(saved) == "table" then
     tprefs.show = saved.show == true
     tprefs.glue = saved.glue ~= false
-    if saved.place == "bottom" or saved.place == "left" then tprefs.place = saved.place end
-    tprefs.mirror = saved.mirror == true
+    if saved.place == "bottom" then tprefs.place = "bottom" end
+    tprefs.mirror = saved.mirror == true or saved.place == "left"   -- beta 7 saved the mirror as place "left"
     if type(saved.x) == "number" and type(saved.y) == "number" then tprefs.x, tprefs.y = saved.x, saved.y end
   end
   tList, tRaw, tInfoBy = {}, {}, {}

@@ -6,12 +6,17 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Added
-- Target HUD on its own strip can be mirrored (Toolbelt page: Mirror the target's own strip, or
-  `/toolbox target mirror on`): name right-aligned, bars filling from the right, up to 5 icons to the left,
-  at a fixed width so the bars don't move.
+- Target HUD on its own strip can be mirrored too: name right-aligned, bars filling from the right, up to
+  5 icons to the left, at a fixed width so the bars don't move.
+
+### Changed
+- Target HUD: one Mirrored checkbox (Toolbelt page, or `/toolbox target mirror on|off`) instead of a Target
+  row choice: in the Toolbelt it puts the target left of your health bars, on its own strip it mirrors
+  the strip. Target row is back to Above the buffs / Under everything. A saved "Left of your bars" becomes
+  Mirrored on.
 
 ### Fixed
-- The target's "Left of your bars" place went back to "Above the buffs" after a reload.
+- The target's mirrored place went back to "Above the buffs" after a reload.
 
 ## [0.6.0] - 2026-09-29 (beta 7)
 

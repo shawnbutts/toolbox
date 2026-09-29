@@ -1153,7 +1153,7 @@ add("gear", "worn gear's durability, lowest first (bar on|off: the equipment bar
 end)
 
 add("target", "your target's health and effects (on|off; toolbelt on|off: in the Toolbelt or its own strip; "
-    .. "place top|bottom|left: in the Toolbelt; mirror on|off: its own strip; move [x y]; debug)", function(rest)
+    .. "place top|bottom: in the Toolbelt; mirror on|off; move [x y]; debug)", function(rest)
   local TG = T.Target
   local word, args = T.ParseArgs(rest)
   word = word:lower()
@@ -1166,20 +1166,21 @@ add("target", "your target's health and effects (on|off; toolbelt on|off: in the
     return
   elseif word == "mirror" then
     if args:lower() ~= "on" and args:lower() ~= "off" then
-      T.Print("Use /" .. T.commands[1] .. " target mirror on|off (its own strip: bars fill from the right).")
+      T.Print("Use /" .. T.commands[1] .. " target mirror on|off (bars fill from the right; in the Toolbelt, "
+        .. "left of your health bars).")
       return
     end
     TG.SetMirror(args:lower() == "on")
   elseif word == "place" then
     if not TG.SetPlace(args:lower()) then
-      T.Print("Use /" .. T.commands[1] .. " target place top|bottom|left (where it goes in the Toolbelt).")
+      T.Print("Use /" .. T.commands[1] .. " target place top|bottom (where it goes in the Toolbelt).")
       return
     end
   elseif word == "move" then
     T.MoveCommand(TG, "target", "Target HUD", args)
     return
   elseif word ~= "" then
-    T.Print("Use /" .. T.commands[1] .. " target on|off, toolbelt on|off, place top|bottom|left, mirror on|off, "
+    T.Print("Use /" .. T.commands[1] .. " target on|off, toolbelt on|off, place top|bottom, mirror on|off, "
       .. "move [x y] or debug.")
     return
   end
