@@ -1039,7 +1039,7 @@ local function notifyHud(args)
     T.MoveCommand(NH, "notify hud", "Notification HUD", rest)
   elseif word == "clear" then
     NH.Clear()
-    T.Print("Notification HUD cleared.")
+    T.Print("Notification history cleared.")
   elseif word == "hide" then
     local secs = rest:lower() == "never" and 0 or tonumber(rest)
     if rest ~= "" and not NH.SetHideAfter(secs) then

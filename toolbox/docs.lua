@@ -141,7 +141,7 @@ D.SECTIONS = {
       .. "latest 20, newest on top, one line each (hover a line for all of it; scroll for older ones). It "
       .. "shows when something arrives and hides after 10 seconds, or never (HUD: hide after, or "
       .. "/toolbox notify hud hide 30); it stays while the pointer is on it. Move it like the other HUD "
-      .. "strips (settings, or /toolbox notify hud move <x> <y>); /toolbox notify hud clear empties it." },
+      .. "strips (settings, or /toolbox notify hud move <x> <y>); /toolbox notify hud clear deletes its history." },
   { "Sounds",
     "The alert sounds live in the add-on's folder. To use your own, put "
       .. "toolbox_buff_expiring.ogg or toolbox_debuff_landed.ogg (or .wav) in your Lua folder, "

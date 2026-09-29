@@ -437,7 +437,8 @@ function C.NotifySection()
   } }
   children[#children + 1] = C.PositionRows("nhud", NH)
   children[#children + 1] = UI.Row{ style = { justifyContent = "end", marginTop = 2 }, children = {
-    UI.Button{ id = "nhud_clear", text = "Clear HUD", tooltip = "Empty the notification HUD's list",
+    UI.Button{ id = "nhud_clear", text = "Clear notification history",
+      tooltip = "Delete the notification HUD's saved list (it can't be undone)",
       onClick = function() NH.Clear() end },
   } }
   return UI.Column{ children = children }
