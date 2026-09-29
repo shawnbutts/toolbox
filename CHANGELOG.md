@@ -5,6 +5,10 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Added
+- The Docs' Buff bar topic lists the cues that don't rely on colour (the debuff row, the blinking border,
+  the alert sound, the seconds countdown, the sweep's size).
+
 ## [0.5.0] - 2026-09-29 (beta 6)
 
 ### Changed

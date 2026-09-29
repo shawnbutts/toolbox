@@ -87,6 +87,10 @@ D.SECTIONS = {
       .. "for its tooltip.",
     "Options: icon size; a sound before a buff runs out (/toolbox buffalert 10 = ten seconds "
       .. "before); a sound when a debuff lands (/toolbox debuffalert on/off).",
+    "Without relying on colour: debuffs have their own row (the second); a buff about to run out blinks "
+      .. "its border (Flash, on by default) and sounds its alert; Show seconds left near the end adds the "
+      .. "number; and a sweep's size shows the time left whatever its colour. The same goes for the "
+      .. "consumables and equipment bars (a broken item's sweep covers the whole icon).",
     "Buffs with more than 15 minutes left (Obsidian potions, for example) share one slot at the end of "
       .. "the row, showing how many there are; hover it for each one and its time left. A buff moves back "
       .. "onto the bar once it has less than that left. Change the time in settings (Group buffs lasting "

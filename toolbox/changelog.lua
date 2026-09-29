@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Added" },
+  { "item", "The Docs' Buff bar topic lists the cues that don't rely on colour (the debuff row, the blinking border, the alert sound, the seconds countdown, the sweep's size)." },
   { "version", "0.5.0 - 2026-09-29 (beta 6)" },
   { "section", "Changed" },
   { "item", "Needs a game client with Lua API 23 or newer (the live client's version); older clients skip Toolbox." },
