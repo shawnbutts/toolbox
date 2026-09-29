@@ -395,7 +395,7 @@ Version numbers are single-use in the store, including rejected ones.
 Then commit ("Beta N (x.y.z)" for a beta), build from that clean commit (`make beta` for testers; the
 stamp must be the commit, not `...+`), and tag it: an annotated `vX.Y.Z` tag on the release commit
 (`git tag -a v0.3.0 -m "Beta 3 (0.3.0)"`), pushed with the branch (`git push origin main vX.Y.Z`),
-only when the owner asks to push. Tags so far: v0.2.0 (a52051c), v0.2.1 (ae2fa1f), v0.3.0 (607dcb3), v0.3.1 (7db2a15).
+only when the owner asks to push. Tags so far: v0.2.0 (a52051c), v0.2.1 (ae2fa1f), v0.3.0 (607dcb3), v0.3.1 (7db2a15), v0.4.0 (4b4d5a5).
 
 ## Planned for newer APIs
 
