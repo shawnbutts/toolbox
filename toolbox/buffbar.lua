@@ -649,10 +649,23 @@ local sizedFor = nil          -- "used,rows,size" the content was last sized for
 
 -- Re-fits the strip to the icons showing (only when that changes). buffsShown counts the
 -- group slot.
+local placeholder = nil        -- the buff bar's empty-strip label (see makePlaceholder)
+local placeholderShown = false
+
 local function fitFrame(buffsShown, debuffsShown)
   local gear = T.Gear.GluedCount()     -- the equipment bar's row under the debuffs, when glued
   local cons = K.GluedCount()          -- the consumables row (above the equipment), when glued
   local used = math.max(buffsShown, debuffsShown, gear, cons)
+  -- nothing on it while the settings window is open: its name, to place it by
+  local empty = used == 0 and T.Config.IsShown()
+  if placeholder and empty ~= placeholderShown then
+    placeholderShown = empty
+    placeholder:SetVisible(empty)
+    if empty then
+      placeholder:SetText((T.Hud.IsGlued() or K.Glued() or T.Gear.Glued()) and "Toolbelt" or "Buff bar")
+    end
+  end
+  if empty then used = BB.PLACEHOLDER_CELLS end
   local rows = 1 + (debuffsShown > 0 and 1 or 0) + (gear > 0 and 1 or 0) + (cons > 0 and 1 or 0)
   local key = used .. "," .. rows .. "," .. size()
   if key == sizedFor or not content then return end
@@ -680,6 +693,20 @@ local function countStyle(s, f, dx, dy)
            marginTop = 0, marginBottom = 0, paddingTop = math.max(0, top + dy),
            paddingLeft = dx > 0 and 2 * dx or 0, paddingRight = dx < 0 and -2 * dx or 0,
            fontSize = f, fontStyle = "bold", textAlign = "center" }
+end
+
+-- A dim name shown in an empty strip while the settings window is open, so there is something to
+-- place (owner, 2026-09-29): BB.PLACEHOLDER_CELLS icon cells wide.
+BB.PLACEHOLDER_CELLS = 3
+local function placeholderStyle(s)
+  local f = math.max(9, math.floor(s * 0.4))
+  local top = math.max(0, math.floor((s - f * 1.2) / 2))
+  return { width = BB.PLACEHOLDER_CELLS * (s + BB.GAP) - BB.GAP, height = s, minHeight = s, maxHeight = s,
+           marginLeft = 0, marginRight = BB.GAP, marginTop = 0, marginBottom = 0, paddingTop = top,
+           fontSize = f, textAlign = "center" }
+end
+local function makePlaceholder(id, text)
+  return UI.Label{ id = id, text = text, class = "dim", visible = false, style = placeholderStyle(size()) }
 end
 
 local function makeSlot(debuff)
@@ -725,12 +752,13 @@ end
 -- Builds the icon rows (a fixed slot pool) and returns them; Toolbox.Hud puts them in a strip.
 function BB.BuildContent()
   clockTex = ShroudLoadTexture(BB.CLOCK.path)
-  local buffRow, debuffRow = {}, {}
+  local buffRow, debuffRow = { makePlaceholder("buffs_placeholder", "Buff bar") }, {}
   -- the consumables pool belongs to its own strip unless glued (then it is built here, below)
   slots = { buffs = {}, debuffs = {}, consumables = K.Glued() and {} or slots.consumables }
+  placeholder, placeholderShown = buffRow[1], false
   for i = 1, BB.BUFF_SLOTS do
     slots.buffs[i] = makeSlot(false)
-    buffRow[i] = slots.buffs[i].row
+    buffRow[#buffRow + 1] = slots.buffs[i].row
   end
   group = makeGroupSlot()
   buffRow[#buffRow + 1] = group.row
@@ -950,7 +978,7 @@ end
 -- group slot and pending sweeps; BB.Tick skips the rows until BuildContent runs again. Glued rows of
 -- the consumables and equipment bars went with it.
 function BB.Unbuilt()
-  content, group, sizedFor = nil, nil, nil
+  content, group, sizedFor, placeholder, placeholderShown = nil, nil, nil, nil, false
   slots.buffs, slots.debuffs = {}, {}
   for i = #pendingSweeps, 1, -1 do pendingSweeps[i] = nil end
   if K.inBuffBar then K.Unbuilt() end
@@ -1572,6 +1600,8 @@ function BB.SetSize(n)
     end
     resizeGroup(group, n)
     resizeGroup(K.GroupSlot(), n)
+    if placeholder then placeholder:SetStyle(placeholderStyle(n)) end
+    K.ResizePlaceholder(n)
     BB.Tick()                                  -- re-fits the strip for the new icon size
   end
   T.Gear.ApplySize(n)                          -- the equipment bar uses the same icon size
@@ -2147,6 +2177,7 @@ K.MAX_DEFAULT = K.SLOTS          -- icons shown before the rest go into the grou
 
 local kprefs = { show = true, glue = false, extra = {}, cats = defaultCats(), exclude = defaultExclude() }
 local kGroup = nil             -- the consumables bar's group slot (long-lasting ones, and past the cap)
+local kPlaceholder, kPlaceholderShown = nil, false   -- its name while empty and settings are open
 local kGrouped, kGroupPool = {}, {}
 local kCache = {}              -- rune name -> kind or false (a rune's name and label don't change)
 local kShown = nil             -- K.IsShown() last time, to refresh the HUD when it changes
@@ -2220,6 +2251,10 @@ end
 
 function K.GroupSlot() return kGroup end
 
+function K.ResizePlaceholder(n)
+  if kPlaceholder then kPlaceholder:SetStyle(placeholderStyle(n)) end
+end
+
 -- The most icons before the rest go into the group slot, 1..K.SLOTS.
 function K.GetMax() return kprefs.max or K.MAX_DEFAULT end
 
@@ -2246,11 +2281,12 @@ end
 -- follows it).
 function K.BuildRow(gapBelow)
   if clockTex < 0 then clockTex = ShroudLoadTexture(BB.CLOCK.path) end
-  local row = {}
+  local row = { makePlaceholder("consumables_placeholder", "Consumables") }
+  kPlaceholder, kPlaceholderShown = row[1], false
   slots.consumables = {}
   for i = 1, K.SLOTS do
     slots.consumables[i] = makeSlot(false)
-    row[i] = slots.consumables[i].row
+    row[#row + 1] = slots.consumables[i].row
   end
   kGroup = makeGroupSlot()
   row[#row + 1] = kGroup.row
@@ -2265,12 +2301,13 @@ end
 
 -- For Toolbox.Hud (and BB.Unbuilt when glued): the row was destroyed; K.Fill skips it until rebuilt.
 function K.Unbuilt()
-  kContent, kShown, K.inBuffBar, kGroup = nil, nil, false, nil
+  kContent, kShown, K.inBuffBar, kGroup, kPlaceholder, kPlaceholderShown = nil, nil, false, nil, nil, false
   slots.consumables = {}
 end
 
 function K.ContentSize()
   local cell = size() + BB.GAP
+  if kPlaceholderShown then return BB.PLACEHOLDER_CELLS * cell, cell end
   return math.max(1, math.min(K.SLOTS + 1, kCount)) * cell, cell   -- + the group slot
 end
 
@@ -2322,7 +2359,15 @@ function K.Fill(list)
     end
     fillGroup(kGroup, grouped)
   end
+  -- empty on its own strip while settings are open: its name, to place it by
+  local empty = count == 0 and not K.Glued() and T.Config.IsShown()
+  if kPlaceholder and empty ~= kPlaceholderShown then
+    kPlaceholderShown = empty
+    kPlaceholder:SetVisible(empty)
+    count = -1                         -- force the refit below
+  end
   local changed = count ~= kCount
+  if count < 0 then count = 0 end
   kCount = count
   local shownNow = K.IsShown()
   if (changed or shownNow ~= kShown) and not K.Glued() then T.Hud.Refresh() end

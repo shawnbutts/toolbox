@@ -11,6 +11,7 @@ Toolbox.CHANGELOG = {
   { "section", "Fixed" },
   { "item", "\"Shroud.UI: this Row was destroyed\" after switching the consumables bar off (glued or not), and the same risk for every HUD strip after a rebuild (gluing, or a strip rebuilt after the game's element limit): a strip that is rebuilt or removed now lets go of its old elements at once." },
   { "section", "Added" },
+  { "item", "An empty buff bar (or Toolbelt) and consumables bar show their name while the settings window is open, so they can be found and placed before anything is on them." },
   { "item", "\"Show seconds left near the end\" (Buffs settings, or /toolbox buffs countdown on|off|<seconds>): whole seconds over the icon of a buff, debuff or consumable in its last 30 seconds (5-120). Off by default." },
   { "item", "Buff bar: \"Always group these kinds\" (Buffs settings, or /toolbox buffs group cat <Category> on|off) puts every buff of a category into the group slot, whatever its time left, e.g. Blessings." },
   { "item", "The Toolbelt: the buff bar with your health, focus and Vigor bars, consumables bar and equipment bar joined to it, one strip moved as one, now its own feature with its own settings category (which bars join it, only during combat, a summary of what's in it) and /toolbox toolbelt (vitals|consumables|gear on|off, combat on|off, move x y). The glue options moved there from HUD layout." },

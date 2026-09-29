@@ -17,6 +17,8 @@ store submission needs a higher version than any submitted before (rejected ones
   element limit): a strip that is rebuilt or removed now lets go of its old elements at once.
 
 ### Added
+- An empty buff bar (or Toolbelt) and consumables bar show their name while the settings window is
+  open, so they can be found and placed before anything is on them.
 - "Show seconds left near the end" (Buffs settings, or `/toolbox buffs countdown on|off|<seconds>`):
   whole seconds over the icon of a buff, debuff or consumable in its last 30 seconds (5-120). Off by
   default.

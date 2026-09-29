@@ -209,7 +209,7 @@ return function(t)
     H.boot()
     H.chat("/tbx buffs")
     B().SetSize(24)
-    local slot = H.frame():Find("buffs").children[1]
+    local slot = H.frame():Find("buffs").children[2]            -- [1] is the empty-strip label
     t.eq(slot.style.width, 24)
     t.eq(sweep(slot).style.marginLeft, -24, "overlay still sits on the icon")
     t.no(B().SetSize(100), "out of range")
@@ -1684,7 +1684,7 @@ return function(t)
     H.chat("/tbx buffs countdown on")
     H.addBuffs({ { name = "RuneFood_Pie", remaining = 12, total = 14544, icon = 46 } })
     H.advance(1, 0.5)
-    local slot = H.S.frames.toolbox_consumables:Find("consumables").children[1]
+    local slot = H.S.frames.toolbox_consumables:Find("consumables").children[2]   -- after the empty-strip label
     t.eq(slot.children[3].visible, true)
     t.eq(slot.children[3].text, "11")
     H.advance(15, 0.5)

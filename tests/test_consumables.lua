@@ -398,5 +398,38 @@ return function(t)
     H.chat("/tbx toolbelt sideways")
     t.ok(H.logged("^Use /toolbox toolbelt vitals"))
   end)
+
+  -- empty strips, to place them --------------------------------------------------------
+
+  t.test("empty strips show their name while settings are open, and are sized for it", function()
+    H.boot()
+    H.chat("/tbx buffs")
+    H.chat("/tbx config")
+    H.advance(1)
+    local cell = B().GetSize() + B().GAP
+    local label = H.frame():Find("buffs_placeholder")
+    t.eq(label.visible, true)
+    t.eq(label.text, "Buff bar")
+    t.eq(H.frame().width, Toolbox.Window.GRIP + B().PLACEHOLDER_CELLS * cell + 8, "sized for the name")
+    local cons = strip():Find("consumables_placeholder")
+    t.eq(cons.visible, true)
+    t.eq(cons.text, "Consumables")
+    t.eq(strip().width, Toolbox.Window.GRIP + B().PLACEHOLDER_CELLS * cell + 8)
+    H.chat("/tbx toolbelt gear on")
+    H.advance(1)
+    t.eq(H.frame():Find("buffs_placeholder").text, "Toolbelt", "named after what it is now")
+    H.addBuffs({ { name = "Light", remaining = 100, icon = 5 },
+                 { name = "RuneFood_Pie", remaining = 300, total = 14544, icon = 46 } })
+    H.advance(1)
+    t.eq(H.frame():Find("buffs_placeholder").visible, false, "not once something is on it")
+    t.eq(strip():Find("consumables_placeholder").visible, false)
+    H.removeBuff("Light")
+    H.removeBuff("RuneFood_Pie")
+    H.advance(1)
+    H.closeWindow("toolbox_config")
+    H.advance(1)
+    t.eq(H.frame():Find("buffs_placeholder").visible, false, "not with settings closed")
+    t.eq(strip().visible, false, "an empty consumables bar hides again")
+  end)
 end
 
