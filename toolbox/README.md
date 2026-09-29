@@ -1,7 +1,9 @@
 # Toolbox
 
-A small toolbox of quality-of-life features: XP tracking, daily stats, a buff bar, a consumables
-bar, health & focus bars, combat stats and gear repair alerts.
+A small toolbox of quality-of-life features. The headline is the **Toolbelt**: your buffs and
+debuffs, health, focus and Vigor, food and potions, and gear that needs repair, in one movable strip
+that can show only in combat. Plus XP tracking, daily loot, crafting and gathering stats, combat
+stats and notifications.
 
 **Getting started:** type `/toolbox` (or `/tbx`) to open the settings window and tick what you
 want on screen. Its **Docs** button (or `/toolbox docs`) opens a guide to every feature, option and
@@ -26,11 +28,13 @@ under **Keys**.
 - `/toolbox buffalert <1-60>` (or `on` / `off`): sound this many seconds before a buff runs out
 - `/toolbox debuffalert on` / `off`: sound when a debuff lands
 - `/toolbox sounds`: show which sound files the alerts use (`/toolbox sounds 50` sets the volume)
+- `/toolbox toolbelt`: what's in your Toolbelt (`vitals|consumables|gear on|off` adds or removes a bar,
+  `combat on` shows it only in combat, `move 600 40` places it)
 - `/toolbox vitals`: show or hide health, focus & Vigor bars (`/toolbox vitals size 150` scales them,
-  `/toolbox vitals move 40 300` places them, `/toolbox vitals glue on` joins them to the buff bar)
+  `/toolbox vitals move 40 300` places them)
 - `/toolbox combat`: show or hide the combat stats HUD (DPS, damage taken, healing, crit and avoid rates, fight timer, chosen stats)
-- `/toolbox consumables`: food and potions in effect, on their own bar (`/toolbox consumables glue on`
-  puts it under the buff bar; `add <name>` tracks more)
+- `/toolbox consumables`: food, potions and combat items in effect, on their own bar (`cat <Kind> on|off`
+  picks the kinds; `max 6` caps the icons; `add <name>` tracks more)
 - `/toolbox gear`: list your worn items' durability, lowest first (`/toolbox gear repair 30` sets when
   to warn, `/toolbox gear bar off` hides the equipment bar)
 - `/toolbox config`: open the settings window (text size, line spacing, which windows to show)
@@ -77,6 +81,13 @@ Today Detailed to shroudoftheavatar.net, at most one request every few seconds, 
 price for 24 hours (across reloads and restarts), so an item is looked up at most once a day.
 `/toolbox dd values refresh` forgets them and looks them up again. Like any website, that site can
 see your IP address. Toolbox contacts no other site.
+
+## Toolbelt
+
+The **Toolbelt** is your buff bar with your health, focus and Vigor bars beside it and your
+consumables bar and equipment bar under it: one strip, moved as one, with everything you watch in a
+fight. Pick what joins it in the settings window (**Toolbelt**) or with `/toolbox toolbelt`, and tick
+**Only during combat** to have it appear only when you're fighting.
 
 ## Buff bar
 

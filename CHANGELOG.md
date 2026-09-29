@@ -11,6 +11,14 @@ store submission needs a higher version than any submitted before (rejected ones
   element limit): a strip that is rebuilt or removed now lets go of its old elements at once.
 
 ### Added
+- The Toolbelt: the buff bar with your health, focus and Vigor bars, consumables bar and equipment bar
+  joined to it, one strip moved as one, now its own feature with its own settings category (which bars
+  join it, only during combat, a summary of what's in it) and `/toolbox toolbelt` (`vitals|consumables|gear
+  on|off`, `combat on|off`, `move x y`). The glue options moved there from HUD layout.
+- Consumables bar, like the buff bar: long-lasting ones (the buff bar's "Group buffs lasting longer
+  than") share one slot with a count, so seven Obsidian potions take one icon; "Most icons" caps the
+  icons (the rest join that slot); and "Only during combat" on its own strip. `/toolbox consumables max
+  <n>` and `combat on|off`.
 - The consumables bar uses the game's buff categories (API 23): food, potions, weapon poisons and
   combat consumables (caltrops, bombs) by default, one checkbox per category in settings (or
   `/toolbox consumables cat <Category> on|off`). Names containing Scroll, Torch or Bait stay off it

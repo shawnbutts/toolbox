@@ -3,7 +3,7 @@
   "slug": "toolbox",
   "name": "Toolbox",
   "version": "0.4.0",
-  "description": "Quality-of-life HUD and trackers. XP (session, pools, last hour; XP Detailed with levels and a chart) and Today (gold, kills, XP, every item looted, optional estimated values from shroudoftheavatar.net). Buff bar with clock sweeps, grouping and alerts; consumables bar for food and potions; health, focus and Vigor bars; combat stats with Combat Detailed; equipment repair bar; notifications (guild message, mail, ransoms, rewards, gear needing repair). Commands: /toolbox and /tbx.",
+  "description": "Quality-of-life HUD and trackers. The Toolbelt: your buffs and debuffs, health, focus and Vigor, food and potions, and gear needing repair in one movable strip, optionally only in combat. XP (session, pools, last hour; XP Detailed with levels and a chart); Today (gold, kills, XP, loot, crafting and gathering, optional estimated values from shroudoftheavatar.net); combat stats with Combat Detailed; notifications (guild message, mail, ransoms, rewards, gear needing repair). Commands: /toolbox and /tbx.",
   "author": "shawn butts",
   "files": ["core.lua", "xp.lua", "hover.lua", "ui.lua", "compact.lua", "daily.lua", "dailydetail.lua", "sounds.lua", "hud.lua", "buffbar.lua",
             "vitals.lua", "combat.lua", "changelog.lua", "docs.lua",

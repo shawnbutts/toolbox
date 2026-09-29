@@ -381,18 +381,20 @@ return function(t)
     t.eq(w:Find("consumables_glue").enabled, false, "glue while the bar is off")
   end)
 
-  t.test("HUD layout: a summary of what shares a strip", function()
+  t.test("Toolbelt: a summary of what's in it, and what falls back to its own strip", function()
     H.boot()
     H.chat("/tbx config")
     local summary = function() return H.config():Find("hud_summary").text end
-    t.ok(summary():find("Own strips: Consumables, Equipment"), summary())
+    t.ok(summary():find("The buff bar is off: the Toolbelt needs it"), summary())
+    t.ok(summary():find("On their own strips: Consumables, Equipment"), summary())
     H.chat("/tbx buffs")
     H.chat("/tbx vitals")
     H.chat("/tbx vitals glue on")
     H.chat("/tbx gear glue on")
-    t.ok(summary():find("One strip: Health bars %+ Buffs %+ Equipment%."), summary())
+    t.ok(summary():find("Toolbelt: Health bars %+ Buffs %+ Equipment%."), summary())
     H.chat("/tbx buffs")                               -- buff bar off: glued gear falls back
-    t.ok(summary():find("The buff bar is off, so Equipment uses its own strip%."), summary())
+    t.ok(summary():find("The buff bar is off %(the Toolbelt's base%), so Equipment uses its own strip%."),
+      summary())
   end)
 end
 

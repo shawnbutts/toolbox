@@ -69,6 +69,14 @@ D.SECTIONS = {
       .. "stay blank. Only item names are sent, and each price is kept for 24 hours; /toolbox dd values "
       .. "refresh looks them up again, and /toolbox dd values test [item] checks the connection.",
     "Like XP, it can be a HUD strip: /toolbox daily hud (and daily window, daily move <x> <y>)." },
+  { "Toolbelt",
+    "The Toolbelt is your buff bar with your health, focus and Vigor bars beside it and your consumables "
+      .. "and gear repair under it: one strip with everything you watch in a fight, moved as one. Build it "
+      .. "in settings (Toolbelt: tick the bars to add) or with /toolbox toolbelt vitals|consumables|gear on.",
+    "Only during combat (settings, or /toolbox toolbelt combat on) shows the whole Toolbelt only in combat "
+      .. "and a few seconds after, and while the settings window is open so you can place it. Move it by its "
+      .. "grip, with HUD layout's Buff bar buttons, or /toolbox toolbelt move <x> <y>. The buff bar is its "
+      .. "base: with the buff bar off, the other bars use their own strips. /toolbox toolbelt says what's in it." },
   { "Buff bar",
     "/toolbox buffs: your buffs and debuffs (outlined red) as their skill icons, the one that runs out "
       .. "soonest on the left. A darkening "
@@ -84,8 +92,8 @@ D.SECTIONS = {
       .. "/toolbox buffs debug shows buffs' names).",
     "Only during combat (settings, or /toolbox buffs combat on|off) shows the bar only while you're "
       .. "in combat and for a few seconds after, so it can sit in your line of sight without being in "
-      .. "the way. It also shows while the settings window is open, so you can place it. Glued to the "
-      .. "health & focus bars, both hide and show together.",
+      .. "the way. It also shows while the settings window is open, so you can place it. It's the "
+      .. "Toolbelt's base, so the whole Toolbelt hides and shows with it.",
     "Two settings on newer game clients: Replace the game's buff bar hides the game's own bar while "
       .. "this one is showing (it comes back whenever this one is off), and Click a buff to dismiss it "
       .. "works like the game's right-click Dismiss. Chat: /toolbox buffs replace on|off, "
@@ -97,7 +105,7 @@ D.SECTIONS = {
       .. "/toolbox vitals vigor off, hides it.",
     "Options: size (75-250%), bar length, show bars and/or numbers, a dark or light panel "
       .. "behind the numbers, and a flash when a value drops below a percentage (Test flash "
-      .. "shows it). Glue to the buff bar joins them into one HUD." },
+      .. "shows it). They can join the Toolbelt, beside the buffs (Toolbelt in settings)." },
   { "Combat stats",
     "/toolbox combat: fight timer, DPS (last 5 seconds and fight average), damage taken and "
       .. "healing per second, crit % and avoided %, plus character stats you choose.",
@@ -118,8 +126,10 @@ D.SECTIONS = {
       .. "Bait are left out (/toolbox consumables exclude add|remove <name>).",
     "They show as icons with the sweep, soonest to run out first, and leave the buff bar. "
       .. "When one is about to run out it flashes red and the buff "
-      .. "alert sounds (the buff bar's alert settings), and once it has run out it goes. Glue it to the "
-      .. "buff bar (settings, or /toolbox consumables glue on) to make it a row under the debuffs.",
+      .. "alert sounds (the buff bar's alert settings), and once it has run out it goes. Long-lasting ones "
+      .. "(the buff bar's Group buffs lasting longer than) and any past Most icons share one slot with a "
+      .. "count; hover it for the list. On its own strip it can show only during combat. It can join the "
+      .. "Toolbelt as a row under the debuffs (/toolbox toolbelt consumables on).",
     "Other buffs can go on it too: /toolbox consumables add <name or part of one> (remove to undo). "
       .. "/toolbox consumables lists what is in effect; /toolbox consumables bar off puts food and potions "
       .. "back on the buff bar. On a game client without buff categories only food and potions are "
@@ -129,8 +139,8 @@ D.SECTIONS = {
       .. "durability it has lost, lowest first; hover one for its durability. It shows only items below "
       .. "the repair threshold (20% unless you change it), and hides when nothing needs repair. While the "
       .. "settings window is open it shows every worn item, so you can place it. Its icons are the buff bar's "
-      .. "size. Glue it to the buff bar (settings, or /toolbox gear glue on) to make it a third row under "
-      .. "the debuffs; it then moves and hides with the buff bar.",
+      .. "size. It can join the Toolbelt as its last row (/toolbox toolbelt gear on); it then moves and hides "
+      .. "with it.",
     "The Gear needs repair notification says when an item drops below the threshold, and again when "
       .. "it breaks; a repaired item warns again next time. Settings (Equipment bar) sets the threshold and "
       .. "switches the bar off; the notification has its own switch under Notifications. /toolbox gear "

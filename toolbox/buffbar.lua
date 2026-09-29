@@ -1067,29 +1067,43 @@ local function drawSweeps()
 end
 
 -- Shows the long-lasting buffs' slot for `list` ({ { label, remaining, icon } }), or hides it.
-local function fillGroup(list)
-  if not group then return end
+-- Shows a group slot (the buff bar's or the consumables bar's) for `list` ({ { label, remaining, icon } }),
+-- or hides it when the list is empty.
+local function fillGroup(slot, list)
+  if not slot then return end
   if #list == 0 then
-    if group.used then group.row:SetVisible(false) end
-    group.used, group.n, group.tip, group.tex = false, nil, nil, nil
+    if slot.used then slot.row:SetVisible(false) end
+    slot.used, slot.n, slot.tip, slot.tex = false, nil, nil, nil
     return
   end
-  if not group.used then group.row:SetVisible(true) end
-  group.used = true
+  if not slot.used then slot.row:SetVisible(true) end
+  slot.used = true
   local tex = list[1][3]
-  if tex ~= group.tex then
-    group.tex = tex
-    if type(tex) == "number" and tex >= 0 then group.icon:SetTexture(tex) end
+  if tex ~= slot.tex then
+    slot.tex = tex
+    if type(tex) == "number" and tex >= 0 then slot.icon:SetTexture(tex) end
   end
-  if #list ~= group.n then
-    group.n = #list
-    for _, c in ipairs(group.counts) do c:SetText(tostring(#list)) end
+  if #list ~= slot.n then
+    slot.n = #list
+    for _, c in ipairs(slot.counts) do c:SetText(tostring(#list)) end
   end
   local tip = BB.GroupTooltip(list)
-  if tip ~= group.tip then
-    group.tip = tip
-    group.icon:SetTooltip(tip)
-    for _, c in ipairs(group.counts) do c:SetTooltip(tip) end
+  if tip ~= slot.tip then
+    slot.tip = tip
+    slot.icon:SetTooltip(tip)
+    for _, c in ipairs(slot.counts) do c:SetTooltip(tip) end
+  end
+end
+
+-- A group slot resized to n px (BB.SetSize).
+local function resizeGroup(slot, n)
+  if not slot then return end
+  local f = countFont(n)
+  slot.row:SetStyle{ width = n, height = n }
+  slot.icon:SetSize(n, n)
+  for i, c in ipairs(slot.counts) do
+    local d = BB.COUNT_OUTLINE[i] or { 0, 0 }              -- the last is the bright one
+    c:SetStyle(countStyle(n, f, d[1], d[2]))
   end
 end
 
@@ -1212,7 +1226,7 @@ function BB.Tick()
       local s = shownDebuffs[i]
       if s then fill(slots.debuffs[i], s.e, s.fraction) else fill(slots.debuffs[i], nil) end
     end
-    fillGroup(grouped)                 -- always last: the longest-lasting buffs
+    fillGroup(group, grouped)          -- always last: the longest-lasting buffs
   end
   K.Fill(shownCons)                    -- before the fit: a glued consumables row counts in it
   if content and shown then
@@ -1464,7 +1478,12 @@ function BB.IsEnabled() return prefs.show == true end
 function BB.IsShown()
   if prefs.show ~= true then return false end
   if not prefs.combatOnly then return true end
-  return inCombat or T.Now() < combatUntil or T.Config.IsShown()
+  return BB.InCombatWindow() or T.Config.IsShown()
+end
+
+-- In combat, or within BB.COMBAT_LINGER seconds after it (also used by the consumables bar).
+function BB.InCombatWindow()
+  return inCombat or T.Now() < combatUntil
 end
 
 -- For Toolbox.Hud: out of combat with "only during combat", a glued strip (health & focus bars
@@ -1519,15 +1538,8 @@ function BB.SetSize(n)
         slot.k = nil                           -- redraw the sweep at the new size
       end
     end
-    if group then
-      local f = countFont(n)
-      group.row:SetStyle{ width = n, height = n }
-      group.icon:SetSize(n, n)
-      for i, c in ipairs(group.counts) do
-        local d = BB.COUNT_OUTLINE[i] or { 0, 0 }              -- the last is the bright one
-        c:SetStyle(countStyle(n, f, d[1], d[2]))
-      end
-    end
+    resizeGroup(group, n)
+    resizeGroup(K.GroupSlot(), n)
     BB.Tick()                                  -- re-fits the strip for the new icon size
   end
   T.Gear.ApplySize(n)                          -- the equipment bar uses the same icon size
@@ -2060,7 +2072,11 @@ local function defaultExclude()
   return out
 end
 
+K.MAX_DEFAULT = K.SLOTS          -- icons shown before the rest go into the group slot (a setting)
+
 local kprefs = { show = true, glue = false, extra = {}, cats = defaultCats(), exclude = defaultExclude() }
+local kGroup = nil             -- the consumables bar's group slot (long-lasting ones, and past the cap)
+local kGrouped, kGroupPool = {}, {}
 local kCache = {}              -- rune name -> kind or false (a rune's name and label don't change)
 local kShown = nil             -- K.IsShown() last time, to refresh the HUD when it changes
 
@@ -2074,7 +2090,7 @@ function K.Wanted() return kprefs.show == true and not K.Glued() end
 
 function K.GluedCount()
   if not K.Glued() then return 0 end
-  return math.min(K.SLOTS, kCount)
+  return math.min(K.SLOTS + 1, kCount)
 end
 
 -- Whether effect e goes on the consumables bar (it is on, and e is food, a potion or an added name).
@@ -2126,7 +2142,33 @@ function K.Exclude() return kprefs.exclude end
 
 function K.IsShown()
   if kprefs.show ~= true or K.Glued() then return false end
-  return kCount > 0 or T.Config.IsShown()        -- empty but shown while settings are open, to place it
+  if T.Config.IsShown() then return true end     -- (empty or not) shown while settings are open, to place it
+  if kprefs.combatOnly and not BB.InCombatWindow() then return false end
+  return kCount > 0
+end
+
+function K.GroupSlot() return kGroup end
+
+-- The most icons before the rest go into the group slot, 1..K.SLOTS.
+function K.GetMax() return kprefs.max or K.MAX_DEFAULT end
+
+function K.SetMax(n)
+  if type(n) ~= "number" or n ~= math.floor(n) or n < 1 or n > K.SLOTS then return false end
+  kprefs.max = n
+  kSave()
+  BB.Tick()
+  T.Config.Sync()
+  return true
+end
+
+-- Its own "only during combat" (on its own strip; in the Toolbelt it follows the Toolbelt).
+function K.GetCombatOnly() return kprefs.combatOnly == true end
+
+function K.SetCombatOnly(on)
+  kprefs.combatOnly = on == true
+  kSave()
+  BB.Tick()
+  T.Config.Sync()
 end
 
 -- The row of slots: its strip's content, or a row of the buff bar when glued (`gapBelow`: another row
@@ -2139,6 +2181,8 @@ function K.BuildRow(gapBelow)
     slots.consumables[i] = makeSlot(false)
     row[i] = slots.consumables[i].row
   end
+  kGroup = makeGroupSlot()
+  row[#row + 1] = kGroup.row
   kContent = UI.Row{ id = "consumables", style = { marginBottom = gapBelow and BB.GAP or 0 }, children = row }
   kShown = nil
   return kContent
@@ -2150,13 +2194,13 @@ end
 
 -- For Toolbox.Hud (and BB.Unbuilt when glued): the row was destroyed; K.Fill skips it until rebuilt.
 function K.Unbuilt()
-  kContent, kShown, K.inBuffBar = nil, nil, false
+  kContent, kShown, K.inBuffBar, kGroup = nil, nil, false, nil
   slots.consumables = {}
 end
 
 function K.ContentSize()
   local cell = size() + BB.GAP
-  return math.max(1, math.min(K.SLOTS, kCount)) * cell, cell
+  return math.max(1, math.min(K.SLOTS + 1, kCount)) * cell, cell   -- + the group slot
 end
 
 function K.GetSavedPosition() return kprefs.x, kprefs.y end
@@ -2172,17 +2216,40 @@ K.GetPosition, K.MoveTo, K.Nudge, K.ResetPosition = consMover.Get, consMover.Mov
   consMover.Reset
 
 -- From BB.Tick: the consumables in effect ({ e, fraction, warn } each), soonest to run out first.
+-- Long-lasting consumables (more than BB.GroupAfter() left, as on the buff bar) and any past the icon
+-- cap (K.GetMax) share the group slot, like the buff bar's (owner, 2026-09-29).
 function K.Fill(list)
   BB.SortByExpiry(list)
-  local count = math.min(#list, K.SLOTS)
+  local after, cap = BB.GroupAfter(), K.GetMax()
+  local shownN = 0
+  local grouped = clear(kGrouped)
+  for _, x in ipairs(list) do
+    if shownN >= cap or BB.GroupedByTime(x.remaining, after) then
+      local rune = runes[x.name] or NOTHING
+      local tex = (type(rune.icon) == "number" and rune.icon >= 0) and rune.icon or ShroudGetBuffIcon(x.e.index)
+      local g = pooled(kGroupPool, #grouped + 1)
+      g[1], g[2], g[3] = labelFor(x.e), x.remaining, tex
+      grouped[#grouped + 1] = g
+      x.grouped = true
+    else
+      shownN = shownN + 1
+      x.grouped = false
+    end
+  end
+  local count = shownN + (#grouped > 0 and 1 or 0)
   local pool = slots.consumables
   if kContent and (not K.Glued() or BB.IsShown()) then
-    for i = 1, K.SLOTS do
-      local x = list[i]
-      if pool[i] then
-        if x then fill(pool[i], x.e, x.fraction, x.warn, x.warn and prefs.flash) else fill(pool[i], nil) end
+    local slot = 0
+    for _, x in ipairs(list) do
+      if not x.grouped then
+        slot = slot + 1
+        if pool[slot] then fill(pool[slot], x.e, x.fraction, x.warn, x.warn and prefs.flash) end
       end
     end
+    for i = slot + 1, K.SLOTS do
+      if pool[i] then fill(pool[i], nil) end
+    end
+    fillGroup(kGroup, grouped)
   end
   local changed = count ~= kCount
   kCount = count
@@ -2229,6 +2296,9 @@ function K.Init()
       end
     end
     if type(saved.exclude) == "table" then kprefs.exclude = nameParts(saved.exclude) end
+    local max = saved.max
+    if type(max) == "number" and max == math.floor(max) and max >= 1 and max <= K.SLOTS then kprefs.max = max end
+    kprefs.combatOnly = saved.combatOnly == true
     if type(saved.x) == "number" and type(saved.y) == "number" then kprefs.x, kprefs.y = saved.x, saved.y end
   end
   kCache, kCount, kShown, kContent = {}, 0, nil, nil

@@ -541,6 +541,35 @@ add("dailydetailed", "show or hide Today Detailed (every item gained today, with
   T.DailyDetail.Toggle()
 end, { "dd" })
 
+-- The Toolbelt: the buff bar with the health bars, consumables and equipment bars joined to it.
+add("toolbelt", "the buff bar with your health bars, consumables and gear repair joined to it (vitals|consumables|"
+    .. "gear on|off: which bars join it; combat on|off: only during combat; move [x y])", function(rest)
+  local word, args = T.ParseArgs(rest)
+  local a = args:lower()
+  local c = "/" .. T.commands[1] .. " toolbelt "
+  local joins = { vitals = { T.Hud.SetGlued, "Health, focus & Vigor bars" },
+                  consumables = { T.Consumables.SetGlue, "Consumables bar" },
+                  gear = { T.Gear.SetGlue, "Equipment bar" } }
+  if joins[word] then
+    if a ~= "on" and a ~= "off" then
+      T.Print("Use " .. c .. word .. " on|off.")
+      return
+    end
+    joins[word][1](a == "on")
+  elseif word == "combat" then
+    if a == "on" or a == "off" then T.BuffBar.SetCombatOnly(a == "on") end
+    T.Print("Toolbelt only during combat: " .. (T.BuffBar.GetCombatOnly() and "on" or "off") .. ".")
+    return
+  elseif word == "move" then
+    T.MoveCommand(T.BuffBar, "toolbelt", "Toolbelt", args)
+    return
+  elseif word ~= "" then
+    T.Print("Use " .. c .. "vitals|consumables|gear on|off, combat on|off, or move <x> <y>.")
+    return
+  end
+  for line in (T.Config.HudSummary() .. "\n"):gmatch("([^\n]*)\n") do T.Print(line) end
+end)
+
 -- Today Detailed on its Crafted / Gathered view.
 local function openView(view)
   if not T.DailyDetail.SetView(view) then
@@ -830,7 +859,8 @@ add("vitals", "health, focus & Vigor bars (size; text|bars|vigor on|off; bg; fla
       T.Print("Use /" .. T.commands[1] .. " vitals glue on|off.")
       return
     end
-    T.Print("Health & focus bars " .. (T.Hud.IsGlued() and "glued to the buff bar (one HUD)." or "on their own."))
+    T.Print("Health & focus bars " .. (T.Hud.IsGlued() and "in the Toolbelt (beside the buffs)."
+      or "on their own strip."))
     return
   end
   if word == "flash" then
@@ -967,7 +997,8 @@ add("combat", "combat stats HUD; add stats while playing: /toolbox combat help",
   end
 end)
 
-add("consumables", "food, potions and combat items in effect, on their own bar (bar on|off; glue on|off; "
+add("consumables", "food, potions and combat items in effect, on their own bar (bar on|off; glue on|off: in the "
+    .. "Toolbelt; combat on|off; max <1-10>: icons before the rest are grouped; "
     .. "cat <Category> on|off: which kinds; add|remove <name>: always on it; exclude add|remove <name>: "
     .. "never; move [x y])", function(rest)
   local K = T.Consumables
@@ -979,7 +1010,7 @@ add("consumables", "food, potions and combat items in effect, on their own bar (
     for _, key in ipairs(K.Categories()) do
       if K.GetCategory(key) then cats[#cats + 1] = key end
     end
-    T.Print("Consumables bar: " .. (K.GetShow() and "on" or "off") .. (K.GetGlue() and ", glued to the buff bar" or "")
+    T.Print("Consumables bar: " .. (K.GetShow() and "on" or "off") .. (K.GetGlue() and ", in the Toolbelt" or "")
       .. ". Kinds: " .. (#cats > 0 and table.concat(cats, ", ") or "none")
       .. (K.HasCategories() and "" or " (this client has no buff categories: Food and Potion go by name)") .. ".")
     if #K.Exclude() > 0 then T.Print("Left out: names containing " .. table.concat(K.Exclude(), ", ") .. ".") end
@@ -992,9 +1023,20 @@ add("consumables", "food, potions and combat items in effect, on their own bar (
   elseif word == "bar" then
     if a == "on" or a == "off" then K.SetShow(a == "on") end
     T.Print("Consumables bar: " .. (K.GetShow() and "on" or "off (they stay on the buff bar)") .. ".")
+  elseif word == "combat" then
+    if a == "on" or a == "off" then K.SetCombatOnly(a == "on") end
+    T.Print("Consumables bar only during combat: " .. (K.GetCombatOnly() and "on" or "off")
+      .. (K.Glued() and " (in the Toolbelt it follows the Toolbelt: /" .. T.commands[1] .. " toolbelt combat)" or "")
+      .. ".")
+  elseif word == "max" then
+    if args ~= "" and not K.SetMax(tonumber(args)) then
+      T.Print("Use " .. c .. "max <1-" .. K.SLOTS .. ">.")
+      return
+    end
+    T.Print("Consumables bar: at most " .. K.GetMax() .. " icons; the rest (and long-lasting ones) share one slot.")
   elseif word == "glue" then
     if a == "on" or a == "off" then K.SetGlue(a == "on") end
-    T.Print("Consumables bar glued under the buff bar: " .. (K.GetGlue() and "on" or "off")
+    T.Print("Consumables bar in the Toolbelt: " .. (K.GetGlue() and "on" or "off")
       .. (K.GetGlue() and not T.BuffBar.IsEnabled() and " (the buff bar is off, so it has its own strip)" or "")
       .. ".")
   elseif word == "cat" then
@@ -1047,7 +1089,7 @@ add("gear", "worn gear's durability, lowest first (bar on|off: the equipment bar
     for _, line in ipairs(G.DebugLines()) do T.Print(line) end
   elseif word == "glue" then
     if args:lower() == "on" or args:lower() == "off" then G.SetGlue(args:lower() == "on") end
-    T.Print("Equipment bar glued under the buff bar: " .. (G.GetGlue() and "on" or "off")
+    T.Print("Equipment bar in the Toolbelt: " .. (G.GetGlue() and "on" or "off")
       .. (G.GetGlue() and not T.BuffBar.IsEnabled() and " (the buff bar is off, so it has its own strip)" or "")
       .. ".")
   elseif word == "repair" then

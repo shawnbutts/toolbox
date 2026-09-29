@@ -68,6 +68,7 @@ return function(t)
   t.test("a consumable's sweep uses its full duration from the game", function()
     H.boot()
     H.S.durationMode = "remaining"
+    H.chat("/tbx buffs group after off")               -- 4 h left would be grouped
     H.addBuffs({ { name = "RuneFood_Stew_Dragon", remaining = 14544, total = 29088, icon = 590 } })  -- half gone
     H.advance(1)
     local holder = consSlots()[1].children[2]
@@ -295,6 +296,107 @@ return function(t)
     t.no(Toolbox.Consumables.GetCategory("Blessing"))
     t.eq(Toolbox.Consumables.Exclude()[1], "Scroll")
     t.eq(Toolbox.Consumables.Extra()[1], "Venom")
+  end)
+
+  -- grouping, cap, combat only (like the buff bar) ----------------------------------
+
+  -- The group slot: the row's last child (a count label over the first grouped icon).
+  local function groupSlot()
+    local frame = strip() or H.S.frames.toolbox_buffs or H.S.frames.toolbox_hud
+    local kids = frame:Find("consumables").children
+    return kids[#kids]
+  end
+
+  local function obsidian(n)
+    local list = {}
+    for i = 1, n do
+      list[i] = { name = "BlessingOf" .. i, remaining = 500000 + i, total = 604800, icon = 300 + i }
+    end
+    return list
+  end
+
+  t.test("long-lasting ones share one slot with a count, like the buff bar's", function()
+    H.boot()
+    H.S.durationMode = "remaining"
+    local list = obsidian(7)
+    list[8] = { name = "RuneFood_Pie", remaining = 300, total = 14544, icon = 46 }     -- 5 min: its own icon
+    H.addBuffs(list)
+    H.advance(1)
+    local slots = consSlots()
+    t.eq(#slots, 2, "the pie, then the group")
+    t.eq(slots[1].children[1].texture, 46)
+    local g = groupSlot()
+    t.ok(g.visible ~= false)
+    t.eq(g.children[#g.children].text, "7", "the count")
+    t.ok(g.children[1].tooltip:find("Long%-lasting buffs %(7%)"), g.children[1].tooltip)
+    local cell = B().GetSize() + B().GAP
+    t.eq(strip().width, Toolbox.Window.GRIP + 2 * cell + 8, "sized for the icon and the group slot")
+  end)
+
+  t.test("past the icon cap the rest share the group slot too", function()
+    H.boot()
+    H.S.durationMode = "remaining"
+    local list = {}
+    for i = 1, 4 do list[i] = { name = "RuneFood_Dish" .. i, remaining = 100 * i, total = 14544, icon = 60 + i } end
+    H.addBuffs(list)
+    H.chat("/tbx consumables max 2")
+    t.eq(H.saved("consumables").max, 2)
+    H.advance(1)
+    t.eq(textures(consSlots()), "61,62,63", "two icons (soonest first), then the group (showing the 3rd)")
+    t.eq(groupSlot().children[#groupSlot().children].text, "2")
+    H.clearLogs()
+    H.chat("/tbx consumables max 11")
+    t.ok(H.logged("max <1%-10>"))
+  end)
+
+  t.test("its own strip can show only during combat; in the Toolbelt it follows the Toolbelt", function()
+    H.boot()
+    H.addBuffs({ { name = "RuneFood_Pie", remaining = 300, total = 14544, icon = 46 } })
+    H.chat("/tbx consumables combat on")
+    t.eq(H.saved("consumables").combatOnly, true)
+    H.advance(1)
+    t.eq(strip().visible, false, "out of combat")
+    H.setCombat(true)
+    H.advance(1)
+    t.eq(strip().visible, true, "in combat")
+    H.setCombat(false)
+    H.advance(Toolbox.BuffBar.COMBAT_LINGER + 1)
+    t.eq(strip().visible, false, "a few seconds after")
+    H.chat("/tbx buffs")
+    H.chat("/tbx config")
+    t.ok(H.config():Find("cons_combat").enabled ~= false)
+    H.chat("/tbx consumables glue on")
+    t.eq(H.config():Find("cons_combat").enabled, false, "greyed out in the Toolbelt")
+  end)
+
+  -- the Toolbelt ---------------------------------------------------------------------
+
+  t.test("/tbx toolbelt: what's in it, which bars join, combat only, move", function()
+    H.boot()
+    H.chat("/tbx buffs")
+    H.chat("/tbx vitals")
+    H.clearLogs()
+    H.chat("/tbx toolbelt")
+    t.ok(H.logged("^Toolbelt: just the buff bar so far"), H.logs()[1])
+    H.chat("/tbx toolbelt vitals on")
+    H.chat("/tbx toolbelt consumables on")
+    H.chat("/tbx toolbelt gear on")
+    t.ok(Toolbox.Hud.IsGlued())
+    t.ok(Toolbox.Consumables.Glued())
+    t.ok(Toolbox.Gear.Glued())
+    H.clearLogs()
+    H.chat("/tbx toolbelt")
+    t.ok(H.logged("^Toolbelt: Health bars %+ Buffs %+ Consumables %+ Equipment%.$"), H.logs()[1])
+    H.chat("/tbx toolbelt combat on")
+    t.ok(Toolbox.BuffBar.GetCombatOnly())
+    H.chat("/tbx config")
+    t.eq(H.config():Find("toolbelt_combat").value, true, "the Toolbelt's checkbox is the buff bar's setting")
+    t.eq(H.config():Find("buffs_combat_only").value, true)
+    H.chat("/tbx toolbelt move 500 300")
+    t.eq(H.hud().x, 500, "the whole Toolbelt moves")
+    H.clearLogs()
+    H.chat("/tbx toolbelt sideways")
+    t.ok(H.logged("^Use /toolbox toolbelt vitals"))
   end)
 end
 

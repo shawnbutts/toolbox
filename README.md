@@ -3,6 +3,8 @@
 A Shroud of the Avatar Lua add-on. It needs Lua API 15 (`min_api_version` in the manifest) and uses
 newer functions (up to API 20) when the game client has them. Features:
 
+- **Toolbelt**: your buffs and debuffs, health, focus and Vigor, consumables and gear repair in one
+  movable strip, optionally only during combat (the buff bar with the other bars joined to it).
 - **XP**: a small window (or HUD strip) with session time, your adventurer and producer pools, and XP
   earned in the last hour. Hover it for **XP Detailed**: levels, progress bars, XP/hour, time to the
   next level, and the last hour as a chart.
@@ -12,7 +14,8 @@ newer functions (up to API 20) when the game client has them. Features:
   buffs grouped into one slot, sound alerts and a red flash before a buff runs out, a sound when a
   debuff lands, an only-in-combat option, and (API 16) replacing the game's own buff bar and
   click-to-dismiss.
-- **Consumables bar**: food and Obsidian potions in effect on their own bar (or glued under the buffs).
+- **Consumables bar**: food, potions, weapon poisons and combat items in effect, by the game's buff
+  categories, long-lasting ones grouped (on its own strip or in the Toolbelt).
 - **Health, focus & Vigor bars**: your own health, focus and (API 20) Vigor on a movable HUD strip.
 - **Combat stats**: DPS, damage taken and healing per second, crit and avoid rates, a fight timer and
   chosen character stats; hover it for **Combat Detailed** (damage by skill, the last minute as a

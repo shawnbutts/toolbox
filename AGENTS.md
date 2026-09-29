@@ -264,6 +264,12 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     `NH.Tick` (end of `N.Check`) refreshes the HUD when that changes.
     `D.SECTIONS` is the player guide (update it with every
     user-facing change); the Commands part comes from `Toolbox.CommandList()`. Built on first open.
+  - THE TOOLBELT (owner's name, 2026-09-29; "the main selling point"): the user-facing name for the buff bar
+    with the health bars glued beside it (`Hud.SetGlued`) and the consumables / equipment bars glued under it
+    (`K.SetGlue`, `G.SetGlue`). Player-facing text says "Toolbelt" ("in the Toolbelt"), never "glue"; code
+    and saved vars keep the glue names. Settings category `toolbelt` (`C.ToolbeltSection`: summary, only
+    during combat = the buff bar's `combatOnly`, the three join toggles); `/toolbox toolbelt`. The buff bar is
+    its base: with the buff bar off, the other bars fall back to their own strips.
   - `config.lua`: `Toolbox.Config`, the settings window. Controls call the owning module's setters; the
     setters call `Toolbox.Config.Sync()` so the controls follow chat commands and the close button.
     Categories (`C.CATEGORIES`, picked by the "Show" dropdown) are built the first time they are shown
@@ -386,7 +392,7 @@ including the "no character" sentinel.
 | `notify` | `{ v = 1, sources = { [key] = { on = bool, seen = last value delivered, via = "window" } } }` (keys: motd, mail, expiring, ransoms, rewards, applications, durability; durability's `seen` is a table `{ [item key] = "low"/"broken" }`, read back as string keys and values only); the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), x, y }` |
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most `Notify.Hud.KEEP` (20) |
-| `consumables` | `{ show = bool (default true), glue = bool, extra = { name parts, <= 20 }, cats = { [category] = true } (absent: defaults), exclude = { name parts } (absent: Scroll, Torch, Bait), x, y }` |
+| `consumables` | `{ show = bool (default true), glue = bool, extra = { name parts, <= 20 }, cats = { [category] = true } (absent: defaults), exclude = { name parts } (absent: Scroll, Torch, Bait), max = 1..10 (icons before grouping), combatOnly = bool, x, y }` |
 | `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` (the equipment bar) |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts (unversioned ignored) |
 
