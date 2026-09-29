@@ -256,8 +256,17 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     user-facing change); the Commands part comes from `Toolbox.CommandList()`. Built on first open.
   - `config.lua`: `Toolbox.Config`, the settings window. Controls call the owning module's setters; the
     setters call `Toolbox.Config.Sync()` so the controls follow chat commands and the close button.
-    To add a setting: a setter + getter on the owning module (persisted there), a control here, a line
-    in `Sync()`, and tests in `tests/test_config.lua`.
+    Categories (`C.CATEGORIES`, picked by the "Show" dropdown) are built the first time they are shown
+    (`C.ShowCategory`), so a control may not exist yet: `Sync` uses `setValue` / `setText` / `setEnabled`,
+    which skip missing ones, and every looked-up id must be in `ALL_IDS`. Controls whose feature is off are
+    greyed out in `Sync` (`setEnabled`; never the ones that work regardless, like the buff alerts or the icon
+    size). XP / Today: one Hidden / Window / HUD strip dropdown (`C.ModeOf` / `C.SetMode`). HUD layout holds
+    the glue toggles, every strip's `PositionRows` and `C.HudSummary()`.
+    To add a setting: a setter + getter on the owning module (persisted there), a control in its category,
+    its id in `ALL_IDS`, a line in `Sync()` (and `setEnabled` if it depends on something), and tests in
+    `tests/test_config.lua`. Harness: `H.config()` / `H.change` / `H.click` build every category first
+    (`C.BuildAll`); `H.configRaw()` is the window as the player sees it; a disabled control can't be
+    changed or clicked (as in game).
 - `tmp/`: a local working area (scratch files, captured logs, screenshots); git-ignored and skipped by
   luacheck. Never reference it from the package, tests or tools.
 - `tests/test_stress.lua`: a veteran character (every saved list at its cap), full bars (30 buffs and

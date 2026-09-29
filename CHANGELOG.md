@@ -24,6 +24,13 @@ store submission needs a higher version than any submitted before (rejected ones
   applies (needs a game client with Lua API 20). `/toolbox vitals vigor off` or settings hides it.
 
 ### Changed
+- Settings window reorganised: a Show dropdown picks one category (XP & Today, Buffs, Consumables &
+  gear, Health bars, Combat, Notifications, Sounds, HUD layout), built the first time it's picked, so
+  opening settings creates far fewer elements (37 instead of about 240). It's wider (360 px).
+  XP and Today each have one "Hidden / Window / HUD strip" choice instead of two checkboxes. Options
+  that do nothing while their feature is off are greyed out. A new HUD layout category holds the glue
+  options, every strip's position, and a summary of what shares a strip (and what falls back to its own
+  when the buff bar is off). Alert sounds and volume have their own Sounds category.
 - The store description and the project README list every current feature (they still described the
   add-on as it was two betas ago).
 - Health & focus bars: the bar length can now go down to 20 (was 100), for a compact strip.

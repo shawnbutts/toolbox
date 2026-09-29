@@ -2,6 +2,11 @@
 -- The "Toolbox Settings" window (/toolbox config). Each control reads its value
 -- from the owning module and writes back through that module's setter, so the
 -- settings live in one place and the matching chat commands keep working.
+--
+-- A "Show:" dropdown picks one category (C.CATEGORIES); each is built the first time it is shown
+-- (fewer elements created when the window opens), so anything that updates controls must allow
+-- for ones not built yet (the set* helpers below skip them). Controls whose feature is off are
+-- greyed out (SetEnabled) rather than hidden. The review of 2026-09-29 asked for this layout.
 
 local T = Toolbox
 local C = {}
@@ -10,12 +15,30 @@ Toolbox.Config = C
 local UI = Shroud.UI
 local WINDOW_ID = "toolbox_config"
 local GUTTER = 10
+C.WIDTH, C.HEIGHT = 360, 680
 
 local win = nil
-local el = {}
+local body = nil          -- the column the categories are added to
+local el = {}             -- id -> element, for the categories built so far
+local built = {}          -- category key -> its column
+local current = nil       -- the category shown (kept across a window rebuild, not saved)
 
 local function fontLabel(n)
   return string.format("%d", n)
+end
+
+-- Control updates that skip controls not built yet (their category hasn't been shown).
+local function setValue(id, v)
+  local e = el[id]
+  if e then e:SetValue(v) end
+end
+local function setText(id, text)
+  local e = el[id]
+  if e then e:SetText(text) end
+end
+local function setEnabled(id, on)
+  local e = el[id]
+  if e and e:IsEnabled() ~= on then e:SetEnabled(on) end
 end
 
 -- A labelled slider: "Label ........ value" then the slider.
@@ -28,6 +51,18 @@ local function slider(id, label, lo, hi, step, value, tooltip, onChange)
     UI.Slider{ id = id, min = lo, max = hi, step = step, value = value, tooltip = tooltip,
       onChange = function(_, v) onChange(math.floor((tonumber(v) or value) + 0.5)) end },
   } }
+end
+
+-- "Label ........ [dropdown]"
+local function dropdownRow(label, spec)
+  return UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
+    UI.Label{ text = label, class = "text", style = { flexGrow = 1, whiteSpace = "wrap" } },
+    UI.Dropdown(spec),
+  } }
+end
+
+local function heading(text, first)
+  return UI.Label{ text = text, class = "heading", style = { marginTop = first and 2 or 10 } }
 end
 
 local function soundRows(def)
@@ -49,7 +84,7 @@ end
 -- "Position  x, y" and < ^ v > Reset buttons for a HUD strip. `m` has GetPosition, Nudge,
 -- ResetPosition and NUDGE; ids are <prefix>_pos, _left, _up, _down, _right, _reset.
 C.NUDGE = 10
-function C.PositionRows(prefix, m)
+function C.PositionRows(prefix, m, label)
   local n = C.NUDGE
   local function button(id, text, tip, fn, gap)
     return UI.Button{ id = prefix .. "_" .. id, text = text, tooltip = tip, style = { marginLeft = gap },
@@ -57,7 +92,7 @@ function C.PositionRows(prefix, m)
   end
   return UI.Column{ children = {
     UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
-      UI.Label{ text = "Position", class = "text", style = { flexGrow = 1 },
+      UI.Label{ text = label or "Position", class = "text", style = { flexGrow = 1 },
         tooltip = "Or drag the grip at its top-left corner. To see the grip, untick Lock Status Movement"
           .. " (Options > Interface > Nameplates & Chat Bubbles)." },
       UI.Label{ id = prefix .. "_pos", text = "", class = "dim" },
@@ -72,16 +107,157 @@ function C.PositionRows(prefix, m)
   } }
 end
 
--- The "Health & focus bars" part of the settings.
+-- ---------------------------------------------------------------------------
+-- XP and Today: Hidden / Window / HUD strip
+-- ---------------------------------------------------------------------------
+
+C.MODES = { "Hidden", "Window", "HUD strip" }
+
+-- The display mode of Toolbox.Compact (XP) or Toolbox.Daily (Today).
+function C.ModeOf(m)
+  if not m.IsShown() then return "Hidden" end
+  if m.GetHud() then return "HUD strip" end
+  return "Window"
+end
+
+-- Sets the mode; returns true when it took (a window can be refused while the game is busy).
+function C.SetMode(m, label)
+  if label == "Hidden" then return m.SetOpen(false) ~= false end
+  local hud = label == "HUD strip"
+  if label ~= "Window" and not hud then return false end
+  local ok = m.SetHud(hud)
+  if ok ~= false then ok = m.SetOpen(true) end
+  return ok ~= false
+end
+
+local function onMode(m, id, label)
+  if not C.SetMode(m, label) then setValue(id, C.ModeOf(m)) end   -- refused: put the dropdown back
+  C.Sync()
+end
+
+-- ---------------------------------------------------------------------------
+-- Categories
+-- ---------------------------------------------------------------------------
+
+function C.XPSection()
+  local W = T.Window
+  return UI.Column{ children = {
+    heading("XP", true),
+    dropdownRow("XP window", { id = "xp_mode", choices = C.MODES, value = C.ModeOf(T.Compact),
+      tooltip = "Session time, pools and XP in the last hour: as a window, or as a HUD strip (no title bar;"
+        .. " moved by its grip, like the buff bar)",
+      onChange = function(_, v) onMode(T.Compact, "xp_mode", v) end }),
+    UI.Toggle{ id = "hover_popup", text = "Show XP Detailed on hover", value = T.Compact.GetHover(),
+      style = { marginLeft = 16 }, tooltip = "Hovering the XP window pops up the XP Detailed window",
+      onChange = function(_, value) T.Compact.SetHover(value) end },
+    UI.Toggle{ id = "show_xp", text = "Show XP Detailed window", value = W.IsOpen(),
+      onChange = function(_, value) C.OnShowXP(value) end },
+    UI.Toggle{ id = "xp_net", text = "Subtract XP lost (net change)", value = W.GetNet(),
+      tooltip = "Off: XP figures count gains only (a death doesn't lower them). On: XP lost is"
+        .. " subtracted, so last hour, XP/hour and today's XP can go negative.",
+      onChange = function(_, value) W.SetNet(value) end },
+    heading("Today"),
+    dropdownRow("Today window", { id = "daily_mode", choices = C.MODES, value = C.ModeOf(T.Daily),
+      tooltip = "Gold, kills and XP since midnight: as a window, or as a HUD strip",
+      onChange = function(_, v) onMode(T.Daily, "daily_mode", v) end }),
+    UI.Toggle{ id = "hover_daily", text = "Show Today Detailed on hover", value = T.Daily.GetHover(),
+      style = { marginLeft = 16 }, tooltip = "Hovering the Today window pops up the Today Detailed window",
+      onChange = function(_, value) T.Daily.SetHover(value) end },
+    UI.Toggle{ id = "show_daily_detail", text = "Show Today Detailed window", value = T.DailyDetail.IsOpen(),
+      onChange = function(_, value) C.OnShowDailyDetail(value) end },
+    UI.Toggle{ id = "dd_values", text = "Estimated values (SOTA.net)", value = T.DailyDetail.GetValues(),
+      style = { marginLeft = 16 },
+      tooltip = "Adds each item's value to Today Detailed: count x its 90-day average sale price from"
+        .. " shroudoftheavatar.net (player-uploaded receipts); blank when it hasn't sold. Sends item"
+        .. " names to that site. Also switch Internet on for Toolbox in the add-on manager.",
+      onChange = function(_, value) T.DailyDetail.SetValues(value) end },
+    heading("Text in these windows"),
+    slider("font", "Text size", W.FONT_MIN, W.FONT_MAX, 1, W.GetFont(),
+      "Text size of the XP and Today windows (" .. W.FONT_MIN .. "-" .. W.FONT_MAX .. ")",
+      function(n) C.OnFont(n) end),
+    slider("spacing", "Line spacing", W.SPACING_MIN, W.SPACING_MAX, 1, W.GetSpacing(),
+      "Extra pixels between lines (" .. W.SPACING_MIN .. "-" .. W.SPACING_MAX .. ")",
+      function(n) C.OnSpacing(n) end),
+  } }
+end
+
+-- The "Buff bar" category: the common controls first, then alerts, then advanced grouping.
+function C.BuffBarSection()
+  local B = T.BuffBar
+  return UI.Column{ children = {
+    heading("Buff bar", true),
+    UI.Toggle{ id = "show_buffs", text = "Show buff bar", value = B.IsEnabled(),
+      onChange = function(_, v) B.SetShown(v) end },
+    UI.Toggle{ id = "buffs_combat_only", text = "Only during combat", value = B.GetCombatOnly(),
+      style = { marginLeft = 16 },
+      tooltip = "Show the bar only in combat (and a few seconds after). It also shows while this window"
+        .. " is open, so you can place it.",
+      onChange = function(_, v) B.SetCombatOnly(v) end },
+    UI.Toggle{ id = "buff_replace", text = "Replace the game's buff bar", value = B.GetReplace(),
+      enabled = B.CanReplace(), style = { marginLeft = 16 },
+      tooltip = B.CanReplace() and "Hides the game's own buff bar while this one is showing"
+        or "Needs a newer game client (Lua API 16)",
+      onChange = function(_, v) C.OnReplace(v) end },
+    UI.Toggle{ id = "buff_dismiss", text = "Click a buff to dismiss it", value = B.GetClickDismiss(),
+      enabled = B.CanDismiss(), style = { marginLeft = 16 },
+      tooltip = B.CanDismiss() and "Like the game's right-click Dismiss; only buffs the game lets you dismiss"
+        or "Needs a newer game client (Lua API 16)",
+      onChange = function(_, v) C.OnDismiss(v) end },
+    slider("buff_size", "Icon size", B.SIZE_MIN, B.SIZE_MAX, 1, B.GetSize(),
+      "Buff icon size in pixels (the consumables and equipment bars use it too)", function(n) B.SetSize(n) end),
+    heading("Alerts (they work with the bar hidden)"),
+    UI.Toggle{ id = "expire_alert", text = "Sound when a buff is about to run out", value = B.GetExpireAlert(),
+      onChange = function(_, v) B.SetExpireAlert(v) end },
+    slider("expire_seconds", "Seconds before it runs out", B.ALERT_MIN, B.ALERT_MAX, 1, B.GetExpireSeconds(),
+      "How long before a buff ends to play the alert", function(n) B.SetExpireSeconds(n) end),
+    UI.Toggle{ id = "buff_flash", text = "Flash icons about to run out", value = B.GetFlash(),
+      tooltip = "A red border blinks on a buff for the seconds above, before it runs out (sound or not)",
+      onChange = function(_, v) B.SetFlash(v) end },
+    UI.Toggle{ id = "debuff_alert", text = "Sound when a debuff lands", value = B.GetDebuffAlert(),
+      onChange = function(_, v) B.SetDebuffAlert(v) end },
+    heading("Grouping"),
+    dropdownRow("Group buffs lasting longer than", { id = "buff_group_after", choices = C.GroupAfterLabels(),
+      value = B.GroupAfterLabel(B.GetGroupAfter()) or "15 minutes",
+      tooltip = "Buffs with more time left than this share one slot with a count at the end of the row;"
+        .. " hover it for the list. They move back onto the bar as they near their end.",
+      onChange = function(_, value) C.OnGroupAfter(value) end }),
+    UI.Label{ id = "buff_group", text = "", class = "dim", style = { whiteSpace = "wrap" },
+      tooltip = "Buffs whose names contain these are always grouped" },
+  } }
+end
+
+-- The "Consumables & gear" category.
+function C.ConsumablesGearSection()
+  local K, G = T.Consumables, T.Gear
+  return UI.Column{ children = {
+    heading("Consumables bar", true),
+    UI.Toggle{ id = "show_consumables", text = "Show food and potions on their own bar", value = K.GetShow(),
+      tooltip = "Food and Obsidian potions in effect, with the buff bar's sweep, flash and alert; they leave"
+        .. " the buff bar. Off: they stay on the buff bar.",
+      onChange = function(_, v) K.SetShow(v) end },
+    UI.Label{ id = "consumables_extra", text = "", class = "dim", style = { whiteSpace = "wrap" },
+      tooltip = "Buffs whose names contain these go on the bar too" },
+    heading("Equipment bar"),
+    UI.Toggle{ id = "show_gear", text = "Show worn gear needing repair", value = G.GetShow(),
+      tooltip = "Icons of worn items below the threshold, the sweep showing durability used up. Every worn"
+        .. " item shows while this window is open, so you can place it.",
+      onChange = function(_, v) G.SetShow(v) end },
+    dropdownRow("Repair below", { id = "gear_threshold", choices = C.ThresholdLabels(), value = G.Threshold() .. "%",
+      tooltip = "Durability at which an item shows on the bar and the \"Gear needs repair\" notification"
+        .. " comes (again when it breaks)",
+      onChange = function(_, value) G.SetThreshold(tonumber((value:gsub("%%", "")))) end }),
+    UI.Label{ text = "Glue either bar to the buff bar, and place them, under HUD layout.", class = "dim",
+      style = { whiteSpace = "wrap", marginTop = 6 } },
+  } }
+end
+
+-- The "Health bars" category.
 function C.VitalsSection()
   local V = T.Vitals
   return UI.Column{ children = {
-    UI.Label{ text = "Health, focus & Vigor bars", class = "heading", style = { marginTop = 8 } },
+    heading("Health, focus & Vigor bars", true),
     UI.Toggle{ id = "show_vitals", text = "Show health & focus bars", value = V.IsShown(),
       onChange = function(_, v) V.SetShown(v) end },
-    UI.Toggle{ id = "vitals_glue", text = "Glue to the buff bar (one HUD)", value = T.Hud.IsGlued(),
-      tooltip = "Health & focus on the left, buffs on the right, moved as one",
-      onChange = function(_, v) T.Hud.SetGlued(v) end },
     slider("vitals_scale", "Size (%)", V.SCALE_MIN, V.SCALE_MAX, 5, V.GetScale(),
       "Scales the bars, their text and the gap together", function(n) V.SetScale(n) end),
     slider("vitals_width", "Bar length", V.WIDTH_MIN, V.WIDTH_MAX, 10, V.GetWidth(),
@@ -94,12 +270,9 @@ function C.VitalsSection()
       tooltip = V.HasVigor() and "A gold Vigor bar under focus (hover it for the regen and crit bonuses);"
         .. " it hides below the level where Vigor applies" or "Needs a newer game client (Lua API 20)",
       onChange = function(_, v) V.SetShowVigor(v) end },
-    UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
-      UI.Label{ text = "Number background", class = "text", style = { flexGrow = 1 } },
-      UI.Dropdown{ id = "vitals_bg", choices = V.BackgroundNames(), value = V.GetBackground(),
-        tooltip = "A dark or light panel behind the numbers, in your UI theme's colours",
-        onChange = function(_, value) V.SetBackground(value) end },
-    } },
+    dropdownRow("Number background", { id = "vitals_bg", choices = V.BackgroundNames(), value = V.GetBackground(),
+      tooltip = "A dark or light panel behind the numbers, in your UI theme's colours",
+      onChange = function(_, value) V.SetBackground(value) end }),
     UI.Toggle{ id = "vitals_flash", text = "Flash when low", value = V.GetFlash(),
       style = { marginTop = 6 }, onChange = function(_, v) V.SetFlash(v) end },
     slider("vitals_flash_below", "Flash below (%)", V.FLASH_MIN, V.FLASH_MAX, 1, V.GetFlashBelow(),
@@ -109,33 +282,29 @@ function C.VitalsSection()
         tooltip = "Flash both bars for " .. V.PREVIEW_SECONDS .. " seconds to see what it looks like",
         onClick = function() V.PreviewFlash() end },
     } },
-    C.PositionRows("vitals", V),
   } }
 end
 
--- The "Combat stats" part of the settings.
+-- The "Combat" category.
 function C.CombatSection()
   local M = T.Combat
   return UI.Column{ children = {
-    UI.Label{ text = "Combat stats", class = "heading", style = { marginTop = 8 } },
+    heading("Combat stats", true),
     UI.Toggle{ id = "show_combat", text = "Show combat stats", value = M.IsShown(),
       onChange = function(_, v) M.SetShown(v) end },
-    UI.Toggle{ id = "combat_detail", text = "Show Combat Detailed window", value = M.Detail.IsOpen(),
-      style = { marginLeft = 16 }, tooltip = "Damage by skill, the last minute as a chart, and healing",
-      onChange = function(_, v) C.OnShowCombatDetail(v) end },
-    UI.Toggle{ id = "combat_detail_hover", text = "Show it on hover", value = M.Detail.GetHover(),
+    UI.Toggle{ id = "combat_detail_hover", text = "Show Combat Detailed on hover", value = M.Detail.GetHover(),
       style = { marginLeft = 16 }, tooltip = "Hovering the combat stats HUD pops up Combat Detailed",
       onChange = function(_, v) M.Detail.SetHover(v) end },
+    UI.Toggle{ id = "combat_detail", text = "Show Combat Detailed window", value = M.Detail.IsOpen(),
+      tooltip = "Damage by skill, the last minute as a chart, and healing",
+      onChange = function(_, v) C.OnShowCombatDetail(v) end },
     UI.Toggle{ id = "combat_pet", text = "Count pet damage in DPS", value = M.GetPet(),
       onChange = function(_, v) M.SetPet(v) end },
     slider("combat_scale", "Size (%)", M.SCALE_MIN, M.SCALE_MAX, 5, M.GetScale(),
       "Scales the combat stats text", function(n) M.SetScale(n) end),
-    UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
-      UI.Label{ text = "Background", class = "text", style = { flexGrow = 1 } },
-      UI.Dropdown{ id = "combat_bg", choices = M.BACKGROUNDS, value = (M.GetBackground()),
-        tooltip = "A dark panel, or a light one in your UI theme's text colour, behind the combat stats",
-        onChange = function(_, value) M.SetBackground(value) end },
-    } },
+    dropdownRow("Background", { id = "combat_bg", choices = M.BACKGROUNDS, value = (M.GetBackground()),
+      tooltip = "A dark panel, or a light one in your UI theme's text colour, behind the combat stats",
+      onChange = function(_, value) M.SetBackground(value) end }),
     slider("combat_bg_opacity", "Background opacity (%)", M.OPACITY_MIN, M.OPACITY_MAX, 5,
       select(2, M.GetBackground()), "How solid the panel is; the text stays solid",
       function(n) M.SetBackground((M.GetBackground()), n) end),
@@ -146,272 +315,15 @@ function C.CombatSection()
     UI.Row{ style = { justifyContent = "end", marginTop = 2 }, children = {
       UI.Button{ id = "combat_reset", text = "Reset fight", onClick = function() M.Reset() end },
     } },
-    C.PositionRows("combat", M),
   } }
 end
 
--- The "Consumables bar" part: food and potions in effect (Toolbox.Consumables).
-function C.ConsumablesSection()
-  local K = T.Consumables
-  return UI.Column{ children = {
-    UI.Label{ text = "Consumables bar", class = "heading", style = { marginTop = 8 } },
-    UI.Toggle{ id = "show_consumables", text = "Show food and potions on their own bar", value = K.GetShow(),
-      tooltip = "Food and Obsidian potions in effect, with the buff bar's sweep, flash and alert; they leave"
-        .. " the buff bar. Off: they stay on the buff bar.",
-      onChange = function(_, v) K.SetShow(v) end },
-    UI.Toggle{ id = "consumables_glue", text = "Glue to the buff bar", value = K.GetGlue(), style = { marginLeft = 16 },
-      tooltip = "A row of the buff bar, under the debuffs; it moves and hides with the buff bar",
-      onChange = function(_, v) K.SetGlue(v) end },
-    UI.Label{ id = "consumables_extra", text = "", class = "dim", style = { whiteSpace = "wrap" },
-      tooltip = "Buffs whose names contain these go on the bar too" },
-    C.PositionRows("consumables", K),
-  } }
-end
-
--- The "Equipment bar" part: worn gear needing repair (Toolbox.Gear). The alert itself is the
--- "Gear needs repair" notification source.
-function C.GearSection()
-  local G = T.Gear
-  return UI.Column{ children = {
-    UI.Label{ text = "Equipment bar", class = "heading", style = { marginTop = 8 } },
-    UI.Toggle{ id = "show_gear", text = "Show worn gear needing repair", value = G.GetShow(),
-      tooltip = "Icons of worn items below the threshold, the sweep showing durability used up. Every worn"
-        .. " item shows while this window is open, so you can place it.",
-      onChange = function(_, v) G.SetShow(v) end },
-    UI.Toggle{ id = "gear_glue", text = "Glue to the buff bar", value = G.GetGlue(), style = { marginLeft = 16 },
-      tooltip = "A third row of the buff bar, under the debuffs; it moves and hides with the buff bar."
-        .. " Icons are the buff bar's size either way.",
-      onChange = function(_, v) G.SetGlue(v) end },
-    UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
-      UI.Label{ text = "Repair below", class = "text", style = { flexGrow = 1 } },
-      UI.Dropdown{ id = "gear_threshold", choices = C.ThresholdLabels(), value = G.Threshold() .. "%",
-        tooltip = "Durability at which an item shows on the bar and the \"Gear needs repair\" notification"
-          .. " comes (again when it breaks)",
-        onChange = function(_, value) G.SetThreshold(tonumber((value:gsub("%%", "")))) end },
-    } },
-    C.PositionRows("gear", G),
-  } }
-end
-
-function C.ThresholdLabels()
-  local out = {}
-  for i, v in ipairs(T.Gear.THRESHOLDS) do out[i] = v .. "%" end
-  return out
-end
-
--- The "Buff bar" part of the settings (built inside build()).
-function C.BuffBarSection()
-  local B, S = T.BuffBar, T.Sounds
-  local children = {
-    UI.Label{ text = "Buff bar", class = "heading", style = { marginTop = 8 } },
-    UI.Toggle{ id = "show_buffs", text = "Show buff bar", value = B.IsEnabled(),
-      onChange = function(_, v) B.SetShown(v) end },
-    UI.Toggle{ id = "buffs_combat_only", text = "Only during combat", value = B.GetCombatOnly(),
-      style = { marginLeft = 16 },
-      tooltip = "Show the bar only in combat (and a few seconds after). It also shows while this window"
-        .. " is open, so you can place it.",
-      onChange = function(_, v) B.SetCombatOnly(v) end },
-    C.PositionRows("buff", B),
-    slider("buff_size", "Icon size", B.SIZE_MIN, B.SIZE_MAX, 1, B.GetSize(),
-      "Buff icon size in pixels", function(n) B.SetSize(n) end),
-    UI.Toggle{ id = "expire_alert", text = "Sound when a buff is about to run out", value = B.GetExpireAlert(),
-      style = { marginTop = 6 }, onChange = function(_, v) B.SetExpireAlert(v) end },
-    slider("expire_seconds", "Seconds before it runs out", B.ALERT_MIN, B.ALERT_MAX, 1, B.GetExpireSeconds(),
-      "How long before a buff ends to play the alert", function(n) B.SetExpireSeconds(n) end),
-    UI.Toggle{ id = "buff_flash", text = "Flash icons about to run out", value = B.GetFlash(),
-      tooltip = "A red border blinks on a buff for the seconds above, before it runs out (sound or not)",
-      onChange = function(_, v) B.SetFlash(v) end },
-    UI.Toggle{ id = "debuff_alert", text = "Sound when a debuff lands", value = B.GetDebuffAlert(),
-      style = { marginTop = 6 }, onChange = function(_, v) B.SetDebuffAlert(v) end },
-    UI.Toggle{ id = "buff_replace", text = "Replace the game's buff bar", value = B.GetReplace(),
-      enabled = B.CanReplace(), style = { marginTop = 6 },
-      tooltip = B.CanReplace() and "Hides the game's own buff bar while this one is showing"
-        or "Needs a newer game client (Lua API 16)",
-      onChange = function(_, v) C.OnReplace(v) end },
-    UI.Toggle{ id = "buff_dismiss", text = "Click a buff to dismiss it", value = B.GetClickDismiss(),
-      enabled = B.CanDismiss(),
-      tooltip = B.CanDismiss() and "Like the game's right-click Dismiss; only buffs the game lets you dismiss"
-        or "Needs a newer game client (Lua API 16)",
-      onChange = function(_, v) C.OnDismiss(v) end },
-    UI.Row{ style = { alignItems = "center", marginTop = 6 }, children = {
-      UI.Label{ text = "Group buffs lasting longer than", class = "text",
-        style = { flexGrow = 1, whiteSpace = "wrap" } },
-      UI.Dropdown{ id = "buff_group_after", choices = C.GroupAfterLabels(),
-        value = B.GroupAfterLabel(B.GetGroupAfter()) or "15 minutes",
-        tooltip = "Buffs with more time left than this share one slot with a count at the end of the row;"
-          .. " hover it for the list. They move back onto the bar as they near their end.",
-        onChange = function(_, value) C.OnGroupAfter(value) end },
-    } },
-    UI.Label{ id = "buff_group", text = "", class = "dim", style = { whiteSpace = "wrap" },
-      tooltip = "Buffs whose names contain these are always grouped" },
-    slider("volume", "Alert volume", 0, 100, 5, S.GetVolume(), "0 mutes the alerts",
-      function(n) S.SetVolume(n) end),
-  }
-  for _, def in ipairs(S.DEFS) do children[#children + 1] = soundRows(def) end
-  return UI.Column{ children = children }
-end
-
-local function build()
-  local W = T.Window
-  win = UI.Window{
-    id = WINDOW_ID, title = "Toolbox Settings",
-    width = 280, height = 680, minWidth = 220, minHeight = 120,
-    escCloses = true,
-    style = { paddingTop = 6, paddingBottom = 6 },
-    children = { UI.Scroll{ style = { flexGrow = 1 }, children = {
-      UI.Column{ style = { paddingLeft = GUTTER, paddingRight = GUTTER }, children = {
-        UI.Label{ text = "Tick what you want on screen and tune it here. Everything is saved per character.",
-          class = "text", style = { whiteSpace = "wrap" } },
-        UI.Row{ style = { alignItems = "center", marginTop = 2, marginBottom = 4 }, children = {
-          UI.Label{ id = "shortcut", text = "", class = "dim", style = { flexGrow = 1, whiteSpace = "wrap" },
-            tooltip = "Change it in the add-on manager, on Toolbox's row under Keys" },
-          UI.Button{ id = "docs", text = "Docs", tooltip = "How everything works, and every command",
-            onClick = function() T.Docs.Open() end },
-        } },
-        UI.Label{ text = "XP windows", class = "heading" },
-        UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
-          UI.Label{ text = "Text size", class = "text", style = { flexGrow = 1 } },
-          UI.Label{ id = "font_value", text = fontLabel(W.GetFont()), class = "dim" },
-        } },
-        UI.Slider{
-          id = "font", min = W.FONT_MIN, max = W.FONT_MAX, step = 1, value = W.GetFont(),
-          tooltip = "Text size of the XP windows (" .. W.FONT_MIN .. "-" .. W.FONT_MAX .. ")",
-          onChange = function(_, value) C.OnFont(value) end,
-        },
-        UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
-          UI.Label{ text = "Line spacing", class = "text", style = { flexGrow = 1 } },
-          UI.Label{ id = "spacing_value", text = fontLabel(W.GetSpacing()), class = "dim" },
-        } },
-        UI.Slider{
-          id = "spacing", min = W.SPACING_MIN, max = W.SPACING_MAX, step = 1, value = W.GetSpacing(),
-          tooltip = "Extra pixels between lines in the XP windows (" .. W.SPACING_MIN .. "-" .. W.SPACING_MAX .. ")",
-          onChange = function(_, value) C.OnSpacing(value) end,
-        },
-        UI.Toggle{
-          id = "xp_net", text = "Subtract XP lost (net change)", value = W.GetNet(),
-          tooltip = "Off: XP figures count gains only (a death doesn't lower them). On: XP lost is"
-            .. " subtracted, so last hour, XP/hour and today's XP can go negative.",
-          onChange = function(_, value) W.SetNet(value) end,
-        },
-        UI.Toggle{
-          id = "show_compact", text = "Show XP window", value = T.Compact.IsShown(),
-          style = { marginTop = 6 },
-          onChange = function(_, value) C.OnShowCompact(value) end,
-        },
-        UI.Toggle{
-          id = "xp_hud", text = "As a HUD strip", value = T.Compact.GetHud(), style = { marginLeft = 16 },
-          tooltip = "No title bar or frame: a small panel moved by its grip, like the buff bar",
-          onChange = function(_, value) T.Compact.SetHud(value) end,
-        },
-        UI.Toggle{
-          id = "show_xp", text = "Show XP Detailed window", value = W.IsOpen(),
-          onChange = function(_, value) C.OnShowXP(value) end,
-        },
-        UI.Toggle{
-          id = "show_daily", text = "Show daily stats window", value = T.Daily.IsShown(),
-          onChange = function(_, value) C.OnShowDaily(value) end,
-        },
-        UI.Toggle{
-          id = "daily_hud", text = "As a HUD strip", value = T.Daily.GetHud(), style = { marginLeft = 16 },
-          tooltip = "No title bar or frame: a small panel moved by its grip, like the buff bar",
-          onChange = function(_, value) T.Daily.SetHud(value) end,
-        },
-        UI.Toggle{
-          id = "show_daily_detail", text = "Show Today Detailed window", value = T.DailyDetail.IsOpen(),
-          onChange = function(_, value) C.OnShowDailyDetail(value) end,
-        },
-        UI.Toggle{
-          id = "dd_values", text = "Estimated values (SOTA.net)", value = T.DailyDetail.GetValues(),
-          style = { marginLeft = 16 },
-          tooltip = "Adds each item's value to Today Detailed: count x its 90-day average sale price from"
-            .. " shroudoftheavatar.net (player-uploaded receipts); blank when it hasn't sold. Sends item"
-            .. " names to that site. Also switch Internet on for Toolbox in the add-on manager.",
-          onChange = function(_, value) T.DailyDetail.SetValues(value) end,
-        },
-        UI.Toggle{
-          id = "hover_popup", text = "Show XP Detailed on hover", value = T.Compact.GetHover(),
-          tooltip = "Hovering the XP window pops up the XP Detailed window",
-          onChange = function(_, value) T.Compact.SetHover(value) end,
-        },
-        UI.Toggle{
-          id = "hover_daily", text = "Show Today Detailed on hover", value = T.Daily.GetHover(),
-          tooltip = "Hovering the Today window pops up the Today Detailed window",
-          onChange = function(_, value) T.Daily.SetHover(value) end,
-        },
-        C.BuffBarSection(),
-        C.VitalsSection(),
-        C.CombatSection(),
-        C.ConsumablesSection(),
-        C.GearSection(),
-        C.NotifySection(),
-      } },
-    } } },
-  }
-  el = {}
-  local ids = { "font", "font_value", "spacing", "spacing_value", "show_xp", "show_compact", "show_daily",
-                "show_daily_detail", "hover_popup", "hover_daily", "xp_hud", "daily_hud",
-                "show_buffs", "buff_size", "buff_size_value", "expire_alert", "expire_seconds",
-                "expire_seconds_value", "debuff_alert", "volume", "volume_value", "buff_pos",
-                "show_vitals", "vitals_width", "vitals_width_value", "vitals_scale", "vitals_scale_value",
-                "vitals_pos", "vitals_show_bars", "vitals_show_text", "vitals_bg",
-                "vitals_flash", "vitals_flash_below", "vitals_flash_below_value", "vitals_glue",
-                "show_combat", "combat_pet", "combat_scale", "combat_scale_value", "combat_stats", "combat_pos",
-                "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "buff_group",
-                "buff_replace", "buff_dismiss", "buff_group_after",
-                "buffs_combat_only", "dd_values", "xp_net", "buff_flash", "combat_detail", "combat_detail_hover",
-                "show_gear", "gear_glue", "gear_threshold", "gear_pos", "vitals_vigor",
-                "show_consumables", "consumables_glue", "consumables_extra", "consumables_pos" }
-  for _, def in ipairs(T.Sounds.DEFS) do
-    ids[#ids + 1] = "snd_" .. def.key .. "_status"
-    ids[#ids + 1] = "snd_" .. def.key .. "_path"
-  end
-  for _, src in ipairs(T.Notify.Sources()) do
-    ids[#ids + 1] = "notify_" .. src.key
-    ids[#ids + 1] = "notify_" .. src.key .. "_via"
-  end
-  for _, id in ipairs({ "nhud_hide", "nhud_pos" }) do ids[#ids + 1] = id end
-  for _, id in ipairs(ids) do el[id] = win:Find(id) end
-end
-
--- Player dragged the slider. Steps are 1, but round anyway: the value is a float.
-function C.OnFont(value)
-  local n = math.floor((tonumber(value) or T.Window.GetFont()) + 0.5)
-  T.Window.SetFont(n)
-end
-
--- Player dragged the line spacing slider.
-function C.OnSpacing(value)
-  local n = math.floor((tonumber(value) or T.Window.GetSpacing()) + 0.5)
-  T.Window.SetSpacing(n)
-end
-
--- Player ticked or unticked the checkbox.
-function C.OnShowXP(value)
-  if not T.Window.SetOpen(value == true) then
-    el.show_xp:SetValue(T.Window.IsOpen())   -- Show() was refused; put the box back
-  end
-end
-
--- Player ticked or unticked the compact window's checkbox.
-function C.OnShowCompact(value)
-  if not T.Compact.SetOpen(value == true) then
-    el.show_compact:SetValue(T.Compact.IsShown())
-  end
-end
-
-function C.OnShowDaily(value)
-  if not T.Daily.SetOpen(value == true) then
-    el.show_daily:SetValue(T.Daily.IsShown())
-  end
-end
-
--- The "Notifications" part of the settings: one toggle per source (Toolbox.Notify.SOURCES).
--- More per-source controls (how it's delivered, a sound) would go on each source's row.
+-- The "Notifications" category: one toggle and delivery dropdown per source (Toolbox.Notify.SOURCES).
 function C.NotifySection()
   local children = {
-    UI.Label{ text = "Notifications", class = "heading", style = { marginTop = 8 } },
-    UI.Label{ text = "A window tells you what's new since you last saw it.", class = "dim",
-      style = { whiteSpace = "wrap" } },
+    heading("Notifications", true),
+    UI.Label{ text = "Tells you what's new since you last saw it, in a window or on the notification HUD.",
+      class = "dim", style = { whiteSpace = "wrap" } },
   }
   local vias = {}
   for i, v in ipairs(T.Notify.VIAS) do vias[i] = v[2] end
@@ -429,19 +341,190 @@ function C.NotifySection()
   local NH = T.Notify.Hud
   local hides = {}
   for i, c in ipairs(NH.HIDE_CHOICES) do hides[i] = c[2] end
-  children[#children + 1] = UI.Row{ style = { alignItems = "center", marginTop = 6 }, children = {
-    UI.Label{ text = "HUD: hide after", class = "text", style = { flexGrow = 1 } },
-    UI.Dropdown{ id = "nhud_hide", choices = hides, value = NH.HideLabel(NH.GetHideAfter()) or hides[1],
-      tooltip = "The notification HUD shows when something arrives and hides after this (Never: always shown)",
-      onChange = function(_, label) C.OnNotifyHide(label) end },
-  } }
-  children[#children + 1] = C.PositionRows("nhud", NH)
-  children[#children + 1] = UI.Row{ style = { justifyContent = "end", marginTop = 2 }, children = {
+  children[#children + 1] = heading("Notification HUD")
+  children[#children + 1] = dropdownRow("Hide after", { id = "nhud_hide", choices = hides,
+    value = NH.HideLabel(NH.GetHideAfter()) or hides[1],
+    tooltip = "The notification HUD shows when something arrives and hides after this (Never: always shown)",
+    onChange = function(_, label) C.OnNotifyHide(label) end })
+  children[#children + 1] = UI.Row{ style = { justifyContent = "end", marginTop = 4 }, children = {
     UI.Button{ id = "nhud_clear", text = "Clear notification history",
       tooltip = "Delete the notification HUD's saved list (it can't be undone)",
       onClick = function() NH.Clear() end },
   } }
   return UI.Column{ children = children }
+end
+
+-- The "Sounds" category: the alert volume and which file each alert plays.
+function C.SoundsSection()
+  local S = T.Sounds
+  local children = {
+    heading("Alert sounds", true),
+    slider("volume", "Volume", 0, 100, 5, S.GetVolume(), "0 mutes the alerts", function(n) S.SetVolume(n) end),
+    UI.Label{ text = "Each alert plays the add-on's own sound unless you pick a file:", class = "dim",
+      style = { whiteSpace = "wrap", marginTop = 6 } },
+  }
+  for _, def in ipairs(S.DEFS) do children[#children + 1] = soundRows(def) end
+  return UI.Column{ children = children }
+end
+
+-- The HUD strips with Position rows, in the order the HUD layout category lists them:
+-- { id prefix, module, label }. Built once (config.lua loads last, so every module exists here).
+local POSITIONED = {
+  { "buff", T.BuffBar, "Buff bar" }, { "vitals", T.Vitals, "Health bars" },
+  { "consumables", T.Consumables, "Consumables bar" }, { "gear", T.Gear, "Equipment bar" },
+  { "combat", T.Combat, "Combat stats" }, { "nhud", T.Notify.Hud, "Notification HUD" },
+}
+
+-- The "HUD layout" category: what shares a strip with what, the glue switches, and every strip's
+-- position, in one place.
+function C.HudSection()
+  local children = {
+    heading("HUD layout", true),
+    UI.Label{ id = "hud_summary", text = "", class = "text", style = { whiteSpace = "wrap" } },
+    UI.Toggle{ id = "vitals_glue", text = "Health bars and buff bar in one strip", value = T.Hud.IsGlued(),
+      style = { marginTop = 6 }, tooltip = "Health & focus on the left, buffs on the right, moved as one",
+      onChange = function(_, v) T.Hud.SetGlued(v) end },
+    UI.Toggle{ id = "consumables_glue", text = "Consumables bar under the buffs", value = T.Consumables.GetGlue(),
+      tooltip = "A row of the buff bar, under the debuffs; it moves and hides with the buff bar",
+      onChange = function(_, v) T.Consumables.SetGlue(v) end },
+    UI.Toggle{ id = "gear_glue", text = "Equipment bar under the buffs", value = T.Gear.GetGlue(),
+      tooltip = "The last row of the buff bar; it moves and hides with the buff bar",
+      onChange = function(_, v) T.Gear.SetGlue(v) end },
+    UI.Label{ text = "Strips show while this window is open, so you can place them. Drag a strip's grip"
+      .. " (untick Options > Interface > Nameplates & Chat Bubbles > Lock Status Movement to see it) or"
+      .. " use the buttons.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
+  }
+  for _, p in ipairs(POSITIONED) do children[#children + 1] = C.PositionRows(p[1], p[2], p[3]) end
+  return UI.Column{ children = children }
+end
+
+-- key, label, builder. The first is shown when the window first opens.
+C.CATEGORIES = {
+  { key = "xp", label = "XP & Today", build = function() return C.XPSection() end },
+  { key = "buffs", label = "Buffs", build = function() return C.BuffBarSection() end },
+  { key = "gear", label = "Consumables & gear", build = function() return C.ConsumablesGearSection() end },
+  { key = "vitals", label = "Health bars", build = function() return C.VitalsSection() end },
+  { key = "combat", label = "Combat", build = function() return C.CombatSection() end },
+  { key = "notify", label = "Notifications", build = function() return C.NotifySection() end },
+  { key = "sounds", label = "Sounds", build = function() return C.SoundsSection() end },
+  { key = "hud", label = "HUD layout", build = function() return C.HudSection() end },
+}
+
+local function category(keyOrLabel)
+  for _, c in ipairs(C.CATEGORIES) do
+    if c.key == keyOrLabel or c.label == keyOrLabel then return c end
+  end
+  return nil
+end
+
+-- Every control id Sync and the handlers look up (found in whichever categories are built).
+local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "xp_mode", "daily_mode", "show_xp",
+  "show_daily_detail", "dd_values", "hover_popup", "hover_daily",
+  "show_buffs", "buffs_combat_only", "buff_replace", "buff_dismiss", "buff_size", "buff_size_value",
+  "expire_alert", "expire_seconds", "expire_seconds_value", "buff_flash", "debuff_alert", "buff_group_after",
+  "buff_group", "show_consumables", "consumables_extra", "show_gear", "gear_threshold",
+  "show_vitals", "vitals_scale", "vitals_scale_value", "vitals_width", "vitals_width_value", "vitals_show_bars",
+  "vitals_show_text", "vitals_vigor", "vitals_bg", "vitals_flash", "vitals_flash_below", "vitals_flash_below_value",
+  "vitals_flash_test", "show_combat", "combat_detail", "combat_detail_hover", "combat_pet", "combat_scale",
+  "combat_scale_value", "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "combat_stats",
+  "nhud_hide", "volume", "volume_value", "hud_summary", "vitals_glue", "consumables_glue", "gear_glue" }
+for _, def in ipairs(T.Sounds.DEFS) do
+  ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_status"
+  ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_path"
+end
+for _, src in ipairs(T.Notify.Sources()) do
+  ALL_IDS[#ALL_IDS + 1] = "notify_" .. src.key
+  ALL_IDS[#ALL_IDS + 1] = "notify_" .. src.key .. "_via"
+end
+for _, p in ipairs(POSITIONED) do ALL_IDS[#ALL_IDS + 1] = p[1] .. "_pos" end
+
+-- Shows one category (by key or label), building it the first time. Returns true when it shows.
+function C.ShowCategory(which)
+  local cat = category(which)
+  if not cat or not win then return false end
+  if not built[cat.key] then
+    -- the game limits how fast elements are created: a category that can't be built now can be
+    -- picked again in a moment
+    local ok, col = pcall(function() return body:Add(cat.build()) end)
+    if not ok then
+      T.Print("The " .. cat.label .. " settings can't be shown right now; pick them again in a moment. ("
+        .. tostring(col) .. ")")
+      return false
+    end
+    built[cat.key] = col
+    for _, id in ipairs(ALL_IDS) do
+      if not el[id] then el[id] = col:Find(id) end
+    end
+  end
+  for key, col in pairs(built) do T.SetVisible(col, key == cat.key) end
+  current = cat.key
+  setValue("category", cat.label)
+  C.Sync()
+  return true
+end
+
+function C.CurrentCategory() return current end
+
+-- Builds every category (the tests look controls up by id across all of them).
+function C.BuildAll()
+  if not win then return end
+  local keep = current
+  for _, cat in ipairs(C.CATEGORIES) do C.ShowCategory(cat.key) end
+  C.ShowCategory(keep)
+end
+
+local function build()
+  local labels = {}
+  for i, c in ipairs(C.CATEGORIES) do labels[i] = c.label end
+  body = UI.Column{ style = { paddingLeft = GUTTER, paddingRight = GUTTER } }
+  win = UI.Window{
+    id = WINDOW_ID, title = "Toolbox Settings",
+    width = C.WIDTH, height = C.HEIGHT, minWidth = 260, minHeight = 120,
+    escCloses = true,
+    style = { paddingTop = 6, paddingBottom = 6 },
+    children = {
+      UI.Column{ style = { paddingLeft = GUTTER, paddingRight = GUTTER, marginBottom = 4 }, children = {
+        UI.Label{ text = "Tick what you want on screen and tune it here. Everything is saved per character.",
+          class = "text", style = { whiteSpace = "wrap" } },
+        UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
+          UI.Label{ id = "shortcut", text = "", class = "dim", style = { flexGrow = 1, whiteSpace = "wrap" },
+            tooltip = "Change it in the add-on manager, on Toolbox's row under Keys" },
+          UI.Button{ id = "docs", text = "Docs", tooltip = "How everything works, and every command",
+            onClick = function() T.Docs.Open() end },
+        } },
+        dropdownRow("Show", { id = "category", choices = labels, value = labels[1],
+          tooltip = "Which settings to show",
+          onChange = function(_, label) C.ShowCategory(label) end }),
+      } },
+      UI.Scroll{ style = { flexGrow = 1 }, children = { body } },
+    },
+  }
+  el, built = {}, {}
+  el.shortcut, el.category = win:Find("shortcut"), win:Find("category")
+  C.ShowCategory(current or C.CATEGORIES[1].key)
+end
+
+-- ---------------------------------------------------------------------------
+-- Handlers
+-- ---------------------------------------------------------------------------
+
+-- Player dragged the slider. Steps are 1, but round anyway: the value is a float.
+function C.OnFont(value)
+  local n = math.floor((tonumber(value) or T.Window.GetFont()) + 0.5)
+  T.Window.SetFont(n)
+end
+
+-- Player dragged the line spacing slider.
+function C.OnSpacing(value)
+  local n = math.floor((tonumber(value) or T.Window.GetSpacing()) + 0.5)
+  T.Window.SetSpacing(n)
+end
+
+-- Player ticked or unticked the checkbox.
+function C.OnShowXP(value)
+  if not T.Window.SetOpen(value == true) then
+    setValue("show_xp", T.Window.IsOpen())   -- Show() was refused; put the box back
+  end
 end
 
 function C.OnNotifyVia(key, label)
@@ -469,108 +552,166 @@ function C.OnGroupAfter(label)
   end
 end
 
+function C.ThresholdLabels()
+  local out = {}
+  for i, v in ipairs(T.Gear.THRESHOLDS) do out[i] = v .. "%" end
+  return out
+end
+
 -- The buff bar's API 16 options: refused on an older client, so put the box back.
 function C.OnReplace(value)
-  if not T.BuffBar.SetReplace(value == true) then el.buff_replace:SetValue(T.BuffBar.GetReplace()) end
+  if not T.BuffBar.SetReplace(value == true) then setValue("buff_replace", T.BuffBar.GetReplace()) end
 end
 
 function C.OnDismiss(value)
-  if not T.BuffBar.SetClickDismiss(value == true) then el.buff_dismiss:SetValue(T.BuffBar.GetClickDismiss()) end
+  if not T.BuffBar.SetClickDismiss(value == true) then setValue("buff_dismiss", T.BuffBar.GetClickDismiss()) end
 end
 
 function C.OnShowCombatDetail(value)
-  if not T.Combat.Detail.SetOpen(value == true) then el.combat_detail:SetValue(T.Combat.Detail.IsOpen()) end
+  if not T.Combat.Detail.SetOpen(value == true) then setValue("combat_detail", T.Combat.Detail.IsOpen()) end
 end
 
 function C.OnShowDailyDetail(value)
-  if not T.DailyDetail.SetOpen(value == true) then
-    el.show_daily_detail:SetValue(T.DailyDetail.IsOpen())
-  end
+  if not T.DailyDetail.SetOpen(value == true) then setValue("show_daily_detail", T.DailyDetail.IsOpen()) end
 end
 
--- Brings the controls in line with the current settings. Our own SetValue calls
--- never fire the onChange handlers, so this cannot loop.
+-- ---------------------------------------------------------------------------
+-- Keeping the controls in step
+-- ---------------------------------------------------------------------------
+
+-- What shares a strip, and what has its own, in words (the HUD layout category's summary).
+function C.HudSummary()
+  local B, K, G, V = T.BuffBar, T.Consumables, T.Gear, T.Vitals
+  local lines = {}
+  local own = {}
+  if B.IsEnabled() then
+    local parts = { "Buffs" }
+    if T.Hud.IsGlued() and V.IsShown() then table.insert(parts, 1, "Health bars") end
+    if K.Glued() then parts[#parts + 1] = "Consumables" end
+    if G.Glued() then parts[#parts + 1] = "Equipment" end
+    if #parts > 1 then
+      lines[#lines + 1] = "One strip: " .. table.concat(parts, " + ") .. "."
+    else
+      own[#own + 1] = "Buffs"
+    end
+  else
+    local waiting = {}
+    if K.GetGlue() and K.GetShow() then waiting[#waiting + 1] = "Consumables" end
+    if G.GetGlue() and G.GetShow() then waiting[#waiting + 1] = "Equipment" end
+    if #waiting > 0 then
+      lines[#lines + 1] = "The buff bar is off, so " .. table.concat(waiting, " and ")
+        .. (#waiting > 1 and " use their own strips." or " uses its own strip.")
+    end
+  end
+  if V.IsShown() and not (T.Hud.IsGlued() and B.IsEnabled()) then own[#own + 1] = "Health bars" end
+  if K.GetShow() and not K.Glued() then own[#own + 1] = "Consumables" end
+  if G.GetShow() and not G.Glued() then own[#own + 1] = "Equipment" end
+  if T.Combat.IsShown() then own[#own + 1] = "Combat stats" end
+  if T.Compact.GetHud() and T.Compact.IsShown() then own[#own + 1] = "XP" end
+  if T.Daily.GetHud() and T.Daily.IsShown() then own[#own + 1] = "Today" end
+  if #own > 0 then lines[#lines + 1] = "Own strips: " .. table.concat(own, ", ") .. "." end
+  if #lines == 0 then lines[1] = "No HUD strips are switched on." end
+  return table.concat(lines, "\n")
+end
+
+-- Brings the controls in line with the current settings, and greys out the ones whose feature is
+-- off. Our own SetValue calls never fire the onChange handlers, so this cannot loop.
 function C.Sync()
   if not win then return end
-  local font = T.Window.GetFont()
-  el.font:SetValue(font)
-  el.font_value:SetText(fontLabel(font))
-  local spacing = T.Window.GetSpacing()
-  el.spacing:SetValue(spacing)
-  el.spacing_value:SetText(fontLabel(spacing))
-  el.xp_net:SetValue(T.Window.GetNet())
-  el.show_xp:SetValue(T.Window.IsOpen())
-  el.show_compact:SetValue(T.Compact.IsShown())
-  el.show_daily:SetValue(T.Daily.IsShown())
-  el.show_daily_detail:SetValue(T.DailyDetail.IsOpen())
-  el.dd_values:SetValue(T.DailyDetail.GetValues())
-  el.hover_popup:SetValue(T.Compact.GetHover())
-  el.hover_daily:SetValue(T.Daily.GetHover())
-  el.xp_hud:SetValue(T.Compact.GetHud())
-  el.daily_hud:SetValue(T.Daily.GetHud())
-  local B, S = T.BuffBar, T.Sounds
-  el.show_buffs:SetValue(B.IsEnabled())
-  el.buffs_combat_only:SetValue(B.GetCombatOnly())
-  for id, v in pairs({ buff_size = B.GetSize(), expire_seconds = B.GetExpireSeconds(), volume = S.GetVolume() }) do
-    el[id]:SetValue(v)
-    el[id .. "_value"]:SetText(fontLabel(v))
+  local W, B, S, V, M = T.Window, T.BuffBar, T.Sounds, T.Vitals, T.Combat
+  local function sliderValue(id, v)
+    setValue(id, v)
+    setText(id .. "_value", fontLabel(v))
   end
-  el.expire_alert:SetValue(B.GetExpireAlert())
-  el.debuff_alert:SetValue(B.GetDebuffAlert())
-  el.buff_flash:SetValue(B.GetFlash())
-  el.buff_replace:SetValue(B.GetReplace())
-  el.buff_dismiss:SetValue(B.GetClickDismiss())
-  el.buff_group_after:SetValue(B.GroupAfterLabel(B.GetGroupAfter()) or "15 minutes")
+  -- XP & Today
+  sliderValue("font", W.GetFont())
+  sliderValue("spacing", W.GetSpacing())
+  setValue("xp_net", W.GetNet())
+  setValue("show_xp", W.IsOpen())
+  setValue("xp_mode", C.ModeOf(T.Compact))
+  setValue("daily_mode", C.ModeOf(T.Daily))
+  setValue("show_daily_detail", T.DailyDetail.IsOpen())
+  setValue("dd_values", T.DailyDetail.GetValues())
+  setValue("hover_popup", T.Compact.GetHover())
+  setValue("hover_daily", T.Daily.GetHover())
+  setEnabled("hover_popup", T.Compact.IsShown())
+  setEnabled("hover_daily", T.Daily.IsShown())
+  -- Buffs
+  local buffsOn = B.IsEnabled()
+  setValue("show_buffs", buffsOn)
+  setValue("buffs_combat_only", B.GetCombatOnly())
+  setValue("buff_replace", B.GetReplace())
+  setValue("buff_dismiss", B.GetClickDismiss())
+  sliderValue("buff_size", B.GetSize())
+  setValue("expire_alert", B.GetExpireAlert())
+  sliderValue("expire_seconds", B.GetExpireSeconds())
+  setValue("buff_flash", B.GetFlash())
+  setValue("debuff_alert", B.GetDebuffAlert())
+  setValue("buff_group_after", B.GroupAfterLabel(B.GetGroupAfter()) or "15 minutes")
   local parts = B.GroupParts()
-  el.buff_group:SetText("Also grouped by name: " .. (#parts > 0 and table.concat(parts, ", ") or "none")
+  setText("buff_group", "Also grouped by name: " .. (#parts > 0 and table.concat(parts, ", ") or "none")
     .. " (/toolbox buffs group add <name>)")
-  el.show_vitals:SetValue(T.Vitals.IsShown())
-  el.vitals_width:SetValue(T.Vitals.GetWidth())
-  el.vitals_width_value:SetText(fontLabel(T.Vitals.GetWidth()))
-  el.vitals_scale:SetValue(T.Vitals.GetScale())
-  el.vitals_scale_value:SetText(fontLabel(T.Vitals.GetScale()))
-  el.vitals_show_bars:SetValue(T.Vitals.GetShowBars())
-  el.vitals_show_text:SetValue(T.Vitals.GetShowText())
-  el.vitals_vigor:SetValue(T.Vitals.GetShowVigor())
-  el.vitals_bg:SetValue(T.Vitals.GetBackground())
-  el.vitals_flash:SetValue(T.Vitals.GetFlash())
-  el.vitals_glue:SetValue(T.Hud.IsGlued())
-  el.show_combat:SetValue(T.Combat.IsShown())
-  el.combat_pet:SetValue(T.Combat.GetPet())
-  el.combat_detail:SetValue(T.Combat.Detail.IsOpen())
-  el.combat_detail_hover:SetValue(T.Combat.Detail.GetHover())
-  el.combat_scale:SetValue(T.Combat.GetScale())
-  el.combat_scale_value:SetText(fontLabel(T.Combat.GetScale()))
-  local shownStats = T.Combat.Stats()
-  el.combat_stats:SetText("Stats shown: " .. (#shownStats > 0 and table.concat(shownStats, ", ") or "none"))
-  local cbg, cop = T.Combat.GetBackground()
-  el.combat_bg:SetValue(cbg)
-  el.combat_bg_opacity:SetValue(cop)
-  el.combat_bg_opacity_value:SetText(fontLabel(cop))
-  el.show_consumables:SetValue(T.Consumables.GetShow())
-  el.consumables_glue:SetValue(T.Consumables.GetGlue())
-  local extra = T.Consumables.Extra()
-  el.consumables_extra:SetText("Also tracked by name: " .. (#extra > 0 and table.concat(extra, ", ") or "none")
-    .. " (/toolbox consumables add <name>)")
-  el.show_gear:SetValue(T.Gear.GetShow())
-  el.gear_glue:SetValue(T.Gear.GetGlue())
-  el.gear_threshold:SetValue(T.Gear.Threshold() .. "%")
-  el.vitals_flash_below:SetValue(T.Vitals.GetFlashBelow())
-  el.vitals_flash_below_value:SetText(fontLabel(T.Vitals.GetFlashBelow()))
-  for _, src in ipairs(T.Notify.Sources()) do
-    el["notify_" .. src.key]:SetValue(T.Notify.IsOn(src.key))
-    el["notify_" .. src.key .. "_via"]:SetValue(T.Notify.ViaLabel(T.Notify.GetVia(src.key)) or "Window")
+  -- (not the icon size: the consumables and equipment bars use it too)
+  for _, id in ipairs({ "buffs_combat_only", "buff_flash", "buff_group_after" }) do
+    setEnabled(id, buffsOn)
   end
-  el.nhud_hide:SetValue(T.Notify.Hud.HideLabel(T.Notify.Hud.GetHideAfter()) or "Never")
+  setEnabled("buff_replace", buffsOn and B.CanReplace())
+  setEnabled("buff_dismiss", buffsOn and B.CanDismiss())
+  -- Consumables & gear
+  setValue("show_consumables", T.Consumables.GetShow())
+  local extra = T.Consumables.Extra()
+  setText("consumables_extra", "Also tracked by name: " .. (#extra > 0 and table.concat(extra, ", ") or "none")
+    .. " (/toolbox consumables add <name>)")
+  setValue("show_gear", T.Gear.GetShow())
+  setValue("gear_threshold", T.Gear.Threshold() .. "%")
+  -- Health bars
+  local vitalsOn = V.IsShown()
+  setValue("show_vitals", vitalsOn)
+  sliderValue("vitals_scale", V.GetScale())
+  sliderValue("vitals_width", V.GetWidth())
+  setValue("vitals_show_bars", V.GetShowBars())
+  setValue("vitals_show_text", V.GetShowText())
+  setValue("vitals_vigor", V.GetShowVigor())
+  setValue("vitals_bg", V.GetBackground())
+  setValue("vitals_flash", V.GetFlash())
+  sliderValue("vitals_flash_below", V.GetFlashBelow())
+  for _, id in ipairs({ "vitals_scale", "vitals_width", "vitals_show_bars", "vitals_show_text", "vitals_bg",
+                        "vitals_flash", "vitals_flash_below", "vitals_flash_test" }) do
+    setEnabled(id, vitalsOn)
+  end
+  setEnabled("vitals_vigor", vitalsOn and V.HasVigor())
+  -- Combat
+  local combatOn = M.IsShown()
+  setValue("show_combat", combatOn)
+  setValue("combat_pet", M.GetPet())
+  setValue("combat_detail", M.Detail.IsOpen())
+  setValue("combat_detail_hover", M.Detail.GetHover())
+  sliderValue("combat_scale", M.GetScale())
+  local shownStats = M.Stats()
+  setText("combat_stats", "Stats shown: " .. (#shownStats > 0 and table.concat(shownStats, ", ") or "none"))
+  local cbg, cop = M.GetBackground()
+  setValue("combat_bg", cbg)
+  sliderValue("combat_bg_opacity", cop)
+  for _, id in ipairs({ "combat_detail_hover", "combat_scale", "combat_bg", "combat_bg_opacity" }) do
+    setEnabled(id, combatOn)
+  end
+  -- Notifications
+  for _, src in ipairs(T.Notify.Sources()) do
+    setValue("notify_" .. src.key, T.Notify.IsOn(src.key))
+    setValue("notify_" .. src.key .. "_via", T.Notify.ViaLabel(T.Notify.GetVia(src.key)) or "Window")
+  end
+  setValue("nhud_hide", T.Notify.Hud.HideLabel(T.Notify.Hud.GetHideAfter()) or "Never")
+  -- Sounds
+  sliderValue("volume", S.GetVolume())
+  -- HUD layout
+  setValue("vitals_glue", T.Hud.IsGlued())
+  setValue("consumables_glue", T.Consumables.GetGlue())
+  setValue("gear_glue", T.Gear.GetGlue())
+  setEnabled("consumables_glue", T.Consumables.GetShow())
+  setEnabled("gear_glue", T.Gear.GetShow())
+  setText("hud_summary", C.HudSummary())
   C.SyncLive()
 end
-
--- The HUD strips with Position rows: { id prefix, module }. Built once (config.lua loads last, so
--- every module exists here), not every tick.
-local POSITIONED = {
-  { "buff", T.BuffBar }, { "vitals", T.Vitals }, { "combat", T.Combat }, { "gear", T.Gear },
-  { "consumables", T.Consumables }, { "nhud", T.Notify.Hud },
-}
 
 -- Things that change without a setter being called (sound loads settling, a strip being dragged
 -- by its grip); called once a tick from Toolbox.Tick, and from Sync (so opening the window brings
@@ -579,10 +720,13 @@ local POSITIONED = {
 function C.SyncLive()
   if not C.IsShown() then return end
   C.SyncSounds()
-  T.SetText(el.shortcut, "Shortcut: " .. T.KeyStatus())
+  if el.shortcut then T.SetText(el.shortcut, "Shortcut: " .. T.KeyStatus()) end
   for _, p in ipairs(POSITIONED) do
-    local x, y = p[2].GetPosition()
-    T.SetText(el[p[1] .. "_pos"], x and (x .. ", " .. y) or "")
+    local e = el[p[1] .. "_pos"]
+    if e then
+      local x, y = p[2].GetPosition()
+      T.SetText(e, x and (x .. ", " .. y) or "")
+    end
   end
 end
 
@@ -591,9 +735,13 @@ end
 function C.SyncSounds()
   if not win then return end
   for _, def in ipairs(T.Sounds.DEFS) do
-    local status, path = T.Sounds.Status(def.key)
-    local text = def.label .. ": " .. (status == "ready" and path or status == "loading" and "looking..." or "no file")
-    T.SetText(el["snd_" .. def.key .. "_status"], text)
+    local e = el["snd_" .. def.key .. "_status"]
+    if e then
+      local status, path = T.Sounds.Status(def.key)
+      local state = status == "loading" and "looking..." or "no file"
+      if status == "ready" then state = path end
+      T.SetText(e, def.label .. ": " .. state)
+    end
   end
 end
 

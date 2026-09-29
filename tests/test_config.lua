@@ -147,17 +147,17 @@ return function(t)
   t.test("every checkbox follows its window when changed outside settings", function()
     H.boot()
     H.chat("/tbx config")
-    local cases = {
-      { "show_compact", "/tbx xp", "toolbox_compact" },
-      { "show_xp", "/tbx xpdetailed", "toolbox_xp" },
-      { "show_daily", "/tbx daily", "toolbox_daily" },
-      { "show_daily_detail", "/tbx dailydetailed", "toolbox_daily_detail" },
+    local cases = {       -- control, command, window, value when open, value when closed
+      { "xp_mode", "/tbx xp", "toolbox_compact", "Window", "Hidden" },
+      { "show_xp", "/tbx xpdetailed", "toolbox_xp", true, false },
+      { "daily_mode", "/tbx daily", "toolbox_daily", "Window", "Hidden" },
+      { "show_daily_detail", "/tbx dailydetailed", "toolbox_daily_detail", true, false },
     }
     for _, c in ipairs(cases) do
       H.chat(c[2])
-      t.eq(find(c[1]).value, true, c[1] .. " after " .. c[2])
+      t.eq(find(c[1]).value, c[4], c[1] .. " after " .. c[2])
       H.closeWindow(c[3])
-      t.eq(find(c[1]).value, false, c[1] .. " after closing")
+      t.eq(find(c[1]).value, c[5], c[1] .. " after closing")
     end
   end)
 
@@ -166,9 +166,9 @@ return function(t)
     H.chat("/tbx daily")
     H.chat("/tbx config")
     H.S.showRefused = true
-    H.change("toolbox_config", "show_compact", true)
-    t.eq(find("show_compact").value, false)
-    t.eq(find("show_daily").value, true, "daily checkbox untouched")
+    H.change("toolbox_config", "xp_mode", "Window")
+    t.eq(find("xp_mode").value, "Hidden", "put back: the window was refused")
+    t.eq(find("daily_mode").value, "Window", "Today's untouched")
   end)
 
   t.test("line height is pinned with min/max height so a theme minimum can't override it", function()
@@ -323,6 +323,76 @@ return function(t)
     H.chat("/tbx config")
     t.ok(H.config():Find("snd_buff_expiring_status").text:find("toolbox_buff_expiring"),
       H.config():Find("snd_buff_expiring_status").text)
+  end)
+
+  -- categories ---------------------------------------------------------------
+
+  t.test("settings open on one category; others are built the first time they are picked", function()
+    H.boot()
+    local before = H.S.constructed or 0
+    H.chat("/tbx config")
+    local opened = (H.S.constructed or 0) - before
+    local w = H.configRaw()
+    t.eq(w:Find("category").value, "XP & Today")
+    t.eq(#w:Find("category").choices, #Toolbox.Config.CATEGORIES)
+    t.ok(w:Find("xp_mode"), "the first category is built")
+    t.eq(w:Find("show_buffs"), nil, "the others aren't yet")
+    t.ok(opened < 90, "elements created when it opens: " .. opened)
+    H.change("toolbox_config", "category", "Buffs")          -- (H.change builds all; pick by the handler)
+    t.eq(Toolbox.Config.CurrentCategory(), "buffs")
+    t.eq(w:Find("show_buffs").visible ~= false, true)
+    local xpColumn = nil
+    for _, c in ipairs(w.children[2].children[1].children) do
+      if c:Find("xp_mode") then xpColumn = c end
+    end
+    t.eq(xpColumn.visible, false, "the category shown before is hidden")
+  end)
+
+  t.test("picking a category from the dropdown builds just that one", function()
+    H.boot()
+    H.chat("/tbx config")
+    local w = H.configRaw()
+    local drop = w:Find("category")
+    H.call(function() drop.onChange(drop, "Health bars") end)
+    t.ok(w:Find("show_vitals"), "built on first pick")
+    t.eq(w:Find("show_combat"), nil, "the rest still not")
+    t.eq(Toolbox.Config.CurrentCategory(), "vitals")
+    H.closeWindow("toolbox_config")
+    H.chat("/tbx config")
+    t.eq(Toolbox.Config.CurrentCategory(), "vitals", "reopens where it was left")
+  end)
+
+  t.test("controls whose feature is off are greyed out", function()
+    H.boot()
+    H.chat("/tbx config")
+    local w = H.config()
+    t.eq(w:Find("hover_popup").enabled, false, "XP hover while XP is hidden")
+    t.eq(w:Find("vitals_scale").enabled, false, "health bar options while the bars are off")
+    t.eq(w:Find("buffs_combat_only").enabled, false, "buff bar options while it is off")
+    t.ok(w:Find("expire_alert").enabled ~= false, "alerts work with the bar hidden: never greyed")
+    t.ok(w:Find("buff_size").enabled ~= false, "icon size: the other bars use it too")
+    H.chat("/tbx xp")
+    H.chat("/tbx vitals")
+    H.chat("/tbx buffs")
+    t.eq(w:Find("hover_popup").enabled, true)
+    t.eq(w:Find("vitals_scale").enabled, true)
+    t.eq(w:Find("buffs_combat_only").enabled, true)
+    H.chat("/tbx consumables bar off")
+    t.eq(w:Find("consumables_glue").enabled, false, "glue while the bar is off")
+  end)
+
+  t.test("HUD layout: a summary of what shares a strip", function()
+    H.boot()
+    H.chat("/tbx config")
+    local summary = function() return H.config():Find("hud_summary").text end
+    t.ok(summary():find("Own strips: Consumables, Equipment"), summary())
+    H.chat("/tbx buffs")
+    H.chat("/tbx vitals")
+    H.chat("/tbx vitals glue on")
+    H.chat("/tbx gear glue on")
+    t.ok(summary():find("One strip: Health bars %+ Buffs %+ Equipment%."), summary())
+    H.chat("/tbx buffs")                               -- buff bar off: glued gear falls back
+    t.ok(summary():find("The buff bar is off, so Equipment uses its own strip%."), summary())
   end)
 end
 

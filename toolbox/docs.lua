@@ -31,9 +31,11 @@ end
 -- { heading, paragraph, paragraph, ... }. Plain text: markup is never interpreted.
 D.SECTIONS = {
   { "Getting started",
-    "Type /toolbox (or /tbx) to open the settings window and tick what you want on screen. "
-      .. "Everything is saved per character. /toolbox help opens this guide; /toolbox commands "
-      .. "lists the commands in chat.",
+    "Type /toolbox (or /tbx) to open the settings window and tick what you want on screen. Its Show "
+      .. "dropdown picks a category: XP & Today, Buffs, Consumables & gear, Health bars, Combat, "
+      .. "Notifications, Sounds, and HUD layout (what shares a strip, and every strip's position). Options "
+      .. "that do nothing while their feature is off are greyed out. Everything is saved per character. "
+      .. "/toolbox help opens this guide; /toolbox commands lists the commands in chat.",
     "Shortcut: Ctrl+Shift+; opens the settings (if the game isn't using it). Change it, or pick one, in the "
       .. "add-on manager on Toolbox's row under Keys. /toolbox key shows the current one." },
   { "XP",
@@ -42,7 +44,7 @@ D.SECTIONS = {
     "XP Detailed (/toolbox xpdetailed): per track, XP gained, XP per hour (session and last "
       .. "10 minutes), level, progress, XP needed and time to the next level, and a Reset button. "
       .. "A session starts when you log in or press Reset, and survives /lua reload.",
-    "Smaller: /toolbox xp hud (or \"As a HUD strip\" in settings) shows the XP window as a HUD strip, "
+    "Smaller: /toolbox xp hud (or XP window: HUD strip in settings) shows the XP window as a HUD strip, "
       .. "with no title bar or frame. Move it by its grip or /toolbox xp move <x> <y>; hovering still "
       .. "pops up XP Detailed. /toolbox xp window turns it back into a window." },
   { "XP over the last hour",
@@ -125,7 +127,7 @@ D.SECTIONS = {
     "The buff bar, health & focus bars, combat stats, the consumables bar and the equipment bar are "
       .. "HUD strips. Drag the grip at a "
       .. "strip's top-left corner (untick Options > Interface > Nameplates & Chat Bubbles > "
-      .. "Lock Status Movement to see it), use the Position buttons in settings, or type e.g. "
+      .. "Lock Status Movement to see it), use the Position buttons in settings (HUD layout), or type e.g. "
       .. "/toolbox buffs move 600 40." },
   { "Notifications",
     "A Notifications window tells you what's new since you last saw it: your guild's message of the "

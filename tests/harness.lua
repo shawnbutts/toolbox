@@ -505,6 +505,9 @@ function Element:Clear()
   self.children = {}
 end
 function Element:SetVisible(v) self.visible = v end
+-- Docs: SetEnabled / IsEnabled on every element (a disabled one is greyed out and ignores the pointer).
+function Element:SetEnabled(on) self.enabled = on == true end
+function Element:IsEnabled() return self.enabled ~= false end
 function Element:Destroy()
   self.destroyed = true
   for id, f in pairs(S.frames) do if f == self then S.frames[id] = nil end end
@@ -626,10 +629,20 @@ function H.moveWindow(id, x, y)
 end
 
 -- The player changes a slider, toggle, ... (fires onChange; our own SetValue never does).
+-- The settings window builds a category the first time it is shown; tests look controls up by id
+-- across all of them, so build every category first (as picking each from its dropdown would).
+local function allSettings(windowId)
+  if windowId == "toolbox_config" and S.windows.toolbox_config and Toolbox and Toolbox.Config.BuildAll then
+    H.call(function() Toolbox.Config.BuildAll() end)
+  end
+end
+
 function H.change(windowId, elementId, value)
   humanPace()
+  allSettings(windowId)
   local c = S.windows[windowId]:Find(elementId)
   assert(c, "no element " .. elementId)
+  assert(c.enabled ~= false, elementId .. " is greyed out (disabled): a player can't change it")
   c.value = value
   H.call(function() c.onChange(c, value) end)
 end
@@ -644,14 +657,19 @@ end
 
 -- The player presses Enter in a text field.
 function H.submit(windowId, elementId, text)
+  allSettings(windowId)
   local f = S.windows[windowId]:Find(elementId)
+  assert(f, "no element " .. elementId)
   f.text = text
   H.call(function() f.onSubmit(f, text) end)
 end
 
 function H.click(windowId, elementId)
   humanPace()
+  allSettings(windowId)
   local b = S.windows[windowId]:Find(elementId)
+  assert(b, "no element " .. elementId)
+  assert(b.enabled ~= false, elementId .. " is greyed out (disabled): a player can't click it")
   H.call(function() b.onClick(b) end)
 end
 
@@ -1010,7 +1028,13 @@ end
 local NOT_BUILT = { IsShown = function() return false end,
                     Find = function() error("XP Detailed isn't built yet: open it first", 2) end }
 function H.window() return S.windows.toolbox_xp or NOT_BUILT end
-function H.config() return S.windows.toolbox_config end
+-- The settings window, with every category built (see allSettings); nil before it is first opened.
+function H.config()
+  allSettings("toolbox_config")
+  return S.windows.toolbox_config
+end
+-- The settings window as the player first sees it (only the categories shown so far built).
+function H.configRaw() return S.windows.toolbox_config end
 function H.compact() return S.windows.toolbox_compact end
 function H.compactText(id) return H.compact():Find(id).text end
 function H.text(id) return H.window():Find(id).text end
