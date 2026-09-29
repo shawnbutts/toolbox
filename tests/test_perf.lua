@@ -54,6 +54,30 @@ return function(t)
     t.ok(kb <= LIMITS.idle.kb, string.format("%.1f KB/s of garbage (limit %d)", kb, LIMITS.idle.kb))
   end)
 
+  t.test("settings opened and closed again costs nothing while hidden", function()
+    everythingOpen()
+    local base = measure(30)
+    H.chat("/tbx config")                        -- built (as the first-run welcome does), then closed
+    H.advance(2)
+    H.closeWindow("toolbox_config")
+    H.advance(2)                                 -- strips shown only while settings is open settle
+    local after = measure(30)
+    t.ok(after - base <= 0.2, string.format("%.1f UI calls/s more than never opened (%.1f vs %.1f)",
+      after - base, after, base))
+  end)
+
+  t.test("the XP totals are read once a second, not twice", function()
+    everythingOpen()
+    local reads, get = 0, ShroudGetTotalAdventurerExperience   -- read only through Toolbox.ReadTotals
+    ShroudGetTotalAdventurerExperience = function(...)
+      reads = reads + 1
+      return get(...)
+    end
+    H.advance(10)
+    ShroudGetTotalAdventurerExperience = get
+    t.ok(reads <= 10, reads .. " reads in 10 s")
+  end)
+
   t.test("combat with every window open stays within its budget", function()
     everythingOpen()
     H.setCombat(true)

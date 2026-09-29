@@ -27,6 +27,11 @@ store submission needs a higher version than any submitted before (rejected ones
 - Health & focus bars: the bar length can now go down to 20 (was 100), for a compact strip.
 
 ### Fixed
+- Performance: once the settings window had been opened (the first-run welcome opens it), it kept
+  updating its hidden labels every second (~9 UI calls a second). It now only does that while shown,
+  and refreshes them as it opens. Also: the XP totals are read once a second instead of twice, the
+  health & focus bars allocate nothing on a quiet tick, and HUD strips are only shown or hidden
+  when that changes.
 - Buff bar: a buff whose skill applies several effects could get its sweep's length from the wrong
   one, so the sweep sat out of step with the game's bar. The full length now comes from the effect
   whose time left matches, read the way the game reports it.

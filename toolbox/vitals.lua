@@ -64,6 +64,7 @@ local prefs = { show = false }
 local content = nil       -- the bar rows (in a strip owned by Toolbox.Hud)
 local el = {}
 local shown = {}          -- key -> { value = bar fill, text = label text } last set
+local barEls = {}         -- key -> { bar = Bar, text = Label } (set at build)
 local vigor = nil         -- the last Vigor reading (V.ReadVigor's shape), nil when there is none
 local vigorShow = { 0, "--", "Vigor" }   -- its fill, text and tooltip, formatted once per reading
 local lastVigorRead = -math.huge
@@ -258,6 +259,7 @@ function V.BuildContent()
     el[bar.key .. "_text"] = content:Find(bar.key .. "_text")
     el[bar.key .. "_wrap"] = content:Find(bar.key .. "_wrap")
     el[bar.key .. "_row"] = content:Find(bar.key .. "_row")
+    barEls[bar.key] = { bar = el[bar.key .. "_bar"], text = el[bar.key .. "_text"] }
   end
   vigorRowShown = vigorShown()
   return content
@@ -300,10 +302,13 @@ function V.IsLow(current, value)
   return prefs.flash ~= false and type(current) == "number" and value < (prefs.flashBelow or V.FLASH_DEFAULT) / 100
 end
 
+-- Five times a second, so it allocates nothing on a quiet tick: one state table per bar (updated in
+-- place; `shown = {}` elsewhere forces a full re-apply) and the bars' elements looked up once at build.
 function V.Tick()
   ticks = ticks + 1
   local phase = math.floor(ticks / V.FLASH_TICKS) % 2 == 1
-  if T.Now() - lastVigorRead >= V.VIGOR_POLL then readVigorNow() end
+  local now = T.Now()
+  if now - lastVigorRead >= V.VIGOR_POLL then readVigorNow() end
   if content and vigorShown() ~= vigorRowShown then       -- Vigor appeared, went away, or was switched
     vigorRowShown = vigorShown()
     el.vigor_row:SetVisible(vigorRowShown)
@@ -319,20 +324,25 @@ function V.Tick()
         current, max = V.Read(bar)
         value, text = V.Format(current, max)
       end
-      local flashing = not bar.vigor and (V.IsLow(current, value) or T.Now() < previewUntil) and phase
-      local last = shown[bar.key] or {}
-      if value ~= last.value then el[bar.key .. "_bar"]:SetValue(value) end
-      if text ~= last.text then el[bar.key .. "_text"]:SetText(text) end
+      local flashing = not bar.vigor and (V.IsLow(current, value) or now < previewUntil) and phase
+      local last = shown[bar.key]
+      if not last then
+        last = {}
+        shown[bar.key] = last
+      end
+      local els = barEls[bar.key]
+      if value ~= last.value then els.bar:SetValue(value) end
+      if text ~= last.text then els.text:SetText(text) end
       if tip then
-        T.SetTooltip(el[bar.key .. "_bar"], tip)
-        T.SetTooltip(el[bar.key .. "_text"], tip)
+        T.SetTooltip(els.bar, tip)
+        T.SetTooltip(els.text, tip)
       end
       if flashing ~= last.flashing then
         local barColor, textColor = V.Colors(bar, flashing)
-        el[bar.key .. "_bar"]:SetColor(barColor)
-        el[bar.key .. "_text"]:SetStyle{ color = textColor }
+        els.bar:SetColor(barColor)
+        els.text:SetStyle{ color = textColor }
       end
-      shown[bar.key] = { value = value, text = text, flashing = flashing }
+      last.value, last.text, last.flashing = value, text, flashing
     end
   end
 end

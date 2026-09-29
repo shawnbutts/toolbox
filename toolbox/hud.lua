@@ -173,7 +173,7 @@ function Hud.Refresh()
       if content and modules[key].HidesGlued and modules[key].HidesGlued() then hideAll = true end
       if content then
         local shown = modules[key].IsShown()
-        content:SetVisible(shown)
+        T.SetVisible(content, shown)
         if shown then
           local cw, ch = modules[key].ContentSize()
           content:SetStyle{ marginLeft = any and Hud.GAP or 0 }
@@ -182,13 +182,13 @@ function Hud.Refresh()
       end
     end
     if hideAll then any = false end
-    frame:SetVisible(any)
+    T.SetVisible(frame, any)
     if any then setSize(frame, T.Window.GRIP + w + Hud.PAD, h + Hud.PAD) end
   end
   for key, own in pairs(frames) do
     if modules[key] and contents[key] then
       local shown = modules[key].IsShown()
-      own:SetVisible(shown)
+      T.SetVisible(own, shown)
       if shown then
         local cw, ch = modules[key].ContentSize()
         setSize(own, T.Window.GRIP + cw + Hud.PAD, ch + Hud.PAD)

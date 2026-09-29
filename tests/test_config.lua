@@ -277,4 +277,52 @@ return function(t)
     H.chat("/tbx key")
     t.ok(H.logged("Pressed 2 time%(s%) since the last reload%.$"), H.lastLog())
   end)
+
+  -- live values (strip positions, sound status) -------------------------------
+
+  t.test("while settings is open, a strip dragged by its grip updates its Position label", function()
+    H.boot()
+    H.chat("/tbx vitals")
+    H.chat("/tbx config")
+    H.advance(1)
+    H.S.frames.toolbox_vitals.x, H.S.frames.toolbox_vitals.y = 500, 260     -- the player drags the grip
+    H.advance(1)
+    t.eq(H.config():Find("vitals_pos").text, "500, 260")
+  end)
+
+  t.test("while settings is hidden its live labels aren't touched; opening it brings them up to date", function()
+    H.boot()
+    H.chat("/tbx vitals")
+    H.chat("/tbx config")
+    H.advance(1)
+    H.closeWindow("toolbox_config")
+    local label = H.config():Find("vitals_pos")
+    local writes = 0
+    local set = label.SetText
+    label.SetText = function(self, text)
+      writes = writes + 1
+      return set(self, text)
+    end
+    H.S.frames.toolbox_vitals.x, H.S.frames.toolbox_vitals.y = 480, 250
+    H.advance(10)
+    t.eq(writes, 0, "no updates while hidden")
+    H.chat("/tbx config")
+    t.eq(label.text, "480, 250", "up to date as soon as it opens")
+    label.SetText = nil
+  end)
+
+  t.test("a sound that finished loading while settings was hidden shows when it reopens", function()
+    H.boot()
+    H.chat("/tbx config")
+    H.closeWindow("toolbox_config")
+    H.S.files["toolbox_buff_expiring.ogg"] = true
+    H.reload()
+    H.chat("/tbx config")
+    H.closeWindow("toolbox_config")
+    H.advance(5)                                          -- the clip loads while hidden
+    H.chat("/tbx config")
+    t.ok(H.config():Find("snd_buff_expiring_status").text:find("toolbox_buff_expiring"),
+      H.config():Find("snd_buff_expiring_status").text)
+  end)
 end
+

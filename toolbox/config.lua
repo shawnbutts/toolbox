@@ -564,16 +564,24 @@ function C.Sync()
   C.SyncLive()
 end
 
--- Things that change without a setter being called (sound loads settling, the bar being
--- dragged by its grip); called once a tick from Toolbox.Tick, and from Sync.
+-- The HUD strips with Position rows: { id prefix, module }. Built once (config.lua loads last, so
+-- every module exists here), not every tick.
+local POSITIONED = {
+  { "buff", T.BuffBar }, { "vitals", T.Vitals }, { "combat", T.Combat }, { "gear", T.Gear },
+  { "consumables", T.Consumables }, { "nhud", T.Notify.Hud },
+}
+
+-- Things that change without a setter being called (sound loads settling, a strip being dragged
+-- by its grip); called once a tick from Toolbox.Tick, and from Sync (so opening the window brings
+-- them up to date). Only while the window is shown: once built, the window stays built while
+-- hidden, and refreshing it then cost ~9 UI calls a second for nothing (review, 2026-09-29).
 function C.SyncLive()
-  if not win then return end
+  if not C.IsShown() then return end
   C.SyncSounds()
-  el.shortcut:SetText("Shortcut: " .. T.KeyStatus())
-  for prefix, m in pairs({ buff = T.BuffBar, vitals = T.Vitals, combat = T.Combat, gear = T.Gear,
-                          consumables = T.Consumables, nhud = T.Notify.Hud }) do
-    local x, y = m.GetPosition()
-    el[prefix .. "_pos"]:SetText(x and (x .. ", " .. y) or "")
+  T.SetText(el.shortcut, "Shortcut: " .. T.KeyStatus())
+  for _, p in ipairs(POSITIONED) do
+    local x, y = p[2].GetPosition()
+    T.SetText(el[p[1] .. "_pos"], x and (x .. ", " .. y) or "")
   end
 end
 
@@ -584,7 +592,7 @@ function C.SyncSounds()
   for _, def in ipairs(T.Sounds.DEFS) do
     local status, path = T.Sounds.Status(def.key)
     local text = def.label .. ": " .. (status == "ready" and path or status == "loading" and "looking..." or "no file")
-    el["snd_" .. def.key .. "_status"]:SetText(text)
+    T.SetText(el["snd_" .. def.key .. "_status"], text)
   end
 end
 

@@ -1317,9 +1317,10 @@ function T.ResumeOrStart()
   return "waiting"
 end
 
--- Takes one reading of the totals into the session.
-function T.Sample()
-  local adv, prod = T.ReadTotals()
+-- Takes one reading of the totals into the session: `adv, prod` when the caller has just read them
+-- (Tick), otherwise read here (ShroudOnExperienceGain).
+function T.Sample(adv, prod)
+  if adv == nil then adv, prod = T.ReadTotals() end
   if not adv then return end
   T.Daily.ObserveTotals(adv, prod)
   if not T.session or T.session.ended then return end
@@ -1343,16 +1344,17 @@ end
 
 function T.Tick()
   local s = T.session
+  local adv, prod = T.ReadTotals()   -- once a tick (it was read twice: review, 2026-09-29)
   if not s then
     T.ResumeOrStart()                -- no character yet when the add-on started
   elseif s.ended then
     T.StartSession("login")          -- logged out and back in without a restart
-  elseif s.player ~= ShroudGetPlayerName() and T.ReadTotals() then
+  elseif s.player ~= ShroudGetPlayerName() and adv then
     T.StartSession("character")
   else
-    T.Sample()
+    T.Sample(adv, prod)
   end
-  T.Daily.Tick(T.ReadTotals() ~= nil)
+  T.Daily.Tick(adv ~= nil)
   T.Window.Track()
   T.Compact.Track()
   T.Daily.Track()
