@@ -226,6 +226,7 @@ function C.BuffBarSection()
       tooltip = "Buffs with more time left than this share one slot with a count at the end of the row;"
         .. " hover it for the list. They move back onto the bar as they near their end.",
       onChange = function(_, value) C.OnGroupAfter(value) end }),
+    C.CategoryToggles("buff_cat_", "Always group these kinds", B.GetGroupCategory, B.SetGroupCategory),
     UI.Label{ id = "buff_group", text = "", class = "dim", style = { whiteSpace = "wrap" },
       tooltip = "Buffs whose names contain these are always grouped" },
   } }
@@ -246,7 +247,7 @@ function C.ConsumablesGearSection()
     slider("cons_max", "Most icons", 1, K.SLOTS, 1, K.GetMax(),
       "Icons before the rest share one slot with a count (hover it). Long-lasting ones share it too (Buffs:"
         .. " Group buffs lasting longer than).", function(n) K.SetMax(n) end),
-    C.CategoryToggles(),
+    C.CategoryToggles("cons_cat_", "Kinds on the bar", K.GetCategory, K.SetCategory),
     UI.Label{ id = "cons_exclude", text = "", class = "dim", style = { whiteSpace = "wrap", marginTop = 4 },
       tooltip = "Buffs whose names contain these stay off the bar (the Consumable kind also has scrolls, torches"
         .. " and bait)" },
@@ -274,17 +275,18 @@ local CATEGORY_TIPS = {
   Song = "Bard songs", Pet = "Pet effects", Equipment = "Armor and weapon procs", Event = "Fireworks, event powerups",
   Environment = "Hazards and fields", Creature = "Effects from creatures", Other = "Anything else",
 }
-function C.CategoryToggles()
+-- A heading and a checkbox per buff category: ids <prefix><Category>; `get(key)` / `set(key, on)`.
+function C.CategoryToggles(prefix, title, get, set)
   local K = T.Consumables
   local children = {
-    UI.Label{ text = "Kinds on the bar", class = "text", style = { marginTop = 6 },
+    UI.Label{ text = title, class = "text", style = { marginTop = 6 },
       tooltip = K.HasCategories() and "The game sorts every buff into one of these"
-        or "This game client has no buff categories (Lua API 23): Food and Potion go by name" },
+        or "This game client has no buff categories (Lua API 23)" },
   }
   for _, key in ipairs(K.Categories()) do
-    children[#children + 1] = UI.Toggle{ id = "cons_cat_" .. key, text = key, value = K.GetCategory(key),
+    children[#children + 1] = UI.Toggle{ id = prefix .. key, text = key, value = get(key),
       style = { marginLeft = 16 }, tooltip = CATEGORY_TIPS[key] or key,
-      onChange = function(_, v) K.SetCategory(key, v) end }
+      onChange = function(_, v) set(key, v) end }
   end
   return UI.Column{ children = children }
 end
@@ -496,7 +498,10 @@ for _, src in ipairs(T.Notify.Sources()) do
   ALL_IDS[#ALL_IDS + 1] = "notify_" .. src.key .. "_via"
 end
 for _, p in ipairs(POSITIONED) do ALL_IDS[#ALL_IDS + 1] = p[1] .. "_pos" end
-for _, key in ipairs(T.Consumables.Categories()) do ALL_IDS[#ALL_IDS + 1] = "cons_cat_" .. key end
+for _, key in ipairs(T.Consumables.Categories()) do
+  ALL_IDS[#ALL_IDS + 1] = "cons_cat_" .. key
+  ALL_IDS[#ALL_IDS + 1] = "buff_cat_" .. key
+end
 ALL_IDS[#ALL_IDS + 1] = "cons_exclude"
 
 -- Shows one category (by key or label), building it the first time. Returns true when it shows.
@@ -720,6 +725,10 @@ function C.Sync()
     setEnabled(id, buffsOn)
   end
   setEnabled("buff_replace", buffsOn and B.CanReplace())
+  for _, key in ipairs(T.Consumables.Categories()) do
+    setValue("buff_cat_" .. key, B.GetGroupCategory(key))
+    setEnabled("buff_cat_" .. key, buffsOn and T.Consumables.HasCategories())
+  end
   setEnabled("buff_dismiss", buffsOn and B.CanDismiss())
   -- Consumables & gear
   local K = T.Consumables

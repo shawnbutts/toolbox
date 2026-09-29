@@ -729,13 +729,31 @@ add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off;
       T.Print(msg)
     elseif verb == "reset" then
       B.ResetGroup()
+    elseif verb == "cat" then
+      local catName, onoff = T.ParseArgs(part)
+      local key = nil
+      for _, k in ipairs(T.Consumables.Categories()) do
+        if k:lower() == catName:lower() then key = k end
+      end
+      onoff = onoff:lower()
+      if not key or (onoff ~= "on" and onoff ~= "off") then
+        T.Print("Use " .. c .. " cat <Category> on|off. Categories: " .. table.concat(T.Consumables.Categories(), ", ")
+          .. ".")
+        return
+      end
+      B.SetGroupCategory(key, onoff == "on")
     elseif verb ~= "" then
-      T.Print("Use " .. c .. " after <minutes>|off, add <name>, remove <name> or reset.")
+      T.Print("Use " .. c .. " after <minutes>|off, cat <Category> on|off, add <name>, remove <name> or reset.")
       return
     end
     local after = B.GetGroupAfter()
     T.Print("Grouped into one slot: buffs lasting longer than " .. (after > 0 and B.GroupAfterLabel(after) or "(off)")
       .. ".")
+    local cats = {}
+    for _, k in ipairs(T.Consumables.Categories()) do
+      if B.GetGroupCategory(k) then cats[#cats + 1] = k end
+    end
+    T.Print("Always, by kind: " .. (#cats > 0 and table.concat(cats, ", ") or "none") .. ".")
     local parts = B.GroupParts()
     T.Print("Also by name: " .. (#parts > 0 and table.concat(parts, ", ") or "none") .. ".")
     return

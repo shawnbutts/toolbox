@@ -1606,4 +1606,44 @@ return function(t)
     t.eq(sweep(slot).visible, false, "no sweep left over")
     t.eq(slot.style.borderWidth, 0, "no border left over")
   end)
+
+  -- grouping by category (API 23) ------------------------------------------------------
+
+  t.test("always-group categories: short and permanent buffs of that kind go into the group slot", function()
+    H.boot()
+    H.chat("/tbx buffs")
+    H.chat("/tbx consumables bar off")                        -- all on the buff bar here
+    H.addBuffs({ { name = "Rune_Reward_Blessing_Shrine_Gaism", category = "Blessing", remaining = 600, icon = 602 },
+                 { name = "Stillness", category = "Other", remaining = -1, permanent = true, icon = 47 },
+                 { name = "Light", category = "Skill", remaining = 120, icon = 5 } })
+    H.advance(1)
+    t.eq(#H.slots("buffs"), 3, "nothing grouped yet (all under 15 minutes, or permanent)")
+    H.chat("/tbx buffs group cat blessing on")
+    H.chat("/tbx buffs group cat other on")
+    H.advance(1)
+    local slots = H.slots("buffs")
+    t.eq(#slots, 2, "Light, then the group")
+    t.eq(slots[1].children[1].texture, 5)
+    t.eq(slots[2].children[#slots[2].children].text, "2")
+    t.eq(H.saved("buffbar").groupCats.Blessing, true)
+    H.clearLogs()
+    H.chat("/tbx buffs group")
+    t.ok(H.logged("^Always, by kind: Other, Blessing%.$"), H.lastLog())
+    H.chat("/tbx config")
+    H.change("toolbox_config", "buff_cat_Other", false)
+    H.advance(1)
+    t.eq(#H.slots("buffs"), 3, "Stillness back on the bar")
+    H.reload()
+    t.ok(Toolbox.BuffBar.GetGroupCategory("Blessing"), "kept across a reload")
+  end)
+
+  t.test("category grouping is greyed out on a client without categories", function()
+    H.boot()
+    H.S.noCategories = true
+    H.reload()
+    H.chat("/tbx buffs")
+    H.chat("/tbx config")
+    t.eq(H.config():Find("buff_cat_Blessing").enabled, false)
+  end)
 end
+

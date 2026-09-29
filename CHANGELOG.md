@@ -17,6 +17,8 @@ store submission needs a higher version than any submitted before (rejected ones
   element limit): a strip that is rebuilt or removed now lets go of its old elements at once.
 
 ### Added
+- Buff bar: "Always group these kinds" (Buffs settings, or `/toolbox buffs group cat <Category> on|off`)
+  puts every buff of a category into the group slot, whatever its time left, e.g. Blessings.
 - The Toolbelt: the buff bar with your health, focus and Vigor bars, consumables bar and equipment bar
   joined to it, one strip moved as one, now its own feature with its own settings category (which bars
   join it, only during combat, a summary of what's in it) and `/toolbox toolbelt` (`vitals|consumables|gear

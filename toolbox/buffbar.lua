@@ -413,6 +413,9 @@ end
 -- Whether a buff goes in the long-lasting group (debuffs never do): by time left, or by name.
 local function isGrouped(e)
   if BB.GroupedByTime(e.remaining, BB.GroupAfter()) then return true end
+  -- a category the player always groups (API 23), permanent effects included
+  local rune = runes[e.name]
+  if rune and rune.category and prefs.groupCats and prefs.groupCats[rune.category] then return true end
   local g = groupedCache[e.name]
   if g == nil then
     g = BB.Grouped(e.name, plainLabel(e.index, e.name), prefs.group)
@@ -1425,6 +1428,12 @@ function BB.Init()
     prefs.clickDismiss = saved.clickDismiss == true
     prefs.combatOnly = saved.combatOnly == true
     prefs.flash = saved.flash ~= false
+    if type(saved.groupCats) == "table" then
+      prefs.groupCats = {}
+      for k, v in pairs(saved.groupCats) do
+        if type(k) == "string" and v == true then prefs.groupCats[k] = true end
+      end
+    end
     -- A list saved exactly as an earlier default is taken as unset (the time rule replaced it).
     local old = false
     if type(saved.group) == "table" then
@@ -1653,6 +1662,23 @@ function BB.RemoveGroupPart(part)
 end
 
 function BB.GetGroupAfter() return prefs.groupAfter or BB.GROUP_AFTER_DEFAULT end
+
+-- Categories always grouped (API 23 buff categories; none by default), whatever their time left.
+function BB.GetGroupCategory(key) return prefs.groupCats ~= nil and prefs.groupCats[key] == true end
+
+function BB.SetGroupCategory(key, on)
+  local known = false
+  for _, k in ipairs(T.Consumables.Categories()) do
+    if k == key then known = true end
+  end
+  if not known then return false end
+  prefs.groupCats = prefs.groupCats or {}
+  if on then prefs.groupCats[key] = true else prefs.groupCats[key] = nil end
+  savePrefs()
+  if content and prefs.show then BB.Tick() end
+  T.Config.Sync()
+  return true
+end
 
 -- Seconds, one of BB.GROUP_AFTER_CHOICES (0 = off). Returns false for anything else.
 function BB.SetGroupAfter(seconds)
