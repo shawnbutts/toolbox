@@ -22,7 +22,9 @@ S.VOLUME_DEFAULT = 70
 S.DEFS = {
   { key = "buff_expiring", file = "buff_expiring.ogg", label = "Buff expiring" },
   { key = "debuff_landed", file = "debuff_landed.ogg", label = "Debuff landed" },
-  { key = "notify", file = "notify.ogg", label = "Notification" },
+  { key = "notify", file = "notify.ogg", label = "Notification chime" },
+  { key = "ping", file = "ping.ogg", label = "Notification ping" },
+  { key = "tap", file = "tap.ogg", label = "Notification tap" },
 }
 
 -- state[key] = { candidates = {...}, at = index, since = t, before = n, clip = name|nil,

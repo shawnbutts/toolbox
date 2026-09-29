@@ -569,6 +569,17 @@ function C.SoundsSection()
       style = { whiteSpace = "wrap", marginTop = 6 } },
   }
   for _, def in ipairs(S.DEFS) do children[#children + 1] = soundRows(def) end
+  -- Which sound each notification plays (when its delivery says "+ sound", on the Notifications page).
+  children[#children + 1] = heading("Notification sounds")
+  children[#children + 1] = UI.Label{ text = "Played when a notification set to \"+ sound\" arrives"
+    .. " (Notifications page).", class = "dim", style = { whiteSpace = "wrap" } }
+  local labels = T.Notify.SoundLabels()
+  for _, src in ipairs(T.Notify.Sources()) do
+    local key = src.key
+    children[#children + 1] = dropdownRow(src.label, { id = "notify_" .. key .. "_snd", choices = labels,
+      value = T.Notify.SoundLabel(T.Notify.GetSoundKey(key)), tooltip = "The sound for " .. src.label:lower(),
+      onChange = function(_, label) T.Notify.SetSoundKey(key, label) end })
+  end
   return UI.Column{ children = children }
 end
 
@@ -728,6 +739,7 @@ end
 for _, src in ipairs(T.Notify.Sources()) do
   ALL_IDS[#ALL_IDS + 1] = "notify_" .. src.key
   ALL_IDS[#ALL_IDS + 1] = "notify_" .. src.key .. "_via"
+  ALL_IDS[#ALL_IDS + 1] = "notify_" .. src.key .. "_snd"
 end
 for _, p in ipairs(POSITIONED) do ALL_IDS[#ALL_IDS + 1] = p[1] .. "_pos" end
 for _, key in ipairs(T.Consumables.Categories()) do
@@ -1027,6 +1039,8 @@ function C.Sync()
   for _, src in ipairs(T.Notify.Sources()) do
     setValue("notify_" .. src.key, T.Notify.IsOn(src.key))
     setValue("notify_" .. src.key .. "_via", T.Notify.ChoiceLabel(src.key))
+    setValue("notify_" .. src.key .. "_snd", T.Notify.SoundLabel(T.Notify.GetSoundKey(src.key)))
+    setEnabled("notify_" .. src.key .. "_snd", T.Notify.GetSound(src.key))
   end
   setValue("nhud_hide", T.Notify.Hud.HideLabel(T.Notify.Hud.GetHideAfter()) or "Never")
   -- Sounds

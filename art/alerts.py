@@ -14,6 +14,8 @@ Alerts:
                   down as it sounds, 0.8 s: a falling "uh-oh" that starts high
   notify          two soft bell chimes rising a fifth (E5 -> B5), 0.8 s: "something new" (the
                   opposite way to buff_expiring's fall)
+  ping            one bright bell (C6), 0.6 s: a light single note for notifications
+  tap             two quick soft low notes (G4, G4), 0.5 s: an unobtrusive "knock" for notifications
 Tweak the constants in each render_* function and re-run.
 """
 
@@ -92,6 +94,14 @@ def render_notify() -> list[float]:
     return render_chimes(0.8, [(0.00, 659.25, 0.85), (0.14, 987.77, 1.0)])   # E5 then B5: rising
 
 
+def render_ping() -> list[float]:
+    return render_chimes(0.6, [(0.00, 1046.50, 1.0)])                         # C6: one note
+
+
+def render_tap() -> list[float]:
+    return render_chimes(0.5, [(0.00, 392.00, 1.0), (0.11, 392.00, 0.8)])      # G4 twice: a knock
+
+
 # ---------------------------------------------------------------------------
 # debuff_landed: three hollow notes stepping down, high to low
 # ---------------------------------------------------------------------------
@@ -158,6 +168,8 @@ ALERTS = {
     "buff_expiring": render_buff_expiring,
     "debuff_landed": lambda: render_debuff(DEBUFF),
     "notify": render_notify,
+    "ping": render_ping,
+    "tap": render_tap,
 }
 
 

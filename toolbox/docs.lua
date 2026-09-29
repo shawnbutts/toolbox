@@ -215,7 +215,9 @@ D.SECTIONS = {
     "Each can show in the Notifications window, on the notification HUD or as a chat line, with or "
       .. "without a sound (the dropdown next to it in settings, e.g. HUD + sound; or /toolbox notify <name> "
       .. "via window|hud|chat and /toolbox notify <name> sound on|off, or leave out the name for all). The "
-      .. "sound is a rising chime, different from the buff alerts. The window can be compact (settings: "
+      .. "sound is a rising chime by default; each source can have its own (Sounds page: Notification sounds: "
+      .. "Chime, Ping, Tap, Bell or Low notes; or /toolbox notify friends sound ping). Several arriving "
+      .. "together play each sound once. The window can be compact (settings: "
       .. "Compact Notifications window, or /toolbox notify compact on): its title bar shows only on hover. "
       .. "The HUD lists the "
       .. "latest 20, newest on top, one line each (hover a line for all of it; scroll for older ones). It "
@@ -224,7 +226,8 @@ D.SECTIONS = {
       .. "strips (settings, or /toolbox notify hud move <x> <y>); /toolbox notify hud clear deletes its history." },
   { "Sounds",
     "The alert sounds live in the add-on's folder. To use your own, put "
-      .. "toolbox_buff_expiring.ogg, toolbox_debuff_landed.ogg or toolbox_notify.ogg (or .wav) in your Lua folder, "
+      .. "toolbox_buff_expiring.ogg, toolbox_debuff_landed.ogg, toolbox_notify.ogg, toolbox_ping.ogg or "
+      .. "toolbox_tap.ogg (or .wav) in your Lua folder, "
       .. "beside the toolbox folder, or pick any file in settings. /toolbox sounds shows what "
       .. "each alert uses; /toolbox sounds 50 sets the volume." },
 }
@@ -492,7 +495,8 @@ end
 --     going down are not remembered: at login they read 0 until the game has loaded them.
 -- Saved var "notify" (character scope): { v = 1, sources = { [key] = { on = bool, seen = any,
 -- via = "window"|"hud"|"chat", sound = bool } } }. The older "guild_motd" ({ show, seen }) is taken over once.
--- `sound`: the "notify" sound (Toolbox.Sounds) plays once per check that delivered one of the source's notices.
+-- `sound`: the source's sound (`soundKey`, one of N.SOUNDS; default the "notify" chime) plays once per check
+-- that delivered one of its notices; several sources arriving together play each distinct sound once.
 -- The HUD's: "notify_hud" { hideAfter = seconds (0 = never), x, y } and "notify_history"
 -- { v = 1, list = { { when = "HH:MM", title, text } } } (newest first, at most N.Hud.KEEP).
 
@@ -966,9 +970,10 @@ local function prefsNow()
   nprefs = { v = 1, sources = {}, compact = type(saved) == "table" and saved.compact == true }
   for _, src in ipairs(N.SOURCES) do
     local s = type(stored[src.key]) == "table" and stored[src.key] or {}
-    local sp = { on = src.default, via = src.via or N.DELIVERY_DEFAULT, sound = false }
+    local sp = { on = src.default, via = src.via or N.DELIVERY_DEFAULT, sound = false, soundKey = "notify" }
     if type(s.on) == "boolean" then sp.on = s.on end
     if s.sound == true then sp.sound = true end
+    if N.SoundLabel(s.soundKey) then sp.soundKey = s.soundKey end
     if type(s.via) == "string" and N.DELIVERY[s.via] then sp.via = s.via end
     if src.transient then
       sp.seen = nil                          -- event numbers restart with the add-on
@@ -1005,20 +1010,28 @@ end
 
 -- Hands each delivery its notices; remembers them as seen once delivered. Returns true if any.
 -- `withSound`: play the notification sound once if a delivered source asks for it.
+local playList = {}              -- reused: the distinct sounds this check plays
 local function deliver(byVia, withSound)
-  local p, any, sound = nprefs, false, false
+  local p, any = nprefs, false
+  for i = #playList, 1, -1 do playList[i] = nil end
   for via, list in pairs(byVia) do
     local ok, done = pcall(N.DELIVERY[via], list)
     if ok and done then
       for _, item in ipairs(list) do
         local sp = p.sources[item.source.key]
         sp.seen = item.notice.seen
-        if sp.sound then sound = true end
+        if sp.sound then
+          local key, dup = sp.soundKey or "notify", false
+          for _, k in ipairs(playList) do if k == key then dup = true end end
+          if not dup then playList[#playList + 1] = key end
+        end
       end
       any = true
     end
   end
-  if sound and withSound then T.Sounds.Play("notify") end
+  if withSound then
+    for _, key in ipairs(playList) do T.Sounds.Play(key) end
+  end
   return any
 end
 
@@ -1161,6 +1174,41 @@ function N.ParseChoice(label)
     if v[2] == base then return v[1], sound end
   end
   return nil
+end
+
+-- The sounds a notification can play, in the order settings offer them: { sound key, label }.
+N.SOUNDS = { { "notify", "Chime" }, { "ping", "Ping" }, { "tap", "Tap" }, { "buff_expiring", "Bell" },
+             { "debuff_landed", "Low notes" } }
+
+function N.SoundLabel(soundKey)
+  for _, s in ipairs(N.SOUNDS) do if s[1] == soundKey then return s[2] end end
+  return nil
+end
+
+function N.SoundLabels()
+  local out = {}
+  for i, s in ipairs(N.SOUNDS) do out[i] = s[2] end
+  return out
+end
+
+function N.GetSoundKey(key)
+  local sp = prefsNow().sources[key]
+  return sp and sp.soundKey or "notify"
+end
+
+-- Which sound a source plays (by N.SOUNDS key or label, any case). Returns false for an unknown one.
+function N.SetSoundKey(key, which)
+  local sp = prefsNow().sources[key]
+  if not sp or type(which) ~= "string" then return false end
+  local found = nil
+  for _, s in ipairs(N.SOUNDS) do
+    if s[1] == which or s[2]:lower() == which:lower() then found = s[1] end
+  end
+  if not found then return false end
+  sp.soundKey = found
+  save()
+  T.Config.Sync()
+  return true
 end
 
 function N.GetSound(key)

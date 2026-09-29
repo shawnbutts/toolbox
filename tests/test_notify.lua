@@ -190,6 +190,42 @@ return function(t)
     t.eq(H.config():Find("notify_compact").value, false, "the checkbox follows")
   end)
 
+  t.test("a sound per source: picked on the Sounds page or in chat; each distinct sound once", function()
+    H.boot()
+    for _, f in ipairs({ "notify", "ping", "tap" }) do H.S.files["toolbox/" .. f .. ".ogg"] = true end
+    H.reload()
+    H.advance(2)
+    H.chat("/tbx notify via chat")
+    H.chat("/tbx notify friends sound ping")
+    H.chat("/tbx notify motd sound tap")
+    H.chat("/tbx notify mail sound on")          -- the default chime
+    t.eq(Toolbox.Notify.GetSoundKey("friends"), "ping")
+    t.eq(Toolbox.Notify.GetSound("friends"), true, "naming a sound turns it on")
+    local before = #H.S.played
+    H.callback("ShroudOnFriendStatusChanged", { { name = "Alice", online = true } }, 0)
+    t.eq(H.S.played[#H.S.played].name, "ping")
+    H.setGuild("Knights", "Raid at 8")
+    H.setNotes{ unreadMail = 1 }
+    H.advance(1)
+    local names = {}
+    for i = before + 1, #H.S.played do names[#names + 1] = H.S.played[i].name end
+    table.sort(names)
+    t.eq(table.concat(names, ","), "notify,ping,tap", "each source its own sound")
+    before = #H.S.played
+    H.callback("ShroudOnFriendStatusChanged", { { name = "Bob", online = true }, { name = "Cara", online = true } }, 0)
+    t.eq(#H.S.played - before, 1, "two friends at once: one ping")
+    H.chat("/tbx config")
+    t.eq(H.config():Find("notify_friends_snd").value, "Ping")
+    H.change("toolbox_config", "notify_friends_snd", "Bell")
+    t.eq(Toolbox.Notify.GetSoundKey("friends"), "buff_expiring")
+    t.eq(H.config():Find("notify_guild_snd").enabled, false, "greyed out while that source has no sound")
+    H.clearLogs()
+    H.chat("/tbx notify friends sound kazoo")
+    t.ok(H.logged("chime, ping, tap, bell, low notes"), H.lastLog())
+    H.reload()
+    t.eq(Toolbox.Notify.GetSoundKey("friends"), "buff_expiring", "saved")
+  end)
+
   t.test("a refused window is retried and not marked seen", function()
     H.boot()
     H.S.showRefused = true

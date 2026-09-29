@@ -1318,15 +1318,25 @@ add("notify", "notifications: list; <name> on|off; [<name>] via window|hud|chat;
   end
   if word == "sound" or (T.Notify.Label(word) and arg:lower():match("^sound%s")) then
     local onoff = (word == "sound" and arg or arg:match("^%S+%s+(.*)$") or ""):lower()
-    if onoff ~= "on" and onoff ~= "off" then
-      T.Print("Use " .. c .. " [<name>] sound on|off.")
+    local soundKey = nil
+    for _, snd in ipairs(T.Notify.SOUNDS) do
+      if snd[1] == onoff or snd[2]:lower() == onoff then soundKey = snd[1] end
+    end
+    if onoff ~= "on" and onoff ~= "off" and not soundKey then
+      local names = {}
+      for _, snd in ipairs(T.Notify.SOUNDS) do names[#names + 1] = snd[2]:lower() end
+      T.Print("Use " .. c .. " [<name>] sound on|off, or a sound: " .. table.concat(names, ", ") .. ".")
       return
     end
     for _, src in ipairs(T.Notify.Sources()) do
-      if word == "sound" or src.key == word then T.Notify.SetSound(src.key, onoff == "on") end
+      if word == "sound" or src.key == word then
+        if soundKey then T.Notify.SetSoundKey(src.key, soundKey) end
+        T.Notify.SetSound(src.key, onoff ~= "off")
+      end
     end
     T.Print((word == "sound" and "All notifications" or T.Notify.Label(word))
-      .. (onoff == "on" and " now play the notification sound." or " play no sound."))
+      .. (onoff == "off" and " play no sound." or (" now play the "
+        .. (soundKey and T.Notify.SoundLabel(soundKey):lower() or "notification") .. " sound.")))
     return
   end
   if word ~= "" then
