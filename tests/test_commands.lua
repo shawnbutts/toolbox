@@ -209,22 +209,47 @@ return function(t)
     t.ok(H.logged("copies loaded: 2 %(remove the extra one%)"), H.lastLog())
   end)
 
-  t.test("/tbx version also opens the version window with the changelog", function()
+  t.test("/tbx version opens the version window: one version's changes at a time, built when picked", function()
     H.boot()
     H.chat("/tbx version")
     local w = H.S.windows.toolbox_version
     t.ok(w and w:IsShown(), "version window open")
     t.eq(w.title, "Toolbox " .. Toolbox.version)
     t.eq(w:Find("version_line").text, Toolbox.VersionLine())
+    local pick = w:Find("version_pick")
+    t.eq(pick.value, pick.choices[1], "the newest first")
+    local mine = nil
+    for _, title in ipairs(pick.choices) do
+      if title:find("^" .. Toolbox.version:gsub("%.", "%%.") .. " ") then mine = title end
+    end
+    t.ok(mine, "this version is in the list")
+    t.eq(#w:Find("version_body").children, 1, "only the version shown is built")
+    H.call(function() pick.onChange(pick, mine) end)
+    local body = w:Find("version_body").children
+    t.eq(#body, 2, "the picked one is built")
+    t.eq(body[1].visible, false, "the one before is hidden")
     local texts = {}
-    for _, label in ipairs(w:Find("version_body").children) do texts[#texts + 1] = label.text end
-    local all = table.concat(texts, "\n")
-    t.ok(all:find("\n" .. Toolbox.version:gsub("%.", "%%.") .. " "), "this version's heading")
-    t.ok(all:find("\nAdded\n", 1, true), "sections")
+    for _, label in ipairs(body[2].children) do texts[#texts + 1] = label.text end
+    local all = "\n" .. table.concat(texts, "\n")
+    t.ok(all:find("\nAdded\n", 1, true) or all:find("\nChanged\n", 1, true), "sections")
     t.ok(all:find("\n%- "), "items")
     t.no(all:find("`", 1, true), "no markdown left")
+    H.call(function() pick.onChange(pick, pick.choices[1]) end)
+    t.eq(#w:Find("version_body").children, 2, "picking one again doesn't rebuild it")
     H.chat("/tbx version")
     t.ok(w:IsShown(), "running it again leaves it open")
+  end)
+
+  t.test("ChangelogVersions splits the rows per version", function()
+    H.boot()
+    local v = Toolbox.Docs.ChangelogVersions({ { "version", "Unreleased" }, { "section", "Added" }, { "item", "A" },
+      { "version", "0.1.0" }, { "para", "First." } })
+    t.eq(#v, 2)
+    t.eq(v[1].title, "Unreleased (newer than " .. Toolbox.version .. ")")
+    t.eq(#v[1].entries, 2)
+    t.eq(v[2].title, "0.1.0")
+    t.eq(v[2].entries[1][2], "First.")
+    t.eq(#Toolbox.Docs.ChangelogVersions(nil), 0)
   end)
 
   t.test("the baked-in changelog starts with the newest entries", function()

@@ -31,6 +31,9 @@ store submission needs a higher version than any submitted before (rejected ones
   that do nothing while their feature is off are greyed out. A new HUD layout category holds the glue
   options, every strip's position, and a summary of what shares a strip (and what falls back to its own
   when the buff bar is off). Alert sounds and volume have their own Sounds category.
+- The version window (/toolbox version) shows one version's changes at a time, picked from a
+  dropdown (newest first), each built the first time it's picked: it opens with about 25 elements
+  instead of the whole changelog's ~150.
 - The store description and the project README list every current feature (they still described the
   add-on as it was two betas ago).
 - Health & focus bars: the bar length can now go down to 20 (was 100), for a compact strip.

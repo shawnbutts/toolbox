@@ -237,7 +237,9 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     rows). Never edit it; edit CHANGELOG.md and run `make check`. CHANGELOG text lands in a package file, so
     the source checks apply to it: don't quote refused patterns there (runtime loading, "or nil" entries).
     The package allows 16 Lua files and has 15: prefer adding code to an existing file.
-  - `docs.lua`: `Toolbox.Docs`, the Docs window, and the version window (`/toolbox version`, `OpenVersion`),
+  - `docs.lua`: `Toolbox.Docs`, the Docs window, and the version window (`/toolbox version`, `OpenVersion`:
+    one version's changes at a time from the `version_pick` dropdown, each built when first picked;
+    `D.ChangelogVersions` splits `Toolbox.CHANGELOG` per version, pure),
     and `Toolbox.Notify`, notifications (`/toolbox notify`, `/toolbox motd`), built to grow in three parts:
     `N.SOURCES` (key, label, tip, default, `Check(seen, ctx)` -> notice `{ title?, text, seen }` or nil, plus
     an optional quiet value; `countCheck` / `flagCheck` build the common kinds), `N.DELIVERY` (by name;

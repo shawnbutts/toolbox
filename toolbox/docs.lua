@@ -225,16 +225,30 @@ end
 
 local VERSION_ID = "toolbox_version"
 
--- Labels for the changelog entries ({ kind, text }; see changelog.lua).
-function D.ChangelogLabels()
+-- The changelog ({ kind, text } rows; see changelog.lua) split per version, newest first:
+-- { { title, entries = { rows under it } } }. Pure.
+function D.ChangelogVersions(rows)
   local out = {}
-  for _, entry in ipairs(T.CHANGELOG or {}) do
+  for _, entry in ipairs(rows or {}) do
+    if entry[1] == "version" then
+      local title = entry[2]
+      if title == "Unreleased" then title = "Unreleased (newer than " .. T.version .. ")" end
+      out[#out + 1] = { title = title, entries = {} }
+    elseif out[#out] then
+      local list = out[#out].entries
+      list[#list + 1] = entry
+    end
+  end
+  return out
+end
+
+-- The labels for one version's rows (sections, items, paragraphs).
+local function versionLabels(entries)
+  local out = {}
+  for _, entry in ipairs(entries) do
     local kind, text = entry[1], entry[2]
-    if kind == "version" then
-      if text == "Unreleased" then text = "Unreleased (newer than " .. T.version .. ")" end
-      out[#out + 1] = UI.Label{ text = text, class = "heading", style = { marginTop = 10 } }
-    elseif kind == "section" then
-      out[#out + 1] = UI.Label{ text = text, class = "bright", style = { marginTop = 4 } }
+    if kind == "section" then
+      out[#out + 1] = UI.Label{ text = text, class = "bright", style = { marginTop = 6 } }
     elseif kind == "item" then
       out[#out + 1] = UI.Label{ text = "- " .. text, class = "text",
         style = { whiteSpace = "wrap", marginTop = 2, paddingLeft = 8 } }
@@ -242,24 +256,67 @@ function D.ChangelogLabels()
       out[#out + 1] = para(text)
     end
   end
+  if #out == 0 then out[1] = para("No changes listed.") end
   return out
 end
 
+-- The version window shows one version's notes at a time, picked from a dropdown; each is built the
+-- first time it's picked (the whole changelog was ~140 labels at once; owner, 2026-09-29).
+local versions = nil          -- D.ChangelogVersions(T.CHANGELOG), when the window is built
+local vbody = nil             -- the column the versions' notes are added to
+local vbuilt = {}             -- title -> its column
+
+-- Shows one version's notes (by title), building them the first time. Returns true when shown.
+function D.ShowChangelogVersion(title)
+  if not vwin or not versions then return false end
+  local found = nil
+  for _, v in ipairs(versions) do
+    if v.title == title then found = v end
+  end
+  if not found then return false end
+  if not vbuilt[title] then
+    local ok, col = pcall(function()
+      return vbody:Add(UI.Column{ children = versionLabels(found.entries) })
+    end)
+    if not ok then
+      T.Print("Those notes can't be shown right now; pick them again in a moment.")
+      return false
+    end
+    vbuilt[title] = col
+  end
+  for t, col in pairs(vbuilt) do T.SetVisible(col, t == title) end
+  local pick = vwin:Find("version_pick")
+  if pick then pick:SetValue(title) end
+  return true
+end
+
 local function buildVersion()
-  local children = {
-    UI.Label{ id = "version_line", text = T.VersionLine(), class = "text", style = { whiteSpace = "wrap" } },
-  }
-  for _, label in ipairs(D.ChangelogLabels()) do children[#children + 1] = label end
+  versions = D.ChangelogVersions(T.CHANGELOG)
+  local titles = {}
+  for i, v in ipairs(versions) do titles[i] = v.title end
+  if #titles == 0 then titles[1] = "No changelog" end
+  vbody = UI.Column{ id = "version_body", style = { paddingLeft = GUTTER, paddingRight = GUTTER } }
+  vbuilt = {}
   vwin = UI.Window{
     id = VERSION_ID, title = "Toolbox " .. T.version,
     width = 460, height = 480, minWidth = 300, minHeight = 160,
     x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y,
     escCloses = true,
     style = { paddingTop = 6, paddingBottom = 6 },
-    children = { UI.Scroll{ style = { flexGrow = 1 }, children = {
-      UI.Column{ id = "version_body", style = { paddingLeft = GUTTER, paddingRight = GUTTER }, children = children },
-    } } },
+    children = {
+      UI.Column{ style = { paddingLeft = GUTTER, paddingRight = GUTTER, marginBottom = 4 }, children = {
+        UI.Label{ id = "version_line", text = T.VersionLine(), class = "text", style = { whiteSpace = "wrap" } },
+        UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
+          UI.Label{ text = "Changes in", class = "text", style = { flexGrow = 1 } },
+          UI.Dropdown{ id = "version_pick", choices = titles, value = titles[1],
+            tooltip = "Which version's changes to show",
+            onChange = function(_, title) D.ShowChangelogVersion(title) end },
+        } },
+      } },
+      UI.Scroll{ style = { flexGrow = 1 }, children = { vbody } },
+    },
   }
+  if versions[1] then D.ShowChangelogVersion(versions[1].title) end
 end
 
 -- Opens the version window (leaves it open if it already is), with the version line current.
