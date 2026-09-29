@@ -966,6 +966,11 @@ function H.setMotd(motd)
   return H.callback("ShroudOnSocialChanged")
 end
 
+-- API 18 result events, with the documented fields (see the reference): a list of results + dropped.
+function H.craftResults(results, dropped) return H.callback("ShroudOnCraftResults", results, dropped or 0) end
+function H.gatherResults(results, dropped) return H.callback("ShroudOnGatherResults", results, dropped or 0) end
+function H.craftingState(state) return H.callback("ShroudOnCraftingStateChanged", state) end
+
 -- Worn gear: { { name, durability, maxDurability [, icon] }, ... }. No event: the game has none.
 function H.setGear(list) S.gear = list end
 

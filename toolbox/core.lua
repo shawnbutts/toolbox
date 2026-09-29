@@ -1119,15 +1119,16 @@ function T.ApiLines()
       { "ShroudGetBuffBarRect", has(ShroudGetBuffBarRect) },
       { "ShroudCanDismissBuff", has(ShroudCanDismissBuff) },
       { "ShroudDismissBuff", has(ShroudDismissBuff) } } },
-    { "Crafting (withdrawn from the docs)", {
+    { "Crafting (API 18)", {
       { "ShroudGetRecipe", has(ShroudGetRecipe) },
       { "ShroudGetCraftingState", has(ShroudGetCraftingState) } } },
-    { "Friends & guild (withdrawn from the docs)", {
+    { "Friends & guild (API 18)", {
       { "ShroudGetFriends", has(ShroudGetFriends) },
       { "ShroudGetGuildMembers", has(ShroudGetGuildMembers) },
       { "ShroudGetGuildMotd", has(ShroudGetGuildMotd) } } },
+    { "Vigor (API 20)", { { "ShroudGetVigor", has(ShroudGetVigor) } } },
   }
-  local lines = { "Lua API " .. tostring(ShroudLuaApiVersion) .. " (the docs describe 17)." }
+  local lines = { "Lua API " .. tostring(ShroudLuaApiVersion) .. " (the docs describe 22)." }
   for _, g in ipairs(groups) do
     local missing, count = {}, #g[2]
     for _, fn in ipairs(g[2]) do
@@ -1144,6 +1145,102 @@ function T.ApiLines()
     lines[#lines + 1] = g[1] .. ": " .. state .. "."
   end
   lines[#lines + 1] = "Sounds (API 15) can't be probed: re-test with /" .. T.commands[1] .. " sounds test."
+  for _, line in ipairs(T.ProbeLines()) do lines[#lines + 1] = line end
+  return lines
+end
+
+-- ---------------------------------------------------------------------------
+-- Result-event probe (API 18)
+-- ---------------------------------------------------------------------------
+-- The craft / gather result events are documented, but not yet seen firing in this client, and
+-- the planned Crafted / Gathered Today windows depend on them (and on their item names matching
+-- ShroudOnItemsGained's, for the loot window's filter). Until those are built, the events are only
+-- recorded here and reported by /toolbox api (and one chat line the first time each fires).
+
+T.PROBE_EVENTS = {
+  craft = { event = "ShroudOnCraftResults", fields = { "kind", "recipeId", "recipeName", "item", "quantity",
+    "crafted", "exceptional", "failed", "outcome", "experience" } },
+  gather = { event = "ShroudOnGatherResults", fields = { "node", "failed", "experience" } },
+  state = { event = "ShroudOnCraftingStateChanged", fields = { "open", "station", "busy" } },
+}
+T.probe = { craft = { n = 0 }, gather = { n = 0 }, state = { n = 0 }, items = nil }
+
+-- One result (a table or a game object) as "field=value; ..., items: A x2, B x1".
+function T.DescribeResult(r, fields)
+  local parts = {}
+  for _, k in ipairs(fields) do
+    local v = T.Field(r, k)
+    if v ~= nil then parts[#parts + 1] = k .. "=" .. tostring(v) end
+  end
+  local items = T.Field(r, "items")
+  if items ~= nil then
+    local names = {}
+    for _, it in ipairs(T.List(items)) do
+      names[#names + 1] = tostring(T.Field(it, "name")) .. " x" .. tostring(T.Field(it, "quantity"))
+    end
+    parts[#parts + 1] = "items: " .. (#names > 0 and table.concat(names, ", ") or "none")
+  end
+  if #parts == 0 then return type(r) .. " with none of the documented fields" end
+  return table.concat(parts, "; ")
+end
+
+-- From the result callbacks: counts them, keeps the first and last result's fields, and says in
+-- chat the first time each kind fires this session.
+function T.ProbeEvent(key, results, dropped)
+  local p, spec = T.probe[key], T.PROBE_EVENTS[key]
+  if not p then return end
+  p.n = p.n + 1
+  p.at = T.Now()
+  local list = nil
+  if key == "state" then list = { results } else list = T.List(results) end
+  p.results = (p.results or 0) + #list
+  if type(dropped) == "number" and dropped > 0 then p.dropped = (p.dropped or 0) + dropped end
+  if #list == 0 then return end
+  p.last = T.DescribeResult(list[#list], spec.fields)
+  if key ~= "state" then p.lastItem = T.Field(list[#list], "item") end
+  if not p.first then
+    p.first = T.DescribeResult(list[1], spec.fields)
+    T.Print("Probe: " .. spec.event .. " fired: " .. p.first .. " (/" .. T.commands[1] .. " api for more)")
+  end
+end
+
+-- From ShroudOnItemsGained: the latest batch's names, to compare with the result events' names.
+function T.ProbeItems(items)
+  local names = {}
+  for _, it in ipairs(T.List(items)) do
+    local name = T.Field(it, "name")
+    if type(name) == "string" then names[#names + 1] = name .. " x" .. tostring(T.Field(it, "quantity")) end
+  end
+  if #names > 0 then T.probe.items = { at = T.Now(), text = table.concat(names, ", ") } end
+end
+
+function T.ProbeLines()
+  local lines = { "Result events (API 18; seen fire this session?):" }
+  local now = T.Now()
+  for _, key in ipairs({ "craft", "gather", "state" }) do
+    local p, spec = T.probe[key], T.PROBE_EVENTS[key]
+    if p.n == 0 then
+      lines[#lines + 1] = "  " .. spec.event .. ": not yet"
+    else
+      lines[#lines + 1] = string.format("  %s: %d time%s (%d result%s%s), last %ds ago", spec.event, p.n,
+        p.n == 1 and "" or "s", p.results, p.results == 1 and "" or "s",
+        p.dropped and (", " .. p.dropped .. " dropped") or "", math.floor(now - p.at))
+      lines[#lines + 1] = "    first: " .. (p.first or "?")
+      if p.last and p.last ~= p.first then lines[#lines + 1] = "    last: " .. p.last end
+    end
+  end
+  local items = T.probe.items
+  if items then
+    lines[#lines + 1] = string.format("  Last items gained (%ds ago): %s", math.floor(now - items.at), items.text)
+    local item = T.probe.craft.lastItem
+    if type(item) == "string" then
+      local same = items.text:find(item .. " x", 1, true) ~= nil
+      lines[#lines + 1] = "  Last craft's item \"" .. item .. "\" " .. (same and "matches a gained item's name"
+        or "isn't among them (compare the names)")
+    end
+  end
+  lines[#lines + 1] = "  To check: craft something, harvest a node, open and close a crafting station,"
+    .. " then run this again."
   return lines
 end
 
@@ -1497,6 +1594,20 @@ end
 -- Items for the daily stats (anything that arrives in your bags).
 function ShroudOnItemsGained(items, dropped)
   T.Daily.OnItems(items, dropped)
+  T.ProbeItems(items)
+end
+
+-- API 18 result events: only probed for now (see T.ProbeEvent).
+function ShroudOnCraftResults(results, dropped)
+  T.ProbeEvent("craft", results, dropped)
+end
+
+function ShroudOnGatherResults(results, dropped)
+  T.ProbeEvent("gather", results, dropped)
+end
+
+function ShroudOnCraftingStateChanged(state)
+  T.ProbeEvent("state", state)
 end
 
 function ShroudOnLogOut()

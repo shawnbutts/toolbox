@@ -4,6 +4,9 @@
 -- { kind, text }: kind is version / section / item / para, newest version first.
 
 Toolbox.CHANGELOG = {
+  { "version", "Unreleased" },
+  { "section", "Added" },
+  { "item", "/toolbox api now also reports whether the game's craft and gather result events have fired (a line in chat the first time each does), with the fields of the first and last result and whether a crafted item's name matches the loot event's, to check them before the planned Crafted Today and Gathered Today windows are built on them. It also lists Vigor, and the docs' API 22." },
   { "version", "0.4.0 - 2026-09-29 (beta 5)" },
   { "para", "Fifth beta. Buff sweeps that keep pace with the game's own bar, a consumables bar for food and potions, an equipment bar with repair alerts, a Vigor bar, a reorganised settings window, lighter Docs and version windows, and performance fixes found by new stress tests." },
   { "section", "Added" },

@@ -3,6 +3,14 @@
 All notable changes to Toolbox are recorded here. Versions follow `N.N.N`; every
 store submission needs a higher version than any submitted before (rejected ones included).
 
+## [Unreleased]
+
+### Added
+- `/toolbox api` now also reports whether the game's craft and gather result events have fired (a
+  line in chat the first time each does), with the fields of the first and last result and whether
+  a crafted item's name matches the loot event's, to check them before the planned Crafted Today and
+  Gathered Today windows are built on them. It also lists Vigor, and the docs' API 22.
+
 ## [0.4.0] - 2026-09-29 (beta 5)
 
 Fifth beta. Buff sweeps that keep pace with the game's own bar, a consumables bar for food and

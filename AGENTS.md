@@ -553,9 +553,11 @@ building, and remember the per-add-on budgets (8 windows, the element-creation c
 7. **Crafting shopping list** (undocumented getter, present in the client): pinned recipes' ingredients
    as have / need with "can make N" (`ShroudGetRecipe`; bags and an open table only). Feature-detect it
    and grey out cleanly if it disappears. See also the crafting-station panel above.
-8. **Result-event probe**: listeners for `ShroudOnCraftResults`, `ShroudOnGatherResults` and
-   `ShroudOnCraftingStateChanged` reporting in `/toolbox api` (a count and the first result's fields),
-   to learn whether the undocumented events fire before building the API 18 plans on them.
+8. **Result-event probe**: BUILT 2026-09-29. `ShroudOnCraftResults` / `ShroudOnGatherResults` /
+   `ShroudOnCraftingStateChanged` (core.lua) feed `T.ProbeEvent`; `/toolbox api` (`T.ProbeLines`) reports
+   counts, the first and last result's fields (userdata-safe, `T.DescribeResult`), the last items gained
+   (`T.ProbeItems`) and whether the last craft's item name is among them. Pending: the owner's run in game
+   (craft, harvest, open a station). Replace the probe with the real feature once the events are confirmed.
 9. **CI**: `tools/check.py` on Linux, macOS and Windows (and `--container`) for every push and pull
    request, once the public repo's host is chosen (GitHub Actions and Forgejo/Gitea Actions are nearly
    the same format).

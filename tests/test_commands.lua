@@ -307,8 +307,8 @@ return function(t)
     ShroudGetGuildMotd = function() return "" end
     H.chat("/tbx api")
     t.ok(H.logged("Buff bar %(API 16%): 2 of 5 present; missing ShroudIsBuffBarVisible, ShroudCanDismissBuff"))
-    t.ok(H.logged("Friends & guild %(withdrawn from the docs%): 1 of 3 present"))
-    t.ok(H.logged("Crafting %(withdrawn from the docs%): none present"))
+    t.ok(H.logged("Friends & guild %(API 18%): 1 of 3 present"))
+    t.ok(H.logged("Crafting %(API 18%): none present"))
     ShroudSetBuffBarVisible, ShroudGetBuffBarRect, ShroudGetGuildMotd = nil, nil, nil
   end)
 
@@ -365,4 +365,52 @@ return function(t)
     t.ok(H.S.windows.toolbox_version:IsShown(), "the version window, opened last")
     t.eq(H.S.windows.toolbox_docs, nil, "Docs made way for it")
   end)
+
+  -- result-event probe (API 18) ------------------------------------------------
+
+  t.test("/tbx api reports the result events: not yet, then counts, fields and name matching", function()
+    H.boot()
+    H.clearLogs()
+    H.chat("/tbx api")
+    t.ok(H.logged("^  ShroudOnCraftResults: not yet$"))
+    t.ok(H.logged("^  ShroudOnGatherResults: not yet$"))
+    t.ok(H.logged("^Vigor %(API 20%): all 1 present%.$"))
+    H.clearLogs()
+    H.craftResults({ { kind = "craft", recipeId = 12, recipeName = "Iron Ingot", item = "Iron Ingot", quantity = 5,
+                       crafted = 5, exceptional = 1, failed = 0, outcome = "mixed", experience = 120, items = {} } })
+    t.ok(H.logged("^Probe: ShroudOnCraftResults fired: kind=craft; recipeId=12;.*outcome=mixed; experience=120"),
+      H.lastLog())
+    H.items({ { "Iron Ingot", 5 } })
+    H.craftResults({ { kind = "salvage", item = "Iron Sword", quantity = 1, crafted = 0, exceptional = 0, failed = 0,
+                       outcome = "success", experience = 0, items = { { name = "Iron Ingot", quantity = 2 } } } })
+    t.eq(#H.logs(), 1, "the chat line only the first time")
+    H.gatherResults({ { node = "Iron Ore Node", failed = false, experience = 40,
+                        items = { { name = "Iron Ore", quantity = 3 } } } }, 2)
+    H.craftingState({ open = true, station = "Smelter", busy = false })
+    H.clearLogs()
+    H.chat("/tbx api")
+    t.ok(H.logged("^  ShroudOnCraftResults: 2 times %(2 results%)"), "counted")
+    t.ok(H.logged("^    last: kind=salvage.*items: Iron Ingot x2"), "salvage returns listed")
+    t.ok(H.logged("^  ShroudOnGatherResults: 1 time %(1 result, 2 dropped%)"))
+    t.ok(H.logged("node=Iron Ore Node; failed=false; experience=40; items: Iron Ore x3"))
+    t.ok(H.logged("^  ShroudOnCraftingStateChanged: 1 time"))
+    t.ok(H.logged("open=true; station=Smelter; busy=false"))
+    t.ok(H.logged("^  Last items gained %(%d+s ago%): Iron Ingot x5"))
+  end)
+
+  t.test("the probe reads results that are game objects, and says when names differ", function()
+    H.boot()
+    local obj = setmetatable({}, { __index = function(_, k)
+      local fields = { kind = "craft", item = "Iron Ingot (Exceptional)", crafted = 1 }
+      if fields[k] == nil then error("no field " .. k) end
+      return fields[k]
+    end })
+    H.craftResults({ obj })
+    H.items({ { "Iron Ingot", 1 } })
+    H.clearLogs()
+    H.chat("/tbx api")
+    t.ok(H.logged("first: kind=craft; item=Iron Ingot %(Exceptional%); crafted=1"), "fields read, missing ones skipped")
+    t.ok(H.logged("isn't among them"), "the loot filter would need a closer look")
+  end)
 end
+
