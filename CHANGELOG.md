@@ -5,6 +5,10 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Fixed
+- Target HUD: creatures the game has no display name for (it reports "Entity with no name (Stag_04_Large(Clone))")
+  show a readable name ("Stag Large"); the game's text is in the tooltip.
+
 ### Added
 - Notifications for friends coming online (on, as a chat line) and guild members coming online (off by
   default), from the game's friend and guild events (Lua API 18). `/toolbox notify friends|guild on|off`.

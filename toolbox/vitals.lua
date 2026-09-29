@@ -615,6 +615,27 @@ function TG.HealthText(cur, max, hidden, dead)
   return math.floor(math.max(0, math.min(1, cur / max)) * 100 + 0.5) .. "%"
 end
 
+-- The name to show (pure). Some creatures have no display name, and the game then reports its fallback:
+-- "Entity with no name (Stag_04_Large(Clone))" (seen 2026-09-29). That shows the object's internal name
+-- tidied up ("Stag Large": "(Clone)" and number-only parts dropped, underscores as spaces), or "Unnamed".
+-- Plain find/sub only (MoonSharp: no lazy patterns on game text).
+function TG.CleanName(name)
+  if type(name) ~= "string" then return "" end
+  local at = name:lower():find("with no name", 1, true)
+  if not at then return name end
+  local open = name:find("(", at, true)
+  if not open then return "Unnamed" end
+  local inner = name:sub(open + 1)
+  local clone = inner:find("(Clone)", 1, true)
+  if clone then inner = inner:sub(1, clone - 1) end
+  local words = {}
+  for w in inner:gmatch("[^_%s%(%)]+") do
+    if not w:match("^%d+$") then words[#words + 1] = w end
+  end
+  if #words == 0 then return "Unnamed" end
+  return table.concat(words, " ")
+end
+
 -- Sorts effects for the row (pure): debuffs first, then the soonest to end (permanent ones, 0 left,
 -- last), then by name.
 function TG.Before(a, b)
@@ -818,8 +839,9 @@ function TG.Poll(force)
     local cur, max = ShroudGetTargetCurrentHealth(), ShroudGetTargetMaxHealth()
     local hidden, dead = ShroudIsTargetHealthHidden() == true, ShroudIsTargetDead() == true
     local pct = TG.HealthText(cur, max, hidden, dead)
-    local name = ShroudGetTargetName()
-    T.SetText(tName, tostring(name) .. (pct ~= "" and ("  " .. pct) or ""))
+    local raw = ShroudGetTargetName()
+    local name = TG.CleanName(raw)
+    T.SetText(tName, name .. (pct ~= "" and ("  " .. pct) or ""))
     local fill = 0
     if not dead and type(cur) == "number" and type(max) == "number" and max > 0 then
       fill = math.max(0, math.min(1, cur / max))
@@ -829,7 +851,8 @@ function TG.Poll(force)
     local hasFocus = type(fmax) == "number" and fmax > 0 and type(fcur) == "number"
     T.SetVisible(tFocus, hasFocus)
     if hasFocus then T.SetValue(tFocus, math.max(0, math.min(1, fcur / fmax))) end
-    local tip = tostring(name) .. (hidden and "\nHealth hidden" or ((type(cur) == "number" and type(max) == "number"
+    local tip = name .. ((raw ~= name and type(raw) == "string") and ("\n(" .. raw .. ")") or "")
+      .. (hidden and "\nHealth hidden" or ((type(cur) == "number" and type(max) == "number"
       and max > 0) and string.format("\nHealth %s / %s", T.FormatNumber(cur), T.FormatNumber(max)) or ""))
       .. (hasFocus and string.format("\nFocus %s / %s", T.FormatNumber(fcur), T.FormatNumber(fmax)) or "")
       .. (dead and "\nDead" or "")

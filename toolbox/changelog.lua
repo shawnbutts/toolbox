@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Fixed" },
+  { "item", "Target HUD: creatures the game has no display name for (it reports \"Entity with no name (Stag_04_Large(Clone))\") show a readable name (\"Stag Large\"); the game's text is in the tooltip." },
   { "section", "Added" },
   { "item", "Notifications for friends coming online (on, as a chat line) and guild members coming online (off by default), from the game's friend and guild events (Lua API 18). /toolbox notify friends|guild on|off." },
   { "item", "Skill levels gained and deaths: two new lines in the Today window (since midnight) and one in XP Detailed (this session). A level counts when a skill's trained level passes the highest it has been, so a scene's skill cap, or unlearning and relearning, doesn't count." },

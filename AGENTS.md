@@ -959,6 +959,9 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     effect indices line up with `ShroudGetTargetBuffIcon` / `Tooltip`, that `ShroudGetTargetBuff` entries are
     userdata like the player's (read through `T.Field`, so either works), and that `TotalDuration` is filled for
     target effects (else no sweep). `/toolbox target debug` prints the raw values.
+    FOUND in game 2026-09-29: some creatures' `ShroudGetTargetName()` is the game's fallback, "Entity with no
+    name (Stag_04_Large(Clone))"; `TG.CleanName` shows "Stag Large" (raw name in the tooltip). Reported
+    (tmp/client-issues.md).
 50. API 18 result events. CONFIRMED in game 2026-09-29 (`/toolbox api` probe, API 22 client): all three fire.
     `ShroudOnCraftingStateChanged` on open / close and a craft starting / stopping (`station` = "Milling
     Station +5"; "" when closed). `ShroudOnGatherResults`: `node=Rabbit; failed=false; experience=20; items:
