@@ -81,11 +81,16 @@ row under "Keys".
 --------------
 
 Anything you like, but especially what's new in this beta (/tbx version lists it all):
+  * Target HUD fixes (beta 8): one "Mirrored" checkbox now (settings, Toolbelt page) instead of a third
+    "Target row" choice. In the Toolbelt it puts the target left of your health bars; on its own strip it
+    mirrors the strip. Mirrored now survives /lua reload (in beta 7 it went back to the top). The target's
+    own strip has no name or percent any more (hover for them) and its bars are the size of yours.
+From beta 7:
   * Target HUD (settings, Toolbelt: Target "In Toolbelt", or /tbx target on): your target's health,
-    focus and effects. Try each "Target row" place: Above the buffs (the default), Under everything,
-    and Left of your bars (mirrored). Do its bars line up with yours? On the left, do its bars fill from
-    the right? Mirrored and above keep their space with no target (so nothing jumps); on the left that is
-    a blank area between the grip and your bars, labelled "Target" while settings are open.
+    focus and effects. Try both "Target row" places, Above the buffs (the default) and Under everything,
+    and the "Mirrored" checkbox. Do its bars line up with yours? Mirrored, do its bars fill from the
+    right? Mirrored and above keep their space with no target (so nothing jumps); mirrored that is a
+    blank area between the grip and your bars, labelled "Target" while settings are open.
     /tbx target debug shows what the game reports (odd creature names especially).
   * Skill levels gained and deaths: two new lines in Today, one in XP Detailed. Train a skill, die once:
     do they count?

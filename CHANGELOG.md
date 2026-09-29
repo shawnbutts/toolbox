@@ -5,6 +5,8 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-09-29 (beta 8)
+
 ### Added
 - Target HUD on its own strip can be mirrored too: bars filling from the right, up to 5 icons to the left,
   at a fixed width so the bars don't move.
