@@ -101,6 +101,14 @@ D.SECTIONS = {
       .. "types, a bar split by element for damage done and one for damage taken. Switch between this "
       .. "fight and the whole session with the dropdown (or /toolbox combat detail session). /toolbox "
       .. "combat reset clears both." },
+  { "Consumables bar",
+    "Food and Obsidian potions in effect get their own bar: their icons with the sweep, soonest to run "
+      .. "out first, and off the buff bar. When one is about to run out it flashes red and the buff "
+      .. "alert sounds (the buff bar's alert settings), and once it has run out it goes. Glue it to the "
+      .. "buff bar (settings, or /toolbox consumables glue on) to make it a row under the debuffs.",
+    "Other buffs can go on it too: /toolbox consumables add <name or part of one> (remove to undo). "
+      .. "/toolbox consumables lists what is in effect; /toolbox consumables bar off puts food and potions "
+      .. "back on the buff bar. Weapon poisons: if yours shows as a buff, add its name." },
   { "Gear repair",
     "The equipment bar shows worn items that need repair: each item's icon with a red sweep for the "
       .. "durability it has lost, lowest first; hover one for its durability. It shows only items below "
@@ -114,7 +122,8 @@ D.SECTIONS = {
       .. "lists your worn items and their durability; /toolbox gear repair 30 sets the threshold; "
       .. "/toolbox gear bar off hides the bar; /toolbox gear move <x> <y> places it." },
   { "Moving the HUD strips",
-    "The buff bar, health & focus bars, combat stats and the equipment bar are HUD strips. Drag the grip at a "
+    "The buff bar, health & focus bars, combat stats, the consumables bar and the equipment bar are "
+      .. "HUD strips. Drag the grip at a "
       .. "strip's top-left corner (untick Options > Interface > Nameplates & Chat Bubbles > "
       .. "Lock Status Movement to see it), use the Position buttons in settings, or type e.g. "
       .. "/toolbox buffs move 600 40." },

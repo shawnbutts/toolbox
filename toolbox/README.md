@@ -1,7 +1,7 @@
 # Toolbox
 
-A small toolbox of quality-of-life features: XP tracking, daily stats, a buff bar, health &
-focus bars, combat stats and gear repair alerts.
+A small toolbox of quality-of-life features: XP tracking, daily stats, a buff bar, a consumables
+bar, health & focus bars, combat stats and gear repair alerts.
 
 **Getting started:** type `/toolbox` (or `/tbx`) to open the settings window and tick what you
 want on screen. Its **Docs** button (or `/toolbox docs`) opens a guide to every feature, option and
@@ -29,6 +29,8 @@ under **Keys**.
 - `/toolbox vitals`: show or hide health, focus & Vigor bars (`/toolbox vitals size 150` scales them,
   `/toolbox vitals move 40 300` places them, `/toolbox vitals glue on` joins them to the buff bar)
 - `/toolbox combat`: show or hide the combat stats HUD (DPS, damage taken, healing, crit and avoid rates, fight timer, chosen stats)
+- `/toolbox consumables`: food and potions in effect, on their own bar (`/toolbox consumables glue on`
+  puts it under the buff bar; `add <name>` tracks more)
 - `/toolbox gear`: list your worn items' durability, lowest first (`/toolbox gear repair 30` sets when
   to warn, `/toolbox gear bar off` hides the equipment bar)
 - `/toolbox config`: open the settings window (text size, line spacing, which windows to show)

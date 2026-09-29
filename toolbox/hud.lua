@@ -23,7 +23,7 @@ Toolbox.Hud = Hud
 
 Hud.GLUED_ID = "toolbox_hud"
 Hud.GLUED_HOME = { 40, 260 }
-Hud.ORDER = { "vitals", "buffs", "combat", "gear", "xp", "daily", "notify" }   -- every HUD module, in build order
+Hud.ORDER = { "vitals", "buffs", "consumables", "combat", "gear", "xp", "daily", "notify" }   -- build order
 Hud.GLUE = { vitals = true, buffs = true }     -- the ones that share a strip when glued (left to right as in ORDER)
 Hud.GAP = 6                           -- between the parts of the glued strip
 Hud.PAD = 8                           -- the strip's own padding
@@ -99,10 +99,17 @@ local function destroyAll()
 end
 
 -- (Re)builds every strip for the current glue setting.
--- `missingOnly` (the retry after the creation cap): keep the strips that were built and build
--- only the rest, so a retry costs what failed, not everything again.
+-- `missingOnly` (the retry after the creation cap, or a module's Wanted() changing): keep the strips
+-- that were built, remove the ones no longer wanted, and build only the missing ones, so it costs what
+-- changed, not everything again.
 function Hud.Build(missingOnly)
   if not missingOnly then destroyAll() end
+  for key, frame in pairs(frames) do
+    if modules[key] and not present(key) then     -- a HUD frame slot is freed (8 per add-on)
+      pcall(function() frame:Destroy() end)
+      frames[key], contents[key], sized[frame] = nil, nil, nil
+    end
+  end
   Hud.errors = {}
   retryWanted = false
   if prefs.glued and not frames[Hud.GLUED_ID] then
@@ -287,6 +294,8 @@ Hud.STRIP_INDENT = 10
 
 function Hud.TextStrip(spec)
   local strip = { FRAME_ID = spec.FRAME_ID, HOME = spec.HOME, el = {} }
+  -- Built only while the HUD form is in use: Toolbox may have at most 8 HUD frames.
+  function strip.Wanted() return spec.prefs.hud == true end
   local styled = {}                   -- { element, function() -> style }, re-applied by ApplyText
 
   function strip.Metrics()

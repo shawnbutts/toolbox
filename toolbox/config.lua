@@ -150,6 +150,24 @@ function C.CombatSection()
   } }
 end
 
+-- The "Consumables bar" part: food and potions in effect (Toolbox.Consumables).
+function C.ConsumablesSection()
+  local K = T.Consumables
+  return UI.Column{ children = {
+    UI.Label{ text = "Consumables bar", class = "heading", style = { marginTop = 8 } },
+    UI.Toggle{ id = "show_consumables", text = "Show food and potions on their own bar", value = K.GetShow(),
+      tooltip = "Food and Obsidian potions in effect, with the buff bar's sweep, flash and alert; they leave"
+        .. " the buff bar. Off: they stay on the buff bar.",
+      onChange = function(_, v) K.SetShow(v) end },
+    UI.Toggle{ id = "consumables_glue", text = "Glue to the buff bar", value = K.GetGlue(), style = { marginLeft = 16 },
+      tooltip = "A row of the buff bar, under the debuffs; it moves and hides with the buff bar",
+      onChange = function(_, v) K.SetGlue(v) end },
+    UI.Label{ id = "consumables_extra", text = "", class = "dim", style = { whiteSpace = "wrap" },
+      tooltip = "Buffs whose names contain these go on the bar too" },
+    C.PositionRows("consumables", K),
+  } }
+end
+
 -- The "Equipment bar" part: worn gear needing repair (Toolbox.Gear). The alert itself is the
 -- "Gear needs repair" notification source.
 function C.GearSection()
@@ -323,6 +341,7 @@ local function build()
         C.BuffBarSection(),
         C.VitalsSection(),
         C.CombatSection(),
+        C.ConsumablesSection(),
         C.GearSection(),
         C.NotifySection(),
       } },
@@ -340,7 +359,8 @@ local function build()
                 "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "shortcut", "buff_group",
                 "buff_replace", "buff_dismiss", "buff_group_after",
                 "buffs_combat_only", "dd_values", "xp_net", "buff_flash", "combat_detail", "combat_detail_hover",
-                "show_gear", "gear_glue", "gear_threshold", "gear_pos", "vitals_vigor" }
+                "show_gear", "gear_glue", "gear_threshold", "gear_pos", "vitals_vigor",
+                "show_consumables", "consumables_glue", "consumables_extra", "consumables_pos" }
   for _, def in ipairs(T.Sounds.DEFS) do
     ids[#ids + 1] = "snd_" .. def.key .. "_status"
     ids[#ids + 1] = "snd_" .. def.key .. "_path"
@@ -526,6 +546,11 @@ function C.Sync()
   el.combat_bg:SetValue(cbg)
   el.combat_bg_opacity:SetValue(cop)
   el.combat_bg_opacity_value:SetText(fontLabel(cop))
+  el.show_consumables:SetValue(T.Consumables.GetShow())
+  el.consumables_glue:SetValue(T.Consumables.GetGlue())
+  local extra = T.Consumables.Extra()
+  el.consumables_extra:SetText("Also tracked by name: " .. (#extra > 0 and table.concat(extra, ", ") or "none")
+    .. " (/toolbox consumables add <name>)")
   el.show_gear:SetValue(T.Gear.GetShow())
   el.gear_glue:SetValue(T.Gear.GetGlue())
   el.gear_threshold:SetValue(T.Gear.Threshold() .. "%")
@@ -546,7 +571,7 @@ function C.SyncLive()
   C.SyncSounds()
   el.shortcut:SetText("Shortcut: " .. T.KeyStatus())
   for prefix, m in pairs({ buff = T.BuffBar, vitals = T.Vitals, combat = T.Combat, gear = T.Gear,
-                                  nhud = T.Notify.Hud }) do
+                          consumables = T.Consumables, nhud = T.Notify.Hud }) do
     local x, y = m.GetPosition()
     el[prefix .. "_pos"]:SetText(x and (x .. ", " .. y) or "")
   end

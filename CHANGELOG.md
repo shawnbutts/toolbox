@@ -13,6 +13,12 @@ store submission needs a higher version than any submitted before (rejected ones
   the debuffs (`/toolbox gear glue on`, or settings).
 - A "Gear needs repair" notification when an item drops below the threshold, and again when it
   breaks. Settings has an Equipment bar section; `/toolbox gear` lists worn items' durability.
+- Consumables bar: food and Obsidian potions in effect on their own bar, with the buff bar's sweep,
+  soonest to run out first, and off the buff bar. Flashes red with the buff alert when one is about
+  to run out, then it goes. Can be glued to the buff bar as a row under the debuffs;
+  `/toolbox consumables add <name>` tracks other buffs (e.g. a weapon poison, if it shows as a buff).
+- The XP and Today HUD strips are only built while their HUD form is chosen (Toolbox may have at
+  most 8 HUD strips).
 - A gold Vigor bar under health and focus, with its percentage; hover it for what Vigor adds to
   health regen, focus regen and critical chance. It shows once you are past the level where Vigor
   applies (needs a game client with Lua API 20). `/toolbox vitals vigor off` or settings hides it.

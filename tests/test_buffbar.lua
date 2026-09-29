@@ -998,6 +998,7 @@ return function(t)
   t.test("the Obsidian potion blessings share one slot with a count and a tooltip", function()
     H.boot()
     H.chat("/tbx buffs")
+    H.chat("/tbx consumables bar off")               -- potions stay on the buff bar (as before that bar)
     H.addBuffs({ { name = "Heal", remaining = 30, icon = 101 },
                  { name = "BlessingOfCapacity", label = "+100% Encumbrance Capacity", remaining = 600000, icon = 301 },
                  { name = "BlessingOfStamina", label = "+75% Sprint Focus Cost Bonus", remaining = 500000, icon = 302 },
@@ -1207,6 +1208,7 @@ return function(t)
   t.test("the bar shows buffs soonest-to-expire on the left, the group slot last", function()
     H.boot()
     H.chat("/tbx buffs")
+    H.chat("/tbx consumables bar off")               -- potions stay on the buff bar (as before that bar)
     H.addBuffs({ { name = "Long", remaining = 600, icon = 1 },
                  { name = "BlessingOfStamina", remaining = 300000, icon = 2 },
                  { name = "Aura", remaining = -1, permanent = true, icon = 3 },

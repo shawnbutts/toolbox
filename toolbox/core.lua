@@ -935,6 +935,40 @@ add("combat", "combat stats HUD; add stats while playing: /toolbox combat help",
   end
 end)
 
+add("consumables", "food and potions in effect, on their own bar (bar on|off; glue on|off: under the buff bar; "
+    .. "add|remove <name>: track more; move [x y])", function(rest)
+  local K = T.Consumables
+  local word, args = T.ParseArgs(rest)
+  local a = args:lower()
+  if word == "" then
+    local list = K.Current()
+    T.Print("Consumables bar: " .. (K.GetShow() and "on" or "off") .. (K.GetGlue() and ", glued to the buff bar" or "")
+      .. ". Tracked: food (RuneFood_...), Obsidian potions (BlessingOf...)"
+      .. (#K.Extra() > 0 and (", and names containing " .. table.concat(K.Extra(), ", ")) or "") .. ".")
+    if #list == 0 then T.Print("None in effect.") end
+    for _, c in ipairs(list) do
+      T.Print(string.format("  %s (%s, %s): %s left", c.label, c.kind, c.name, T.FormatDuration(c.remaining)))
+    end
+  elseif word == "bar" then
+    if a == "on" or a == "off" then K.SetShow(a == "on") end
+    T.Print("Consumables bar: " .. (K.GetShow() and "on" or "off (food and potions stay on the buff bar)") .. ".")
+  elseif word == "glue" then
+    if a == "on" or a == "off" then K.SetGlue(a == "on") end
+    T.Print("Consumables bar glued under the buff bar: " .. (K.GetGlue() and "on" or "off")
+      .. (K.GetGlue() and not T.BuffBar.IsEnabled() and " (the buff bar is off, so it has its own strip)" or "")
+      .. ".")
+  elseif word == "add" or word == "remove" then
+    local ok, msg = nil, nil
+    if word == "add" then ok, msg = K.AddExtra(args) else ok, msg = K.RemoveExtra(args) end
+    T.Print(msg)
+    return ok
+  elseif word == "move" then
+    T.MoveCommand(K, "consumables", "Consumables bar", args)
+  else
+    T.Print("Unknown: /" .. T.commands[1] .. " consumables " .. word .. ". Try /" .. T.commands[1] .. " help.")
+  end
+end)
+
 add("gear", "worn gear's durability, lowest first (bar on|off: the equipment bar; glue on|off: under the "
     .. "buff bar; repair <percent>: when to warn; move [x y])", function(rest)
   local G = T.Gear
@@ -1394,6 +1428,7 @@ function ShroudOnStart()
   step("the health bars", T.Vitals.Init)
   step("combat stats", T.Combat.Init)
   step("the equipment bar", T.Gear.Init)
+  step("the consumables bar", T.Consumables.Init)
   step("the notification HUD", T.Notify.Hud.Init)
   step("the HUD strips", T.Hud.Init)  -- builds the HUD strips (glued or not); retries on the cap
   step("the buff bar", T.BuffBar.Tick)

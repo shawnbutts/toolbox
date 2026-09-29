@@ -36,6 +36,7 @@ local S   -- current host state
 
 H.CREATE_BURST, H.CREATE_RATE = 500, 200
 H.MAX_WINDOWS = 8
+H.MAX_HUD_FRAMES = 8          -- docs: HUD frames per add-on
 
 -- A player action (typing a command, clicking, changing a control) happens at human speed, long
 -- after start-up, so the creation budget has refilled by then.
@@ -584,6 +585,14 @@ function H.makeUI()
       e.onChange = spec.onChange
       if kind == "HudFrame" then
         assert(type(spec.id) == "string", "HudFrame id required")
+        -- Docs: at most 8 HUD frames per add-on (one rebuilt under the same id replaces the old one).
+        local live = 0
+        for id, f in pairs(S.frames) do
+          if id ~= spec.id and not f.destroyed then live = live + 1 end
+        end
+        if live >= H.MAX_HUD_FRAMES then
+          error("Shroud.UI: too many HUD frames (" .. H.MAX_HUD_FRAMES .. " per add-on)", 2)
+        end
         S.frames[spec.id] = e
       end
       if kind == "Window" then

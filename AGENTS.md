@@ -177,6 +177,13 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     Images a second for all sweeps (a token bucket, `BB.SWEEP_BURST` deep; owner 2026-09-28) (`BB.ShowFrame` /
     `BB.HideFrame`, shared with the equipment bar, which retries on `G.Tick`). `/toolbox buffs frame <k> [red]`
     holds one frame on every icon; `/toolbox buffs uvtest` shows six ways of stepping frames side by side.
+    The file also holds `Toolbox.Consumables` (K; bottom of the file): food (`RuneFood_...`) and Obsidian potions
+    (`BlessingOf...`) by rune name (`BB.ConsumableKind`, pure; `POT_Blessing_*` / `Rune_Reward_Blessing_Shrine_*`
+    are shrine blessings, NOT potions, owner 2026-09-28), plus player-added name parts (`extra`). `BB.Tick` routes
+    them (`K.Takes`) to `K.Fill` instead of the buff rows (owner: move them off the buff bar); they use the same
+    `fill` (sweep, warn, flash) and `slots.consumables` pool, so size, frame test and dismiss apply. Own strip
+    ("consumables", after "buffs" in `Hud.ORDER`; `K.Wanted` = on and not glued) or, glued, a row built by
+    `BB.BuildContent` under the debuffs and above the equipment row (`K.GluedCount` in `fitFrame`).
     The file also holds `Toolbox.Gear` (in it to reuse the clock sweep and not spend the 16th Lua file):
     the equipment bar (HUD module "gear", `G.SLOTS` fixed slots; worn items below `threshold`, lowest
     first, all while settings are open) and the model for the "durability" notification source
@@ -212,6 +219,10 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     one strip per module, or one shared "toolbox_hud" strip in `Hud.ORDER` when glued (rebuilt on
     `Hud.SetGlued`); only modules in `Hud.GLUE` share it, others (combat) keep their own strip. Call `Hud.Refresh()` when a module's content size or shown state changes; `Hud.Tick()`
     (1 s) remembers positions (per module unglued, `hud.x/y` glued). Movers: `Hud.MoverFor(key, home)`.
+    HUD FRAMES: at most 8 per add-on (docs; the harness enforces `H.MAX_HUD_FRAMES`). Strips: vitals, buffs,
+    consumables, combat, gear, xp, daily, notify = 8 with all on; a module's optional `Wanted()` keeps a strip
+    unbuilt when not in use (the XP / Today strips only in their HUD form, consumables / gear when glued or off),
+    and `Hud.Build(true)` builds what is missing and destroys what is no longer wanted. A new strip needs a slot.
     `Hud.TextStrip(spec)` is the HUD form of the XP and Today windows (`prefs.hud`, `/toolbox xp hud`):
     a module registered from `Compact.Init` / `Daily.InitWindow` (they load before hud.lua, so never at
     top level), with labels under the window's ids; those modules write to `active()`, whichever form is in use.
@@ -340,6 +351,7 @@ including the "no character" sentinel.
 | `notify` | `{ v = 1, sources = { [key] = { on = bool, seen = last value delivered, via = "window" } } }` (keys: motd, mail, expiring, ransoms, rewards, applications, durability; durability's `seen` is a table `{ [item key] = "low"/"broken" }`, read back as string keys and values only); the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), x, y }` |
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most `Notify.Hud.KEEP` (20) |
+| `consumables` | `{ show = bool (default true), glue = bool, extra = { name parts, <= 20 }, x, y }` |
 | `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` (the equipment bar) |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts (unversioned ignored) |
 
@@ -782,4 +794,8 @@ Things the docs don't settle. Verify in game before depending on them more heavi
     (uvtest way 1 sweeps), the holder could go back to one Image stepped with `SetUV`.
     Also seen in the same session: `/toolbox buffs frame 30` "didn't show on the first icon", consistent with
     this (its overlay was already showing).
+49. Consumables (built 2026-09-28). Weapon poisons: not seen in `/toolbox buffs raw` yet; unknown whether a
+    weapon coating shows as a buff on the player at all (if not, the API can't see it). Other potions
+    (healing etc.): names not seen yet; `/toolbox consumables add <part>` covers them. Bag counts ("x12 left")
+    were left out: no reliable link from a rune name (RuneFood_Stew_Dragon) to the bag item's name.
 

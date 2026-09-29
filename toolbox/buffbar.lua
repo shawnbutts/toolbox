@@ -161,6 +161,26 @@ function BB.Track(st, api, threshold, known, now, fresh)
   return st, fraction, fire, remaining
 end
 
+-- Consumables by rune name (the API has no item categories). FOUND in game 2026-09-28 (`/toolbox buffs
+-- raw`): food is RuneFood_<dish> (e.g. RuneFood_Stew_Dragon, 8 h), the Obsidian potions BlessingOf<x>
+-- (7 days). NOT potions: POT_Blessing_* and Rune_Reward_Blessing_Shrine_* are shrine blessings (owner).
+-- Weapon poisons: not seen yet (unknown whether they show as a buff on the player at all).
+BB.CONSUMABLE_PREFIXES = { { "RuneFood_", "food" }, { "BlessingOf", "potion" } }
+
+-- "food", "potion" or "extra" (a name part the player added) for a rune name / displayed label, or nil.
+function BB.ConsumableKind(name, label, extra)
+  if type(name) ~= "string" then return nil end
+  for _, p in ipairs(BB.CONSUMABLE_PREFIXES) do
+    if name:sub(1, #p[1]) == p[1] then return p[2] end
+  end
+  local lname, llabel = name:lower(), type(label) == "string" and label:lower() or ""
+  for _, part in ipairs(extra or {}) do
+    local l = part:lower()
+    if l ~= "" and (lname:find(l, 1, true) or llabel:find(l, 1, true)) then return "extra" end
+  end
+  return nil
+end
+
 -- Clock frame for a fraction remaining: 0 = full time left (no shading). The NEAREST frame: rounding
 -- down kept the shading behind the true position by up to a frame (1/120 of the buff; 7.5 s of a
 -- 15-minute one), and the game's own bar sweeps smoothly (reported 2026-09-28: "ours lags behind").
@@ -283,8 +303,14 @@ local quietUntil = 0      -- no debuff alerts before this T.Now()
 local lastDebuffSound = -math.huge
 local content = nil       -- the icon rows (in a strip owned by Toolbox.Hud)
 local contentW, contentH = 0, 0
-local slots = { buffs = {}, debuffs = {} }
+local slots = { buffs = {}, debuffs = {}, consumables = {} }
 local clockTex = -1
+-- Toolbox.Consumables (the bottom of this file): declared here so the buff bar's tick can hand it
+-- food and potions.
+local K = {}
+Toolbox.Consumables = K
+local kContent = nil      -- the consumables bar's row (its own strip, or a row of the buff bar when glued)
+local kCount = 0          -- consumables showing on it
 local group = nil         -- the long-lasting buffs' slot { row, icon, count, ... }
 local groupedCache = {}   -- rune name -> grouped? (a rune's displayed name doesn't change)
 local stockHidden = false -- we asked the game to hide its own buff bar
@@ -577,8 +603,9 @@ local sizedFor = nil          -- "used,rows,size" the content was last sized for
 -- group slot.
 local function fitFrame(buffsShown, debuffsShown)
   local gear = T.Gear.GluedCount()     -- the equipment bar's row under the debuffs, when glued
-  local used = math.max(buffsShown, debuffsShown, gear)
-  local rows = 1 + (debuffsShown > 0 and 1 or 0) + (gear > 0 and 1 or 0)
+  local cons = K.GluedCount()          -- the consumables row (above the equipment), when glued
+  local used = math.max(buffsShown, debuffsShown, gear, cons)
+  local rows = 1 + (debuffsShown > 0 and 1 or 0) + (gear > 0 and 1 or 0) + (cons > 0 and 1 or 0)
   local key = used .. "," .. rows .. "," .. size()
   if key == sizedFor or not content then return end
   sizedFor = key
@@ -649,7 +676,8 @@ end
 function BB.BuildContent()
   clockTex = ShroudLoadTexture(BB.CLOCK.path)
   local buffRow, debuffRow = {}, {}
-  slots = { buffs = {}, debuffs = {} }
+  -- the consumables pool belongs to its own strip unless glued (then it is built here, below)
+  slots = { buffs = {}, debuffs = {}, consumables = K.Glued() and {} or slots.consumables }
   for i = 1, BB.BUFF_SLOTS do
     slots.buffs[i] = makeSlot(false)
     buffRow[i] = slots.buffs[i].row
@@ -662,13 +690,16 @@ function BB.BuildContent()
   end
   sizedFor = nil
   contentW, contentH = contentSize(1, 1)
+  local extraRows = K.Glued() or T.Gear.Glued()
   local rows = {
     UI.Row{ id = "buffs", style = { marginBottom = BB.GAP }, children = buffRow },
-    UI.Row{ id = "debuffs", children = debuffRow },
+    UI.Row{ id = "debuffs", style = { marginBottom = extraRows and BB.GAP or 0 }, children = debuffRow },
   }
-  if T.Gear.Glued() then                -- the equipment bar as a third row
-    rows[2] = UI.Row{ id = "debuffs", style = { marginBottom = BB.GAP }, children = debuffRow }
-    rows[3] = T.Gear.BuildRow()
+  if K.Glued() then                     -- the consumables bar as the next row
+    rows[#rows + 1] = K.BuildRow(T.Gear.Glued())
+  end
+  if T.Gear.Glued() then                -- the equipment bar as the last row
+    rows[#rows + 1] = T.Gear.BuildRow()
   end
   content = UI.Column{ id = "buffbar", children = rows }
   return content
@@ -1009,8 +1040,8 @@ end
 -- Reused by BB.Tick: two "seen" sets taking turns (the last one is kept as lastSeen), and the
 -- display lists with their entry tables.
 local seenA, seenB = {}, {}
-local groupedList, buffList, debuffList = {}, {}, {}
-local groupedPool, buffPool, debuffPool = {}, {}, {}
+local groupedList, buffList, debuffList, consList = {}, {}, {}, {}
+local groupedPool, buffPool, debuffPool, consPool = {}, {}, {}, {}
 local NOTHING = {}
 
 local function clear(t)
@@ -1031,6 +1062,7 @@ function BB.Tick()
   local effects = readEffects()
   local seen = clear(lastSeen == seenA and seenB or seenA)
   local grouped, shownBuffs, shownDebuffs = clear(groupedList), clear(buffList), clear(debuffList)
+  local shownCons = clear(consList)
   local threshold = prefs.expireSeconds or BB.ALERT_DEFAULT
   local expiring = false
   local shown = BB.IsShown()
@@ -1074,7 +1106,13 @@ function BB.Tick()
     if st then st.missingSince = nil end
     timers[e.name] = st
     if fire and not rune.debuff then expiring = true end
-    if content and shown then
+    local consumable = not rune.debuff and K.Takes(e)
+    if consumable then                   -- on the consumables bar, not the buff bar
+      local x = pooled(consPool, #shownCons + 1)
+      x.e, x.fraction, x.warn, x.name, x.remaining = e, fraction, st ~= nil and st.warned == true, e.name,
+        e.remaining
+      shownCons[#shownCons + 1] = x
+    elseif content and shown then
       if rune.debuff then
         local x = pooled(debuffPool, #shownDebuffs + 1)
         x.e, x.fraction, x.warn, x.name, x.remaining = e, fraction, false, e.name, e.remaining
@@ -1115,10 +1153,13 @@ function BB.Tick()
       if s then fill(slots.debuffs[i], s.e, s.fraction) else fill(slots.debuffs[i], nil) end
     end
     fillGroup(grouped)                 -- always last: the longest-lasting buffs
-    drawSweeps()
+  end
+  K.Fill(shownCons)                    -- before the fit: a glued consumables row counts in it
+  if content and shown then
     fitFrame(math.min(#shownBuffs, BB.BUFF_SLOTS) + (#grouped > 0 and 1 or 0),
       math.min(#shownDebuffs, BB.DEBUFF_SLOTS))
   end
+  drawSweeps()
   if expiring and prefs.expire then T.Sounds.Play("buff_expiring") end
   if T.Now() - lastTimerSave >= BB.TIMER_SAVE then BB.SaveTimers() end
   applyStock()
@@ -1903,3 +1944,191 @@ function G.DebugLines()
   end
   return lines
 end
+
+-- ===========================================================================
+-- Consumables bar (Toolbox.Consumables)
+-- ===========================================================================
+-- Food and potions in effect, as icons with the buff bar's sweep, on their own HUD strip or glued to
+-- the buff bar as a row under the debuffs (above the equipment bar). Recognised by rune name
+-- (BB.ConsumableKind), plus name parts the player adds. While the bar is on, they leave the buff bar
+-- (owner, 2026-09-28); the buff bar's expiry alert, sound and red flash apply to them as to any buff,
+-- and one that has run out simply goes. With the bar off they stay on the buff bar.
+-- Saved var "consumables" (character scope): { show = bool, glue = bool, extra = { name parts }, x, y }.
+
+K.FRAME_ID = "toolbox_consumables"
+K.HOME = { 40, 340 }
+K.SLOTS = 10
+K.EXTRA_MAX = 20
+
+local kprefs = { show = true, glue = false, extra = {} }
+local kCache = {}              -- rune name -> kind or false (a rune's name and label don't change)
+local kShown = nil             -- K.IsShown() last time, to refresh the HUD when it changes
+
+local function kSave() T.Save("consumables", kprefs) end
+
+-- Glued to the buff bar right now (the setting, and the buff bar switched on).
+function K.Glued() return kprefs.glue == true and kprefs.show == true and BB.IsEnabled() end
+
+-- For Toolbox.Hud: its own strip only while it is on and not glued.
+function K.Wanted() return kprefs.show == true and not K.Glued() end
+
+function K.GluedCount()
+  if not K.Glued() then return 0 end
+  return math.min(K.SLOTS, kCount)
+end
+
+-- Whether effect e goes on the consumables bar (it is on, and e is food, a potion or an added name).
+function K.Takes(e)
+  if kprefs.show ~= true then return false end
+  local kind = kCache[e.name]
+  if kind == nil then
+    kind = BB.ConsumableKind(e.name, labelFor(e), kprefs.extra) or false
+    kCache[e.name] = kind
+  end
+  return kind ~= false
+end
+
+function K.IsShown()
+  if kprefs.show ~= true or K.Glued() then return false end
+  return kCount > 0 or T.Config.IsShown()        -- empty but shown while settings are open, to place it
+end
+
+-- The row of slots: its strip's content, or a row of the buff bar when glued (`gapBelow`: another row
+-- follows it).
+function K.BuildRow(gapBelow)
+  if clockTex < 0 then clockTex = ShroudLoadTexture(BB.CLOCK.path) end
+  local row = {}
+  slots.consumables = {}
+  for i = 1, K.SLOTS do
+    slots.consumables[i] = makeSlot(false)
+    row[i] = slots.consumables[i].row
+  end
+  kContent = UI.Row{ id = "consumables", style = { marginBottom = gapBelow and BB.GAP or 0 }, children = row }
+  kShown = nil
+  return kContent
+end
+function K.BuildContent() return K.BuildRow(false) end
+
+function K.ContentSize()
+  local cell = size() + BB.GAP
+  return math.max(1, math.min(K.SLOTS, kCount)) * cell, cell
+end
+
+function K.GetSavedPosition() return kprefs.x, kprefs.y end
+function K.SavePosition(x, y)
+  if x ~= kprefs.x or y ~= kprefs.y then
+    kprefs.x, kprefs.y = x, y
+    kSave()
+  end
+end
+
+local consMover = T.Hud.MoverFor("consumables", K.HOME)
+K.GetPosition, K.MoveTo, K.Nudge, K.ResetPosition = consMover.Get, consMover.MoveTo, consMover.Nudge,
+  consMover.Reset
+
+-- From BB.Tick: the consumables in effect ({ e, fraction, warn } each), soonest to run out first.
+function K.Fill(list)
+  BB.SortByExpiry(list)
+  local count = math.min(#list, K.SLOTS)
+  local pool = slots.consumables
+  if kContent and (not K.Glued() or BB.IsShown()) then
+    for i = 1, K.SLOTS do
+      local x = list[i]
+      if pool[i] then
+        if x then fill(pool[i], x.e, x.fraction, x.warn, x.warn and prefs.flash) else fill(pool[i], nil) end
+      end
+    end
+  end
+  local changed = count ~= kCount
+  kCount = count
+  local shownNow = K.IsShown()
+  if (changed or shownNow ~= kShown) and not K.Glued() then T.Hud.Refresh() end
+  kShown = shownNow
+end
+
+-- The consumables in effect now, for /toolbox consumables: { label, kind, remaining }.
+function K.Current()
+  local out = {}
+  for _, e in ipairs(readEffects()) do
+    local rune = runes[e.name] or NOTHING
+    if not rune.debuff then
+      local kind = BB.ConsumableKind(e.name, labelFor(e), kprefs.extra)
+      if kind then out[#out + 1] = { label = labelFor(e), name = e.name, kind = kind, remaining = e.remaining } end
+    end
+  end
+  return out
+end
+
+function K.Init()
+  local saved = T.Load("consumables")
+  kprefs = { show = true, glue = false, extra = {} }
+  if type(saved) == "table" then
+    kprefs.show = saved.show ~= false
+    kprefs.glue = saved.glue == true
+    if type(saved.extra) == "table" then
+      for _, part in ipairs(saved.extra) do
+        if type(part) == "string" and part ~= "" and #kprefs.extra < K.EXTRA_MAX then
+          kprefs.extra[#kprefs.extra + 1] = part
+        end
+      end
+    end
+    if type(saved.x) == "number" and type(saved.y) == "number" then kprefs.x, kprefs.y = saved.x, saved.y end
+  end
+  kCache, kCount, kShown, kContent = {}, 0, nil, nil
+  T.Hud.Register("consumables", K)
+end
+
+function K.GetShow() return kprefs.show == true end
+function K.GetGlue() return kprefs.glue == true end
+function K.Extra() return kprefs.extra end
+
+-- The bar on or off, glued or not: both change which strips exist, so the HUD is rebuilt.
+local function rebuild()
+  kSave()
+  kCache, kCount = {}, 0
+  T.Hud.Build()
+  BB.Tick()
+  T.Config.Sync()
+end
+
+function K.SetShow(on)
+  kprefs.show = on == true
+  rebuild()
+end
+
+function K.SetGlue(on)
+  kprefs.glue = on == true
+  rebuild()
+end
+
+-- Adds / removes a name part (any case; matched in the rune name or the displayed name). Returns ok, message.
+function K.AddExtra(part)
+  part = T.Trim(part or "")
+  if part == "" then return false, "Give a name, or part of one: /" .. T.commands[1] .. " consumables add Poison" end
+  for _, p in ipairs(kprefs.extra) do
+    if p:lower() == part:lower() then return false, "Already tracked: " .. p .. "." end
+  end
+  if #kprefs.extra >= K.EXTRA_MAX then return false, "At most " .. K.EXTRA_MAX .. " names." end
+  kprefs.extra[#kprefs.extra + 1] = part
+  kSave()
+  kCache = {}
+  BB.Tick()
+  T.Config.Sync()
+  return true, "Buffs matching '" .. part .. "' now go on the consumables bar."
+end
+
+function K.RemoveExtra(part)
+  part = T.Trim(part or ""):lower()
+  for i, p in ipairs(kprefs.extra) do
+    if p:lower() == part then
+      table.remove(kprefs.extra, i)
+      kSave()
+      kCache = {}
+      BB.Tick()
+      T.Config.Sync()
+      return true, "No longer tracked: " .. p .. "."
+    end
+  end
+  return false, "Not in the list: " .. part .. "."
+end
+

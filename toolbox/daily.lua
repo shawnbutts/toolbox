@@ -396,6 +396,7 @@ function D.SetHud(on)
     prefs.open = ok
   end
   D.SavePrefs()
+  T.Hud.Build(true)                   -- the HUD strip exists only in the HUD form (8 HUD frames per add-on)
   T.Hud.Refresh()
   D.Refresh()
   T.Config.Sync()
