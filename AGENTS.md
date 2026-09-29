@@ -325,7 +325,9 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   a change); `ShroudGetGuildMotd` / `ShroudOnGuildMotdChanged`. All used.
 - **API 19**: `compact = true` windows (title bar only on hover; no TextField / Dropdown in them): the XP and
   Today windows' "Compact window" form (`SetCompact` rebuilds the window: its fields are fixed at creation;
-  Esc doesn't close it). It frees HUD frames. The harness refuses fields in a compact window.
+  Esc doesn't close it). It frees HUD frames. The harness refuses fields in a compact window. Decided (owner,
+  2026-09-29): only XP and Today get it. HUD strips can't (a window needs one of the 8 window slots, all in
+  use); the detail windows stay normal windows (lots of info, their dropdowns work, rarely kept open).
 - **API 20**: Vigor (`ShroudGetVigor`, `ShroudOnVigorChanged`). Used.
 - **API 21 / 22**: more package sound formats; package `data_files` (`ShroudLoadData`). Unused.
 - **API 23**: buff categories (player and target). Used.
