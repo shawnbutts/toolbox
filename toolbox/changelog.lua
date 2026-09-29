@@ -6,6 +6,7 @@
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "section", "Changed" },
+  { "item", "Health, focus and Vigor bars sit further apart (5 px between rows at 100% size, was 2), so they read as separate bars. /toolbox vitals debug also shows the size asked for next to the size laid out." },
   { "item", "Listed as \"Toolbox: Toolbelt, HUDs, Trackers and more.\", with a Support link to the project's page (github.com/shawnbutts/toolbox)." },
   { "item", "The settings window's category dropdown is called Settings (was Show), and Getting started in the Docs mentions the Toolbelt. The Consumables & gear page points to the Toolbelt page for adding its bars." },
   { "item", "The price site is called SotANET (or by its address, shroudoftheavatar.net) everywhere; the short name used before is a different domain." },

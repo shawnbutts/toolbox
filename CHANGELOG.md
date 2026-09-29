@@ -6,6 +6,8 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Changed
+- Health, focus and Vigor bars sit further apart (5 px between rows at 100% size, was 2), so they read as
+  separate bars. `/toolbox vitals debug` also shows the size asked for next to the size laid out.
 - Listed as "Toolbox: Toolbelt, HUDs, Trackers and more.", with a Support link to the project's page
   (github.com/shawnbutts/toolbox).
 - The settings window's category dropdown is called Settings (was Show), and Getting started in the Docs

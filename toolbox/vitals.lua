@@ -25,6 +25,7 @@ local PERIODIC = "toolbox_vitals"
 V.TICK = 0.2
 V.WIDTH_MIN, V.WIDTH_MAX, V.WIDTH_DEFAULT = 20, 400, 220    -- bar length at 100% size
 V.SCALE_MIN, V.SCALE_MAX, V.SCALE_DEFAULT = 75, 250, 100    -- percent
+V.ROW_GAP = 5                                                 -- px between rows at 100% (was 2: "looks like a flag")
 V.BASE_FONT = 12                                             -- text size at 100%
 
 -- Backgrounds for the numbers, from the game's theme so they follow the player's skin.
@@ -193,7 +194,7 @@ function V.Metrics()
     barW = math.floor(width() * f + 0.5),
     gap = math.max(2, math.floor(4 * f + 0.5)),
     textW = math.ceil(font * 5.2),        -- room for "9999 / 9999"
-    rowGap = math.max(1, math.floor(2 * f + 0.5)),
+    rowGap = math.max(2, math.floor(V.ROW_GAP * f + 0.5)),   -- space between the bars (5 px at 100%)
   }
   local hasBg = V.BackgroundClass() or V.BackgroundPanel()
   m.pad = hasBg and math.max(2, math.floor(3 * f + 0.5)) or 0   -- room around the text on a background
@@ -412,6 +413,17 @@ function V.DebugLines()
       bar.maxStat, show(ShroudGetStatValueByName(bar.maxStat)), source or "nothing readable", text, fill)
     end
   end
+  -- What the rows asked for next to what the game laid out (does a Bar honour its height?).
+  local m = V.Metrics()
+  local function size(e)
+    if not e then return "?" end
+    local ok, w, h = pcall(e.GetSize, e)
+    if not ok then return "?" end
+    return tostring(w) .. "x" .. tostring(h)
+  end
+  lines[#lines + 1] = string.format("Layout: asked bar %dx%d, row %d high, %d px between rows; laid out: "
+    .. "health bar %s, health row %s, focus row %s", m.barW, m.barH, m.line, m.rowGap,
+    size(content and el.health_bar), size(content and el.health_row), size(content and el.focus_row))
   return lines
 end
 
