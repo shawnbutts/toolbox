@@ -641,9 +641,10 @@ building, and remember the per-add-on budgets (8 windows, the element-creation c
    `/toolbox combat stat add <Name>`). In the Combat category: the chosen stats listed, a text field for part
    of a stat name, a dropdown of matching stats (the `/toolbox stats` search), Add and Remove (like
    `C.NameList`). Keep the chat commands.
-10. **CI**: `tools/check.py` on Linux, macOS and Windows (and `--container`) for every push and pull
-   request, once the public repo's host is chosen (GitHub Actions and Forgejo/Gitea Actions are nearly
-   the same format).
+10. **CI**: BUILT 2026-09-29, `.github/workflows/check.yml` (GitHub Actions): `tools/check.py` on ubuntu, macOS
+   and Windows (Lua + LuaJIT from apt / brew / Scoop, luacheck.exe pinned at v1.2.0 on Windows) for every
+   push and pull request, plus a check that `toolbox/changelog.lua` was committed. Unverified until the
+   first push (the Windows job most of all).
 
 ## Unconfirmed API behaviour
 

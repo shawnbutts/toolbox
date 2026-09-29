@@ -1,5 +1,7 @@
 # Toolbox
 
+[![check](https://github.com/shawnbutts/toolbox/actions/workflows/check.yml/badge.svg)](https://github.com/shawnbutts/toolbox/actions/workflows/check.yml)
+
 A Shroud of the Avatar Lua add-on. It needs Lua API 23 (`min_api_version` in the manifest) and uses
 newer functions (up to API 24) when the game client has them. Features:
 

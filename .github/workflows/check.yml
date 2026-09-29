@@ -1,0 +1,65 @@
+# Runs tools/check.py (changelog, luacheck, tests under Lua and LuaJIT, package build) on Linux, macOS
+# and Windows for every push and pull request, then fails if the generated toolbox/changelog.lua
+# wasn't committed. Setup per OS follows CONTRIBUTING.md.
+name: check
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHONUTF8: "1"            # Windows consoles: print non-ASCII without UnicodeEncodeError
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Lua, LuaJIT and luacheck (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.4 luajit lua-check
+
+      - name: Install Lua, LuaJIT and luacheck (macOS)
+        if: runner.os == 'macOS'
+        run: brew install lua luajit luacheck
+
+      - name: Install Lua, LuaJIT and luacheck (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-RestMethod -Uri https://get.scoop.sh -OutFile install-scoop.ps1
+          .\install-scoop.ps1 -RunAsAdmin
+          $shims = Join-Path $env:USERPROFILE "scoop\shims"
+          $env:PATH = "$shims;$env:PATH"
+          scoop install lua luajit
+          $bin = Join-Path $env:RUNNER_TEMP "bin"
+          New-Item -ItemType Directory -Force -Path $bin | Out-Null
+          Invoke-WebRequest -Uri https://github.com/lunarmodules/luacheck/releases/download/v1.2.0/luacheck.exe `
+            -OutFile (Join-Path $bin "luacheck.exe")
+          Add-Content -Path $env:GITHUB_PATH -Value $shims
+          Add-Content -Path $env:GITHUB_PATH -Value $bin
+
+      - name: Check
+        run: python tools/check.py
+
+      - name: Generated files are committed
+        shell: bash
+        run: |
+          if ! git diff --exit-code -- toolbox/changelog.lua; then
+            echo "toolbox/changelog.lua is out of date: run tools/check.py and commit it"
+            exit 1
+          fi

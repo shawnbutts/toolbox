@@ -71,6 +71,12 @@ with Lua 5.4, LuaJIT, luacheck, Python, git, ffmpeg and rsvg-convert; your check
 nothing is copied. Add `--rebuild-image` after changing the Containerfile, or `--engine podman` to pick
 the engine.
 
+### On GitHub
+
+`.github/workflows/check.yml` runs the same `tools/check.py` on Linux, macOS and Windows for every push
+and pull request, and fails if the generated `toolbox/changelog.lua` wasn't committed. A pull request
+should be green on all three.
+
 ## Try it in the game
 
 Find your game's Lua folder with `/lua path` in chat, then:
