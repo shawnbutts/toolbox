@@ -232,7 +232,7 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     fixed width) so the bars stay put. `/toolbox target place left` = mirror on.
     The kept space is a blank area between the grip and the health bars (documented for players, in the
     guide and README); `tHint` ("Target", dim) marks it while settings are open.
-    Unconfirmed in game: that `rotate = 180` on a Bar mirrors its fill.
+    CONFIRMED in game 2026-09-29 (beta 8): `rotate = 180` on a Bar mirrors its fill; the mirror works.
     REPORTED 2026-09-29: the mirrored bars sat lower than the player's, with more space between them: rows
     built to the asked-for line height lay out taller than the vitals rows do. Now `syncRows` copies the
     vitals rows' laid-out heights (`V.RowHeights`, GetSize) for `TG.SYNC_FOR` s after a build or resize, then
@@ -645,7 +645,8 @@ events, so gate on the functions existing, never on the version number.
    - a gathering session HUD (nodes/items/XP per hour, idle timeout);
    - a crafting-station strip shown while the window is open, plus a "craft finished" sound;
    - friends/guild online list, friend-online chat line or sound, guild MOTD change in chat. (BUILT 2026-09-29:
-     friend / guild member online notification sources, chat by default; the MOTD via its own event.)
+     friend / guild member online notification sources, chat by default; the MOTD via its own event.
+     CONFIRMED in game (beta 8): friends online and the notification chime work.)
 
 **Other ideas, not agreed yet** (discussed with the owner 2026-09-27/28, recorded so they aren't lost).
 All but the undocumented-getter ones use documented API 13/14 calls; check the docs again before
@@ -656,7 +657,7 @@ building, and remember the per-add-on budgets (8 windows, the element-creation c
    `ShroudIsTargetHealthHidden`, `ShroudGetTargetCurrentHealth` / `MaxHealth` (and Focus),
    `ShroudGetTargetBuff*` (may be userdata like the player's list: read through `T.Field`),
    `ShroudOnTargetChanged`.
-2. **Skills gained and deaths**: BUILT 2026-09-29 (daily.lua `D.OnSkills` / `D.OnDeath`, from core's
+2. **Skills gained and deaths**: BUILT 2026-09-29, CONFIRMED in game (beta 8) (daily.lua `D.OnSkills` / `D.OnDeath`, from core's
    `ShroudOnSkillsChanged` / `ShroudOnDeathChanged`; Today rows, XP Detailed `session_extra`). Was: in the XP and
    Today windows: skill levels gained this session / today
    (`ShroudGetSkills`, `ShroudOnSkillsChanged`) and deaths (`ShroudOnDeathChanged(isDead)`).
