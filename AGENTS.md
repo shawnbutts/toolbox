@@ -407,6 +407,20 @@ Bump `version` in `toolbox/manifest.json` **and** `Toolbox.version` in `core.lua
 match), move `[Unreleased]` notes under the new version in `CHANGELOG.md`, `make check`, test in game.
 Version numbers are single-use in the store, including rejected ones.
 
+THE STORE PAGE (addons.catnipgames.net, looked at 2026-09-29) is where most players first meet Toolbox:
+- The list is a grid of cards (>= 300 px wide, 3 across on a desktop): icon, **name** (shown in full), author,
+  then a description clamped to 3 lines at 0.9rem (about 100-120 characters on a desktop), version, installs.
+- That description is NOT ours: "the reviewer writes the one-paragraph description you see on each entry"
+  (guide), in its own words ("This addon lets you..."), apparently from the package (README, manifest, code),
+  and it mentions what an update fixed. So `toolbox/README.md` opens with the pitch in its first sentence,
+  for the reviewer to echo; the manifest `description` says the same. The submission's release note shows
+  under "Approved versions".
+- The detail page: icon, name, author, meta, Download, the reviewer's paragraph, the file list, then our README
+  under "Readme". Package pictures are NOT shown (BMS ships 11, none appear), so screenshots can't go there.
+- The README renderer is simple: a list item's wrapped line becomes a new paragraph, `##` shows a level down,
+  tables and `[links](...)` show as raw text, and a byte-order mark hides the title. `tools/build.py`
+  (`check_store_readme`) refuses those.
+
 Then commit ("Beta N (x.y.z)" for a beta), build from that clean commit (`make beta` for testers; the
 stamp must be the commit, not `...+`), and tag it: an annotated `vX.Y.Z` tag on the release commit
 (`git tag -a v0.3.0 -m "Beta 3 (0.3.0)"`), pushed with the branch (`git push origin main vX.Y.Z`),

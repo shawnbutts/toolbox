@@ -356,6 +356,32 @@ def check_site_name(report: Report) -> None:
                 report.error(f"{name}:{lineno}: '{m.group(0)}' is another domain: write SotANET or shroudoftheavatar.net")
 
 
+def check_store_readme(report: Report) -> None:
+    """The store renders README.md with a simple Markdown reader (seen 2026-09-29 on addons.catnipgames.net):
+    a list item's wrapped continuation line becomes a separate paragraph, and tables and [links](...) show as
+    raw text. So: one line per list item, no tables, no Markdown links. No byte-order mark either (it hid
+    another add-on's title)."""
+    path = PACKAGE / "README.md"
+    if not path.is_file():
+        return
+    raw = path.read_bytes()
+    if raw.startswith(b"\xef\xbb\xbf"):
+        report.error("README.md: starts with a byte-order mark; the store then doesn't show the title")
+    in_item = False
+    for lineno, line in enumerate(raw.decode("utf-8", "replace").splitlines(), 1):
+        if re.match(r"\s*([-*+]|\d+\.)\s", line):
+            in_item = True
+        elif line.strip() == "":
+            in_item = False
+        elif in_item:
+            report.error(f"README.md:{lineno}: a list item continues on this line; the store shows it as a new "
+                         "paragraph (keep each item on one line)")
+        if re.match(r"\s*\|.*\|\s*$", line):
+            report.error(f"README.md:{lineno}: the store doesn't show tables")
+        if re.search(r"\[[^\]]+\]\([^)]+\)", line):
+            report.error(f"README.md:{lineno}: the store shows Markdown links as raw text; write the address")
+
+
 def check_readme_api(report: Report, manifest: dict) -> None:
     """The root README's opening must state the manifest's min_api_version ("needs Lua API 15").
 
@@ -506,6 +532,7 @@ def main() -> int:
         check_changelog(report, manifest)
         check_readme_api(report, manifest)
         check_site_name(report)
+        check_store_readme(report)
         check_version_constant(report, manifest)
 
     zip_path = None
