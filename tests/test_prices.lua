@@ -118,7 +118,7 @@ return function(t)
     t.eq(#H.S.requests, 1, "still fresh: no lookup")
     t.eq(row("Iron Ore")[3], "~10g", "shown at once from the cache")
     H.S.clock = 1000000 + 86400 + 1
-    H.advance(3)
+    H.advance(Toolbox.DailyDetail.FULL_EVERY + 3)            -- noticed at the next full refresh
     t.eq(#H.S.requests, 2, "a day old: looked up again")
   end)
 

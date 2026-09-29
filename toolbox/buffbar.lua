@@ -120,26 +120,29 @@ end
 -- Otherwise (a buff already running when the add-on started, never seen cast) there is no
 -- sweep rather than a wrong one. The expiry alert only needs time left, so it always works.
 -- st.warned stays true for the rest of a run once the alert has fired (the sweep turns red).
+-- A new run for BB.Track (a plain function, not a closure made on every call: Track runs for every
+-- buff twice a second).
+local function newRun(now, api, threshold, known, seenFromStart)
+  local run = { endAt = now + api, api = api, armed = api > threshold, warned = false }
+  if seenFromStart then
+    run.total, run.trusted, run.learn = api, true, true
+  elseif known then
+    run.total, run.trusted = known, true
+  else
+    run.total, run.trusted = api, false
+  end
+  return run
+end
+
 function BB.Track(st, api, threshold, known, now, fresh)
   if type(api) ~= "number" or api <= 0 then return st, nil, false, nil end
   now = now or T.Now()
   if type(known) ~= "number" or known < api - 0.5 then known = nil end
-  local function newRun(seenFromStart)
-    local run = { endAt = now + api, api = api, armed = api > threshold, warned = false }
-    if seenFromStart then
-      run.total, run.trusted, run.learn = api, true, true
-    elseif known then
-      run.total, run.trusted = known, true
-    else
-      run.total, run.trusted = api, false
-    end
-    return run
-  end
   if not st then
-    st = newRun(fresh)
+    st = newRun(now, api, threshold, known, fresh)
   elseif api ~= st.api then
     if api > (st.endAt - now) + 1.5 then
-      st = newRun(true)                  -- time went up: a recast, seen from its start
+      st = newRun(now, api, threshold, known, true)   -- time went up: a recast, seen from its start
     else
       st.endAt, st.api = now + api, api  -- follow the game's value
     end
@@ -915,6 +918,7 @@ function BB.FrameTest(k, warn)
   return n
 end
 
+local NO_RUNE = {}             -- runes[] has no entry yet (shared, not a new table per slot per tick)
 local function fill(slot, e, fraction, warn, flash)
   if not e then
     if slot.used then
@@ -935,7 +939,7 @@ local function fill(slot, e, fraction, warn, flash)
     slot.blink = blink
     slot.row:SetStyle{ borderWidth = blink and 2 or 0 }
   end
-  local rune = runes[e.name] or {}
+  local rune = runes[e.name] or NO_RUNE
   local tex = (type(rune.icon) == "number" and rune.icon >= 0) and rune.icon or ShroudGetBuffIcon(e.index)
   if tex ~= slot.tex then
     slot.tex = tex
@@ -946,13 +950,14 @@ local function fill(slot, e, fraction, warn, flash)
       slot.icon:SetVisible(false)
     end
   end
-  local tip = ShroudGetBuffTooltip(e.index)
-  if prefs.clickDismiss and BB.CanDismiss() and ShroudCanDismissBuff(e.index) then
-    tip = (tip ~= "" and tip or e.name) .. "\nClick to dismiss"
-  end
-  if tip ~= slot.tip then
-    slot.tip = tip
-    slot.icon:SetTooltip(tip ~= "" and tip or e.name)
+  -- the tooltip is only rebuilt when the game's text (or the dismiss hint) changes
+  local raw = ShroudGetBuffTooltip(e.index)
+  local dismiss = (prefs.clickDismiss and BB.CanDismiss() and ShroudCanDismissBuff(e.index)) == true
+  if raw ~= slot.tip or dismiss ~= slot.tipDismiss then
+    slot.tip, slot.tipDismiss = raw, dismiss
+    local tip = (raw ~= "" and raw) or e.name
+    if dismiss then tip = tip .. "\nClick to dismiss" end
+    slot.icon:SetTooltip(tip)
   end
   local k = fraction and BB.Frame(fraction) or nil
   warn = warn == true
@@ -1702,6 +1707,7 @@ local gprefs = { show = true, threshold = G.THRESHOLD_DEFAULT }
 local gContent = nil
 local gSlots = {}
 local gItems = {}                     -- the last reading, lowest first
+local gStages = {}                    -- item key -> stage at the last reading ("ok", "low", "broken")
 local gShownList = {}                 -- what the strip shows now
 local lastPoll, lastSettingsOpen = -math.huge, nil
 local gShown = nil
@@ -1709,6 +1715,11 @@ local gShown = nil
 local function gSave() T.Save("gear", gprefs) end
 
 function G.Threshold() return gprefs.threshold end
+
+-- The last reading (G.POLL seconds old at most), for the "Gear needs repair" notification: it used to
+-- read the equipment again on every notification check (every second for the first minute), each
+-- read a table per worn item (stress test, 2026-09-29).
+function G.Latest() return gItems end
 
 local function byDurability(a, b)
   if a.pct ~= b.pct then return a.pct < b.pct end
@@ -1835,6 +1846,16 @@ function G.Poll(force)
   lastPoll, lastSettingsOpen = now, settings
   gItems = G.Items()
   table.sort(gItems, byDurability)
+  -- An item changed stage (fell below the threshold, broke, was repaired): notify now, not at the
+  -- next notification check (which reads this reading, G.Latest).
+  local changed = false
+  for _, it in ipairs(gItems) do
+    local st = G.Stage(it, gprefs.threshold) or "ok"
+    if gStages[it.key] ~= st then
+      gStages[it.key], changed = st, true
+    end
+  end
+  if changed and not force then T.Notify.Check() end
   gShownList = shownList()
   fillGear()
   local shown = (G.IsShown() or G.Glued()) and #gShownList or 0

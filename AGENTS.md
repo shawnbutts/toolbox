@@ -111,7 +111,10 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     Today window. Fed by `Toolbox.Sample` (XP totals), `Toolbox.Tick` (gold, day rollover, saving) and
     `ShroudOnCombatEvents` (kills). `OnLogin` is called for every new session except a reset, and
     re-bases gold/XP so offline changes don't count. The day key comes from `Toolbox.Today()`.
-  - `dailydetail.lua`: `Toolbox.DailyDetail`, the Today Detailed window. Item rows are never rebuilt on a
+  - `dailydetail.lua`: `Toolbox.DailyDetail`, the Today Detailed window. `DD.Refresh` redraws the list, counts and values
+    only when `Daily.itemsVersion`, `Prices.version`, the values setting or the day changed, the window opened,
+    or `DD.FULL_EVERY` passed (the catch-all also re-queues prices past their age); otherwise just the value
+    line. Item rows are never rebuilt on a
     timer (element-creation cap; no reorder API): new names are appended, and a sorted rebuild happens
     only when the window is shown, the rows are out of order, and `RESORT_SECONDS` have passed.
     Rows have no ids (item names aren't valid ids); handles are kept in a Lua table.
@@ -188,7 +191,9 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     the equipment bar (HUD module "gear", `G.SLOTS` fixed slots; worn items below `threshold`, lowest
     first, all while settings are open) and the model for the "durability" notification source
     (`G.Read`, `G.Stage`, `G.Notice` are pure). No event fires on wear, so `G.Tick` reads
-    `ShroudGetEquipmentItems()` every `G.POLL` s (and whenever settings open or close). Icons use the
+    `ShroudGetEquipmentItems()` every `G.POLL` s (and whenever settings open or close). The notification
+    source uses that reading (`G.Latest`), never a new one; a stage change in a reading calls
+    `Toolbox.Notify.Check()` at once. Icons use the
     buff bar's `size()`; `BB.SetSize` calls `G.ApplySize`. `glue` (owner, 2026-09-28): while the buff bar
     is on, `BB.BuildContent` adds `G.BuildRow()` as a third row under the debuffs, `fitFrame` counts it
     (`G.GluedCount`), and the gear strip isn't built (`G.Wanted`, an optional Hud module method checked by
@@ -255,6 +260,12 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     in `Sync()`, and tests in `tests/test_config.lua`.
 - `tmp/`: a local working area (scratch files, captured logs, screenshots); git-ignored and skipped by
   luacheck. Never reference it from the package, tests or tools.
+- `tests/test_stress.lua`: a veteran character (every saved list at its cap), full bars (30 buffs and
+  debuffs, consumables, 12 worn items to repair), heavy combat (50 lines/s, full fight history), and
+  maximum saved data with corrupted entries. Budgets for UI calls, garbage (standard Lua only: LuaJIT's
+  count is noisy) and elements created. `STRESS_PRINT=1 lua tests/run.lua stress` prints the numbers.
+  The harness's buff getters allocate on every call, which the game doesn't on the Lua side: the full-bars
+  test swaps in allocation-free ones (`quietBuffGetters`) to measure Toolbox's own garbage.
 - `tests/`: `harness.lua` is a fake host (see below); `test_*.lua` suites; `run.lua` the runner.
 - `art/icon.svg`: source of `toolbox/icon.png`. Re-render with
   `rsvg-convert -w 256 -h 256 art/icon.svg -o toolbox/icon.png` (keep it 256x256, well under 256 KiB).

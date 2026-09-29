@@ -34,6 +34,11 @@ store submission needs a higher version than any submitted before (rejected ones
   and refreshes them as it opens. Also: the XP totals are read once a second instead of twice, the
   health & focus bars allocate nothing on a quiet tick, and HUD strips are only shown or hidden
   when that changes.
+- Performance with a lot going on (found by new stress tests): the "Gear needs repair" notification
+  re-read all your equipment on every notification check (every second for the first minute after
+  login); it now uses the equipment bar's reading, and still notifies as soon as an item changes.
+  Today Detailed redrew its whole list every second; now only when something on it changes (with a
+  full day's 250 items it made ~8x less garbage). The buff bar makes less garbage per buff.
 - Buff bar: a buff whose skill applies several effects could get its sweep's length from the wrong
   one, so the sweep sat out of step with the game's bar. The full length now comes from the effect
   whose time left matches, read the way the game reports it.

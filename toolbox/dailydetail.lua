@@ -123,7 +123,7 @@ end
 -- Called whenever the window becomes visible.
 local function onShown()
   if T.Now() - lastRebuild >= DD.RESORT_SECONDS and outOfOrder() then rebuildList() end
-  DD.Refresh()
+  DD.Refresh(true)
 end
 
 function DD.SavePrefs()
@@ -215,14 +215,40 @@ function DD.Track()
   if T.Window.TrackPosition(win, prefs) then DD.SavePrefs() end
 end
 
-function DD.Refresh()
+-- The list, counts and values are redrawn only when something they show changed: today's items
+-- (Daily.itemsVersion), a price (Prices.version), the values setting, the day, or the window opening;
+-- and once a DD.FULL_EVERY as a catch-all (it also re-queues prices past their age). It used to redo
+-- all of it every second, ~10 KB/s of garbage with a full day's 250 names (stress test, 2026-09-29).
+DD.FULL_EVERY = 60
+local drawn = { items = nil, prices = nil, values = nil, at = -math.huge, gold = nil, kills = nil }
+
+local function byCountThenName(day)
+  return function(x, y)
+    if day.items[x] ~= day.items[y] then return day.items[x] > day.items[y] end
+    return x < y
+  end
+end
+
+function DD.Refresh(force)
   if not DD.IsShown() then return end
   local day = T.Daily.day
   if not day then return end
-  if day.key ~= listKey then rebuildList() end
-
+  local now = T.Now()
+  if day.key ~= listKey then
+    rebuildList()
+    force = true
+  end
+  if day.gold ~= drawn.gold or day.kills ~= drawn.kills then
+    drawn.gold, drawn.kills = day.gold, day.kills
+    T.SetText(el.summary, "Gold " .. T.FormatNumber(day.gold) .. "  |  Kills " .. T.FormatNumber(day.kills))
+  end
+  if not (force or drawn.items ~= T.Daily.itemsVersion or drawn.prices ~= P.version
+      or drawn.values ~= prefs.values or now - drawn.at >= DD.FULL_EVERY) then
+    if prefs.values then T.SetText(el.value_summary, DD.ValueLine()) end   -- its status can change with time
+    return
+  end
+  drawn.items, drawn.prices, drawn.values, drawn.at = T.Daily.itemsVersion, P.version, prefs.values, now
   T.SetText(el.date, (T.Daily.DateText()))
-  T.SetText(el.summary, "Gold " .. T.FormatNumber(day.gold) .. "  |  Kills " .. T.FormatNumber(day.kills))
 
   local kinds, total, new = 0, 0, {}
   for name, n in pairs(day.items) do
@@ -230,10 +256,7 @@ function DD.Refresh()
     if not rows[name] then new[#new + 1] = name end
   end
   -- Append new names highest count first, so a batch lands in a sensible order.
-  table.sort(new, function(x, y)
-    if day.items[x] ~= day.items[y] then return day.items[x] > day.items[y] end
-    return x < y
-  end)
+  if #new > 1 then table.sort(new, byCountThenName(day)) end
   for _, name in ipairs(new) do
     if not addRow(name) then break end
   end
@@ -252,6 +275,7 @@ function DD.Refresh()
 end
 
 -- The value column and the header's value line (estimated values on), or hides them.
+local valued = { total = 0, priced = 0, kinds = 0 }   -- the totals behind the value line
 function DD.RefreshValues(day)
   T.SetVisible(el.value_summary, prefs.values == true)
   if not prefs.values then return end
@@ -272,14 +296,19 @@ function DD.RefreshValues(day)
     T.SetText(r.value, each and ("~" .. P.Format(n * each)) or "")
     T.SetTooltip(r.value, P.Tooltip(name))
   end
+  valued.total, valued.priced, valued.kinds = total, priced, kinds
+  T.SetText(el.value_summary, DD.ValueLine())
+end
+
+-- The header's value line, from the last totals and the lookup status (which changes with time).
+function DD.ValueLine()
   local line = P.StatusLine()
-  if not line then
-    line = priced == 0 and "Estimated value: looking up prices on SOTA.net..."
-      or ("Estimated value ~" .. P.Format(total) .. " (" .. priced .. " of " .. kinds .. " kinds priced, SOTA.net)")
-    if priced == 0 and P.Idle() then line = "Estimated value: none of today's items sold recently (SOTA.net)" end
-    if kinds == 0 then line = "Estimated value: nothing gained yet" end
-  end
-  T.SetText(el.value_summary, line)
+  if line then return line end
+  local total, priced, kinds = valued.total, valued.priced, valued.kinds
+  if kinds == 0 then return "Estimated value: nothing gained yet" end
+  if priced == 0 and P.Idle() then return "Estimated value: none of today's items sold recently (SOTA.net)" end
+  if priced == 0 then return "Estimated value: looking up prices on SOTA.net..." end
+  return "Estimated value ~" .. P.Format(total) .. " (" .. priced .. " of " .. kinds .. " kinds priced, SOTA.net)"
 end
 
 function DD.GetValues() return prefs.values == true end
@@ -289,7 +318,7 @@ function DD.SetValues(on)
   DD.SavePrefs()
   for _, r in pairs(rows) do T.SetVisible(r.value, prefs.values) end
   if prefs.values then P.Wake() end
-  DD.Refresh()
+  DD.Refresh(true)
   T.Config.Sync()
 end
 
@@ -321,6 +350,7 @@ P.MAX_KEEP = 2000     -- prices kept (saved-var size)
 P.MAX_AGE = 86400     -- seconds a price is used before it is looked up again
 
 local cache = {}      -- lower name -> { avg, sold, last, day }
+P.version = 0         -- bumped when the cache changes (Today Detailed redraws its values then)
 local queue = {}      -- names (as looted) waiting for a lookup
 local queued = {}     -- lower name -> true while queued or in flight
 local inflight = nil  -- { id, names, at }
@@ -351,6 +381,7 @@ local function readCache()
   loaded = true
   local saved = ShroudGetSavedVar("prices", "account")
   cache = {}
+  P.version = P.version + 1
   if type(saved) == "table" and saved.v == 1 and type(saved.items) == "table" then
     for k, e in pairs(saved.items) do
       if type(k) == "string" and type(e) == "table" and type(e.day) == "string"
@@ -482,6 +513,7 @@ function P.Apply(names, data)
     if clock then e.at = clock end
     cache[k] = e
   end
+  P.version = P.version + 1
   local found = {}
   for _, it in ipairs(type(data) == "table" and type(data.items) == "table" and data.items or {}) do
     if type(it) == "table" and type(it.item) == "string" then
@@ -507,6 +539,7 @@ function P.Forget()
   cache = {}
   writeCache()
   nextAt, status = 0, nil
+  P.version = P.version + 1
   DD.Refresh()
   return n
 end

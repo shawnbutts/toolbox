@@ -228,8 +228,14 @@ function D.OnLogin(adv, prod)
   D.unsaved = true
 end
 
+-- Bumped whenever today's items change, so Today Detailed redraws its list only then.
+D.itemsVersion = 0
+
 function D.OnItems(items, dropped)
-  if D.day and D.AddItems(D.day, items, dropped) then D.unsaved = true end
+  if D.day and D.AddItems(D.day, items, dropped) then
+    D.unsaved = true
+    D.itemsVersion = D.itemsVersion + 1
+  end
 end
 
 function D.OnCombat(events)

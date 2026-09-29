@@ -397,7 +397,7 @@ N.SOURCES = {
   { key = "durability", label = "Gear needs repair", default = true,
     tip = "When a worn item drops below the repair threshold (Equipment bar settings), and again when it breaks",
     Check = function(seen)
-      local items = T.Gear.Items()
+      local items = T.Gear.Latest()          -- the equipment bar's reading, not a new one
       if #items == 0 then return nil end     -- not loaded (or a scene change): keep what was seen
       local notice, quiet = T.Gear.Notice(items, seen, T.Gear.Threshold())
       if notice then notice.title = "Gear needs repair" end
