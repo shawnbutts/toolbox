@@ -5,6 +5,14 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Added
+- Target HUD on its own strip can be mirrored (Toolbelt page: Mirror the target's own strip, or
+  `/toolbox target mirror on`): name right-aligned, bars filling from the right, up to 5 icons to the left,
+  at a fixed width so the bars don't move.
+
+### Fixed
+- The target's "Left of your bars" place went back to "Above the buffs" after a reload.
+
 ## [0.6.0] - 2026-09-29 (beta 7)
 
 ### Added

@@ -224,6 +224,8 @@ dev container (`tools/container/Containerfile`), are in CONTRIBUTING.md; keep it
     fixed block (`TG.LEFT_SLOTS` icons + the bar length, always reserved) first in the glued columns' row:
     bars rotated 180 (`rotate` style) in rows as tall as the health bars' rows, icons in reverse order. To
     remove it: drop "left" from `TG.PLACES` / `PLACE_ORDER`, the `tLeft` branches, and `placeOf`'s "left".
+    `mirror` (own strip, 2026-09-29): `tOwnMirror`, the same reversed children and rotated bars, name
+    right-aligned, a fixed-width block (`LEFT_SLOTS` icons + INFO_CELLS) so the bars stay put.
     The kept space is a blank area between the grip and the health bars (documented for players, in the
     guide and README); `tHint` ("Target", dim) marks it while settings are open.
     Unconfirmed in game: that `rotate = 180` on a Bar mirrors its fill.
@@ -432,7 +434,7 @@ is an event number that restarts with the add-on, so it is never read back; `N.O
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most `Notify.Hud.KEEP` (20) |
 | `consumables` | `{ show = bool (default true), glue = bool, extra = { name parts, <= 20 }, cats = { [category] = true } (absent: defaults), exclude = { name parts } (absent: Scroll, Torch, Bait), max = 1..10 (icons before grouping), combatOnly = bool, x, y }` |
 | `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` (the equipment bar) |
-| `target` | `{ show = bool (default false), glue = bool (default true: in the Toolbelt), place = "top" (default) / "bottom" / "left", x, y }` (the target HUD) |
+| `target` | `{ show = bool (default false), glue = bool (default true: in the Toolbelt), place = "top" (default) / "bottom" / "left", mirror = bool (its own strip mirrored), x, y }` (the target HUD) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` (`D.SkillGains`; skills gained today / this session are `daily.skills` / `session.skills`, deaths `daily.deaths` / `session.deaths`) |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts (unversioned ignored) |
 

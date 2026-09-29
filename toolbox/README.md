@@ -56,7 +56,7 @@ the Toolbelt above your buffs, under everything, or mirrored to the left of your
 fill from the right, level with yours), with no text (hover for it) and bars sized like yours, or has its
 own strip. Above the buffs and on the left its space is always kept, so nothing jumps when you pick up a
 target; on the left that leaves a transparent blank area between the Toolbelt's grip and your bars
-(labelled "Target" while settings are open, to help you place it).
+(labelled "Target" while settings are open, to help you place it). Its own strip can be mirrored too.
 
 ## Gear repair
 

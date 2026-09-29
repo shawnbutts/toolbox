@@ -614,7 +614,7 @@ TG.LEFT_SLOTS = 5            -- icons when mirrored on the left (its width is al
 TG.HINT = "Target"           -- shown in its kept space while settings are open and there's no target
 local TPERIODIC = "toolbox_target"
 
-local tprefs = { show = false, glue = true, place = "top" }
+local tprefs = { show = false, glue = true, place = "top", mirror = false }
 local tContent, tInfo, tName, tHealth, tFocus = nil, nil, nil, nil, nil
 local tSlots = {}
 local tShownCount = nil      -- cells the row takes (for the strip's size), when it last changed
@@ -758,6 +758,7 @@ local tInfoCells = TG.INFO_CELLS
 local tBelt = false          -- built for the Toolbelt: no text, bars sized like the player's
 local tBelow = false         -- ... and across both of its columns (TG.Below)
 local tLeft = false          -- ... mirrored to the left of the health bars (TG.Mirrored)
+local tOwnMirror = false     -- on its own strip, mirrored (tprefs.mirror): bars from the right, icons left
 local tRows = {}             -- the mirrored form's two bar rows (health, focus)
 local tHint = nil            -- the Toolbelt forms' "Target" label in the kept space (settings open, no target)
 local tRowH = {}             -- ... their heights, measured from the health bars' rows (V.RowHeights)
@@ -798,6 +799,10 @@ local function infoLayout(s)
   else
     L.cells = TG.INFO_CELLS
     L.w = TG.INFO_CELLS * cell - gap
+    if tOwnMirror then                          -- a fixed block, so the bars stay put as icons come and go
+      L.blockW = TG.LEFT_SLOTS * cell + L.w
+      L.blockH = s
+    end
     L.barW = L.w
     L.font = math.max(9, math.floor(s * 0.4))
     L.hBar = math.max(3, math.floor(s * 0.22))
@@ -849,14 +854,20 @@ local function styleInfo(s)
     tRowH, tSyncUntil = {}, T.Now() + TG.SYNC_FOR  -- measure the health bars' rows again
     return
   end
-  tInfo:SetStyle{ width = L.w, height = s, marginRight = T.BuffBar.GAP }
-  tHealth:SetStyle(barStyleT(L.barW, L.hBar, 2))
-  tFocus:SetStyle(barStyleT(L.barW, L.fBar, 0))
+  tInfo:SetStyle{ width = L.w, height = s, marginRight = tOwnMirror and 0 or T.BuffBar.GAP }
+  local hStyle, fStyle = barStyleT(L.barW, L.hBar, 2), barStyleT(L.barW, L.fBar, 0)
+  if tOwnMirror then hStyle.rotate, fStyle.rotate = 180, 180 end   -- fill from the right
+  tHealth:SetStyle(hStyle)
+  tFocus:SetStyle(fStyle)
   if not tBelt then
     local h = s - L.hBar - L.fBar - 2
     tName:SetStyle{ fontSize = L.font, width = L.w, height = h, minHeight = h, maxHeight = h,
                     whiteSpace = "nowrap", marginLeft = 0, marginRight = 0, marginTop = 0, marginBottom = 0,
-                    paddingTop = 0, paddingBottom = 0 }
+                    paddingTop = 0, paddingBottom = 0, textAlign = tOwnMirror and "right" or "left" }
+  end
+  if tOwnMirror then
+    tBlockW, tBlockH = L.blockW, L.blockH
+    if tContent then tContent:SetStyle{ width = tBlockW, minWidth = tBlockW, height = tBlockH, minHeight = tBlockH } end
   end
 end
 
@@ -867,6 +878,7 @@ function TG.BuildRow()
   tBelow = TG.inBuffBar ~= true and TG.Below()
   tBelt = TG.inBuffBar == true or tBelow
   tLeft = tBelow and TG.Mirrored()
+  tOwnMirror = not tBelt and tprefs.mirror == true
   tHealth = UI.Bar{ id = "target_health", value = 0, color = "@red" }
   tFocus = UI.Bar{ id = "target_focus", value = 0, color = "@blue", visible = false }
   tRows = {}
@@ -890,17 +902,21 @@ function TG.BuildRow()
       style = { fontSize = math.max(9, math.floor(s * 0.4)), whiteSpace = "nowrap", marginRight = T.BuffBar.GAP } }
   end
   tSlots = {}
-  for i = 1, (tLeft and TG.LEFT_SLOTS or TG.SLOTS) do
+  local mirrored = tLeft or tOwnMirror
+  for i = 1, (mirrored and TG.LEFT_SLOTS or TG.SLOTS) do
     local icon = UI.Image{ width = s, height = s, onClick = function() end }   -- a click handler: tooltips show
     local overlay = T.BuffBar.SweepHolder(s)
     local row = UI.Row{ visible = false, children = { icon, overlay },
       style = { width = s, height = s, marginRight = T.BuffBar.GAP, backgroundColor = "#00000066",
                 borderWidth = 0, borderColor = "@red" } }
     tSlots[i] = { row = row, icon = icon, overlay = overlay }
-    if tLeft then table.insert(children, 1, row) else children[#children + 1] = row end   -- mirrored: outward
+    if mirrored then table.insert(children, 1, row) else children[#children + 1] = row end   -- mirrored: outward
   end
   if tHint then table.insert(children, 1, tHint) end
-  if tLeft then           -- a fixed block, its contents against the health bars (right)
+  if tOwnMirror then      -- a fixed block, its contents against the right
+    tContent = UI.Row{ id = "target", visible = false, style = { alignItems = "center", justifyContent = "end",
+      width = tBlockW, minWidth = tBlockW, height = tBlockH, minHeight = tBlockH }, children = children }
+  elseif tLeft then       -- a fixed block, its contents against the health bars (right)
     tContent = UI.Row{ id = "target", visible = false, style = { alignItems = "start", justifyContent = "end",
       width = tBlockW, minWidth = tBlockW, height = tBlockH, minHeight = tBlockH }, children = children }
   else
@@ -923,7 +939,7 @@ function TG.Unbuilt()
 end
 
 function TG.ContentSize()
-  if tLeft and tContent then return tBlockW, tBlockH end
+  if (tLeft or tOwnMirror) and tContent then return tBlockW, tBlockH end
   local cell = iconSize() + T.BuffBar.GAP
   return math.ceil((tInfoCells + #tList) * cell), iconSize()
 end
@@ -1066,6 +1082,16 @@ function TG.SetPlace(where)
   return true
 end
 
+-- On its own strip: mirrored (bars fill from the right, name right-aligned, icons to the left) or not.
+function TG.GetMirror() return tprefs.mirror == true end
+function TG.SetMirror(on)
+  tprefs.mirror = on == true
+  tSave()
+  if TG.Wanted() and not TG.Below() then T.Hud.Build() end   -- its own strip: rebuilt the new way
+  TG.Poll(true)
+  T.Config.Sync()
+end
+
 -- ShroudOnTargetChanged (core.lua): a new target, or none.
 function TG.OnTargetChanged()
   TG.Poll(true)
@@ -1085,11 +1111,12 @@ TG.GetPosition, TG.MoveTo, TG.Nudge, TG.ResetPosition = targetMover.Get, targetM
 
 function TG.Init()
   local saved = T.Load("target")
-  tprefs = { show = false, glue = true, place = "top" }
+  tprefs = { show = false, glue = true, place = "top", mirror = false }
   if type(saved) == "table" then
     tprefs.show = saved.show == true
     tprefs.glue = saved.glue ~= false
-    if saved.place == "bottom" then tprefs.place = "bottom" end
+    if saved.place == "bottom" or saved.place == "left" then tprefs.place = saved.place end
+    tprefs.mirror = saved.mirror == true
     if type(saved.x) == "number" and type(saved.y) == "number" then tprefs.x, tprefs.y = saved.x, saved.y end
   end
   tList, tRaw, tInfoBy = {}, {}, {}

@@ -102,6 +102,9 @@ D.SECTIONS = {
       .. "5 icons plus a bar. It's transparent and clicks pass through it; while the settings window is open "
       .. "it says \"Target\" so you can see it when placing the Toolbelt. Drag by the grip as usual: your "
       .. "bars sit that far to the right of it.",
+    "On its own strip it can be mirrored too (Toolbelt page: Mirror the target's own strip, or /toolbox "
+      .. "target mirror on): the name right-aligned, the bars filling from the right and up to 5 icons to "
+      .. "the left. Its width stays the same as effects come and go, so the bars don't move.",
     "It joins the Toolbelt as its last row, or has its own strip (settings: Toolbelt, Target; or /toolbox "
       .. "target toolbelt on|off). With no target it hides, except while the settings window is open, so you "
       .. "can place it (/toolbox target move <x> <y>). /toolbox target debug shows what the game reports." },

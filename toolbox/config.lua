@@ -525,6 +525,11 @@ function C.ToolbeltSection()
     onChange = function(_, label)
       for key, l in pairs(T.Target.PLACES) do if l == label then T.Target.SetPlace(key) end end
     end })
+  children[#children + 1] = UI.Toggle{ id = "target_mirror", text = "Mirror the target's own strip",
+    value = T.Target.GetMirror(), style = { marginLeft = 16 },
+    tooltip = "On its own strip: the bars fill from the right, the name is right-aligned and the icons run to"
+      .. " the left (up to 5; its width is fixed so the bars don't move)",
+    onChange = function(_, v) T.Target.SetMirror(v) end }
   children[#children + 1] = UI.Label{ id = "hud_summary", text = "", class = "dim",
     style = { whiteSpace = "wrap", marginTop = 6 } }
   children[#children + 1] = UI.Label{ text = "Place it under HUD layout (Buff bar), or drag its grip. Each bar's"
@@ -576,7 +581,7 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "vitals_flash_test", "show_combat", "combat_detail", "combat_detail_hover", "combat_pet", "combat_scale",
   "combat_scale_value", "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "combat_stats",
   "nhud_hide", "volume", "volume_value", "hud_summary", "toolbelt_show",
-  "toolbelt_vitals", "toolbelt_consumables", "toolbelt_gear", "toolbelt_target", "target_place",
+  "toolbelt_vitals", "toolbelt_consumables", "toolbelt_gear", "toolbelt_target", "target_place", "target_mirror",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
   "buff_countdown_secs_value" }
 for _, def in ipairs(T.Sounds.DEFS) do
@@ -894,6 +899,8 @@ function C.Sync()
   for _, part in ipairs(C.TOOLBELT_PARTS) do setValue("toolbelt_" .. part.key, C.PlaceOf(part)) end
   setValue("target_place", T.Target.PLACES[T.Target.GetPlace()])
   setEnabled("target_place", T.Target.GetShow() and T.Target.GetGlue())
+  setValue("target_mirror", T.Target.GetMirror())
+  setEnabled("target_mirror", T.Target.GetShow() and not T.Target.Glued())
   setText("hud_summary", C.HudSummary())
   C.SyncLive()
 end

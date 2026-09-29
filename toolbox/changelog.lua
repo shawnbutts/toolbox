@@ -5,6 +5,10 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Added" },
+  { "item", "Target HUD on its own strip can be mirrored (Toolbelt page: Mirror the target's own strip, or /toolbox target mirror on): name right-aligned, bars filling from the right, up to 5 icons to the left, at a fixed width so the bars don't move." },
+  { "section", "Fixed" },
+  { "item", "The target's \"Left of your bars\" place went back to \"Above the buffs\" after a reload." },
   { "version", "0.6.0 - 2026-09-29 (beta 7)" },
   { "section", "Added" },
   { "item", "Notifications for friends coming online (on, as a chat line) and guild members coming online (off by default), from the game's friend and guild events (Lua API 18). /toolbox notify friends|guild on|off." },
