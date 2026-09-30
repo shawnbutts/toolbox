@@ -8,6 +8,7 @@ store submission needs a higher version than any submitted before (rejected ones
 ### Fixed
 - A settings page could fail to open ("this add-on already has 2000 elements") with many windows open and a
   busy day in Today Detailed: every settings page stayed built once opened. Only the page shown is built now.
+- Switching the Notifications window to compact (or back) raised an error while it showed notices.
 
 ### Changed
 - The Toolbelt page says the buff bar is the Toolbelt's base, with the parts set to In Toolbelt joining it.

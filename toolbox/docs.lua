@@ -1135,8 +1135,9 @@ function N.SetCompact(on)
     for _, src in ipairs(N.SOURCES) do
       local sec = nwin:Find("n_" .. src.key)
       if sec and sec:IsVisible() then
-        kept[#kept + 1] = { key = src.key, title = nwin:Find("n_" .. src.key .. "_title").text,
-                            text = nwin:Find("n_" .. src.key .. "_text").text }
+        -- GetText: in game an element is a game object, its fields unreadable (found 2026-09-30)
+        kept[#kept + 1] = { key = src.key, title = nwin:Find("n_" .. src.key .. "_title"):GetText(),
+                            text = nwin:Find("n_" .. src.key .. "_text"):GetText() }
       end
     end
     pcall(function() nwin:Destroy() end)

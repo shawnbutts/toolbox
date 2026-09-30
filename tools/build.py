@@ -80,6 +80,11 @@ BARE_LOCAL_RE = re.compile(r"^\s*local\s+[A-Za-z_]\w*(\s*,\s*[A-Za-z_]\w*)*\s*(-
 
 # Project rule: persistence goes through saved vars only; no file or OS access. The one
 # exception is reading the local clock (os.date / os.time) for the daily reset.
+# A field read straight off an element (win:Find("x").text): UI elements are game objects in game, whose
+# fields can't be read ("cannot access field text of userdata<Shroud.UI.Label>", 2026-09-30); use GetText,
+# GetValue, IsVisible and the other getters.
+ELEMENT_FIELD_RE = re.compile(r":Find\([^)]*\)\s*\.\s*[A-Za-z_]\w*\b(?!\s*\()")
+
 # The price site is "SotANET" or shroudoftheavatar.net; "sota.net" is a different domain and must not
 # appear in anything players read (owner, 2026-09-29).
 WRONG_SITE_RE = re.compile(r"sota\.net", re.I)
@@ -337,6 +342,10 @@ def check_sources(report: Report, manifest: dict) -> None:
                 report.error(f"{f}:{lineno}: pattern '{m.group(0)}': the game's Lua gives up on a lazy (.-) match"
                              " anchored at the end over long text ('pattern too complex'); use Toolbox.Trim or"
                              " plain find/sub")
+            m = ELEMENT_FIELD_RE.search(line)
+            if m and not line.lstrip().startswith("--"):
+                report.error(f"{f}:{lineno}: '{m.group(0)}': an element's fields can't be read in game (it is a"
+                             " game object); use its getter, e.g. GetText()")
             m = WRONG_SITE_RE.search(line)
             if m:
                 report.error(f"{f}:{lineno}: '{m.group(0)}' is another domain: write SotANET or shroudoftheavatar.net")
