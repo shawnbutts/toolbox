@@ -81,14 +81,15 @@ function V.Format(current, max)
   return m > 0 and cur / m or 0, cur .. " / " .. m
 end
 
--- ShroudGetPlayerVitals()'s table (a fresh one per call), read at most once per game time; nil when there
--- is no character.
+-- ShroudGetPlayerVitals()'s answer (a fresh table per call), read at most once per game time; nil when
+-- there is no character. Read through T.Field like every game result: API 25 gives a plain table, but the
+-- buff lists were game objects before it (review, 2026-09-30).
 local vitalsAt, vitalsNow = nil, nil
 function V.Vitals()
   local now = T.Now()
   if vitalsAt ~= now then
     local ok, v = pcall(ShroudGetPlayerVitals)
-    vitalsAt, vitalsNow = now, (ok and type(v) == "table") and v or nil
+    vitalsAt, vitalsNow = now, (ok and (type(v) == "table" or type(v) == "userdata")) and v or nil
   end
   return vitalsNow
 end
@@ -97,7 +98,7 @@ end
 function V.Read(bar)
   local v = V.Vitals()
   if not v then return nil, nil end
-  local current, max = v[bar.current], v[bar.max]
+  local current, max = T.Field(v, bar.current), T.Field(v, bar.max)
   return readable(current) and current or nil, readable(max) and max or nil
 end
 
@@ -422,7 +423,7 @@ function V.DebugLines()
     local fill, text = V.Format(current, max)
     local function show(x) return type(x) == "number" and string.format("%g", x) or (type(x) .. " " .. tostring(x)) end
     lines[#lines + 1] = string.format("%s: ShroudGetPlayerVitals %s = %s, %s = %s -> \"%s\", fill %.2f",
-      bar.label, bar.current, show(v and v[bar.current]), bar.max, show(v and v[bar.max]), text, fill)
+      bar.label, bar.current, show(T.Field(v, bar.current)), bar.max, show(T.Field(v, bar.max)), text, fill)
     end
   end
   -- What the rows asked for next to what the game laid out (does a Bar honour its height?).

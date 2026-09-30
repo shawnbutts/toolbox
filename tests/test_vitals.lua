@@ -56,6 +56,24 @@ return function(t)
     t.eq(H.vitals():Find("focus_bar").color, "@blue")
   end)
 
+  t.test("vitals given as a game object (not a table) read the same", function()
+    H.boot()
+    local fields = { health = 400, maxHealth = 950.36, focus = 90, maxFocus = 100 }
+    local proxy = rawget(_G, "newproxy")                  -- real userdata under LuaJIT
+    ShroudGetPlayerVitals = function()
+      if proxy then
+        local u = proxy(true)
+        getmetatable(u).__index = fields
+        return u
+      end
+      return setmetatable({}, { __index = fields })
+    end
+    H.chat("/tbx vitals")
+    H.advance(1)
+    t.eq(H.vitals():Find("health_text").text, "400 / 950")
+    t.eq(H.vitals():Find("focus_text").text, "90 / 100")
+  end)
+
   t.test("no maximum (0) shows the current value only", function()
     H.boot()
     ShroudGetPlayerVitals = function() return { health = 943, maxHealth = 0, focus = 700, maxFocus = 700 } end
