@@ -543,6 +543,11 @@ function C.NotifySection()
         onChange = function(_, label) C.OnNotifyVia(key, label) end },
     } }
   end
+  -- The sound itself is picked on the Sounds page (this window is too narrow for a third column per row):
+  -- say so here, where "+ sound" is chosen (review, 2026-09-30).
+  children[#children + 1] = UI.Label{ id = "notify_sound_hint", text = "Pick which sound each one plays ("
+    .. table.concat(T.Notify.SoundLabels(), ", ") .. ") on the Sounds page.", class = "dim",
+    style = { whiteSpace = "wrap", marginTop = 4 } }
   local NH = T.Notify.Hud
   local hides = {}
   for i, c in ipairs(NH.HIDE_CHOICES) do hides[i] = c[2] end

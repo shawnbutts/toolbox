@@ -190,6 +190,14 @@ return function(t)
     t.eq(H.config():Find("notify_compact").value, false, "the checkbox follows")
   end)
 
+  t.test("the Notifications page says where each notification's sound is picked", function()
+    H.boot()
+    H.chat("/tbx config")
+    local hint = H.config():Find("notify_sound_hint").text
+    t.ok(hint:find("on the Sounds page", 1, true), hint)
+    t.ok(hint:find("Chime, Ping, Tap, Bell, Low notes", 1, true), "the choices, from the sound list: " .. hint)
+  end)
+
   t.test("a sound per source: picked on the Sounds page or in chat; each distinct sound once", function()
     H.boot()
     for _, f in ipairs({ "notify", "ping", "tap" }) do H.S.files["toolbox/" .. f .. ".ogg"] = true end
