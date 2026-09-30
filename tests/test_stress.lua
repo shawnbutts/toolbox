@@ -95,6 +95,7 @@ return function(t)
                   last = {} },
         daily_detail = { open = false, values = true },
         notify_history = { v = 1, list = history },
+        notify_hud = { hideAfter = 0 },               -- "never": the only case the saved list is read back
         buffbar = { show = true, group = parts },
         consumables = { show = true, extra = extra },
         combat = { show = true, stats = { "MagicResistance", "CombatHealthRegen", "CombatFocusRegen", "Dodge",

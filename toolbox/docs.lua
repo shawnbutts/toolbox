@@ -221,10 +221,11 @@ D.SECTIONS = {
       .. "Chime, Ping, Tap, Bell or Low notes; or /toolbox notify friends sound ping). Several arriving "
       .. "together play each sound once. The window can be compact (settings: "
       .. "Compact Notifications window, or /toolbox notify compact on): its title bar shows only on hover. "
-      .. "The HUD lists the "
-      .. "latest 20, newest on top, one line each (hover a line for all of it; scroll for older ones). It "
-      .. "shows when something arrives and hides after 10 seconds, or never (HUD: hide after, or "
-      .. "/toolbox notify hud hide 30); it stays while the pointer is on it. Move it like the other HUD "
+      .. "The HUD lists "
+      .. "new notices, newest on top (hover a line for all of it). It shows when something "
+      .. "arrives and hides after 10 seconds, taking those notices with it, or never (then it keeps "
+      .. "the latest 20; HUD: hide after, or /toolbox notify hud hide 30); it stays while the pointer "
+      .. "is on it. Move it like the other HUD "
       .. "strips (settings, or /toolbox notify hud move <x> <y>); /toolbox notify hud clear deletes its history." },
   { "Sounds",
     "The alert sounds live in the add-on's folder. To use your own, put "
@@ -730,6 +731,8 @@ function N.IsShown() return nwin ~= nil and nwin:IsShown() end
 -- no reorder API). A label that runs out of width ends in "..." by itself; its tooltip has the
 -- whole notice. Shown when something arrives, hidden `hideAfter` seconds later (0 = never),
 -- kept while the pointer is over it, and shown while settings are open so it can be placed.
+-- Notices shown and then hidden are dropped (owner, 2026-09-30: "old notices come back" with the next
+-- one), so the next notice shows alone; with hideAfter 0 (never hidden) the list stays, up to KEEP.
 
 local NH = {}
 N.Hud = NH
@@ -872,6 +875,11 @@ NH.GetPosition, NH.MoveTo, NH.Nudge, NH.ResetPosition = hudMover.Get, hudMover.M
 function NH.Tick()
   local shown = NH.IsShown()
   if shown ~= hudShown then
+    if hudShown == true and not shown and hprefs.hideAfter ~= 0 and #history > 0 then
+      history = {}                        -- seen and hidden: gone (see the header)
+      saveHistory()
+      NH.Fill()
+    end
     hudShown = shown
     T.Hud.Refresh()
   end
@@ -909,6 +917,8 @@ function NH.Init()
   end
   history = {}
   local h = T.Load("notify_history")
+  -- with a hide time, what was shown before isn't brought back (only "never" keeps a standing list)
+  if hprefs.hideAfter ~= 0 then h = nil end
   if type(h) == "table" and h.v == 1 and type(h.list) == "table" then
     for _, e in ipairs(h.list) do
       if type(e) == "table" and type(e.title) == "string" and type(e.text) == "string" and #history < NH.KEEP then

@@ -299,7 +299,7 @@ character" sentinel.
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
 | `notify` | `{ v = 1, compact = bool (the window), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), x, y }` |
-| `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most 20 |
+| `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most 20; emptied when the HUD hides after its time, and not read at start unless `hideAfter` is 0 (never) |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last, day, at } } }`, at most `P.MAX_KEEP` |
 | `welcomed` (ACCOUNT scope) | set after the first-run welcome |
 | `settings_pending` | `{ kind = "reset" }`: done and deleted at the next start |
