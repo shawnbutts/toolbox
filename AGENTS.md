@@ -307,7 +307,8 @@ you read back and fall back to defaults.
    manifest description in step with features.
 4. `make check`, commit ("Beta N (x.y.z)"), then `make beta` from that clean commit (the stamp must be the
    commit, not `...+`), and tag it: `git tag -a vX.Y.Z -m "Beta N (x.y.z)" <commit>`. Push only when the
-   owner asks (`git push origin main vX.Y.Z`). Record the tag here.
+   owner asks, to BOTH remotes: `origin` (the owner's server) and `GitHub` (public; runs CI and releases):
+   `git push origin main vX.Y.Z` and `git push GitHub main vX.Y.Z`. Record the tag here.
 5. Pushing a `v*` tag runs `.github/workflows/release.yml`: every check, the tag must equal the manifest
    version and have a CHANGELOG section (`tools/release_notes.py`), then a GitHub release with
    `toolbox-<v>.zip` (store package) and `toolbox-<v>-beta.zip` (tester zip), notes from the changelog, a
@@ -457,7 +458,6 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - The target getters' effect indices lining up with `ShroudGetTargetBuffIcon` / `Tooltip`, and
   `TotalDuration` on target effects (else no sweep); `/toolbox target debug` prints them.
 - API 24 crafting in game (`/toolbox api` shows `made` and the recipe's yield once the client updates).
-- CI's first run (the Windows job most of all).
 - The account file's name: `toolbox.account.json` by the docs' pattern (the character file,
   `toolbox.shawn.character.json` under `ShroudLuaPath` + `SavedVariables`, was confirmed 2026-09-30); and
   whether the character part is ever not the name `ShroudGetPlayerName` gives (case, spaces).
