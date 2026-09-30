@@ -822,41 +822,73 @@ local function resetSlot(slot)
 end
 
 -- The game's cooldown wedge on `slot.icon` (API 25) for a run of `total` seconds with `remaining` left,
--- red when `warn`; none when either is missing or nothing is left. The game draws it every frame and
--- clears it at the end, so it is set again only when the run moves (a recast, a refresh, a new total)
--- or turns red: slot.timer = { start, total, warn } is what was set.
+-- red when `warn`; none when either is missing or nothing is left. slot.timer is what was set.
+-- A run up to BB.TIMER_MAX: SetSweepTimer, which the game draws every frame and clears at the end, so it is
+-- set again only when the run moves (a recast, a refresh, a new total) or turns red.
+-- A longer run (Obsidian potions: 7 days): the client refuses such a timer ("duration is seconds, above 0 and
+-- at most 86400", found in game 2026-09-30; a refusal every tick got Toolbox disabled), so a still wedge
+-- (SetSweep) is moved on by BB.STILL_STEP of the run at a time; it can't turn red (SetSweep has no colour).
+-- Any refused call falls back to the still wedge (slot.timer.still) rather than raising.
+BB.TIMER_MAX = 86400
+BB.STILL_STEP = 1 / 360       -- a still wedge moves on by at least this (half an hour of 7 days)
+
+local function clearSweep(slot)
+  local t = slot.timer
+  if not t then return end
+  if t.still then pcall(slot.icon.SetSweep, slot.icon, nil) else pcall(slot.icon.SetSweepTimer, slot.icon, nil) end
+  slot.timer = nil
+end
+
 function BB.SetTimer(slot, remaining, total, warn)
   local t = slot.timer
   if type(total) ~= "number" or total <= 0 or type(remaining) ~= "number" or remaining <= 0 then
-    if t then
-      slot.icon:SetSweepTimer(nil)
-      slot.timer = nil
-    end
+    clearSweep(slot)
     return
   end
   if remaining > total then remaining = total end
-  local start = T.Now() - (total - remaining)
   warn = warn == true
-  if t and t.total == total and t.warn == warn and math.abs(start - t.start) <= BB.TIMER_SLACK then return end
-  if warn then
-    slot.icon:SetSweepTimer(start, total, { warnBelow = total + 1, warnColor = BB.WARN_COLOR })
-  else
-    slot.icon:SetSweepTimer(start, total)
-  end
-  if not t then
-    t = {}
+  local now = T.Now()
+  local start = now - (total - remaining)
+  if total <= BB.TIMER_MAX and not (t and t.still and t.refused) then
+    if t and not t.still and t.total == total and t.warn == warn and math.abs(start - t.start) <= BB.TIMER_SLACK then
+      return
+    end
+    local ok = nil
+    if warn then
+      ok = pcall(slot.icon.SetSweepTimer, slot.icon, start, total, { warnBelow = total + 1, warnColor = BB.WARN_COLOR })
+    else
+      ok = pcall(slot.icon.SetSweepTimer, slot.icon, start, total)
+    end
+    if ok then
+      if not t or t.still then
+        t = {}
+        slot.timer = t
+      end
+      t.start, t.total, t.warn = start, total, warn
+      return
+    end
+    t = { still = true, refused = true, f = -1, start = start, total = total, warn = false }
     slot.timer = t
   end
-  t.start, t.total, t.warn = start, total, warn
+  local f = 1 - remaining / total
+  if t and t.still and t.total == total and math.abs(f - t.f) < BB.STILL_STEP then return end
+  if t and not t.still then clearSweep(slot) end
+  pcall(slot.icon.SetSweep, slot.icon, f)
+  t = slot.timer
+  if not (t and t.still) then
+    t = { still = true }
+    slot.timer = t
+  end
+  t.f, t.start, t.total, t.warn = f, start, total, false
 end
 
--- What a slot's wedge shows now, for /toolbox buffs trace: "sweep 30% of 40 s", ", red", or "no sweep".
+-- What a slot's wedge shows now, for /toolbox buffs trace: "sweep 30% of 40 s", ", red", ", still", or "no sweep".
 function BB.TimerText(slot)
   local t = slot.timer
   if not t then return "no sweep" end
   local done = math.max(0, math.min(1, (T.Now() - t.start) / t.total))
   return string.format("sweep %d%% of %s s%s", math.floor(done * 100 + 0.5), string.format("%.1f", t.total),
-    t.warn and ", red" or "")
+    t.still and ", still" or (t.warn and ", red" or ""))
 end
 
 -- The equipment bar's wear: a still clock picture over the icon (a holder Row, by negative margin,

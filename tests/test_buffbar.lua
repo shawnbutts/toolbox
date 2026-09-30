@@ -111,6 +111,45 @@ return function(t)
     sameSweep(t, sw, 1080 / 1200, "2 of 20 minutes used")
   end)
 
+  t.test("a run longer than a day (Obsidian potions): a still wedge, moved on in small steps", function()
+    H.boot()
+    H.S.durationMode = "remaining"
+    H.chat("/tbx consumables bar off")               -- on the buff bar
+    H.chat("/tbx buffs")
+    H.chat("/tbx buffs group after off")
+    H.addBuffs({ { name = "BlessingOfStamina", remaining = 302400, total = 604800, icon = 2 } })   -- half of 7 days
+    H.advance(1, 0.5)
+    local icon = H.slots("buffs")[1].children[1]
+    local done = icon:SweepNow()
+    t.ok(done and math.abs(done - 0.5) < 0.001, "half the week used: " .. tostring(done))
+    t.eq(icon.timerCalls or 0, 0, "no timer: the client allows a day at most")
+    local sets, set = 0, icon.SetSweep
+    icon.SetSweep = function(self, ...) sets = sets + 1; return set(self, ...) end
+    H.advance(600, 0.5)                               -- 10 minutes: under one step (about 28 minutes)
+    t.eq(sets, 0, "not moved for less than a step")
+    H.advance(1800, 0.5)
+    t.eq(sets, 1, "moved on once a step")
+    icon.SetSweep = nil
+    H.clearLogs()
+    H.chat("/tbx buffs trace stamina")
+    H.advance(1)
+    t.ok(H.logged(", still$"), H.logs()[2])
+  end)
+
+  t.test("a sweep the client refuses falls back to a still wedge instead of raising", function()
+    bootSettled()
+    H.S.durationMode = "remaining"
+    H.chat("/tbx buffs")
+    local icon = H.frame():Find("buffs").children[2].children[1]   -- the first slot ([1]: the empty-strip label)
+    icon.SetSweepTimer = function() error("Shroud.UI: SetSweepTimer something new", 2) end
+    H.addBuffs({ { name = "Ward", remaining = 60, icon = 9 } })
+    H.advance(10, 0.5)
+    icon.SetSweepTimer = nil
+    t.eq(#H.logs() > 0 and H.logged("Lua Error") or false, false, "no error")
+    local done = icon:SweepNow()
+    t.ok(done and done > 0.1, "a still wedge instead: " .. tostring(done))
+  end)
+
   t.test("new debuff names", function()
     H.boot()
     t.eq(table.concat(B().NewNames({ A = true }, { A = true, B = true, C = true }), ","), "B,C")

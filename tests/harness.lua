@@ -639,7 +639,8 @@ function Element:SetUV(x, y, w, h) self.uv = { x, y, w, h } end
 -- The cooldown wedge (API 25, Image and IconButton): SetSweep(fraction | nil) sets it and stops a timer;
 -- SetSweepTimer(start, duration[, { warnBelow, warnColor }]) lets the game run it on ShroudTime's clock
 -- (it clears itself at the end); SetSweepTimer(nil) stops it. Checked like the game: a lone duration
--- is refused ("SetSweepTimer takes a number", seen 2026-09-30). `timerCalls` counts the timers set.
+-- is refused ("SetSweepTimer takes a number", seen 2026-09-30), and so is one over a day.
+-- `timerCalls` counts the timers set.
 local function isPicture(e) return e.kind == "Image" or e.kind == "IconButton" end
 function Element:SetSweep(f)
   if not isPicture(self) then error("Shroud.UI: SetSweep is for an Image or IconButton", 2) end
@@ -650,7 +651,13 @@ end
 function Element:SetSweepTimer(start, duration, options)
   if not isPicture(self) then error("Shroud.UI: SetSweepTimer is for an Image or IconButton", 2) end
   if start == nil then self.sweepTimer = nil return end
-  if type(start) ~= "number" or type(duration) ~= "number" then error("Shroud.UI: SetSweepTimer takes a number", 2) end
+  if type(start) ~= "number" or type(duration) ~= "number" then
+    error("Shroud.UI: SetSweepTimer takes a number", 2)
+  end
+  -- As in game (2026-09-30): a day at most.
+  if duration <= 0 or duration > 86400 then
+    error("Shroud.UI: SetSweepTimer duration is seconds, above 0 and at most 86400", 2)
+  end
   if options ~= nil then
     if type(options) ~= "table" then error("Shroud.UI: SetSweepTimer options must be a table", 2) end
     for k in pairs(options) do

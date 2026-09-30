@@ -139,7 +139,9 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
     left, total, warn)` calls the icon's `SetSweepTimer(start, total[, { warnBelow, warnColor }])` once per
     run, again only when the start moves more than `BB.TIMER_SLACK`, the total changes or it turns red
     (`BB.WARN_COLOR`); the game draws it and clears it at the end. `slot.timer` is what was set;
-    `BB.TimerText` describes it for the trace. The equipment bar's wear is still a clock picture:
+    `BB.TimerText` describes it for the trace. The client refuses a timer over `BB.TIMER_MAX` (86400 s): longer
+    runs (Obsidian potions, 7 days) get a still `SetSweep` wedge moved by `BB.STILL_STEP`; every sweep call is
+    pcall'd, and a refused timer falls back to the still wedge (an error each tick gets the add-on disabled). The equipment bar's wear is still a clock picture:
     `BB.SweepHolder` (a holder Row + one Image) stepped with `SetUV` by `BB.ShowFrame` / `HideFrame`;
     `clock.png` must match `BB.CLOCK` (`art/clock.py`).
   - Consumables: food, potions, poisons and combat consumables by category (API 23; `BB.TakesConsumable`,
@@ -404,6 +406,8 @@ Rules learned the hard way; keep to them.
   `Toolbox.Window.GRIP` px of room for it), kept on screen by their FULL size (size strips to what shows),
   anchored at the top left (anything appearing above or left of content pushes it: keep that space).
   Destroying and rebuilding frames (gluing) works.
+- **Sweeps (API 25):** `SetSweepTimer(start, duration)` refuses a duration over 86400 s ("duration is seconds,
+  above 0 and at most 86400"; not in the docs; found 2026-09-30 when 7-day potions got Toolbox disabled).
 - **Buffs:** `ShroudGetBuffTimeRemaining` counts down smoothly; permanent effects report 0 left; the moon
   timer reports `TotalDuration = 0`. Buffs loading in after login look new: nothing counts as freshly cast
   within `BB.SETTLE` s of start, a scene change or a player change, or when 2+ names appear at once.
