@@ -11,6 +11,11 @@ store submission needs a higher version than any submitted before (rejected ones
   still sweep, moved on every half hour or so, and a sweep the game refuses no longer raises an error.
 - Sweeps hung over the edges of buff, consumable and target icons: the game draws its wedge as a circle wide
   enough to reach the corners. It now fits inside the icon.
+- Reset all settings said "Reset waiting" even when the game refused to store the request; it now says so,
+  and a reset the game couldn't write to disk warns that the old settings may come back.
+
+### Changed
+- The Notifications page says where each notification's sound is picked (the Sounds page).
 
 ## [0.7.0] - 2026-09-30 (beta 9)
 
