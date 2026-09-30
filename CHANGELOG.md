@@ -8,6 +8,8 @@ store submission needs a higher version than any submitted before (rejected ones
 ### Changed
 - Health and focus bars read the game's own health, focus and maximums (`ShroudGetPlayerVitals`, API 25)
   instead of working them out from character stats. `/toolbox vitals debug` shows what it gave.
+- Target HUD: the target's name is the one the game's target frame shows (API 25 fixed the "Entity with no
+  name (...)" text some creatures had), so Toolbox no longer tidies it; a target with no name reads "Unnamed".
 - Toolbox now needs Lua API 25 (the game update of 2026-09-30); older clients skip it with a chat line.
 
 ### Removed
