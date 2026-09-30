@@ -722,8 +722,10 @@ BB.WEDGE_SHARE = 0.7071
 function BB.WedgeStyle(s)
   local o = math.floor(s * BB.WEDGE_SHARE + 0.5)
   local edge = math.floor((s - o) / 2)
-  return o, { tint = "#ffffff00", marginLeft = -(s - edge), marginRight = s - edge - o, marginTop = edge,
-              marginBottom = 0 }
+  -- alignSelf "start": the slot Rows centre their children, so a centred wedge plus its top margin sat `edge`
+  -- too low (found in game 2026-09-30: over the bottom edge, short of the top one)
+  return o, { tint = "#ffffff00", alignSelf = "start", marginLeft = -(s - edge), marginRight = s - edge - o,
+              marginTop = edge, marginBottom = 0 }
 end
 function BB.WedgeCarrier(s)
   local o, style = BB.WedgeStyle(s)
