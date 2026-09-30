@@ -440,7 +440,8 @@ Rules learned the hard way; keep to them.
   fires with no arguments. The names list and the slots are fixed in API 26 (see "Waiting on the developers";
   not yet checked in game: `tmp/partyrepro.lua` does it).
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
-  target, skill levels and deaths, friends online, the notification chime, Combat Detailed.
+  target, skill levels and deaths, friends online, the notification chime, Combat Detailed, the game's wedge
+  fitted and centred inside the icons (2026-09-30).
 
 ## Unconfirmed
 
