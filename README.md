@@ -66,6 +66,7 @@ Built clean-room from the official docs only:
 | `/toolbox version` | the installed version and build (git commit), and whether more than one copy is loaded |
 | `/toolbox stats [word]` | list character stats whose name contains the word (for finding stat names) |
 | `/toolbox config` | open or close the settings window |
+| `/toolbox settings` (`backup` / `restore` / `reset` / `cancel`) | back up every setting and position (account scope: any character, or copy the `.account.json` to another computer), restore it, or reset to the defaults; restore and reset apply at the next `/lua reload` (no argument: status) |
 | `/toolbox spacing <0-12>` | set the extra space between lines in pixels (no number: show and measure it; default 2) |
 | `/toolbox font <9-32>` | set the window text size (no number: show the current size; default 12) |
 

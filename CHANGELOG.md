@@ -5,6 +5,25 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Added
+- Backup & reset (settings window, or `/toolbox settings backup|restore|reset|cancel`): back up every setting
+  and window and strip position, restore it on any of your characters or on another computer (copy
+  Toolbox's .account.json file from the game's Lua/SavedVariables folder), or reset everything to the
+  defaults. Restore and reset take a second click and apply at the next `/lua reload`; stats, the XP session
+  and learned buff lengths are kept.
+- A sound per notification source (Sounds page: Notification sounds): Chime, Ping, Tap (two new sounds),
+  Bell or Low notes. Several arriving together play each sound once. `/toolbox notify <name> sound <sound>`.
+- Target HUD options (settings, Toolbelt): Target effects (All, Debuffs only, None: just the bars) and Most
+  target icons (1-8; 8 by default, 5 mirrored). `/toolbox target effects all|debuffs|none`,
+  `/toolbox target icons <n>`.
+- The Notifications window can be compact too (Notifications settings, or `/toolbox notify compact on`).
+- XP and Today can be compact windows (settings: Compact window, or `/toolbox xp compact` and
+  `/toolbox daily compact`): the title bar shows only while the pointer is on it, laid over the text, so
+  it looks like a strip but resizes and fades like a window. It doesn't use one of the 8 HUD strips.
+- Choose the combat HUD's character stats in settings (Combat: Character stats on the HUD): search by part
+  of a name, pick from the matches (each shows your value now; a few suggestions when the search is
+  empty), Add, and Remove from a list of the shown ones. The chat commands still work.
+
 ### Changed
 - Equipment bar: durability counts against what a repair brings the item back to (the game's repair ceiling),
   not against new, so "needs repair" matches what a repair fixes. When that ceiling has worn below 95% of
@@ -22,25 +41,9 @@ store submission needs a higher version than any submitted before (rejected ones
 - `/toolbox buffs uvtest`: the game now redraws a picture when its frame changes, so the test has done its job.
 - `/toolbox buffs frame`: it tested the old clock pictures, which buffs no longer use.
 
-### Added
-- A sound per notification source (Sounds page: Notification sounds): Chime, Ping, Tap (two new sounds),
-  Bell or Low notes. Several arriving together play each sound once. `/toolbox notify <name> sound <sound>`.
-- Target HUD options (settings, Toolbelt): Target effects (All, Debuffs only, None: just the bars) and Most
-  target icons (1-8; 8 by default, 5 mirrored). `/toolbox target effects all|debuffs|none`,
-  `/toolbox target icons <n>`.
-
 ### Fixed
 - "Shroud.UI: this Label was destroyed" (hud.lua) after switching XP or Today from a HUD strip to a
   window or compact window: the strip's labels were restyled after the strip was gone.
-
-### Added
-- The Notifications window can be compact too (Notifications settings, or `/toolbox notify compact on`).
-- XP and Today can be compact windows (settings: Compact window, or `/toolbox xp compact` and
-  `/toolbox daily compact`): the title bar shows only while the pointer is on it, laid over the text, so
-  it looks like a strip but resizes and fades like a window. It doesn't use one of the 8 HUD strips.
-- Choose the combat HUD's character stats in settings (Combat: Character stats on the HUD): search by part
-  of a name, pick from the matches (each shows your value now; a few suggestions when the search is
-  empty), Add, and Remove from a list of the shown ones. The chat commands still work.
 
 ## [0.6.1] - 2026-09-29 (beta 8)
 

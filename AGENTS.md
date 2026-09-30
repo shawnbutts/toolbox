@@ -80,7 +80,10 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
 - `core.lua`: `Toolbox` (`T`), chat output (`T.Print`), saved-var helpers (`Load`/`Save` deep-copy; `Flush`
   reports a refused write in chat at most every `T.FLUSH_WARN_EVERY` s), formatting, `T.Field` / `T.List`,
   `T.ReadEvents`, JSON (`T.JsonDecode`) and URLs (`T.UrlEncode`), the command table and dispatcher, the
-  XP session lifecycle, EVERY `ShroudOn*` callback, and `ShroudOnStart`, which runs each module's init
+  XP session lifecycle, `Toolbox.Backup` (settings backup / restore / reset: `B.KEYS` are the settings keys,
+  `B.DATA_KEYS` learned data kept in backups; restore and reset are applied by `B.ApplyPending` at the start of
+  the next run, before any module reads its settings, because the windows write their positions at shutdown;
+  `T.SavePrefs()` writes every window's and strip's position now), EVERY `ShroudOn*` callback, and `ShroudOnStart`, which runs each module's init
   through `step()` so one failure can't stop the rest. `T.DOCS_API` = the API the docs describe (equal to
   build.py's `CLIENT_API_VERSION`; the build checks). `/toolbox api` probes newer functions and the result
   events (`T.ProbeEvent`, `T.ProbeLines`).
@@ -215,7 +218,9 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
   `tests/test_commands.lua`. (`Shroud.Command` allows 8 per add-on and returns `ok, reason`: report refusals.)
 - **A setting:** a setter + getter on the owning module (persisted there, calling `Toolbox.Config.Sync()`),
   a control in its category, its id in `ALL_IDS`, a line in `Sync()` (and `setEnabled` if it depends on
-  something), tests in `tests/test_config.lua` or the module's suite.
+  something), tests in `tests/test_config.lua` or the module's suite. A NEW saved-var key goes in
+  `Toolbox.Backup.KEYS` (a setting), `B.DATA_KEYS` (learned data worth moving) or the test's `NOT_BACKED_UP`
+  list in `tests/test_backup.lua` (which fails for a key in none).
 - **A feature:** pure logic over plain data, API calls at the edges, hooked into `ShroudOnStart` /
   `Toolbox.Tick` / core's callbacks; a `Toolbox.Foo` table; tests; a CHANGELOG `[Unreleased]` entry; the
   guide (`D.SECTIONS`) and both READMEs if players see it.
@@ -282,6 +287,8 @@ character" sentinel.
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most 20 |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last, day, at } } }`, at most `P.MAX_KEEP` |
 | `welcomed` (ACCOUNT scope) | set after the first-run welcome |
+| `settings_backup` (ACCOUNT scope) | `{ v = 1, at = "YYYY-MM-DD HH:MM", from = character, version, keys = { [B.KEYS / B.DATA_KEYS key] = its saved table } }`; notify without `seen` |
+| `settings_pending` | `{ kind = "restore", keys, what }` or `{ kind = "reset" }`: done and deleted at the next start |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
 you read back and fall back to defaults.
@@ -442,3 +449,5 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
   `TotalDuration` on target effects (else no sweep); `/toolbox target debug` prints them.
 - API 24 crafting in game (`/toolbox api` shows `made` and the recipe's yield once the client updates).
 - CI's first run (the Windows job most of all).
+- The account file's exact name (`Lua/SavedVariables/<addon>.account.json` per the docs; which name `<addon>`
+  is for a store install): player text says "Toolbox's .account.json file".

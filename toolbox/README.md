@@ -19,6 +19,7 @@ crafted and gathered today with its market value, DPS and combat stats, and noti
 - **Combat stats:** DPS, damage taken, healing, crits, each skill's share, per-target damage and a fight timeline.
 - **Notifications:** guild message, mail, rewards, gear needing repair and friends coming online, in a window, on the HUD or in chat, with an optional sound.
 - **All set up in one settings window,** with a guide to every feature in the game. No files to edit.
+- **Back up your setup** and restore it on any character or another computer, or reset everything to the defaults.
 
 **Getting started:** type `/toolbox` (or `/tbx`, or press **Ctrl+;**) to open the settings window and
 tick what you want on screen. Its **Docs** button opens a guide to every feature, option and command.
@@ -118,5 +119,9 @@ can be turned off.
 - `/toolbox daily` / `dailydetailed`: the Today windows
 - `/toolbox combat`: the combat stats HUD
 - `/toolbox notify`: notification settings
+- `/toolbox settings`: back up, restore or reset every setting (`backup`, `restore`, `reset`, `cancel`)
 
-Settings are saved per character.
+Settings are saved per character. **Backup & reset** in the settings window keeps a backup of every setting
+and position for your account: restore it on any character, or copy Toolbox's .account.json file (in the
+game's Lua/SavedVariables folder) to another computer and restore it there. Restore and reset apply at the
+next `/lua reload`.

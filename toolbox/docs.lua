@@ -232,6 +232,11 @@ D.SECTIONS = {
       .. "toolbox_tap.ogg (or .wav) in your Lua folder, "
       .. "beside the toolbox folder, or pick any file in settings. /toolbox sounds shows what "
       .. "each alert uses; /toolbox sounds 50 sets the volume." },
+  { "Backup & reset",
+    "Settings, Backup & reset: a backup holds every setting and position, for any of your characters. "
+      .. "To move it to another computer, copy Toolbox's .account.json file from Lua/SavedVariables.",
+    "Restore and Reset take a second click and apply at the next /lua reload. Reset keeps your stats "
+      .. "and the backup. Or /toolbox settings backup, restore, reset, cancel." },
 }
 
 local function heading(text)
