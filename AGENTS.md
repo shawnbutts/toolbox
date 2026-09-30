@@ -358,18 +358,19 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   Crucible skins); `ShroudGetPartyMemberBuffs(slotOrName)` and `ShroudOnPartyChanged()` (not used yet).
 
 **Waiting on the developers:** a read-only game settings API (first use: the game's "stack buffs lasting
-longer than" option feeding `BB.GroupAfter()`). Reported 2026-09-30 (`tmp/client-issues.md` 14, 15;
-`tmp/party-issue.md`): `ShroudGetPartyMemberNamesInScene()` is an `EnumerableWrapper`, not a list (only a bare
-generic `for` walks it; names upper-case, you included; the by-name getters ignore case), and the slot getters
-reach only slot 0 (you): other members answer on no slot, only by name. Everything reported before is fixed in
-API 25.
+longer than" option feeding `BB.GroupAfter()`). Everything reported is fixed: the API 25 client issues, and
+(work log 2026-09-30, `ac63e8c01b`, **API 26**, in the next client build, not yet in the owner's) the party
+ones (`tmp/client-issues.md` 14, 15): the slot getters reach the whole party (slot 0 = you, then party-frame
+order, so `for slot = 0, count - 1` finds everyone, buffs included), `ShroudGetPartyMemberNamesInScene()`
+returns a plain list of real names, and `for v in list do` over a table walks its values.
 
 **Ideas, not agreed:** a **Party Toolbelt** (owner, 2026-09-29): a dedicated party strip, separate from the
 player's own Toolbelt, so a healer keeps their Toolbelt for themselves and watches the party on its own
 strip: a row per member (name, health and focus bars sized like the player's, members in another scene
 dimmed, the lowest health flagged). Party API (base API; see the reference's "Party" section):
-members by name (`ShroudGetPartyMemberNamesInScene`, walked with a bare `for`; the slot getters don't reach
-other members on the 2026-09-30 client), health and focus by name (`...InScene(name)`), buffs by name
+members by slot (API 26: slot 0 = you, then party-frame order; on API 25 only slot 0 answered) or by name
+(`ShroudGetPartyMemberNamesInScene`: a plain list from API 26; on API 25 a wrapper only a bare `for` walks),
+health and focus by name (`...InScene(name)`), buffs by name
 (`ShroudGetPartyMemberBuffs`, API 25); only members in your scene have vitals and buffs (else -1 / nil);
 `ShroudOnPartyChanged` (API 25) for joins, leaves and scene changes, no vitals event (poll); player targets
 expose only vitals; combat events carry a `party` flag. It needs a HUD frame of its own: with all
@@ -427,7 +428,8 @@ Rules learned the hard way; keep to them.
   too, so a set can exceed `G.SLOTS`.
 - **Target:** before API 25 some creatures' name was "Entity with no name (<internal name>)"; fixed.
 - **Party (API 25):** `ShroudGetPartyMemberBuffs(name)` works (same shape as your buffs); `ShroudOnPartyChanged`
-  fires with no arguments. See "Waiting on the developers" for the names list and the slots.
+  fires with no arguments. The names list and the slots are fixed in API 26 (see "Waiting on the developers";
+  not yet checked in game: `tmp/partyrepro.lua` does it).
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
   target, skill levels and deaths, friends online, the notification chime, Combat Detailed.
 
