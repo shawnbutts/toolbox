@@ -863,10 +863,11 @@ function TG.BuildRow()
   local mirrored = tLeft
   for i = 1, TG.SlotCount(mirrored) do
     local icon = UI.Image{ width = s, height = s, onClick = function() end }   -- a click handler: tooltips show
-    local row = UI.Row{ visible = false, children = { icon },
+    local wedge = T.BuffBar.WedgeCarrier(s)
+    local row = UI.Row{ visible = false, children = { icon, wedge },
       style = { width = s, height = s, marginRight = T.BuffBar.GAP, backgroundColor = "#00000066",
                 borderWidth = 0, borderColor = "@red" } }
-    tSlots[i] = { row = row, icon = icon }
+    tSlots[i] = { row = row, icon = icon, wedge = wedge }
     if mirrored then table.insert(children, 1, row) else children[#children + 1] = row end   -- mirrored: outward
   end
   if tHint then table.insert(children, 1, tHint) end
@@ -907,6 +908,7 @@ function TG.ApplySize()
   for _, slot in ipairs(tSlots) do
     slot.row:SetStyle{ width = s, height = s }
     slot.icon:SetSize(s, s)
+    T.BuffBar.SizeWedge(slot, s)
   end
   tShownCount = nil
   TG.Poll(false)

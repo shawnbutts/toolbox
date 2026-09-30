@@ -7,6 +7,7 @@ Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "section", "Fixed" },
   { "item", "Toolbox was switched off by the game a few seconds after start when an Obsidian potion (7 days) or any effect longer than a day was up: the game's sweep timer takes a day at most. Such effects now get a still sweep, moved on every half hour or so, and a sweep the game refuses no longer raises an error." },
+  { "item", "Sweeps hung over the edges of buff, consumable and target icons: the game draws its wedge as a circle wide enough to reach the corners. It now fits inside the icon." },
   { "version", "0.7.0 - 2026-09-30 (beta 9)" },
   { "section", "Added" },
   { "item", "Backup & reset (settings window, or /toolbox settings): where your settings files are, with Save now to write them before you copy them, and how to copy them back (quit the game first) to restore a setup or move to another computer. Reset all settings (a second click, then /lua reload) puts every setting and position back to its default; stats, the XP session and learned buff lengths are kept." },

@@ -99,7 +99,7 @@ return function(t)
     H.addBuffs({ { name = "Ward", remaining = 12, icon = 9 } })
     H.advance(8, 0.5)
     t.eq(H.playedNames(), "toolbox_buff_expiring")
-    t.ok(H.slots("buffs")[1].children[1]:SweepNow() ~= nil, "the sweep shows")
+    t.ok(H.slots("buffs")[1].children[2]:SweepNow() ~= nil, "the sweep shows")
     local w = H.hud().width
     H.chat("/tbx vitals size 200")
     t.ok(H.hud().width > w, "a bigger vitals part widens the shared strip")

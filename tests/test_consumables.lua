@@ -71,7 +71,7 @@ return function(t)
     H.chat("/tbx buffs group after off")               -- 4 h left would be grouped
     H.addBuffs({ { name = "RuneFood_Stew_Dragon", remaining = 14544, total = 29088, icon = 590 } })  -- half gone
     H.advance(1)
-    local done = consSlots()[1].children[1]:SweepNow()
+    local done = consSlots()[1].children[2]:SweepNow()
     t.ok(done and math.abs(done - 0.5) < 0.01, "half the stew's 8 h: " .. tostring(done))
   end)
 
@@ -84,7 +84,7 @@ return function(t)
     H.advance(16, 0.5)                                -- past the 5 s alert
     t.eq(H.playedNames(), "toolbox_buff_expiring")
     local slot = consSlots()[1]
-    local _, red = slot.children[1]:SweepNow()
+    local _, red = slot.children[2]:SweepNow()
     local flashed = false
     for _ = 1, 4 do
       H.advance(0.5, 0.5)

@@ -5,7 +5,7 @@ return function(t)
   -- A slot's sweep as the game draws it now: the wedge on its icon (API 25, run by the game), how much of
   -- the icon it covers (`done`), whether it is red, and how many timers were set on the icon (`calls`).
   local function sweep(slot)
-    local icon = slot.children[1]
+    local icon = slot.children[2]                   -- the wedge's carrier, over the icon
     local f, red = icon:SweepNow()
     return { visible = f ~= nil, done = f, red = red, calls = icon.timerCalls or 0 }
   end
@@ -119,7 +119,7 @@ return function(t)
     H.chat("/tbx buffs group after off")
     H.addBuffs({ { name = "BlessingOfStamina", remaining = 302400, total = 604800, icon = 2 } })   -- half of 7 days
     H.advance(1, 0.5)
-    local icon = H.slots("buffs")[1].children[1]
+    local icon = H.slots("buffs")[1].children[2]
     local done = icon:SweepNow()
     t.ok(done and math.abs(done - 0.5) < 0.001, "half the week used: " .. tostring(done))
     t.eq(icon.timerCalls or 0, 0, "no timer: the client allows a day at most")
@@ -140,7 +140,7 @@ return function(t)
     bootSettled()
     H.S.durationMode = "remaining"
     H.chat("/tbx buffs")
-    local icon = H.frame():Find("buffs").children[2].children[1]   -- the first slot ([1]: the empty-strip label)
+    local icon = H.frame():Find("buffs").children[2].children[2] -- the first slot's wedge ([1]: a label)
     icon.SetSweepTimer = function() error("Shroud.UI: SetSweepTimer something new", 2) end
     H.addBuffs({ { name = "Ward", remaining = 60, icon = 9 } })
     H.advance(10, 0.5)
@@ -148,6 +148,23 @@ return function(t)
     t.eq(#H.logs() > 0 and H.logged("Lua Error") or false, false, "no error")
     local done = icon:SweepNow()
     t.ok(done and done > 0.1, "a still wedge instead: " .. tostring(done))
+  end)
+
+  t.test("the wedge rides an invisible picture 1/sqrt 2 of the icon, centred: its circle fits the icon", function()
+    H.boot()
+    H.chat("/tbx buffs")
+    local slot = H.frame():Find("buffs").children[2]            -- [1] is the empty-strip label
+    local wedge = slot.children[2]
+    t.eq(wedge.width, 23, "32 px icon")
+    t.eq(wedge.style.tint, "#ffffff00", "never seen")
+    t.eq(wedge.style.marginLeft, -28, "back over the icon, 4 px in")
+    t.eq(wedge.style.marginTop, 4)
+    t.eq(wedge.style.marginRight, 5, "and the next overlay starts at the icon's right edge again")
+    Toolbox.BuffBar.SetSize(24)
+    t.eq(wedge.width, 17)
+    t.eq(wedge.style.marginLeft, -21)
+    t.eq(wedge.style.marginRight, 4)
+    t.eq(slot.children[3].style.marginLeft, -24, "the countdown still sits on the icon")
   end)
 
   t.test("new debuff names", function()
@@ -1181,7 +1198,7 @@ return function(t)
     local function icons(row)
       local out = {}
       for i, s in ipairs(H.slots(row)) do
-        local count = s.children[2].text                -- a group slot's count ("" on a slot's countdown)
+        local count = s.children[2].text                -- a group slot's count (a slot's wedge has none)
         out[i] = (count and count ~= "") and ("group" .. count) or tostring(s.children[1].texture)
       end
       return table.concat(out, ",")
@@ -1614,7 +1631,7 @@ return function(t)
     H.addBuffs({ { name = "Ward", remaining = 25, icon = 9 },
                  { name = "Bleed", remaining = 8, icon = 6, debuff = true } })
     H.advance(1, 0.5)
-    local function cd(row, i) local slot = H.slots(row)[i]; return slot and slot.children[2] end
+    local function cd(row, i) local slot = H.slots(row)[i]; return slot and slot.children[3] end
     t.eq(cd("buffs", 1).visible, false, "off by default")
     H.chat("/tbx buffs countdown on")
     H.chat("/tbx buffs countdown 10")
@@ -1644,14 +1661,14 @@ return function(t)
     H.addBuffs({ { name = "RuneFood_Pie", remaining = 12, total = 14544, icon = 46 } })
     H.advance(1, 0.5)
     local slot = H.S.frames.toolbox_consumables:Find("consumables").children[2]   -- after the empty-strip label
-    t.eq(slot.children[2].visible, true)
-    t.eq(slot.children[2].text, "11")
+    t.eq(slot.children[3].visible, true)
+    t.eq(slot.children[3].text, "11")
     H.advance(15, 0.5)
     t.eq(slot.visible, false, "the pie ran out")
     H.addBuffs({ { name = "RuneFood_Stew", remaining = 600, total = 14544, icon = 47 } })
     H.chat("/tbx buffs group after off")
     H.advance(1, 0.5)
-    t.eq(slot.children[2].visible, false, "the next one in the slot starts without a number")
+    t.eq(slot.children[3].visible, false, "the next one in the slot starts without a number")
   end)
 
   t.test("settings: the seconds-left option", function()

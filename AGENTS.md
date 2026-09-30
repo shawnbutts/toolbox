@@ -135,7 +135,10 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
     sorted by time left, and runs the expiry / debuff alerts. Grouping: longer than `BB.GroupAfter()` left,
     a chosen category (`groupCats`), or a name part (`group`) goes into one count slot. `combatOnly`,
     `replaceStock` (API 16), `clickDismiss` (re-finds the index by name at click time), the countdown label.
-  - Sweeps: buff, consumable and target icons carry the game's cooldown wedge (API 25): `BB.SetTimer(slot,
+  - Sweeps: buff, consumable and target icons carry the game's cooldown wedge (API 25) on `slot.wedge`, an
+    invisible picture (`BB.WedgeCarrier`, tint alpha 0) `BB.WEDGE_SHARE` (1/sqrt 2) of the icon, centred by
+    negative margins: the game draws the wedge as a circle reaching its picture's corners, which on the icon
+    hung over the square's edges, and nothing clips it (owner, 2026-09-30). `BB.SetTimer(slot,
     left, total, warn)` calls the icon's `SetSweepTimer(start, total[, { warnBelow, warnColor }])` once per
     run, again only when the start moves more than `BB.TIMER_SLACK`, the total changes or it turns red
     (`BB.WARN_COLOR`); the game draws it and clears it at the end. `slot.timer` is what was set;

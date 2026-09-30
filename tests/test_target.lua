@@ -132,7 +132,7 @@ return function(t)
     H.boot()
     H.chat("/tbx target on")
     H.setTarget(copy(WOLF))
-    local icon = H.targetSlots()[1].children[1]
+    local icon = H.targetSlots()[1].children[2]
     local done, red = icon:SweepNow()
     t.ok(done and math.abs(done - 0.5) < 0.01, "4 of 8 s used: " .. tostring(done))
     t.no(red)

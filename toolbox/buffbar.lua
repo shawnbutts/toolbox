@@ -713,6 +713,30 @@ local function makePlaceholder(id, text)
   return UI.Label{ id = id, text = text, class = "dim", visible = false, style = placeholderStyle(size()) }
 end
 
+-- The game draws its wedge (API 25) as a circle wide enough to reach its picture's corners, so on the icon
+-- itself it hangs over the square's edges, and nothing can clip it (owner, 2026-09-30: "cut off the edges that
+-- hang over"). So the wedge goes on an invisible picture BB.WEDGE_SHARE (1/sqrt 2) of the icon's size, centred
+-- over it by negative margins: its circle is then as wide as the icon. BB.WedgeStyle(s) sizes and places it
+-- (after the icon in its Row; the cursor ends back at the icon's right edge).
+BB.WEDGE_SHARE = 0.7071
+function BB.WedgeStyle(s)
+  local o = math.floor(s * BB.WEDGE_SHARE + 0.5)
+  local edge = math.floor((s - o) / 2)
+  return o, { tint = "#ffffff00", marginLeft = -(s - edge), marginRight = s - edge - o, marginTop = edge,
+              marginBottom = 0 }
+end
+function BB.WedgeCarrier(s)
+  local o, style = BB.WedgeStyle(s)
+  local spec = { width = o, height = o, style = style }
+  if BB.ClockReady() then spec.texture = clockTex end         -- any picture: it is never seen
+  return UI.Image(spec)
+end
+function BB.SizeWedge(slot, s)
+  local o, style = BB.WedgeStyle(s)
+  slot.wedge:SetSize(o, o)
+  slot.wedge:SetStyle(style)
+end
+
 local function makeSlot(debuff)
   local s = size()
   -- The clock texture is a placeholder until a buff's icon is set. It's left out, not set to
@@ -722,12 +746,13 @@ local function makeSlot(debuff)
     onClick = function() clickSlot(slotRef) end }
   if clockTex >= 0 then iconSpec.texture = clockTex end
   local icon = UI.Image(iconSpec)
+  local wedge = BB.WedgeCarrier(s)
   -- seconds left near the end (BB.GetCountdown), over the icon like the group slot's count
   local countdown = UI.Label{ text = "", class = "bright", visible = false, style = countStyle(s, countFont(s), 0, 0) }
-  local slot = UI.Row{ visible = false, children = { icon, countdown },
+  local slot = UI.Row{ visible = false, children = { icon, wedge, countdown },
     style = { width = s, height = s, marginRight = BB.GAP, backgroundColor = "#00000066",
               borderWidth = debuff and 2 or 0, borderColor = "@red" } }
-  slotRef.row, slotRef.icon, slotRef.countdown, slotRef.used = slot, icon, countdown, false
+  slotRef.row, slotRef.icon, slotRef.wedge, slotRef.countdown, slotRef.used = slot, icon, wedge, countdown, false
   return slotRef
 end
 
@@ -821,8 +846,8 @@ local function resetSlot(slot)
   slot.blink, slot.tip = false, nil
 end
 
--- The game's cooldown wedge on `slot.icon` (API 25) for a run of `total` seconds with `remaining` left,
--- red when `warn`; none when either is missing or nothing is left. slot.timer is what was set.
+-- The game's cooldown wedge on `slot.wedge` (API 25; see BB.WedgeCarrier) for a run of `total` seconds with
+-- `remaining` left, red when `warn`; none when either is missing or nothing is left. slot.timer is what was set.
 -- A run up to BB.TIMER_MAX: SetSweepTimer, which the game draws every frame and clears at the end, so it is
 -- set again only when the run moves (a recast, a refresh, a new total) or turns red.
 -- A longer run (Obsidian potions: 7 days): the client refuses such a timer ("duration is seconds, above 0 and
@@ -835,7 +860,8 @@ BB.STILL_STEP = 1 / 360       -- a still wedge moves on by at least this (half a
 local function clearSweep(slot)
   local t = slot.timer
   if not t then return end
-  if t.still then pcall(slot.icon.SetSweep, slot.icon, nil) else pcall(slot.icon.SetSweepTimer, slot.icon, nil) end
+  local w = slot.wedge
+  if t.still then pcall(w.SetSweep, w, nil) else pcall(w.SetSweepTimer, w, nil) end
   slot.timer = nil
 end
 
@@ -855,9 +881,10 @@ function BB.SetTimer(slot, remaining, total, warn)
     end
     local ok = nil
     if warn then
-      ok = pcall(slot.icon.SetSweepTimer, slot.icon, start, total, { warnBelow = total + 1, warnColor = BB.WARN_COLOR })
+      ok = pcall(slot.wedge.SetSweepTimer, slot.wedge, start, total,
+        { warnBelow = total + 1, warnColor = BB.WARN_COLOR })
     else
-      ok = pcall(slot.icon.SetSweepTimer, slot.icon, start, total)
+      ok = pcall(slot.wedge.SetSweepTimer, slot.wedge, start, total)
     end
     if ok then
       if not t or t.still then
@@ -873,7 +900,7 @@ function BB.SetTimer(slot, remaining, total, warn)
   local f = 1 - remaining / total
   if t and t.still and t.total == total and math.abs(f - t.f) < BB.STILL_STEP then return end
   if t and not t.still then clearSweep(slot) end
-  pcall(slot.icon.SetSweep, slot.icon, f)
+  pcall(slot.wedge.SetSweep, slot.wedge, f)
   t = slot.timer
   if not (t and t.still) then
     t = { still = true }
@@ -1471,6 +1498,7 @@ function BB.SetSize(n)
       for _, slot in ipairs(pool) do
         slot.row:SetStyle{ width = n, height = n }
         slot.icon:SetSize(n, n)
+        if slot.wedge then BB.SizeWedge(slot, n) end
         if slot.countdown then slot.countdown:SetStyle(countStyle(n, countFont(n), 0, 0)) end
       end
     end
