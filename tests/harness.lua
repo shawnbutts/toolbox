@@ -208,7 +208,8 @@ local function install_api()
     if not S.char.present then return {} end
     local out = {}
     for i, it in ipairs(S.gear) do
-      local item = { name = it.name, durability = it.durability, primaryDurability = it.primaryDurability or 0,
+      local item = { name = it.name, durability = it.durability,
+                     primaryDurability = it.primaryDurability or it.maxDurability,
                      maxDurability = it.maxDurability, weight = 1, quantity = 1, value = 10, icon = it.icon or 7 }
       out[i] = item
     end

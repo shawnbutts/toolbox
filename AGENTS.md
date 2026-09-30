@@ -409,7 +409,8 @@ Rules learned the hard way; keep to them.
   brackets ("Hopper (Bait)"): don't derive product names beyond dropping "Recipe: ".
 - **Equipment:** `durability <= primaryDurability <= maxDurability` (numbers; the docs: primary = the most a
   repair restores, worn down with use, raised only at a crafting station; needs repair when durability <
-  primary). `G.Read` measures against `maxDurability`: open question with the owner. Tools and pets are worn items
+  primary). `G.Read` measures against `primaryDurability` (owner, 2026-09-30); a ceiling below
+  `G.STATION_BELOW` of new gets a "crafting station repair" tooltip note (`G.StationNote`). Tools and pets are worn items
   too, so a set can exceed `G.SLOTS`.
 - **Target:** before API 25 some creatures' name was "Entity with no name (<internal name>)"; fixed.
 - **Party (API 25):** `ShroudGetPartyMemberBuffs(name)` works (same shape as your buffs); `ShroudOnPartyChanged`

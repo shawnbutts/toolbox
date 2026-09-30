@@ -1648,8 +1648,14 @@ G.SLOTS = 12                                 -- a worn set has about 12 items wi
 G.POLL = 10                                  -- seconds between readings of the equipment
 G.THRESHOLDS = { 5, 10, 15, 20, 25, 30, 50 }
 G.THRESHOLD_DEFAULT = 20
+-- The repair ceiling (primaryDurability) below this share of new (maxDurability) gets a tooltip note:
+-- only a crafting station repair raises it again.
+G.STATION_BELOW = 0.95
 
--- The worn items with durability, as { key, name, dur, max, pct (0-1), icon, primary }.
+-- The worn items with durability, as { key, name, dur, max, primary, pct (0-1), station, icon }.
+-- `pct` is durability against the repair ceiling, `primaryDurability` (the docs, API 25: an item needs
+-- repair when durability < primary; owner, 2026-09-30), or against new when the ceiling isn't given.
+-- `station`: the ceiling has worn below G.STATION_BELOW of new.
 -- `list` is ShroudGetEquipmentItems()'s answer (tables or game objects).
 function G.Read(list)
   local out, count = {}, {}
@@ -1657,13 +1663,26 @@ function G.Read(list)
     local name, dur, max = T.Field(it, "name"), T.Field(it, "durability"), T.Field(it, "maxDurability")
     if type(name) == "string" and type(dur) == "number" and type(max) == "number" and max > 0 then
       count[name] = (count[name] or 0) + 1
-      local icon = T.Field(it, "icon")
+      local icon, primary = T.Field(it, "icon"), T.Field(it, "primaryDurability")
+      if type(primary) ~= "number" or primary <= 0 or primary > max then primary = max end
       out[#out + 1] = { key = count[name] > 1 and (name .. "#" .. count[name]) or name, name = name,
-        dur = math.max(0, dur), max = max, pct = math.max(0, math.min(1, dur / max)),
-        icon = type(icon) == "number" and icon or -1, primary = T.Field(it, "primaryDurability") }
+        dur = math.max(0, dur), max = max, primary = primary, pct = math.max(0, math.min(1, dur / primary)),
+        station = primary < max * G.STATION_BELOW, icon = type(icon) == "number" and icon or -1 }
     end
   end
   return out
+end
+
+-- A durability for display (pure): whole numbers as they are, others to one decimal (90.8).
+function G.Num(n)
+  if n == math.floor(n) then return T.FormatNumber(n) end
+  return string.format("%.1f", n)
+end
+
+-- The tooltip's note for an item whose repair ceiling has worn down (pure): "" when it hasn't.
+function G.StationNote(it)
+  if not it.station then return "" end
+  return "\nNeeds a crafting station repair: " .. G.Num(it.primary) .. " / " .. G.Num(it.max)
 end
 
 -- "broken" at 0, "low" below `threshold` percent, nil otherwise.
@@ -1842,9 +1861,9 @@ local function fillGear()
         if k > 0 then BB.ShowFrame(slot, k, warn) else BB.HideFrame(slot) end
         slot.k, slot.warn = k, warn
       end
-      T.SetTooltip(slot.icon, string.format("%s\nDurability %s / %s (%d%%)%s", it.name, T.FormatNumber(it.dur),
-        T.FormatNumber(it.max), math.floor(it.pct * 100), stage == "broken" and "\nBroken: repair it"
-        or (stage == "low" and "\nNeeds repair" or "")))
+      T.SetTooltip(slot.icon, string.format("%s\nDurability %s / %s (%d%%)%s%s", it.name, G.Num(it.dur),
+        G.Num(it.primary), math.floor(it.pct * 100), stage == "broken" and "\nBroken: repair it"
+        or (stage == "low" and "\nNeeds repair" or ""), G.StationNote(it)))
     end
     T.SetVisible(slot.row, it ~= nil)
   end
@@ -1939,9 +1958,10 @@ function G.Lines()
   local lines = { "Worn gear (repair below " .. gprefs.threshold .. "%):" }
   for _, it in ipairs(worn) do
     local stage = G.Stage(it, gprefs.threshold)
-    lines[#lines + 1] = string.format("  %s: %d%% (%s / %s)%s  [primaryDurability %s]", it.name,
-      math.floor(it.pct * 100), T.FormatNumber(it.dur), T.FormatNumber(it.max),
-      stage == "broken" and " BROKEN" or (stage == "low" and " needs repair" or ""), tostring(it.primary))
+    lines[#lines + 1] = string.format("  %s: %d%% (%s / %s, new %s)%s%s", it.name,
+      math.floor(it.pct * 100), G.Num(it.dur), G.Num(it.primary), G.Num(it.max),
+      stage == "broken" and " BROKEN" or (stage == "low" and " needs repair" or ""),
+      it.station and " crafting station repair" or "")
   end
   return lines
 end

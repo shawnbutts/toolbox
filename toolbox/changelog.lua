@@ -6,6 +6,7 @@
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "section", "Changed" },
+  { "item", "Equipment bar: durability counts against what a repair brings the item back to (the game's repair ceiling), not against new, so \"needs repair\" matches what a repair fixes. When that ceiling has worn below 95% of new, the tooltip says the item needs a crafting station repair (e.g. 90.8 / 100). Durability shows one decimal." },
   { "item", "Buff, consumable and target sweeps are now the game's own cooldown wedge, run by the game (API 25): smooth, level with the game's buff bar, and turning red when the expiry alert fires. Toolbox sets it once per cast instead of redrawing a picture several times a second (no UI work at all while buffs just run)." },
   { "item", "Health and focus bars read the game's own health, focus and maximums (ShroudGetPlayerVitals, API 25) instead of working them out from character stats. /toolbox vitals debug shows what it gave." },
   { "item", "Target HUD: the target's name is the one the game's target frame shows (API 25 fixed the \"Entity with no name (...)\" text some creatures had), so Toolbox no longer tidies it; a target with no name reads \"Unnamed\"." },

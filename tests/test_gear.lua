@@ -51,6 +51,30 @@ return function(t)
     t.eq(#Toolbox.Gear.Read(nil), 0)
   end)
 
+  t.test("Read: durability against the repair ceiling; a worn-down ceiling gets a note", function()
+    H.boot()
+    local G = Toolbox.Gear
+    local items = G.Read{
+      { name = "Collar", durability = 48, primaryDurability = 90.8, maxDurability = 100 },   -- seen in game
+      { name = "Sword", durability = 46.7, primaryDurability = 49.67, maxDurability = 50 },
+      { name = "Axe", durability = 10, maxDurability = 100 },                              -- no ceiling given
+      { name = "Odd", durability = 10, primaryDurability = 150, maxDurability = 100 },      -- above new: new
+    }
+    t.near(items[1].pct, 48 / 90.8, 1e-9, "the collar: 53%, not 48%")
+    t.eq(items[1].station, true)
+    t.eq(G.StationNote(items[1]), "\nNeeds a crafting station repair: 90.8 / 100")
+    t.eq(items[2].station, false, "49.67 of 50: an ordinary repair is enough")
+    t.eq(G.StationNote(items[2]), "")
+    t.eq(items[3].pct, 0.1, "no ceiling: against new")
+    t.eq(items[4].primary, 100)
+    settled()
+    H.setGear{ { name = "Collar", durability = 10, primaryDurability = 90.8, maxDurability = 100 } }
+    H.advance(Toolbox.Gear.POLL)
+    local tip = H.gearSlots()[1].children[1].tooltip
+    t.ok(tip:find("Durability 10 / 90.8 (11%)", 1, true), tip)
+    t.ok(tip:find("crafting station repair: 90.8 / 100", 1, true), tip)
+  end)
+
   t.test("Stage and Notice: low, then broken, repairs quietly", function()
     H.boot()
     local G = Toolbox.Gear
@@ -180,7 +204,7 @@ return function(t)
     H.clearLogs()
     H.chat("/tbx gear")
     t.ok(H.logged("Worn gear %(repair below 20%%%)"))
-    t.ok(H.logged("Iron Longsword: 15%% %(30 / 200%) needs repair"))
+    t.ok(H.logged("Iron Longsword: 15%% %(30 / 200, new 200%) needs repair"))
     t.ok(H.logged("Chain Coif: 90%%"))
     H.setGear{}
     H.chat("/tbx gear")

@@ -249,7 +249,9 @@ bar, with the same sweep, flash and alert (`/toolbox consumables`; glue it under
 more names in settings or with `/toolbox consumables add <name>`). Shrine blessings stay on the buff bar.
 
 **Equipment bar.** Worn items below the repair threshold (20% by default) show with a red sweep for
-the durability they've lost, lowest first; a "Gear needs repair" notification comes when one drops
+the durability they've lost, lowest first. Durability counts against what a repair restores
+(`primaryDurability`); when that has worn below 95% of new, the tooltip says a crafting station repair
+is needed; a "Gear needs repair" notification comes when one drops
 below it and again when it breaks (`/toolbox gear`). It can be glued under the buff bar too.
 
 ## Health & focus bars

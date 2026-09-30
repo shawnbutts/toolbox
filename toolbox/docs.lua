@@ -186,8 +186,10 @@ D.SECTIONS = {
       .. "recognised (by name)." },
   { "Gear repair",
     "The equipment bar shows worn items that need repair: each item's icon with a red sweep for the "
-      .. "durability it has lost, lowest first; hover one for its durability. It shows only items below "
-      .. "the repair threshold (20% unless you change it), and hides when nothing needs repair. While the "
+      .. "durability it has lost, lowest first; hover one for its durability. Durability counts against what "
+      .. "a repair brings the item back to, so 100% means an ordinary repair has nothing to fix; when that "
+      .. "has worn well below new, the tooltip says it needs a crafting station repair. It shows only items "
+      .. "below the repair threshold (20% unless you change it), and hides when nothing needs repair. While the "
       .. "settings window is open it shows every worn item, so you can place it. Its icons are the buff bar's "
       .. "size. It can join the Toolbelt as its last row (/toolbox toolbelt gear on); it then moves and hides "
       .. "with it.",

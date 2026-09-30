@@ -6,6 +6,9 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Changed
+- Equipment bar: durability counts against what a repair brings the item back to (the game's repair ceiling),
+  not against new, so "needs repair" matches what a repair fixes. When that ceiling has worn below 95% of
+  new, the tooltip says the item needs a crafting station repair (e.g. 90.8 / 100). Durability shows one decimal.
 - Buff, consumable and target sweeps are now the game's own cooldown wedge, run by the game (API 25): smooth,
   level with the game's buff bar, and turning red when the expiry alert fires. Toolbox sets it once per
   cast instead of redrawing a picture several times a second (no UI work at all while buffs just run).
