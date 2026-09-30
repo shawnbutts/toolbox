@@ -449,6 +449,6 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
   `TotalDuration` on target effects (else no sweep); `/toolbox target debug` prints them.
 - API 24 crafting in game (`/toolbox api` shows `made` and the recipe's yield once the client updates).
 - CI's first run (the Windows job most of all).
-- The saved-variable files' exact names (`Lua/SavedVariables/<addon>.<character>.character.json` and
-  `<addon>.account.json` per the docs; which name `<addon>` is for a store install), and that `ShroudLuaPath`
-  is the Lua folder they sit under: the Backup page shows `ShroudLuaPath` + `SavedVariables`.
+- The account file's name: `toolbox.account.json` by the docs' pattern (the character file,
+  `toolbox.shawn.character.json` under `ShroudLuaPath` + `SavedVariables`, was confirmed 2026-09-30); and
+  whether the character part is ever not the name `ShroudGetPlayerName` gives (case, spaces).

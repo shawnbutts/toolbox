@@ -1864,13 +1864,22 @@ function B.Folder()
 end
 
 -- How to back up and restore, for the settings page and /toolbox settings.
-function B.HowTo()
+-- The files are <addon>.<character>.character.json and <addon>.account.json (the docs); <addon> is "toolbox"
+-- (confirmed in game 2026-09-30: toolbox.shawn.character.json).
+B.FILE_PREFIX = "toolbox"
+
+-- This character's file name ("toolbox.<name>.character.json"; "<character>" when there is no name yet).
+function B.CharacterFile()
   local name = ShroudGetPlayerName()
-  local who = (type(name) == "string" and name ~= "") and name or "your character"
+  if type(name) ~= "string" or name == "" or name == "INVALID" or name == "None" then name = "<character>" end
+  return B.FILE_PREFIX .. "." .. name .. ".character.json"
+end
+
+function B.HowTo()
   return {
     "Toolbox's settings are in the game's saved-variable files, in " .. B.Folder() .. ":",
-    "  one file per character, with the character's name in it (" .. who .. "'s: settings, positions and"
-      .. " stats), ending .character.json, and one shared by all characters, ending .account.json.",
+    "  " .. B.CharacterFile() .. " (this character's settings, positions and stats; each character has its"
+      .. " own) and " .. B.FILE_PREFIX .. ".account.json (shared by all your characters).",
     "To back up: Save now, then copy those files somewhere safe (keep a copy per setup you want to test).",
     "To restore, or to move to another computer: quit the game first (it writes the files as it closes),"
       .. " copy your saved files back into that folder, then start the game.",

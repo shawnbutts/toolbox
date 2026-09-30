@@ -233,8 +233,8 @@ D.SECTIONS = {
       .. "beside the toolbox folder, or pick any file in settings. /toolbox sounds shows what "
       .. "each alert uses; /toolbox sounds 50 sets the volume." },
   { "Backup & reset",
-    "Your settings are in the game's saved-variable files (Lua/SavedVariables): one per character, ending "
-      .. ".character.json, and one shared, ending .account.json. To back up, press Save now (Settings, Backup "
+    "Your settings are in the game's files in Lua/SavedVariables: toolbox.<character>.character.json "
+      .. "for each character, and toolbox.account.json. To back up, press Save now (Settings, Backup "
       .. "& reset) and copy them. To restore or move computers, quit the game and copy them back.",
     "Reset all settings applies at the next /lua reload; stats are kept." },
 }
