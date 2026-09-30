@@ -729,13 +729,16 @@ function C.ResetSettings()
   end
   resetArmedAt = nil
   setText("settings_reset", RESET_TEXT)
-  T.Backup.RequestReset()
-  setText("backup_msg", "Reset waiting: type /lua reload to apply it.")
+  local ok, why = T.Backup.RequestReset()
+  setText("backup_msg", ok and "Reset waiting: type /lua reload to apply it." or ("Couldn't ask for a reset: "
+    .. why .. "."))
   C.Sync()
 end
 
 function C.CancelPending()
-  setText("backup_msg", T.Backup.Cancel() and "Dropped." or "Nothing was waiting.")
+  local had, written = T.Backup.Cancel()
+  setText("backup_msg", (had and "Dropped." or "Nothing was waiting.")
+    .. (written and "" or " The game couldn't write that to disk."))
   C.Sync()
 end
 

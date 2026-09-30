@@ -319,6 +319,7 @@ local function install_api()
   end
 
   ShroudSetSavedVar = function(key, value, scope)
+    if S.saveRefused then return false end      -- H.S.saveRefused: the game refuses to store anything
     if type(key) ~= "string" or key == "" or #key > 128 or key:find("[/\\%c]") then return false end
     local t = type(value)
     if t == "function" or t == "thread" or t == "userdata" then return false end

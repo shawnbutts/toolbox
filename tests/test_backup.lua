@@ -107,6 +107,43 @@ return function(t)
     t.ok(H.logged("Nothing was waiting"))
   end)
 
+  t.test("refusals are reported, not shown as done: save now, reset, cancel, and the reset itself", function()
+    H.boot()
+    H.S.flushFails = true
+    H.clearLogs()
+    H.chat("/tbx settings save")
+    t.ok(H.logged("The game refused to write the files"), H.lastLog())
+    H.clearLogs()
+    H.chat("/tbx settings reset")
+    t.ok(H.logged("^Couldn't ask for a reset: the game couldn't write it to disk"), H.lastLog())
+    H.clearLogs()
+    H.chat("/tbx settings cancel")
+    t.ok(H.logged("The game couldn't write that to disk"), H.lastLog())
+    H.S.flushFails = false
+    H.S.saveRefused = true
+    H.clearLogs()
+    H.chat("/tbx settings reset")
+    t.ok(H.logged("^Couldn't ask for a reset: the game refused to store the request"), H.lastLog())
+    t.eq(B().Pending(), nil)
+    H.S.saveRefused = false
+    H.chat("/tbx buffs")
+    H.chat("/tbx settings reset")
+    H.callback("ShroudOnDisableScript")
+    H.S.flushFails = true                              -- the reset happens, but can't be written
+    H.clearLogs()
+    H.reload()
+    t.ok(H.logged("back to their defaults for now, but the game couldn't write them to disk"))
+    t.no(Toolbox.BuffBar.IsEnabled(), "defaults in this session")
+    H.S.flushFails = false
+    H.chat("/tbx config")
+    H.S.flushFails = true
+    H.click("toolbox_config", "settings_reset")
+    H.click("toolbox_config", "settings_reset")
+    t.ok(H.config():Find("backup_msg").text:find("^Couldn't ask for a reset"), H.config():Find("backup_msg").text)
+    H.click("toolbox_config", "backup_save")
+    t.ok(H.config():Find("backup_msg").text:find("refused"), H.config():Find("backup_msg").text)
+  end)
+
   t.test("settings window: where the files are, Save now; Reset takes a second click; Cancel", function()
     H.boot()
     H.chat("/tbx config")

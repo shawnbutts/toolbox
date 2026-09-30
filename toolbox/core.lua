@@ -623,11 +623,17 @@ add("settings", "where your settings files are, to back them up (save: write the
     T.Print(B2.SaveNow() == false and "The game refused to write the files (see the line above)."
       or "Saved: the files are up to date. Copy them now (" .. cmd .. " shows where).")
   elseif word == "reset" then
-    B2.RequestReset()
+    local ok, why = B2.RequestReset()
+    if not ok then
+      T.Print("Couldn't ask for a reset: " .. why .. ".")
+      return
+    end
     T.Print("Every setting and position will go back to its default when Toolbox next starts: type /lua reload"
       .. " now. " .. cmd .. " cancel drops it.")
   elseif word == "cancel" then
-    T.Print(B2.Cancel() and "Dropped the waiting reset." or "Nothing was waiting.")
+    local had, written = B2.Cancel()
+    T.Print((had and "Dropped the waiting reset." or "Nothing was waiting.")
+      .. (written and "" or " (The game couldn't write that to disk.)"))
   elseif word == "" then
     for _, line in ipairs(B2.HowTo()) do T.Print(line) end
     if B2.Pending() then T.Print("A reset is waiting: type /lua reload to apply it (" .. cmd .. " cancel).") end
@@ -1893,17 +1899,22 @@ function B.Pending()
   return p
 end
 
--- Asks for a reset at the next start.
+-- Asks for a reset at the next start. Returns true, or false and why (the game refused to store the request,
+-- or to write it to disk: then it may not survive to the next start).
 function B.RequestReset()
-  ShroudSetSavedVar(B.PENDING, { kind = "reset" }, SCOPE)
-  T.Flush()
+  if not ShroudSetSavedVar(B.PENDING, { kind = "reset" }, SCOPE) then
+    return false, "the game refused to store the request"
+  end
+  if T.Flush() == false then return false, "the game couldn't write it to disk, so it may not happen" end
+  return true
 end
 
+-- Drops a waiting reset. Returns whether one was waiting, and false as a second value when the game
+-- couldn't write the change to disk.
 function B.Cancel()
   local had = B.Pending() ~= nil
   ShroudDeleteSavedVar(B.PENDING, SCOPE)
-  T.Flush()
-  return had
+  return had, T.Flush() ~= false
 end
 
 -- The notification settings' defaults with this character's `seen` values kept (what was delivered stays
@@ -1922,10 +1933,14 @@ function B.ApplyPending()
   if not B.Pending() then return end
   ShroudDeleteSavedVar(B.PENDING, SCOPE)     -- first: a failure below doesn't repeat at every start
   local notify = T.Load("notify")
-  for _, key in ipairs(B.KEYS) do ShroudDeleteSavedVar(key, SCOPE) end
-  T.Save("notify", seenOnly(notify))
-  T.Print("Toolbox's settings are back to their defaults.")
-  T.Flush()
+  for _, key in ipairs(B.KEYS) do ShroudDeleteSavedVar(key, SCOPE) end   -- false only for a key never set
+  local saved = T.Save("notify", seenOnly(notify))
+  if T.Flush() == false or not saved then
+    T.Print("Toolbox's settings are back to their defaults for now, but the game couldn't write them to disk:"
+      .. " your old settings may come back after a restart.")
+  else
+    T.Print("Toolbox's settings are back to their defaults.")
+  end
 end
 
 -- Runs one start-up step; a failure is reported and the rest still start (one broken part, such
