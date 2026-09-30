@@ -206,7 +206,8 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
   `git checkout` an .ogg you didn't mean to change. A player's own `Lua/toolbox_<name>` sounds win.
 - `tools/`: `check.py` (all checks), `build.py` (packaging rules, the source checks, the store README
   renderer's rules, the support URL's form, the root README's API line, the changelog section, the docs API
-  constants; stamps `build = "<commit>[+]"` into dist), `beta.py` (`make beta`), `install.py`.
+  constants; stamps `build = "<commit>[+]"` into dist), `beta.py` (`make beta`), `install.py`,
+  `release_notes.py` (a version's CHANGELOG section, for the release workflow).
 - `.luacheckrc`: std `lua52` plus the documented globals (`api_functions`; newer ones in `api_probed`;
   callbacks in `api_callbacks`). Only names that are in the docs.
 - `tmp/`: a local working area (git-ignored, skipped by luacheck). Never reference it from the package,
@@ -306,6 +307,11 @@ you read back and fall back to defaults.
 4. `make check`, commit ("Beta N (x.y.z)"), then `make beta` from that clean commit (the stamp must be the
    commit, not `...+`), and tag it: `git tag -a vX.Y.Z -m "Beta N (x.y.z)" <commit>`. Push only when the
    owner asks (`git push origin main vX.Y.Z`). Record the tag here.
+5. Pushing a `v*` tag runs `.github/workflows/release.yml`: every check, the tag must equal the manifest
+   version and have a CHANGELOG section (`tools/release_notes.py`), then a GitHub release with
+   `toolbox-<v>.zip` (store package) and `toolbox-<v>-beta.zip` (tester zip), notes from the changelog, a
+   pre-release when the heading says "(beta N)". Public once pushed. First one planned: v1.0.0 (owner,
+   2026-09-30; v0.7.0 and older tags predate the workflow and stay as they are).
 
 Tags: v0.2.0 (a52051c), v0.2.1 (ae2fa1f), v0.3.0 (607dcb3), v0.3.1 (7db2a15), v0.4.0 (4b4d5a5),
 v0.5.0 (820df19), v0.6.0 (03fdeef), v0.6.1 (6322846), v0.7.0 (2d07df7).

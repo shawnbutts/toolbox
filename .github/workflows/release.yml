@@ -1,0 +1,63 @@
+# Publishes a GitHub release when a version tag (v1.0.0) is pushed: runs every check, makes sure the tag
+# matches the manifest's version and has a CHANGELOG.md section, builds the store package and the tester
+# zip (tools/beta.py) from the tagged commit, and attaches both. The notes are that version's CHANGELOG
+# section; a "(beta N)" heading makes it a pre-release. Push with:  git push origin main v1.0.0
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Lua, LuaJIT and luacheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.4 luajit lua-check
+
+      - name: The tag matches the manifest and the changelog
+        id: version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          manifest=$(python -c "import json; print(json.load(open('toolbox/manifest.json'))['version'])")
+          if [ "$tag" != "$manifest" ]; then
+            echo "tag $GITHUB_REF_NAME doesn't match manifest version $manifest"
+            exit 1
+          fi
+          python tools/release_notes.py "$tag" > "$RUNNER_TEMP/notes.md"
+          echo "version=$tag" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$(python tools/release_notes.py "$tag" --prerelease)" >> "$GITHUB_OUTPUT"
+
+      - name: Check
+        run: python tools/check.py
+
+      - name: Generated files are committed
+        run: |
+          if ! git diff --exit-code -- toolbox/changelog.lua; then
+            echo "toolbox/changelog.lua is out of date in the tagged commit"
+            exit 1
+          fi
+
+      - name: Build the store package and the tester zip
+        run: python tools/beta.py
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${{ steps.version.outputs.version }}"
+          pre=""
+          if [ "${{ steps.version.outputs.prerelease }}" = "true" ]; then pre="--prerelease"; fi
+          gh release create "$GITHUB_REF_NAME" "dist/toolbox-$v.zip" "dist/toolbox-$v-beta.zip" \
+            --title "Toolbox $v" --notes-file "$RUNNER_TEMP/notes.md" $pre
