@@ -420,6 +420,25 @@ def check_readme_api(report: Report, manifest: dict) -> None:
         report.error(f"README.md says Lua API {m.group(1)}, but manifest min_api_version is {api}")
 
 
+def check_readme_load_order(report: Report, manifest: dict) -> None:
+    """The root README's Layout lists the manifest's load order ("files load in this order: ...").
+
+    It left out changelog.lua for a while (review, 2026-09-30).
+    """
+    readme = ROOT / "README.md"
+    files = manifest.get("files")
+    if not readme.is_file() or not isinstance(files, list):
+        return
+    text = readme.read_text(encoding="utf-8")
+    m = re.search(r"files load in this order:(.*?)\n\s*\w+\.lua\s{2,}", text, re.S)
+    if not m:
+        report.error("README.md: the Layout should list the load order (\"files load in this order: ...\")")
+        return
+    listed = re.findall(r"[\w]+\.lua", m.group(1))
+    if listed != files:
+        report.error("README.md's load order (" + ", ".join(listed) + ") isn't the manifest's (" + ", ".join(files) + ")")
+
+
 def check_version_constant(report: Report, manifest: dict) -> None:
     core = PACKAGE / "core.lua"
     if not core.is_file():
@@ -552,6 +571,7 @@ def main() -> int:
         check_sources(report, manifest)
         check_changelog(report, manifest)
         check_readme_api(report, manifest)
+        check_readme_load_order(report, manifest)
         check_site_name(report)
         check_store_readme(report)
         check_docs_api(report)

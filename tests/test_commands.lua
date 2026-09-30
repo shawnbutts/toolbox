@@ -208,6 +208,29 @@ return function(t)
     t.ok(H.logged("60 readable, 0 hidden"))
   end)
 
+  -- Commands that are gone: no guide may still offer them (the root README did for a while; review 2026-09-30).
+  -- The CHANGELOG records their removal, so it isn't checked.
+  local REMOVED = { "uvtest", "buffs frame" }
+  t.test("removed commands appear in no guide", function()
+    local root = H.PACKAGE .. "/.."
+    for _, file in ipairs({ "README.md", "toolbox/README.md", "BETA.md", "INSTALL.md", "AGENTS.md",
+                             "toolbox/docs.lua", "toolbox/core.lua", "toolbox/config.lua" }) do
+      local f = io.open(root .. "/" .. file)
+      t.ok(f, file)
+      if f then
+        local text = f:read("*a")
+        f:close()
+        for _, cmd in ipairs(REMOVED) do
+          t.no(text:find(cmd, 1, true), file .. " still mentions '" .. cmd .. "'")
+        end
+      end
+    end
+    H.boot()
+    H.clearLogs()
+    H.chat("/tbx buffs uvtest")
+    t.no(H.logged("UV test"), "and the command itself is gone")
+  end)
+
   t.test("/tbx version shows the version, build and how many copies loaded", function()
     H.boot()
     H.clearLogs()

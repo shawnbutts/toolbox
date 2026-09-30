@@ -67,7 +67,7 @@ Built clean-room from the official docs only:
 | `/toolbox daily` | show or hide today's stats (gold, kills, XP) |
 | `/toolbox dailydetailed` (or `dd`) (`values on\|off\|test\|refresh`) | show or hide Today Detailed (every item gained today); estimated values |
 | `/toolbox buffs move [x y]` | place the buff bar (no numbers: say where it is) |
-| `/toolbox buffs` (`group` / `combat` / `flash` / `replace` / `dismiss` / `debug` / `raw` / `trace [name]`) | show or hide the buff bar; its options; diagnostics (`debug`: each buff's timing; `trace light`: log buffs matching "light" once a second for 10 s; `frame`: hold one sweep frame; `uvtest`: sprite-frame redraw test) |
+| `/toolbox buffs` (`group` / `combat` / `flash` / `replace` / `dismiss` / `debug` / `raw` / `trace [name]`) | show or hide the buff bar; its options; diagnostics (`debug`: each buff's timing; `trace light`: log buffs matching "light" once a second for 10 s) |
 | `/toolbox consumables` (`bar` / `glue` / `add\|remove <name>` / `move`) | list food and potions in effect; the consumables bar's options |
 | `/toolbox gear` (`bar` / `glue` / `repair <%>` / `move` / `debug`) | worn items' durability; the equipment bar's options |
 | `/toolbox notify` (`<name> on\|off` / `via window\|hud\|chat` / `sound on\|off` / `show` / `hud ...`) and `/toolbox motd` | notifications; the guild message of the day |
