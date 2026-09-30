@@ -441,7 +441,9 @@ Rules learned the hard way; keep to them.
   not yet checked in game: `tmp/partyrepro.lua` does it).
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
   target, skill levels and deaths, friends online, the notification chime, Combat Detailed, the game's wedge
-  fitted and centred inside the icons (2026-09-30).
+  fitted and centred inside the icons, and the 0.7.0 + unreleased work on the dev client (2026-09-30: the
+  still wedge on 7-day potions, red at the alert, vitals from ShroudGetPlayerVitals, gear against the repair
+  ceiling, Backup & reset).
 
 ## Unconfirmed
 
