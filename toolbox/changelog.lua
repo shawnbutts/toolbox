@@ -5,6 +5,10 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Changed" },
+  { "item", "Toolbox now needs Lua API 25 (the game update of 2026-09-30); older clients skip it with a chat line." },
+  { "section", "Removed" },
+  { "item", "/toolbox buffs uvtest: the game now redraws a picture when its frame changes, so the test has done its job." },
   { "section", "Added" },
   { "item", "A sound per notification source (Sounds page: Notification sounds): Chime, Ping, Tap (two new sounds), Bell or Low notes. Several arriving together play each sound once. /toolbox notify <name> sound <sound>." },
   { "item", "Target HUD options (settings, Toolbelt): Target effects (All, Debuffs only, None: just the bars) and Most target icons (1-8; 8 by default, 5 mirrored). /toolbox target effects all|debuffs|none, /toolbox target icons <n>." },

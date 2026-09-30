@@ -10,7 +10,7 @@
             "config.lua"],
   "icon": "icon.png",
   "support_url": "https://github.com/shawnbutts/toolbox",
-  "min_api_version": 23,
+  "min_api_version": 25,
   "permissions": ["network"],
   "network_hosts": ["shroudoftheavatar.net"]
 }

@@ -37,6 +37,7 @@ local api_functions = {
   "ShroudGetPartyMemberMaxHealth", "ShroudGetPartyMemberMaxHealthInScene", "ShroudGetPartyMemberName",
   "ShroudGetPartyMemberNamesInScene", "ShroudGetPetBuff", "ShroudGetPetInfo", "ShroudGetPlayerBuff",
   "ShroudGetPlayerCombatMode", "ShroudGetPlayerCompassHeading", "ShroudGetPlayerName", "ShroudGetPlayerOrientation",
+  "ShroudGetPlayerVitals",
   "ShroudGetPooledAdventurerExperience", "ShroudGetPooledProducerExperience", "ShroudGetPosition",
   "ShroudGetResurrectTimeRemaining", "ShroudGetSavedVar", "ShroudGetSceneCap", "ShroudGetSceneInfo",
   "ShroudGetScreenX", "ShroudGetScreenY", "ShroudGetSkill", "ShroudGetSkillIcon", "ShroudGetSkills",

@@ -2,8 +2,7 @@
 
 [![check](https://github.com/shawnbutts/toolbox/actions/workflows/check.yml/badge.svg)](https://github.com/shawnbutts/toolbox/actions/workflows/check.yml)
 
-A Shroud of the Avatar Lua add-on. It needs Lua API 23 (`min_api_version` in the manifest) and uses
-newer functions (up to API 24) when the game client has them. Features:
+A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the manifest). Features:
 
 - **Toolbelt**: your buffs and debuffs, health, focus and Vigor, consumables, gear repair and target in
   one movable strip, optionally only during combat (the buff bar with the other bars joined to it).
@@ -53,7 +52,7 @@ Built clean-room from the official docs only:
 | `/toolbox daily` | show or hide today's stats (gold, kills, XP) |
 | `/toolbox dailydetailed` (or `dd`) (`values on\|off\|test\|refresh`) | show or hide Today Detailed (every item gained today); estimated values |
 | `/toolbox buffs move [x y]` | place the buff bar (no numbers: say where it is) |
-| `/toolbox buffs` (`group` / `combat` / `flash` / `replace` / `dismiss` / `debug` / `raw` / `trace [name]` / `frame <k>` / `uvtest`) | show or hide the buff bar; its options; diagnostics (`debug`: each buff's timing; `trace light`: log buffs matching "light" once a second for 10 s; `frame`: hold one sweep frame; `uvtest`: sprite-frame redraw test) |
+| `/toolbox buffs` (`group` / `combat` / `flash` / `replace` / `dismiss` / `debug` / `raw` / `trace [name]` / `frame <k>`) | show or hide the buff bar; its options; diagnostics (`debug`: each buff's timing; `trace light`: log buffs matching "light" once a second for 10 s; `frame`: hold one sweep frame; `uvtest`: sprite-frame redraw test) |
 | `/toolbox consumables` (`bar` / `glue` / `add\|remove <name>` / `move`) | list food and potions in effect; the consumables bar's options |
 | `/toolbox gear` (`bar` / `glue` / `repair <%>` / `move` / `debug`) | worn items' durability; the equipment bar's options |
 | `/toolbox notify` (`<name> on\|off` / `via window\|hud\|chat` / `sound on\|off` / `show` / `hud ...`) and `/toolbox motd` | notifications; the guild message of the day |
@@ -228,7 +227,7 @@ alert takes the first that loads of:
    `Lua/toolbox_notify.ogg` (or `.wav`), which store updates don't touch;
 3. the default in the add-on's folder, `Lua/toolbox/<name>.ogg`.
 
-The defaults ship in the package (API 15 allows sounds; the package needs `min_api_version` 23
+The defaults ship in the package (API 15 allows sounds; the package needs `min_api_version` 25
 anyway); paths are relative to the Lua folder (`ShroudLuaPath`).
 
 Missing files are fine: that alert is just silent. `/toolbox sounds` says which file each alert

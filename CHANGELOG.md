@@ -5,6 +5,12 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Changed
+- Toolbox now needs Lua API 25 (the game update of 2026-09-30); older clients skip it with a chat line.
+
+### Removed
+- `/toolbox buffs uvtest`: the game now redraws a picture when its frame changes, so the test has done its job.
+
 ### Added
 - A sound per notification source (Sounds page: Notification sounds): Chime, Ping, Tap (two new sounds),
   Bell or Low notes. Several arriving together play each sound once. `/toolbox notify <name> sound <sound>`.

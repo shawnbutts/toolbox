@@ -715,37 +715,6 @@ return function(t)
     t.ok(H.logged("a frame from 0 to 119"))
   end)
 
-  t.test("/tbx buffs uvtest steps six clocks through the frames, each its own way, then closes", function()
-    bootSettled()
-    H.clearLogs()
-    H.chat("/tbx buffs uvtest")
-    t.ok(H.logged("^UV test: six light squares"), H.logs()[1])
-    t.ok(H.logged("^  6: an IconButton"))
-    local f = H.S.frames.toolbox_uvtest
-    t.ok(f, "its own HUD strip")
-    H.advance(2.1, 0.1)
-    t.no(H.logged("raised"), "no way raised")
-    local row = f.children[1]
-    local c = B().CLOCK
-    for i, col in ipairs(row.children) do
-      local img = col.children[1].children[1]
-      local k = math.floor(img.uv[1] * c.COLS + 0.5) + math.floor(img.uv[2] * c.ROWS * c.SETS + 0.5) * c.COLS
-      -- as in game: only a new Image (way 5) shows a new frame; SetUV on an existing one doesn't
-      local want = B().UVTEST_WAYS[i][1] == "rebuild" and 5 * B().UVTEST_FRAMES_PER_STEP or B().UVTEST_FRAMES_PER_STEP
-      t.eq(k, want, "way " .. i)
-      t.ok(img.visible ~= false, "way " .. i .. " shown")
-      t.ok(col.children[2].text:find("^" .. i .. ": 16%%"), col.children[2].text)
-    end
-    H.advance(B().UVTEST_SECONDS, 0.5)
-    t.eq(H.S.frames.toolbox_uvtest, nil, "closed after the test")
-    t.ok(H.logged("UV test finished"))
-    H.chat("/tbx buffs uvtest")
-    H.clearLogs()
-    H.chat("/tbx buffs uvtest")
-    t.ok(H.logged("UV test stopped"), "a second one stops it")
-    t.eq(H.S.frames.toolbox_uvtest, nil)
-  end)
-
   -- The frame a slot's sweep shows (normal or red set alike), from its Image's uv.
   local function shownFrame(slot)
     local c = B().CLOCK

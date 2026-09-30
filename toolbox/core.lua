@@ -667,20 +667,8 @@ end
 
 add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off; add|remove <name>|reset]; "
     .. "combat on|off (only during combat); flash on|off; countdown on|off|<seconds>; replace on|off; "
-    .. "dismiss on|off; debug; raw; trace [name]; frame <0-119> [red]|off; uvtest)", function(rest)
+    .. "dismiss on|off; debug; raw; trace [name]; frame <0-119> [red]|off)", function(rest)
   local word, name = T.ParseArgs(rest)
-  if word == "uvtest" then
-    local ok, why = T.BuffBar.UVTest()
-    if not ok then
-      T.Print(why == "stopped" and "UV test stopped." or ("UV test: " .. why .. "."))
-      return
-    end
-    T.Print("UV test: six light squares (at 300, 200 on screen) each sweep the clock round for "
-      .. T.BuffBar.UVTEST_SECONDS .. " s, " .. T.BuffBar.UVTEST_FRAMES_PER_STEP .. " frames every "
-      .. T.BuffBar.UVTEST_STEP .. " s. Which ones visibly sweep round? Each label shows the % it asks for.")
-    for i, way in ipairs(T.BuffBar.UVTEST_WAYS) do T.Print("  " .. i .. ": " .. way[2]) end
-    return
-  end
   if word == "frame" then
     local B = T.BuffBar
     local arg, extra = T.ParseArgs(name)
@@ -1371,7 +1359,7 @@ end)
 -- 2026-09-27) lag the client (API 20), and a documented crafting/social group was withdrawn,
 -- so ask the game. Names are referenced directly: no lookup by a built name.
 -- The Lua API version the official docs described when this build was made (update with each docs check).
-T.DOCS_API = 24
+T.DOCS_API = 25
 
 function T.ApiLines()
   local function has(f) return type(f) == "function" end
@@ -1394,6 +1382,7 @@ function T.ApiLines()
       { "ShroudGetBuffCategory", has(ShroudGetBuffCategory) },
       { "ShroudGetTargetBuffCategory", has(ShroudGetTargetBuffCategory) },
       { "ShroudBuffCategories", type(ShroudBuffCategories) == "table" } } },
+    { "Vitals (API 25)", { { "ShroudGetPlayerVitals", has(ShroudGetPlayerVitals) } } },
   }
   local lines = { "Lua API " .. tostring(ShroudLuaApiVersion) .. " (the docs described " .. T.DOCS_API
     .. " when this build was made)." }

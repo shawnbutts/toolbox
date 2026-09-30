@@ -114,7 +114,7 @@ local realDate = os.date
 local realTime = os.time
 
 local function install_api()
-  ShroudLuaApiVersion = 15
+  ShroudLuaApiVersion = 25
   InvalidStatResult = -999
   ShroudTime = S.time or 100
   ShroudPlayerGold = S.char.gold
@@ -296,6 +296,13 @@ local function install_api()
       for _, x in ipairs(S.stats) do if x.name == i then st = x end end
     end
     return st ~= nil and st ~= false and not st.hidden
+  end
+  -- API 25: the maximums are the Health / Focus stats (as the docs say), the current values the character's.
+  ShroudGetPlayerVitals = function()
+    if not S.char.present then return nil end
+    local function st(name) for _, x in ipairs(S.stats) do if x.name == name then return x.value end end end
+    return { health = S.char.hp, maxHealth = st("Health") or S.char.hp, focus = S.char.focus,
+             maxFocus = st("Focus") or S.char.focus }
   end
   ShroudGetStatValueByName = function(name)
     for _, x in ipairs(S.stats) do if x.name == name then return x.hidden and 0 or x.value end end
@@ -538,8 +545,8 @@ local FIELDS = {
   Grid = { columns = 1, children = 1 },
   Label = { text = 1 },
   Button = { text = 1, onClick = 1, enabled = 1 },
-  Image = { texture = 1, width = 1, height = 1, onClick = 1, tint = 1, uv = 1, rotation = 1 },
-  IconButton = { texture = 1, onClick = 1, tint = 1, uv = 1, rotation = 1 },
+  Image = { texture = 1, width = 1, height = 1, onClick = 1, tint = 1, uv = 1, rotation = 1, sweep = 1 },
+  IconButton = { texture = 1, onClick = 1, tint = 1, uv = 1, rotation = 1, sweep = 1 },
   HudFrame = { x = 1, y = 1, width = 1, height = 1, children = 1 },
   TextField = { text = 1, placeholder = 1, maxLength = 1, onChange = 1, onSubmit = 1, enabled = 1 },
   Dropdown = { choices = 1, value = 1, onChange = 1, enabled = 1 },
@@ -625,9 +632,46 @@ end
 function Element:RemoveClass(name) self:Classes()[name] = nil end
 function Element:SetTexture(id) self.texture = id end
 function Element:SetColor(c) self.color = c end
--- As in game (2026-09-28, /toolbox buffs uvtest): the client draws an Image's UV only when the Image
--- is created, so SetUV is recorded (uvSet) but doesn't change what is drawn (uv).
-function Element:SetUV(x, y, w, h) self.uvSet = { x, y, w, h } end
+-- API 25 redraws a picture when SetUV changes it (before, only its first uv was drawn).
+function Element:SetUV(x, y, w, h) self.uv = { x, y, w, h } end
+-- The cooldown wedge (API 25, Image and IconButton): SetSweep(fraction | nil) sets it and stops a timer;
+-- SetSweepTimer(start, duration[, { warnBelow, warnColor }]) lets the game run it on ShroudTime's clock
+-- (it clears itself at the end); SetSweepTimer(nil) stops it. Checked like the game: a lone duration
+-- is refused ("SetSweepTimer takes a number", seen 2026-09-30). `timerCalls` counts the timers set.
+local function isPicture(e) return e.kind == "Image" or e.kind == "IconButton" end
+function Element:SetSweep(f)
+  if not isPicture(self) then error("Shroud.UI: SetSweep is for an Image or IconButton", 2) end
+  if f ~= nil and type(f) ~= "number" then error("Shroud.UI: SetSweep takes a number", 2) end
+  self.sweepTimer = nil
+  self.sweepAmount = f and math.max(0, math.min(1, f)) or nil
+end
+function Element:SetSweepTimer(start, duration, options)
+  if not isPicture(self) then error("Shroud.UI: SetSweepTimer is for an Image or IconButton", 2) end
+  if start == nil then self.sweepTimer = nil return end
+  if type(start) ~= "number" or type(duration) ~= "number" then error("Shroud.UI: SetSweepTimer takes a number", 2) end
+  if options ~= nil then
+    if type(options) ~= "table" then error("Shroud.UI: SetSweepTimer options must be a table", 2) end
+    for k in pairs(options) do
+      if k ~= "warnBelow" and k ~= "warnColor" then error("Shroud.UI: SetSweepTimer has no option '" .. k .. "'", 2) end
+    end
+  end
+  self.sweepAmount = nil
+  self.sweepTimer = { start = start, duration = duration, warnBelow = options and options.warnBelow,
+                      warnColor = options and options.warnColor }
+  self.timerCalls = (self.timerCalls or 0) + 1
+end
+-- What the wedge shows now: the fraction covered (nil: none) and whether it is in its warning colour.
+function Element:SweepNow()
+  local t = self.sweepTimer
+  if t then
+    local now = type(ShroudTime) == "number" and ShroudTime or 0
+    if t.duration <= 0 or now >= t.start + t.duration then return nil, false end
+    local f = math.max(0, (now - t.start) / t.duration)
+    return f, t.warnBelow ~= nil and (t.start + t.duration - now) < t.warnBelow
+  end
+  if self.sweepAmount and self.sweepAmount > 0 then return self.sweepAmount, false end
+  return nil, false
+end
 function Element:SetSize(w, h) self.width, self.height = w, h end
 -- Laid-out size. Models a theme class with a minimum height (H.S.themeMinHeight):
 -- an explicit minHeight overrides it; maxHeight caps the result.
