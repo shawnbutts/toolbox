@@ -7,7 +7,9 @@ Runs tools/build.py (every store check still applies), then writes
 dist/toolbox-<version>-beta.zip holding:
 
     toolbox/        the add-on as built (dist/toolbox/), default alert sounds included
-    INSTALL.txt     BETA.md: install steps, what to test, known issues, how to report
+    INSTALL.txt     INSTALL.md: the store is the official way; installing by hand (for testers), updating,
+                    settings files, reporting, uninstalling
+    TESTING.txt     BETA.md: what to try in this version, known issues, debug commands for reports
 
 Testers extract it and copy the "toolbox" folder into their Lua folder. The build is stamped
 with the git commit (shown by /toolbox version), so build from a clean, committed tree.
@@ -44,13 +46,14 @@ def main() -> int:
     with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for path in sorted(built.iterdir()):
             zf.write(path, f"{slug}/{path.name}")
-        zf.writestr("INSTALL.txt", (ROOT / "BETA.md").read_text(encoding="utf-8"))
+        zf.writestr("INSTALL.txt", (ROOT / "INSTALL.md").read_text(encoding="utf-8"))
+        zf.writestr("TESTING.txt", (ROOT / "BETA.md").read_text(encoding="utf-8"))
 
     print(f"\nBeta package: {out.relative_to(ROOT)}")
     with zipfile.ZipFile(out) as zf:
         for name in zf.namelist():
             print("  " + name)
-    print("\nSend testers the zip; INSTALL.txt inside tells them what to do.")
+    print("\nSend testers the zip: INSTALL.txt inside says how to install it, TESTING.txt what to try.")
     return 0
 
 

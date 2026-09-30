@@ -301,7 +301,8 @@ you read back and fall back to defaults.
    Version numbers are single-use in the store, including rejected ones.
 2. `min_api_version`: raise it only to what the LIVE client reports (`/toolbox api`), never just to what the
    docs describe. The root README's opening must state it ("needs Lua API 25"; the build checks).
-3. Update BETA.md (the tester guide, `INSTALL.txt` in the zip): the intro, "What to try" (this beta first,
+3. Update BETA.md (the tester guide, `TESTING.txt` in the zip; `INSTALL.md` is its `INSTALL.txt`: keep it
+   plain, the store being the official way to install): the intro, "What to try" (this beta first,
    earlier betas under "From beta N") and "Known issues". Keep the root README, the store README and the
    manifest description in step with features.
 4. `make check`, commit ("Beta N (x.y.z)"), then `make beta` from that clean commit (the stamp must be the

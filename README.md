@@ -27,6 +27,21 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
 - **Notifications**: guild message of the day, new mail, expiring mail, ransoms, rewards, guild
   applications and gear needing repair, in a window or on a scrolling notification HUD.
 
+## Install
+
+The official way to install Toolbox is the game's add-on store (the in-game Community Addons window): find
+Toolbox, install it and switch it on; updates come from the store too.
+
+Each [GitHub release](https://github.com/shawnbutts/toolbox/releases) carries two files:
+
+- `toolbox-<version>-beta.zip`: for installing by hand, for beta testers trying a version before it reaches
+  the store. It holds a `toolbox` folder to copy into your game's Lua folder, `INSTALL.txt` (the steps) and
+  `TESTING.txt` (what to try, known issues).
+- `toolbox-<version>.zip`: the store package, with the files at the top level as the store takes them. It
+  isn't for installing by hand (unzipped into the Lua folder, its files would sit loose).
+
+## About
+
 - Store slug and package folder: `toolbox`
 - Author: shawn butts
 - License: MIT
@@ -403,10 +418,11 @@ tools/install.py    copies dist/toolbox/ into a game client's Lua folder
 
 1. Commit everything (the build is stamped with the commit; testers' `/toolbox version` shows it).
 2. `make beta` runs lint, tests and the build, then writes `dist/toolbox-<version>-beta.zip`:
-   a ready-to-copy `toolbox/` folder (the add-on, default alert sounds included) and `INSTALL.txt`
-   for testers (the text of `BETA.md`: install steps, what to
+   a ready-to-copy `toolbox/` folder (the add-on, default alert sounds included), `INSTALL.txt`
+   (`INSTALL.md`: the store is the official way; installing by hand) and `TESTING.txt` (`BETA.md`: what to
    try, known issues, how to report).
-3. Send testers the zip. Keep `BETA.md`'s known issues and "what to try" current for each beta.
+3. Send testers the zip. Keep `BETA.md`'s known issues and "what to try" current for each beta. Pushing a
+   version tag publishes both zips as a GitHub release (`.github/workflows/release.yml`).
 
 ## Releasing
 

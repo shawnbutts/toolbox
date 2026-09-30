@@ -1,54 +1,18 @@
-Toolbox beta: install and testing guide
-=======================================
+Toolbox beta: testing guide
+===========================
 
 Thanks for testing Toolbox! It's a Shroud of the Avatar add-on. Its headline is the Toolbelt: your
 buffs and debuffs, health, focus and Vigor, food and potions, gear needing repair and your target in one
 strip you can put anywhere. Around it: XP windows, today's loot, crafting and gathering, a combat stats HUD and
 notifications. This is a beta: please tell us what breaks.
 
+To install it, follow INSTALL.txt (in the same zip): the "Installing by hand" part.
+
 You need a game client with Lua add-on API 25 or newer (the game update of 2026-09-30; older clients
 skip Toolbox with a chat line saying it needs a newer client).
 
 
-1. Find your Lua folder
------------------------
-
-In game, either:
-  * type  /lua path  in chat, or
-  * open the add-on manager and press "Open Folder".
-
-That folder is your "Lua folder". It usually contains a "SavedVariables" folder.
-
-
-2. Install
-----------
-
-The zip holds a folder called "toolbox" and this file.
-
-  1. Extract the zip.
-  2. Copy the whole "toolbox" folder into your Lua folder.
-     Check: you should now have  <Lua folder>/toolbox/manifest.json
-     (not toolbox/toolbox/manifest.json, and not the files loose in the Lua folder).
-  3. In game, type  /lua reload
-  4. Open the add-on manager and switch Toolbox ON. New add-ons always start switched off.
-  5. Type  /lua check toolbox  to confirm nothing is wrong with the folder.
-  6. Optional: for estimated item values, also switch Internet on for Toolbox in the add-on
-     manager (see "What to try").
-
-If you had an earlier beta: delete any  toolbox_buff_expiring.ogg  or  toolbox_debuff_landed.ogg
-lying loose in your Lua folder (earlier versions put them there). They override the sounds that now
-come with the add-on.
-
-On the first run Toolbox prints "Toolbox is ready..." in chat and opens its settings window.
-
-Updating to a newer beta: delete the old "toolbox" folder first, then copy the new one in and
-/lua reload. Your settings are kept (they live in the SavedVariables folder, not in "toolbox").
-
-Please don't keep a second copy (an old folder, a renamed copy or a loose toolbox.lua) in the Lua
-folder: two copies tangle each other. /tbx version says "copies loaded: 1" when all is well.
-
-
-3. Getting started
+1. Getting started
 ------------------
 
   /tbx            open or close the settings window (tick what you want on screen)
@@ -78,7 +42,7 @@ Shortcut: Ctrl+; opens the settings. You can change it in the add-on manager, on
 row under "Keys".
 
 
-4. What to try
+2. What to try
 --------------
 
 Anything you like, but especially what's new in this beta (/tbx version lists it all):
@@ -181,12 +145,13 @@ From beta 3:
   * Moving and resizing the HUD strips, then /lua reload: does everything come back where you left it?
 
 
-5. Known issues
+3. Known issues
 ---------------
 
   * Alert sounds need a recent game client: older macOS clients failed to load add-on sound files
     (a game bug, now fixed). If /tbx sounds test is silent, update the game, and check for old
-    toolbox_*.ogg files loose in your Lua folder (see Install).
+    toolbox_buff_expiring.ogg or toolbox_debuff_landed.ogg loose in your Lua folder: earlier betas put
+    them there, and they override the sounds that now come with the add-on. Delete them.
   * The settings window is wider now; if the game remembered its old width, drag it wider once.
   * Target HUD: the game doesn't say who applied an effect, so it lists every effect on your target,
     not only yours.
@@ -205,7 +170,7 @@ From beta 3:
     things, please report it.
 
 
-6. Reporting a problem
+4. Reporting a problem
 ----------------------
 
 Please include:
@@ -217,10 +182,3 @@ Please include:
        /tbx xp debug        /tbx notify show      /tbx dd values test   /tbx combat events 5
        /tbx gear            /tbx consumables      /tbx buffs trace <name>
   5. A screenshot if it's about how something looks.
-
-
-7. Uninstalling
----------------
-
-Delete the "toolbox" folder from your Lua folder and /lua reload. To also remove your Toolbox
-settings, delete Toolbox's files in the SavedVariables folder (they're named after the add-on).

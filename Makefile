@@ -25,7 +25,7 @@ test: changelog
 build:
 	$(PYTHON) tools/build.py
 
-# A zip for hand-installing beta testers: toolbox/ (with the default sounds) + INSTALL.txt.
+# A zip for hand-installing beta testers: toolbox/ (with the default sounds), INSTALL.txt, TESTING.txt.
 beta: check
 	$(PYTHON) tools/beta.py
 
