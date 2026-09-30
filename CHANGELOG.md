@@ -5,6 +5,8 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-30 (beta 9)
+
 ### Added
 - Backup & reset (settings window, or `/toolbox settings`): where your settings files are, with Save now to
   write them before you copy them, and how to copy them back (quit the game first) to restore a setup or

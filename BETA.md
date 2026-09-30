@@ -6,8 +6,8 @@ buffs and debuffs, health, focus and Vigor, food and potions, gear needing repai
 strip you can put anywhere. Around it: XP windows, today's loot, crafting and gathering, a combat stats HUD and
 notifications. This is a beta: please tell us what breaks.
 
-You need a game client with Lua add-on API 23 or newer (older clients skip Toolbox with a chat line
-saying it needs a newer client).
+You need a game client with Lua add-on API 25 or newer (the game update of 2026-09-30; older clients
+skip Toolbox with a chat line saying it needs a newer client).
 
 
 1. Find your Lua folder
@@ -67,6 +67,7 @@ The settings window's "Settings" dropdown picks a part to set up. It opens on th
   * Notifications: what's new since you last looked (guild message, mail, rewards, gear to repair...).
   * Sounds: alert volume and sound files.
   * HUD layout: every strip's position.
+  * Backup & reset: where your settings files are, to copy them; and Reset all settings.
 Options that do nothing while their part is off are greyed out.
 
 Moving the HUD strips: drag the small grip at a strip's top-left corner. If you can't see the grip,
@@ -81,7 +82,28 @@ row under "Keys".
 --------------
 
 Anything you like, but especially what's new in this beta (/tbx version lists it all):
-  * Target HUD fixes (beta 8): one "Mirrored" checkbox now (settings, Toolbelt page) instead of a third
+  * This beta needs the game update of 2026-09-30 (add-on API 25), which fixed the problems we reported.
+  * Sweeps on buffs, consumables and target effects are now the game's own cooldown wedge, run by the
+    game: smooth and level with the game's buff bar. Compare them for a minute, including buffs cast
+    before you logged in. Does a buff's wedge turn red when its expiry alert sounds, and back after a
+    recast?
+  * Health and focus bars read the game's own values and maximums: do they match the game's bars while
+    you take damage?
+  * Equipment bar: durability now counts against what a repair brings the item back to (as the game's
+    tooltip shows it), and the tooltip says when an item needs a crafting station repair. /tbx gear
+    lists everything: do the numbers match the game's tooltips?
+  * Target names: creatures like stags should show their plain name now.
+  * Backup & reset (settings): Save now, then copy toolbox.<character>.character.json and
+    toolbox.account.json from Lua/SavedVariables (the page shows where). To restore, quit the game and
+    copy them back. Try Reset all settings once (a second click, then /lua reload): everything back to
+    the defaults, your stats kept?
+  * XP, Today and Notifications can be compact windows (settings: Compact window): the title bar shows
+    only while the pointer is on it.
+  * Combat HUD stats: pick them in settings (Combat: Character stats on the HUD): search, pick, Add.
+  * Target HUD options (Toolbelt page): which effects to show (All, Debuffs only, None) and how many icons.
+  * A sound per notification (settings, Notifications): Chime, Ping, Tap, Bell or Low notes.
+From beta 8:
+  * Target HUD fixes: one "Mirrored" checkbox now (settings, Toolbelt page) instead of a third
     "Target row" choice. In the Toolbelt it puts the target left of your health bars; on its own strip it
     mirrors the strip. Mirrored now survives /lua reload (in beta 7 it went back to the top). The target's
     own strip has no name or percent any more (hover for them) and its bars are the size of yours.
@@ -165,25 +187,19 @@ From beta 3:
   * Alert sounds need a recent game client: older macOS clients failed to load add-on sound files
     (a game bug, now fixed). If /tbx sounds test is silent, update the game, and check for old
     toolbox_*.ogg files loose in your Lua folder (see Install).
-  * The game only draws a sweep step when a new picture is made, so Toolbox makes a new one for each
-    step, at most 8 a second for all sweeps together. With many short buffs at once some sweeps may
-    step a little later than others. (Reported to the game's developers.)
   * The settings window is wider now; if the game remembered its old width, drag it wider once.
   * Target HUD: the game doesn't say who applied an effect, so it lists every effect on your target,
-    not only yours. Some creatures have no display name in the game; Toolbox tidies the game's
-    "Entity with no name (...)" text (reported to the developers).
+    not only yours.
   * Toolbox can show 8 HUD strips at once (a game limit). With everything on its own strip, the last
     one says so in chat: put some bars in the Toolbelt.
-  * Crafted counts: on this game client (API 23) what you made is counted when you take it off the
-    crafting table, matched by name to the recipes you crafted today. A product named differently from
-    its recipe may show under "Also off stations". The next game update (API 24) tells add-ons exactly
-    what each craft made; Toolbox already uses it when it's there.
   * Weapon poisons: unknown whether the game shows them to add-ons. If one shows as a buff,
     /tbx consumables add <part of its name> puts it on the consumables bar.
   * The Ctrl+; shortcut may not take on some setups. If it does nothing, set a key for
     Toolbox in the add-on manager under "Keys".
   * Buffs with no fixed length (like the moon indicator) have no sweep until Toolbox sees them
     start.
+  * Reset all settings and restoring copied files both need a restart of Toolbox (/lua reload, or for
+    copied files, quit the game first): the game writes the settings files as it closes.
   * "Gold picked up" counts every gold increase, including vendor sales and trades.
   * Kills come from your combat chat lines; if Kills stays at 0 while you're clearly killing
     things, please report it.

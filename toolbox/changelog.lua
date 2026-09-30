@@ -5,6 +5,7 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "version", "0.7.0 - 2026-09-30 (beta 9)" },
   { "section", "Added" },
   { "item", "Backup & reset (settings window, or /toolbox settings): where your settings files are, with Save now to write them before you copy them, and how to copy them back (quit the game first) to restore a setup or move to another computer. Reset all settings (a second click, then /lua reload) puts every setting and position back to its default; stats, the XP session and learned buff lengths are kept." },
   { "item", "A sound per notification source (Sounds page: Notification sounds): Chime, Ping, Tap (two new sounds), Bell or Low notes. Several arriving together play each sound once. /toolbox notify <name> sound <sound>." },
