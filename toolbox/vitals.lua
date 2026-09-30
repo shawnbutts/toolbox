@@ -2,10 +2,8 @@
 -- Health & focus bars (/toolbox vitals): a movable HUD strip with a red health bar and a
 -- blue focus bar, each with "current / max". A Size setting (75-250%) scales the whole strip.
 --
--- Current values are the documented per-frame globals ShroudPlayerCurrentHealth and
--- ShroudPlayerCurrentFocus. The player's maximums have no documented getter; in game
--- (`/toolbox stats health`) the readable stats "Health" and "Focus" equal the current values
--- at full, so they are taken as the maximums, never shown below the current value.
+-- Current values and maximums come from ShroudGetPlayerVitals (API 25), read once per tick. The
+-- maximum is never shown below the current value (it is fractional: 950.36 with 951 current).
 --
 -- A third, gold Vigor bar (API 20, feature-detected: ShroudGetVigor / ShroudOnVigorChanged) shows
 -- "64%" with the regen and crit bonuses in its tooltip. The reading is kept from the callback (core.lua)
@@ -49,15 +47,10 @@ V.FLASH_TICKS = 2
 V.FLASH_MIN, V.FLASH_MAX, V.FLASH_DEFAULT = 1, 95, 20
 V.HOME = { 40, 300 }
 V.NUDGE = 10
--- `current` reads the per-frame global directly: reaching a global through a name built at
--- runtime is treated by review like runtime code loading (see AGENTS.md).
--- In game the bars first showed "--" and stayed empty, so the current value falls back to the
--- CurrentHealth / CurrentFocus stats when the per-frame global isn't a number.
+-- `current` / `max`: the fields of ShroudGetPlayerVitals()'s table.
 V.BARS = {
-  { key = "health", current = function() return ShroudPlayerCurrentHealth end, global = "ShroudPlayerCurrentHealth",
-    currentStat = "CurrentHealth", maxStat = "Health", color = "@red", label = "Health" },
-  { key = "focus", current = function() return ShroudPlayerCurrentFocus end, global = "ShroudPlayerCurrentFocus",
-    currentStat = "CurrentFocus", maxStat = "Focus", color = "@blue", label = "Focus" },
+  { key = "health", current = "health", max = "maxHealth", color = "@red", label = "Health" },
+  { key = "focus", current = "focus", max = "maxFocus", color = "@blue", label = "Focus" },
   { key = "vigor", vigor = true, color = "@gold", label = "Vigor" },
 }
 V.VIGOR_POLL = 5          -- seconds between re-reads of ShroudGetVigor (the callback is the main source)
@@ -88,18 +81,24 @@ function V.Format(current, max)
   return m > 0 and cur / m or 0, cur .. " / " .. m
 end
 
--- A readable stat's value, or nil (unknown name: -999; hidden: reads 0).
-local function stat(name)
-  local v = ShroudGetStatValueByName(name)
-  if not readable(v) or (v == 0 and not ShroudIsStatVisible(name)) then return nil end
-  return v
+-- ShroudGetPlayerVitals()'s table (a fresh one per call), read at most once per game time; nil when there
+-- is no character.
+local vitalsAt, vitalsNow = nil, nil
+function V.Vitals()
+  local now = T.Now()
+  if vitalsAt ~= now then
+    local ok, v = pcall(ShroudGetPlayerVitals)
+    vitalsAt, vitalsNow = now, (ok and type(v) == "table") and v or nil
+  end
+  return vitalsNow
 end
 
--- Current and max for one bar definition, and where the current value came from.
+-- Current and max for one bar definition (nil when unreadable).
 function V.Read(bar)
-  local current, source = bar.current(), "global"
-  if not readable(current) then current, source = stat(bar.currentStat), "stat" end
-  return current, stat(bar.maxStat), current ~= nil and source or nil
+  local v = V.Vitals()
+  if not v then return nil, nil end
+  local current, max = v[bar.current], v[bar.max]
+  return readable(current) and current or nil, readable(max) and max or nil
 end
 
 -- Vigor (API 20): ShroudGetVigor()'s answer (a table or a game object) as plain data
@@ -418,13 +417,12 @@ function V.DebugLines()
         tostring(T.Field(raw, "healthRegenBonus")), tostring(T.Field(raw, "focusRegenBonus")),
         tostring(T.Field(raw, "critBonus")), text, fill, prefs.vigor ~= false and "on" or "off")
     else
-    local g = bar.current()
-    local current, max, source = V.Read(bar)
+    local v = V.Vitals()
+    local current, max = V.Read(bar)
     local fill, text = V.Format(current, max)
-    local function show(v) return type(v) == "number" and string.format("%g", v) or (type(v) .. " " .. tostring(v)) end
-    lines[#lines + 1] = string.format("%s: %s = %s; stat %s = %s; stat %s = %s; using %s -> \"%s\", fill %.2f",
-      bar.label, bar.global, show(g), bar.currentStat, show(ShroudGetStatValueByName(bar.currentStat)),
-      bar.maxStat, show(ShroudGetStatValueByName(bar.maxStat)), source or "nothing readable", text, fill)
+    local function show(x) return type(x) == "number" and string.format("%g", x) or (type(x) .. " " .. tostring(x)) end
+    lines[#lines + 1] = string.format("%s: ShroudGetPlayerVitals %s = %s, %s = %s -> \"%s\", fill %.2f",
+      bar.label, bar.current, show(v and v[bar.current]), bar.max, show(v and v[bar.max]), text, fill)
     end
   end
   -- What the rows asked for next to what the game laid out (does a Bar honour its height?).

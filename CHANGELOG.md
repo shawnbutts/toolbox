@@ -6,6 +6,8 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Changed
+- Health and focus bars read the game's own health, focus and maximums (`ShroudGetPlayerVitals`, API 25)
+  instead of working them out from character stats. `/toolbox vitals debug` shows what it gave.
 - Toolbox now needs Lua API 25 (the game update of 2026-09-30); older clients skip it with a chat line.
 
 ### Removed

@@ -56,9 +56,9 @@ return function(t)
     t.eq(H.vitals():Find("focus_bar").color, "@blue")
   end)
 
-  t.test("a hidden max stat (reads 0) shows the current value only", function()
+  t.test("no maximum (0) shows the current value only", function()
     H.boot()
-    H.S.stats = { { name = "Health", value = 942, hidden = true } }
+    ShroudGetPlayerVitals = function() return { health = 943, maxHealth = 0, focus = 700, maxFocus = 700 } end
     H.chat("/tbx vitals")
     H.advance(1)
     t.eq(H.vitals():Find("health_text").text, "943")
@@ -167,27 +167,28 @@ return function(t)
     t.ok(H.logged("/toolbox vitals"))
   end)
 
-  t.test("when the per-frame value isn't a number, the CurrentHealth / CurrentFocus stats are used", function()
+  t.test("health and focus come from ShroudGetPlayerVitals; the maximum is never below the current", function()
     H.boot()
-    withStats()
-    H.S.char.hp, H.S.char.focus = nil, nil
+    withStats()                                       -- maxHealth 942.23 with 943 current, as in game
     H.chat("/tbx vitals")
     H.advance(1)
     t.eq(H.vitals():Find("health_text").text, "943 / 943")
     t.eq(H.vitals():Find("focus_text").text, "700 / 700")
     t.near(H.vitals():Find("health_bar").value, 1)
+    ShroudGetPlayerVitals = function() return nil end  -- no character (between scenes)
+    H.advance(1)
+    t.eq(H.vitals():Find("health_text").text, "--")
   end)
 
-  t.test("/tbx vitals debug shows each source", function()
+  t.test("/tbx vitals debug shows what ShroudGetPlayerVitals gave", function()
     H.boot()
     withStats()
-    H.S.char.hp = nil
     H.advance(0.2, 0.2)
     H.clearLogs()
     H.chat("/tbx vitals debug")
-    t.ok(H.logged('^Health: ShroudPlayerCurrentHealth = nil nil; stat CurrentHealth = 943; stat Health = 942.23; '
-      .. 'using stat %-> "943 / 943", fill 1.00$'), H.logs()[1])
-    t.ok(H.logged('^Focus: ShroudPlayerCurrentFocus = 700; .*using global'), H.logs()[2])
+    t.ok(H.logged('^Health: ShroudGetPlayerVitals health = 943, maxHealth = 942.23 %-> "943 / 943", fill 1.00$'),
+      H.logs()[1])
+    t.ok(H.logged('^Focus: ShroudGetPlayerVitals focus = 700, maxFocus = 700 '), H.logs()[2])
     t.ok(H.logged("^Layout: asked bar %d+x8, row 15 high, 2 px between rows; laid out: health bar "), H.lastLog())
   end)
 
