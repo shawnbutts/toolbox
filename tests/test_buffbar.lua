@@ -1,22 +1,21 @@
--- Buff bar, clock overlay, expiry / debuff alerts and sound loading.
+-- Buff bar, its sweeps, expiry / debuff alerts and sound loading.
 local H = require("harness")
 
 return function(t)
-  -- A slot's sweep as drawn: the overlay holder's visibility and style, and its Image's uv (the
-  -- Image is replaced for each frame: the game draws a UV only when the Image is created).
+  -- A slot's sweep as the game draws it now: the wedge on its icon (API 25, run by the game), how much of
+  -- the icon it covers (`done`), whether it is red, and how many timers were set on the icon (`calls`).
   local function sweep(slot)
-    local h = slot.children[2]
-    local img = h.children and h.children[1]
-    return { visible = h.visible, uv = img and img.uv, style = h.style, image = img }
+    local icon = slot.children[1]
+    local f, red = icon:SweepNow()
+    return { visible = f ~= nil, done = f, red = red, calls = icon.timerCalls or 0 }
   end
   local B = function() return Toolbox.BuffBar end
-  -- The overlay shows the frame for `fraction`, give or take one frame (3 degrees): sampling
-  -- lands within a tick (0.5 s) of the exact time.
-  local function sameUV(t2, uv, fraction, msg)
-    local c = B().CLOCK
-    local shown = math.floor(uv[1] * c.COLS + 0.5) + math.floor(uv[2] * c.ROWS * c.SETS + 0.5) * c.COLS
-    local want = B().Frame(fraction)
-    t2.ok(math.abs(shown - want) <= 1, (msg or "") .. ": frame " .. shown .. ", expected " .. want)
+  -- The wedge covers the time used for `left` (the fraction of the run left), within 3%: sampling lands
+  -- within a tick (0.5 s) of the exact time.
+  local function sameSweep(t2, sw, left, msg)
+    local want = 1 - left
+    t2.ok(sw.done ~= nil and math.abs(sw.done - want) <= 0.03,
+      (msg or "") .. ": covers " .. tostring(sw.done) .. ", expected " .. want)
   end
 
   -- With both alert files in the default place, booted and loaded.
@@ -100,20 +99,16 @@ return function(t)
     t.ok(y < 0.5 and x < 1)
   end)
 
-  t.test("a long buff's sweep keeps moving (at most 1/FRAMES of its time per step)", function()
+  t.test("a long buff's wedge is set once; the game runs it", function()
     H.boot()
     H.S.durationMode = "remaining"
     H.chat("/tbx buffs")
     H.chat("/tbx buffs group after off")   -- 20 minutes would be grouped
     H.addBuffs({ { name = "Light", remaining = 1200, icon = 5 } })
-    local changes, last = 0, nil
-    for _ = 1, 120 do
-      H.advance(1, 0.5)
-      local ov = sweep(H.slots("buffs")[1])
-      local key = ov.visible and (ov.uv[1] .. "," .. ov.uv[2]) or "hidden"
-      if key ~= last then changes, last = changes + 1, key end
-    end
-    t.ok(changes >= 12, "20-minute buff, first 2 minutes: " .. changes .. " steps")
+    H.advance(120, 0.5)
+    local sw = sweep(H.slots("buffs")[1])
+    t.eq(sw.calls, 1, "one timer for the whole run")
+    sameSweep(t, sw, 1080 / 1200, "2 of 20 minutes used")
   end)
 
   t.test("new debuff names", function()
@@ -148,7 +143,7 @@ return function(t)
     t.ok(buffs[1].children[1].tooltip:find("Heal"), "the game's tooltip")
   end)
 
-  t.test("the clock overlay sweeps as time runs down; none for permanent buffs", function()
+  t.test("the sweep runs as time runs down; none for permanent buffs", function()
     bootSettled()
     H.chat("/tbx buffs")
     H.addBuffs({ { name = "Aura", remaining = -1, permanent = true } })
@@ -156,11 +151,10 @@ return function(t)
     H.addBuffs({ { name = "Heal", remaining = 24, icon = 101 } })   -- cast on its own
     H.advance(0.5, 0.5)
     local heal, aura = H.slots("buffs")[1], H.slots("buffs")[2]
-    t.ok(sweep(heal).visible == false or sweep(heal).uv[1] <= 1 / B().CLOCK.COLS + 1e-9,
-      "just cast: at most the first sliver (drawn for the middle of the tick)")
+    t.ok(sweep(heal).visible == false or sweep(heal).done <= 0.05, "just cast: at most a sliver")
     H.advance(12, 0.5)                                  -- half gone
     t.eq(sweep(heal).visible, true)
-    sameUV(t, sweep(heal).uv, 11.5 / 24, "half the time left")
+    sameSweep(t, sweep(heal), 11.5 / 24, "half the time left")
     t.eq(sweep(aura).visible, false, "no timer, no clock")
   end)
 
@@ -171,13 +165,13 @@ return function(t)
     H.addBuffs({ { name = "Heal", remaining = 12, icon = 101 } })
     local overlay = function() return sweep(H.slots("buffs")[1]) end
     H.advance(4, 0.5)
-    t.ok(overlay().uv[2] < 0.5, "normal (top) set before the alert")
+    t.no(overlay().red, "normal before the alert")
     H.advance(3.5, 0.5)                                 -- crosses 5 s
     t.eq(H.playedNames(), "toolbox_buff_expiring")
-    t.ok(overlay().uv[2] >= 0.5, "red (bottom) set once it fired")
+    t.ok(overlay().red, "red once it fired")
     H.S.buffs[1].remaining = 30                         -- recast
     H.advance(1, 0.5)
-    t.ok(not overlay().visible or overlay().uv[2] < 0.5, "back to normal after the recast")
+    t.ok(not overlay().visible or not overlay().red, "back to normal after the recast")
   end)
 
   t.test("red only follows the alert: short buffs and debuffs never turn red", function()
@@ -187,9 +181,9 @@ return function(t)
     H.advance(0.5, 0.5)
     H.addBuffs({ { name = "Bleed", remaining = 20, debuff = true } })
     H.advance(3.5, 0.5)
-    t.ok(sweep(H.slots("buffs")[1]).uv[2] < 0.5, "a buff that started under the threshold")
+    t.no(sweep(H.slots("buffs")[1]).red, "a buff that started under the threshold")
     H.advance(12, 0.5)
-    t.ok(sweep(H.slots("debuffs")[1]).uv[2] < 0.5, "debuffs keep the normal sweep")
+    t.no(sweep(H.slots("debuffs")[1]).red, "debuffs keep the normal sweep")
   end)
 
   t.test("the icon pool is built once; buff changes create no elements", function()
@@ -211,20 +205,21 @@ return function(t)
     B().SetSize(24)
     local slot = H.frame():Find("buffs").children[2]            -- [1] is the empty-strip label
     t.eq(slot.style.width, 24)
-    t.eq(sweep(slot).style.marginLeft, -24, "overlay still sits on the icon")
+    t.eq(slot.children[1].width, 24, "the icon (and its wedge) too")
     t.no(B().SetSize(100), "out of range")
     H.reload()
     t.eq(B().GetSize(), 24)
   end)
 
-  t.test("a missing clock picture just means no overlay", function()
-    H.boot()
+  t.test("buff sweeps don't need the clock picture (it is the equipment bar's)", function()
+    bootSettled()
     H.S.files["toolbox/clock.png"] = nil
     H.reload()
+    H.advance(B().SETTLE)
     H.chat("/tbx buffs")
     H.addBuffs({ { name = "Heal", remaining = 10, icon = 101 } })
     H.advance(6, 0.5)
-    t.eq(sweep(H.slots("buffs")[1]).visible, false)
+    t.eq(sweep(H.slots("buffs")[1]).visible, true)
   end)
 
   -- alerts ------------------------------------------------------------------
@@ -511,16 +506,16 @@ return function(t)
   t.test("a buff already running at start shows its real progress (the game's durations)", function()
     local overlay = startMidBuff("remaining")
     t.eq(overlay.visible, true)
-    sameUV(t, overlay.uv, 9.5 / 40, "9.5 of 40 s left")
+    sameSweep(t, overlay, 9.5 / 40, "9.5 of 40 s left")
   end)
 
-  t.test("the sweep isn't behind the game's: nearest frame, for the middle of the tick", function()
-    local c = B().CLOCK
-    local overlay = startMidBuff("remaining")              -- 40 s buff, 9.5 s left after the first tick
-    local shown = math.floor(overlay.uv[1] * c.COLS + 0.5) + math.floor(overlay.uv[2] * c.ROWS * c.SETS + 0.5) * c.COLS
-    -- used: 30.5 s now, 30.75 s in the middle of the tick it stays up for -> 92.25 frames -> 92
-    t.eq(shown, math.floor((30.5 + B().SWEEP_LEAD) / 40 * c.FRAMES + 0.5))
-    t.ok(shown >= math.floor(30.5 / 40 * c.FRAMES), "never behind the time used")
+  t.test("the wedge is level with the game's: it starts when the buff did", function()
+    local sw = startMidBuff("remaining")                   -- 40 s buff, 9.5 s left after the first tick
+    t.ok(math.abs(sw.done - 30.5 / 40) < 1e-6, "30.5 of 40 s used: " .. tostring(sw.done))
+    H.advance(5, 0.5)
+    sw = sweep(H.slots("buffs")[1])
+    t.ok(math.abs(sw.done - 35.5 / 40) < 1e-6, "and runs on with the game's clock: " .. tostring(sw.done))
+    t.eq(sw.calls, 1)
   end)
 
   t.test("unknown full duration: no sweep rather than a wrong one", function()
@@ -541,7 +536,7 @@ return function(t)
     ShroudFlushSavedVars()
     H.restart(10)                                                     -- already running at login
     H.advance(0.5, 0.5)
-    sameUV(t, sweep(H.slots("buffs")[1]).uv, 111.5 / 225, "half used, from the learned 225 s")
+    sameSweep(t, sweep(H.slots("buffs")[1]), 111.5 / 225, "half used, from the learned 225 s")
   end)
 
   t.test("the expiry alert works for a buff whose duration is unknown", function()
@@ -570,7 +565,7 @@ return function(t)
     H.S.buffs = saved
     H.callback("ShroudOnSceneLoaded", "Town")
     H.advance(0.5, 0.5)
-    sameUV(t, sweep(H.slots("buffs")[1]).uv, 95.5 / 200, "still its real progress")
+    sameSweep(t, sweep(H.slots("buffs")[1]), 95.5 / 200, "still its real progress")
   end)
 
   t.test("without durations, a /lua reload keeps each buff's progress", function()
@@ -581,7 +576,7 @@ return function(t)
     H.reload()
     H.advance(0.5, 0.5)
     local overlay = sweep(H.slots("buffs")[1])
-    sameUV(t, overlay.uv, 9.5 / 40, "progress kept across the reload")
+    sameSweep(t, overlay, 9.5 / 40, "progress kept across the reload")
   end)
 
   t.test("a remembered timer that doesn't line up falls back to the learned duration", function()
@@ -593,7 +588,7 @@ return function(t)
     H.reload()
     H.advance(0.5, 0.5)
     local ov = sweep(H.slots("buffs")[1])
-    sameUV(t, ov.uv, 19.5 / 40, "the 40 s learned when it was cast")
+    sameSweep(t, ov, 19.5 / 40, "the 40 s learned when it was cast")
   end)
 
   t.test("after a restart remembered durations are not used", function()
@@ -642,15 +637,9 @@ return function(t)
     H.S.durationMode = "remaining"
     H.chat("/tbx buffs")
     H.addBuffs({ { name = "Ward", remaining = 120, icon = 9 } })
-    local changes, last = 0, nil
-    for _ = 1, 120 do                                             -- 60 s in half-second ticks
-      H.advance(0.5, 0.5)
-      local ov = sweep(H.slots("buffs")[1])
-      local key = ov.visible and (ov.uv[1] .. "," .. ov.uv[2]) or "hidden"
-      if key ~= last then changes, last = changes + 1, key end
-    end
-    t.ok(changes >= 50, "moved smoothly: " .. changes .. " steps in 60 s")
-    sameUV(t, sweep(H.slots("buffs")[1]).uv, 60 / 120, "half used after 60 s")
+    H.advance(60, 0.5)
+    t.ok(sweep(H.slots("buffs")[1]).calls <= 3, "not reset by each stale reading")
+    sameSweep(t, sweep(H.slots("buffs")[1]), 60 / 120, "half used after 60 s")
   end)
 
   t.test("the expiry alert fires on time with a stale game value", function()
@@ -679,84 +668,23 @@ return function(t)
     t.no(H.logged("^%+11s"), "stops after ten")
   end)
 
-  t.test("/tbx buffs frame holds one sweep frame on every icon, then lets go", function()
-    bootSettled()
-    H.S.durationMode = "remaining"
-    H.chat("/tbx buffs")
-    H.addBuffs({ { name = "Ward", remaining = 60, icon = 9 }, { name = "Aura", remaining = -1, permanent = true } })
-    H.advance(1, 0.5)
-    local c = B().CLOCK
-    local function frameOf(slot)
-      local uv = sweep(slot).uv
-      return math.floor(uv[1] * c.COLS + 0.5) + math.floor(uv[2] * c.ROWS * c.SETS + 0.5) * c.COLS
-    end
-    H.clearLogs()
-    H.chat("/tbx buffs frame 30")
-    t.ok(H.logged("frame 30 of 120: 25%% shaded"), H.lastLog())
-    t.ok(H.logged("%(2 icons showing%)"))
-    for _, slot in ipairs(H.slots("buffs")) do
-      t.eq(sweep(slot).visible, true, "even the permanent one")
-      t.eq(frameOf(slot), 30)
-    end
-    H.advance(5, 0.5)
-    t.eq(frameOf(H.slots("buffs")[1]), 30, "held while the buff runs on")
-    H.chat("/tbx buffs frame 90 red")
-    t.eq(frameOf(H.slots("buffs")[1]), 90 + c.COLS * c.ROWS, "the red set")
-    H.advance(B().FRAME_TEST_SECONDS + 1, 0.5)
-    local own = frameOf(H.slots("buffs")[1])                    -- 22.5 of 60 s used: about frame 45
-    t.ok(own >= 42 and own <= 48, "back to the buff's own time: " .. own)
-    t.eq(sweep(H.slots("buffs")[2]).visible, false, "the permanent one has no sweep again")
-    H.chat("/tbx buffs frame 60")
-    H.chat("/tbx buffs frame off")
-    own = frameOf(H.slots("buffs")[1])
-    t.ok(own >= 42 and own <= 48, "off ends it at once: " .. own)
-    H.clearLogs()
-    H.chat("/tbx buffs frame 120")
-    t.ok(H.logged("a frame from 0 to 119"))
-  end)
-
-  -- The frame a slot's sweep shows (normal or red set alike), from its Image's uv.
-  local function shownFrame(slot)
-    local c = B().CLOCK
-    local uv = sweep(slot).uv
-    if not uv then return 0 end
-    local k = math.floor(uv[1] * c.COLS + 0.5) + math.floor(uv[2] * c.ROWS * c.SETS + 0.5) * c.COLS
-    return k % (c.COLS * c.ROWS)
-  end
-
-  t.test("sweeps are redrawn by new Images, at most SWEEP_RATE a second; they take turns", function()
-    bootSettled()
-    H.S.durationMode = "remaining"
-    H.chat("/tbx buffs")
-    local list = {}
-    for i = 1, 12 do list[i] = { name = "Buff" .. i, remaining = 120 + i * 0.01, icon = i } end   -- 12 frames/s wanted
-    H.addBuffs(list)
-    H.advance(1, 0.5)
-    local before = H.S.constructed or 0
-    H.advance(30, 0.5)
-    local made = (H.S.constructed or 0) - before
-    t.ok(made <= 30 * B().SWEEP_RATE + B().SWEEP_BURST, "new Images in 30 s: " .. made)
-    -- 31 s of 120 used: about frame 31; each sweep redrawn every few seconds, none far behind
-    for i, slot in ipairs(H.slots("buffs")) do
-      local k = shownFrame(slot)
-      t.ok(k >= 25 and k <= 33, "slot " .. i .. " frame " .. k)
-    end
-  end)
-
-  t.test("a short debuff among long buffs keeps up: the sweep furthest behind goes first", function()
+  t.test("many sweeps at once: one timer each, no elements made, a short debuff keeps up", function()
     bootSettled()
     H.S.durationMode = "remaining"
     H.chat("/tbx buffs")
     local list = {}
     for i = 1, 12 do list[i] = { name = "Buff" .. i, remaining = 120 + i * 0.01, icon = i } end
-    list[13] = { name = "Bleed", remaining = 12, icon = 50, debuff = true }        -- 10 frames a second
+    list[13] = { name = "Bleed", remaining = 12, icon = 50, debuff = true }
     H.addBuffs(list)
-    H.advance(6.5, 0.5)
-    local k = shownFrame(H.slots("debuffs")[1])
-    t.ok(k >= 55 and k <= 70, "half of the 12 s debuff gone: frame " .. k)
+    H.advance(1, 0.5)
+    local before = H.S.constructed or 0
+    H.advance(5.5, 0.5)
+    t.eq((H.S.constructed or 0) - before, 0, "no new elements")
+    sameSweep(t, sweep(H.slots("debuffs")[1]), 5.5 / 12, "half of the 12 s debuff gone")
+    for i, slot in ipairs(H.slots("buffs")) do t.eq(sweep(slot).calls, 1, "slot " .. i) end
   end)
 
-  t.test("/tbx buffs trace says which sweep frame is on screen", function()
+  t.test("/tbx buffs trace says what the sweep shows", function()
     bootSettled()
     H.S.durationMode = "remaining"
     H.chat("/tbx buffs")
@@ -765,7 +693,7 @@ return function(t)
     H.clearLogs()
     H.chat("/tbx buffs trace ward")
     H.advance(1)
-    t.ok(H.logged("^%+1s Ward: .* | frame 6%d/120 %(5%d%% shaded%)$"), H.logs()[2])
+    t.ok(H.logged("^%+1s Ward: .* | sweep 5%d%% of 60%.0 s$"), H.logs()[2])
   end)
 
   t.test("/tbx buffs trace <name> follows one buff, matching its displayed name too", function()
@@ -1214,7 +1142,8 @@ return function(t)
     local function icons(row)
       local out = {}
       for i, s in ipairs(H.slots(row)) do
-        out[i] = s.children[2].text and ("group" .. s.children[2].text) or tostring(s.children[1].texture)
+        local count = s.children[2].text                -- a group slot's count ("" on a slot's countdown)
+        out[i] = (count and count ~= "") and ("group" .. count) or tostring(s.children[1].texture)
       end
       return table.concat(out, ",")
     end
@@ -1590,7 +1519,7 @@ return function(t)
     H.addBuffs({ { name = "Aura", remaining = -1, permanent = true, icon = 2 } })   -- no sweep of its own
     H.advance(7, 0.5)
     local slot = H.slots("buffs")[1]
-    t.ok(sweep(slot).uv[2] >= 0.5, "Short is red")
+    t.ok(sweep(slot).red, "Short is red")
     H.advance(5, 0.5)                            -- Short runs out; Aura moves into the first slot
     slot = H.slots("buffs")[1]
     t.eq(slot.children[1].texture, 2)
@@ -1646,7 +1575,7 @@ return function(t)
     H.addBuffs({ { name = "Ward", remaining = 25, icon = 9 },
                  { name = "Bleed", remaining = 8, icon = 6, debuff = true } })
     H.advance(1, 0.5)
-    local function cd(row, i) local slot = H.slots(row)[i]; return slot and slot.children[3] end
+    local function cd(row, i) local slot = H.slots(row)[i]; return slot and slot.children[2] end
     t.eq(cd("buffs", 1).visible, false, "off by default")
     H.chat("/tbx buffs countdown on")
     H.chat("/tbx buffs countdown 10")
@@ -1676,14 +1605,14 @@ return function(t)
     H.addBuffs({ { name = "RuneFood_Pie", remaining = 12, total = 14544, icon = 46 } })
     H.advance(1, 0.5)
     local slot = H.S.frames.toolbox_consumables:Find("consumables").children[2]   -- after the empty-strip label
-    t.eq(slot.children[3].visible, true)
-    t.eq(slot.children[3].text, "11")
+    t.eq(slot.children[2].visible, true)
+    t.eq(slot.children[2].text, "11")
     H.advance(15, 0.5)
     t.eq(slot.visible, false, "the pie ran out")
     H.addBuffs({ { name = "RuneFood_Stew", remaining = 600, total = 14544, icon = 47 } })
     H.chat("/tbx buffs group after off")
     H.advance(1, 0.5)
-    t.eq(slot.children[3].visible, false, "the next one in the slot starts without a number")
+    t.eq(slot.children[2].visible, false, "the next one in the slot starts without a number")
   end)
 
   t.test("settings: the seconds-left option", function()

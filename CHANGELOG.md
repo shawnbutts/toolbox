@@ -6,6 +6,9 @@ store submission needs a higher version than any submitted before (rejected ones
 ## [Unreleased]
 
 ### Changed
+- Buff, consumable and target sweeps are now the game's own cooldown wedge, run by the game (API 25): smooth,
+  level with the game's buff bar, and turning red when the expiry alert fires. Toolbox sets it once per
+  cast instead of redrawing a picture several times a second (no UI work at all while buffs just run).
 - Health and focus bars read the game's own health, focus and maximums (`ShroudGetPlayerVitals`, API 25)
   instead of working them out from character stats. `/toolbox vitals debug` shows what it gave.
 - Target HUD: the target's name is the one the game's target frame shows (API 25 fixed the "Entity with no
@@ -14,6 +17,7 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ### Removed
 - `/toolbox buffs uvtest`: the game now redraws a picture when its frame changes, so the test has done its job.
+- `/toolbox buffs frame`: it tested the old clock pictures, which buffs no longer use.
 
 ### Added
 - A sound per notification source (Sounds page: Notification sounds): Chime, Ping, Tap (two new sounds),

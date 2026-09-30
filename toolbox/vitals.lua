@@ -625,7 +625,6 @@ local tId, tCount, tGroupAt = nil, nil, -math.huge
 local tInfoBy = {}           -- rune name -> { debuff = bool, total = seconds }, from the grouped list
 local tRaw = {}              -- reused: one entry per effect this poll
 local tList = {}             -- reused: what the slots show, sorted
-local tPending = false       -- a sweep couldn't be drawn (the shared budget); tried again next poll
 
 local function tSave() T.Save("target", tprefs) end
 local function iconSize() return T.BuffBar.GetSize() end
@@ -840,7 +839,6 @@ end
 
 -- The row: the bars block and the effect slots. The target strip's content, or a Toolbelt row.
 function TG.BuildRow()
-  T.BuffBar.ClockReady()
   local s = iconSize()
   tBelow = TG.inBuffBar ~= true and TG.Below()
   -- Every form has the same bars (owner, 2026-09-29: no name or percent on its own strip either; they're in
@@ -865,11 +863,10 @@ function TG.BuildRow()
   local mirrored = tLeft
   for i = 1, TG.SlotCount(mirrored) do
     local icon = UI.Image{ width = s, height = s, onClick = function() end }   -- a click handler: tooltips show
-    local overlay = T.BuffBar.SweepHolder(s)
-    local row = UI.Row{ visible = false, children = { icon, overlay },
+    local row = UI.Row{ visible = false, children = { icon },
       style = { width = s, height = s, marginRight = T.BuffBar.GAP, backgroundColor = "#00000066",
                 borderWidth = 0, borderColor = "@red" } }
-    tSlots[i] = { row = row, icon = icon, overlay = overlay }
+    tSlots[i] = { row = row, icon = icon }
     if mirrored then table.insert(children, 1, row) else children[#children + 1] = row end   -- mirrored: outward
   end
   if tHint then table.insert(children, 1, tHint) end
@@ -910,8 +907,6 @@ function TG.ApplySize()
   for _, slot in ipairs(tSlots) do
     slot.row:SetStyle{ width = s, height = s }
     slot.icon:SetSize(s, s)
-    slot.overlay:SetStyle{ width = s, height = s, marginLeft = -s }
-    slot.k = nil                                -- redraw the sweep at the new size
   end
   tShownCount = nil
   TG.Poll(false)
@@ -919,8 +914,7 @@ function TG.ApplySize()
 end
 
 -- Fills the effect slots from tList.
-local function fillSlots(s)
-  tPending = false
+local function fillSlots()
   for i, slot in ipairs(tSlots) do
     local e = tList[i]
     if e then
@@ -936,20 +930,11 @@ local function fillSlots(s)
       end
       if e.name ~= slot.name then
         slot.name = e.name
-        slot.k = nil
+        T.BuffBar.SetTimer(slot, nil)                  -- a new effect in this slot: its own wedge
       end
       local tip = ShroudGetTargetBuffTooltip(e.index)
       T.SetTooltip(slot.icon, (type(tip) == "string" and tip ~= "") and tip or e.name)
-      local k = 0
-      if e.total > 0 and e.remaining > 0 then k = T.BuffBar.Frame(math.min(1, e.remaining / e.total)) end
-      if k ~= slot.k then
-        if k > 0 then
-          if T.BuffBar.ShowFrame(slot, k, false, s) then slot.k = k else tPending = true end
-        else
-          T.BuffBar.HideFrame(slot)
-          slot.k = k
-        end
-      end
+      T.BuffBar.SetTimer(slot, e.remaining, e.total)
     end
     T.SetVisible(slot.row, e ~= nil)
   end
@@ -1003,7 +988,7 @@ function TG.Poll(force)
     T.SetTooltip(tInfo, "Your target's health and effects show here")
     tId, tCount = nil, nil
   end
-  fillSlots(s)
+  fillSlots()
   if tLeft then
     local now = T.Now()
     if now < tSyncUntil or now - tSyncAt >= TG.SYNC_EVERY then
@@ -1129,9 +1114,6 @@ function TG.Init()
     TG.Poll(false)
   end, TG.POLL, true)
 end
-
--- A sweep left undrawn (the shared budget) is retried on the next poll anyway; this is for tests.
-function TG.Pending() return tPending end
 
 -- Shows the target HUD, or not.
 function TG.SetShow(on)

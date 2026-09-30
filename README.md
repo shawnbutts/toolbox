@@ -52,7 +52,7 @@ Built clean-room from the official docs only:
 | `/toolbox daily` | show or hide today's stats (gold, kills, XP) |
 | `/toolbox dailydetailed` (or `dd`) (`values on\|off\|test\|refresh`) | show or hide Today Detailed (every item gained today); estimated values |
 | `/toolbox buffs move [x y]` | place the buff bar (no numbers: say where it is) |
-| `/toolbox buffs` (`group` / `combat` / `flash` / `replace` / `dismiss` / `debug` / `raw` / `trace [name]` / `frame <k>`) | show or hide the buff bar; its options; diagnostics (`debug`: each buff's timing; `trace light`: log buffs matching "light" once a second for 10 s; `frame`: hold one sweep frame; `uvtest`: sprite-frame redraw test) |
+| `/toolbox buffs` (`group` / `combat` / `flash` / `replace` / `dismiss` / `debug` / `raw` / `trace [name]`) | show or hide the buff bar; its options; diagnostics (`debug`: each buff's timing; `trace light`: log buffs matching "light" once a second for 10 s; `frame`: hold one sweep frame; `uvtest`: sprite-frame redraw test) |
 | `/toolbox consumables` (`bar` / `glue` / `add\|remove <name>` / `move`) | list food and potions in effect; the consumables bar's options |
 | `/toolbox gear` (`bar` / `glue` / `repair <%>` / `move` / `debug`) | worn items' durability; the equipment bar's options |
 | `/toolbox notify` (`<name> on\|off` / `via window\|hud\|chat` / `sound on\|off` / `show` / `hud ...`) and `/toolbox motd` | notifications; the guild message of the day |
@@ -191,8 +191,9 @@ the day's gold and kills and a list of every item gained today with its count, h
 
 `/toolbox buffs` shows a HUD strip with
 your buffs on the top row and debuffs, outlined in red, below. Each icon is the skill's real icon
-with the game's own tooltip. Time left is shown as a darkening clockwise sweep from 12 o'clock
-(the `toolbox/clock.png` sprite sheet), not as text; permanent effects have no sweep.
+with the game's own tooltip. Time left is shown as the game's own cooldown wedge (the one on its buff
+and hotbar icons), sweeping clockwise from 12 o'clock and run by the game (API 25), not as text;
+permanent effects have no sweep.
 
 **Moving it.** Drag the small grip at its top-left corner. The game hides the grip while the HUD
 is locked: untick **Lock Status Movement** under **Nameplates & Chat Bubbles** on the game's
@@ -205,9 +206,7 @@ it on screen, so a bar parked at the far right is pushed left as it grows.
 **Replacing the game's bar** (API 16, opt-in): "Replace the game's buff bar" hides the game's own
 bar while this one is showing (the game restores it on reload, so it is applied at every start), and
 "Click a buff to dismiss it" dismisses the buffs the game lets you dismiss. Icons are a fixed pool
-(20 buffs, 10 debuffs) built once. The sweep picture is replaced for each step of the sweep (this
-client draws a sprite frame only when the picture is created), at most 8 new pictures a second for
-all sweeps together.
+(20 buffs, 10 debuffs) built once. Toolbox sets each wedge once per cast; the game draws it smoothly.
 
 **Alerts** (they work with the bar hidden):
 
@@ -239,7 +238,7 @@ generates `toolbox/*.ogg`. (Older macOS clients failed every sound load; fixed i
 When a buff's expiry alert fires, its sweep turns from dark to red for the rest of that run.
 
 The sweep needs each buff's full duration: the game reports it (`TotalDuration` in
-`ShroudGetPlayerBuff()`, whose entries are game objects, not tables). For effects without one (the
+`ShroudGetPlayerBuff()`). For effects without one (the
 moon timer) the bar learns it: a buff that appears while the add-on is running shows its full
 duration as its first time left, remembered per character. Without either there is **no sweep**
 rather than a wrong one; the expiry alert only needs the time left. `/toolbox buffs debug` says
@@ -356,11 +355,11 @@ toolbox/            the package (what ships)
   dailydetail.lua   the Today Detailed window (/toolbox dailydetailed, dd)
   sounds.lua        alert sound loading (custom path, then defaults) and playback
   hud.lua           the HUD strips: one per module, or one shared strip when glued
-  buffbar.lua       the buff bar HUD, clock overlay, expiry and debuff alerts
+  buffbar.lua       the buff bar HUD, its sweeps, expiry and debuff alerts
   vitals.lua        the health & focus bars HUD
   combat.lua        the combat stats HUD
   docs.lua          the Docs window (/toolbox docs, Docs button in settings)
-  clock.png         the clock overlay sprite sheet (2 x 120 frames, from art/clock.py)
+  clock.png         the equipment bar's wear picture (2 x 120 frames, from art/clock.py)
   config.lua        the Toolbox Settings window (/toolbox config)
   README.md         player-facing store readme
   icon.png          store / add-on manager icon (256x256)

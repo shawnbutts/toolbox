@@ -1,7 +1,7 @@
 -- Stress: a long-played character with every list at its maximum, full bars and heavy combat. The
 -- idle / combat budgets in test_perf.lua use light fixtures; these check that a veteran's saved
 -- data and a busy screen don't cost dramatically more (review, 2026-09-29). They also count
--- elements created (the sweeps make new Images) and container Add/Clear calls.
+-- elements created and container Add/Clear calls.
 local H = require("harness")
 
 return function(t)
@@ -9,12 +9,13 @@ return function(t)
   -- read the equipment every check; BB.Track made a closure per buff per tick; Today Detailed redrew
   -- 250 names every second):
   --   veteran idle   2 calls/s,  3.3 / 4.6 KB/s,  0 made/s
-  --   full bars     16 calls/s, 13.9 / 17.7 KB/s, 8 made/s (= BuffBar.SWEEP_RATE)
+  --   full bars      0 calls/s,  8.3 / 18.2 KB/s, 0 made/s (2026-09-30: the game runs the sweeps; before,
+  --                  16 calls/s and 8 made/s replacing sweep pictures)
   --   heavy combat  67 calls/s, 61 / 75 KB/s (incl. the test's own 50 event tables a second), 0 made/s
   -- STRESS_PRINT=1 lua tests/run.lua stress prints them. Limits leave headroom.
   local LIMITS = {
     veteran = { calls = 10, kb = 12, made = 1 },
-    bars = { calls = 30, kb = 30, made = 9 },
+    bars = { calls = 10, kb = 30, made = 1 },
     combat = { calls = 90, kb = 120, made = 2 },
   }
 
@@ -169,7 +170,7 @@ return function(t)
     H.chat("/tbx vitals")
     H.chat("/tbx notify via hud")
     H.chat("/tbx buffs group after off")               -- all 20 on the bar, none grouped
-    -- long enough that none runs out during the measurement; short enough that every sweep steps
+    -- long enough that none runs out during the measurement
     local list = {}
     for i = 1, 20 do list[#list + 1] = { name = "Buff" .. i, remaining = 90 + i * 60, icon = i } end
     for i = 1, 10 do list[#list + 1] = { name = "Bane" .. i, remaining = 80 + i * 10, icon = 40 + i, debuff = true } end
@@ -189,7 +190,7 @@ return function(t)
     quietBuffGetters()
     local calls, kb, made = measure(60)
     within("full bars", LIMITS.bars, calls, kb, made)
-    t.ok(made <= Toolbox.BuffBar.SWEEP_RATE + 1, string.format("sweeps within their rate: %.1f/s", made))
+    t.ok(made < 0.5, string.format("sweeps make no elements (the game runs them): %.1f/s", made))
   end)
 
   t.test("heavy combat (50 lines a second, 6 targets, a full fight history) within budget", function()

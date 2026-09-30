@@ -128,18 +128,19 @@ return function(t)
     t.eq(H.targetRow():Find("target_hint").visible, true, "\"Target\", to place it")
   end)
 
-  t.test("effect sweeps show the time left, and use the buff bar's shared drawing budget", function()
+  t.test("effect sweeps show the time used, run by the game", function()
     H.boot()
     H.chat("/tbx target on")
     H.setTarget(copy(WOLF))
-    local bleed = H.targetSlots()[1]
-    t.eq(bleed.children[2].visible, true, "a sweep")
-    local img = bleed.children[2].children[1]
-    t.ok(img and img.uv, "drawn as a clock frame")
-    local k = Toolbox.BuffBar.Frame(4 / 8)
-    local x, y = Toolbox.BuffBar.FrameUV(k, false)
-    t.eq(img.uv[1], x)
-    t.eq(img.uv[2], y)
+    local icon = H.targetSlots()[1].children[1]
+    local done, red = icon:SweepNow()
+    t.ok(done and math.abs(done - 0.5) < 0.01, "4 of 8 s used: " .. tostring(done))
+    t.no(red)
+    for _ = 1, 4 do                                  -- the game counts the time left down
+      H.advance(0.5, 0.5)
+      for _, e in ipairs(H.S.target.effects) do e.remaining = e.remaining - 0.5 end
+    end
+    t.eq(icon.timerCalls, 1, "set once, not per poll")
   end)
 
   t.test("in the Toolbelt: the last row of the buff bar's strip, and it fits the strip", function()
