@@ -10,27 +10,27 @@ This file holds current facts and rules; the history behind them is in git (`git
   - https://catnipgames.net/lua/agent.html (dense API map; read first)
   - https://catnipgames.net/lua/reference.html (full reference)
   - https://catnipgames.net/lua/guide.html (packaging, sandbox, store)
-- **Target Lua API 23 on MoonSharp (Lua 5.2 semantics)** (`min_api_version` 23, the live client's version;
-  newer functions are feature-detected). No 5.3+ features: no integer division `//`, no bitwise operators,
+- **Target Lua API 25 on MoonSharp (Lua 5.2 semantics)** (`min_api_version` 25, the owner's client since
+  2026-09-30; no support for older clients). No 5.3+ features: no integer division `//`, no bitwise operators,
   no `utf8` library, no `math.tointeger`/`math.type`, no `<const>`/`<close>`. Also avoid `goto` and
   `table.unpack`/`unpack` so the tests run on LuaJIT too. Pass whole numbers to `%d` (use `math.floor`).
 - **The released client can lag or differ from the docs.** Read documented values defensively, keep a
   fallback that was confirmed in game, and add a `debug` subcommand that prints raw values so the owner
-  can check without guessing. Feature-detect every function newer than API 23 (`type(ShroudX) == "function"`).
+  can check without guessing. Feature-detect every function newer than API 25 (`type(ShroudX) == "function"`).
 - **Use the UI theme for colours** (owner's preference): theme classes and `@` tokens follow the player's
   skin; avoid hard-coded `#rrggbb` except where the theme has nothing.
 - **Always initialise locals: `local x = nil`, never a bare `local x`.** In game a bare local inside a
   loop kept an old value. `tools/build.py` refuses bare declarations; luacheck's 311 is ignored for it.
-- **Never put a possibly-nil value in a table passed to the UI** (spec, style, `SetStyle`): MoonSharp passes
-  the nil entry on and the UI rejects it. Setting a field to nil doesn't remove it either (an IconButton spec
-  with `spec.height = nil` was refused: "has no field 'height'"). Build a new table. `tools/build.py` refuses
+- **Build UI tables whole; no nil entries** (spec, style, `SetStyle`). Before API 25 a nil entry reached the
+  UI and was refused; API 25 treats it as absent, but the house style stays: `tools/build.py` refuses
   `name = ... or nil` entries and `spec.x = nil` / `style.x = nil`.
-- **No lazy `.-` patterns on text that can be long**: MoonSharp raises "pattern too complex" (a trim on a
-  long buff description got Toolbox disabled). Use `Toolbox.Trim` / `Toolbox.ParseArgs` or plain
-  `find`/`sub`. `tools/build.py` refuses a `(.-)` capture anchored with `$`; the harness raises for any
-  `.-` pattern on text over 120 characters.
-- **Game data may be userdata, not tables** (`ShroudGetPlayerBuff()` entries are C# objects, despite the
-  docs). Read fields by name through `T.Field` / `T.List` (pcall'd), never `pairs` or `type(x) == "table"`.
+- **No lazy `.-` patterns on text that can be long.** Before API 25 MoonSharp raised "pattern too complex"
+  (a trim on a long buff description got Toolbox disabled); fixed in API 25, but the house style stays: use
+  `Toolbox.Trim` / `Toolbox.ParseArgs` or plain `find`/`sub`. `tools/build.py` refuses a `(.-)` capture
+  anchored with `$`; the harness raises for any `.-` pattern on text over 120 characters.
+- **Read game data through `T.Field` / `T.List`** (pcall'd). Buff lists were userdata before API 25 (plain
+  tables now); other results may still be C# objects (a MoonSharp `EnumerableWrapper` for
+  `ShroudGetPartyMemberNamesInScene()`: only `for x in list do` walks it).
 - **The price site is "SotANET" or "shroudoftheavatar.net", never "SOTA.net"** (a different domain).
   `tools/build.py` refuses "sota.net" in package files.
 - **Avoid `a and b or c` when `b` can be false/nil.**
@@ -132,11 +132,13 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
     sorted by time left, and runs the expiry / debuff alerts. Grouping: longer than `BB.GroupAfter()` left,
     a chosen category (`groupCats`), or a name part (`group`) goes into one count slot. `combatOnly`,
     `replaceStock` (API 16), `clickDismiss` (re-finds the index by name at click time), the countdown label.
-  - Sweeps: the client draws an Image's `uv` only at creation (SetUV doesn't redraw; reported), so
-    `BB.ShowFrame` REPLACES the Image in a holder Row (`BB.SweepHolder`) for every new frame, at most
-    `BB.SWEEP_RATE` (8) a second for ALL sweeps (token bucket, most urgent first). `clock.png` must match
-    `BB.CLOCK` (`art/clock.py`). `BB.ClockReady()` for rows built elsewhere. When a client fixes SetUV,
-    go back to one Image per slot stepped with `SetUV`.
+  - Sweeps: buff, consumable and target icons carry the game's cooldown wedge (API 25): `BB.SetTimer(slot,
+    left, total, warn)` calls the icon's `SetSweepTimer(start, total[, { warnBelow, warnColor }])` once per
+    run, again only when the start moves more than `BB.TIMER_SLACK`, the total changes or it turns red
+    (`BB.WARN_COLOR`); the game draws it and clears it at the end. `slot.timer` is what was set;
+    `BB.TimerText` describes it for the trace. The equipment bar's wear is still a clock picture:
+    `BB.SweepHolder` (a holder Row + one Image) stepped with `SetUV` by `BB.ShowFrame` / `HideFrame`;
+    `clock.png` must match `BB.CLOCK` (`art/clock.py`).
   - Consumables: food, potions, poisons and combat consumables by category (API 23; `BB.TakesConsumable`,
     `cats`, `exclude` Scroll/Torch/Bait, `extra`), name rules on older clients. Own strip or a Toolbelt row.
     Long-lasting ones and past `max` share a group slot.
@@ -145,16 +147,15 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
   - `fitFrame` sizes the strip to what shows (the game keeps HUD frames on screen by their FULL size) and
     counts the glued rows (`K.GluedCount`, `G.GluedCount`, `T.Target.GluedCount`). Empty strips show a
     placeholder name while settings are open.
-- `vitals.lua`: `Toolbox.Vitals` (V), health / focus / Vigor bars. Current values from the per-frame globals,
-  falling back to the `CurrentHealth` / `CurrentFocus` stats (the globals read nil in game); maximums from
-  the `Health` / `Focus` stats. Vigor from `ShroudGetVigor` (API 20). Every size from `V.Metrics()` (Size,
+- `vitals.lua`: `Toolbox.Vitals` (V), health / focus / Vigor bars. Current values and maximums from
+  `ShroudGetPlayerVitals` (API 25; `V.Vitals()` reads it once per game time). Vigor from `ShroudGetVigor` (API 20). Every size from `V.Metrics()` (Size,
   Bar length; bars `V.BAR_THICKNESS` of the line). `V.RowHeights()` = the rows as laid out (GetSize).
   Also `Toolbox.Target` (TG, end of the file): the target HUD. One row: a bars block (`target_info`: health
   and focus `Bar`s the size of the player's; no text in any form: name, numbers and percent in its tooltip)
-  and effect slots with the clock sweep, debuffs first (`TG.Collect`). Polled every `TG.POLL` s and on
+  and effect slots with the game's wedge, debuffs first (`TG.Collect`). Polled every `TG.POLL` s and on
   `ShroudOnTargetChanged`; the grouped `ShroudGetTargetBuff` only when the target or its effect count
-  changes. The API doesn't say who applied an effect: all are listed. `TG.CleanName` tidies the game's
-  "Entity with no name (Stag_04_Large(Clone))" fallback. Where it goes: its own strip, or the Toolbelt:
+  changes. The API doesn't say who applied an effect: all are listed. `TG.Name`: the game's name (API 25: the
+  target frame's), or "Unnamed". Where it goes: its own strip, or the Toolbelt:
   `Place()` "top" (default; its row keeps its height with no target so nothing jumps: the strip is anchored
   at its top-left grip) or "bottom"; with the health bars glued too (`TG.Below`), Hud builds it across both
   columns, lined up with the health bars; else (`TG.InBuffColumn`) the buff bar builds it as its first or
@@ -226,8 +227,9 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
 `tests/harness.lua` models the documented host: constructors and `Shroud.Command` raise outside a callback
 and reject unknown fields; saved vars have a memory cache and a "disk" copy updated on flush; destroyed
 element trees raise on use; margins / paddings are clamped; the element-creation cap, 8 windows and 8 HUD
-frames are enforced; a disabled control can't be changed or clicked; `SetUV` records `uvSet` but doesn't
-change what is drawn (as in game).
+frames are enforced; a disabled control can't be changed or clicked; `SetUV` changes what is drawn; the
+wedge (`SetSweep`, `SetSweepTimer`, refused as in game for a lone duration) reads back with
+`element:SweepNow()` (fraction covered, red) and `element.timerCalls`.
 
 - Lifecycle: `H.boot()` (a returning player), `H.firstBoot()`, `H.reload()` (= `/lua reload`: flush, tear
   down, reload, `ShroudTime` continues), `H.restart()` (relaunch: only flushed data survives),
@@ -290,7 +292,7 @@ you read back and fall back to defaults.
    match); move `[Unreleased]` notes under the new version in CHANGELOG.md ("## [x.y.z] - date (beta N)").
    Version numbers are single-use in the store, including rejected ones.
 2. `min_api_version`: raise it only to what the LIVE client reports (`/toolbox api`), never just to what the
-   docs describe. The root README's opening must state it ("needs Lua API 23"; the build checks).
+   docs describe. The root README's opening must state it ("needs Lua API 25"; the build checks).
 3. Update BETA.md (the tester guide, `INSTALL.txt` in the zip): the intro, "What to try" (this beta first,
    earlier betas under "From beta N") and "Known issues". Keep the root README, the store README and the
    manifest description in step with features.
@@ -333,26 +335,31 @@ What each newer API added and what Toolbox does with it (all feature-detected):
 - **API 20**: Vigor (`ShroudGetVigor`, `ShroudOnVigorChanged`). Used.
 - **API 21 / 22**: more package sound formats; package `data_files` (`ShroudLoadData`). Unused.
 - **API 23**: buff categories (player and target). Used.
-- **API 24** (docs only; the owner's client is on 23): craft results name the product (`item`), count items
-  made (`made`) and list everything a craft put out (`items`); `ShroudGetRecipe(id).results` = the fixed
-  yield. Used when present.
+- **API 24**: craft results name the product (`item`), count items made (`made`) and list everything a craft
+  put out (`items`); `ShroudGetRecipe(id).results` = the fixed yield. Used (confirmed in game 2026-09-30:
+  `item=Crimson Pine Binding made=4`).
+- **API 25** (the minimum; checked in game 2026-09-30 with a stand-alone test, `tmp/api25check.lua`): SetUV
+  redraws; `SetSweep` / `SetSweepTimer` and a `sweep` spec field on Image / IconButton (used, above);
+  `ShroudGetPlayerVitals` (used); buff lists are plain tables; `ShroudGetTargetName` = the target frame's name;
+  nil fields are absent; lazy patterns work on long text; a label's `height` is honoured; `card` draws (Air /
+  Crucible skins); `ShroudGetPartyMemberBuffs(slotOrName)` and `ShroudOnPartyChanged()` (not used yet).
 
-**Waiting on the developers:** a SetUV redraw fix (and a requested radial fill / client-run sweep: if either
-appears, feature-detect it in `BB.ShowFrame` / `HideFrame`); a read-only game settings API (first use: the
-game's "stack buffs lasting longer than" option feeding `BB.GroupAfter()`). Reported, see
-`tmp/client-issues.md`: `ShroudPlayerCurrentHealth` / `Focus` nil, the `card` class drawing nothing,
-`ShroudGetPlayerBuff()` entries being userdata, `primaryDurability` undocumented, no max health / focus
-getter, `ShroudGetTargetName()`'s "Entity with no name (...)" fallback. Worth requesting for the Party Toolbelt: party
-members' buffs / debuffs (a `ShroudGetPartyMemberBuff*` family) and a party-changed event.
+**Waiting on the developers:** a read-only game settings API (first use: the game's "stack buffs lasting
+longer than" option feeding `BB.GroupAfter()`). Reported 2026-09-30 (`tmp/client-issues.md` 14, 15;
+`tmp/party-issue.md`): `ShroudGetPartyMemberNamesInScene()` is an `EnumerableWrapper`, not a list (only a bare
+generic `for` walks it; names upper-case, you included; the by-name getters ignore case), and the slot getters
+reach only slot 0 (you): other members answer on no slot, only by name. Everything reported before is fixed in
+API 25.
 
 **Ideas, not agreed:** a **Party Toolbelt** (owner, 2026-09-29): a dedicated party strip, separate from the
 player's own Toolbelt, so a healer keeps their Toolbelt for themselves and watches the party on its own
 strip: a row per member (name, health and focus bars sized like the player's, members in another scene
 dimmed, the lowest health flagged). Party API (base API; see the reference's "Party" section):
-`ShroudGetPartyMemberCount` / `Name(slot)` (slots aren't dense), health and focus by slot or, preferred, by
-name (`...InScene(name)`, `ShroudGetPartyMemberNamesInScene`); only members in your scene have vitals (else
--1); no party-change or vitals events (poll); NO party member buffs (a request for the devs), and player
-targets expose only vitals; combat events carry a `party` flag. It needs a HUD frame of its own: with all
+members by name (`ShroudGetPartyMemberNamesInScene`, walked with a bare `for`; the slot getters don't reach
+other members on the 2026-09-30 client), health and focus by name (`...InScene(name)`), buffs by name
+(`ShroudGetPartyMemberBuffs`, API 25); only members in your scene have vitals and buffs (else -1 / nil);
+`ShroudOnPartyChanged` (API 25) for joins, leaves and scene changes, no vitals event (poll); player targets
+expose only vitals; combat events carry a `party` flag. It needs a HUD frame of its own: with all
 9 strips on there are only 8 frames, so decide what gives way (or merge rarely-used strips) first. Also:
 a crafting skill tracker and a recipe lookup / shopping list (as Today
 Detailed views: no window slot left); a gathering session HUD; lock-position / snap presets for strips
@@ -370,13 +377,13 @@ Rules learned the hard way; keep to them.
   retries quietly, and HUD strip builds are atomic.
 - **Layout:** there is no absolute positioning; an overlay is a negative left margin (an Image over another
   draws on top). Margins clamp to -64..256 and paddings to 0..256, so overlap per icon, not per strip.
-  Labels carry theme side margins: set `marginLeft`/`marginRight` = 0 where widths must add up. `height`
-  alone doesn't size a label (a theme minimum wins): pin `minHeight`/`maxHeight` (`Toolbox.Window.LineStyle`
-  / `TextStyle`), and do the same for bars. Rows can lay out taller than asked: measure with `GetSize` when
+  Labels carry theme side margins: set `marginLeft`/`marginRight` = 0 where widths must add up. Before API
+  25 `height` alone didn't size a label (a theme minimum won), so labels and bars pin `minHeight`/`maxHeight`
+  (`Toolbox.Window.LineStyle` / `TextStyle`); harmless now. Rows can lay out taller than asked: measure with `GetSize` when
   things must line up. Hidden elements take no space. A colour's alpha doesn't fade children (`opacity`
   does). An `Image` with an `onClick` shows its tooltip. `rotate = 180` mirrors a Bar's fill.
 - **Theme:** `inset` is a dark panel with shaded edges (the Dark backgrounds use `#000000` + alpha instead);
-  `card` draws nothing; `@text` is the light panel colour; there is no dark text token (`V.DARK_TEXT`).
+  `card` draws only on some skins (Air, Crucible; nothing before API 25): don't rely on it; `@text` is the light panel colour; there is no dark text token (`V.DARK_TEXT`).
 - **HUD frames:** moved by a grip at the top left (hidden while "Lock Status Movement" is on; strips keep
   `Toolbox.Window.GRIP` px of room for it), kept on screen by their FULL size (size strips to what shows),
   anchored at the top left (anything appearing above or left of content pushes it: keep that space).
@@ -386,8 +393,9 @@ Rules learned the hard way; keep to them.
   within `BB.SETTLE` s of start, a scene change or a player change, or when 2+ names appear at once.
 - **Categories (API 23):** Food (`RuneFood_*`), Potion (Obsidian `BlessingOf*`), Blessing (`POT_Blessing_*`,
   `Rune_Reward_Blessing_Shrine_*`: shrine blessings, not potions), Other (Stillness, MoonlightWatch).
-- **Vitals:** `ShroudPlayerCurrentHealth` / `Focus` are nil (use the stats); `ShroudPlayerGold` and
-  `ShroudTime` work.
+- **Vitals:** `ShroudGetPlayerVitals` gives health, focus and their maximums; `health` can read a hair above
+  `maxHealth` (951 / 950.36; `V.Format` never shows the max below it). The per-frame globals read nil before
+  API 25 (another add-on overwrote them; now restored each frame). `ShroudPlayerGold` and `ShroudTime` work.
 - **XP:** totals can go down (death); see `XP.DROP_CONFIRM`.
 - **Sounds:** paths are relative to the Lua folder; `ShroudLoadSound` returns false for a missing / wrong
   file and true when an async load starts; `ShroudListSound()` is plain base names in load order; the
@@ -395,13 +403,17 @@ Rules learned the hard way; keep to them.
 - **Keys:** Shift is never a modifier; the game takes "Ctrl+Semicolon" (the suggested key, confirmed) and
   refuses "Ctrl+Shift+Semicolon". Players change keys in the add-on manager.
 - **Combat events** are plain tables with the API 17 fields (auto-attacks as "Bladed Combat"; you = key 1).
-- **Crafting (API 23 client):** the three result events fire; `item` = the recipe's name and `crafted`
-  counts crafts (fixed in API 24); products reach the bags when taken off the table, much later; gathered
+- **Crafting:** the three result events fire; on API 23 `item` was the recipe's name (fixed in API 24,
+  confirmed); `crafted` counts crafts; products reach the bags when taken off the table, much later; gathered
   names match the items gained. Recipe names don't always carry a station suffix and item names can have
   brackets ("Hopper (Bait)"): don't derive product names beyond dropping "Recipe: ".
-- **Equipment:** `durability <= primaryDurability <= maxDurability` (numbers); tools and pets are worn items
+- **Equipment:** `durability <= primaryDurability <= maxDurability` (numbers; the docs: primary = the most a
+  repair restores, worn down with use, raised only at a crafting station; needs repair when durability <
+  primary). `G.Read` measures against `maxDurability`: open question with the owner. Tools and pets are worn items
   too, so a set can exceed `G.SLOTS`.
-- **Target:** some creatures' name is "Entity with no name (<internal name>)".
+- **Target:** before API 25 some creatures' name was "Entity with no name (<internal name>)"; fixed.
+- **Party (API 25):** `ShroudGetPartyMemberBuffs(name)` works (same shape as your buffs); `ShroudOnPartyChanged`
+  fires with no arguments. See "Waiting on the developers" for the names list and the slots.
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
   target, skill levels and deaths, friends online, the notification chime, Combat Detailed.
 
