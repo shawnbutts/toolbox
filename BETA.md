@@ -8,9 +8,6 @@ notifications. This is a beta: please tell us what breaks.
 
 To install it, follow INSTALL.txt (in the same zip): the "Installing by hand" part.
 
-You need a game client with Lua add-on API 25 or newer (the game update of 2026-09-30; older clients
-skip Toolbox with a chat line saying it needs a newer client).
-
 
 1. Getting started
 ------------------
@@ -46,7 +43,6 @@ row under "Keys".
 --------------
 
 Anything you like, but especially what's new in this beta (/tbx version lists it all):
-  * This beta needs the game update of 2026-09-30 (add-on API 25), which fixed the problems we reported.
   * Sweeps on buffs, consumables and target effects are now the game's own cooldown wedge, run by the
     game: smooth and level with the game's buff bar. Compare them for a minute, including buffs cast
     before you logged in. Does a buff's wedge turn red when its expiry alert sounds, and back after a

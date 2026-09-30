@@ -6,9 +6,6 @@ health, focus and Vigor, food and potions, gear needing repair and your target i
 put anywhere. Around it: XP windows, today's loot, crafting and gathering, a combat stats HUD and
 notifications.
 
-You need a game client with Lua add-on API 25 or newer (the game update of 2026-09-30; older clients
-skip Toolbox with a chat line saying it needs a newer client).
-
 
 The official way: the add-on store
 ----------------------------------
