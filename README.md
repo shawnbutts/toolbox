@@ -173,6 +173,8 @@ Gold picked up         1,500
 Kills                     87
 Adventurer XP        123,456
 Producer XP            4,567
+Skill levels               3
+Deaths                     1
 ```
 
 - **Resets at local midnight.** The local clock comes from `os.date`, which the SotA docs don't
@@ -261,14 +263,15 @@ rather than a wrong one; the expiry alert only needs the time left. `/toolbox bu
 where each buff's duration came from.
 
 **Consumables bar.** Food (`RuneFood_...`) and Obsidian potions (`BlessingOf...`) move to their own
-bar, with the same sweep, flash and alert (`/toolbox consumables`; glue it under the buffs, or add
-more names in settings or with `/toolbox consumables add <name>`). Shrine blessings stay on the buff bar.
+bar, with the same sweep, flash and alert (`/toolbox consumables`; add
+more names in settings or with `/toolbox consumables add <name>`), or put it in the Toolbelt. Shrine blessings
+stay on the buff bar.
 
 **Equipment bar.** Worn items below the repair threshold (20% by default) show with a red sweep for
 the durability they've lost, lowest first. Durability counts against what a repair restores
 (`primaryDurability`); when that has worn below 95% of new, the tooltip says a crafting station repair
 is needed; a "Gear needs repair" notification comes when one drops
-below it and again when it breaks (`/toolbox gear`). It can be glued under the buff bar too.
+below it and again when it breaks (`/toolbox gear`). It can go in the Toolbelt too.
 
 ## Health & focus bars
 
@@ -282,20 +285,18 @@ red and blue when the bars are off), and the numbers can sit on a **Dark** or **
 your UI theme, so they follow your skin: Dark is the theme's `inset` look, Light a panel in the
 theme's text colour with dark numbers on it.
 
-**Glue to the buff bar**: "Glue to the buff bar (one HUD)" in settings, or
-`/toolbox vitals glue on`, puts the health & focus bars and the buffs in a single HUD strip
-(health & focus on the left, buffs on the right) with one grip and one position; either section's
-Position buttons or `move` command move it. Glued and unglued positions are remembered separately.
+**In the Toolbelt**: "In Toolbelt" for the health bars on the settings' Toolbelt page (or
+`/toolbox toolbelt vitals on`) puts the health, focus and Vigor bars and the buffs in a single HUD strip
+(health bars on the left, buffs on the right) with one grip and one position; either part's Position
+buttons or `move` command move it. The Toolbelt's position and the bars' own strip are remembered
+separately.
 
 **Flash when low**: while health or focus is below a threshold (default 20%, 1-95%), its bar and
 number swap to the theme's bright text colour every 0.4 s. On by default; a checkbox and slider
 in settings, or `/toolbox vitals flash 30` / `off`. **Test flash** (in settings) or
-`/toolbox vitals flash test` flashes both bars for 5 s so you can see it. Current values are the documented `ShroudPlayerCurrentHealth` / `ShroudPlayerCurrentFocus`,
-or the `CurrentHealth` / `CurrentFocus` stats when those aren't numbers (`/toolbox vitals debug`
-shows which is used).
-The maximums have no documented getter: the readable stats `Health` and `Focus` equal the current
-values at full health and focus, so they are used as the maximums (never shown below the current
-value).
+`/toolbox vitals flash test` flashes both bars for 5 s so you can see it. Current values and maximums
+come from `ShroudGetPlayerVitals()` (API 25), read once per update; the maximum is never shown below the
+current value (it is fractional: 950.36 with 951 current). `/toolbox vitals debug` shows what it gave.
 
 **Vigor** (API 20): a gold third bar with the percentage, from `ShroudGetVigor()` /
 `ShroudOnVigorChanged`; hover it for the regen and crit bonuses. It shows once you are past the level
@@ -332,7 +333,7 @@ Unreadable stats show "n/a". The settings window's Combat page does the same wit
 search field, a results dropdown (label, internal name and your value now; suggestions when the search
 is empty), Add, and a Remove dropdown of the shown stats. `/toolbox combat help` prints the chat way. The store readme
 (`toolbox/README.md`) has the player-facing version. The strip has its own Size and
-position, and stays separate when the health & focus bars are glued to the buff bar.
+position, and stays separate from the Toolbelt.
 
 **Background.** A panel behind the whole strip: Dark (the UI theme's `inset` look, the default) or
 Light (the theme's text colour, with dark text), or None, with its own opacity (10-100%, default
@@ -362,8 +363,8 @@ image limits, size caps, no runtime code loading, and no `io`/`os` use in packag
 ```
 toolbox/            the package (what ships)
   manifest.json     files load in this order: core.lua, xp.lua, hover.lua, ui.lua, compact.lua, daily.lua,
-                    dailydetail.lua, sounds.lua, hud.lua, buffbar.lua, vitals.lua, combat.lua, docs.lua,
-                    config.lua
+                    dailydetail.lua, sounds.lua, hud.lua, buffbar.lua, vitals.lua, combat.lua, changelog.lua,
+                    docs.lua, config.lua
   core.lua          Toolbox namespace, commands, saved-var helpers, session lifecycle, callbacks
   xp.lua            pure session XP model (rates, rolling window, time to level)
   ui.lua            the XP Detailed window (/toolbox xpdetailed; Toolbox.Window, id toolbox_xp)
@@ -372,7 +373,7 @@ toolbox/            the package (what ships)
   daily.lua         daily stats and the Today window (/toolbox daily)
   dailydetail.lua   the Today Detailed window (/toolbox dailydetailed, dd)
   sounds.lua        alert sound loading (custom path, then defaults) and playback
-  hud.lua           the HUD strips: one per module, or one shared strip when glued
+  hud.lua           the HUD strips: one per module, or one shared strip for the Toolbelt
   buffbar.lua       the buff bar HUD, its sweeps, expiry and debuff alerts
   vitals.lua        the health & focus bars HUD
   combat.lua        the combat stats HUD

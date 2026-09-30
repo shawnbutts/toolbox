@@ -51,8 +51,8 @@ and add or leave out buffs by name.
 
 ## Target HUD
 
-Your target's name and health (and focus), then its effects as icons with a sweep for the time left,
-debuffs first. It shows what the game's own target frame shows, so a creature hiding its health reads
+Your target's health (and focus) as bars, then its effects as icons with a sweep for the time left,
+debuffs first; hover the bars for its name and the exact numbers. It shows what the game's own target frame shows, so a creature hiding its health reads
 "health hidden", and it lists every effect on the target (the game doesn't say who applied them). It joins
 the Toolbelt above your buffs, under everything, or mirrored to the left of your health bars (its bars
 fill from the right, level with yours), with no text (hover for it) and bars sized like yours, or has its
