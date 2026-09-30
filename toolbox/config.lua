@@ -554,8 +554,8 @@ function C.NotifySection()
   children[#children + 1] = heading("Notification HUD")
   children[#children + 1] = dropdownRow("Hide after", { id = "nhud_hide", choices = hides,
     value = NH.HideLabel(NH.GetHideAfter()) or hides[1],
-    tooltip = "The notification HUD shows when something arrives and hides after this, clearing what it"
-      .. " showed (Never: always shown, keeping the latest 20)",
+    tooltip = "The notification HUD shows when something arrives and hides after this (Never: always shown)."
+      .. " It keeps the latest 20; the ones new since it last hid are bright",
     onChange = function(_, label) C.OnNotifyHide(label) end })
   children[#children + 1] = UI.Row{ style = { justifyContent = "end", marginTop = 4 }, children = {
     UI.Button{ id = "nhud_clear", text = "Clear notification history",

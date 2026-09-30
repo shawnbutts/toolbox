@@ -438,8 +438,10 @@ return function(t)
     H.setNotes{ unreadMail = 2 }
     t.ok(H.nhud().visible ~= false, "back for the next one")
     t.ok(H.nhudRow(1):find("1 new letter"), H.nhudRow(1))
-    t.eq(H.nhudRow(2), nil, "alone: the one shown and hidden before is gone")
-    t.eq(#H.saved("notify_history").list, 1)
+    t.ok(H.nhudRow(2):find("1 unread letter"), "the one before is kept, to look back")
+    local classes = function(i) return H.nhud():Find("nh_" .. i):Classes() end
+    t.ok(classes(1).bright and not classes(1).dim, "the new one stands out")
+    t.ok(classes(2).dim and not classes(2).bright, "the one shown before is dimmed")
   end)
 
   t.test("hide after: never, other choices, and chat", function()
@@ -455,9 +457,8 @@ return function(t)
     t.eq(H.saved("notify_hud").hideAfter, 30)
   end)
 
-  t.test("hide after never: the HUD keeps the latest 20 across a reload; clear empties it", function()
+  t.test("the HUD keeps the latest 20 across a reload; clear empties it", function()
     mailToHud()
-    H.chat("/tbx notify hud hide never")
     for n = 1, 25 do H.setNotes{ unreadMail = n } end
     t.ok(H.nhudRow(20) ~= nil)
     t.eq(#H.saved("notify_history").list, Toolbox.Notify.Hud.KEEP)
@@ -468,13 +469,21 @@ return function(t)
     t.eq(H.nhud().visible, false)
   end)
 
-  t.test("with a hide time, a reload doesn't bring back notices already shown", function()
+  t.test("after a reload every notice is old; hide after never: new for 10 seconds", function()
     mailToHud()
     H.setNotes{ unreadMail = 1 }
     H.reload()
-    H.advance(1)
-    t.eq(H.nhudRow(1), nil)
-    t.eq(H.nhud().visible, false)
+    H.setNotes{ unreadMail = 2 }
+    local classes = function(i) return H.nhud():Find("nh_" .. i):Classes() end
+    t.ok(classes(1).bright, "just arrived")
+    t.ok(classes(2).dim, "from before the reload")
+    t.eq(H.saved("notify_history").list[1].fresh, nil, "saved without it")
+    H.chat("/tbx notify hud hide never")
+    H.setNotes{ unreadMail = 3 }
+    t.ok(classes(1).bright)
+    H.advance(Toolbox.Notify.Hud.HIDE_DEFAULT + 1)
+    t.ok(classes(1).dim, "old after 10 seconds, though the HUD stays")
+    t.ok(H.nhud().visible ~= false)
   end)
 
   t.test("the HUD shows while settings are open, to place it", function()

@@ -222,10 +222,9 @@ D.SECTIONS = {
       .. "together play each sound once. The window can be compact (settings: "
       .. "Compact Notifications window, or /toolbox notify compact on): its title bar shows only on hover. "
       .. "The HUD lists "
-      .. "new notices, newest on top (hover a line for all of it). It shows when something "
-      .. "arrives and hides after 10 seconds, taking those notices with it, or never (then it keeps "
-      .. "the latest 20; HUD: hide after, or /toolbox notify hud hide 30); it stays while the pointer "
-      .. "is on it. Move it like the other HUD "
+      .. "the latest 20, newest on top, new ones bright and older ones dimmed (hover a line for all of it). "
+      .. "It shows when something arrives and hides after 10 seconds, or never (HUD: hide after, or "
+      .. "/toolbox notify hud hide 30); it stays while the pointer is on it. Move it like the other HUD "
       .. "strips (settings, or /toolbox notify hud move <x> <y>); /toolbox notify hud clear deletes its history." },
   { "Sounds",
     "The alert sounds live in the add-on's folder. To use your own, put "
@@ -731,8 +730,10 @@ function N.IsShown() return nwin ~= nil and nwin:IsShown() end
 -- no reorder API). A label that runs out of width ends in "..." by itself; its tooltip has the
 -- whole notice. Shown when something arrives, hidden `hideAfter` seconds later (0 = never),
 -- kept while the pointer is over it, and shown while settings are open so it can be placed.
--- Notices shown and then hidden are dropped (owner, 2026-09-30: "old notices come back" with the next
--- one), so the next notice shows alone; with hideAfter 0 (never hidden) the list stays, up to KEEP.
+-- The list stays (up to KEEP, across reloads: the owner looks back over the session), and new notices stand
+-- out (owner, 2026-09-30): those that arrived since the HUD last hid are "bright", the rest "dim". With
+-- hideAfter 0 (never hidden) a notice is new for NH.HIDE_DEFAULT seconds. `fresh` / `at` are kept in memory
+-- only (a reload makes every notice old).
 
 local NH = {}
 N.Hud = NH
@@ -753,6 +754,7 @@ NH.HIDE_DEFAULT = 10
 local hprefs = { hideAfter = NH.HIDE_DEFAULT }
 local history = {}        -- newest first: { when, title, text }
 local hudRows = {}
+local rowClass = {}       -- row -> the class it has now ("text" as built, then "bright" or "dim")
 local hudScroll = nil
 local hudEmpty = nil
 local visibleUntil = 0
@@ -779,7 +781,12 @@ function NH.Tooltip(e)
   return e.title .. (e.when ~= "" and (" (" .. e.when .. ")") or "") .. "\n" .. e.text
 end
 
-local function saveHistory() T.Save("notify_history", { v = 1, list = history }) end
+-- The list without the in-memory `fresh` / `at` (a reload makes every notice old).
+local function saveHistory()
+  local list = {}
+  for i, e in ipairs(history) do list[i] = { when = e.when, title = e.title, text = e.text } end
+  T.Save("notify_history", { v = 1, list = list })
+end
 local function saveHud() T.Save("notify_hud", hprefs) end
 
 -- True when any source is delivered here (otherwise the HUD never shows, even in settings).
@@ -812,6 +819,12 @@ function NH.Fill()
     if e then
       row:SetText(NH.Line(e))
       row:SetTooltip(NH.Tooltip(e))
+      local want = e.fresh and "bright" or "dim"
+      if rowClass[i] ~= want then                -- only on a change: AddClass/RemoveClass are UI calls
+        row:RemoveClass(rowClass[i] or "text")
+        row:AddClass(want)
+        rowClass[i] = want
+      end
     end
     row:SetVisible(e ~= nil)
   end
@@ -837,7 +850,7 @@ function NH.Unbuilt()
 end
 
 function NH.BuildContent()
-  hudRows = {}
+  hudRows, rowClass = {}, {}
   local rows = {}
   for i = 1, NH.KEEP do
     hudRows[i] = UI.Label{ id = "nh_" .. i, text = "", class = "text", visible = false,
@@ -874,12 +887,16 @@ NH.GetPosition, NH.MoveTo, NH.Nudge, NH.ResetPosition = hudMover.Get, hudMover.M
 -- Shows or hides the strip when that should change (from N.Check, every tick).
 function NH.Tick()
   local shown = NH.IsShown()
-  if shown ~= hudShown then
-    if hudShown == true and not shown and hprefs.hideAfter ~= 0 and #history > 0 then
-      history = {}                        -- seen and hidden: gone (see the header)
-      saveHistory()
-      NH.Fill()
+  -- new notices turn old when the HUD hides (or, never hidden, after NH.HIDE_DEFAULT seconds)
+  local aged = false
+  for _, e in ipairs(history) do
+    if e.fresh and ((hprefs.hideAfter ~= 0 and hudShown == true and not shown)
+        or (hprefs.hideAfter == 0 and T.Now() - (e.at or 0) >= NH.HIDE_DEFAULT)) then
+      e.fresh, aged = false, true
     end
+  end
+  if aged then NH.Fill() end
+  if shown ~= hudShown then
     hudShown = shown
     T.Hud.Refresh()
   end
@@ -897,7 +914,7 @@ end
 N.DELIVERY.hud = function(list)
   for _, item in ipairs(list) do
     table.insert(history, 1, { when = clockText(), title = item.notice.title or item.source.label,
-                               text = item.notice.text })
+                               text = item.notice.text, fresh = true, at = T.Now() })
   end
   for i = #history, NH.KEEP + 1, -1 do history[i] = nil end
   saveHistory()
@@ -917,8 +934,6 @@ function NH.Init()
   end
   history = {}
   local h = T.Load("notify_history")
-  -- with a hide time, what was shown before isn't brought back (only "never" keeps a standing list)
-  if hprefs.hideAfter ~= 0 then h = nil end
   if type(h) == "table" and h.v == 1 and type(h.list) == "table" then
     for _, e in ipairs(h.list) do
       if type(e) == "table" and type(e.title) == "string" and type(e.text) == "string" and #history < NH.KEEP then

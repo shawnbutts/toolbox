@@ -11,8 +11,8 @@ store submission needs a higher version than any submitted before (rejected ones
 - Switching the Notifications window to compact (or back) raised an error while it showed notices.
 
 ### Changed
-- The notification HUD clears the notices it showed when it hides, so the next one shows alone instead of on
-  top of the old ones. With "Hide after: Never" it keeps the latest 20 as before.
+- The notification HUD shows new notices bright and older ones dimmed, so what just arrived stands out from
+  the ones you've seen (it still keeps the latest 20 to look back on).
 - The Toolbelt page says the buff bar is the Toolbelt's base, with the parts set to In Toolbelt joining it.
 
 ## [0.8.0] - 2026-09-30 (beta 10)
