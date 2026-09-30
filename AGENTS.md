@@ -28,6 +28,10 @@ This file holds current facts and rules; the history behind them is in git (`git
   (a trim on a long buff description got Toolbox disabled); fixed in API 25, but the house style stays: use
   `Toolbox.Trim` / `Toolbox.ParseArgs` or plain `find`/`sub`. `tools/build.py` refuses a `(.-)` capture
   anchored with `$`; the harness raises for any `.-` pattern on text over 120 characters.
+- **Read a UI element's state with its getters** (`GetText`, `GetValue`, `IsVisible`, `IsEnabled`...), never its
+  fields: in game an element is a game object ("cannot access field text of userdata<Shroud.UI.Label>",
+  2026-09-30). The harness's elements are plain tables, so tests can't catch it; `tools/build.py` refuses a field
+  read straight off `Find(...)`.
 - **Read game data through `T.Field` / `T.List`** (pcall'd). Buff lists were userdata before API 25 (plain
   tables now); other results may still be C# objects (a MoonSharp `EnumerableWrapper` for
   `ShroudGetPartyMemberNamesInScene()`: only `for x in list do` walks it).
