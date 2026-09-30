@@ -2,7 +2,7 @@
   "manifest_version": 1,
   "slug": "toolbox",
   "name": "Toolbox: Toolbelt, HUDs, Trackers and more.",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "The Toolbelt: your buffs, debuffs, health, focus, Vigor, food, potions, worn-out gear and your target in one movable strip you can show only in combat, with a sound and red flash before a buff runs out. Plus XP per hour and time to level, everything looted, crafted and gathered today with market values, DPS and combat stats, and notifications. Open it with /toolbox or Ctrl+;.",
   "author": "shawn butts",
   "files": ["core.lua", "xp.lua", "hover.lua", "ui.lua", "compact.lua", "daily.lua", "dailydetail.lua", "sounds.lua", "hud.lua", "buffbar.lua",

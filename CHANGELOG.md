@@ -5,6 +5,8 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-30 (beta 10)
+
 ### Fixed
 - Toolbox was switched off by the game a few seconds after start when an Obsidian potion (7 days) or any
   effect longer than a day was up: the game's sweep timer takes a day at most. Such effects now get a

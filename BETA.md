@@ -43,6 +43,13 @@ row under "Keys".
 --------------
 
 Anything you like, but especially what's new in this beta (/tbx version lists it all):
+  * Beta 9 could be switched off by the game a few seconds after start when an effect longer than a day
+    was up (Obsidian potions: 7 days). With one up now: no errors in chat, and a still sweep about the
+    right size for the time left?
+  * Sweeps now sit inside the icons, centred, instead of hanging over their edges. Look at buff,
+    consumable and target icons, at a couple of icon sizes (settings, Buffs: Icon size).
+  * The Notifications page says where each notification's sound is picked (the Sounds page).
+From beta 9:
   * Sweeps on buffs, consumables and target effects are now the game's own cooldown wedge, run by the
     game: smooth and level with the game's buff bar. Compare them for a minute, including buffs cast
     before you logged in. Does a buff's wedge turn red when its expiry alert sounds, and back after a
@@ -159,6 +166,10 @@ From beta 3:
     Toolbox in the add-on manager under "Keys".
   * Buffs with no fixed length (like the moon indicator) have no sweep until Toolbox sees them
     start.
+  * Sweeps are circles inside the icons, leaving the corners uncovered: the game draws its wedge as a
+    circle, and add-ons can't clip it to the square (asked of the game's developers).
+  * Effects longer than a day (Obsidian potions) have a still sweep that moves on about every half hour,
+    and it doesn't turn red at the end (the red flashing border and the sound still do).
   * Reset all settings and restoring copied files both need a restart of Toolbox (/lua reload, or for
     copied files, quit the game first): the game writes the settings files as it closes.
   * "Gold picked up" counts every gold increase, including vendor sales and trades.
