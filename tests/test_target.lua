@@ -128,6 +128,23 @@ return function(t)
     t.eq(H.targetRow():Find("target_hint").visible, true, "\"Target\", to place it")
   end)
 
+  t.test("an effect swapped for another at the same count: debuff and length catch up within GROUP_EVERY", function()
+    H.boot()
+    H.chat("/tbx target on")
+    H.setTarget({ id = 9, name = "Wolf", hp = 100, maxHp = 100, effects = {
+      { name = "Haste", remaining = 30, total = 60, icon = 43 } } })
+    local slot = H.targetSlots()[1]
+    t.eq(slot.style.borderWidth or 0, 0, "a buff: no red outline")
+    -- the game swaps it for a debuff: still one effect, so no count change and no target event
+    H.S.target.effects[1] = { name = "Bleed", remaining = 4, total = 8, icon = 42, debuff = true }
+    H.advance(Toolbox.Target.GROUP_EVERY + 0.5, 0.25)
+    slot = H.targetSlots()[1]
+    t.ok(tostring(slot.children[1].tooltip):find("^Bleed"), "the name at once (flat getters)")
+    t.eq(slot.style.borderWidth, 2, "outlined as a debuff after the grouped refresh")
+    local done = slot.children[2]:SweepNow()
+    t.ok(done and math.abs(done - 0.5) < 0.1, "its own 8 s length, not Haste's 60 s: " .. tostring(done))
+  end)
+
   t.test("effect sweeps show the time used, run by the game", function()
     H.boot()
     H.chat("/tbx target on")
