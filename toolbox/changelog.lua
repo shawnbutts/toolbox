@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Fixed" },
+  { "item", "A settings page could fail to open (\"this add-on already has 2000 elements\") with many windows open and a busy day in Today Detailed: every settings page stayed built once opened. Only the page shown is built now." },
   { "section", "Changed" },
   { "item", "The Toolbelt page says the buff bar is the Toolbelt's base, with the parts set to In Toolbelt joining it." },
   { "version", "0.8.0 - 2026-09-30 (beta 10)" },

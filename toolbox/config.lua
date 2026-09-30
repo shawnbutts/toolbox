@@ -19,8 +19,8 @@ C.WIDTH, C.HEIGHT = 360, 680
 
 local win = nil
 local body = nil          -- the column the categories are added to
-local el = {}             -- id -> element, for the categories built so far
-local built = {}          -- category key -> its column
+local el = {}             -- id -> element, for the header and the category shown
+local built = {}          -- category key -> its column (only the one shown: see C.ShowCategory)
 local current = nil       -- the category shown (kept across a window rebuild, not saved)
 
 local function fontLabel(n)
@@ -832,10 +832,25 @@ for _, list in ipairs({ "buff_group", "cons_exclude", "consumables_extra" }) do
   for _, suffix in ipairs({ "", "_field", "_msg" }) do ALL_IDS[#ALL_IDS + 1] = list .. suffix end
 end
 
--- Shows one category (by key or label), building it the first time. Returns true when it shows.
+-- Shows one category (by key or label), building it. Only the one shown is kept: every page built once
+-- and kept took ~420 of the add-on's 2,000 elements, and with a busy Today Detailed and the rest open the
+-- HUD layout page couldn't be built ("this add-on already has 2000 elements", found in game 2026-09-30).
+-- So the page left is destroyed first (freeing its elements before the next is made), and its controls
+-- leave `el`. Returns true when it shows.
+local function dropCategory(key)
+  local col = built[key]
+  built[key] = nil
+  if col then pcall(function() col:Destroy() end) end
+  local keepShortcut, keepCategory = el.shortcut, el.category
+  el = { shortcut = keepShortcut, category = keepCategory }
+end
+
 function C.ShowCategory(which)
   local cat = category(which)
   if not cat or not win then return false end
+  for key in pairs(built) do
+    if key ~= cat.key then dropCategory(key) end
+  end
   if not built[cat.key] then
     -- the game limits how fast elements are created: a category that can't be built now can be
     -- picked again in a moment
@@ -850,7 +865,6 @@ function C.ShowCategory(which)
       if not el[id] then el[id] = col:Find(id) end
     end
   end
-  for key, col in pairs(built) do T.SetVisible(col, key == cat.key) end
   current = cat.key
   setValue("category", cat.label)
   C.Sync()
@@ -859,12 +873,19 @@ end
 
 function C.CurrentCategory() return current end
 
--- Builds every category (the tests look controls up by id across all of them).
-function C.BuildAll()
-  if not win then return end
-  local keep = current
-  for _, cat in ipairs(C.CATEGORIES) do C.ShowCategory(cat.key) end
-  C.ShowCategory(keep)
+-- Shows the category holding control `id` (for the tests, which look controls up by id): the one shown
+-- if it has it, else each in turn. Returns the control, or nil.
+function C.ShowControl(id)
+  if not win then return nil end
+  local hit = el[id] or win:Find(id)
+  if hit then return hit end
+  for _, cat in ipairs(C.CATEGORIES) do
+    if C.ShowCategory(cat.key) then
+      hit = win:Find(id)
+      if hit then return hit end
+    end
+  end
+  return nil
 end
 
 local function build()

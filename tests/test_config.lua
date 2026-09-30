@@ -335,11 +335,38 @@ return function(t)
     H.change("toolbox_config", "category", "Buffs")          -- (H.change builds all; pick by the handler)
     t.eq(Toolbox.Config.CurrentCategory(), "buffs")
     t.eq(w:Find("show_buffs").visible ~= false, true)
-    local firstColumn = nil
-    for _, c in ipairs(w.children[2].children[1].children) do
-      if c:Find("toolbelt_show") then firstColumn = c end
+    t.eq(w:Find("toolbelt_show"), nil, "the category shown before is destroyed (the 2,000-element cap)")
+    t.eq(#w.children[2].children[1].children, 1, "one category built at a time")
+  end)
+
+  t.test("every page visited with everything open and a full day's loot stays inside the 2,000 elements", function()
+    H.boot()
+    for _, c in ipairs({ "/tbx xp", "/tbx xpdetailed", "/tbx daily", "/tbx dd", "/tbx buffs", "/tbx vitals",
+                         "/tbx combat", "/tbx combat detail", "/tbx notify via hud", "/tbx target on",
+                         "/tbx toolbelt vitals on", "/tbx toolbelt consumables on", "/tbx toolbelt gear on" }) do
+      H.chat(c)
     end
-    t.eq(firstColumn.visible, false, "the category shown before is hidden")
+    for i = 1, 250, 20 do                              -- a full day: Today Detailed's 250 kinds
+      local batch = {}
+      for j = i, math.min(i + 19, 250) do batch[#batch + 1] = { string.format("Loot Item %03d", j), 1 } end
+      H.items(batch)
+      H.advance(1)
+    end
+    H.advance(60)
+    H.chat("/tbx config")
+    local drop = H.configRaw():Find("category")
+    local peak = 0
+    for _, cat in ipairs(Toolbox.Config.CATEGORIES) do
+      H.advance(2)                                     -- picked one after another, at a player's pace
+      H.clearLogs()
+      H.call(function() drop.onChange(drop, cat.label) end)
+      t.eq(Toolbox.Config.CurrentCategory(), cat.key, cat.label .. " shows")
+      t.no(H.logged("can't be shown right now"), cat.label .. ": " .. tostring(H.lastLog()))
+      peak = math.max(peak, H.S.live)
+    end
+    -- 1,058 in the harness (1,393 while every page stayed built, which hit the game's 2,000 in game: the game
+    -- counts more than the harness, so keep a wide margin)
+    t.ok(peak < 1200, "live elements at the most: " .. peak .. " (the game's cap is 2,000)")
   end)
 
   t.test("picking a category from the dropdown builds just that one", function()
@@ -368,10 +395,10 @@ return function(t)
     H.chat("/tbx xp")
     H.chat("/tbx vitals")
     H.chat("/tbx buffs")
-    t.eq(w:Find("hover_popup").enabled, true)
-    t.eq(w:Find("vitals_scale").enabled, true)
-    t.eq(w:Find("buffs_combat_only").enabled, true)
-    t.eq(w:Find("toolbelt_combat").enabled, true)
+    t.ok(w:Find("hover_popup").enabled ~= false)
+    t.ok(w:Find("vitals_scale").enabled ~= false)
+    t.ok(w:Find("buffs_combat_only").enabled ~= false)
+    t.ok(w:Find("toolbelt_combat").enabled ~= false)
     H.chat("/tbx buffs")
     t.eq(w:Find("toolbelt_combat").enabled, false, "only during combat, while the Toolbelt is off")
   end)

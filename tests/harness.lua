@@ -38,6 +38,7 @@ local S   -- current host state
 H.CREATE_BURST, H.CREATE_RATE = 500, 200
 H.MAX_WINDOWS = 8
 H.MAX_HUD_FRAMES = 8          -- docs: HUD frames per add-on
+H.MAX_ELEMENTS = 2000         -- docs: elements per add-on (live: made and not destroyed; S.live counts them)
 
 -- A player action (typing a command, clicking, changing a control) happens at human speed, long
 -- after start-up, so the creation budget has refilled by then.
@@ -563,11 +564,14 @@ local FIELDS = {
 local function destroyTree(e)
   if type(e) ~= "table" or e.destroyed then return end
   e.destroyed = true
+  S.live = math.max(0, (S.live or 0) - 1)
   for _, c in ipairs(e.children or {}) do destroyTree(c) end
 end
 H.destroyTree = destroyTree
 
 local Element = {}
+-- element -> its parent (a side table: a parent field would make element trees cyclic for copy())
+local PARENT = setmetatable({}, { __mode = "k" })
 Element.__index = Element
 
 -- The game clamps margins to -64..256 and paddings to 0..256 (docs: "every value is clamped to
@@ -600,6 +604,7 @@ end
 function Element:Add(child)
   self.children = self.children or {}
   self.children[#self.children + 1] = child
+  if type(child) == "table" then PARENT[child] = self end
   S.created = (S.created or 0) + 1
   return child
 end
@@ -614,6 +619,12 @@ function Element:SetEnabled(on) self.enabled = on == true end
 function Element:IsEnabled() return self.enabled ~= false end
 function Element:Destroy()
   destroyTree(self)
+  local parent = PARENT[self]                   -- as in game, it leaves its parent too
+  if parent and parent.children then
+    for i, c in ipairs(parent.children) do
+      if c == self then table.remove(parent.children, i) break end
+    end
+  end
   for id, f in pairs(S.frames) do if f == self then S.frames[id] = nil end end
   for id, w in pairs(S.windows) do if w == self then S.windows[id] = nil end end
 end
@@ -738,6 +749,11 @@ function H.makeUI()
         if not COMMON[k] and not fields[k] then error("UI." .. kind .. ": unknown field " .. k, 2) end
       end
       S.constructed = (S.constructed or 0) + 1
+      -- The game's cap on live elements (found in game 2026-09-30, the settings window keeping every page).
+      if (S.live or 0) >= H.MAX_ELEMENTS then
+        error("Shroud.UI: this add-on already has " .. H.MAX_ELEMENTS .. " elements", 2)
+      end
+      S.live = (S.live or 0) + 1
       -- The game's element-creation cap: a burst of CREATE_BURST, refilling CREATE_RATE a second
       -- (AGENTS.md, "Limits"). Exceeding it raises, as in game (2026-09-28, Combat Detailed at start-up).
       local now = type(ShroudTime) == "number" and ShroudTime or 0
@@ -751,6 +767,9 @@ function H.makeUI()
       if type(e.style) == "table" then clampStyle(e.style) end
       e.kind = kind
       e.children = spec.children     -- keep the real child objects
+      for _, c in ipairs(e.children or {}) do
+        if type(c) == "table" then PARENT[c] = e end
+      end
       e.onClose = spec.onClose
       e.onClick = spec.onClick
       e.onChange = spec.onChange
@@ -810,15 +829,19 @@ end
 -- The player changes a slider, toggle, ... (fires onChange; our own SetValue never does).
 -- The settings window builds a category the first time it is shown; tests look controls up by id
 -- across all of them, so build every category first (as picking each from its dropdown would).
-local function allSettings(windowId)
-  if windowId == "toolbox_config" and S.windows.toolbox_config and Toolbox and Toolbox.Config.BuildAll then
-    H.call(function() Toolbox.Config.BuildAll() end)
+-- The settings window keeps only the category shown built (config.lua): to reach a control, show the
+-- category holding it, as a player picking it from the dropdown would.
+local function allSettings(windowId, elementId)
+  if windowId == "toolbox_config" and elementId and S.windows.toolbox_config and Toolbox
+      and Toolbox.Config.ShowControl then
+    humanPace()
+    H.call(function() Toolbox.Config.ShowControl(elementId) end)
   end
 end
 
 function H.change(windowId, elementId, value)
   humanPace()
-  allSettings(windowId)
+  allSettings(windowId, elementId)
   local c = S.windows[windowId]:Find(elementId)
   assert(c, "no element " .. elementId)
   assert(c.enabled ~= false, elementId .. " is greyed out (disabled): a player can't change it")
@@ -836,7 +859,7 @@ end
 
 -- The player presses Enter in a text field.
 function H.submit(windowId, elementId, text)
-  allSettings(windowId)
+  allSettings(windowId, elementId)
   local f = S.windows[windowId]:Find(elementId)
   assert(f, "no element " .. elementId)
   f.text = text
@@ -845,7 +868,7 @@ end
 
 function H.click(windowId, elementId)
   humanPace()
-  allSettings(windowId)
+  allSettings(windowId, elementId)
   local b = S.windows[windowId]:Find(elementId)
   assert(b, "no element " .. elementId)
   assert(b.enabled ~= false, elementId .. " is greyed out (disabled): a player can't click it")
@@ -913,6 +936,7 @@ function H.reload()
   ShroudFlushSavedVars()
   S.stockHidden = false                -- the game releases an add-on's hide on reload
   S.commands, S.periodics, S.windows, S.keybinds = {}, {}, {}, {}
+  S.live = 0                           -- the game removes every element the add-on made
   local now = ShroudTime
   install_api()
   ShroudTime = now
@@ -1280,9 +1304,23 @@ local NOT_BUILT = { IsShown = function() return false end,
                     Find = function() error("XP Detailed isn't built yet: open it first", 2) end }
 function H.window() return S.windows.toolbox_xp or NOT_BUILT end
 -- The settings window, with every category built (see allSettings); nil before it is first opened.
+-- The settings window, or nil before it is first opened. Its Find(id) shows the category holding the control
+-- first (only the one shown is built); everything else is the window itself.
+local configProxy = setmetatable({}, { __index = function(_, k)
+  local w = S.windows.toolbox_config
+  if k == "Find" then
+    return function(_, id)
+      allSettings("toolbox_config", id)
+      return S.windows.toolbox_config:Find(id)
+    end
+  end
+  local v = w[k]
+  if type(v) == "function" then return function(_, ...) return v(w, ...) end end
+  return v
+end })
 function H.config()
-  allSettings("toolbox_config")
-  return S.windows.toolbox_config
+  if not S.windows.toolbox_config then return nil end
+  return configProxy
 end
 -- The settings window as the player first sees it (only the categories shown so far built).
 function H.configRaw() return S.windows.toolbox_config end

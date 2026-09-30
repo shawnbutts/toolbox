@@ -5,6 +5,10 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Fixed
+- A settings page could fail to open ("this add-on already has 2000 elements") with many windows open and a
+  busy day in Today Detailed: every settings page stayed built once opened. Only the page shown is built now.
+
 ### Changed
 - The Toolbelt page says the buff bar is the Toolbelt's base, with the parts set to In Toolbelt joining it.
 

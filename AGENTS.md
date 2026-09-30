@@ -189,8 +189,11 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
   event number from `N.OnStatus`'s queue, never read back). `N.SETTLE` s after start, counts going down
   aren't remembered.
 - `config.lua`: `Toolbox.Config`, the settings window. Categories (`C.CATEGORIES`, the "Settings" dropdown;
-  Toolbelt first) are built on first show, so `Sync` uses `setValue` / `setText` / `setEnabled`, which skip
-  missing controls, and every id it looks up must be in `ALL_IDS`. Controls whose feature is off are greyed
+  Toolbelt first): only the one shown is built; switching destroys the previous one first (every page kept
+  built took ~420 elements and hit the game's 2,000 cap in game, 2026-09-30). So `Sync` uses `setValue` /
+  `setText` / `setEnabled`, which skip missing controls, every id it looks up must be in `ALL_IDS`, and state
+  tied to a page's controls is reset when it is built (`C.statShownSig`, `C.backupSig`). `C.ShowControl(id)`
+  shows the page holding a control (the tests use it). Controls whose feature is off are greyed
   out. `C.NameList` is the text box + Add / Remove editor. `C.TOOLBELT_PARTS` + `C.PlaceOf` / `C.SetPlace`
   give each bar Off / Own strip / In Toolbelt. The Toolbelt page also has Show the Toolbelt, Only during
   combat, the target's Target row and Mirrored, and `C.HudSummary()`.
@@ -238,8 +241,9 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
 
 `tests/harness.lua` models the documented host: constructors and `Shroud.Command` raise outside a callback
 and reject unknown fields; saved vars have a memory cache and a "disk" copy updated on flush; destroyed
-element trees raise on use; margins / paddings are clamped; the element-creation cap, 8 windows and 8 HUD
-frames are enforced; a disabled control can't be changed or clicked; `SetUV` changes what is drawn; the
+element trees raise on use and leave their parent; margins / paddings are clamped; the element-creation cap,
+the 2,000 live elements (`H.S.live`; the game counts MORE than the harness: keep a wide margin), 8 windows and
+8 HUD frames are enforced; `H.config():Find(id)` shows the settings page holding the control; a disabled control can't be changed or clicked; `SetUV` changes what is drawn; the
 wedge (`SetSweep`, `SetSweepTimer`, refused as in game for a lone duration) reads back with
 `element:SweepNow()` (fraction covered, red) and `element.timerCalls`.
 
