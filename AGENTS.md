@@ -203,7 +203,7 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
   the other bars use their own strips.
 - `tests/`: `harness.lua` (a fake host), `test_*.lua` suites (listed in `tests/run.lua`), `run.lua`.
   `test_stress.lua`: a veteran character, full bars, heavy combat and maximal saved data, with budgets
-  (garbage measured under standard Lua only). `STRESS_PRINT=1 lua tests/run.lua stress` prints the numbers.
+  (garbage measured under standard Lua only, in `test_perf.lua` too: LuaJIT's count is noisy). `STRESS_PRINT=1 lua tests/run.lua stress` prints the numbers.
 - `art/`: `icon.svg` (-> `toolbox/icon.png`, 256x256: `rsvg-convert -w 256 -h 256 art/icon.svg -o
   toolbox/icon.png`), `clock.py` (-> `toolbox/clock.png`: a normal and a red set of 120 frames; keep in sync
   with `BuffBar.CLOCK`), `alerts.py` (-> `toolbox/*.ogg` via ffmpeg's Vorbis encoder: buff_expiring falls,
