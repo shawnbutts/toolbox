@@ -308,7 +308,7 @@ you read back and fall back to defaults.
    owner asks (`git push origin main vX.Y.Z`). Record the tag here.
 
 Tags: v0.2.0 (a52051c), v0.2.1 (ae2fa1f), v0.3.0 (607dcb3), v0.3.1 (7db2a15), v0.4.0 (4b4d5a5),
-v0.5.0 (820df19), v0.6.0 (03fdeef), v0.6.1 (6322846).
+v0.5.0 (820df19), v0.6.0 (03fdeef), v0.6.1 (6322846), v0.7.0 (2d07df7).
 
 **The store page** (addons.catnipgames.net) is where most players first meet Toolbox:
 - Cards show the icon, the **name** in full (manifest `name`: "Toolbox: Toolbelt, HUDs, Trackers and
