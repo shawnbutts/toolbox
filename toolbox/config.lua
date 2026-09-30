@@ -696,52 +696,35 @@ function C.HudSection()
   return UI.Column{ children = children }
 end
 
--- The "Backup & reset" category. Restore and Reset take a second click within C.CONFIRM_SECONDS (there is
--- no window slot for a dialog); what they do waits for the next start (Toolbox.Backup).
+-- The "Backup & reset" category: where the settings files are (the player copies them), and Reset, which
+-- takes a second click within C.CONFIRM_SECONDS (there is no window slot for a dialog) and waits for the
+-- next start (Toolbox.Backup).
 C.CONFIRM_SECONDS = 5
-local armed = {}                  -- button id -> time of the first click
-local CONFIRM_TEXT = { backup_restore = "Restore backup", settings_reset = "Reset all settings" }
+local resetArmedAt = nil
+local RESET_TEXT = "Reset all settings"
 
--- True on the second click within C.CONFIRM_SECONDS; the first click asks for it on the button.
-local function confirmed(id)
-  local at = armed[id]
-  if at and T.Now() - at <= C.CONFIRM_SECONDS then
-    armed[id] = nil
-    setText(id, CONFIRM_TEXT[id])
-    return true
-  end
-  armed[id] = T.Now()
-  setText(id, "Click again to confirm")
-  return false
-end
-
--- Puts an unconfirmed button's text back once its time is up (from Sync, every second while shown).
+-- Puts the Reset button's text back once its confirmation time is up (from SyncLive, every second).
 local function disarm()
-  for id, at in pairs(armed) do
-    if T.Now() - at > C.CONFIRM_SECONDS then
-      armed[id] = nil
-      setText(id, CONFIRM_TEXT[id])
-    end
+  if resetArmedAt and T.Now() - resetArmedAt > C.CONFIRM_SECONDS then
+    resetArmedAt = nil
+    setText("settings_reset", RESET_TEXT)
   end
 end
 
-function C.BackupNow()
-  local b = T.Backup.Make()
-  setText("backup_msg", "Backed up: " .. T.Backup.Summary(b) .. ".")
-  C.Sync()
-end
-
-function C.RestoreBackup()
-  if not confirmed("backup_restore") then return end
-  local ok, why = T.Backup.Request("restore")
-  setText("backup_msg", ok and "Restore waiting: type /lua reload to apply it."
-    or ("Nothing to restore: " .. why .. "."))
-  C.Sync()
+function C.SaveSettingsNow()
+  setText("backup_msg", T.Backup.SaveNow() == false and "The game refused to write the files."
+    or "Saved: the files are up to date. Copy them now.")
 end
 
 function C.ResetSettings()
-  if not confirmed("settings_reset") then return end
-  T.Backup.Request("reset")
+  if not (resetArmedAt and T.Now() - resetArmedAt <= C.CONFIRM_SECONDS) then
+    resetArmedAt = T.Now()
+    setText("settings_reset", "Click again to confirm")
+    return
+  end
+  resetArmedAt = nil
+  setText("settings_reset", RESET_TEXT)
+  T.Backup.RequestReset()
   setText("backup_msg", "Reset waiting: type /lua reload to apply it.")
   C.Sync()
 end
@@ -752,37 +735,34 @@ function C.CancelPending()
 end
 
 function C.BackupSection()
-  return UI.Column{ children = {
-    heading("Backup", true),
-    UI.Label{ text = "A backup holds every setting and position, and the buff lengths Toolbox has learned (not"
-      .. " your stats or XP session). It is kept for your account, so any of your characters can restore it,"
-      .. " in the game's Lua/SavedVariables folder: copy Toolbox's .account.json file there to take it to"
-      .. " another computer.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
-    UI.Label{ id = "backup_status", text = "", class = "text", style = { whiteSpace = "wrap", marginTop = 6 } },
-    UI.Row{ style = { marginTop = 4 }, children = {
-      UI.Button{ id = "backup_now", text = "Back up now", tooltip = "Replaces the backup with your settings now",
-        onClick = function() C.BackupNow() end },
-      UI.Button{ id = "backup_restore", text = CONFIRM_TEXT.backup_restore, style = { marginLeft = 4 },
-        tooltip = "Your settings and positions become the backup's at the next /lua reload",
-        onClick = function() C.RestoreBackup() end },
-    } },
-    heading("Reset"),
-    UI.Label{ text = "Every setting and position goes back to its default at the next /lua reload. Your"
-      .. " stats, XP session, learned buff lengths and the backup are kept.", class = "dim",
-      style = { whiteSpace = "wrap", marginTop = 6 } },
-    UI.Row{ style = { marginTop = 4 }, children = {
-      UI.Button{ id = "settings_reset", text = CONFIRM_TEXT.settings_reset,
-        tooltip = "Back to the defaults at the next /lua reload (back up first to keep these)",
-        onClick = function() C.ResetSettings() end },
-    } },
-    UI.Label{ id = "backup_pending", text = "", class = "warning", visible = false,
-      style = { whiteSpace = "wrap", marginTop = 8 } },
-    UI.Row{ style = { marginTop = 4 }, children = {
-      UI.Button{ id = "backup_cancel", text = "Cancel", tooltip = "Drop the waiting restore or reset",
-        onClick = function() C.CancelPending() end },
-    } },
-    UI.Label{ id = "backup_msg", text = "", class = "dim", style = { whiteSpace = "wrap", marginTop = 4 } },
+  local children = { heading("Backup", true) }
+  for i, line in ipairs(T.Backup.HowTo()) do
+    local spec = { text = line, class = "dim", style = { whiteSpace = "wrap", marginTop = 3 } }
+    if i == 1 then
+      spec.id, spec.class, spec.style.marginTop = "backup_where", "text", 6
+    end
+    children[#children + 1] = UI.Label(spec)
+  end
+  children[#children + 1] = UI.Row{ style = { marginTop = 4 }, children = {
+    UI.Button{ id = "backup_save", text = "Save now", tooltip = "Write the settings files now, ready to copy",
+      onClick = function() C.SaveSettingsNow() end },
   } }
+  children[#children + 1] = heading("Reset")
+  children[#children + 1] = UI.Label{ text = "Every setting and position goes back to its default at the next"
+    .. " /lua reload. Your stats, XP session and learned buff lengths are kept.", class = "dim",
+    style = { whiteSpace = "wrap", marginTop = 6 } }
+  children[#children + 1] = UI.Row{ style = { marginTop = 4 }, children = {
+    UI.Button{ id = "settings_reset", text = RESET_TEXT,
+      tooltip = "Back to the defaults at the next /lua reload (copy the files first to keep these)",
+      onClick = function() C.ResetSettings() end },
+    UI.Button{ id = "backup_cancel", text = "Cancel", style = { marginLeft = 4 },
+      tooltip = "Drop the waiting reset", onClick = function() C.CancelPending() end },
+  } }
+  children[#children + 1] = UI.Label{ id = "backup_pending", text = "A reset is waiting: type /lua reload to"
+    .. " apply it.", class = "warning", visible = false, style = { whiteSpace = "wrap", marginTop = 6 } }
+  children[#children + 1] = UI.Label{ id = "backup_msg", text = "", class = "dim",
+    style = { whiteSpace = "wrap", marginTop = 4 } }
+  return UI.Column{ children = children }
 end
 
 -- key, label, builder. The first is shown when the window first opens.
@@ -821,8 +801,8 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "toolbelt_vitals", "toolbelt_consumables", "toolbelt_gear", "toolbelt_target", "target_place", "target_mirror",
   "target_effects", "target_icons", "target_icons_value",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
-  "buff_countdown_secs_value", "backup_status", "backup_now", "backup_restore", "settings_reset",
-  "backup_pending", "backup_cancel", "backup_msg" }
+  "buff_countdown_secs_value", "backup_where", "backup_save", "settings_reset", "backup_pending",
+  "backup_cancel", "backup_msg" }
 for _, def in ipairs(T.Sounds.DEFS) do
   ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_status"
   ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_path"
@@ -1151,17 +1131,10 @@ function C.Sync()
   setEnabled("target_mirror", T.Target.GetShow() and T.Target.CanMirror())
   setText("hud_summary", C.HudSummary())
   -- Backup & reset
-  local backup, pending = T.Backup.Get(), T.Backup.Pending()
-  setText("backup_status", backup and ("Last backup: " .. T.Backup.Summary(backup) .. ".") or "No backup yet.")
-  setEnabled("backup_restore", backup ~= nil)
-  setEnabled("backup_cancel", pending ~= nil)
+  local pending = T.Backup.Pending() ~= nil
+  setEnabled("backup_cancel", pending)
   local p = el.backup_pending
-  if p then
-    local text = pending and ((pending.kind == "reset" and "A reset" or "A restore")
-      .. " is waiting: type /lua reload to apply it.") or ""
-    if p:GetText() ~= text then p:SetText(text) end
-    if p:IsVisible() ~= (pending ~= nil) then p:SetVisible(pending ~= nil) end
-  end
+  if p and p:IsVisible() ~= pending then p:SetVisible(pending) end
   C.SyncLive()
 end
 

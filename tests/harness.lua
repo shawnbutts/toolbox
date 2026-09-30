@@ -115,6 +115,7 @@ local realTime = os.time
 
 local function install_api()
   ShroudLuaApiVersion = 25
+  ShroudLuaPath = S.luaPath or "/Users/tester/SotA/Lua"
   InvalidStatResult = -999
   ShroudTime = S.time or 100
   ShroudPlayerGold = S.char.gold

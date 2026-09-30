@@ -6,7 +6,7 @@
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "section", "Added" },
-  { "item", "Backup & reset (settings window, or /toolbox settings backup|restore|reset|cancel): back up every setting and window and strip position, restore it on any of your characters or on another computer (copy Toolbox's .account.json file from the game's Lua/SavedVariables folder), or reset everything to the defaults. Restore and reset take a second click and apply at the next /lua reload; stats, the XP session and learned buff lengths are kept." },
+  { "item", "Backup & reset (settings window, or /toolbox settings): where your settings files are, with Save now to write them before you copy them, and how to copy them back (quit the game first) to restore a setup or move to another computer. Reset all settings (a second click, then /lua reload) puts every setting and position back to its default; stats, the XP session and learned buff lengths are kept." },
   { "item", "A sound per notification source (Sounds page: Notification sounds): Chime, Ping, Tap (two new sounds), Bell or Low notes. Several arriving together play each sound once. /toolbox notify <name> sound <sound>." },
   { "item", "Target HUD options (settings, Toolbelt): Target effects (All, Debuffs only, None: just the bars) and Most target icons (1-8; 8 by default, 5 mirrored). /toolbox target effects all|debuffs|none, /toolbox target icons <n>." },
   { "item", "The Notifications window can be compact too (Notifications settings, or /toolbox notify compact on)." },

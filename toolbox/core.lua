@@ -614,29 +614,25 @@ add("reset", "start a new XP session", function()
   end
 end)
 
-add("settings", "back up, restore or reset all settings (backup; restore; reset; cancel)", function(rest)
+add("settings", "where your settings files are, to back them up (save: write them now; reset; cancel)",
+    function(rest)
   local B2 = T.Backup
   local word = T.ParseArgs(rest)
-  if word == "backup" then
-    local b = B2.Make()
-    T.Print("Settings backed up: " .. B2.Summary(b) .. ". The backup is kept for your account (every character);"
-      .. " to take it to another computer, copy Toolbox's .account.json file in the game's Lua/SavedVariables"
-      .. " folder.")
-  elseif word == "restore" or word == "reset" then
-    local ok, why = B2.Request(word)
-    if not ok then
-      T.Print("Nothing to restore: " .. why .. " (/" .. T.commands[1] .. " settings backup makes one).")
-      return
-    end
-    T.Print((word == "reset" and "Every setting and position will go back to its default" or
-      "Your settings will be restored from " .. B2.Describe(B2.Get())) .. " when Toolbox next starts: type"
-      .. " /lua reload now. /" .. T.commands[1] .. " settings cancel drops it.")
+  local cmd = "/" .. T.commands[1] .. " settings"
+  if word == "save" then
+    T.Print(B2.SaveNow() == false and "The game refused to write the files (see the line above)."
+      or "Saved: the files are up to date. Copy them now (" .. cmd .. " shows where).")
+  elseif word == "reset" then
+    B2.RequestReset()
+    T.Print("Every setting and position will go back to its default when Toolbox next starts: type /lua reload"
+      .. " now. " .. cmd .. " cancel drops it.")
   elseif word == "cancel" then
-    T.Print(B2.Cancel() and "Dropped the waiting restore or reset." or "Nothing was waiting.")
-  elseif word == "" or word == "status" then
-    for _, line in ipairs(B2.StatusLines()) do T.Print(line) end
+    T.Print(B2.Cancel() and "Dropped the waiting reset." or "Nothing was waiting.")
+  elseif word == "" then
+    for _, line in ipairs(B2.HowTo()) do T.Print(line) end
+    if B2.Pending() then T.Print("A reset is waiting: type /lua reload to apply it (" .. cmd .. " cancel).") end
   else
-    T.Print("Use /" .. T.commands[1] .. " settings backup, restore, reset or cancel.")
+    T.Print("Use " .. cmd .. " (where the files are), " .. cmd .. " save, reset or cancel.")
   end
   T.Config.Sync()
 end)
@@ -1817,27 +1813,25 @@ function T.Welcome()
 end
 
 -- ---------------------------------------------------------------------------
--- Settings backup, restore and reset (/toolbox settings, settings window: Backup & reset)
+-- Settings files and reset (/toolbox settings, settings window: Backup & reset)
 -- ---------------------------------------------------------------------------
--- A backup is every setting and position (B.KEYS) plus what Toolbox has learned that is worth keeping
--- (B.DATA_KEYS), in ONE account-scope saved var: the game writes it to Lua/SavedVariables/<addon>.account.json
--- (the docs), so it serves every character and can be copied to another computer with that file. Stats, the
--- XP session and histories aren't settings and stay out.
--- Restore and reset don't change anything while Toolbox runs: the windows write their positions again at
--- shutdown (ShroudOnDisableScript / ShroudOnLogOut), and every module holds its settings in memory. They leave
--- an instruction (B.PENDING, character scope) that ShroudOnStart carries out before any module reads its
--- settings; the player types /lua reload. Backup format: { v = 1, at, from, version, keys = { [key] = table } }.
+-- Backups are the player's own copies of the game's saved-variable files (add-ons can't write files, and a
+-- backup inside a saved var would eat into its 256 KB): per the docs, Lua/SavedVariables/<addon>.<character>
+-- .character.json (one per character: settings, positions, stats) and <addon>.account.json (shared). The page
+-- and the command say where they are and how to copy them back; "Save now" writes them first.
+-- Reset doesn't change anything while Toolbox runs: the windows write their positions again at shutdown
+-- (ShroudOnDisableScript / ShroudOnLogOut), and every module holds its settings in memory. It leaves an
+-- instruction (B.PENDING, character scope) that ShroudOnStart carries out before any module reads its
+-- settings; the player types /lua reload.
 local B = {}
 T.Backup = B
-B.FORMAT = 1
-B.SLOT = "settings_backup"         -- account scope
-B.PENDING = "settings_pending"     -- character scope: { kind = "restore" | "reset", keys (restore) }
+B.PENDING = "settings_pending"     -- character scope: { kind = "reset" }
+-- The settings and positions a reset clears (stats, the XP session, histories and learned data stay).
 B.KEYS = { "window", "compact", "daily_window", "daily_detail", "buffbar", "sounds", "vitals", "hud", "combat",
            "combat_detail", "consumables", "gear", "target", "notify", "notify_hud" }
-B.DATA_KEYS = { "buff_durations" } -- kept in backups; a reset leaves them alone
 
 -- Writes where every window and strip is now (the windows track their positions once a second, and write
--- some prefs only at shutdown). For a backup and the shutdown callbacks.
+-- some prefs only at shutdown). For "Save now" and the shutdown callbacks.
 function T.SavePrefs()
   T.Window.Track()
   T.Compact.Track()
@@ -1851,97 +1845,49 @@ function T.SavePrefs()
   T.DailyDetail.SavePrefs()
 end
 
--- Now as "2026-09-30 07:10" (local clock), else the server's time text, else "".
-function B.Stamp()
-  local osTable = rawget(_G, "os")
-  local date = type(osTable) == "table" and osTable.date
-  if type(date) == "function" then
-    local ok, d = pcall(date, "%Y-%m-%d %H:%M")
-    if ok and type(d) == "string" then return d end
-  end
-  return type(ShroudServerTime) == "string" and ShroudServerTime or ""
-end
-
--- The notification settings without what was already delivered (`seen` is state, per character).
-local function notifySettings(n)
-  if type(n) ~= "table" or type(n.sources) ~= "table" then return n end
-  local out = { v = n.v, compact = n.compact, sources = {} }
-  for key, s in pairs(n.sources) do
-    if type(s) == "table" then out.sources[key] = { on = s.on, via = s.via, sound = s.sound, soundKey = s.soundKey } end
-  end
-  return out
-end
-
--- `settings` with this character's `seen` values from `current` (both the saved-var shape; either may be nil).
-local function withSeen(settings, current)
-  local out = type(settings) == "table" and T.Copy(settings) or { v = 1 }
-  if type(out.sources) ~= "table" then out.sources = {} end
-  local cur = type(current) == "table" and type(current.sources) == "table" and current.sources or {}
-  for key, s in pairs(cur) do
-    if type(s) == "table" and s.seen ~= nil then
-      if type(out.sources[key]) ~= "table" then out.sources[key] = {} end
-      out.sources[key].seen = T.Copy(s.seen)
-    end
-  end
-  return out
-end
-
--- The saved backup, or nil when there is none (or it isn't one Toolbox can read).
-function B.Get()
-  local b = ShroudGetSavedVar(B.SLOT, "account")
-  if type(b) ~= "table" or b.v ~= B.FORMAT or type(b.keys) ~= "table" then return nil end
-  return b
-end
-
--- Backs up the current settings. Returns the backup.
-function B.Make()
+-- Everything to disk now, so a copy of the files is up to date. Returns the flush's answer.
+function B.SaveNow()
   pcall(T.SavePrefs)
-  local keys = {}
-  for _, list in ipairs({ B.KEYS, B.DATA_KEYS }) do
-    for _, key in ipairs(list) do
-      local v = T.Load(key)
-      if key == "notify" then v = notifySettings(v) end
-      if type(v) == "table" then keys[key] = v end
-    end
-  end
+  if T.session then T.SaveSession(false) end
+  T.Daily.Save()
+  return T.Flush()
+end
+
+-- The folder the files are in: ShroudLuaPath (the docs: "absolute path to the addon's Lua folder") plus
+-- SavedVariables, or the relative path when the client doesn't give it.
+function B.Folder()
+  local base = ShroudLuaPath
+  if type(base) ~= "string" or base == "" then return "Lua/SavedVariables" end
+  local sep = base:find("\\", 1, true) and "\\" or "/"
+  if base:sub(-1) == sep then return base .. "SavedVariables" end
+  return base .. sep .. "SavedVariables"
+end
+
+-- How to back up and restore, for the settings page and /toolbox settings.
+function B.HowTo()
   local name = ShroudGetPlayerName()
-  local b = { v = B.FORMAT, at = B.Stamp(), from = type(name) == "string" and name or "", version = T.version,
-              keys = keys }
-  ShroudSetSavedVar(B.SLOT, b, "account")
-  T.Flush()                                  -- on disk now, ready to copy
-  return b
+  local who = (type(name) == "string" and name ~= "") and name or "your character"
+  return {
+    "Toolbox's settings are in the game's saved-variable files, in " .. B.Folder() .. ":",
+    "  one file per character, with the character's name in it (" .. who .. "'s: settings, positions and"
+      .. " stats), ending .character.json, and one shared by all characters, ending .account.json.",
+    "To back up: Save now, then copy those files somewhere safe (keep a copy per setup you want to test).",
+    "To restore, or to move to another computer: quit the game first (it writes the files as it closes),"
+      .. " copy your saved files back into that folder, then start the game.",
+  }
 end
 
--- "2026-09-30 07:10 (Shawn, Toolbox 0.6.1)".
-function B.Summary(b)
-  local who = (b.from ~= nil and b.from ~= "") and (tostring(b.from) .. ", ") or ""
-  local at = (b.at ~= nil and b.at ~= "") and (tostring(b.at) .. " ") or ""
-  return at .. "(" .. who .. "Toolbox " .. tostring(b.version) .. ")"
-end
-function B.Describe(b) return "the backup of " .. B.Summary(b) end
-
--- The waiting restore or reset, or nil.
+-- The waiting reset, or nil.
 function B.Pending()
   local p = ShroudGetSavedVar(B.PENDING, SCOPE)
-  if type(p) ~= "table" or (p.kind ~= "restore" and p.kind ~= "reset") then return nil end
+  if type(p) ~= "table" or p.kind ~= "reset" then return nil end
   return p
 end
 
--- Asks for a restore ("restore") or a reset ("reset") at the next start. Returns true, or false and why.
-function B.Request(kind)
-  local p = nil
-  if kind == "restore" then
-    local b = B.Get()
-    if not b then return false, "there is no backup yet" end
-    p = { kind = "restore", keys = T.Copy(b.keys), what = B.Describe(b) }
-  elseif kind == "reset" then
-    p = { kind = "reset" }
-  else
-    return false, "unknown"
-  end
-  ShroudSetSavedVar(B.PENDING, p, SCOPE)
+-- Asks for a reset at the next start.
+function B.RequestReset()
+  ShroudSetSavedVar(B.PENDING, { kind = "reset" }, SCOPE)
   T.Flush()
-  return true
 end
 
 function B.Cancel()
@@ -1951,53 +1897,26 @@ function B.Cancel()
   return had
 end
 
--- From ShroudOnStart, before any module reads its settings: carries out a waiting restore or reset.
-function B.ApplyPending()
-  local p = B.Pending()
-  if not p then return end
-  ShroudDeleteSavedVar(B.PENDING, SCOPE)     -- first: a failure below doesn't repeat at every start
-  local notify = T.Load("notify")
-  if p.kind == "reset" then
-    for _, key in ipairs(B.KEYS) do ShroudDeleteSavedVar(key, SCOPE) end
-    T.Save("notify", withSeen(nil, notify))  -- defaults, but what was delivered stays delivered
-    T.Print("Toolbox's settings are back to their defaults.")
-  else
-    local keys = type(p.keys) == "table" and p.keys or {}
-    for _, key in ipairs(B.KEYS) do
-      local v = keys[key]
-      if key == "notify" then
-        T.Save("notify", withSeen(v, notify))
-      elseif type(v) == "table" then
-        T.Save(key, v)
-      else
-        ShroudDeleteSavedVar(key, SCOPE)       -- not in the backup: the default
-      end
-    end
-    local learned = keys.buff_durations          -- learned buff lengths: added to what this install knows
-    if type(learned) == "table" and type(learned.durations) == "table" then
-      local cur = T.Load("buff_durations")
-      if type(cur) ~= "table" or cur.v ~= learned.v or type(cur.durations) ~= "table" then
-        cur = { v = learned.v, durations = {} }
-      end
-      for name, secs in pairs(learned.durations) do
-        if cur.durations[name] == nil then cur.durations[name] = secs end
-      end
-      T.Save("buff_durations", cur)
-    end
-    T.Print("Toolbox's settings were restored from " .. tostring(p.what or "the backup") .. ".")
+-- The notification settings' defaults with this character's `seen` values kept (what was delivered stays
+-- delivered: the guild message isn't shown again).
+local function seenOnly(current)
+  local out = { v = 1, sources = {} }
+  local cur = type(current) == "table" and type(current.sources) == "table" and current.sources or {}
+  for key, s in pairs(cur) do
+    if type(s) == "table" and s.seen ~= nil then out.sources[key] = { seen = T.Copy(s.seen) } end
   end
-  T.Flush()
+  return out
 end
 
--- For /toolbox settings and the settings window.
-function B.StatusLines()
-  local b, p = B.Get(), B.Pending()
-  local lines = { b and ("Last backup: " .. B.Summary(b) .. ".") or "No backup yet." }
-  if p then
-    lines[#lines + 1] = (p.kind == "reset" and "A reset" or "A restore") .. " is waiting: type /lua reload to"
-      .. " apply it (/" .. T.commands[1] .. " settings cancel to drop it)."
-  end
-  return lines
+-- From ShroudOnStart, before any module reads its settings: carries out a waiting reset.
+function B.ApplyPending()
+  if not B.Pending() then return end
+  ShroudDeleteSavedVar(B.PENDING, SCOPE)     -- first: a failure below doesn't repeat at every start
+  local notify = T.Load("notify")
+  for _, key in ipairs(B.KEYS) do ShroudDeleteSavedVar(key, SCOPE) end
+  T.Save("notify", seenOnly(notify))
+  T.Print("Toolbox's settings are back to their defaults.")
+  T.Flush()
 end
 
 -- Runs one start-up step; a failure is reported and the rest still start (one broken part, such
