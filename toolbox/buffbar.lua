@@ -1673,10 +1673,13 @@ function G.Read(list)
   return out
 end
 
--- A durability for display (pure): whole numbers as they are, others to one decimal (90.8).
+-- A durability for display (pure): one decimal where it shows (90.8), none where it would be ".0"
+-- (65.97 reads 66, not 66.0).
 function G.Num(n)
   if n == math.floor(n) then return T.FormatNumber(n) end
-  return string.format("%.1f", n)
+  local text = string.format("%.1f", n)
+  if text:sub(-2) == ".0" then text = text:sub(1, -3) end
+  return text
 end
 
 -- The tooltip's note for an item whose repair ceiling has worn down (pure): "" when it hasn't.
