@@ -376,6 +376,12 @@ return function(t)
     t.eq(w:Find("toolbelt_combat").enabled, false, "only during combat, while the Toolbelt is off")
   end)
 
+  t.test("Toolbelt page: says the buff bar is its base", function()
+    H.boot()
+    H.chat("/tbx config")
+    t.eq(H.config():Find("toolbelt_base").text, "The Toolbelt is the buff bar; the parts set to In Toolbelt join it.")
+  end)
+
   t.test("Toolbelt: a summary of what's in it, and what falls back to its own strip", function()
     H.boot()
     H.chat("/tbx config")

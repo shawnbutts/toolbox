@@ -649,6 +649,9 @@ function C.ToolbeltSection()
       tooltip = "The whole Toolbelt shows only in combat (and a few seconds after), and while this window is open",
       onChange = function(_, v) T.BuffBar.SetCombatOnly(v) end },
     heading("What goes where"),
+    -- the buff bar is always there: "Toolbelt" read as "only what is set to In Toolbelt" (owner, 2026-09-30)
+    UI.Label{ id = "toolbelt_base", text = "The Toolbelt is the buff bar; the parts set to In Toolbelt join it.",
+      class = "dim", style = { whiteSpace = "wrap" } },
   }
   for _, part in ipairs(C.TOOLBELT_PARTS) do
     children[#children + 1] = dropdownRow(part.label, { id = "toolbelt_" .. part.key, choices = C.PLACES,

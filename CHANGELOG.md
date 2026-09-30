@@ -5,6 +5,9 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Changed
+- The Toolbelt page says the buff bar is the Toolbelt's base, with the parts set to In Toolbelt joining it.
+
 ## [0.8.0] - 2026-09-30 (beta 10)
 
 ### Fixed
