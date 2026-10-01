@@ -88,16 +88,16 @@ D.SECTIONS = {
       .. "grip, with HUD layout's Buff bar buttons, or /toolbox toolbelt move <x> <y>. The buff bar is its "
       .. "base: with the buff bar off, the other bars use their own strips. /toolbox toolbelt says what's in it." },
   { "Target",
-    "/toolbox target on shows your target: its name and health (a thin red bar, and a blue one for focus "
+    "/toolbox target on shows your target: its health (a thin red bar, and a blue one for focus "
       .. "when it has some), then its effects as icons with the time left as a sweep, debuffs (outlined) first. "
-      .. "It shows what the game's target frame shows: a creature hiding its health reads \"health hidden\". "
-      .. "The game doesn't say who applied an effect, so every effect on the target is listed. Hover for "
-      .. "details.",
-    "In the Toolbelt it has no text (hover for the name and numbers) and its bars match yours: the health "
-      .. "bars' length and thickness (Health bars: Size and Bar length). With your health bars in the "
+      .. "A creature hiding its health shows a full bar, as in the game's target frame. "
+      .. "Every effect on it is listed (the game doesn't say who applied one). Hover for details.",
+    "Its bars are the size of yours (Health bars: Size, Bar length). Settings, Toolbelt, Target bars give it "
+      .. "the health bars' options: bars, numbers, background, flash when low (/toolbox target text|bars "
+      .. "on|off, bg, flash <%>|off). With your health bars in the "
       .. "Toolbelt too, it runs across the whole Toolbelt: its bars start where yours do and its icons line "
-      .. "up with your buffs. It goes above the buffs (the default; its space stays when you have no target, "
-      .. "so nothing jumps) or under everything (hidden with no target): settings, Toolbelt, Target row, or "
+      .. "up with your buffs. It goes above the buffs (the default; its space is kept, see below) "
+      .. "or under everything (hidden with no target): settings, Toolbelt, Target row, or "
       .. "/toolbox target place top|bottom.",
     "Mirrored (settings, Toolbelt, Mirrored; or /toolbox target mirror on): its bars fill from the right "
       .. "and up to 5 icons run to the left, most urgent nearest, at a fixed width. In the Toolbelt, with your "

@@ -647,10 +647,10 @@ local function size() return prefs.size or BB.SIZE_DEFAULT end
 -- The content's size for `used` icons across (the busier row) and `rows` rows. The strip is
 -- sized to what is showing, not to the whole slot pool: the game keeps HUD frames on screen,
 -- so a strip as wide as 20 empty slots couldn't be dragged near the right edge (reported).
-local function contentSize(used, rows)
+local function contentSize(used, rows, extra)
   local cell = size() + BB.GAP
   used = math.max(1, math.min(BB.BUFF_SLOTS + 1, used or 1))
-  return used * cell, (rows or 1) * cell
+  return used * cell, (rows or 1) * cell + (extra or 0)
 end
 
 local sizedFor = nil          -- "used,rows,size" the content was last sized for
@@ -678,10 +678,11 @@ local function fitFrame(buffsShown, debuffsShown)
   if empty then used = BB.PLACEHOLDER_CELLS end
   local rows = 1 + (debuffsShown > 0 and 1 or 0) + (gear > 0 and 1 or 0) + (cons > 0 and 1 or 0)
     + (target > 0 and 1 or 0)
-  local key = used .. "," .. rows .. "," .. size()
+  local extra = T.Target.ExtraHeight()   -- the target row taller than an icon (its numbers at a large Size)
+  local key = used .. "," .. rows .. "," .. size() .. "," .. extra
   if key == sizedFor or not content then return end
   sizedFor = key
-  contentW, contentH = contentSize(used, rows)
+  contentW, contentH = contentSize(used, rows, extra)
   T.Hud.Refresh()
 end
 

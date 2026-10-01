@@ -52,11 +52,12 @@ and add or leave out buffs by name.
 ## Target HUD
 
 Your target's health (and focus) as bars, then its effects as icons with a sweep for the time left,
-debuffs first; hover the bars for its name and the exact numbers. It shows what the game's own target frame shows, so a creature hiding its health reads
-"health hidden", and it lists every effect on the target (the game doesn't say who applied them). It joins
+debuffs first; hover the bars for its name and the exact numbers. It shows what the game's own target frame shows, so a creature hiding its health
+shows a full bar, and it lists every effect on the target (the game doesn't say who applied them). It joins
 the Toolbelt above your buffs, under everything, or mirrored to the left of your health bars (its bars
-fill from the right, level with yours), with no text (hover for it) and bars sized like yours, or has its
-own strip. Above the buffs and on the left its space is always kept, so nothing jumps when you pick up a
+fill from the right, level with yours), with bars sized like yours, or has its own strip. Like your health
+bars, it can show numbers beside its bars, a background behind them, and flash when low (settings, Toolbelt,
+Target bars). Above the buffs and on the left its space is always kept, so nothing jumps when you pick up a
 target; on the left that leaves a transparent blank area between the Toolbelt's grip and your bars
 (labelled "Target" while settings are open, to help you place it). Its own strip can be mirrored too.
 

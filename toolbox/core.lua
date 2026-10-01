@@ -1174,9 +1174,9 @@ add("gear", "worn gear's durability, lowest first (bar on|off: the equipment bar
   end
 end)
 
-add("target", "your target's health and effects (on|off; toolbelt on|off: in the Toolbelt or its own strip; "
-    .. "place top|bottom: in the Toolbelt; mirror on|off; effects all|debuffs|none; icons <1-8>; move [x y]; "
-    .. "debug)", function(rest)
+add("target", "your target's health and effects (on|off; toolbelt on|off; place top|bottom: in the Toolbelt; "
+    .. "mirror on|off; effects all|debuffs|none; icons <1-8>; text|bars on|off; bg; flash <%>|on|off; "
+    .. "move [x y]; debug)", function(rest)
   local TG = T.Target
   local word, args = T.ParseArgs(rest)
   word = word:lower()
@@ -1209,12 +1209,44 @@ add("target", "your target's health and effects (on|off; toolbelt on|off: in the
       T.Print("Use /" .. T.commands[1] .. " target place top|bottom (where it goes in the Toolbelt).")
       return
     end
+  elseif word == "text" or word == "bars" then
+    local a = args:lower()
+    if a ~= "on" and a ~= "off" then
+      T.Print("Use /" .. T.commands[1] .. " target " .. word .. " on|off.")
+      return
+    end
+    if word == "text" then TG.SetShowText(a == "on") else TG.SetShowBars(a == "on") end
+    T.Print("Target bars: " .. (TG.GetShowBars() and "on" or "off") .. "; numbers: "
+      .. (TG.GetShowText() and "on" or "off") .. ".")
+    return
+  elseif word == "bg" then
+    if args ~= "" and not TG.SetBackground(args) then
+      T.Print("Backgrounds: " .. table.concat(T.Vitals.BackgroundNames(), ", ") .. ".")
+      return
+    end
+    T.Print("Target number background: " .. TG.GetBackground() .. ".")
+    return
+  elseif word == "flash" then
+    local a = args:lower()
+    if a == "on" or a == "off" then
+      TG.SetFlash(a == "on")
+    elseif a ~= "" then
+      if not TG.SetFlashBelow(tonumber(a)) then
+        T.Print("Use /" .. T.commands[1] .. " target flash <" .. T.Vitals.FLASH_MIN .. "-" .. T.Vitals.FLASH_MAX
+          .. ">, on or off.")
+        return
+      end
+      TG.SetFlash(true)
+    end
+    T.Print("Target flash when low: " .. (TG.GetFlash() and ("on, below " .. TG.GetFlashBelow() .. "%") or "off")
+      .. ".")
+    return
   elseif word == "move" then
     T.MoveCommand(TG, "target", "Target HUD", args)
     return
   elseif word ~= "" then
     T.Print("Use /" .. T.commands[1] .. " target on|off, toolbelt on|off, place top|bottom, mirror on|off, "
-      .. "move [x y] or debug.")
+      .. "text|bars on|off, bg, flash, move [x y] or debug.")
     return
   end
   T.Print("Target HUD: " .. (TG.GetShow() and "on" or "off")

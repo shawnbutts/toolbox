@@ -17,8 +17,8 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
   click-to-dismiss.
 - **Consumables bar**: food, potions, weapon poisons and combat items in effect, by the game's buff
   categories, long-lasting ones grouped (on its own strip or in the Toolbelt).
-- **Target HUD**: your target's health and focus, and its effects with the time left on each; its own
-  strip or the Toolbelt's last row (`/toolbox target`).
+- **Target HUD**: your target's health and focus (bars, numbers or both, with the health bars' options), and
+  its effects with the time left on each; its own strip or the Toolbelt's last row (`/toolbox target`).
 - **Health, focus & Vigor bars**: your own health, focus and (API 20) Vigor on a movable HUD strip.
 - **Combat stats**: DPS, damage taken and healing per second, crit and avoid rates, a fight timer and
   chosen character stats; hover it for **Combat Detailed** (damage by skill, the last minute as a

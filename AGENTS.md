@@ -164,7 +164,9 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
   `ShroudGetPlayerVitals` (API 25; `V.Vitals()` reads it once per game time). Vigor from `ShroudGetVigor` (API 20). Every size from `V.Metrics()` (Size,
   Bar length; bars `V.BAR_THICKNESS` of the line). `V.RowHeights()` = the rows as laid out (GetSize).
   Also `Toolbox.Target` (TG, end of the file): the target HUD. One row: a bars block (`target_info`: health
-  and focus `Bar`s the size of the player's; no text in any form: name, numbers and percent in its tooltip)
+  and focus `Bar`s the size of the player's; the name and exact numbers in its tooltip; the health bars' look
+  options, its own: `bars`, `numbers` (`TG.NumberText`, shortened past 9,999), `bg`, `flash`/`flashBelow`, all
+  elements built in every form and restyled in place by `styleInfo`; the buff column adds `TG.ExtraHeight()`)
   and effect slots with the game's wedge, debuffs first (`TG.Collect`). Polled every `TG.POLL` s and on
   `ShroudOnTargetChanged`; the grouped `ShroudGetTargetBuff` only when the target or its effect count
   changes. The API doesn't say who applied an effect: all are listed. `TG.Name`: the game's name (API 25: the
@@ -297,7 +299,7 @@ character" sentinel.
 | `combat_detail` | `{ open = bool (pinned), x, y, scope = "fight"/"session", hover = bool }` |
 | `consumables` | `{ show = bool (default true), glue = bool, extra = { name parts, <= 20 }, cats = { [category] = true } (absent: defaults), exclude = { name parts } (absent: Scroll, Torch, Bait), max = 1..10, combatOnly = bool, x, y }` |
 | `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` |
-| `target` | `{ show = bool (default false), glue = bool (default true), place = "top" (default) / "bottom", mirror = bool, effects = "all"/"debuffs"/"none", icons = 1..8 (unset: 8, or 5 mirrored), x, y }` (a saved place "left", from beta 7, reads as mirror) |
+| `target` | `{ show = bool (default false), glue = bool (default true), place = "top" (default) / "bottom", mirror = bool, effects = "all"/"debuffs"/"none", icons = 1..8 (unset: 8, or 5 mirrored), bars = bool (default true), numbers = bool (default false), bg = "None"/"Dark"/"Light", flash = bool (default false), flashBelow = 1..95, x, y }` (a saved place "left", from beta 7, reads as mirror; bars and numbers never both off) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
 | `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), font = 9..32 (unset: the XP windows'), x, y }` |

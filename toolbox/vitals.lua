@@ -165,12 +165,15 @@ local function rowCount()
   return n
 end
 
-local function background()
+-- A V.BACKGROUNDS entry by name (None for anything else).
+function V.BackgroundNamed(name)
   for _, bg in ipairs(V.BACKGROUNDS) do
-    if bg.name == prefs.bg then return bg end
+    if bg.name == name then return bg end
   end
   return V.BACKGROUNDS[1]
 end
+
+local function background() return V.BackgroundNamed(prefs.bg) end
 
 -- The theme class for the current background, or nil.
 function V.BackgroundClass()
@@ -185,7 +188,9 @@ end
 -- Everything's size from one factor (Shroud.UI has no zoom): text, line height, bar
 -- thickness and length, the gap and number box, and the strip itself. The number box has a
 -- fixed width so both bars line up; its text is left-aligned so it sits right after the bar.
-function V.Metrics()
+-- The sizes for bars / numbers shown or not on background `bg` (a V.BACKGROUNDS entry); the target HUD
+-- has its own (V.MetricsFor).
+local function metrics(bars, text, bg)
   local f = scale() / 100
   local font = math.max(9, math.min(32, math.floor(V.BASE_FONT * f + 0.5)))   -- fontSize is 9..32
   local line = math.ceil(font * 1.15) + 1
@@ -197,46 +202,71 @@ function V.Metrics()
     textW = math.ceil(font * 5.2),        -- room for "9999 / 9999"
     rowGap = math.max(2, math.floor(V.ROW_GAP * f + 0.5)),   -- rows are a text line high
   }
-  local hasBg = V.BackgroundClass() or V.BackgroundPanel()
+  local hasBg = bg.class or bg.color
   m.pad = hasBg and math.max(2, math.floor(3 * f + 0.5)) or 0   -- room around the text on a background
-  if not showBars() then m.barW, m.gap = 0, 0 end
-  if not showText() then m.textW, m.gap, m.pad = 0, 0, 0 end
+  if not bars then m.barW, m.gap = 0, 0 end
+  if not text then m.textW, m.gap, m.pad = 0, 0, 0 end
   m.contentW = m.barW + m.gap + m.textW + 2 * m.pad
-  m.contentH = rowCount() * (line + m.rowGap)
+  return m
+end
+
+function V.Metrics()
+  local m = metrics(showBars(), showText(), background())
+  m.contentH = rowCount() * (m.line + m.rowGap)
   m.frameW = T.Window.GRIP + m.contentW + 8        -- when in its own strip
   m.frameH = m.contentH + 8
   return m
 end
 
+-- The same sizes for another set of options (the target HUD's): bars and numbers shown or not, and the
+-- background's name.
+function V.MetricsFor(bars, text, bgName) return metrics(bars, text, V.BackgroundNamed(bgName)) end
+
 local function barStyle(m) return { width = m.barW, height = m.barH } end
 -- Colours for a bar and its number, normal or in the "flash" half of a low-value flash.
 -- Numbers: dark on the Light panel; the bar's colour when the bars are hidden (so health and
 -- focus can still be told apart); otherwise the theme's text colour.
-function V.Colors(bar, flashing)
-  local dark = background().darkText
+-- ColorsFor: the same for a bar colour, a background entry and whether the bars show (pure).
+function V.ColorsFor(color, flashing, bg, barsShown)
   local text = nil
-  if dark then
-    text = flashing and bar.color or V.DARK_TEXT
-  elseif not showBars() then
-    text = flashing and V.FLASH_COLOR or bar.color
+  if bg.darkText then
+    text = flashing and color or V.DARK_TEXT
+  elseif not barsShown then
+    text = flashing and V.FLASH_COLOR or color
   else
-    text = flashing and bar.color or "@text"
+    text = flashing and color or "@text"
   end
-  return flashing and V.FLASH_COLOR or bar.color, text
+  return flashing and V.FLASH_COLOR or color, text
+end
+
+function V.Colors(bar, flashing)
+  return V.ColorsFor(bar.color, flashing, background(), showBars())
+end
+
+-- A number label's style for metrics m in colour `color` (shared with the target HUD).
+function V.NumberStyle(m, color)
+  return { fontSize = m.font, height = m.line, minHeight = m.line, maxHeight = m.line, marginTop = 0,
+           marginBottom = 0, paddingTop = 0, paddingBottom = 0,
+           width = m.textW + 2 * m.pad, paddingLeft = m.pad, paddingRight = m.pad, textAlign = "left",
+           whiteSpace = "nowrap", color = color }
 end
 
 local function textStyle(m, bar)
   local _, color = V.Colors(bar, false)
-  return { fontSize = m.font, height = m.line, minHeight = m.line, maxHeight = m.line, marginTop = 0,
-           marginBottom = 0, paddingTop = 0, paddingBottom = 0,
-           width = m.textW + 2 * m.pad, paddingLeft = m.pad, paddingRight = m.pad, textAlign = "left",
-           color = color }
+  return V.NumberStyle(m, color)
 end
 
--- The wrapper around a number: the gap after the bar, and the Light panel.
-local function wrapStyle(m)
-  local panel = V.BackgroundPanel()
+-- The wrapper around a number: the gap after the bar, and the Light panel (background entry `bg`).
+function V.WrapStyle(m, bg)
+  local panel = bg.color
   return { marginLeft = m.gap, backgroundColor = panel or "#00000000", borderRadius = panel and 3 or 0 }
+end
+local function wrapStyle(m) return V.WrapStyle(m, background()) end
+
+-- A number label's classes on background `bg`.
+function V.NumberClass(bg)
+  if bg.class then return { "text", bg.class } end
+  return "text"
 end
 
 -- Builds the bar rows and returns them; Toolbox.Hud puts them in a strip.
@@ -249,8 +279,8 @@ function V.BuildContent()
       UI.Bar{ id = bar.key .. "_bar", value = 0, color = bar.color, tooltip = bar.label, style = barStyle(m),
         visible = showBars() },
       UI.Row{ id = bar.key .. "_wrap", style = wrapStyle(m), visible = showText(), children = {
-        UI.Label{ id = bar.key .. "_text", text = "", class = V.BackgroundClass() and { "text", V.BackgroundClass() }
-          or "text", style = textStyle(m, bar), tooltip = bar.label },
+        UI.Label{ id = bar.key .. "_text", text = "", class = V.NumberClass(background()), style = textStyle(m, bar),
+          tooltip = bar.label },
       } },
     } }
   end
@@ -464,14 +494,18 @@ local function applySize()
     el[bar.key .. "_text"]:SetStyle(textStyle(m, bar))
     el[bar.key .. "_wrap"]:SetStyle(wrapStyle(m))
     el[bar.key .. "_wrap"]:SetVisible(showText())
-    -- swap the background's theme class
-    for _, bg in ipairs(V.BACKGROUNDS) do
-      if bg.class then el[bar.key .. "_text"]:RemoveClass(bg.class) end
-    end
-    if V.BackgroundClass() then el[bar.key .. "_text"]:AddClass(V.BackgroundClass()) end
+    V.SwapBackgroundClass(el[bar.key .. "_text"], background())
   end
   T.Hud.Refresh()
   shown = {}                                -- colours were reset: re-apply on the next tick
+end
+
+-- Gives a number label the theme class of background `bg` (and none of the others').
+function V.SwapBackgroundClass(label, bg)
+  for _, b in ipairs(V.BACKGROUNDS) do
+    if b.class then label:RemoveClass(b.class) end
+  end
+  if bg.class then label:AddClass(bg.class) end
 end
 
 local function inRange(n, lo, hi) return type(n) == "number" and n == math.floor(n) and n >= lo and n <= hi end
@@ -583,8 +617,8 @@ function V.ApplyText() end
 -- ===========================================================================
 -- Toolbox.Target: the target HUD (/toolbox target)
 -- ===========================================================================
--- One row: the target's health and focus as bars the size of the player's (no text: the name and numbers
--- are in the tooltip; owner, 2026-09-29), then its effects as icons with
+-- One row: the target's health and focus as bars the size of the player's (the name and numbers are in the
+-- tooltip; owner, 2026-09-29), then its effects as icons with
 -- the buff bar's clock sweep: debuffs (outlined) first, then the soonest to end. Its own strip, or the
 -- Toolbelt's last row (built by the buff bar, like the consumables and equipment rows: TG.BuildRow,
 -- TG.Glued, TG.GluedCount). Every value is what the game's own target frame shows: a creature hiding its
@@ -596,6 +630,9 @@ function V.ApplyText() end
 -- count changes, or every TG.GROUP_EVERY seconds; the flat getters give names, time left, icons, tooltips.
 -- Saved var "target": { show = bool (default false), glue = bool (default true), place = "top"|"bottom"
 -- (in the Toolbelt: above the buffs, the default, or under everything), x, y }.
+-- Its look has the health bars' options, its own (owner, 2026-10-01): bars, numbers ("current / max",
+-- off by default), the number background and flashing when low. Size and Bar length stay the health bars',
+-- so the two line up. Every element is built in every form, hidden when off: a change restyles in place.
 -- On top its row keeps its height while there's no target, so the buffs under it don't jump each time
 -- you pick up or drop a target (the strip is anchored at its top-left grip).
 
@@ -617,8 +654,16 @@ TG.EFFECT_LABELS = { all = "All", debuffs = "Debuffs only", none = "None (just t
 TG.HINT = "Target"           -- shown in its kept space while settings are open and there's no target
 local TPERIODIC = "toolbox_target"
 
-local tprefs = { show = false, glue = true, place = "top", mirror = false, effects = "all" }
+TG.FLASH_HALF = 0.5          -- seconds each half of a low-value flash (two polls)
+
+local function defaultPrefs()
+  return { show = false, glue = true, place = "top", mirror = false, effects = "all", bars = true, numbers = false,
+           bg = "None", flash = false, flashBelow = V.FLASH_DEFAULT }
+end
+local tprefs = defaultPrefs()
 local tContent, tInfo, tHealth, tFocus = nil, nil, nil, nil
+local tText = {}             -- [1] health, [2] focus: { wrap = Row, label = Label }
+local tFlashing = {}         -- [1] / [2]: whether that bar is in its flash colours now
 local tSlots = {}
 local tShownCount = nil      -- cells the row takes (for the strip's size), when it last changed
 local tHas = nil             -- whether the last poll had a target
@@ -629,6 +674,26 @@ local tList = {}             -- reused: what the slots show, sorted
 
 local function tSave() T.Save("target", tprefs) end
 local function iconSize() return T.BuffBar.GetSize() end
+
+-- The number beside a bar (pure): "750 / 1000", shortened past 9,999 ("12.5k / 15k"; the tooltip has the
+-- whole), "hidden" or "dead".
+local function short(n)
+  if n < 10000 then return tostring(n) end
+  if n < 100000 then
+    local k = string.format("%.1f", n / 1000):gsub("%.0$", "")
+    return k .. "k"
+  end
+  if n < 10000000 then return math.floor(n / 1000 + 0.5) .. "k" end
+  return math.floor(n / 1000000 + 0.5) .. "m"
+end
+function TG.NumberText(cur, max, hidden, dead)
+  if dead then return "dead" end
+  if hidden then return "hidden" end
+  if type(cur) ~= "number" or cur < 0 then return "--" end
+  local c = math.floor(cur + 0.5)
+  if type(max) ~= "number" or max <= 0 then return short(c) end
+  return short(c) .. " / " .. short(math.max(math.floor(max + 0.5), c))
+end
 
 -- "73%", "health hidden" or "dead" for the name line (pure).
 function TG.HealthText(cur, max, hidden, dead)
@@ -769,21 +834,27 @@ local function infoLayout(s)
   local gap, cell = T.BuffBar.GAP, s + T.BuffBar.GAP
   local L = {}
   do
-    local m = V.Metrics()
+    local m = V.MetricsFor(tprefs.bars, tprefs.numbers, tprefs.bg)
+    L.m = m
     L.barW = math.floor(V.GetWidth() * V.GetScale() / 100 + 0.5)
     L.hBar, L.fBar = m.barH, m.barH
     L.line, L.rowGap = m.line, m.rowGap
+    L.contentW = m.contentW                      -- the bars and numbers shown, side by side
+    -- each bar's row: a text line high with numbers, else the bar (2 px apart, as before)
+    L.rowH = tprefs.numbers and m.line or m.barH
+    L.rowGapIn = tprefs.numbers and m.rowGap or 2
+    L.h = math.max(s, 2 * L.rowH + L.rowGapIn)   -- taller than an icon only at a large Size
     if tLeft then
       -- a fixed block: the icons, then the bars (their rows as tall as the health bars' rows)
-      L.w = L.barW
-      L.blockW = TG.SlotCount(true) * cell + L.barW
+      L.w = L.contentW
+      L.blockW = TG.SlotCount(true) * cell + L.contentW
       L.blockH = math.max(s, 2 * (m.line + m.rowGap))
       L.cells = 0
     elseif tBelow then
-      L.w = math.max(L.barW, (V.ContentSize()) + T.Hud.GAP - gap)
+      L.w = math.max(L.contentW, (V.ContentSize()) + T.Hud.GAP - gap)
       L.cells = (L.w + gap) / cell                -- not whole cells: ContentSize adds the icons
     else
-      L.cells = math.max(1, math.ceil((L.barW + gap) / cell))
+      L.cells = math.max(1, math.ceil((L.contentW + gap) / cell))
       L.w = L.cells * cell - gap
     end
   end
@@ -796,6 +867,7 @@ end
 
 -- Applies infoLayout to the built bars block (at build, and when a size changes).
 local tBlockW, tBlockH = 0, 0
+local tInfoH = 0             -- the bars block's height in the other forms (L.h)
 
 -- Mirrored: copies the health bars' rows' laid-out heights to the target's two rows (their asked-for height
 -- isn't what the game lays out), so each target bar sits level with the player's. Returns true on a change.
@@ -816,9 +888,31 @@ local function syncRows(s)
   end
   return changed
 end
+-- The numbers' look (style, colours, background class); mirrored they sit left of the bars, right-aligned.
+local function styleNumbers(m)
+  local bg = V.BackgroundNamed(tprefs.bg)
+  local colors = { "@red", "@blue" }
+  for i, t in ipairs(tText) do
+    local _, color = V.ColorsFor(colors[i], false, bg, tprefs.bars)
+    local label = V.NumberStyle(m, color)
+    local wrap = V.WrapStyle(m, bg)
+    if tLeft then
+      label.textAlign = "right"
+      wrap.marginLeft, wrap.marginRight = 0, m.gap
+    end
+    t.label:SetStyle(label)
+    t.wrap:SetStyle(wrap)
+    V.SwapBackgroundClass(t.label, bg)
+  end
+  tFlashing = {}                                 -- colours were reset: the poll re-applies a flash
+end
+
 local function styleInfo(s)
   local L = infoLayout(s)
   tInfoCells = L.cells
+  styleNumbers(L.m)
+  T.SetVisible(tHealth, tprefs.bars)
+  T.SetVisible(tText[1].wrap, tprefs.numbers)
   if tLeft then
     tBlockW, tBlockH = L.blockW, L.blockH
     tInfo:SetStyle{ width = L.w, marginRight = 0 }
@@ -833,9 +927,14 @@ local function styleInfo(s)
     tRowH, tSyncUntil = {}, T.Now() + TG.SYNC_FOR  -- measure the health bars' rows again
     return
   end
-  tInfo:SetStyle{ width = L.w, height = s, marginRight = T.BuffBar.GAP }
-  tHealth:SetStyle(barStyleT(L.barW, L.hBar, 2))
+  tInfoH = L.h
+  tInfo:SetStyle{ width = L.w, height = L.h, marginRight = T.BuffBar.GAP }
+  for i, r in ipairs(tRows) do
+    r:SetStyle{ height = L.rowH, minHeight = L.rowH, maxHeight = L.rowH, marginBottom = i == 1 and L.rowGapIn or 0 }
+  end
+  tHealth:SetStyle(barStyleT(L.barW, L.hBar, 0))
   tFocus:SetStyle(barStyleT(L.barW, L.fBar, 0))
+  if tContent then tContent:SetStyle{ height = L.h, minHeight = L.h } end
 end
 
 -- The row: the bars block and the effect slots. The target strip's content, or a Toolbelt row.
@@ -848,13 +947,24 @@ function TG.BuildRow()
   tLeft = (tBelow and TG.Mirrored()) or (not TG.Glued() and tprefs.mirror == true)
   tHealth = UI.Bar{ id = "target_health", value = 0, color = "@red" }
   tFocus = UI.Bar{ id = "target_focus", value = 0, color = "@blue", visible = false }
+  tText = {}
+  for i, key in ipairs({ "health", "focus" }) do
+    local label = UI.Label{ id = "target_" .. key .. "_text", text = "", class = "text" }
+    tText[i] = { label = label, wrap = UI.Row{ id = "target_" .. key .. "_wrap", visible = false,
+                                               children = { label } } }
+  end
   tRows = {}
+  local bars = { tHealth, tFocus }
+  for i = 1, 2 do
+    local kids = { bars[i], tText[i].wrap }
+    if tLeft then kids = { tText[i].wrap, bars[i] } end            -- mirrored: the number outside
+    tRows[i] = UI.Row{ style = { alignItems = "center", justifyContent = tLeft and "end" or "start" },
+      children = kids }
+  end
   if tLeft then
-    tRows[1] = UI.Row{ style = { alignItems = "center", justifyContent = "end" }, children = { tHealth } }
-    tRows[2] = UI.Row{ style = { alignItems = "center", justifyContent = "end" }, children = { tFocus } }
     tInfo = UI.Column{ id = "target_info", children = { tRows[1], tRows[2] } }
   else
-    tInfo = UI.Column{ id = "target_info", style = { justifyContent = "center" }, children = { tHealth, tFocus } }
+    tInfo = UI.Column{ id = "target_info", style = { justifyContent = "center" }, children = { tRows[1], tRows[2] } }
   end
   styleInfo(s)
   local children = { tInfo }
@@ -876,8 +986,8 @@ function TG.BuildRow()
     tContent = UI.Row{ id = "target", visible = false, style = { alignItems = "start", justifyContent = "end",
       width = tBlockW, minWidth = tBlockW, height = tBlockH, minHeight = tBlockH }, children = children }
   else
-    tContent = UI.Row{ id = "target", visible = false, style = { alignItems = "center", height = s, minHeight = s },
-      children = children }
+    tContent = UI.Row{ id = "target", visible = false, style = { alignItems = "center", height = tInfoH,
+      minHeight = tInfoH }, children = children }
   end
   tShownCount, tHas, tId, tCount, tGroupAt = nil, nil, nil, nil, -math.huge
   return tContent
@@ -891,13 +1001,20 @@ end
 -- For Toolbox.Hud (and BB.Unbuilt when in the Toolbelt): the row was destroyed; the poll skips it.
 function TG.Unbuilt()
   tContent, tInfo, tHealth, tFocus, tHint, TG.inBuffBar = nil, nil, nil, nil, nil, false
-  tSlots, tRows, tShownCount = {}, {}, nil
+  tSlots, tRows, tText, tShownCount = {}, {}, {}, nil
 end
 
 function TG.ContentSize()
   if tLeft and tContent then return tBlockW, tBlockH end
   local cell = iconSize() + T.BuffBar.GAP
-  return math.ceil((tInfoCells + #tList) * cell), iconSize()
+  return math.ceil((tInfoCells + #tList) * cell), math.max(iconSize(), tInfoH)
+end
+
+-- Pixels the row is taller than an icon (numbers at a large Size): the buff bar adds them to its strip
+-- when the row is in its column.
+function TG.ExtraHeight()
+  if not tContent or TG.GluedCount() == 0 then return 0 end
+  return math.max(0, tInfoH - iconSize())
 end
 
 -- A size changed (the buff bar's icon size, or the health bars' Size / Bar length): resized in place
@@ -914,6 +1031,24 @@ function TG.ApplySize()
   tShownCount = nil
   TG.Poll(false)
   if TG.Glued() and not TG.Below() then T.BuffBar.Tick() else T.Hud.Refresh() end
+end
+
+-- True while a value is below the target's flash threshold (and its flashing is on).
+function TG.IsLow(current, fill)
+  return tprefs.flash == true and type(current) == "number" and fill < tprefs.flashBelow / 100
+end
+
+-- Puts bar i (1 health, 2 focus) in its flash colours or back (only on a change).
+local TG_COLORS = { "@red", "@blue" }
+function TG.Flash(i, on)
+  on = on == true
+  if tFlashing[i] == on or not tText[i] then return end
+  tFlashing[i] = on
+  local barColor, textColor = V.ColorsFor(TG_COLORS[i], on, V.BackgroundNamed(tprefs.bg), tprefs.bars)
+  local bar = tHealth
+  if i == 2 then bar = tFocus end
+  bar:SetColor(barColor)
+  tText[i].label:SetStyle{ color = textColor }
 end
 
 -- Fills the effect slots from tList.
@@ -977,8 +1112,17 @@ function TG.Poll(force)
     T.SetValue(tHealth, fill)
     local fcur, fmax = ShroudGetTargetCurrentFocus(), ShroudGetTargetMaxFocus()
     local hasFocus = type(fmax) == "number" and fmax > 0 and type(fcur) == "number"
-    T.SetVisible(tFocus, hasFocus)
-    if hasFocus then T.SetValue(tFocus, math.max(0, math.min(1, fcur / fmax))) end
+    T.SetVisible(tFocus, hasFocus and tprefs.bars)
+    T.SetVisible(tText[2].wrap, hasFocus and tprefs.numbers)
+    local ffill = hasFocus and math.max(0, math.min(1, fcur / fmax)) or 0
+    if hasFocus then T.SetValue(tFocus, ffill) end
+    if tprefs.numbers then
+      T.SetText(tText[1].label, TG.NumberText(cur, max, hidden, dead))
+      if hasFocus then T.SetText(tText[2].label, TG.NumberText(fcur, fmax)) end
+    end
+    local phase = math.floor(T.Now() / TG.FLASH_HALF) % 2 == 1
+    TG.Flash(1, phase and not dead and not hidden and TG.IsLow(cur, fill))
+    TG.Flash(2, phase and hasFocus and TG.IsLow(fcur, ffill))
     local tip = name .. (hidden and "\nHealth hidden" or ((type(cur) == "number" and type(max) == "number"
       and max > 0) and string.format("\nHealth %s / %s (%s)", T.FormatNumber(cur), T.FormatNumber(max), pct) or ""))
       .. (hasFocus and string.format("\nFocus %s / %s", T.FormatNumber(fcur), T.FormatNumber(fmax)) or "")
@@ -988,6 +1132,10 @@ function TG.Poll(force)
     for j = 1, #tList do tList[j] = nil end
     T.SetValue(tHealth, 0)
     T.SetVisible(tFocus, false)
+    T.SetVisible(tText[2].wrap, false)
+    T.SetText(tText[1].label, "--")
+    TG.Flash(1, false)
+    TG.Flash(2, false)
     T.SetTooltip(tInfo, "Your target's health and effects show here")
     tId, tCount = nil, nil
   end
@@ -1067,6 +1215,62 @@ function TG.SetIcons(n)
   return true
 end
 
+-- The look (the health bars' options, the target's own): restyled in place, then re-fitted.
+local function applyLook()
+  tSave()
+  TG.ApplySize()
+  T.Config.Sync()
+end
+
+function TG.GetShowBars() return tprefs.bars end
+function TG.GetShowText() return tprefs.numbers end
+
+-- Bars / numbers on or off; refuses to switch off the last one (as the health bars do). True when it took.
+local function tSetPart(key, on)
+  local other = tprefs.bars
+  if key == "bars" then other = tprefs.numbers end
+  if not on and not other then
+    T.Print("The target's bars and numbers can't both be off; switch the target HUD off instead.")
+    T.Config.Sync()
+    return false
+  end
+  tprefs[key] = on == true
+  applyLook()
+  return true
+end
+function TG.SetShowBars(on) return tSetPart("bars", on) end
+function TG.SetShowText(on) return tSetPart("numbers", on) end
+
+function TG.GetBackground() return V.BackgroundNamed(tprefs.bg).name end
+-- None, Dark or Light (any case). Returns false for anything else.
+function TG.SetBackground(name)
+  local found = nil
+  for _, bg in ipairs(V.BACKGROUNDS) do
+    if bg.name:lower() == tostring(name or ""):lower() then found = bg end
+  end
+  if not found then return false end
+  tprefs.bg = found.name
+  applyLook()
+  return true
+end
+
+function TG.GetFlash() return tprefs.flash == true end
+function TG.SetFlash(on)
+  tprefs.flash = on == true
+  tSave()
+  TG.Poll(false)
+  T.Config.Sync()
+end
+
+function TG.GetFlashBelow() return tprefs.flashBelow end
+function TG.SetFlashBelow(n)
+  if type(n) ~= "number" or n ~= math.floor(n) or n < V.FLASH_MIN or n > V.FLASH_MAX then return false end
+  tprefs.flashBelow = n
+  tSave()
+  T.Config.Sync()
+  return true
+end
+
 -- Mirrored: left of the health bars in the Toolbelt, or a mirrored own strip (see TG.Mirrored).
 function TG.GetMirror() return tprefs.mirror == true end
 function TG.SetMirror(on)
@@ -1099,7 +1303,7 @@ TG.GetPosition, TG.MoveTo, TG.Nudge, TG.ResetPosition = targetMover.Get, targetM
 
 function TG.Init()
   local saved = T.Load("target")
-  tprefs = { show = false, glue = true, place = "top", mirror = false, effects = "all" }
+  tprefs = defaultPrefs()
   if type(saved) == "table" then
     tprefs.show = saved.show == true
     tprefs.glue = saved.glue ~= false
@@ -1110,6 +1314,13 @@ function TG.Init()
       tprefs.icons = math.floor(saved.icons)
     end
     if type(saved.x) == "number" and type(saved.y) == "number" then tprefs.x, tprefs.y = saved.x, saved.y end
+    tprefs.bars = saved.bars ~= false
+    tprefs.numbers = saved.numbers == true
+    if not tprefs.bars and not tprefs.numbers then tprefs.bars = true end
+    tprefs.bg = V.BackgroundNamed(saved.bg).name
+    tprefs.flash = saved.flash == true
+    local fb = saved.flashBelow
+    if type(fb) == "number" and fb >= V.FLASH_MIN and fb <= V.FLASH_MAX then tprefs.flashBelow = math.floor(fb) end
   end
   tList, tRaw, tInfoBy = {}, {}, {}
   T.Hud.Register("target", TG)

@@ -691,6 +691,25 @@ function C.ToolbeltSection()
   children[#children + 1] = slider("target_icons", "Most target icons", 1, T.Target.SLOTS, 1, T.Target.GetIcons(),
     "How many of your target's effects show at once (mirrored, its width is kept for this many)",
     function(n) T.Target.SetIcons(n) end)
+  -- The target's bars: the health bars' look options, its own (their Size and Bar length it shares)
+  local TG = T.Target
+  children[#children + 1] = heading("Target bars")
+  children[#children + 1] = UI.Toggle{ id = "target_show_bars", text = "Show bars", value = TG.GetShowBars(),
+    onChange = function(_, v) TG.SetShowBars(v) end }
+  children[#children + 1] = UI.Toggle{ id = "target_show_text", text = "Show numbers", value = TG.GetShowText(),
+    tooltip = "Health and focus as numbers beside the bars (large ones shortened: 12.5k; the tooltip has them all)",
+    onChange = function(_, v) TG.SetShowText(v) end }
+  children[#children + 1] = dropdownRow("Number background", { id = "target_bg", choices = T.Vitals.BackgroundNames(),
+    value = TG.GetBackground(), tooltip = "A dark or light panel behind the target's numbers",
+    onChange = function(_, value) TG.SetBackground(value) end })
+  children[#children + 1] = UI.Toggle{ id = "target_flash", text = "Flash when low", value = TG.GetFlash(),
+    tooltip = "Your target's health or focus flashes below the percentage under this",
+    onChange = function(_, v) TG.SetFlash(v) end }
+  children[#children + 1] = slider("target_flash_below", "Flash below (%)", T.Vitals.FLASH_MIN, T.Vitals.FLASH_MAX, 1,
+    TG.GetFlashBelow(), "The target's health or focus under this percentage flashes",
+    function(n) TG.SetFlashBelow(n) end)
+  children[#children + 1] = UI.Label{ text = "Their size follows your health bars' Size and Bar length (Health bars"
+    .. " page).", class = "dim", style = { whiteSpace = "wrap", marginTop = 4 } }
   children[#children + 1] = UI.Label{ id = "hud_summary", text = "", class = "dim",
     style = { whiteSpace = "wrap", marginTop = 6 } }
   children[#children + 1] = UI.Label{ text = "Place it under HUD layout (Buff bar), or drag its grip. Each bar's"
@@ -818,7 +837,8 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "nhud_hide", "notify_compact", "notify_font", "notify_font_value", "nhud_font", "nhud_font_value",
   "volume", "volume_value", "hud_summary", "toolbelt_show",
   "toolbelt_vitals", "toolbelt_consumables", "toolbelt_gear", "toolbelt_target", "target_place", "target_mirror",
-  "target_effects", "target_icons", "target_icons_value",
+  "target_effects", "target_icons", "target_icons_value", "target_show_bars", "target_show_text", "target_bg",
+  "target_flash", "target_flash_below", "target_flash_below_value",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
   "buff_countdown_secs_value", "backup_where", "backup_save", "settings_reset", "backup_pending",
   "backup_cancel", "backup_msg" }
@@ -1171,6 +1191,16 @@ function C.Sync()
   setEnabled("target_effects", T.Target.GetShow())
   setEnabled("target_icons", T.Target.GetShow() and T.Target.GetEffects() ~= "none")
   setEnabled("target_mirror", T.Target.GetShow() and T.Target.CanMirror())
+  setValue("target_show_bars", T.Target.GetShowBars())
+  setValue("target_show_text", T.Target.GetShowText())
+  setValue("target_bg", T.Target.GetBackground())
+  setValue("target_flash", T.Target.GetFlash())
+  sliderValue("target_flash_below", T.Target.GetFlashBelow())
+  for _, id in ipairs({ "target_show_bars", "target_show_text", "target_flash" }) do
+    setEnabled(id, T.Target.GetShow())
+  end
+  setEnabled("target_bg", T.Target.GetShow() and T.Target.GetShowText())
+  setEnabled("target_flash_below", T.Target.GetShow() and T.Target.GetFlash())
   setText("hud_summary", C.HudSummary())
   -- Backup & reset
   local pending = T.Backup.Pending() ~= nil

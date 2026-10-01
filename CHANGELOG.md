@@ -5,6 +5,12 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Added
+- The target HUD has the health bars' look options, its own (settings, Toolbelt, Target bars; or /toolbox target
+  text|bars on|off, bg, flash): show bars, show numbers ("750 / 1000", large ones shortened to "12.5k"), the
+  number background and flash when low. By default it looks as before: bars only, no flash. Its size still
+  follows your health bars' Size and Bar length.
+
 ## [1.0.3] - 2026-10-01
 
 ### Added
