@@ -5,6 +5,7 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "version", "1.0.3 - 2026-10-01" },
   { "section", "Added" },
   { "item", "Text size sliders for the Notifications window and the notification HUD (settings, Notifications). Until you move it, the HUD keeps using the XP windows' text size, and the window the theme's." },
   { "version", "1.0.2 - 2026-10-01" },
