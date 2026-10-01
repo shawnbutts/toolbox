@@ -432,7 +432,10 @@ Rules learned the hard way; keep to them.
   Destroying and rebuilding frames (gluing) works.
 - **Sweeps (API 25):** `SetSweepTimer(start, duration)` refuses a duration over 86400 s ("duration is seconds,
   above 0 and at most 86400"; not in the docs; found 2026-09-30 when 7-day potions got Toolbox disabled).
-- **Buffs:** `ShroudGetBuffTimeRemaining` counts down smoothly; permanent effects report 0 left; the moon
+- **Buffs:** the game corrects a long buff's time left now and then, up as well as down (a loop of expiry sounds
+  near the end of one, reported on 0.8.0): `BB.Track` arms the alert once per run (`newRun`), takes a jump for a
+  recast only past `BB.RECAST_SHARE` of the length, and `BB.SetTimer` ignores corrections under half a degree.
+  `ShroudGetBuffTimeRemaining` counts down smoothly; permanent effects report 0 left; the moon
   timer reports `TotalDuration = 0`. Buffs loading in after login look new: nothing counts as freshly cast
   within `BB.SETTLE` s of start, a scene change or a player change, or when 2+ names appear at once.
 - **Categories (API 23):** Food (`RuneFood_*`), Potion (Obsidian `BlessingOf*`), Blessing (`POT_Blessing_*`,

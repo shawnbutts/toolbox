@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Fixed" },
+  { "item", "A long-lasting buff could repeat its \"about to run out\" sound over and over near the end, with its sweep jumping back and forth: the game corrects a long buff's time left now and then, and a correction that lifted it back over the alert time re-armed the alert (or was taken for a recast). The alert now sounds once per cast, and small corrections no longer move a long buff's sweep." },
   { "version", "1.0.0 - 2026-10-01" },
   { "section", "Changed" },
   { "item", "More HUD strips: the game now lets an add-on show up to 25 (it was 8), and Toolbox follows. On a client that still allows fewer, Toolbox learns the limit when the game refuses a strip and says so in chat once." },

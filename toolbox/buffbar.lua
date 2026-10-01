@@ -135,6 +135,12 @@ local function newRun(now, api, threshold, known, seenFromStart)
   return run
 end
 
+-- A recast puts back most of a buff's time: the time left must jump by more than this share of its length
+-- (and BB.RECAST_MIN seconds). The game corrects the time left of long buffs now and then by a few seconds;
+-- taken for a recast, each correction re-armed the expiry alert, and near the end the sound looped while
+-- the sweep jumped back and forth (reported on 0.8.0, 2026-10-01).
+BB.RECAST_SHARE, BB.RECAST_MIN = 0.25, 1.5
+
 function BB.Track(st, api, threshold, known, now, fresh)
   if type(api) ~= "number" or api <= 0 then return st, nil, false, nil end
   now = now or T.Now()
@@ -142,10 +148,11 @@ function BB.Track(st, api, threshold, known, now, fresh)
   if not st then
     st = newRun(now, api, threshold, known, fresh)
   elseif api ~= st.api then
-    if api > (st.endAt - now) + 1.5 then
-      st = newRun(now, api, threshold, known, true)   -- time went up: a recast, seen from its start
+    local jump = api - math.max(0, st.endAt - now)
+    if jump > math.max(BB.RECAST_MIN, BB.RECAST_SHARE * st.total) then
+      st = newRun(now, api, threshold, known, true)   -- time went up a lot: a recast, seen from its start
     else
-      st.endAt, st.api = now + api, api  -- follow the game's value
+      st.endAt, st.api = now + api, api  -- follow the game's value (a correction: same run)
     end
   end
   local remaining = st.endAt - now
@@ -155,11 +162,11 @@ function BB.Track(st, api, threshold, known, now, fresh)
   if known and not st.learn then st.total, st.trusted = known, true end
   if remaining > st.total then st.total = remaining end
   st.last = remaining
+  -- armed once per run (newRun): a correction lifting the time left back over the threshold doesn't
+  -- re-arm it, so the alert sounds once
   local fire = false
   if st.armed and remaining <= threshold then
     st.armed, st.warned, fire = false, true, true
-  elseif remaining > threshold then
-    st.armed = true
   end
   local fraction = (st.trusted and st.total > 0) and remaining / st.total or nil
   return st, fraction, fire, remaining
@@ -878,7 +885,10 @@ function BB.SetTimer(slot, remaining, total, warn)
   local now = T.Now()
   local start = now - (total - remaining)
   if total <= BB.TIMER_MAX and not (t and t.still and t.refused) then
-    if t and not t.still and t.total == total and t.warn == warn and math.abs(start - t.start) <= BB.TIMER_SLACK then
+    -- slack: BB.TIMER_SLACK, or half a degree of the wedge on a long run (the game's corrections of a few
+  -- seconds would otherwise jump the wedge back and forth: reported on 0.8.0)
+  local slack = math.max(BB.TIMER_SLACK, total / 720)
+  if t and not t.still and t.total == total and t.warn == warn and math.abs(start - t.start) <= slack then
       return
     end
     local ok = nil

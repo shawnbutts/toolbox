@@ -231,6 +231,36 @@ return function(t)
     t.ok(not overlay().visible or not overlay().red, "back to normal after the recast")
   end)
 
+  t.test("a long buff's time left corrected up and down near the end: one alert, a steady sweep", function()
+    bootWithSounds()
+    H.S.durationMode = "remaining"
+    H.chat("/tbx buffs")
+    H.chat("/tbx buffalert 5")
+    H.chat("/tbx buffs group after off")
+    H.addBuffs({ { name = "Ward", remaining = 3000, total = 28800, icon = 9 } })   -- an 8-hour buff
+    H.advance(1, 0.5)
+    local wedge = H.slots("buffs")[1].children[2]
+    local calls = wedge.timerCalls or 0
+    -- the game's corrections (reported on 0.8.0: the sound looped and the sweep jumped back and forth)
+    for _, v in ipairs({ 2990, 2992.5, 2989, 2991 }) do H.S.buffs[1].remaining = v; H.advance(0.5, 0.5) end
+    t.eq((wedge.timerCalls or 0) - calls, 0, "corrections of a few seconds don't reset an 8-hour wedge")
+    H.S.played = {}
+    for _, v in ipairs({ 6, 5.5, 4.8, 6.2, 5.1, 4.6, 7.3, 4.9, 3.0, 5.6, 4.0, 8.5, 2.0 }) do
+      H.S.buffs[1].remaining = v
+      H.advance(0.5, 0.5)
+    end
+    t.eq(H.playedNames(), "toolbox_buff_expiring", "the alert once, though the time left went back over 5 s")
+    local learned = H.saved("buff_durations")
+    t.ok(not (learned and learned.durations and learned.durations.Ward and learned.durations.Ward < 100),
+      "a correction isn't learned as the buff's length")
+    H.S.played = {}
+    H.S.buffs[1].remaining = 28800                              -- a real recast: most of its time back
+    H.advance(1, 0.5)
+    H.S.buffs[1].remaining = 4
+    H.advance(1, 0.5)
+    t.eq(H.playedNames(), "toolbox_buff_expiring", "a recast re-arms it")
+  end)
+
   t.test("red only follows the alert: short buffs and debuffs never turn red", function()
     bootWithSounds()
     H.chat("/tbx buffs")
