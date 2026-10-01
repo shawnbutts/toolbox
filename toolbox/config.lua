@@ -695,6 +695,7 @@ function C.ToolbeltSection()
   local TG = T.Target
   children[#children + 1] = heading("Target bars")
   children[#children + 1] = UI.Toggle{ id = "target_show_bars", text = "Show bars", value = TG.GetShowBars(),
+    tooltip = "With the numbers off too, the target HUD is just its effect icons",
     onChange = function(_, v) TG.SetShowBars(v) end }
   children[#children + 1] = UI.Toggle{ id = "target_show_text", text = "Show numbers", value = TG.GetShowText(),
     tooltip = "Health and focus as numbers beside the bars (large ones shortened: 12.5k; the tooltip has them all)",

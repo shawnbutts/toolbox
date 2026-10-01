@@ -839,7 +839,7 @@ local function infoLayout(s)
     L.barW = math.floor(V.GetWidth() * V.GetScale() / 100 + 0.5)
     L.hBar, L.fBar = m.barH, m.barH
     L.line, L.rowGap = m.line, m.rowGap
-    L.contentW = m.contentW                      -- the bars and numbers shown, side by side
+    L.contentW = m.contentW                      -- the bars and numbers shown, side by side (0: neither)
     -- each bar's row: a text line high with numbers, else the bar (2 px apart, as before)
     L.rowH = tprefs.numbers and m.line or m.barH
     L.rowGapIn = tprefs.numbers and m.rowGap or 2
@@ -854,8 +854,8 @@ local function infoLayout(s)
       L.w = math.max(L.contentW, (V.ContentSize()) + T.Hud.GAP - gap)
       L.cells = (L.w + gap) / cell                -- not whole cells: ContentSize adds the icons
     else
-      L.cells = math.max(1, math.ceil((L.contentW + gap) / cell))
-      L.w = L.cells * cell - gap
+      L.cells = TG.InfoShown() and math.max(1, math.ceil((L.contentW + gap) / cell)) or 0
+      L.w = math.max(0, L.cells * cell - gap)
     end
   end
   return L
@@ -928,7 +928,9 @@ local function styleInfo(s)
     return
   end
   tInfoH = L.h
-  tInfo:SetStyle{ width = L.w, height = L.h, marginRight = T.BuffBar.GAP }
+  -- with neither bars nor numbers it takes no space (hidden), except under the Toolbelt's columns, where its
+  -- blank width keeps the icons under the buffs
+  tInfo:SetStyle{ width = L.w, height = L.h, marginRight = (TG.InfoShown() or tBelow) and T.BuffBar.GAP or 0 }
   for i, r in ipairs(tRows) do
     r:SetStyle{ height = L.rowH, minHeight = L.rowH, maxHeight = L.rowH, marginBottom = i == 1 and L.rowGapIn or 0 }
   end
@@ -1149,7 +1151,8 @@ function TG.Poll(force)
   end
   local show = has or T.Config.IsShown() or reserved()
   T.SetVisible(tContent, show)
-  T.SetVisible(tInfo, has or T.Config.IsShown())     -- kept space only: empty, not a bar at 0
+  -- kept space only: empty, not a bar at 0; with neither bars nor numbers, only as the blank under the columns
+  T.SetVisible(tInfo, (has or T.Config.IsShown()) and (TG.InfoShown() or tBelow))
   if tHint then T.SetVisible(tHint, not has and T.Config.IsShown()) end   -- names the blank area while placing
   local cells = show and (tInfoCells + #tList) or 0
   if has ~= tHas or cells ~= tShownCount then
@@ -1194,9 +1197,17 @@ local function rebuildTarget()
   T.BuffBar.Tick()
 end
 
+-- Said when a change would leave the target HUD showing nothing (see tSetPart).
+local NOTHING = "The target HUD would show nothing (no bars, no numbers, no effects); switch it off instead."
+
 -- "all", "debuffs" or "none". Returns false for anything else.
 function TG.SetEffects(which)
   if which ~= "all" and which ~= "debuffs" and which ~= "none" then return false end
+  if which == "none" and not TG.InfoShown() then
+    T.Print(NOTHING)
+    T.Config.Sync()
+    return true                    -- a valid choice, refused (said in chat)
+  end
   local was = TG.SlotCount(false)
   tprefs.effects = which
   tSave()
@@ -1226,11 +1237,16 @@ function TG.GetShowBars() return tprefs.bars end
 function TG.GetShowText() return tprefs.numbers end
 
 -- Bars / numbers on or off; refuses to switch off the last one (as the health bars do). True when it took.
+-- Whether the bars block shows anything (bars or numbers). With neither, the row is just the effect icons.
+function TG.InfoShown() return tprefs.bars or tprefs.numbers end
+
+-- Bars and numbers can both be off (just the effects: owner, 2026-10-01), but not with effects "none" too:
+-- nothing would show. True when it took.
 local function tSetPart(key, on)
   local other = tprefs.bars
   if key == "bars" then other = tprefs.numbers end
-  if not on and not other then
-    T.Print("The target's bars and numbers can't both be off; switch the target HUD off instead.")
+  if not on and not other and tprefs.effects == "none" then
+    T.Print(NOTHING)
     T.Config.Sync()
     return false
   end
@@ -1316,7 +1332,7 @@ function TG.Init()
     if type(saved.x) == "number" and type(saved.y) == "number" then tprefs.x, tprefs.y = saved.x, saved.y end
     tprefs.bars = saved.bars ~= false
     tprefs.numbers = saved.numbers == true
-    if not tprefs.bars and not tprefs.numbers then tprefs.bars = true end
+    if not tprefs.bars and not tprefs.numbers and tprefs.effects == "none" then tprefs.bars = true end
     tprefs.bg = V.BackgroundNamed(saved.bg).name
     tprefs.flash = saved.flash == true
     local fb = saved.flashBelow

@@ -56,8 +56,8 @@ debuffs first; hover the bars for its name and the exact numbers. It shows what 
 shows a full bar, and it lists every effect on the target (the game doesn't say who applied them). It joins
 the Toolbelt above your buffs, under everything, or mirrored to the left of your health bars (its bars
 fill from the right, level with yours), with bars sized like yours, or has its own strip. Like your health
-bars, it can show numbers beside its bars, a background behind them, and flash when low (settings, Toolbelt,
-Target bars). Above the buffs and on the left its space is always kept, so nothing jumps when you pick up a
+bars, it can show numbers beside its bars, a background behind them, and flash when low, or just its effect
+icons (settings, Toolbelt, Target bars). Above the buffs and on the left its space is always kept, so nothing jumps when you pick up a
 target; on the left that leaves a transparent blank area between the Toolbelt's grip and your bars
 (labelled "Target" while settings are open, to help you place it). Its own strip can be mirrored too.
 
