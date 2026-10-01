@@ -5,6 +5,8 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-01
+
 ### Fixed
 - A long-lasting buff could repeat its "about to run out" sound over and over near the end, with its sweep jumping
   back and forth: the game corrects a long buff's time left now and then, and a correction that lifted it back

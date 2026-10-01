@@ -5,6 +5,7 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "version", "1.0.1 - 2026-10-01" },
   { "section", "Fixed" },
   { "item", "A long-lasting buff could repeat its \"about to run out\" sound over and over near the end, with its sweep jumping back and forth: the game corrects a long buff's time left now and then, and a correction that lifted it back over the alert time re-armed the alert (or was taken for a recast). The alert now sounds once per cast, and small corrections no longer move a long buff's sweep." },
   { "version", "1.0.0 - 2026-10-01" },
