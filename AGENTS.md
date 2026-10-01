@@ -376,7 +376,8 @@ What each newer API added and what Toolbox does with it (all feature-detected):
 
 - **API 26** (docs 2026-10-01; `T.DOCS_API` = 26, `min_api_version` stays 25): the party slots run 0 (you) to
   count - 1 in party-frame order, and `ShroudGetPartyMemberNamesInScene()` is a plain list of real names (a bare
-  `for v in list do` still works). Nothing Toolbox uses changed. Not yet checked in game (`tmp/partyrepro.lua`).
+  `for v in list do` still works). Nothing Toolbox uses changed. Confirmed on the live client 2026-10-01
+  (`tmp/partyrepro.lua`: slot 1 = the other member with health and buffs; names "shawn", "phil").
   Same day, not tied to a version: up to 25 HUD frames (the reference still says 8), and the Community Addons
   window's "Run" checkbox is now "Enabled". The reference still doesn't mention `SetSweepTimer`'s one-day
   limit (dev report item 16).
@@ -456,9 +457,9 @@ Rules learned the hard way; keep to them.
   `G.STATION_BELOW` of new gets a "crafting station repair" tooltip note (`G.StationNote`). Tools and pets are worn items
   too, so a set can exceed `G.SLOTS`.
 - **Target:** before API 25 some creatures' name was "Entity with no name (<internal name>)"; fixed.
-- **Party (API 25):** `ShroudGetPartyMemberBuffs(name)` works (same shape as your buffs); `ShroudOnPartyChanged`
-  fires with no arguments. The names list and the slots are fixed in API 26 (see "Waiting on the developers";
-  not yet checked in game: `tmp/partyrepro.lua` does it).
+- **Party (API 25/26):** `ShroudGetPartyMemberBuffs(slot or name)` works (same shape as your buffs);
+  `ShroudOnPartyChanged` fires with no arguments. From API 26 (confirmed 2026-10-01) slots run 0 (you) to
+  count - 1 and the in-scene names are a plain list of real names.
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
   target, skill levels and deaths, friends online, the notification chime, Combat Detailed, the game's wedge
   fitted and centred inside the icons, and the 0.7.0 + unreleased work on the dev client (2026-09-30: the
