@@ -128,8 +128,9 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
   content is destroyed; it drops every element and skips updates until rebuilt ("this Row was destroyed"
   otherwise). When glued (`Hud.SetGlued`), the modules in `Hud.GLUE` (vitals, buffs) share one strip,
   `toolbox_hud`, side by side; `Hud.BELOW` parts (target) go above, under or left of those columns per their
-  `Place()`. At most `Hud.MAX_FRAMES` (8) strips: past that a strip isn't built and chat says so once
-  (`noRoom`; `Hud.ORDER` decides, target last). A strip failing with "too fast" is retried after
+  `Place()`. At most `Hud.FrameCap()` strips (`Hud.MAX_FRAMES` = 25, or the limit learned when the game
+  refused a frame for room, `Hud.OutOfRoom`: that strip's content is destroyed): past that a strip isn't built
+  and chat says so once (`noRoom`; `Hud.ORDER` decides, target last). A strip failing with "too fast" is retried after
   `Hud.RETRY_DELAY`. `Hud.TextStrip` is the HUD form of the XP and Today windows.
 - `buffbar.lua`: `Toolbox.BuffBar` (BB), plus `Toolbox.Consumables` (K) and `Toolbox.Gear` (G).
   - Buff bar: `OnBuffsChanged` (from the event AND from `Tick` when names change) reads
@@ -238,7 +239,8 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
 - **A feature:** pure logic over plain data, API calls at the edges, hooked into `ShroudOnStart` /
   `Toolbox.Tick` / core's callbacks; a `Toolbox.Foo` table; tests; a CHANGELOG `[Unreleased]` entry; the
   guide (`D.SECTIONS`) and both READMEs if players see it.
-- **A HUD strip:** a Hud module (above). There are 9 strips for 8 frames already: prefer a Toolbelt row.
+- **A HUD strip:** a Hud module (above). There are 9 strips already (25 frames, if the 2026-10-01 raise holds in
+  game; 8 before): still prefer a Toolbelt row.
 - **A window:** there is no slot (see Limits). Use a view of an existing window.
 
 ## The test harness
@@ -247,7 +249,7 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
 and reject unknown fields; saved vars have a memory cache and a "disk" copy updated on flush; destroyed
 element trees raise on use and leave their parent; margins / paddings are clamped; the element-creation cap,
 the 2,000 live elements (`H.S.live`; the game counts MORE than the harness: keep a wide margin), 8 windows and
-8 HUD frames are enforced; `H.config():Find(id)` shows the settings page holding the control; a disabled control can't be changed or clicked; `SetUV` changes what is drawn; the
+8 HUD frames (`H.MAX_HUD_FRAMES`; the documented 8, a test raises it to 25) are enforced; `H.config():Find(id)` shows the settings page holding the control; a disabled control can't be changed or clicked; `SetUV` changes what is drawn; the
 wedge (`SetSweep`, `SetSweepTimer`, refused as in game for a lone duration) reads back with
 `element:SweepNow()` (fraction covered, red) and `element.timerCalls`.
 
@@ -372,6 +374,13 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   nil fields are absent; lazy patterns work on long text; a label's `height` is honoured; `card` draws (Air /
   Crucible skins); `ShroudGetPartyMemberBuffs(slotOrName)` and `ShroudOnPartyChanged()` (not used yet).
 
+- **API 26** (docs 2026-10-01; `T.DOCS_API` = 26, `min_api_version` stays 25): the party slots run 0 (you) to
+  count - 1 in party-frame order, and `ShroudGetPartyMemberNamesInScene()` is a plain list of real names (a bare
+  `for v in list do` still works). Nothing Toolbox uses changed. Not yet checked in game (`tmp/partyrepro.lua`).
+  Same day, not tied to a version: up to 25 HUD frames (the reference still says 8), and the Community Addons
+  window's "Run" checkbox is now "Enabled". The reference still doesn't mention `SetSweepTimer`'s one-day
+  limit (dev report item 16).
+
 **Waiting on the developers:** a read-only game settings API (first use: the game's "stack buffs lasting
 longer than" option feeding `BB.GroupAfter()`). Everything reported is fixed: the API 25 client issues, and
 (work log 2026-09-30, `ac63e8c01b`, **API 26**, in the next client build, not yet in the owner's) the party
@@ -388,8 +397,9 @@ members by slot (API 26: slot 0 = you, then party-frame order; on API 25 only sl
 health and focus by name (`...InScene(name)`), buffs by name
 (`ShroudGetPartyMemberBuffs`, API 25); only members in your scene have vitals and buffs (else -1 / nil);
 `ShroudOnPartyChanged` (API 25) for joins, leaves and scene changes, no vitals event (poll); player targets
-expose only vitals; combat events carry a `party` flag. It needs a HUD frame of its own: with all
-9 strips on there are only 8 frames, so decide what gives way (or merge rarely-used strips) first. Also:
+expose only vitals; combat events carry a `party` flag. It needs a HUD frame of its own: with 25 frames (the
+2026-10-01 raise; confirm in game) there is room; on an 8-frame client the learned cap (`Hud.FrameCap`) leaves
+it out with the "no room" line. Also:
 a crafting skill tracker and a recipe lookup / shopping list (as Today
 Detailed views: no window slot left); a gathering session HUD; lock-position / snap presets for strips
 (only if a strip's grip can be hidden).
@@ -398,8 +408,10 @@ Detailed views: no window slot left); a gathering session HUD; lock-position / s
 
 Rules learned the hard way; keep to them.
 
-- **Limits** (per add-on): 8 windows (Toolbox has 7 lasting ones; Docs and version share the 8th), 8 HUD
-  frames covering <= 35% of the screen, 2,000 elements, 64 KiB of text, nesting 24 deep, and an
+- **Limits** (per add-on): 8 windows (Toolbox has 7 lasting ones; Docs and version share the 8th), HUD
+  frames covering <= 35% of the screen (8 by the reference; 25 by the work log of 2026-10-01, unconfirmed in
+  game: `Hud.MAX_FRAMES` is 25 and `Hud.FrameCap()` learns the real limit from the game's refusal,
+  `Hud.OutOfRoom`), 2,000 elements, 64 KiB of text, nesting 24 deep, and an
   element-CREATION cap (~500 burst, ~200/s) that raises "elements are being created too fast". Keep big
   windows lazy (built on first show), open pinned big ones after a delay (`CD.OPEN_DELAY`,
   `T.WELCOME_DELAY`), never rebuild on a timer, and resize in place. A login can still hit the cap: Hud

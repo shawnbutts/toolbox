@@ -5,15 +5,17 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Changed
+- More HUD strips: the game now lets an add-on show up to 25 (it was 8), and Toolbox follows. On a client that
+  still allows fewer, Toolbox learns the limit when the game refuses a strip and says so in chat once.
+- The notification HUD shows new notices bright and older ones dimmed, so what just arrived stands out from
+  the ones you've seen (it still keeps the latest 20 to look back on).
+- The Toolbelt page says the buff bar is the Toolbelt's base, with the parts set to In Toolbelt joining it.
+
 ### Fixed
 - A settings page could fail to open ("this add-on already has 2000 elements") with many windows open and a
   busy day in Today Detailed: every settings page stayed built once opened. Only the page shown is built now.
 - Switching the Notifications window to compact (or back) raised an error while it showed notices.
-
-### Changed
-- The notification HUD shows new notices bright and older ones dimmed, so what just arrived stands out from
-  the ones you've seen (it still keeps the latest 20 to look back on).
-- The Toolbelt page says the buff bar is the Toolbelt's base, with the parts set to In Toolbelt joining it.
 
 ## [0.8.0] - 2026-09-30 (beta 10)
 

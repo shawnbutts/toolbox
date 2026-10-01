@@ -52,7 +52,7 @@ D.SECTIONS = {
     "Or a compact window (XP window: Compact window in settings, or /toolbox xp compact): a window whose "
       .. "title bar only shows while the pointer is on it, over the top of the text, so it looks like a "
       .. "strip but can be resized and faded like any window (right-click it for opacity). Unlike a HUD "
-      .. "strip it doesn't use one of Toolbox's 8 HUD strips." },
+      .. "strip it doesn't use up one of the game's HUD strips." },
   { "XP over the last hour",
     "XP Detailed shows the last hour under each track as columns: XP gained in each 2-minute slice, "
       .. "tallest for your best stretch, with that best rate per hour beneath." },

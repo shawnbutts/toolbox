@@ -24,7 +24,10 @@ Toolbox.Hud = Hud
 Hud.GLUED_ID = "toolbox_hud"
 Hud.GLUED_HOME = { 40, 260 }
 Hud.ORDER = { "vitals", "buffs", "consumables", "combat", "gear", "xp", "daily", "notify", "target" }   -- build order
-Hud.MAX_FRAMES = 8                    -- HUD frames per add-on (docs); strips past it aren't built
+-- HUD frames per add-on: the work log (2026-10-01) raised it from 8 to 25 (the reference still said 8). The
+-- real limit is learned from the game: when it refuses a frame for want of room (frames or the 35% screen
+-- area), the strips built so far are the limit for the session (`frameCap`). Strips past it aren't built.
+Hud.MAX_FRAMES = 25
 Hud.GLUE = { vitals = true, buffs = true }     -- the ones that share a strip when glued (left to right as in ORDER)
 -- Parts that go ABOVE or UNDER the glued strip's columns, full width from its left edge, when their
 -- module's Below() says so; its Place() says "top" or "bottom" (the target's bars line up with the health
@@ -82,6 +85,17 @@ local retryWanted = false
 
 local function tooFast(err) return tostring(err):find("too fast", 1, true) ~= nil end
 
+-- A refusal for want of room: too many HUD frames, or their screen area. The game's wording isn't documented
+-- (the harness says "too many HUD frames"), so any mention of HUD frames with a limit word counts.
+function Hud.OutOfRoom(err)
+  local e = tostring(err):lower()
+  if not e:find("hud frame", 1, true) then return false end
+  for _, w in ipairs({ "too many", "per add-on", "at most", "screen", "area", "limit" }) do
+    if e:find(w, 1, true) then return true end
+  end
+  return false
+end
+
 local function failed(what, err)
   Hud.errors[what] = tostring(err)
   if tooFast(err) and retries < Hud.RETRY_MAX then
@@ -109,10 +123,23 @@ local function build(key)
   return nil
 end
 
--- A HUD frame, or nil when the constructor raised.
+local frameCap = nil      -- the frame limit learned from a refusal this session (see Hud.MAX_FRAMES)
+local function frameCount()
+  local n = 0
+  for _ in pairs(frames) do n = n + 1 end
+  return n
+end
+function Hud.FrameCap() return frameCap or Hud.MAX_FRAMES end
+
+-- A HUD frame, or nil and "room" when the game had no room for it (then frameCap is learned), or nil when
+-- the constructor raised for another reason.
 local function newFrame(what, spec)
   local ok, result = pcall(UI.HudFrame, spec)
   if ok then return result end
+  if Hud.OutOfRoom(result) then
+    frameCap = frameCount()
+    return nil, "room"
+  end
   failed(what, result)
   return nil
 end
@@ -123,20 +150,16 @@ local function destroyAll()
   frames, contents, sized = {}, {}, {}
 end
 
--- Strips past Hud.MAX_FRAMES aren't built; the player is told once (until it fits again).
-Hud.NAMES = { vitals = "health bars", buffs = "buff bar", consumables = "consumables bar", combat = "combat stats",
+-- Strips past the frame limit (Hud.FrameCap) aren't built; the player is told once (until it fits again).
+Hud.NAMES = { glued = "Toolbelt", vitals = "health bars", buffs = "buff bar", consumables = "consumables bar",
+              combat = "combat stats",
               gear = "equipment bar", xp = "XP", daily = "Today", notify = "notification", target = "target" }
 local noRoomSaid = {}
-local function frameCount()
-  local n = 0
-  for _ in pairs(frames) do n = n + 1 end
-  return n
-end
 local function noRoom(key)
-  Hud.errors[key] = "no room: at most " .. Hud.MAX_FRAMES .. " HUD strips"
+  Hud.errors[key] = "no room: at most " .. Hud.FrameCap() .. " HUD strips"
   if noRoomSaid[key] then return end
   noRoomSaid[key] = true
-  T.Print("No room for the " .. (Hud.NAMES[key] or key) .. " strip: Toolbox can show " .. Hud.MAX_FRAMES
+  T.Print("No room for the " .. (Hud.NAMES[key] or key) .. " strip: Toolbox can show " .. Hud.FrameCap()
     .. " HUD strips at once. Put some bars in the Toolbelt, or switch a strip off.")
 end
 
@@ -190,10 +213,21 @@ function Hud.Build(missingOnly)
       ok, row = pcall(UI.Column, { children = column })
     end
     if ok then
-      frames[Hud.GLUED_ID] = newFrame("glued", { id = Hud.GLUED_ID, x = prefs.x or Hud.GLUED_HOME[1],
+      local frame, why = newFrame("glued", { id = Hud.GLUED_ID, x = prefs.x or Hud.GLUED_HOME[1],
         y = prefs.y or Hud.GLUED_HOME[2], width = 100, height = 40, visible = false,
         -- start past the drag grip; parts side by side, tops aligned
         children = { row } })
+      frames[Hud.GLUED_ID] = frame
+      if why == "room" then                    -- its content goes too (it would hold elements for nothing)
+        pcall(function() row:Destroy() end)
+        for _, key in ipairs(Hud.ORDER) do
+          if contents[key] and (Hud.GLUE[key] or below(key)) then
+            unbuilt(key)
+            contents[key] = nil
+          end
+        end
+        noRoom("glued")
+      end
     else
       failed("glued", row)
     end
@@ -201,7 +235,7 @@ function Hud.Build(missingOnly)
   for _, key in ipairs(Hud.ORDER) do
     local have = frames[key] ~= nil
     if present(key) and not gluedHere(key) and not have then
-      if frameCount() >= Hud.MAX_FRAMES then
+      if frameCount() >= Hud.FrameCap() then
         noRoom(key)
       else
         noRoomSaid[key] = nil
@@ -213,8 +247,15 @@ function Hud.Build(missingOnly)
       local x, y = m.GetSavedPosition()
       local ok, column = pcall(UI.Column, { style = { paddingLeft = T.Window.GRIP }, children = { contents[key] } })
       if ok then
-        frames[key] = newFrame(key, { id = m.FRAME_ID, x = x or m.HOME[1], y = y or m.HOME[2],
+        local frame, why = newFrame(key, { id = m.FRAME_ID, x = x or m.HOME[1], y = y or m.HOME[2],
           width = 100, height = 40, visible = false, children = { column } })
+        frames[key] = frame
+        if why == "room" then
+          pcall(function() column:Destroy() end)
+          unbuilt(key)
+          contents[key] = nil
+          noRoom(key)
+        end
       else
         failed(key, column)
       end
@@ -382,7 +423,7 @@ Hud.STRIP_INDENT = 10
 
 function Hud.TextStrip(spec)
   local strip = { FRAME_ID = spec.FRAME_ID, HOME = spec.HOME, el = {} }
-  -- Built only while the HUD form is in use: Toolbox may have at most 8 HUD frames.
+  -- Built only while the HUD form is in use: HUD frames per add-on are limited (Hud.FrameCap).
   function strip.Wanted() return spec.prefs.hud == true end
   local styled = {}                   -- { element, function() -> style }, re-applied by ApplyText
   -- The strip was destroyed: drop its labels AND the restyle list (ApplyText after a switch to a window

@@ -5,12 +5,13 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Changed" },
+  { "item", "More HUD strips: the game now lets an add-on show up to 25 (it was 8), and Toolbox follows. On a client that still allows fewer, Toolbox learns the limit when the game refuses a strip and says so in chat once." },
+  { "item", "The notification HUD shows new notices bright and older ones dimmed, so what just arrived stands out from the ones you've seen (it still keeps the latest 20 to look back on)." },
+  { "item", "The Toolbelt page says the buff bar is the Toolbelt's base, with the parts set to In Toolbelt joining it." },
   { "section", "Fixed" },
   { "item", "A settings page could fail to open (\"this add-on already has 2000 elements\") with many windows open and a busy day in Today Detailed: every settings page stayed built once opened. Only the page shown is built now." },
   { "item", "Switching the Notifications window to compact (or back) raised an error while it showed notices." },
-  { "section", "Changed" },
-  { "item", "The notification HUD shows new notices bright and older ones dimmed, so what just arrived stands out from the ones you've seen (it still keeps the latest 20 to look back on)." },
-  { "item", "The Toolbelt page says the buff bar is the Toolbelt's base, with the parts set to In Toolbelt joining it." },
   { "version", "0.8.0 - 2026-09-30 (beta 10)" },
   { "section", "Fixed" },
   { "item", "Toolbox was switched off by the game a few seconds after start when an Obsidian potion (7 days) or any effect longer than a day was up: the game's sweep timer takes a day at most. Such effects now get a still sweep, moved on every half hour or so, and a sweep the game refuses no longer raises an error." },

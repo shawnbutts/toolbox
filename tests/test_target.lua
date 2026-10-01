@@ -517,6 +517,51 @@ return function(t)
     t.ok(H.targetRow(), "in the Toolbelt it fits")
   end)
 
+  -- every strip on its own: 9 HUD frames
+  local function everyStrip()
+    for _, cmd in ipairs({ "/tbx buffs", "/tbx vitals", "/tbx combat", "/tbx xp", "/tbx xp hud", "/tbx daily",
+                           "/tbx daily hud", "/tbx notify via hud", "/tbx gear bar on", "/tbx target on",
+                           "/tbx target toolbelt off" }) do
+      H.chat(cmd)
+    end
+  end
+
+  t.test("a client allowing 25 HUD frames builds all nine strips", function()
+    local was = H.MAX_HUD_FRAMES
+    H.MAX_HUD_FRAMES = 25                       -- the work log, 2026-10-01
+    H.boot()
+    H.clearLogs()
+    everyStrip()
+    H.MAX_HUD_FRAMES = was
+    local n = 0
+    for _ in pairs(H.S.frames) do n = n + 1 end
+    t.eq(n, 9)
+    t.no(H.logged("No room"))
+    t.ok(H.targetFrame(), "the target on its own strip")
+  end)
+
+  t.test("a client allowing 8: the limit is learned from its refusal, nothing leaks, no error", function()
+    H.boot()
+    H.clearLogs()
+    local before = nil
+    everyStrip()
+    t.ok(H.logged("Toolbox can show 8 HUD strips"), H.lastLog())
+    t.no(H.logged("Couldn't build"), "a refusal for room isn't an error")
+    t.eq(Toolbox.Hud.FrameCap(), 8)
+    before = H.S.live
+    H.advance(5)
+    t.eq(H.S.live, before, "no retries building strips that can't fit")
+  end)
+
+  t.test("OutOfRoom: refusals for HUD frame room, not others", function()
+    H.boot()
+    local R = Toolbox.Hud.OutOfRoom
+    t.ok(R("Shroud.UI: too many HUD frames (8 per add-on)"))
+    t.ok(R("Shroud.UI: HUD frames may cover at most 35% of the screen"))
+    t.no(R("Shroud.UI: elements are being created too fast"))
+    t.no(R("Shroud.UI: too many windows (8 per add-on)"))
+  end)
+
   -- UI calls and garbage per second over `secs` seconds (as test_perf.lua measures them).
   local function measure(secs)
     local calls = 0

@@ -158,8 +158,8 @@ From beta 3:
   * The settings window is wider now; if the game remembered its old width, drag it wider once.
   * Target HUD: the game doesn't say who applied an effect, so it lists every effect on your target,
     not only yours.
-  * Toolbox can show 8 HUD strips at once (a game limit). With everything on its own strip, the last
-    one says so in chat: put some bars in the Toolbelt.
+  * The game limits how many HUD strips an add-on can show (25 since the October 2026 update, 8 before).
+    A strip past the limit says so in chat: put some bars in the Toolbelt.
   * Weapon poisons: unknown whether the game shows them to add-ons. If one shows as a buff,
     /tbx consumables add <part of its name> puts it on the consumables bar.
   * The Ctrl+; shortcut may not take on some setups. If it does nothing, set a key for
