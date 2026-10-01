@@ -529,6 +529,9 @@ function C.NotifySection()
     UI.Toggle{ id = "notify_compact", text = "Compact Notifications window", value = T.Notify.GetCompact(),
       tooltip = "Its title bar shows only while the pointer is on it, over the top of the text",
       onChange = function(_, v) T.Notify.SetCompact(v) end },
+    slider("notify_font", "Window text size", T.Window.FONT_MIN, T.Window.FONT_MAX, 1, T.Notify.GetFont(),
+      "The Notifications window's text size (headings a little larger)",
+      function(n) T.Notify.SetFont(n) end),
   }
   local vias = T.Notify.Choices()
   for _, src in ipairs(T.Notify.Sources()) do
@@ -557,6 +560,9 @@ function C.NotifySection()
     tooltip = "The notification HUD shows when something arrives and hides after this (Never: always shown)."
       .. " It keeps the latest 20; the ones new since it last hid are bright",
     onChange = function(_, label) C.OnNotifyHide(label) end })
+  children[#children + 1] = slider("nhud_font", "Text size", T.Window.FONT_MIN, T.Window.FONT_MAX, 1, NH.GetFont(),
+    "The notification HUD's text size (until you set it, the XP windows' size)",
+    function(n) NH.SetFont(n) end)
   children[#children + 1] = UI.Row{ style = { justifyContent = "end", marginTop = 4 }, children = {
     UI.Button{ id = "nhud_clear", text = "Clear notification history",
       tooltip = "Delete the notification HUD's saved list (it can't be undone)",
@@ -809,7 +815,8 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "vitals_flash_test", "show_combat", "combat_detail", "combat_detail_hover", "combat_pet", "combat_scale",
   "combat_scale_value", "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "combat_stats",
   "stat_find", "stat_results", "stat_add", "stat_shown", "stat_remove", "stat_msg",
-  "nhud_hide", "notify_compact", "volume", "volume_value", "hud_summary", "toolbelt_show",
+  "nhud_hide", "notify_compact", "notify_font", "notify_font_value", "nhud_font", "nhud_font_value",
+  "volume", "volume_value", "hud_summary", "toolbelt_show",
   "toolbelt_vitals", "toolbelt_consumables", "toolbelt_gear", "toolbelt_target", "target_place", "target_mirror",
   "target_effects", "target_icons", "target_icons_value",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
@@ -1146,6 +1153,8 @@ function C.Sync()
     setValue("notify_" .. src.key .. "_snd", T.Notify.SoundLabel(T.Notify.GetSoundKey(src.key)))
     setEnabled("notify_" .. src.key .. "_snd", T.Notify.GetSound(src.key))
   end
+  sliderValue("notify_font", T.Notify.GetFont())
+  sliderValue("nhud_font", T.Notify.Hud.GetFont())
   setValue("nhud_hide", T.Notify.Hud.HideLabel(T.Notify.Hud.GetHideAfter()) or "Never")
   -- Sounds
   sliderValue("volume", S.GetVolume())

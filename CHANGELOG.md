@@ -5,6 +5,10 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Added
+- Text size sliders for the Notifications window and the notification HUD (settings, Notifications). Until you
+  move it, the HUD keeps using the XP windows' text size, and the window the theme's.
+
 ## [1.0.2] - 2026-10-01
 
 ### Fixed

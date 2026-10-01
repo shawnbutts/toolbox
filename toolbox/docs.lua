@@ -208,7 +208,7 @@ D.SECTIONS = {
     "A Notifications window tells you what's new since you last saw it: your guild's message of the "
       .. "day, new mail, mail about to expire, ransoms, new rewards, guild applications and gear needing "
       .. "repair. It opens at "
-      .. "login, after /lua reload, or as soon as something changes, and shows everything new together. "
+      .. "login, after /lua reload, or when something changes, showing everything new at once. "
       .. "Nothing already seen shows again.",
     "Switch each one on or off in settings (Notifications), or with /toolbox notify <name> on|off "
       .. "(names: motd, mail, expiring, ransoms, rewards, applications, durability, friends, guild). Friends and "
@@ -218,13 +218,13 @@ D.SECTIONS = {
       .. "without a sound (the dropdown next to it in settings, e.g. HUD + sound; or /toolbox notify <name> "
       .. "via window|hud|chat and /toolbox notify <name> sound on|off, or leave out the name for all). The "
       .. "sound is a rising chime by default; each source can have its own (Sounds page: Notification sounds: "
-      .. "Chime, Ping, Tap, Bell or Low notes; or /toolbox notify friends sound ping). Several arriving "
+      .. "Chime, Ping, Tap, Bell or Low notes; or /toolbox notify friends sound ping). Several "
       .. "together play each sound once. The window can be compact (settings: "
       .. "Compact Notifications window, or /toolbox notify compact on): its title bar shows only on hover. "
-      .. "The HUD lists "
+      .. "Both have a text size slider in settings. The HUD lists "
       .. "the latest 20, newest on top, new ones bright and older ones dimmed (hover a line for all of it). "
       .. "It shows when something arrives and hides after 10 seconds, or never (HUD: hide after, or "
-      .. "/toolbox notify hud hide 30); it stays while the pointer is on it. Move it like the other HUD "
+      .. "/toolbox notify hud hide 30); it stays while hovered. Move it like the other HUD "
       .. "strips (settings, or /toolbox notify hud move <x> <y>); /toolbox notify hud clear deletes its history." },
   { "Sounds",
     "The alert sounds live in the add-on's folder. To use your own, put "
@@ -675,14 +675,26 @@ local function clearWindow()
   for _, src in ipairs(N.SOURCES) do nwin:Find("n_" .. src.key):SetVisible(false) end
 end
 
+-- The window's text size: the theme's until the player picks one (notify.font); headings 2 px larger.
+local function titleStyle()
+  local f = N.CustomFont()
+  if f then return { fontSize = math.min(f + 2, T.Window.FONT_MAX) } end
+  return {}
+end
+local function bodyStyle()
+  local style = { whiteSpace = "wrap", marginTop = 2 }
+  local f = N.CustomFont()
+  if f then style.fontSize = f end
+  return style
+end
+
 local function buildWindow()
   local sections = {}
   for _, src in ipairs(N.SOURCES) do       -- one fixed section per source, shown when it has news
     sections[#sections + 1] = UI.Column{ id = "n_" .. src.key, visible = false, style = { marginBottom = 8 },
       children = {
-        UI.Label{ id = "n_" .. src.key .. "_title", text = src.label, class = "heading" },
-        UI.Label{ id = "n_" .. src.key .. "_text", text = "", class = "text",
-          style = { whiteSpace = "wrap", marginTop = 2 } },
+        UI.Label{ id = "n_" .. src.key .. "_title", text = src.label, class = "heading", style = titleStyle() },
+        UI.Label{ id = "n_" .. src.key .. "_text", text = "", class = "text", style = bodyStyle() },
       } }
   end
   local compact = N.GetCompact()
@@ -763,7 +775,18 @@ local visibleUntil = 0
 local hovered = {}
 local hudShown = nil      -- NH.IsShown() at the last check, to refresh the HUD when it changes
 
-local function lineHeight() return T.Window.LineHeight() end
+-- Text size: hprefs.font (T.Window.FONT_MIN..FONT_MAX), or the XP windows' size when unset (as before
+-- it had its own). The line spacing is always the XP windows'.
+function NH.GetFont() return hprefs.font or T.Window.GetFont() end
+local function lineHeight() return T.Window.LineHeight(NH.GetFont()) end
+local function rowStyle()
+  return T.Window.TextStyle({ width = NH.WIDTH - NH.SCROLLBAR, whiteSpace = "nowrap", marginLeft = 0,
+                              marginRight = 0 }, NH.GetFont())
+end
+local function emptyStyle()
+  return T.Window.TextStyle({ width = NH.WIDTH, whiteSpace = "nowrap", marginLeft = 0, marginRight = 0 },
+                            NH.GetFont())
+end
 
 local function clockText()
   local osTable = rawget(_G, "os")
@@ -856,15 +879,14 @@ function NH.BuildContent()
   local rows = {}
   for i = 1, NH.KEEP do
     hudRows[i] = UI.Label{ id = "nh_" .. i, text = "", class = "text", visible = false,
-      style = T.Window.TextStyle{ width = NH.WIDTH - NH.SCROLLBAR, whiteSpace = "nowrap", marginLeft = 0,
-                                  marginRight = 0 },
+      style = rowStyle(),
       onHover = function(_, over) hover("row" .. i, over) end }
     rows[i] = hudRows[i]
   end
   hudScroll = UI.Scroll{ id = "nh_scroll", style = { width = NH.WIDTH, height = lineHeight() },
     children = { UI.Column{ children = rows } } }
   hudEmpty = UI.Label{ id = "nh_empty", text = NH.EMPTY_TEXT, class = "dim", visible = false,
-    style = T.Window.TextStyle{ width = NH.WIDTH, whiteSpace = "nowrap", marginLeft = 0, marginRight = 0 } }
+    style = emptyStyle() }
   local content = UI.Column{ id = "nh_panel", style = { padding = NH.PAD, backgroundColor = "#00000099" },
     onHover = function(_, over) hover("panel", over) end, children = { hudEmpty, hudScroll } }
   NH.Fill()
@@ -933,6 +955,8 @@ function NH.Init()
   if type(saved) == "table" then
     for _, c in ipairs(NH.HIDE_CHOICES) do if saved.hideAfter == c[1] then hprefs.hideAfter = c[1] end end
     if type(saved.x) == "number" and type(saved.y) == "number" then hprefs.x, hprefs.y = saved.x, saved.y end
+    local f = saved.font
+    if type(f) == "number" and f >= T.Window.FONT_MIN and f <= T.Window.FONT_MAX then hprefs.font = math.floor(f) end
   end
   history = {}
   local h = T.Load("notify_history")
@@ -948,6 +972,28 @@ function NH.Init()
 end
 
 function NH.GetHideAfter() return hprefs.hideAfter end
+
+-- Re-applies the text size and line height in place (a slider fires many changes: never rebuilt).
+function NH.ApplyText()
+  if not hudScroll then return end
+  local row = rowStyle()
+  for i = 1, NH.KEEP do hudRows[i]:SetStyle(row) end
+  hudEmpty:SetStyle(emptyStyle())
+  NH.Fill()
+  T.Hud.Refresh()                     -- re-fit the strip
+end
+
+-- The text size (T.Window.FONT_MIN..FONT_MAX). Returns false when out of range.
+function NH.SetFont(n)
+  local W = T.Window
+  if type(n) ~= "number" or n ~= math.floor(n) or n < W.FONT_MIN or n > W.FONT_MAX then return false end
+  if n == hprefs.font then return true end
+  hprefs.font = n
+  saveHud()
+  NH.ApplyText()
+  T.Config.Sync()
+  return true
+end
 
 -- Seconds, one of NH.HIDE_CHOICES (0 = never). Returns false for anything else.
 function NH.SetHideAfter(seconds)
@@ -1002,6 +1048,8 @@ local function prefsNow()
     end
   end
   nprefs = { v = 1, sources = {}, compact = type(saved) == "table" and saved.compact == true }
+  local f = type(saved) == "table" and saved.font
+  if type(f) == "number" and f >= T.Window.FONT_MIN and f <= T.Window.FONT_MAX then nprefs.font = math.floor(f) end
   for _, src in ipairs(N.SOURCES) do
     local s = type(stored[src.key]) == "table" and stored[src.key] or {}
     local sp = { on = src.default, via = src.via or N.DELIVERY_DEFAULT, sound = false, soundKey = "notify" }
@@ -1178,6 +1226,31 @@ function N.SetCompact(on)
     if open then nwin:Show() end
   end
   T.Config.Sync()
+end
+
+-- The Notifications window's text size: the one picked, or nil (the theme's).
+function N.CustomFont() return prefsNow().font end
+
+-- For the slider: the size picked, else T.Window.FONT_DEFAULT.
+function N.GetFont() return N.CustomFont() or T.Window.FONT_DEFAULT end
+
+-- Sets it (T.Window.FONT_MIN..FONT_MAX) in place. Returns false when out of range.
+function N.SetFont(n)
+  local W = T.Window
+  if type(n) ~= "number" or n ~= math.floor(n) or n < W.FONT_MIN or n > W.FONT_MAX then return false end
+  local p = prefsNow()
+  if n == p.font then return true end
+  p.font = n
+  save()
+  if nwin then
+    local title, body = titleStyle(), bodyStyle()
+    for _, src in ipairs(N.SOURCES) do
+      nwin:Find("n_" .. src.key .. "_title"):SetStyle(title)
+      nwin:Find("n_" .. src.key .. "_text"):SetStyle(body)
+    end
+  end
+  T.Config.Sync()
+  return true
 end
 
 -- The deliveries, in the order settings offer them: { name, label }.
