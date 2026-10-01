@@ -53,7 +53,7 @@ Built clean-room from the official docs only:
 
 ## Commands
 
-`/toolbox` and `/tbx` go to the same dispatcher.
+`/tbx` is the short form of `/toolbox`: every command below works with either (`/tbx help`, `/tbx target`...).
 
 | Command | What it does |
 | --- | --- |
