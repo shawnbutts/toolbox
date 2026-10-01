@@ -808,4 +808,64 @@ return function(t)
     t.eq(TG().GetBackground(), "None")
     t.eq(TG().GetFlashBelow(), Toolbox.Vitals.FLASH_DEFAULT)
   end)
+
+  -- leave out your pet ------------------------------------------------------------
+
+  t.test("IsPet: the pet's name, and its max health when both have one", function()
+    H.boot()
+    local pet = { Name = "Rex", MaxHealth = 800, CurrentHealth = 500 }
+    t.eq(TG().IsPet("Rex", 800, pet), true)
+    t.eq(TG().IsPet("Rex", 1000, pet), false, "a wild one of the same name")
+    t.eq(TG().IsPet("Wolf", 800, pet), false)
+    t.eq(TG().IsPet("Rex", -1, pet), true, "no max to compare: the name")
+    t.eq(TG().IsPet("Rex", 800, nil), false, "no pet out")
+  end)
+
+  t.test("leave out your pet: off by default; on, your pet as the target shows as none", function()
+    H.boot()
+    H.chat("/tbx target on")
+    H.setPet{ name = "Rex", hp = 500, maxHp = 800 }
+    local rex = { id = 21, name = "Rex", hp = 500, maxHp = 800, effects = {
+      { name = "Mend", remaining = 5, total = 10, icon = 44 } } }
+    H.setTarget(copy(rex))
+    t.eq(H.targetRow().visible, true, "shown by default")
+    t.eq(TG().GetHidePet(), false)
+    H.chat("/tbx config")
+    H.change("toolbox_config", "target_hide_pet", true)
+    t.eq(TG().GetHidePet(), true)
+    t.eq(H.saved("target").hidePet, true)
+    H.closeWindow("toolbox_config")
+    H.advance(1)
+    t.eq(H.targetRow().visible, false, "your pet: no target")
+    t.eq(#H.targetSlots(), 0, "nor its effects")
+    H.setTarget(copy(WOLF))
+    t.eq(H.targetRow().visible, true, "a creature: shown")
+    t.eq(H.targetRow():Find("target_health").value, 0.75)
+    H.setTarget({ id = 22, name = "Rex", hp = 900, maxHp = 1000, effects = {} })
+    t.eq(H.targetRow().visible, true, "another Rex (not as strong): shown")
+    H.setTarget(copy(rex))
+    t.eq(H.targetRow().visible, false)
+    H.setPet(nil)                                 -- dismissed
+    H.advance(3)
+    t.eq(H.targetRow().visible, true, "no pet out: nothing to leave out")
+    H.clearLogs()
+    H.chat("/tbx target pet on")
+    t.ok(H.logged("Your pet as the target: shown%."), H.lastLog())
+    t.eq(TG().GetHidePet(), false)
+  end)
+
+  t.test("leave out your pet reads the pet now and then, not every poll; debug shows the match", function()
+    H.boot()
+    H.chat("/tbx target on")
+    H.chat("/tbx target pet off")
+    H.setPet{ name = "Rex", hp = 500, maxHp = 800 }
+    H.setTarget{ id = 21, name = "Rex", hp = 500, maxHp = 800, effects = {} }
+    local reads = H.S.petReads or 0
+    H.advance(10)
+    t.ok((H.S.petReads or 0) - reads <= 6, "every few seconds: " .. ((H.S.petReads or 0) - reads))
+    H.clearLogs()
+    H.chat("/tbx target debug")
+    t.ok(H.logged('Your pet: "Rex", health 500 / 800; leave out: on'), H.lastLog())
+    t.ok(H.logged("The target is your pet: yes"))
+  end)
 end

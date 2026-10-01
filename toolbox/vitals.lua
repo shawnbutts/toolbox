@@ -658,7 +658,7 @@ TG.FLASH_HALF = 0.5          -- seconds each half of a low-value flash (two poll
 
 local function defaultPrefs()
   return { show = false, glue = true, place = "top", mirror = false, effects = "all", bars = true, numbers = false,
-           bg = "None", flash = false, flashBelow = V.FLASH_DEFAULT }
+           bg = "None", flash = false, flashBelow = V.FLASH_DEFAULT, hidePet = false }
 end
 local tprefs = defaultPrefs()
 local tContent, tInfo, tHealth, tFocus = nil, nil, nil, nil
@@ -693,6 +693,20 @@ function TG.NumberText(cur, max, hidden, dead)
   local c = math.floor(cur + 0.5)
   if type(max) ~= "number" or max <= 0 then return short(c) end
   return short(c) .. " / " .. short(math.max(math.floor(max + 0.5), c))
+end
+
+-- Whether the target is your own pet (pure). The API has no pet id, so: the name ShroudGetPetInfo gives
+-- (`pet`, its table), and its maximum health too whenever both report one (a wild "Wolf" beside your tamed
+-- "Wolf" all but never has the same). Unconfirmed in game: whether a pet targeted reads by that name.
+function TG.IsPet(name, max, pet)
+  if pet == nil or type(name) ~= "string" or name == "" then return false end
+  local petName = T.Field(pet, "Name")
+  if type(petName) ~= "string" or petName ~= name then return false end
+  local petMax = T.Field(pet, "MaxHealth")
+  if type(petMax) == "number" and petMax > 0 and type(max) == "number" and max > 0 then
+    return math.abs(petMax - max) < 1
+  end
+  return true
 end
 
 -- "73%", "health hidden" or "dead" for the name line (pure).
@@ -1080,10 +1094,24 @@ local function fillSlots()
   end
 end
 
+-- With "Leave out your pet": whether the target is your pet, checked when the target changes and every
+-- TG.GROUP_EVERY s (ShroudGetPetInfo makes a table per call: not every poll).
+local petFor, petAt, petIs = nil, -math.huge, false
+local function targetIsPet()
+  if not tprefs.hidePet then return false end
+  local id, now = ShroudGetTargetId(), T.Now()
+  if id ~= petFor or now - petAt >= TG.GROUP_EVERY then
+    petFor, petAt = id, now
+    local ok, pet = pcall(ShroudGetPetInfo)
+    petIs = ok and TG.IsPet(ShroudGetTargetName(), ShroudGetTargetMaxHealth(), pet) or false
+  end
+  return petIs
+end
+
 -- Reads the target and updates the row. `force`: re-read the grouped list too.
 function TG.Poll(force)
   if not tContent then return end
-  local has = tprefs.show == true and ShroudHasTarget() == true
+  local has = tprefs.show == true and ShroudHasTarget() == true and not targetIsPet()
   local s = iconSize()
   if has then
     local id = ShroudGetTargetId()
@@ -1270,6 +1298,17 @@ function TG.SetBackground(name)
   return true
 end
 
+-- "Leave out your pet": your own pet as the target (the game picks it once the fight is over) shows as
+-- no target.
+function TG.GetHidePet() return tprefs.hidePet == true end
+function TG.SetHidePet(on)
+  tprefs.hidePet = on == true
+  tSave()
+  petFor = nil                         -- check again now
+  TG.Poll(true)
+  T.Config.Sync()
+end
+
 function TG.GetFlash() return tprefs.flash == true end
 function TG.SetFlash(on)
   tprefs.flash = on == true
@@ -1335,6 +1374,7 @@ function TG.Init()
     if not tprefs.bars and not tprefs.numbers and tprefs.effects == "none" then tprefs.bars = true end
     tprefs.bg = V.BackgroundNamed(saved.bg).name
     tprefs.flash = saved.flash == true
+    tprefs.hidePet = saved.hidePet == true
     local fb = saved.flashBelow
     if type(fb) == "number" and fb >= V.FLASH_MIN and fb <= V.FLASH_MAX then tprefs.flashBelow = math.floor(fb) end
   end
@@ -1364,9 +1404,21 @@ function TG.SetGlue(on)
   T.Config.Sync()
 end
 
--- /toolbox target debug: what the game reports for the target.
+-- /toolbox target debug: what the game reports for the target (and your pet, for "Leave out your pet").
 function TG.DebugLines()
   local lines = {}
+  local okPet, pet = pcall(ShroudGetPetInfo)
+  if okPet and pet ~= nil then
+    lines[#lines + 1] = string.format("Your pet: %q, health %s / %s%s; leave out: %s", tostring(T.Field(pet, "Name")),
+      tostring(T.Field(pet, "CurrentHealth")), tostring(T.Field(pet, "MaxHealth")),
+      T.Field(pet, "isSummon") == true and " (summoned)" or "", tprefs.hidePet and "on" or "off")
+    if ShroudHasTarget() then
+      lines[#lines + 1] = "The target is your pet: "
+        .. (TG.IsPet(ShroudGetTargetName(), ShroudGetTargetMaxHealth(), pet) and "yes" or "no")
+    end
+  else
+    lines[#lines + 1] = "No pet out (ShroudGetPetInfo nil)."
+  end
   if not ShroudHasTarget() then
     lines[1] = "No target (ShroudHasTarget false). Setting: " .. (tprefs.show and "on" or "off")
       .. (TG.Glued() and ", in the Toolbelt" or (tprefs.show and ", own strip" or "")) .. "."

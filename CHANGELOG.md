@@ -10,6 +10,9 @@ store submission needs a higher version than any submitted before (rejected ones
   text|bars on|off, bg, flash): show bars, show numbers ("750 / 1000", large ones shortened to "12.5k"), the
   number background and flash when low. Untick both bars and numbers for just the target's effect icons. By
   default it looks as before: bars only, no flash. Its size still follows your health bars' Size and Bar length.
+- Target HUD: "Leave out your pet" (settings, Toolbelt, Target bars; or /toolbox target pet off). Once a fight is
+  over the game targets your pet; with this on, the target HUD stays empty instead. Your pet is recognised by its
+  name and maximum health (the game gives add-ons no pet id). Off by default.
 
 ## [1.0.3] - 2026-10-01
 

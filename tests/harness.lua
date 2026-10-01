@@ -238,6 +238,14 @@ local function install_api()
     return t.hp
   end
   ShroudGetTargetMaxHealth = function() local t = tg(); return t and t.maxHp or -1 end
+  -- the documented PetInfo table (a fresh one per call), or nil with no pet out (H.setPet)
+  ShroudGetPetInfo = function()
+    local p = S.pet
+    if not p then return nil end
+    S.petReads = (S.petReads or 0) + 1
+    return { Name = p.name, Level = p.level or 40, isSummon = p.summon == true, CurrentHealth = p.hp,
+             MaxHealth = p.maxHp, Strength = 30, Dexterity = 30, Intelligence = 30 }
+  end
   ShroudGetTargetCurrentFocus = function() local t = tg(); return t and (t.focus or 0) or -1 end
   ShroudGetTargetMaxFocus = function() local t = tg(); return t and (t.maxFocus or 0) or -1 end
   ShroudGetTargetBuffCount = function() local t = tg(); return t and t.effects and #t.effects or 0 end
@@ -1143,6 +1151,8 @@ function H.setTarget(t)
   return H.callback("ShroudOnTargetChanged", t and t.id or -1, t and t.name or "")
 end
 function H.targetFrame() return S.frames.toolbox_target end
+-- Your pet: { name, hp, maxHp, summon } (what ShroudGetPetInfo reports), or nil for none out.
+function H.setPet(p) S.pet = p end
 
 -- The skills sheet changes (levels, when levelsChanged isn't false) and ShroudOnSkillsChanged fires.
 -- Entries: { key = "Fireball", trainedLevel = 40 } (id and name filled in).

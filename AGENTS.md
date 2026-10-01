@@ -300,7 +300,7 @@ character" sentinel.
 | `combat_detail` | `{ open = bool (pinned), x, y, scope = "fight"/"session", hover = bool }` |
 | `consumables` | `{ show = bool (default true), glue = bool, extra = { name parts, <= 20 }, cats = { [category] = true } (absent: defaults), exclude = { name parts } (absent: Scroll, Torch, Bait), max = 1..10, combatOnly = bool, x, y }` |
 | `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` |
-| `target` | `{ show = bool (default false), glue = bool (default true), place = "top" (default) / "bottom", mirror = bool, effects = "all"/"debuffs"/"none", icons = 1..8 (unset: 8, or 5 mirrored), bars = bool (default true), numbers = bool (default false), bg = "None"/"Dark"/"Light", flash = bool (default false), flashBelow = 1..95, x, y }` (a saved place "left", from beta 7, reads as mirror; bars and numbers both off = just the effect icons, refused with effects "none" too) |
+| `target` | `{ show = bool (default false), glue = bool (default true), place = "top" (default) / "bottom", mirror = bool, effects = "all"/"debuffs"/"none", icons = 1..8 (unset: 8, or 5 mirrored), bars = bool (default true), numbers = bool (default false), bg = "None"/"Dark"/"Light", flash = bool (default false), flashBelow = 1..95, x, y }` (a saved place "left", from beta 7, reads as mirror; bars and numbers both off = just the effect icons, refused with effects "none" too; hidePet = bool (default false): your pet as the target reads as no target, `TG.IsPet`) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
 | `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), font = 9..32 (unset: the XP windows'), x, y }` |
@@ -492,6 +492,8 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - Notification counts reading 0 until loaded (hence `N.SETTLE`); ransoms / rewards / applications in practice.
 - The notification HUD's Scroll inside a HudFrame, nowrap labels ending in "...".
 - Weapon poisons: whether a weapon coating shows as a buff at all.
+- Your pet as the target (`TG.IsPet`): whether its target name is `ShroudGetPetInfo().Name` and its max health
+  `MaxHealth` (no pet id in the API); `/toolbox target debug` prints both and whether they match.
 - The target getters' effect indices lining up with `ShroudGetTargetBuffIcon` / `Tooltip`, and
   `TotalDuration` on target effects (else no sweep); `/toolbox target debug` prints them.
 - API 24 crafting in game (`/toolbox api` shows `made` and the recipe's yield once the client updates).

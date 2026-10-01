@@ -703,6 +703,9 @@ function C.ToolbeltSection()
   children[#children + 1] = dropdownRow("Number background", { id = "target_bg", choices = T.Vitals.BackgroundNames(),
     value = TG.GetBackground(), tooltip = "A dark or light panel behind the target's numbers",
     onChange = function(_, value) TG.SetBackground(value) end })
+  children[#children + 1] = UI.Toggle{ id = "target_hide_pet", text = "Leave out your pet", value = TG.GetHidePet(),
+    tooltip = "Once the fight is over the game targets your pet; with this, the target HUD stays empty instead",
+    onChange = function(_, v) TG.SetHidePet(v) end }
   children[#children + 1] = UI.Toggle{ id = "target_flash", text = "Flash when low", value = TG.GetFlash(),
     tooltip = "Your target's health or focus flashes below the percentage under this",
     onChange = function(_, v) TG.SetFlash(v) end }
@@ -839,6 +842,7 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "volume", "volume_value", "hud_summary", "toolbelt_show",
   "toolbelt_vitals", "toolbelt_consumables", "toolbelt_gear", "toolbelt_target", "target_place", "target_mirror",
   "target_effects", "target_icons", "target_icons_value", "target_show_bars", "target_show_text", "target_bg",
+  "target_hide_pet",
   "target_flash", "target_flash_below", "target_flash_below_value",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
   "buff_countdown_secs_value", "backup_where", "backup_save", "settings_reset", "backup_pending",
@@ -1196,8 +1200,9 @@ function C.Sync()
   setValue("target_show_text", T.Target.GetShowText())
   setValue("target_bg", T.Target.GetBackground())
   setValue("target_flash", T.Target.GetFlash())
+  setValue("target_hide_pet", T.Target.GetHidePet())
   sliderValue("target_flash_below", T.Target.GetFlashBelow())
-  for _, id in ipairs({ "target_show_bars", "target_show_text", "target_flash" }) do
+  for _, id in ipairs({ "target_show_bars", "target_show_text", "target_flash", "target_hide_pet" }) do
     setEnabled(id, T.Target.GetShow())
   end
   setEnabled("target_bg", T.Target.GetShow() and T.Target.GetShowText())

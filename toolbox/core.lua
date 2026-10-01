@@ -1176,7 +1176,7 @@ end)
 
 add("target", "your target's health and effects (on|off; toolbelt on|off; place top|bottom: in the Toolbelt; "
     .. "mirror on|off; effects all|debuffs|none; icons <1-8>; text|bars on|off; bg; flash <%>|on|off; "
-    .. "move [x y]; debug)", function(rest)
+    .. "pet on|off; move [x y]; debug)", function(rest)
   local TG = T.Target
   local word, args = T.ParseArgs(rest)
   word = word:lower()
@@ -1218,6 +1218,16 @@ add("target", "your target's health and effects (on|off; toolbelt on|off; place 
     if word == "text" then TG.SetShowText(a == "on") else TG.SetShowBars(a == "on") end
     T.Print("Target bars: " .. (TG.GetShowBars() and "on" or "off") .. "; numbers: "
       .. (TG.GetShowText() and "on" or "off") .. ".")
+    return
+  elseif word == "pet" then
+    local a = args:lower()
+    if a == "on" or a == "off" then
+      TG.SetHidePet(a == "off")
+    elseif a ~= "" then
+      T.Print("Use /" .. T.commands[1] .. " target pet on|off (off: your pet as the target isn't shown).")
+      return
+    end
+    T.Print("Your pet as the target: " .. (TG.GetHidePet() and "left out" or "shown") .. ".")
     return
   elseif word == "bg" then
     if args ~= "" and not TG.SetBackground(args) then

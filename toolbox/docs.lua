@@ -94,16 +94,16 @@ D.SECTIONS = {
       .. "Every effect on it is listed (the game doesn't say who applied one). Hover for details.",
     "Its bars are the size of yours (Health bars: Size, Bar length). Settings, Toolbelt, Target bars give it "
       .. "the health bars' options: bars, numbers, background, flash when low (/toolbox target text|bars "
-      .. "on|off, bg, flash <%>|off). With your health bars in the "
+      .. "on|off, bg, flash <%>|off); Leave out your pet hides it when the game targets it. "
+      .. "With your health bars in the "
       .. "Toolbelt too, it runs across the whole Toolbelt: its bars start where yours do and its icons line "
       .. "up with your buffs. It goes above the buffs (the default; its space is kept, see below) "
       .. "or under everything (hidden with no target): settings, Toolbelt, Target row, or "
       .. "/toolbox target place top|bottom.",
     "Mirrored (settings, Toolbelt, Mirrored; or /toolbox target mirror on): its bars fill from the right "
       .. "and up to 5 icons run to the left, most urgent nearest, at a fixed width. In the Toolbelt, with your "
-      .. "health bars there too, it goes to the LEFT of your bars, each target bar level with yours (Target "
-      .. "row doesn't apply then; without your health bars in the Toolbelt there's nothing to mirror against, "
-      .. "so the checkbox is greyed out). On its own strip, the whole strip is mirrored.",
+      .. "health bars there too, it goes to the LEFT of your bars, each target bar level with yours (without "
+      .. "them in the Toolbelt, the checkbox is greyed out). On its own strip, the whole strip is mirrored.",
     "Target effects (settings, Toolbelt): All, Debuffs only, or None (just the bars); Most target icons "
       .. "sets how many show at once (8 by default, 5 mirrored). Or /toolbox target effects "
       .. "all|debuffs|none and /toolbox target icons <1-8>.",
