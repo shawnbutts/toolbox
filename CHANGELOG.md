@@ -5,6 +5,10 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+### Fixed
+- The version window (/toolbox version) opened on an empty "Unreleased" entry ("No changes listed") right after
+  a release; it now opens on the installed version.
+
 ## [1.0.1] - 2026-10-01
 
 ### Fixed

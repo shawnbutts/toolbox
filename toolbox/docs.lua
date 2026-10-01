@@ -371,19 +371,21 @@ end
 local VERSION_ID = "toolbox_version"
 
 -- The changelog ({ kind, text } rows; see changelog.lua) split per version, newest first:
--- { { title, entries = { rows under it } } }. Pure.
+-- { { title, entries = { rows under it } } }. An empty Unreleased (just after a release) is left out, so
+-- the window opens on the installed version, not on "No changes listed" (owner, 2026-10-01). Pure.
 function D.ChangelogVersions(rows)
   local out = {}
   for _, entry in ipairs(rows or {}) do
     if entry[1] == "version" then
       local title = entry[2]
       if title == "Unreleased" then title = "Unreleased (newer than " .. T.version .. ")" end
-      out[#out + 1] = { title = title, entries = {} }
+      out[#out + 1] = { title = title, entries = {}, unreleased = entry[2] == "Unreleased" }
     elseif out[#out] then
       local list = out[#out].entries
       list[#list + 1] = entry
     end
   end
+  if out[1] and out[1].unreleased and #out[1].entries == 0 then table.remove(out, 1) end
   return out
 end
 
