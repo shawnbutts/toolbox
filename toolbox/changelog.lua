@@ -5,6 +5,7 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "version", "1.0.0 - 2026-10-01" },
   { "section", "Changed" },
   { "item", "More HUD strips: the game now lets an add-on show up to 25 (it was 8), and Toolbox follows. On a client that still allows fewer, Toolbox learns the limit when the game refuses a strip and says so in chat once." },
   { "item", "The notification HUD shows new notices bright and older ones dimmed, so what just arrived stands out from the ones you've seen (it still keeps the latest 20 to look back on)." },

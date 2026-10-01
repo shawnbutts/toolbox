@@ -6,7 +6,7 @@
 
 Toolbox = {
   name = "Toolbox",
-  version = "0.8.0",
+  version = "1.0.0",
   build = "dev",         -- tools/build.py stamps the git commit here in dist/ (see /toolbox version)
   commands = { "toolbox", "tbx" },
   tickSeconds = 1.0,     -- periodic refresh; nothing runs per frame

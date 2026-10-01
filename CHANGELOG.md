@@ -5,6 +5,8 @@ store submission needs a higher version than any submitted before (rejected ones
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-01
+
 ### Changed
 - More HUD strips: the game now lets an add-on show up to 25 (it was 8), and Toolbox follows. On a client that
   still allows fewer, Toolbox learns the limit when the game refuses a strip and says so in chat once.
