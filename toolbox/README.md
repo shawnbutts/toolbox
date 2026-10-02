@@ -109,8 +109,9 @@ can be turned off.
 
 Like the game's own skill bar: your skills' icons pop up on a strip of their own as they level, with the
 level, the progress to the next and the training mode as the frame's colour. Vertical or horizontal; click
-one to open the Skills window. Skill level ups can also be listed on the notification HUD
-(`/toolbox skills`).
+one to open the Skills window. A short celebration plays when a skill gains a level and a sad one when it
+loses one (each can be switched off; your own `toolbox_skill_up.ogg` / `toolbox_skill_down.ogg` in the Lua
+folder replaces them). Skill level ups can also be listed on the notification HUD (`/toolbox skills`).
 
 ## Commands
 

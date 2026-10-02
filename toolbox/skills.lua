@@ -17,11 +17,17 @@
 -- Built to be easy to take out (owner, 2026-10-02: "not 100% sure"): everything is in this file, which
 -- registers itself (its strip, command, settings page, guide topic, notification source, saved-var key);
 -- the other files only call it where `Toolbox.SkillBar` exists. To remove: delete this file and its
--- manifest entry (and the README.md load-order line), tests/test_skills.lua and its line in tests/run.lua, and
--- the "Skill activity" parts of both READMEs, CHANGELOG and AGENTS.md. The guarded lines elsewhere can stay.
+-- manifest entry (and the README.md load-order line), toolbox/skill_up.ogg and skill_down.ogg (and their
+-- entries in art/alerts.py), tests/test_skills.lua and its line in tests/run.lua, and the "Skill activity"
+-- parts of both READMEs, CHANGELOG and AGENTS.md. The guarded lines elsewhere can stay.
+--
+-- Sounds (owner, 2026-10-02): a short celebration when a skill gains a level (skill_up) and a sad one when it
+-- loses one (skill_down), each optional, at most one of each per SK.SOUND_GAP s (early levels come in
+-- bursts). They are Toolbox.Sounds definitions, so a player's own file works as for the other alerts.
 --
 -- Saved var "skills": { show = bool (default false), vertical = bool (default true), slots = 1..12,
--- stay = seconds (SK.STAY_CHOICES), trigger = "levels" | "xp", size = 20..48, x, y }.
+-- stay = seconds (SK.STAY_CHOICES), trigger = "levels" | "xp", size = 20..48, soundUp = bool (default true),
+-- soundDown = bool (default true), x, y }.
 
 local T = Toolbox
 local SK = {}
@@ -53,6 +59,7 @@ SK.MODES = {
   NotLearning = { color = "#00000000", label = "Not training" },
 }
 SK.PLACEHOLDER = "Skills"
+SK.SOUND_GAP = 3                      -- seconds: at most one level-up (and one level-down) sound in this time
 
 local prefs = { show = false }
 local state = nil                     -- the model (SK.NewState)
@@ -71,7 +78,7 @@ local wasInUse = false                -- read last tick: off and on again takes 
 -- notified ({ n, list = { { id = n, name, level } } }). `ups` carries over a new baseline: the notification
 -- remembers the last number it delivered, so the numbering must not start again.
 function SK.NewState(ups)
-  return { prev = {}, active = {}, based = false, ups = ups or { n = 0, list = {} } }
+  return { prev = {}, active = {}, based = false, ups = ups or { n = 0, list = {} }, downs = 0 }
 end
 
 -- The game's skill list as plain readings { id, name, level, trained, exp, progress, mode, icon }.
@@ -112,7 +119,8 @@ end
 
 -- Takes a reading (SK.Read) at `now`: a skill whose level or mode changed (or, with trigger "xp", whose
 -- experience changed) goes on top of `active`; one already there gets the new reading. The first reading only
--- sets the baseline. A level gained is queued in `ups`. Returns true when `active` changed. Pure.
+-- sets the baseline. A level gained is queued in `ups`, a level lost counted in `downs`. Returns true when
+-- `active` changed. Pure.
 function SK.Update(st, readings, now, trigger, keep)
   local changed = false
   for _, r in ipairs(readings) do
@@ -129,6 +137,7 @@ function SK.Update(st, readings, now, trigger, keep)
           end
         end
       end
+      if r.level < p.level then st.downs = st.downs + 1 end    -- a level lost (unlearning, decay)
       if r.level > p.level then
         local ups = st.ups
         ups.n = ups.n + 1
@@ -351,9 +360,23 @@ local function readNow(now)
     readFor, state = who, SK.NewState(state.ups)
   end
   lastRead, needRead, xpDirty = now, false, false
-  local before = state.ups.n
+  local before, downsBefore = state.ups.n, state.downs
   if SK.Update(state, SK.Read(list), now, trigger(), SK.SLOTS_MAX) then SK.Fill() end
-  if state.ups.n ~= before then T.Notify.Check() end
+  if state.ups.n ~= before then
+    -- the "Skill level ups" notification with "+ sound" plays the notification sound: not both
+    local notifySound = T.Notify.IsOn("skills") and T.Notify.GetSound("skills")
+    if prefs.soundUp ~= false and not notifySound then SK.PlaySound("skill_up", now) end
+    T.Notify.Check()
+  end
+  if state.downs ~= downsBefore and prefs.soundDown ~= false then SK.PlaySound("skill_down", now) end
+end
+
+-- Plays a skill sound unless the same one played in the last SK.SOUND_GAP seconds.
+local soundAt = {}
+function SK.PlaySound(key, now)
+  if now - (soundAt[key] or -math.huge) < SK.SOUND_GAP then return end
+  soundAt[key] = now
+  T.Sounds.Play(key)
 end
 
 function SK.Tick()
@@ -433,6 +456,18 @@ function SK.SetStay(seconds)
   return true
 end
 
+-- The level-up / level-down sounds (each on by default).
+function SK.GetSoundUp() return prefs.soundUp ~= false end
+function SK.GetSoundDown() return prefs.soundDown ~= false end
+function SK.SetSoundUp(on)
+  prefs.soundUp = on == true
+  save()
+end
+function SK.SetSoundDown(on)
+  prefs.soundDown = on == true
+  save()
+end
+
 function SK.GetTrigger() return trigger() end
 function SK.SetTrigger(which)
   if not SK.TRIGGER_LABELS[which] then return false end
@@ -455,6 +490,8 @@ function SK.Init()
     prefs.size = int(saved.size, SK.SIZE_MIN, SK.SIZE_MAX)
     if SK.StayLabel(saved.stay) then prefs.stay = saved.stay end
     if SK.TRIGGER_LABELS[saved.trigger] then prefs.trigger = saved.trigger end
+    prefs.soundUp = saved.soundUp ~= false
+    prefs.soundDown = saved.soundDown ~= false
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
   state, readFor, wasInUse = SK.NewState(), nil, false
@@ -482,7 +519,7 @@ end
 
 -- The settings page (config.lua builds it with its helpers `h`): the controls' ids in CONFIG_IDS.
 SK.CONFIG_IDS = { "skills_show", "skills_vertical", "skills_trigger", "skills_stay", "skills_slots",
-                  "skills_slots_value", "skills_size", "skills_size_value" }
+                  "skills_slots_value", "skills_size", "skills_size_value", "skills_sound_up", "skills_sound_down" }
 
 function SK.ConfigSection(h)
   local stays, triggers = {}, {}
@@ -513,6 +550,13 @@ function SK.ConfigSection(h)
       "When more are active, the one quiet longest makes room", function(n) SK.SetSlots(n) end),
     h.slider("skills_size", "Icon size", SK.SIZE_MIN, SK.SIZE_MAX, 2, size(), "The icons' size in pixels",
       function(n) SK.SetSize(n) end),
+    UI.Toggle{ id = "skills_sound_up", text = "Sound when a skill gains a level", value = SK.GetSoundUp(),
+      style = { marginTop = 6 },
+      tooltip = "A short celebration (at most one every few seconds). Pick your own file on the Sounds page",
+      onChange = function(_, v) SK.SetSoundUp(v) end },
+    UI.Toggle{ id = "skills_sound_down", text = "Sound when a skill loses a level", value = SK.GetSoundDown(),
+      tooltip = "A sad one, for unlearning or decay. Pick your own file on the Sounds page",
+      onChange = function(_, v) SK.SetSoundDown(v) end },
     UI.Label{ text = "A \"Skill level ups\" notification (Notifications page) can list them on the notification"
       .. " HUD too. Move the strip under HUD layout, or by its grip.", class = "dim",
       style = { whiteSpace = "wrap", marginTop = 6 } },
@@ -526,6 +570,8 @@ function SK.ConfigSync(h)
   h.setValue("skills_stay", SK.StayLabel(stay()))
   h.sliderValue("skills_slots", slotCount())
   h.sliderValue("skills_size", size())
+  h.setValue("skills_sound_up", SK.GetSoundUp())
+  h.setValue("skills_sound_down", SK.GetSoundDown())
   for _, id in ipairs({ "skills_vertical", "skills_trigger", "skills_stay", "skills_slots", "skills_size" }) do
     h.setEnabled(id, prefs.show == true)
   end
@@ -539,6 +585,9 @@ end
 table.insert(T.Hud.ORDER, #T.Hud.ORDER, "skills")
 -- its settings are cleared by Backup & reset
 T.Backup.KEYS[#T.Backup.KEYS + 1] = "skills"
+-- its sounds: the Sounds page lists them (Test, a custom file), and Lua/toolbox_skill_up.ogg replaces one
+T.Sounds.DEFS[#T.Sounds.DEFS + 1] = { key = "skill_up", file = "skill_up.ogg", label = "Skill level up" }
+T.Sounds.DEFS[#T.Sounds.DEFS + 1] = { key = "skill_down", file = "skill_down.ogg", label = "Skill level down" }
 
 -- "Skill level ups": on the notification HUD only (owner, 2026-10-02), off by default. Transient: the
 -- numbers restart with the add-on.
@@ -562,7 +611,10 @@ do
       .. "blue maintaining, red unlearning. It goes after a while with no change (Keep it for). Hover for "
       .. "details; click to open the game's Skills window (add-ons can't change a skill's mode).",
     "Settings, Skill activity: vertical or horizontal, what shows a skill, how long it stays, how many show "
-      .. "and the icon size. Notifications has \"Skill level ups\" for the notification HUD (off by default)." }
+      .. "and the icon size. Notifications has \"Skill level ups\" for the notification HUD (off by default).",
+    "A short celebration plays when a skill gains a level, a sad one when it loses one (each can be switched "
+      .. "off; /toolbox skills sound off for both). Your own file: the Sounds page, or toolbox_skill_up.ogg / "
+      .. "toolbox_skill_down.ogg (or .wav) in your Lua folder." }
   local at = #T.Docs.SECTIONS + 1
   for i, s in ipairs(T.Docs.SECTIONS) do
     if s[1] == "Moving the HUD strips" then at = i end
@@ -571,7 +623,8 @@ do
 end
 
 -- /toolbox skills
-T.AddCommand("skills", "the skill activity strip (on|off; vertical|horizontal; xp|levels; move [x y]; debug)",
+T.AddCommand("skills", "the skill activity strip (on|off; vertical|horizontal; xp|levels; sound on|off; move [x y]; "
+  .. "debug)",
   function(rest)
     local word, args = T.ParseArgs(rest)
     word = word:lower()
@@ -583,6 +636,14 @@ T.AddCommand("skills", "the skill activity strip (on|off; vertical|horizontal; x
       SK.SetVertical(word == "vertical")
     elseif word == "xp" or word == "levels" then
       SK.SetTrigger(word)
+    elseif word == "sound" then
+      local a = args:lower()
+      if a ~= "on" and a ~= "off" then
+        T.Print("Use /" .. T.commands[1] .. " skills sound on|off (both the level-up and level-down sounds).")
+        return
+      end
+      SK.SetSoundUp(a == "on")
+      SK.SetSoundDown(a == "on")
     elseif word == "move" then
       T.MoveCommand(SK, "skills", SK.PAGE, args)
       return
@@ -590,9 +651,12 @@ T.AddCommand("skills", "the skill activity strip (on|off; vertical|horizontal; x
       for _, line in ipairs(SK.DebugLines()) do T.Print(line) end
       return
     else
-      T.Print("Use /" .. T.commands[1] .. " skills [on|off], vertical|horizontal, xp|levels, move [x y] or debug.")
+      T.Print("Use /" .. T.commands[1] .. " skills [on|off], vertical|horizontal, xp|levels, sound on|off, "
+        .. "move [x y] or debug.")
       return
     end
     T.Print(SK.PAGE .. ": " .. (prefs.show and "on" or "off") .. ", " .. (SK.GetVertical() and "vertical" or
-      "horizontal") .. "; shows a skill on " .. SK.TRIGGER_LABELS[trigger()]:lower() .. ".")
+      "horizontal") .. "; shows a skill on " .. SK.TRIGGER_LABELS[trigger()]:lower() .. "; sounds: "
+      .. (SK.GetSoundUp() and "up" or "") .. ((SK.GetSoundUp() and SK.GetSoundDown()) and " and " or "")
+      .. (SK.GetSoundDown() and "down" or "") .. ((SK.GetSoundUp() or SK.GetSoundDown()) and "" or "off") .. ".")
   end)

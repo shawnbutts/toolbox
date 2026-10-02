@@ -16,6 +16,10 @@ Alerts:
                   opposite way to buff_expiring's fall)
   ping            one bright bell (C6), 0.6 s: a light single note for notifications
   tap             two quick soft low notes (G4, G4), 0.5 s: an unobtrusive "knock" for notifications
+  skill_up        a quick rising major arpeggio (C5 E5 G5 C6) into a bright ringing chord (C6 E6 G6),
+                  1.6 s: a small celebration for a skill level gained (skills.lua)
+  skill_down      four hollow notes sinking a semitone at a time (G4 F#4 F4 E4), each sagging, the last
+                  long with a slow wobble, 1.8 s: the "wah wah wah waah" of a skill level lost
 Tweak the constants in each render_* function and re-run.
 """
 
@@ -102,6 +106,13 @@ def render_tap() -> list[float]:
     return render_chimes(0.5, [(0.00, 392.00, 1.0), (0.11, 392.00, 0.8)])      # G4 twice: a knock
 
 
+def render_skill_up() -> list[float]:
+    # a quick arpeggio up the C major chord, then the top chord rings: "ta-da"
+    return render_chimes(1.6, [(0.00, 523.25, 0.70), (0.08, 659.25, 0.75), (0.16, 783.99, 0.80),
+                               (0.24, 1046.50, 0.95),
+                               (0.40, 1046.50, 0.75), (0.40, 1318.51, 0.60), (0.40, 1567.98, 0.50)])
+
+
 # ---------------------------------------------------------------------------
 # debuff_landed: three hollow notes stepping down, high to low
 # ---------------------------------------------------------------------------
@@ -162,6 +173,24 @@ def render_debuff(p: dict) -> list[float]:
     return normalize(fade_out(out, p["fade"]))
 
 
+# skill_down: the opposite of skill_up, "wah wah wah waah": hollow notes sinking a semitone each, sagging as
+# they sound, the last one long. Uses render_debuff (bent hollow notes), slower and lower.
+SKILL_DOWN = dict(
+    duration=1.8,
+    notes=[(0.00, 392.00, 380.00, 0.9),           # G4, sagging
+           (0.30, 369.99, 358.00, 0.9),           # F#4
+           (0.60, 349.23, 338.00, 0.9),           # F4
+           (0.90, 329.63, 300.00, 1.0)],          # E4, sinking further: the long last one
+    glide=0.5,
+    decay=1.6,
+    harmonics=[(1, 1.0), (2, 0.25), (3, 0.35), (5, 0.12)],   # hollow, a little brassy
+    thump=(110.0, 60.0, 0.09, 24.0, 0.0),         # off
+    echoes=[(0.09, 0.15)],
+    fade=0.3,
+    choke=0.04,
+)
+
+
 # ---------------------------------------------------------------------------
 
 ALERTS = {
@@ -170,6 +199,8 @@ ALERTS = {
     "notify": render_notify,
     "ping": render_ping,
     "tap": render_tap,
+    "skill_up": render_skill_up,
+    "skill_down": lambda: render_debuff(SKILL_DOWN),
 }
 
 

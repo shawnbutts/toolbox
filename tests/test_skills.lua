@@ -209,6 +209,72 @@ return function(t)
     t.eq(H.config():Find("skills_slots").enabled, false, "the rest greyed out")
   end)
 
+  -- sounds ------------------------------------------------------------------------
+
+  -- On, with both sounds' default files in the package, loaded.
+  local function onWithSounds(file)
+    H.boot()
+    H.S.files[file or "toolbox/skill_up.ogg"] = true
+    H.S.files["toolbox/skill_down.ogg"] = true
+    H.setSkills(sheet(BASE))
+    H.reload()
+    H.chat("/tbx skills on")
+    H.advance(3)
+    H.S.played = {}
+  end
+  local function played(name)
+    local n = 0
+    for _, p in ipairs(H.S.played) do if p.name:find(name, 1, true) then n = n + 1 end end
+    return n
+  end
+
+  t.test("sounds: a celebration for a level gained, a sad one for a level lost; one per burst", function()
+    onWithSounds()
+    H.setSkills(sheet(levels{ Fireball = 41 }))
+    H.advance(1)
+    t.eq(played("skill_up"), 1, H.playedNames())
+    H.setSkills(sheet(levels{ Fireball = 42, Healing = 31 }))      -- straight after: the same burst
+    H.advance(1)
+    t.eq(played("skill_up"), 1, "at most one every few seconds")
+    H.advance(Toolbox.SkillBar.SOUND_GAP)
+    H.setSkills(sheet(levels{ Fireball = 42, Healing = 31, Archery = 9 }, { Archery = { mode = "Unlearning" } }))
+    H.advance(1)
+    t.eq(played("skill_down"), 1, "a level lost")
+    t.eq(played("skill_up"), 1, "not a gain")
+    H.advance(Toolbox.SkillBar.SOUND_GAP)
+    H.chat("/tbx config")
+    H.change("toolbox_config", "skills_sound_up", false)
+    H.change("toolbox_config", "skills_sound_down", false)
+    H.S.played = {}
+    H.setSkills(sheet(levels{ Fireball = 43, Healing = 31, Archery = 8 }))
+    H.advance(1)
+    t.eq(#H.S.played, 0, "both off: silent")
+    H.reload()
+    t.eq(SK().GetSoundUp(), false, "saved")
+  end)
+
+  t.test("sounds: on the Sounds page, and a player's own file wins", function()
+    onWithSounds("toolbox_skill_up.ogg")                           -- a replacement beside the package
+    H.chat("/tbx config")
+    t.ok(H.config():Find("snd_skill_up_test"), "a Test button for it")
+    t.ok(H.config():Find("snd_skill_down_test"))
+    H.closeWindow("toolbox_config")
+    H.setSkills(sheet(levels{ Dodge = 6 }))
+    H.advance(1)
+    t.eq(played("toolbox_skill_up"), 1, "the player's file: " .. H.playedNames())
+  end)
+
+  t.test("sounds: with the notification's own sound, the level-up sound doesn't play as well", function()
+    onWithSounds()
+    H.chat("/tbx notify skills on")
+    H.chat("/tbx notify skills sound on")
+    H.advance(1)
+    H.setSkills(sheet(levels{ Fireball = 41 }))
+    H.advance(1)
+    t.eq(played("skill_up"), 0, "not both")
+    t.ok(H.nhudRow(1):find("Fireball 41"))
+  end)
+
   -- the notification --------------------------------------------------------------
 
   t.test("Skill level ups: off by default, on the notification HUD only", function()
@@ -241,7 +307,12 @@ return function(t)
     H.setSkills(sheet(BASE))
     H.clearLogs()
     H.chat("/tbx skills")
-    t.ok(H.logged("Skill activity: on, vertical; shows a skill on level ups and mode changes%."), H.lastLog())
+    t.ok(H.logged("Skill activity: on, vertical; shows a skill on level ups and mode changes; sounds: up and down%."),
+      H.lastLog())
+    H.chat("/tbx skills sound off")
+    t.ok(H.logged("sounds: off%.$"), H.lastLog())
+    t.eq(SK().GetSoundUp(), false)
+    t.eq(SK().GetSoundDown(), false)
     H.chat("/tbx skills xp")
     t.eq(SK().GetTrigger(), "xp")
     H.clearLogs()

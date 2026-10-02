@@ -118,7 +118,8 @@ into one if a new file is ever needed).
   `GET /api/v1/receipts/prices?item=..` (<= 50 names) via `ShroudHttpGet`, one request `P.GAP` apart,
   cached per account for `P.MAX_AGE`; `P.Test` backs the Test connection button.
 - `sounds.lua`: `Toolbox.Sounds`, five sounds (`S.DEFS`: buff_expiring, debuff_landed, and notify, ping, tap
-  for notifications: each source picks one, `N.SOUNDS` / `soundKey`). Candidates in
+  for notifications: each source picks one, `N.SOUNDS` / `soundKey`), plus skill_up and skill_down, which
+  skills.lua appends. Candidates in
   order: the custom path, `Lua/toolbox_<file>` (.ogg, .wav), the shipped `toolbox/<file>`. A load counts once
   its clip appears in `ShroudListSound()` (async); clips are found by name at play time. Never call
   `ShroudListSoundReset` (it clears every add-on's clips). If sounds go silent, look in the game's Player.log.
@@ -206,7 +207,9 @@ into one if a new file is ever needed).
   step) and config (its page via `C.Helpers`, `SK.CONFIG_IDS`, `SK.ConfigSync`, its Position row) call it only
   `if T.SkillBar`. Pure model: `SK.Read` / `SK.Update` (baseline first, a level / mode change, or experience
   with trigger "xp", puts a skill on top; one slot per skill) / `SK.Expire` / `SK.UpsText`. Reads are throttled
-  (an event only marks them; `SK.QUIET_EVERY` / `SK.XP_EVERY`). Skills are read-only in the API: a click opens
+  (an event only marks them; `SK.QUIET_EVERY` / `SK.XP_EVERY`). Its sounds (skill_up / skill_down,
+  `S.DEFS` entries it appends) play at most once per `SK.SOUND_GAP` s each; the level-up one stays quiet when
+  the "Skill level ups" notification plays its own sound. Skills are read-only in the API: a click opens
   the game's Skills window (`ShroudToggleWindow`, on the gesture). Removal steps are in its header.
 - `config.lua`: `Toolbox.Config`, the settings window. Categories (`C.CATEGORIES`, the "Settings" dropdown;
   Toolbelt first): only the one shown is built; switching destroys the previous one first (every page kept
@@ -230,7 +233,8 @@ into one if a new file is ever needed).
 - `art/`: `icon.svg` (-> `toolbox/icon.png`, 256x256: `rsvg-convert -w 256 -h 256 art/icon.svg -o
   toolbox/icon.png`), `clock.py` (-> `toolbox/clock.png`: a normal and a red set of 120 frames; keep in sync
   with `BuffBar.CLOCK`), `alerts.py` (-> `toolbox/*.ogg` via ffmpeg's Vorbis encoder: buff_expiring falls,
-  debuff_landed steps down, notify rises; ping and tap are the other notification sounds). Re-encoding changes the bytes even when the audio is the same:
+  debuff_landed steps down, notify rises; ping and tap are the other notification sounds; skill_up, a rising
+  arpeggio into a ringing chord, and skill_down, sinking "wah wah" notes, belong to skills.lua). Re-encoding changes the bytes even when the audio is the same:
   `git checkout` an .ogg you didn't mean to change. A player's own `Lua/toolbox_<name>` sounds win.
 - `tools/`: `check.py` (all checks), `build.py` (packaging rules, the source checks, the store README
   renderer's rules, the support URL's form, the root README's API line, the changelog section, the docs API
@@ -322,7 +326,7 @@ character" sentinel.
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most 20 (which are new, `fresh`, is kept in memory only) |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last, day, at } } }`, at most `P.MAX_KEEP` |
 | `welcomed` (ACCOUNT scope) | set after the first-run welcome |
-| `skills` | `{ show = bool (default false), vertical = bool (default true), slots = 1..12, stay = seconds (SK.STAY_CHOICES), trigger = "levels"/"xp", size = 20..48, x, y }` (skills.lua) |
+| `skills` | `{ show = bool (default false), vertical = bool (default true), slots = 1..12, stay = seconds (SK.STAY_CHOICES), trigger = "levels"/"xp", size = 20..48, soundUp = bool, soundDown = bool (both default true), x, y }` (skills.lua) |
 | `settings_pending` | `{ kind = "reset" }`: done and deleted at the next start |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what

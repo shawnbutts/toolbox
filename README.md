@@ -238,7 +238,8 @@ bar while this one is showing (the game restores it on reload, so it is applied 
   log in or change scene, when the game rebuilds the buff list.
 
 **Sounds.** The default sounds live in the add-on's folder (`Lua/toolbox/buff_expiring.ogg`,
-`Lua/toolbox/debuff_landed.ogg`, and `notify.ogg`, `ping.ogg`, `tap.ogg` for notifications); to use your own, put a replacement in the folder above it. Each
+`Lua/toolbox/debuff_landed.ogg`, `notify.ogg`, `ping.ogg`, `tap.ogg` for notifications, and `skill_up.ogg`,
+`skill_down.ogg` for the skill activity strip); to use your own, put a replacement in the folder above it. Each
 alert takes the first that loads of:
 
 1. a custom path you set in `/toolbox config` (any `.ogg`/`.wav`/`.mp3` inside your Lua folder);

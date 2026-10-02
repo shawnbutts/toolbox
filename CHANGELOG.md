@@ -13,6 +13,10 @@ ones included).
   with the level (gold when new), the progress to the next and the training mode as the frame's colour.
   Vertical or horizontal, how long they stay, how many show and the icon size are settings; click an icon to
   open the game's Skills window (add-ons can't change a skill's mode). Off by default.
+- Skill activity sounds: a short celebration when a skill gains a level and a sad one when it loses a level,
+  each with its own switch (on by default with the strip), at most one every few seconds. Like the other
+  alerts, your own file works: pick one on the Sounds page, or put toolbox_skill_up.ogg /
+  toolbox_skill_down.ogg in your Lua folder.
 - Notifications: "Skill level ups", on the notification HUD only (never a window to close). Off by default.
 
 ## [1.1.0] - 2026-10-02
