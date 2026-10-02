@@ -477,6 +477,9 @@ Rules learned the hard way; keep to them.
   `G.STATION_BELOW` of new gets a "crafting station repair" tooltip note (`G.StationNote`). Tools and pets are worn items
   too, so a set can exceed `G.SLOTS`.
 - **Target:** before API 25 some creatures' name was "Entity with no name (<internal name>)"; fixed.
+- **Your pet:** `ShroudGetPetInfo().Name` and the target's name for it are both "kitty\n<shawn>" (the owner on a
+  second line), max health equal (confirmed 2026-10-02). `TG.IsPet`: the name without the owner (`TG.BaseName`),
+  the owner too when the target's name has one, and `MaxHealth` (no pet id in the API).
 - **Party (API 25/26):** `ShroudGetPartyMemberBuffs(slot or name)` works (same shape as your buffs);
   `ShroudOnPartyChanged` fires with no arguments. From API 26 (confirmed 2026-10-01) slots run 0 (you) to
   count - 1 and the in-scene names are a plain list of real names.
@@ -506,10 +509,6 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - Notification counts reading 0 until loaded (hence `N.SETTLE`); ransoms / rewards / applications in practice.
 - The notification HUD's Scroll inside a HudFrame, nowrap labels ending in "...".
 - Weapon poisons: whether a weapon coating shows as a buff at all.
-- Your pet as the target (`TG.IsPet`): the name the target frame gives your pet. `ShroudGetPetInfo().Name` is
-  "kitty\n<shawn>" (the owner on a second line; seen 2026-10-02), so names are compared by `TG.BaseName` (first
-  line, no `<owner>`, lower case) plus `MaxHealth` (no pet id in the API). `/toolbox target debug` with the pet
-  targeted prints both and whether they match.
 - The target getters' effect indices lining up with `ShroudGetTargetBuffIcon` / `Tooltip`, and
   `TotalDuration` on target effects (else no sweep); `/toolbox target debug` prints them.
 - API 24 crafting in game (`/toolbox api` shows `made` and the recipe's yield once the client updates).

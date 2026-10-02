@@ -827,6 +827,7 @@ return function(t)
     t.eq(TG().IsPet("kitty", 1305, kitty), true, "the target frame's plain name")
     t.eq(TG().IsPet("kitty\n<shawn>", 1305, kitty), true, "or the same form")
     t.eq(TG().IsPet("Practice Dummy", 573811, kitty), false)
+    t.eq(TG().IsPet("kitty\n<bob>", 1305, kitty), false, "another player's kitty")
   end)
 
   t.test("leave out your pet: on by default; your pet as the target shows as none", function()

@@ -696,8 +696,7 @@ function TG.NumberText(cur, max, hidden, dead)
 end
 
 -- A name as compared for the pet check (pure): its first line, without an "<owner>" tag, trimmed and in
--- lower case. ShroudGetPetInfo's Name was "kitty\n<shawn>" in game (2026-10-02); the target frame's
--- name for the pet may be either form.
+-- lower case. In game (2026-10-02) both ShroudGetPetInfo's Name and the target's name were "kitty\n<shawn>".
 function TG.BaseName(s)
   if type(s) ~= "string" then return "" end
   local nl = s:find("\n", 1, true)
@@ -709,12 +708,18 @@ end
 
 -- Whether the target is your own pet (pure). The API has no pet id, so: the pet's name from
 -- ShroudGetPetInfo (`pet`, its table; compared by TG.BaseName), and its maximum health too whenever both
--- report one (a wild "Wolf" beside your tamed "Wolf" all but never has the same). Unconfirmed in game: the
--- name the target frame gives your pet.
+-- report one (a wild "Wolf" beside your tamed "Wolf" all but never has the same). A target name carrying an
+-- owner ("kitty\n<shawn>", confirmed 2026-10-02) must match the pet's whole name, owner included, so another
+-- player's "kitty" isn't taken for yours.
 function TG.IsPet(name, max, pet)
   if pet == nil or type(name) ~= "string" or name == "" then return false end
-  local petName = TG.BaseName(T.Field(pet, "Name"))
+  local full = T.Field(pet, "Name")
+  local petName = TG.BaseName(full)
   if petName == "" or petName ~= TG.BaseName(name) then return false end
+  if name:find("<", 1, true) and type(full) == "string" and full:find("<", 1, true)
+      and T.Trim(name):lower() ~= T.Trim(full):lower() then
+    return false                                   -- the same name, someone else's pet
+  end
   local petMax = T.Field(pet, "MaxHealth")
   if type(petMax) == "number" and petMax > 0 and type(max) == "number" and max > 0 then
     return math.abs(petMax - max) < 1
