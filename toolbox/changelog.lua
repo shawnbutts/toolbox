@@ -5,6 +5,7 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "version", "1.1.0 - 2026-10-02" },
   { "section", "Added" },
   { "item", "The target HUD has the health bars' look options, its own (settings, Toolbelt, Target bars; or /toolbox target text|bars on|off, bg, flash): show bars, show numbers (\"750 / 1000\", large ones shortened to \"12.5k\"), the number background and flash when low. Untick both bars and numbers for just the target's effect icons (on its own strip it then hides while the target has none). By default it looks as before: bars only, no flash. Its size still follows your health bars' Size and Bar length." },
   { "item", "Target HUD: \"Leave out your pet\" (settings, Toolbelt, Target bars; or /toolbox target pet off). Once a fight is over the game targets your pet; with this on, the target HUD stays empty instead. Your pet is recognised by its name and maximum health (the game gives add-ons no pet id). On by default." },

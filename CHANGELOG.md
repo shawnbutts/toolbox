@@ -7,6 +7,8 @@ ones included).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-02
+
 ### Added
 - The target HUD has the health bars' look options, its own (settings, Toolbelt, Target bars; or /toolbox target
   text|bars on|off, bg, flash): show bars, show numbers ("750 / 1000", large ones shortened to "12.5k"), the
