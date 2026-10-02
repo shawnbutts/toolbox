@@ -695,13 +695,26 @@ function TG.NumberText(cur, max, hidden, dead)
   return short(c) .. " / " .. short(math.max(math.floor(max + 0.5), c))
 end
 
--- Whether the target is your own pet (pure). The API has no pet id, so: the name ShroudGetPetInfo gives
--- (`pet`, its table), and its maximum health too whenever both report one (a wild "Wolf" beside your tamed
--- "Wolf" all but never has the same). Unconfirmed in game: whether a pet targeted reads by that name.
+-- A name as compared for the pet check (pure): its first line, without an "<owner>" tag, trimmed and in
+-- lower case. ShroudGetPetInfo's Name was "kitty\n<shawn>" in game (2026-10-02); the target frame's
+-- name for the pet may be either form.
+function TG.BaseName(s)
+  if type(s) ~= "string" then return "" end
+  local nl = s:find("\n", 1, true)
+  if nl then s = s:sub(1, nl - 1) end
+  local lt = s:find("<", 1, true)
+  if lt and lt > 1 then s = s:sub(1, lt - 1) end
+  return T.Trim(s):lower()
+end
+
+-- Whether the target is your own pet (pure). The API has no pet id, so: the pet's name from
+-- ShroudGetPetInfo (`pet`, its table; compared by TG.BaseName), and its maximum health too whenever both
+-- report one (a wild "Wolf" beside your tamed "Wolf" all but never has the same). Unconfirmed in game: the
+-- name the target frame gives your pet.
 function TG.IsPet(name, max, pet)
   if pet == nil or type(name) ~= "string" or name == "" then return false end
-  local petName = T.Field(pet, "Name")
-  if type(petName) ~= "string" or petName ~= name then return false end
+  local petName = TG.BaseName(T.Field(pet, "Name"))
+  if petName == "" or petName ~= TG.BaseName(name) then return false end
   local petMax = T.Field(pet, "MaxHealth")
   if type(petMax) == "number" and petMax > 0 and type(max) == "number" and max > 0 then
     return math.abs(petMax - max) < 1
@@ -1429,7 +1442,8 @@ function TG.DebugLines()
   local lines = {}
   local okPet, pet = pcall(ShroudGetPetInfo)
   if okPet and pet ~= nil then
-    lines[#lines + 1] = string.format("Your pet: %q, health %s / %s%s; leave out: %s", tostring(T.Field(pet, "Name")),
+    lines[#lines + 1] = string.format("Your pet: \"%s\" (compared as \"%s\"), health %s / %s%s; leave out: %s",
+      (tostring(T.Field(pet, "Name")):gsub("\n", "\\n")), TG.BaseName(T.Field(pet, "Name")),
       tostring(T.Field(pet, "CurrentHealth")), tostring(T.Field(pet, "MaxHealth")),
       T.Field(pet, "isSummon") == true and " (summoned)" or "", tprefs.hidePet and "on" or "off")
     if ShroudHasTarget() then
@@ -1444,8 +1458,8 @@ function TG.DebugLines()
       .. (TG.Glued() and ", in the Toolbelt" or (tprefs.show and ", own strip" or "")) .. "."
     return lines
   end
-  lines[#lines + 1] = string.format("Target %q (id %s): health %s / %s%s%s, focus %s / %s",
-    tostring(ShroudGetTargetName()),
+  lines[#lines + 1] = string.format("Target \"%s\" (id %s): health %s / %s%s%s, focus %s / %s",
+    (tostring(ShroudGetTargetName()):gsub("\n", "\\n")),
     tostring(ShroudGetTargetId()), tostring(ShroudGetTargetCurrentHealth()), tostring(ShroudGetTargetMaxHealth()),
     ShroudIsTargetHealthHidden() and " (hidden)" or "", ShroudIsTargetDead() and " (dead)" or "",
     tostring(ShroudGetTargetCurrentFocus()), tostring(ShroudGetTargetMaxFocus()))

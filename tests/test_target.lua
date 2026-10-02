@@ -819,6 +819,14 @@ return function(t)
     t.eq(TG().IsPet("Wolf", 800, pet), false)
     t.eq(TG().IsPet("Rex", -1, pet), true, "no max to compare: the name")
     t.eq(TG().IsPet("Rex", 800, nil), false, "no pet out")
+    -- in game the pet's Name carried its owner on a second line (2026-10-02)
+    local kitty = { Name = "kitty\n<shawn>", MaxHealth = 1305, CurrentHealth = 1120 }
+    t.eq(TG().BaseName(kitty.Name), "kitty")
+    t.eq(TG().BaseName("Kitty <shawn>"), "kitty", "on one line too")
+    t.eq(TG().BaseName("<odd>"), "<odd>", "a name that is all tag stays")
+    t.eq(TG().IsPet("kitty", 1305, kitty), true, "the target frame's plain name")
+    t.eq(TG().IsPet("kitty\n<shawn>", 1305, kitty), true, "or the same form")
+    t.eq(TG().IsPet("Practice Dummy", 573811, kitty), false)
   end)
 
   t.test("leave out your pet: on by default; your pet as the target shows as none", function()
@@ -862,14 +870,14 @@ return function(t)
     H.boot()
     H.chat("/tbx target on")
     H.chat("/tbx target pet off")
-    H.setPet{ name = "Rex", hp = 500, maxHp = 800 }
+    H.setPet{ name = "Rex\n<you>", hp = 500, maxHp = 800 }
     H.setTarget{ id = 21, name = "Rex", hp = 500, maxHp = 800, effects = {} }
     local reads = H.S.petReads or 0
     H.advance(10)
     t.ok((H.S.petReads or 0) - reads <= 6, "every few seconds: " .. ((H.S.petReads or 0) - reads))
     H.clearLogs()
     H.chat("/tbx target debug")
-    t.ok(H.logged('Your pet: "Rex", health 500 / 800; leave out: on'), H.lastLog())
+    t.ok(H.logged('Your pet: "Rex\\n<you>" %(compared as "rex"%), health 500 / 800; leave out: on'), H.logs()[1])
     t.ok(H.logged("The target is your pet: yes"))
   end)
 
