@@ -91,16 +91,23 @@ return function(t)
     local pick = docs:Find("docs_pick")
     t.eq(pick.value, "Getting started")
     t.eq(#docs:Find("docs_body").children, 1, "only the first topic is built when it opens")
-    for _, topic in ipairs(pick.choices) do H.call(function() pick.onChange(pick, topic) end) end
-    t.eq(#docs:Find("docs_body").children, #pick.choices, "each topic built once picked")
     local texts, labels = {}, {}
-    for _, col in ipairs(docs:Find("docs_body").children) do
-      for _, label in ipairs(col.children) do
+    local biggest, biggestTopic = 0, ""
+    for _, topic in ipairs(pick.choices) do
+      H.call(function() pick.onChange(pick, topic) end)
+      local body = docs:Find("docs_body")
+      t.eq(#body.children, 1, "only the topic shown is built: " .. topic)
+      local size = 0
+      for _, label in ipairs(body.children[1].children) do
         texts[#texts + 1] = label.text
         labels[#labels + 1] = label
+        size = size + #label.text
+        t.ok(#label.text < 4096, "under the game's cut-off for one element's text: " .. topic)
       end
+      if size > biggest then biggest, biggestTopic = size, topic end
     end
-    t.eq(docs:Find("docs_body").children[1].visible, false, "only the picked topic shows")
+    -- the guide costs one topic of the add-on's 65,536 characters of on-screen text (with everything else)
+    t.ok(biggest < 6000, "each topic well inside the text budget: " .. biggestTopic .. " " .. biggest)
     local all = table.concat(texts, "\n")
     for _, heading in ipairs({ "Getting started", "XP", "Today", "Buff bar", "Health, focus & Vigor bars",
                                "Combat stats", "Moving the HUD strips", "Sounds", "Commands" }) do
@@ -116,9 +123,6 @@ return function(t)
     end
     H.chat("/tbx docs")
     t.no(docs:IsShown(), "the command toggles it")
-    local total = 0
-    for _, text in ipairs(texts) do total = total + #text end
-    t.ok(total < 20000, "well inside the 64 KiB text budget: " .. total)
   end)
 
   t.test("/tbx xp opens the XP window; xpdetailed and xpd open XP Detailed", function()

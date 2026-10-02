@@ -39,6 +39,35 @@ H.CREATE_BURST, H.CREATE_RATE = 500, 200
 H.MAX_WINDOWS = 8
 H.MAX_HUD_FRAMES = 8          -- docs: HUD frames per add-on
 H.MAX_ELEMENTS = 2000         -- docs: elements per add-on (live: made and not destroyed; S.live counts them)
+-- Docs: "65,536 characters of text in total (labels, buttons, toggle labels, tooltips, placeholders and
+-- dropdown choices all count)" per add-on. S.text counts the live elements' (S.textPeak the most seen); past
+-- the limit the harness raises (what the game does isn't documented: an error each tick would get the add-on
+-- disabled, so treat it as fatal).
+H.MAX_TEXT = 65536
+
+-- What an element's text costs against H.MAX_TEXT.
+local TEXT_KINDS = { Label = true, Button = true, Toggle = true }
+local function textCost(kind, e)
+  local n = 0
+  if TEXT_KINDS[kind] and type(e.text) == "string" then n = n + #e.text end
+  if type(e.tooltip) == "string" then n = n + #e.tooltip end
+  if type(e.placeholder) == "string" then n = n + #e.placeholder end
+  if type(e.choices) == "table" then
+    for _, c in ipairs(e.choices) do n = n + #tostring(c) end
+  end
+  return n
+end
+-- Charges element e's text now (after a change); raises past the limit.
+local function chargeText(e)
+  local cost = textCost(e.kind, e)
+  local delta = cost - (e.textCharged or 0)
+  if delta > 0 and (S.text or 0) + delta > H.MAX_TEXT then
+    error("Shroud.UI: this add-on's text is over " .. H.MAX_TEXT .. " characters", 3)
+  end
+  S.text = (S.text or 0) + delta
+  e.textCharged = cost
+  if S.text > (S.textPeak or 0) then S.textPeak = S.text end
+end
 
 -- A player action (typing a command, clicking, changing a control) happens at human speed, long
 -- after start-up, so the creation budget has refilled by then.
@@ -573,6 +602,7 @@ local function destroyTree(e)
   if type(e) ~= "table" or e.destroyed then return end
   e.destroyed = true
   S.live = math.max(0, (S.live or 0) - 1)
+  S.text = math.max(0, (S.text or 0) - (e.textCharged or 0))
   for _, c in ipairs(e.children or {}) do destroyTree(c) end
 end
 H.destroyTree = destroyTree
@@ -713,12 +743,27 @@ function Element:GetSize()
   return 200, h
 end
 function Element:IsVisible() return self.visible ~= false end
-function Element:SetText(t) self.text = t end
-function Element:SetTooltip(t) self.tooltip = t end
+function Element:SetText(t)
+  local was = self.text
+  self.text = t
+  local ok, err = pcall(chargeText, self)
+  if not ok then self.text = was; error(err, 2) end
+end
+function Element:SetTooltip(t)
+  local was = self.tooltip
+  self.tooltip = t
+  local ok, err = pcall(chargeText, self)
+  if not ok then self.tooltip = was; error(err, 2) end
+end
 function Element:GetText() return self.text end
 function Element:SetValue(v) self.value = v end
 -- Dropdown (docs): replace or read the choices; the 1-based index of the current one (0 for none).
-function Element:SetChoices(list) self.choices = copy(list) end
+function Element:SetChoices(list)
+  local was = self.choices
+  self.choices = copy(list)
+  local ok, err = pcall(chargeText, self)
+  if not ok then self.choices = was; error(err, 2) end
+end
 function Element:GetChoices() return copy(self.choices or {}) end
 function Element:GetIndex()
   for i, c in ipairs(self.choices or {}) do if c == self.value then return i end end
@@ -761,6 +806,9 @@ function H.makeUI()
       if (S.live or 0) >= H.MAX_ELEMENTS then
         error("Shroud.UI: this add-on already has " .. H.MAX_ELEMENTS .. " elements", 2)
       end
+      if (S.text or 0) + textCost(kind, spec) > H.MAX_TEXT then
+        error("Shroud.UI: this add-on's text is over " .. H.MAX_TEXT .. " characters", 2)
+      end
       S.live = (S.live or 0) + 1
       -- The game's element-creation cap: a burst of CREATE_BURST, refilling CREATE_RATE a second
       -- (AGENTS.md, "Limits"). Exceeding it raises, as in game (2026-09-28, Combat Detailed at start-up).
@@ -774,6 +822,7 @@ function H.makeUI()
       local e = setmetatable(copy(spec), Element)
       if type(e.style) == "table" then clampStyle(e.style) end
       e.kind = kind
+      chargeText(e)
       e.children = spec.children     -- keep the real child objects
       for _, c in ipairs(e.children or {}) do
         if type(c) == "table" then PARENT[c] = e end
@@ -945,6 +994,7 @@ function H.reload()
   S.stockHidden = false                -- the game releases an add-on's hide on reload
   S.commands, S.periodics, S.windows, S.keybinds = {}, {}, {}, {}
   S.live = 0                           -- the game removes every element the add-on made
+  S.text = 0
   local now = ShroudTime
   install_api()
   ShroudTime = now

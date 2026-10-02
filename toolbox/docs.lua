@@ -289,10 +289,12 @@ local function topicLabels(title)
   return out
 end
 
-local dbody = nil             -- the column the topics are added to
-local dbuilt = {}             -- title -> its column
+local dbody = nil             -- the column the topic is added to
+local dshown, dcol = nil, nil -- the topic built (its title and column): only the one shown
 
--- Shows one topic (by title), building it the first time. Returns true when shown.
+-- Shows one topic (by title). Only that one is built: switching destroys the previous one first, as the
+-- settings window does with its pages, so the guide costs one topic of the add-on's 65,536 characters of
+-- text, not all of them (owner, 2026-10-02). Returns true when shown.
 function D.ShowTopic(title)
   if not win then return false end
   local known = false
@@ -300,15 +302,16 @@ function D.ShowTopic(title)
     if t == title then known = true end
   end
   if not known then return false end
-  if not dbuilt[title] then
+  if dshown ~= title then
+    if dcol then pcall(function() dcol:Destroy() end) end
+    dcol, dshown = nil, nil
     local ok, col = pcall(function() return dbody:Add(UI.Column{ children = topicLabels(title) }) end)
     if not ok then
       T.Print("That part of the guide can't be shown right now; pick it again in a moment.")
       return false
     end
-    dbuilt[title] = col
+    dcol, dshown = col, title
   end
-  for t, col in pairs(dbuilt) do T.SetVisible(col, t == title) end
   local pick = win:Find("docs_pick")
   if pick then pick:SetValue(title) end
   return true
@@ -317,7 +320,7 @@ end
 local function build()
   local topics = D.Topics()
   dbody = UI.Column{ id = "docs_body", style = { paddingLeft = GUTTER, paddingRight = GUTTER } }
-  dbuilt = {}
+  dshown, dcol = nil, nil
   win = UI.Window{
     id = WINDOW_ID, title = "Toolbox Docs",
     width = 460, height = 520, minWidth = 300, minHeight = 200,

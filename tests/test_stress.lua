@@ -235,6 +235,61 @@ return function(t)
     within("heavy combat", LIMITS.combat, calls, kb, made)
   end)
 
+  -- The add-on's on-screen text (docs: 65,536 characters per add-on, labels, tooltips, choices...) at its
+  -- worst: a veteran's data, every window and strip open, full bars and a target, a full notification
+  -- history, then each settings page and every guide topic and the version window in turn. Measured
+  -- 2026-10-02: 35,094 characters with everything open, 40,327 at the peak; most of it is the 30 buff and
+  -- 8 target tooltips (~400 characters each here: the game cuts a tooltip at 512). STRESS_PRINT=1 prints it.
+  -- The limit leaves room for the game counting more than the harness.
+  LIMITS.text = 48000
+  t.test("on-screen text at its worst stays well inside the game's 65,536 characters", function()
+    H.boot(veteranDisk(false))
+    H.advance(70)
+    openEverything()
+    if not Toolbox.BuffBar.IsEnabled() then H.chat("/tbx buffs") end   -- the veteran's was on: the toggle hid it
+    H.chat("/tbx buffs group after off")
+    H.chat("/tbx target on")
+    H.chat("/tbx target text on")
+    local effects = {}
+    for i = 1, 10 do
+      effects[i] = { name = "Effect " .. i, remaining = 20 + i, total = 60, icon = 80 + i, debuff = i % 2 == 0,
+                     tooltip = string.rep("A long effect description. ", 18) }
+    end
+    H.setTarget{ id = 3, name = "An Ancient Elder Dragon of the Northern Wastes", hp = 900000, maxHp = 1000000,
+                 focus = 400, maxFocus = 500, effects = effects }
+    local list, tip = {}, string.rep("What this effect does, at length. ", 12)    -- ~400 characters
+    for i = 1, 20 do list[#list + 1] = { name = "Buff" .. i, remaining = 90 + i * 60, icon = i, tooltip = tip } end
+    for i = 1, 10 do
+      list[#list + 1] = { name = "Bane" .. i, remaining = 80 + i * 10, icon = 40 + i, debuff = true, tooltip = tip }
+    end
+    H.addBuffs(list)
+    for n = 1, Toolbox.Notify.Hud.KEEP do
+      H.setMotd(string.rep("Guild news, line " .. n .. ". ", 12))
+      H.advance(1)
+    end
+    H.advance(10)
+    noErrors("everything open")
+    t.eq(#H.slots("buffs") + #H.slots("debuffs"), 30, "every buff and debuff on the bar")
+    t.eq(#H.targetSlots(), Toolbox.Target.SLOTS)
+    t.eq(Toolbox.Notify.Hud.Count(), Toolbox.Notify.Hud.KEEP)
+    local base = H.S.text
+    H.chat("/tbx config")
+    local cats = H.configRaw():Find("category")
+    for _, label in ipairs(cats.choices) do H.change("toolbox_config", "category", label) end
+    H.chat("/tbx docs")
+    local pick = H.S.windows.toolbox_docs:Find("docs_pick")
+    for _, topic in ipairs(pick.choices) do H.call(function() pick.onChange(pick, topic) end) end
+    H.chat("/tbx version")
+    H.advance(5)
+    noErrors("settings, the guide and the version window")
+    if os.getenv("STRESS_PRINT") then
+      print(string.format("  text: %d characters with everything open, %d at the peak (limit %d)", base,
+        H.S.textPeak, LIMITS.text))
+    end
+    t.ok(H.S.textPeak <= LIMITS.text, string.format("at most %d characters of text on screen: %d",
+      LIMITS.text, H.S.textPeak))
+  end)
+
   t.test("maximum saved data with corrupted entries: loads, keeps what is valid, drops the rest", function()
     H.boot(veteranDisk(true))
     H.advance(70)
