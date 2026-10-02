@@ -706,6 +706,8 @@ local function countStyle(s, f, dx, dy)
            paddingLeft = dx > 0 and 2 * dx or 0, paddingRight = dx < 0 and -2 * dx or 0,
            fontSize = f, fontStyle = "bold", textAlign = "center" }
 end
+-- Shared with the skill activity strip (a skill's level over its icon, the same way).
+BB.CountStyle, BB.CountFont = countStyle, countFont
 
 -- A dim name shown in an empty strip while the settings window is open, so there is something to
 -- place (owner, 2026-09-29): BB.PLACEHOLDER_CELLS icon cells wide.

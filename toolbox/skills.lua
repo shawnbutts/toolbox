@@ -1,9 +1,10 @@
 -- Toolbox: skills.lua
 -- The skill activity strip (/toolbox skills): like the game's bar of skills along the right, the icons of
 -- the skills that just levelled (or changed mode, or, if chosen, gained any experience) pop up on a HUD
--- strip of their own, newest first, each with its level, progress to the next and its mode as the colour of
--- its frame; they fade out a while after their last change. Vertical or horizontal. Plus a "Skill level ups"
--- notification, delivered on the notification HUD only (never a window to close; owner, 2026-10-02).
+-- strip of their own, newest first, each with its level over the icon (outlined, like the buff bar's count),
+-- a progress bar to the next level (green while it rises, red while it falls) and its mode as the colour of
+-- its frame; they go a while after their last change (or stay: "Always"). Vertical or horizontal. Plus a
+-- "Skill level ups" notification, on the notification HUD only (never a window to close; owner, 2026-10-02).
 --
 -- The API has the skills read-only (ShroudGetSkills: icon, level, progress, mode "Learning" / "Maintaining" /
 -- "Unlearning" / "NotLearning"): there is no way to train, maintain or unlearn from an add-on, so a click
@@ -26,8 +27,8 @@
 -- bursts). They are Toolbox.Sounds definitions, so a player's own file works as for the other alerts.
 --
 -- Saved var "skills": { show = bool (default false), vertical = bool (default true), slots = 1..12,
--- stay = seconds (SK.STAY_CHOICES), trigger = "levels" | "xp", size = 20..48, soundUp = bool (default true),
--- soundDown = bool (default true), x, y }.
+-- stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels" | "xp", size = 20..48, number = bool
+-- (the level on the icon, default true), soundUp = bool (default true), soundDown = bool (default true), x, y }.
 
 local T = Toolbox
 local SK = {}
@@ -45,7 +46,11 @@ SK.XP_EVERY = 1                       -- ... with "Any experience"
 SK.SLOTS_MIN, SK.SLOTS_MAX, SK.SLOTS_DEFAULT = 1, 12, 6
 SK.SIZE_MIN, SK.SIZE_MAX, SK.SIZE_DEFAULT = 20, 48, 32
 SK.STAY_CHOICES = { { 10, "10 seconds" }, { 20, "20 seconds" }, { 30, "30 seconds" }, { 60, "1 minute" },
-                    { 120, "2 minutes" }, { 300, "5 minutes" } }
+                    { 120, "2 minutes" }, { 300, "5 minutes" }, { 0, "Always" } }   -- 0: never goes
+-- The progress bar's colour by the way the skill last moved (none yet: gold).
+SK.DIR_COLORS = { up = "@green", down = "@red" }
+SK.BAR_COLOR = "@gold"
+SK.NUMBER_COLOR = "@text-bright"
 SK.STAY_DEFAULT = 30
 SK.NEW_FOR = 10                       -- seconds a new level shows in gold
 SK.GAP = 3
@@ -102,7 +107,7 @@ function SK.Read(list)
   return out
 end
 
-local function touch(st, r, now, levelled, keep)
+local function touch(st, r, now, levelled, keep, dir)
   local entry = nil
   for i, e in ipairs(st.active) do
     if e.id == r.id then
@@ -113,6 +118,7 @@ local function touch(st, r, now, levelled, keep)
   entry = entry or { id = r.id, levelAt = -math.huge }
   entry.at, entry.data = now, r
   if levelled then entry.levelAt = now end
+  if dir then entry.dir = dir end
   table.insert(st.active, 1, entry)
   for i = #st.active, keep + 1, -1 do st.active[i] = nil end
 end
@@ -127,13 +133,22 @@ function SK.Update(st, readings, now, trigger, keep)
     local p = st.prev[r.id]
     if p then
       local levelled, moded = r.level ~= p.level, r.mode ~= p.mode
+      -- which way it moved: up (a level, or experience at the same level) or down
+      local dir = nil
+      if r.level > p.level or (r.level == p.level and r.exp > p.exp) then
+        dir = "up"
+      elseif r.level < p.level or (r.level == p.level and r.exp < p.exp) then
+        dir = "down"
+      end
       if levelled or moded or (trigger == "xp" and r.exp ~= p.exp) then
-        touch(st, r, now, levelled, keep)
+        touch(st, r, now, levelled, keep, dir)
         changed = true
       else
         for _, e in ipairs(st.active) do
-          if e.id == r.id and (e.data.progress ~= r.progress or e.data.trained ~= r.trained) then
+          local d = e.data
+          if e.id == r.id and (d.progress ~= r.progress or d.trained ~= r.trained or d.exp ~= r.exp) then
             e.data, changed = r, true          -- on the strip already: its progress moves
+            if dir then e.dir = dir end
           end
         end
       end
@@ -157,8 +172,9 @@ function SK.Update(st, readings, now, trigger, keep)
   return changed
 end
 
--- Drops the skills quiet for longer than `stay` seconds. True when any went. Pure.
+-- Drops the skills quiet for longer than `stay` seconds (0: none ever). True when any went. Pure.
 function SK.Expire(st, now, stay)
+  if stay <= 0 then return false end
   local gone = false
   for i = #st.active, 1, -1 do
     if now - st.active[i].at > stay then
@@ -205,9 +221,9 @@ local function slotCount() return prefs.slots or SK.SLOTS_DEFAULT end
 local function stay() return prefs.stay or SK.STAY_DEFAULT end
 local function trigger() return prefs.trigger or "levels" end
 local function font(s) return math.max(9, math.min(32, math.floor(s * 0.36 + 0.5))) end
-local function lineH(s) return math.ceil(font(s) * 1.15) + 1 end
+local function numberShown() return prefs.number ~= false end
 local BAR_H = 3
-local function slotH(s) return s + 1 + BAR_H + lineH(s) end
+local function slotH(s) return s + 1 + BAR_H end
 
 -- How many skills the strip shows now.
 local function showing()
@@ -225,10 +241,18 @@ local function slotStyles(s)
            marginBottom = prefs.vertical == false and 0 or SK.GAP },
          { width = s, height = s, minHeight = s, borderWidth = 2, borderColor = "#00000000",
            backgroundColor = "#00000066" },
-         { width = s, height = BAR_H, minHeight = BAR_H, maxHeight = BAR_H, marginTop = 1 },
-         { width = s, height = lineH(s), minHeight = lineH(s), maxHeight = lineH(s), fontSize = font(s),
-           textAlign = "center", whiteSpace = "nowrap", marginLeft = 0, marginRight = 0, marginTop = 0,
-           marginBottom = 0, paddingTop = 0, paddingBottom = 0 }
+         { width = s, height = BAR_H, minHeight = BAR_H, maxHeight = BAR_H, marginTop = 1 }
+end
+
+-- The level over the icon: the buff bar's count style (BB.CountStyle), a dark copy nudged each way
+-- (BB.COUNT_OUTLINE) under the bright one, so it reads on any icon. Index #outline + 1 is the bright one,
+-- whose colour Fill sets (gold when new); `sizeOnly` leaves the outline's colour out too (a resize).
+local function numberStyle(s, i, sizeOnly)
+  local BB = T.BuffBar
+  local d = BB.COUNT_OUTLINE[i] or { 0, 0 }
+  local style = BB.CountStyle(s, BB.CountFont(s), d[1], d[2])
+  if BB.COUNT_OUTLINE[i] and not sizeOnly then style.color = BB.OUTLINE_COLOR end
+  return style
 end
 
 local function placeholderStyle(s)
@@ -246,7 +270,7 @@ end
 
 function SK.BuildContent()
   local s = size()
-  local slotS, frameS, barS, labelS = slotStyles(s)
+  local slotS, frameS, barS = slotStyles(s)
   slots = {}
   local children = {}
   placeholder = UI.Label{ id = "sk_placeholder", text = SK.PLACEHOLDER, class = "dim", visible = false,
@@ -254,11 +278,16 @@ function SK.BuildContent()
   children[1] = placeholder
   for i = 1, slotCount() do
     local icon = UI.Image{ width = s, height = s, onClick = openSkills }   -- a click handler: its tooltip shows
-    local frame = UI.Row{ children = { icon }, style = frameS }
-    local bar = UI.Bar{ value = 0, color = "@gold", style = barS }
-    local label = UI.Label{ text = "", class = "text", style = labelS }
-    local col = UI.Column{ id = "sk_" .. i, visible = false, style = slotS, children = { frame, bar, label } }
-    slots[i] = { col = col, icon = icon, frame = frame, bar = bar, label = label }
+    local kids, numbers = { icon }, {}
+    for j = 1, #T.BuffBar.COUNT_OUTLINE + 1 do                            -- the outline, then the bright one
+      numbers[j] = UI.Label{ text = "", class = "bright", visible = numberShown(), style = numberStyle(s, j) }
+      kids[#kids + 1] = numbers[j]
+    end
+    local frame = UI.Row{ children = kids, style = frameS }
+    local bar = UI.Bar{ value = 0, color = SK.BAR_COLOR, style = barS }
+    local col = UI.Column{ id = "sk_" .. i, visible = false, style = slotS, children = { frame, bar } }
+    slots[i] = { col = col, icon = icon, frame = frame, bar = bar, numbers = numbers, label = numbers[#numbers],
+                 barColor = SK.BAR_COLOR }
     children[#children + 1] = col
   end
   if prefs.vertical == false then
@@ -299,10 +328,20 @@ function SK.Fill()
       T.SetVisible(slot.icon, r.icon >= 0)
       T.SetStyle(slot.frame, { borderColor = (SK.MODES[r.mode] or SK.MODES.NotLearning).color })
       T.SetValue(slot.bar, r.progress)
-      T.SetText(slot.label, tostring(math.floor(r.level)))
+      local barColor = SK.DIR_COLORS[e.dir] or SK.BAR_COLOR
+      if barColor ~= slot.barColor then
+        slot.barColor = barColor
+        slot.bar:SetColor(barColor)
+      end
+      local level = tostring(math.floor(r.level))
+      local tip = SK.Tooltip(r)
+      for _, label in ipairs(slot.numbers) do
+        T.SetText(label, level)
+        T.SetTooltip(label, tip)                     -- the level covers the icon: the pointer may be on it
+      end
       local fresh = now - e.levelAt < SK.NEW_FOR
-      T.SetStyle(slot.label, { color = fresh and "@gold" or "@text" })
-      T.SetTooltip(slot.icon, SK.Tooltip(r))
+      T.SetStyle(slot.label, { color = fresh and "@gold" or SK.NUMBER_COLOR })
+      T.SetTooltip(slot.icon, tip)
     end
     T.SetVisible(slot.col, e ~= nil)
   end
@@ -317,13 +356,13 @@ end
 local function applySize()
   if not content then return end
   local s = size()
-  local slotS, frameS, barS, labelS = slotStyles(s)
+  local slotS, frameS, barS = slotStyles(s)
   for _, slot in ipairs(slots) do
     slot.col:SetStyle(slotS)
     slot.frame:SetStyle{ width = frameS.width, height = frameS.height, minHeight = frameS.minHeight }
     slot.icon:SetSize(s, s)
     slot.bar:SetStyle(barS)
-    slot.label:SetStyle(labelS)
+    for j, label in ipairs(slot.numbers) do label:SetStyle(numberStyle(s, j, true)) end
   end
   placeholder:SetStyle(placeholderStyle(s))
   T.Hud.Refresh()
@@ -468,6 +507,16 @@ function SK.SetSoundDown(on)
   save()
 end
 
+-- The level over the icon.
+function SK.GetNumber() return numberShown() end
+function SK.SetNumber(on)
+  prefs.number = on == true
+  save()
+  for _, slot in ipairs(slots) do
+    for _, n in ipairs(slot.numbers) do T.SetVisible(n, prefs.number) end
+  end
+end
+
 function SK.GetTrigger() return trigger() end
 function SK.SetTrigger(which)
   if not SK.TRIGGER_LABELS[which] then return false end
@@ -490,6 +539,7 @@ function SK.Init()
     prefs.size = int(saved.size, SK.SIZE_MIN, SK.SIZE_MAX)
     if SK.StayLabel(saved.stay) then prefs.stay = saved.stay end
     if SK.TRIGGER_LABELS[saved.trigger] then prefs.trigger = saved.trigger end
+    prefs.number = saved.number ~= false
     prefs.soundUp = saved.soundUp ~= false
     prefs.soundDown = saved.soundDown ~= false
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
@@ -519,7 +569,8 @@ end
 
 -- The settings page (config.lua builds it with its helpers `h`): the controls' ids in CONFIG_IDS.
 SK.CONFIG_IDS = { "skills_show", "skills_vertical", "skills_trigger", "skills_stay", "skills_slots",
-                  "skills_slots_value", "skills_size", "skills_size_value", "skills_sound_up", "skills_sound_down" }
+                  "skills_slots_value", "skills_size", "skills_size_value", "skills_number", "skills_sound_up",
+                  "skills_sound_down" }
 
 function SK.ConfigSection(h)
   local stays, triggers = {}, {}
@@ -527,9 +578,10 @@ function SK.ConfigSection(h)
   for i, key in ipairs(SK.TRIGGERS) do triggers[i] = SK.TRIGGER_LABELS[key] end
   return UI.Column{ children = {
     h.heading(SK.PAGE, true),
-    UI.Label{ text = "Your skills' icons pop up on a strip of their own as they level, with the level, the"
-      .. " progress to the next and the mode as the colour of the frame: green training, blue maintaining,"
-      .. " red unlearning. Click one to open the game's Skills window.", class = "dim",
+    UI.Label{ text = "Your skills' icons pop up on a strip of their own as they level, with the level on the"
+      .. " icon, a bar of the progress to the next (green rising, red falling) and the mode as the colour of the"
+      .. " frame: green training, blue maintaining, red unlearning. Click one to open the game's Skills window.",
+      class = "dim",
       style = { whiteSpace = "wrap" } },
     UI.Toggle{ id = "skills_show", text = "Show the skill activity strip", value = SK.GetShow(),
       onChange = function(_, v) SK.SetShow(v) end },
@@ -542,7 +594,7 @@ function SK.ConfigSection(h)
         for key, l in pairs(SK.TRIGGER_LABELS) do if l == label then SK.SetTrigger(key) end end
       end }),
     h.dropdownRow("Keep it for", { id = "skills_stay", choices = stays, value = SK.StayLabel(stay()) or stays[1],
-      tooltip = "How long a skill stays after its last change",
+      tooltip = "How long a skill stays after its last change (Always: until newer ones need its place)",
       onChange = function(_, label)
         for _, c in ipairs(SK.STAY_CHOICES) do if c[2] == label then SK.SetStay(c[1]) end end
       end }),
@@ -550,6 +602,9 @@ function SK.ConfigSection(h)
       "When more are active, the one quiet longest makes room", function(n) SK.SetSlots(n) end),
     h.slider("skills_size", "Icon size", SK.SIZE_MIN, SK.SIZE_MAX, 2, size(), "The icons' size in pixels",
       function(n) SK.SetSize(n) end),
+    UI.Toggle{ id = "skills_number", text = "Show the level on the icon", value = SK.GetNumber(),
+      tooltip = "The skill's level over its icon (gold just after it levels); its tooltip has it either way",
+      onChange = function(_, v) SK.SetNumber(v) end },
     UI.Toggle{ id = "skills_sound_up", text = "Sound when a skill gains a level", value = SK.GetSoundUp(),
       style = { marginTop = 6 },
       tooltip = "A short celebration (at most one every few seconds). Pick your own file on the Sounds page",
@@ -570,9 +625,11 @@ function SK.ConfigSync(h)
   h.setValue("skills_stay", SK.StayLabel(stay()))
   h.sliderValue("skills_slots", slotCount())
   h.sliderValue("skills_size", size())
+  h.setValue("skills_number", SK.GetNumber())
   h.setValue("skills_sound_up", SK.GetSoundUp())
   h.setValue("skills_sound_down", SK.GetSoundDown())
-  for _, id in ipairs({ "skills_vertical", "skills_trigger", "skills_stay", "skills_slots", "skills_size" }) do
+  for _, id in ipairs({ "skills_vertical", "skills_trigger", "skills_stay", "skills_slots", "skills_size",
+                        "skills_number" }) do
     h.setEnabled(id, prefs.show == true)
   end
 end
@@ -607,11 +664,13 @@ do
   local topic = { SK.PAGE,
     "/toolbox skills shows a strip of the skills you're levelling, like the game's own along the right: each "
       .. "icon pops up as the skill levels (or changes mode, or with \"Any experience\", gains any), with its "
-      .. "level (gold when new), its progress to the next and its mode as the frame's colour: green training, "
-      .. "blue maintaining, red unlearning. It goes after a while with no change (Keep it for). Hover for "
-      .. "details; click to open the game's Skills window (add-ons can't change a skill's mode).",
-    "Settings, Skill activity: vertical or horizontal, what shows a skill, how long it stays, how many show "
-      .. "and the icon size. Notifications has \"Skill level ups\" for the notification HUD (off by default).",
+      .. "level on it (gold when new), a bar of its progress to the next (green while it rises, red while it "
+      .. "falls) and its mode as the frame's colour: green training, blue maintaining, red unlearning. It goes "
+      .. "after a while with no change (Keep it for; Always keeps it). Hover for details; click to open the "
+      .. "game's Skills window (add-ons can't change a skill's mode).",
+    "Settings, Skill activity: vertical or horizontal, what shows a skill, how long it stays, how many show, "
+      .. "the icon size and whether the level shows on it. Notifications has \"Skill level ups\" for the "
+      .. "notification HUD (off by default).",
     "A short celebration plays when a skill gains a level, a sad one when it loses one (each can be switched "
       .. "off; /toolbox skills sound off for both). Your own file: the Sounds page, or toolbox_skill_up.ogg / "
       .. "toolbox_skill_down.ogg (or .wav) in your Lua folder." }

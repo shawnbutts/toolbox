@@ -326,7 +326,7 @@ character" sentinel.
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most 20 (which are new, `fresh`, is kept in memory only) |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last, day, at } } }`, at most `P.MAX_KEEP` |
 | `welcomed` (ACCOUNT scope) | set after the first-run welcome |
-| `skills` | `{ show = bool (default false), vertical = bool (default true), slots = 1..12, stay = seconds (SK.STAY_CHOICES), trigger = "levels"/"xp", size = 20..48, soundUp = bool, soundDown = bool (both default true), x, y }` (skills.lua) |
+| `skills` | `{ show = bool (default false), vertical = bool (default true), slots = 1..12, stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels"/"xp", size = 20..48, number = bool (the level on the icon, default true), soundUp = bool, soundDown = bool (both default true), x, y }` (skills.lua) |
 | `settings_pending` | `{ kind = "reset" }`: done and deleted at the next start |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
