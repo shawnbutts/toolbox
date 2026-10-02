@@ -209,7 +209,8 @@ into one if a new file is ever needed).
   with trigger "xp", puts a skill on top; one slot per skill) / `SK.Expire` / `SK.UpsText`. Reads are throttled
   (an event only marks them; `SK.QUIET_EVERY` / `SK.XP_EVERY`). Its sounds (skill_up / skill_down,
   `S.DEFS` entries it appends) play at most once per `SK.SOUND_GAP` s each; the level-up one stays quiet when
-  the "Skill level ups" notification plays its own sound. Skills are read-only in the API: a click opens
+  the "Skill level ups" notification plays its own sound. It also appends them to `N.SOUNDS` ("Celebration",
+  "Sad notes"), and its source's `soundKey = "skill_up"` (a source's default sound, else "notify"). Skills are read-only in the API: a click opens
   the game's Skills window (`ShroudToggleWindow`, on the gesture). Removal steps are in its header.
 - `config.lua`: `Toolbox.Config`, the settings window. Categories (`C.CATEGORIES`, the "Settings" dropdown;
   Toolbelt first): only the one shown is built; switching destroys the previous one first (every page kept

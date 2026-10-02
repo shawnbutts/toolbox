@@ -645,11 +645,15 @@ T.Backup.KEYS[#T.Backup.KEYS + 1] = "skills"
 -- its sounds: the Sounds page lists them (Test, a custom file), and Lua/toolbox_skill_up.ogg replaces one
 T.Sounds.DEFS[#T.Sounds.DEFS + 1] = { key = "skill_up", file = "skill_up.ogg", label = "Skill level up" }
 T.Sounds.DEFS[#T.Sounds.DEFS + 1] = { key = "skill_down", file = "skill_down.ogg", label = "Skill level down" }
+-- ... and any notification can play them (Sounds page, Notification sounds)
+T.Notify.SOUNDS[#T.Notify.SOUNDS + 1] = { "skill_up", "Celebration" }
+T.Notify.SOUNDS[#T.Notify.SOUNDS + 1] = { "skill_down", "Sad notes" }
 
 -- "Skill level ups": on the notification HUD only (owner, 2026-10-02), off by default. Transient: the
 -- numbers restart with the add-on.
 T.Notify.SOURCES[#T.Notify.SOURCES + 1] = {
   key = "skills", label = "Skill level ups", default = false, via = "hud", vias = { "hud" }, transient = true,
+  soundKey = "skill_up",                       -- "+ sound" plays the celebration (any other can be picked)
   tip = "Your skills' new levels, on the notification HUD (never a window)",
   Check = function(seen)
     if not state then return nil end
@@ -672,7 +676,8 @@ do
       .. "the icon size and whether the level shows on it. Notifications has \"Skill level ups\" for the "
       .. "notification HUD (off by default).",
     "A short celebration plays when a skill gains a level, a sad one when it loses one (each can be switched "
-      .. "off; /toolbox skills sound off for both). Your own file: the Sounds page, or toolbox_skill_up.ogg / "
+      .. "off; /toolbox skills sound off for both). Any notification can use them too (Sounds page: Celebration, "
+      .. "Sad notes); Skill level ups uses Celebration. Your own file: the Sounds page, or toolbox_skill_up.ogg / "
       .. "toolbox_skill_down.ogg (or .wav) in your Lua folder." }
   local at = #T.Docs.SECTIONS + 1
   for i, s in ipairs(T.Docs.SECTIONS) do

@@ -1072,7 +1072,9 @@ local function prefsNow()
   if type(f) == "number" and f >= T.Window.FONT_MIN and f <= T.Window.FONT_MAX then nprefs.font = math.floor(f) end
   for _, src in ipairs(N.SOURCES) do
     local s = type(stored[src.key]) == "table" and stored[src.key] or {}
-    local sp = { on = src.default, via = src.via or N.DELIVERY_DEFAULT, sound = false, soundKey = "notify" }
+    -- a source may pick its own default sound (skill level ups: skills.lua's celebration)
+    local sp = { on = src.default, via = src.via or N.DELIVERY_DEFAULT, sound = false,
+                 soundKey = src.soundKey or "notify" }
     if type(s.on) == "boolean" then sp.on = s.on end
     if s.sound == true then sp.sound = true end
     if N.SoundLabel(s.soundKey) then sp.soundKey = s.soundKey end
