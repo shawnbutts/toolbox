@@ -24,8 +24,9 @@
 -- parts of both READMEs, CHANGELOG and AGENTS.md. The guarded lines elsewhere can stay.
 --
 -- Sounds (owner, 2026-10-02): a short celebration when a skill gains a level (skill_up) and a sad one when it
--- loses one (skill_down), each optional, at most one of each per SK.SOUND_GAP s (early levels come in
--- bursts). They are Toolbox.Sounds definitions, so a player's own file works as for the other alerts.
+-- loses one (skill_down), each optional, played with the strip on (with it off, only the notification's own
+-- "+ sound"), at most one of each per SK.SOUND_GAP s (early levels come in bursts). They are Toolbox.Sounds
+-- definitions, so a player's own file works as for the other alerts.
 --
 -- Saved var "skills": { show = bool (default false), vertical = bool (default true), slots = 1..12,
 -- stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels" | "xp", size = 20..48, number = bool
@@ -133,12 +134,14 @@ function SK.Update(st, readings, now, trigger, keep)
   for _, r in ipairs(readings) do
     local p = st.prev[r.id]
     if p then
-      local levelled, moded = r.level ~= p.level, r.mode ~= p.mode
+      -- Levels are the TRAINED level: `level` is the tile's, capped in some scenes, and a capped scene would
+      -- read as every skill losing levels (review, 2026-10-02).
+      local levelled, moded = r.trained ~= p.trained, r.mode ~= p.mode
       -- which way it moved: up (a level, or experience at the same level) or down
       local dir = nil
-      if r.level > p.level or (r.level == p.level and r.exp > p.exp) then
+      if r.trained > p.trained or (r.trained == p.trained and r.exp > p.exp) then
         dir = "up"
-      elseif r.level < p.level or (r.level == p.level and r.exp < p.exp) then
+      elseif r.trained < p.trained or (r.trained == p.trained and r.exp < p.exp) then
         dir = "down"
       end
       if levelled or moded or (trigger == "xp" and r.exp ~= p.exp) then
@@ -147,22 +150,22 @@ function SK.Update(st, readings, now, trigger, keep)
       else
         for _, e in ipairs(st.active) do
           local d = e.data
-          if e.id == r.id and (d.progress ~= r.progress or d.trained ~= r.trained or d.exp ~= r.exp) then
+          if e.id == r.id and (d.progress ~= r.progress or d.level ~= r.level or d.exp ~= r.exp) then
             e.data, changed = r, true          -- on the strip already: its progress moves
             if dir then e.dir = dir end
           end
         end
       end
-      if r.level ~= p.level then
-        if r.level > p.level then st.ups = st.ups + 1 else st.downs = st.downs + 1 end   -- for the sounds
+      if levelled then
+        if r.trained > p.trained then st.ups = st.ups + 1 else st.downs = st.downs + 1 end   -- for the sounds
         local ch = st.changes
         ch.n = ch.n + 1
-        ch.list[#ch.list + 1] = { id = ch.n, name = r.name, from = p.level, to = r.level }
+        ch.list[#ch.list + 1] = { id = ch.n, name = r.name, from = p.trained, to = r.trained }
         if #ch.list > 20 then table.remove(ch.list, 1) end
       end
-      p.level, p.mode, p.exp = r.level, r.mode, r.exp
+      p.trained, p.mode, p.exp = r.trained, r.mode, r.exp
     else
-      st.prev[r.id] = { level = r.level, mode = r.mode, exp = r.exp }
+      st.prev[r.id] = { trained = r.trained, mode = r.mode, exp = r.exp }
       if st.based then                         -- a skill learned just now
         touch(st, r, now, true, keep)
         changed = true
@@ -214,10 +217,11 @@ function SK.ChangesText(changes, seen)
 end
 
 -- A slot's tooltip (pure).
+-- The level shown is the trained one (the skill's own); a scene's cap is mentioned when it applies.
 function SK.Tooltip(r)
   local mode = SK.MODES[r.mode] or SK.MODES.NotLearning
-  local line = string.format("Level %d", math.floor(r.level))
-  if r.trained ~= r.level then line = line .. string.format(" (trained %d)", math.floor(r.trained)) end
+  local line = string.format("Level %d", math.floor(r.trained))
+  if r.level ~= r.trained then line = line .. string.format(" (%d in this scene)", math.floor(r.level)) end
   return r.name .. "\n" .. line .. string.format(", %d%% to the next", math.floor(r.progress * 100))
     .. "\n" .. mode.label .. "\nClick: open the Skills window"
 end
@@ -343,7 +347,7 @@ function SK.Fill()
         slot.barColor = barColor
         slot.bar:SetColor(barColor)
       end
-      local level = tostring(math.floor(r.level))
+      local level = tostring(math.floor(r.trained))   -- the skill's own level, not the scene's cap
       local tip = SK.Tooltip(r)
       for _, label in ipairs(slot.numbers) do
         T.SetText(label, level)
@@ -405,16 +409,18 @@ local function readNow(now)
   local ok, list = pcall(ShroudGetSkills)
   if not ok or list == nil then return end
   local who = ShroudGetPlayerName()
-  if who ~= readFor then                            -- another character: a new baseline
-    readFor, state = who, SK.NewState(state.changes)
+  if who ~= readFor then                            -- another character: a new baseline AND a new sequence:
+    readFor, state = who, SK.NewState()             -- the notification's memory is per character too
+    SK.Fill()
   end
   lastRead, needRead, xpDirty = now, false, false
   local before, upsBefore, downsBefore = state.changes.n, state.ups, state.downs
   if SK.Update(state, SK.Read(list), now, trigger(), SK.SLOTS_MAX) then SK.Fill() end
   if state.changes.n ~= before then
-    -- the "Skill level changes" notification with "+ sound" plays the notification's sound: not both
+    -- The strip's own sounds belong to the strip: with it off, only the notification's "+ sound" plays
+    -- (review, 2026-10-02); and with that on, the notification's sound alone, not both.
     local notifySound = T.Notify.IsOn("skills") and T.Notify.GetSound("skills")
-    if not notifySound then
+    if prefs.show == true and not notifySound then
       if state.ups ~= upsBefore and prefs.soundUp ~= false then SK.PlaySound("skill_up", now) end
       if state.downs ~= downsBefore and prefs.soundDown ~= false then SK.PlaySound("skill_down", now) end
     end
@@ -619,10 +625,11 @@ function SK.ConfigSection(h)
       onChange = function(_, v) SK.SetNumber(v) end },
     UI.Toggle{ id = "skills_sound_up", text = "Sound when a skill gains a level", value = SK.GetSoundUp(),
       style = { marginTop = 6 },
-      tooltip = "A short celebration (at most one every few seconds). Pick your own file on the Sounds page",
+      tooltip = "A short celebration (at most one every few seconds), while the strip is on. Pick your own file"
+        .. " on the Sounds page",
       onChange = function(_, v) SK.SetSoundUp(v) end },
     UI.Toggle{ id = "skills_sound_down", text = "Sound when a skill loses a level", value = SK.GetSoundDown(),
-      tooltip = "A sad one, for unlearning or decay. Pick your own file on the Sounds page",
+      tooltip = "A sad one, for unlearning or decay, while the strip is on. Pick your own file on the Sounds page",
       onChange = function(_, v) SK.SetSoundDown(v) end },
     UI.Label{ text = "A \"Skill level changes\" notification (Notifications page) can list them on the"
       .. " notification HUD too. Move the strip under HUD layout, or by its grip.", class = "dim",
@@ -669,7 +676,8 @@ T.Notify.SOURCES[#T.Notify.SOURCES + 1] = {
   soundKey = "skill_up",                       -- "+ sound" plays the celebration (any other can be picked)
   tip = "When your skills gain or lose a level, on the notification HUD (never a window)",
   Check = function(seen)
-    if not state then return nil end
+    -- only this character's changes (a switch is noticed at the next reading, maybe after this check)
+    if not state or readFor == nil or readFor ~= ShroudGetPlayerName() then return nil end
     local text, n, allDown = SK.ChangesText(state.changes, seen)
     if not text then return nil end
     local notice = { title = "Skill level changes", text = text, seen = n }

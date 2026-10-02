@@ -57,6 +57,26 @@ return function(t)
     t.eq(st.active[1].data.level, 32)
   end)
 
+  t.test("Update: a scene's cap on the tile level isn't a level change; a trained level is", function()
+    H.boot()
+    local st = SK().NewState()
+    SK().Update(st, SK().Read(sheet(BASE)), 0, "levels", 12)
+    -- a capped scene: every tile shows 20 or less, the trained levels don't move (review, 2026-10-02)
+    local capped = sheet(BASE)
+    for _, sk in ipairs(capped) do sk.level = math.min(sk.level, 20) end
+    t.eq(SK().Update(st, SK().Read(capped), 1, "levels", 12), false, "nothing pops")
+    t.eq(st.changes.n, 0, "no level change queued")
+    t.eq(st.downs, 0, "no sad sound")
+    capped[1].trainedLevel = 41                       -- Fireball trains a level; its tile still shows 20
+    SK().Update(st, SK().Read(capped), 2, "levels", 12)
+    t.eq(st.changes.n, 1, "a trained level is a change")
+    t.eq(st.changes.list[1].to, 41)
+    t.eq(st.active[1].data.name, "Fireball")
+    t.ok(SK().Tooltip(st.active[1].data):find("Level 41 %(20 in this scene%)"), SK().Tooltip(st.active[1].data))
+    SK().Update(st, SK().Read(sheet(levels{ Fireball = 41 })), 3, "levels", 12)   -- out of the capped scene
+    t.eq(st.changes.n, 1, "leaving it isn't one either")
+  end)
+
   t.test("Update: experience alone pops a skill only with \"Any experience\"", function()
     H.boot()
     local st = SK().NewState()
@@ -388,6 +408,47 @@ return function(t)
     H.advance(1)
     t.ok(H.nhudRow(1):find("Skill level changes: Archery down to 9%.$"), "a level lost: " .. H.nhudRow(1))
     t.eq(H.skillsFrame(), nil, "the strip stays off")
+  end)
+
+  t.test("another character: no notice from the first one, delivered or not", function()
+    H.boot()
+    H.setSkills(sheet(BASE))
+    H.chat("/tbx notify skills on")
+    H.advance(2)
+    H.setSkills(sheet(levels{ Fireball = 41 }))
+    H.advance(1)
+    t.ok(H.nhudRow(1):find("Fireball up to 41"), "delivered to Tester")
+    local count = Toolbox.Notify.Hud.Count()
+    H.setSkills(sheet(levels{ Fireball = 41, Healing = 31 }))   -- Tester levels, and logs out before it's read
+    H.S.char.name = "Alt"
+    H.chat("/tbx notify skills on")
+    H.advance(5)
+    t.eq(Toolbox.Notify.Hud.Count(), count, "nothing of Tester's reaches Alt: " .. tostring(H.nhudRow(1)))
+    H.setSkills(sheet(levels{ Fireball = 41, Healing = 31, Dodge = 6 }))
+    H.advance(1)
+    t.ok(H.nhudRow(1):find("Skill level changes: Dodge up to 6%.$"), "Alt's own: " .. tostring(H.nhudRow(1)))
+  end)
+
+  t.test("sounds: the strip's own only with the strip on; the notification's only with its + sound", function()
+    -- { strip on, notification + sound, what plays }
+    for _, case in ipairs({ { false, false, "" }, { false, true, "skill_up" }, { true, false, "skill_up" },
+                            { true, true, "skill_up" } }) do
+      H.boot()
+      H.S.files["toolbox/skill_up.ogg"] = true
+      H.S.files["toolbox/skill_down.ogg"] = true
+      H.setSkills(sheet(BASE))
+      H.reload()
+      if case[1] then H.chat("/tbx skills on") end
+      H.chat("/tbx notify skills on")
+      if case[2] then H.chat("/tbx notify skills sound on") end
+      H.advance(3)
+      H.S.played = {}
+      H.setSkills(sheet(levels{ Fireball = 41 }))
+      H.advance(1)
+      local what = string.format("strip %s, notification sound %s", tostring(case[1]), tostring(case[2]))
+      t.eq(#H.S.played, case[3] == "" and 0 or 1, what .. ": " .. H.playedNames())
+      if case[3] ~= "" then t.ok(H.playedNames():find(case[3], 1, true), what .. ": " .. H.playedNames()) end
+    end
   end)
 
   t.test("/toolbox skills: switches, orientation, what shows a skill, debug", function()
