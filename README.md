@@ -27,7 +27,7 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
 - **Notifications**: guild message of the day, new mail, expiring mail, ransoms, rewards, guild
   applications and gear needing repair, in a window or on a scrolling notification HUD.
 - **Skill activity**: your skills' icons pop up on a strip of their own as they level, with the level,
-  progress and training mode (`/toolbox skills`); skill level ups can go to the notification HUD too.
+  progress and training mode (`/toolbox skills`); skill level changes (up or down) can go to the notification HUD too.
 
 ## Install
 

@@ -112,7 +112,7 @@ level on the icon, a bar of the progress to the next (green rising, red falling)
 the frame's colour. Vertical or horizontal; click
 one to open the Skills window. A short celebration plays when a skill gains a level and a sad one when it
 loses one (each can be switched off; your own `toolbox_skill_up.ogg` / `toolbox_skill_down.ogg` in the Lua
-folder replaces them). Skill level ups can also be listed on the notification HUD (`/toolbox skills`).
+folder replaces them). Skill level changes (gained or lost) can also be listed on the notification HUD (`/toolbox skills`).
 
 ## Commands
 

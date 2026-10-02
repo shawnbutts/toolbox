@@ -18,8 +18,10 @@ ones included).
   each with its own switch (on by default with the strip), at most one every few seconds. Like the other
   alerts, your own file works: pick one on the Sounds page, or put toolbox_skill_up.ogg /
   toolbox_skill_down.ogg in your Lua folder. Any notification can use them too (Notification sounds:
-  Celebration, Sad notes); "Skill level ups" plays the Celebration by default.
-- Notifications: "Skill level ups", on the notification HUD only (never a window to close). Off by default.
+  Celebration, Sad notes); "Skill level changes" plays the Celebration by default (the Sad notes when the
+  levels were all lost).
+- Notifications: "Skill level changes", a skill's level gained or lost ("Fireball up to 42, Archery down to
+  9."), on the notification HUD only (never a window to close). Off by default.
 
 ## [1.1.0] - 2026-10-02
 

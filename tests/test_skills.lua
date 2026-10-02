@@ -1,5 +1,5 @@
 -- The skill activity strip (Toolbox.SkillBar, skills.lua): skills pop up as they level, on a strip of their
--- own; a "Skill level ups" notification on the notification HUD only. To remove the feature, delete this
+-- own; a "Skill level changes" notification on the notification HUD only. To remove the feature, delete this
 -- suite with skills.lua (see its header).
 local H = require("harness")
 
@@ -47,11 +47,11 @@ return function(t)
     t.eq(#st.active, 0)
     SK().Update(st, SK().Read(sheet(levels{ Healing = 31 })), 1, "levels", 12)
     t.eq(st.active[1].data.name, "Healing")
-    t.eq(st.ups.n, 1, "a level up queued for the notification")
+    t.eq(st.changes.n, 1, "a level change queued for the notification")
     SK().Update(st, SK().Read(sheet(levels{ Healing = 31 }, { Archery = { mode = "Unlearning" } })), 2, "levels", 12)
     t.eq(st.active[1].data.name, "Archery", "a mode change too, on top")
     t.eq(st.active[2].data.name, "Healing")
-    t.eq(st.ups.n, 1, "a mode change isn't a level up")
+    t.eq(st.changes.n, 1, "a mode change isn't a level change")
     SK().Update(st, SK().Read(sheet(levels{ Healing = 32 }, { Archery = { mode = "Unlearning" } })), 3, "levels", 12)
     t.eq(#st.active, 2, "one slot per skill: refreshed, not added")
     t.eq(st.active[1].data.level, 32)
@@ -83,13 +83,21 @@ return function(t)
     t.eq(st.active[1].data.name, "Dodge")
   end)
 
-  t.test("UpsText: each skill once at its highest level, after what was seen", function()
+  t.test("ChangesText: each skill once, from before the first change to after the last", function()
     H.boot()
-    local ups = { n = 3, list = { { id = 1, name = "Fireball", level = 41 }, { id = 2, name = "Healing", level = 31 },
-                                  { id = 3, name = "Fireball", level = 42 } } }
-    t.eq(SK().UpsText(ups, 0), "Fireball 42, Healing 31.")
-    t.eq(SK().UpsText(ups, 2), "Fireball 42.")
-    t.eq(SK().UpsText(ups, 3), nil)
+    local ch = { n = 5, list = { { id = 1, name = "Fireball", from = 40, to = 41 },
+                                 { id = 2, name = "Archery", from = 10, to = 9 },
+                                 { id = 3, name = "Fireball", from = 41, to = 42 },
+                                 { id = 4, name = "Dodge", from = 5, to = 6 },
+                                 { id = 5, name = "Dodge", from = 6, to = 5 } } }
+    local text, n, allDown = SK().ChangesText(ch, 0)
+    t.eq(text, "Fireball up to 42, Archery down to 9, Dodge back to 5.")
+    t.eq(n, 5)
+    t.eq(allDown, false)
+    text, n, allDown = SK().ChangesText({ n = 2, list = { ch.list[2] } }, 1)
+    t.eq(text, "Archery down to 9.")
+    t.eq(allDown, true, "only levels lost")
+    t.eq(SK().ChangesText(ch, 5), nil)
   end)
 
   -- the strip ---------------------------------------------------------------------
@@ -221,7 +229,7 @@ return function(t)
     H.chat("/tbx notify skills on")
     H.setSkills(sheet(levels{ Fireball = 41 }))
     H.advance(1)
-    t.ok(H.nhudRow(1):find("Fireball 41"), "notified")
+    t.ok(H.nhudRow(1):find("Fireball up to 41"), "notified")
     H.chat("/tbx skills off")
     H.chat("/tbx notify skills off")
     H.advance(2)
@@ -234,7 +242,7 @@ return function(t)
     H.setSkills(sheet(levels{ Fireball = 41, Healing = 36 }))
     H.advance(1)
     t.eq(#H.skillSlots(), 1)
-    t.ok(H.nhudRow(1):find("Healing 36%.$"), "the notification still delivers: " .. tostring(H.nhudRow(1)))
+    t.ok(H.nhudRow(1):find("Healing up to 36%.$"), "the notification still delivers: " .. tostring(H.nhudRow(1)))
   end)
 
   t.test("clicking a skill opens the game's Skills window", function()
@@ -323,12 +331,12 @@ return function(t)
     t.eq(played("toolbox_skill_up"), 1, "the player's file: " .. H.playedNames())
   end)
 
-  t.test("sounds: any notification can pick them; Skill level ups plays the celebration", function()
+  t.test("sounds: any notification can pick them; Skill level changes plays the celebration", function()
     onWithSounds()
     H.chat("/tbx config")
     local choices = table.concat(H.config():Find("notify_skills_snd").choices, "|")
     t.ok(choices:find("Celebration|Sad notes", 1, true), choices)
-    t.eq(H.config():Find("notify_skills_snd").value, "Celebration", "Skill level ups: the celebration by default")
+    t.eq(H.config():Find("notify_skills_snd").value, "Celebration", "Skill level changes: the celebration by default")
     t.eq(H.config():Find("notify_mail_snd").value, "Chime", "the others keep the chime")
     H.chat("/tbx notify mail sound on")
     H.change("toolbox_config", "notify_mail_snd", "Sad notes")
@@ -343,11 +351,18 @@ return function(t)
     H.setSkills(sheet(levels{ Fireball = 41 }))
     H.advance(1)
     t.eq(played("skill_up"), 1, "one celebration (the notification's), not two: " .. H.playedNames())
+    H.advance(Toolbox.SkillBar.SOUND_GAP + 1)
+    H.S.played = {}
+    H.setSkills(sheet(levels{ Fireball = 41, Archery = 9 }, { Archery = { mode = "Unlearning" } }))
+    H.advance(1)
+    t.ok(H.nhudRow(1):find("Archery down to 9%.$"), H.nhudRow(1))
+    t.eq(H.playedNames():find("skill_up", 1, true), nil, "a level lost: not the celebration")
+    t.eq(played("skill_down"), 1, "the Sad notes, once: " .. H.playedNames())
   end)
 
   -- the notification --------------------------------------------------------------
 
-  t.test("Skill level ups: off by default, on the notification HUD only", function()
+  t.test("Skill level changes: off by default, on the notification HUD only, levels up and down", function()
     H.boot()
     H.setSkills(sheet(BASE))
     H.advance(Toolbox.Notify.SETTLE + 1)
@@ -356,7 +371,7 @@ return function(t)
     H.chat("/tbx notify skills on")
     H.clearLogs()
     H.chat("/tbx notify skills via window")
-    t.ok(H.logged("Skill level ups can only show via hud"), H.lastLog())
+    t.ok(H.logged("Skill level changes can only show via hud"), H.lastLog())
     t.eq(Toolbox.Notify.GetVia("skills"), "hud")
     H.chat("/tbx notify via chat")                      -- all of them: this one stays on the HUD
     t.eq(Toolbox.Notify.GetVia("skills"), "hud")
@@ -368,7 +383,10 @@ return function(t)
     H.setSkills(sheet(levels{ Fireball = 41, Healing = 31 }))
     H.advance(1)
     t.eq(H.notify(), nil, "no window")
-    t.ok(H.nhudRow(1):find("Skill level ups: Fireball 41, Healing 31%.$"), H.nhudRow(1))
+    t.ok(H.nhudRow(1):find("Skill level changes: Fireball up to 41, Healing up to 31%.$"), H.nhudRow(1))
+    H.setSkills(sheet(levels{ Fireball = 41, Healing = 31, Archery = 9 }))
+    H.advance(1)
+    t.ok(H.nhudRow(1):find("Skill level changes: Archery down to 9%.$"), "a level lost: " .. H.nhudRow(1))
     t.eq(H.skillsFrame(), nil, "the strip stays off")
   end)
 

@@ -1072,7 +1072,7 @@ local function prefsNow()
   if type(f) == "number" and f >= T.Window.FONT_MIN and f <= T.Window.FONT_MAX then nprefs.font = math.floor(f) end
   for _, src in ipairs(N.SOURCES) do
     local s = type(stored[src.key]) == "table" and stored[src.key] or {}
-    -- a source may pick its own default sound (skill level ups: skills.lua's celebration)
+    -- a source may pick its own default sound (skill level changes: skills.lua's celebration)
     local sp = { on = src.default, via = src.via or N.DELIVERY_DEFAULT, sound = false,
                  soundKey = src.soundKey or "notify" }
     if type(s.on) == "boolean" then sp.on = s.on end
@@ -1127,7 +1127,7 @@ local function deliver(byVia, withSound)
         local sp = p.sources[item.source.key]
         sp.seen = item.notice.seen
         if sp.sound then
-          local key, dup = sp.soundKey or "notify", false
+          local key, dup = item.notice.soundKey or sp.soundKey or "notify", false   -- a notice may pick its own
           for _, k in ipairs(playList) do if k == key then dup = true end end
           if not dup then playList[#playList + 1] = key end
         end
@@ -1282,7 +1282,7 @@ N.VIAS = { { "window", "Window" }, { "hud", "HUD" }, { "chat", "Chat" } }
 N.SOUND_SUFFIX = " + sound"
 
 -- The settings dropdown's choices: each delivery, and each with the sound ("Window + sound").
--- Whether source `key` may be delivered `via` (a source's `vias` limits it: the skill level-ups go to the
+-- Whether source `key` may be delivered `via` (a source's `vias` limits it: the skill level changes go to the
 -- HUD only, never a window to close; owner, 2026-10-02).
 function N.Allows(key, via)
   if not N.DELIVERY[via] then return false end

@@ -4,7 +4,8 @@
 -- strip of their own, newest first, each with its level over the icon (outlined, like the buff bar's count),
 -- a progress bar to the next level (green while it rises, red while it falls) and its mode as the colour of
 -- its frame; they go a while after their last change (or stay: "Always"). Vertical or horizontal. Plus a
--- "Skill level ups" notification, on the notification HUD only (never a window to close; owner, 2026-10-02).
+-- "Skill level changes" notification (a level gained or lost), on the notification HUD only (never a window to
+-- close; owner, 2026-10-02).
 --
 -- The API has the skills read-only (ShroudGetSkills: icon, level, progress, mode "Learning" / "Maintaining" /
 -- "Unlearning" / "NotLearning"): there is no way to train, maintain or unlearn from an add-on, so a click
@@ -79,11 +80,11 @@ local wasInUse = false                -- read last tick: off and on again takes 
 -- ---------------------------------------------------------------------------
 
 -- A fresh model: `prev` = the last reading by skill id, `active` = the skills on the strip, newest first
--- ({ id, at = last change, levelAt = last level change, data = the reading }), `ups` = level ups not yet
--- notified ({ n, list = { { id = n, name, level } } }). `ups` carries over a new baseline: the notification
--- remembers the last number it delivered, so the numbering must not start again.
-function SK.NewState(ups)
-  return { prev = {}, active = {}, based = false, ups = ups or { n = 0, list = {} }, downs = 0 }
+-- ({ id, at = last change, levelAt = last level change, data = the reading }), `changes` = levels gained or
+-- lost, for the notification ({ n, list = { { id = n, name, from, to } } }). `changes` carries over a new
+-- baseline: the notification remembers the last number it delivered, so the numbering must not start again.
+function SK.NewState(changes)
+  return { prev = {}, active = {}, based = false, changes = changes or { n = 0, list = {} }, ups = 0, downs = 0 }
 end
 
 -- The game's skill list as plain readings { id, name, level, trained, exp, progress, mode, icon }.
@@ -125,8 +126,8 @@ end
 
 -- Takes a reading (SK.Read) at `now`: a skill whose level or mode changed (or, with trigger "xp", whose
 -- experience changed) goes on top of `active`; one already there gets the new reading. The first reading only
--- sets the baseline. A level gained is queued in `ups`, a level lost counted in `downs`. Returns true when
--- `active` changed. Pure.
+-- sets the baseline. A level gained or lost is queued in `changes` and counted in `ups` / `downs`. Returns true
+-- when `active` changed. Pure.
 function SK.Update(st, readings, now, trigger, keep)
   local changed = false
   for _, r in ipairs(readings) do
@@ -152,12 +153,12 @@ function SK.Update(st, readings, now, trigger, keep)
           end
         end
       end
-      if r.level < p.level then st.downs = st.downs + 1 end    -- a level lost (unlearning, decay)
-      if r.level > p.level then
-        local ups = st.ups
-        ups.n = ups.n + 1
-        ups.list[#ups.list + 1] = { id = ups.n, name = r.name, level = r.level }
-        if #ups.list > 20 then table.remove(ups.list, 1) end
+      if r.level ~= p.level then
+        if r.level > p.level then st.ups = st.ups + 1 else st.downs = st.downs + 1 end   -- for the sounds
+        local ch = st.changes
+        ch.n = ch.n + 1
+        ch.list[#ch.list + 1] = { id = ch.n, name = r.name, from = p.level, to = r.level }
+        if #ch.list > 20 then table.remove(ch.list, 1) end
       end
       p.level, p.mode, p.exp = r.level, r.mode, r.exp
     else
@@ -185,22 +186,31 @@ function SK.Expire(st, now, stay)
   return gone
 end
 
--- The level ups after `seen` as one notice text ("Fireball 41, Healing 30."), the highest level per skill,
--- and the newest number; nil when there are none. Pure.
-function SK.UpsText(ups, seen)
+-- The level changes after `seen` as one notice text ("Fireball up to 42, Archery down to 9."): each skill
+-- once, from where it was before the first to where the last left it ("back to" when that is where it
+-- started); the newest number; and whether every one went down. nil when there are none. Pure.
+function SK.ChangesText(changes, seen)
   local last = type(seen) == "number" and seen or 0
-  if ups.n <= last then return nil end
-  local order, best = {}, {}
-  for _, u in ipairs(ups.list) do
-    if u.id > last then
-      if not best[u.name] then order[#order + 1] = u.name end
-      if not best[u.name] or u.level > best[u.name] then best[u.name] = u.level end
+  if changes.n <= last then return nil end
+  local order, from, to = {}, {}, {}
+  for _, c in ipairs(changes.list) do
+    if c.id > last then
+      if from[c.name] == nil then
+        order[#order + 1] = c.name
+        from[c.name] = c.from
+      end
+      to[c.name] = c.to
     end
   end
   if #order == 0 then return nil end
-  local parts = {}
-  for i, name in ipairs(order) do parts[i] = name .. " " .. math.floor(best[name]) end
-  return table.concat(parts, ", ") .. ".", ups.n
+  local parts, allDown = {}, true
+  for i, name in ipairs(order) do
+    local way = "back to"
+    if to[name] > from[name] then way = "up to" elseif to[name] < from[name] then way = "down to" end
+    if to[name] >= from[name] then allDown = false end
+    parts[i] = name .. " " .. way .. " " .. math.floor(to[name])
+  end
+  return table.concat(parts, ", ") .. ".", changes.n, allDown
 end
 
 -- A slot's tooltip (pure).
@@ -383,7 +393,7 @@ SK.GetPosition, SK.MoveTo, SK.Nudge, SK.ResetPosition = mover.Get, mover.MoveTo,
 -- Reading
 -- ---------------------------------------------------------------------------
 
--- Whether anything uses the readings: the strip, or the level-up notification.
+-- Whether anything uses the readings: the strip, or the level change notification.
 local function inUse() return prefs.show == true or T.Notify.IsOn("skills") end
 
 -- ShroudOnSkillsChanged (core.lua): a level (read at the next tick) or experience only (read soon).
@@ -396,18 +406,20 @@ local function readNow(now)
   if not ok or list == nil then return end
   local who = ShroudGetPlayerName()
   if who ~= readFor then                            -- another character: a new baseline
-    readFor, state = who, SK.NewState(state.ups)
+    readFor, state = who, SK.NewState(state.changes)
   end
   lastRead, needRead, xpDirty = now, false, false
-  local before, downsBefore = state.ups.n, state.downs
+  local before, upsBefore, downsBefore = state.changes.n, state.ups, state.downs
   if SK.Update(state, SK.Read(list), now, trigger(), SK.SLOTS_MAX) then SK.Fill() end
-  if state.ups.n ~= before then
-    -- the "Skill level ups" notification with "+ sound" plays the notification sound: not both
+  if state.changes.n ~= before then
+    -- the "Skill level changes" notification with "+ sound" plays the notification's sound: not both
     local notifySound = T.Notify.IsOn("skills") and T.Notify.GetSound("skills")
-    if prefs.soundUp ~= false and not notifySound then SK.PlaySound("skill_up", now) end
+    if not notifySound then
+      if state.ups ~= upsBefore and prefs.soundUp ~= false then SK.PlaySound("skill_up", now) end
+      if state.downs ~= downsBefore and prefs.soundDown ~= false then SK.PlaySound("skill_down", now) end
+    end
     T.Notify.Check()
   end
-  if state.downs ~= downsBefore and prefs.soundDown ~= false then SK.PlaySound("skill_down", now) end
 end
 
 -- Plays a skill sound unless the same one played in the last SK.SOUND_GAP seconds.
@@ -425,7 +437,7 @@ function SK.Tick()
   end
   if not wasInUse then                               -- (back) in use: levels from while it was off aren't news
     wasInUse, needRead = true, true
-    state = SK.NewState(state.ups)
+    state = SK.NewState(state.changes)
     SK.Fill()                                        -- nothing on the strip from before
   end
   local now = T.Now()
@@ -612,8 +624,8 @@ function SK.ConfigSection(h)
     UI.Toggle{ id = "skills_sound_down", text = "Sound when a skill loses a level", value = SK.GetSoundDown(),
       tooltip = "A sad one, for unlearning or decay. Pick your own file on the Sounds page",
       onChange = function(_, v) SK.SetSoundDown(v) end },
-    UI.Label{ text = "A \"Skill level ups\" notification (Notifications page) can list them on the notification"
-      .. " HUD too. Move the strip under HUD layout, or by its grip.", class = "dim",
+    UI.Label{ text = "A \"Skill level changes\" notification (Notifications page) can list them on the"
+      .. " notification HUD too. Move the strip under HUD layout, or by its grip.", class = "dim",
       style = { whiteSpace = "wrap", marginTop = 6 } },
   } }
 end
@@ -649,17 +661,20 @@ T.Sounds.DEFS[#T.Sounds.DEFS + 1] = { key = "skill_down", file = "skill_down.ogg
 T.Notify.SOUNDS[#T.Notify.SOUNDS + 1] = { "skill_up", "Celebration" }
 T.Notify.SOUNDS[#T.Notify.SOUNDS + 1] = { "skill_down", "Sad notes" }
 
--- "Skill level ups": on the notification HUD only (owner, 2026-10-02), off by default. Transient: the
--- numbers restart with the add-on.
+-- "Skill level changes": a level gained or lost, on the notification HUD only (owner, 2026-10-02: levels down
+-- too), off by default. Transient: the numbers restart with the add-on. With the default sound (Celebration),
+-- a notice of levels lost only plays the Sad notes.
 T.Notify.SOURCES[#T.Notify.SOURCES + 1] = {
-  key = "skills", label = "Skill level ups", default = false, via = "hud", vias = { "hud" }, transient = true,
+  key = "skills", label = "Skill level changes", default = false, via = "hud", vias = { "hud" }, transient = true,
   soundKey = "skill_up",                       -- "+ sound" plays the celebration (any other can be picked)
-  tip = "Your skills' new levels, on the notification HUD (never a window)",
+  tip = "When your skills gain or lose a level, on the notification HUD (never a window)",
   Check = function(seen)
     if not state then return nil end
-    local text, n = SK.UpsText(state.ups, seen)
+    local text, n, allDown = SK.ChangesText(state.changes, seen)
     if not text then return nil end
-    return { title = "Skill level ups", text = text, seen = n }
+    local notice = { title = "Skill level changes", text = text, seen = n }
+    if allDown and T.Notify.GetSoundKey("skills") == "skill_up" then notice.soundKey = "skill_down" end
+    return notice
   end,
 }
 
@@ -673,12 +688,12 @@ do
       .. "after a while with no change (Keep it for; Always keeps it). Hover for details; click to open the "
       .. "game's Skills window (add-ons can't change a skill's mode).",
     "Settings, Skill activity: vertical or horizontal, what shows a skill, how long it stays, how many show, "
-      .. "the icon size and whether the level shows on it. Notifications has \"Skill level ups\" for the "
-      .. "notification HUD (off by default).",
+      .. "the icon size and whether the level shows on it. Notifications has \"Skill level changes\" for the "
+      .. "notification HUD (off by default): levels gained and lost.",
     "A short celebration plays when a skill gains a level, a sad one when it loses one (each can be switched "
       .. "off; /toolbox skills sound off for both). Any notification can use them too (Sounds page: Celebration, "
-      .. "Sad notes); Skill level ups uses Celebration. Your own file: the Sounds page, or toolbox_skill_up.ogg / "
-      .. "toolbox_skill_down.ogg (or .wav) in your Lua folder." }
+      .. "Sad notes); Skill level changes uses Celebration (Sad notes for levels lost). Your own file: the "
+      .. "Sounds page, or toolbox_skill_up.ogg / toolbox_skill_down.ogg (or .wav) in your Lua folder." }
   local at = #T.Docs.SECTIONS + 1
   for i, s in ipairs(T.Docs.SECTIONS) do
     if s[1] == "Moving the HUD strips" then at = i end

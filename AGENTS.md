@@ -202,14 +202,15 @@ into one if a new file is ever needed).
   aren't remembered.
 - `skills.lua`: `Toolbox.SkillBar` (SK), the **Skill activity** strip (owner, 2026-10-02, "not 100% sure": built
   to be removable). Self-contained: at top level it registers its Hud strip (inserted in `Hud.ORDER` before
-  target), its saved-var key in `B.KEYS`, its "Skill level ups" notification source (`vias = { "hud" }`: never a
+  target), its saved-var key in `B.KEYS`, its "Skill level changes" notification source (levels up and down) (`vias = { "hud" }`: never a
   window), its guide topic and its command (`T.AddCommand`); core (`ShroudOnSkillsChanged`, the start-up
   step) and config (its page via `C.Helpers`, `SK.CONFIG_IDS`, `SK.ConfigSync`, its Position row) call it only
   `if T.SkillBar`. Pure model: `SK.Read` / `SK.Update` (baseline first, a level / mode change, or experience
-  with trigger "xp", puts a skill on top; one slot per skill) / `SK.Expire` / `SK.UpsText`. Reads are throttled
+  with trigger "xp", puts a skill on top; one slot per skill) / `SK.Expire` / `SK.ChangesText`. Reads are throttled
   (an event only marks them; `SK.QUIET_EVERY` / `SK.XP_EVERY`). Its sounds (skill_up / skill_down,
   `S.DEFS` entries it appends) play at most once per `SK.SOUND_GAP` s each; the level-up one stays quiet when
-  the "Skill level ups" notification plays its own sound. It also appends them to `N.SOUNDS` ("Celebration",
+  the "Skill level changes" notification plays its own sound (its notice names "skill_down" when every level
+  in it was lost and the source's sound is the celebration: `notice.soundKey` overrides the source's). It also appends them to `N.SOUNDS` ("Celebration",
   "Sad notes"), and its source's `soundKey = "skill_up"` (a source's default sound, else "notify"). Skills are read-only in the API: a click opens
   the game's Skills window (`ShroudToggleWindow`, on the gesture). Removal steps are in its header.
 - `config.lua`: `Toolbox.Config`, the settings window. Categories (`C.CATEGORIES`, the "Settings" dropdown;
