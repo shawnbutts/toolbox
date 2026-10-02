@@ -314,6 +314,15 @@ you read back and fall back to defaults.
 
 ## Releasing
 
+0. **Agree the version number with the owner first** (owner, 2026-10-02): before bumping anything, read the
+   `[Unreleased]` notes, propose a number with the reason, and wait for the owner's answer. Versions follow
+   [semver](https://semver.org) from 1.0.3 on, read from the player's side:
+   - MAJOR: something players relied on goes or changes incompatibly: a feature or command removed, saved
+     settings not carried over, `min_api_version` raised (players on an older client can't update).
+   - MINOR: anything new, backwards compatible: a feature, a setting, a command, a new option on a HUD.
+   - PATCH: fixes only (including wording and docs fixes), nothing new to learn.
+   A mix takes the highest. How to number a tester beta under semver isn't decided yet: ask (the store needs
+   a plain number higher than any submitted; the release workflow marks a "(beta N)" heading as a pre-release).
 1. Bump `version` in `toolbox/manifest.json` **and** `Toolbox.version` in core.lua (the build checks they
    match); move `[Unreleased]` notes under the new version in CHANGELOG.md ("## [x.y.z] - date (beta N)").
    Version numbers are single-use in the store, including rejected ones.

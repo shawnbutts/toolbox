@@ -1,7 +1,9 @@
 # Changelog
 
-All notable changes to Toolbox are recorded here. Versions follow `N.N.N`; every
-store submission needs a higher version than any submitted before (rejected ones included).
+All notable changes to Toolbox are recorded here. Versions follow [semantic versioning](https://semver.org)
+from 1.0.3 on: a major version for changes that break what players rely on, a minor version for new features,
+a patch version for fixes. Every store submission needs a higher version than any submitted before (rejected
+ones included).
 
 ## [Unreleased]
 
