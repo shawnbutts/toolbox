@@ -527,7 +527,8 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - Weapon poisons: whether a weapon coating shows as a buff at all.
 - The skill activity strip (skills.lua): how often `ShroudOnSkillsChanged(false)` fires in combat, whether
   `mode` reads as documented and changes with the game's triangle, a decaying skill's `experience` going down,
-  `ShroudGetSkills().icon` drawing, and `ShroudToggleWindow("skills")`. `/toolbox skills debug` prints the
+  `ShroudGetSkills().icon` drawing, `ShroudToggleWindow("skills")`, and whether a click on the level over the
+  icon (labels laid over it) still reaches the icon's onClick. `/toolbox skills debug` prints the
   readings.
 - The target getters' effect indices lining up with `ShroudGetTargetBuffIcon` / `Tooltip`, and
   `TotalDuration` on target effects (else no sweep); `/toolbox target debug` prints them.
