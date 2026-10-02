@@ -9,7 +9,7 @@ local suites = {
   "test_xp", "test_commands", "test_session", "test_config", "test_compact", "test_hover",
   "test_daily", "test_dailydetail", "test_buffbar", "test_vitals", "test_hud", "test_combat", "test_strips",
   "test_notify", "test_gear", "test_consumables", "test_target", "test_crafting", "test_prices", "test_perf",
-  "test_stress", "test_backup",
+  "test_stress", "test_backup", "test_skills",
 }
 
 local tests = {}

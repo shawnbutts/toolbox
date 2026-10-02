@@ -65,6 +65,15 @@ local function heading(text, first)
   return UI.Label{ text = text, class = "heading", style = { marginTop = first and 2 or 10 } }
 end
 
+-- What a page built in another file uses (skills.lua): the same controls and Sync helpers as the pages here.
+C.Helpers = {
+  slider = slider, dropdownRow = dropdownRow, heading = heading, setValue = setValue, setEnabled = setEnabled,
+  sliderValue = function(id, v)
+    setValue(id, v)
+    setText(id .. "_value", fontLabel(v))
+  end,
+}
+
 local function soundRows(def)
   local S = T.Sounds
   return UI.Column{ style = { marginTop = 4 }, children = {
@@ -533,9 +542,9 @@ function C.NotifySection()
       "The Notifications window's text size (headings a little larger)",
       function(n) T.Notify.SetFont(n) end),
   }
-  local vias = T.Notify.Choices()
   for _, src in ipairs(T.Notify.Sources()) do
     local key = src.key
+    local vias = T.Notify.Choices(key)
     children[#children + 1] = UI.Row{ style = { alignItems = "center" }, children = {
       UI.Toggle{ id = "notify_" .. key, text = src.label, value = T.Notify.IsOn(key), style = { flexGrow = 1 },
         tooltip = src.tip, onChange = function(_, v) T.Notify.SetOn(key, v) end },
@@ -606,6 +615,7 @@ local POSITIONED = {
   { "combat", T.Combat, "Combat stats" }, { "nhud", T.Notify.Hud, "Notification HUD" },
   { "target", T.Target, "Target HUD" },
 }
+if T.SkillBar then POSITIONED[#POSITIONED + 1] = { "skills", T.SkillBar, T.SkillBar.PAGE } end
 
 -- The "Toolbelt" category: the buff bar with the health bars, consumables and gear repair joined to it,
 -- one strip moved as one (owner, 2026-09-29: "this combined bar will be the main selling point").
@@ -827,6 +837,11 @@ C.CATEGORIES = {
   { key = "hud", label = "HUD layout", build = function() return C.HudSection() end },
   { key = "backup", label = "Backup & reset", build = function() return C.BackupSection() end },
 }
+-- skills.lua, when present: its page after Combat
+if T.SkillBar then
+  table.insert(C.CATEGORIES, 7, { key = "skills", label = T.SkillBar.PAGE,
+                                  build = function() return T.SkillBar.ConfigSection(C.Helpers) end })
+end
 
 local function category(keyOrLabel)
   for _, c in ipairs(C.CATEGORIES) do
@@ -865,6 +880,9 @@ for _, src in ipairs(T.Notify.Sources()) do
   ALL_IDS[#ALL_IDS + 1] = "notify_" .. src.key .. "_snd"
 end
 for _, p in ipairs(POSITIONED) do ALL_IDS[#ALL_IDS + 1] = p[1] .. "_pos" end
+if T.SkillBar then
+  for _, id in ipairs(T.SkillBar.CONFIG_IDS) do ALL_IDS[#ALL_IDS + 1] = id end
+end
 for _, key in ipairs(T.Consumables.Categories()) do
   ALL_IDS[#ALL_IDS + 1] = "cons_cat_" .. key
   ALL_IDS[#ALL_IDS + 1] = "buff_cat_" .. key
@@ -1223,6 +1241,7 @@ function C.Sync()
   setEnabled("backup_cancel", pending)
   local p = el.backup_pending
   if p and p:IsVisible() ~= pending then p:SetVisible(pending) end
+  if T.SkillBar then T.SkillBar.ConfigSync(C.Helpers) end   -- skills.lua, when present
   C.SyncLive()
 end
 

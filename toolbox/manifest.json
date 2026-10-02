@@ -7,7 +7,7 @@
   "author": "shawn butts",
   "files": ["core.lua", "xp.lua", "hover.lua", "ui.lua", "compact.lua", "daily.lua", "dailydetail.lua", "sounds.lua", "hud.lua", "buffbar.lua",
             "vitals.lua", "combat.lua", "changelog.lua", "docs.lua",
-            "config.lua"],
+            "skills.lua", "config.lua"],
   "icon": "icon.png",
   "support_url": "https://github.com/shawnbutts/toolbox",
   "min_api_version": 25,

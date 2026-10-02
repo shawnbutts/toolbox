@@ -450,7 +450,8 @@ return function(t)
     H.boot()
     H.chat("/tbx config")
     for _, src in ipairs(Toolbox.Notify.Sources()) do
-      t.eq(H.config():Find("notify_" .. src.key).value, src.key ~= "guild", src.key .. " on by default, but guild")
+      t.eq(H.config():Find("notify_" .. src.key).value, src.default ~= false,
+        src.key .. " on by default, but guild (and skill level ups)")
     end
     H.chat("/tbx notify rewards off")
     t.eq(H.config():Find("notify_rewards").value, false)

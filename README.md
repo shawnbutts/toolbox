@@ -26,6 +26,8 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
 - **Equipment bar and repair alerts**: worn items that need repair, with a durability sweep.
 - **Notifications**: guild message of the day, new mail, expiring mail, ransoms, rewards, guild
   applications and gear needing repair, in a window or on a scrolling notification HUD.
+- **Skill activity**: your skills' icons pop up on a strip of their own as they level, with the level,
+  progress and training mode (`/toolbox skills`); skill level ups can go to the notification HUD too.
 
 ## Install
 
@@ -364,7 +366,7 @@ image limits, size caps, no runtime code loading, and no `io`/`os` use in packag
 toolbox/            the package (what ships)
   manifest.json     files load in this order: core.lua, xp.lua, hover.lua, ui.lua, compact.lua, daily.lua,
                     dailydetail.lua, sounds.lua, hud.lua, buffbar.lua, vitals.lua, combat.lua, changelog.lua,
-                    docs.lua, config.lua
+                    docs.lua, skills.lua, config.lua
   core.lua          Toolbox namespace, commands, saved-var helpers, session lifecycle, callbacks
   xp.lua            pure session XP model (rates, rolling window, time to level)
   ui.lua            the XP Detailed window (/toolbox xpdetailed; Toolbox.Window, id toolbox_xp)
@@ -378,6 +380,7 @@ toolbox/            the package (what ships)
   vitals.lua        the health & focus bars HUD
   combat.lua        the combat stats HUD
   docs.lua          the Docs window (/toolbox docs, Docs button in settings)
+  skills.lua        the skill activity strip (/toolbox skills); self-contained, easy to remove
   clock.png         the equipment bar's wear picture (2 x 120 frames, from art/clock.py)
   config.lua        the Toolbox Settings window (/toolbox config)
   README.md         player-facing store readme

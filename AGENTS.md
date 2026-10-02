@@ -78,8 +78,9 @@ container are in CONTRIBUTING.md.
 `toolbox/` is the shipped package: `manifest.json`, `*.lua`, `README.md` (the store readme), `icon.png`,
 `clock.png` and the `.ogg` sounds, flat. Nothing else, or the build fails. `manifest.json` `files` is the
 load order: core, xp, hover, ui, compact, daily, dailydetail, sounds, hud, buffbar, vitals, combat,
-changelog, docs, config. Later files may use earlier ones at top level; earlier ones only use later ones
-inside functions. The package allows 16 Lua files and has 15: add code to an existing file.
+changelog, docs, skills, config. Later files may use earlier ones at top level; earlier ones only use later ones
+inside functions. The package allows 16 Lua files and has 16: add code to an existing file (or fold skills.lua
+into one if a new file is ever needed).
 
 - `core.lua`: `Toolbox` (`T`), chat output (`T.Print`), saved-var helpers (`Load`/`Save` deep-copy; `Flush`
   reports a refused write in chat at most every `T.FLUSH_WARN_EVERY` s), formatting, `T.Field` / `T.List`,
@@ -191,12 +192,22 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
   topic shown is built, switching destroys the previous one, like the settings pages; each topic < 6,000
   characters, each label < 4,096 (the game's cut-off); update it with every user-facing change), the version window, and `Toolbox.Notify` (N): `N.SOURCES` (each with
   `Check(seen, ctx)` -> notice or nil, plus an optional quiet value; motd, mail, expiring, ransoms, rewards,
-  applications, durability, friends, guild), `N.DELIVERY` ("window", "hud" = `Toolbox.Notify.Hud`, "chat")
+  applications, durability, friends, guild, and skills from skills.lua; a source's `vias` limits where it can
+  go: `N.Allows`, `N.Choices(key)`), `N.DELIVERY` ("window", "hud" = `Toolbox.Notify.Hud`, "chat")
   plus a per-source `sound` (the notify chime once per check), and `N.Check` (tick, start, the social /
   notification / guild / friend events), which marks a notice seen only once delivered. The guild message
   comes from `ShroudGetGuildMotd` (API 18) when present. friends / guild are `transient` (their `seen` is an
   event number from `N.OnStatus`'s queue, never read back). `N.SETTLE` s after start, counts going down
   aren't remembered.
+- `skills.lua`: `Toolbox.SkillBar` (SK), the **Skill activity** strip (owner, 2026-10-02, "not 100% sure": built
+  to be removable). Self-contained: at top level it registers its Hud strip (inserted in `Hud.ORDER` before
+  target), its saved-var key in `B.KEYS`, its "Skill level ups" notification source (`vias = { "hud" }`: never a
+  window), its guide topic and its command (`T.AddCommand`); core (`ShroudOnSkillsChanged`, the start-up
+  step) and config (its page via `C.Helpers`, `SK.CONFIG_IDS`, `SK.ConfigSync`, its Position row) call it only
+  `if T.SkillBar`. Pure model: `SK.Read` / `SK.Update` (baseline first, a level / mode change, or experience
+  with trigger "xp", puts a skill on top; one slot per skill) / `SK.Expire` / `SK.UpsText`. Reads are throttled
+  (an event only marks them; `SK.QUIET_EVERY` / `SK.XP_EVERY`). Skills are read-only in the API: a click opens
+  the game's Skills window (`ShroudToggleWindow`, on the gesture). Removal steps are in its header.
 - `config.lua`: `Toolbox.Config`, the settings window. Categories (`C.CATEGORIES`, the "Settings" dropdown;
   Toolbelt first): only the one shown is built; switching destroys the previous one first (every page kept
   built took ~420 elements and hit the game's 2,000 cap in game, 2026-09-30). So `Sync` uses `setValue` /
@@ -243,7 +254,7 @@ inside functions. The package allows 16 Lua files and has 15: add code to an exi
 - **A feature:** pure logic over plain data, API calls at the edges, hooked into `ShroudOnStart` /
   `Toolbox.Tick` / core's callbacks; a `Toolbox.Foo` table; tests; a CHANGELOG `[Unreleased]` entry; the
   guide (`D.SECTIONS`) and both READMEs if players see it.
-- **A HUD strip:** a Hud module (above). There are 9 strips already (25 frames, if the 2026-10-01 raise holds in
+- **A HUD strip:** a Hud module (above). There are 10 strips already (25 frames, if the 2026-10-01 raise holds in
   game; 8 before): still prefer a Toolbelt row.
 - **A window:** there is no slot (see Limits). Use a view of an existing window.
 
@@ -279,7 +290,7 @@ wedge (`SetSweep`, `SetSweepTimer`, refused as in game for a lone duration) read
   `H.hud()` (glued strip), `H.vitals()`, `H.config()` (all categories built) / `H.configRaw()`, `H.detail()`,
   `H.detailRows()`, `H.daily()`, `H.dailyText(id)`, `H.notify()`, `H.notice(key)`, `H.nhud()`,
   `H.gearFrame()`, `H.gearSlots()`, `H.targetFrame()`, `H.targetRow()`, `H.targetSlots()`,
-  `H.combatHud()`, `H.combatRows()`, `H.playedNames()`, `H.S.created` / `H.S.constructed`.
+  `H.combatHud()`, `H.combatRows()`, `H.skillsFrame()`, `H.skillSlots()`, `H.clickSkill(n)`, `H.playedNames()`, `H.S.created` / `H.S.constructed`.
 
 Stub any new API function in `install_api()` with its documented return values, including the "no
 character" sentinel.
@@ -311,6 +322,7 @@ character" sentinel.
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most 20 (which are new, `fresh`, is kept in memory only) |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last, day, at } } }`, at most `P.MAX_KEEP` |
 | `welcomed` (ACCOUNT scope) | set after the first-run welcome |
+| `skills` | `{ show = bool (default false), vertical = bool (default true), slots = 1..12, stay = seconds (SK.STAY_CHOICES), trigger = "levels"/"xp", size = 20..48, x, y }` (skills.lua) |
 | `settings_pending` | `{ kind = "reset" }`: done and deleted at the next start |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
@@ -509,6 +521,10 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - Notification counts reading 0 until loaded (hence `N.SETTLE`); ransoms / rewards / applications in practice.
 - The notification HUD's Scroll inside a HudFrame, nowrap labels ending in "...".
 - Weapon poisons: whether a weapon coating shows as a buff at all.
+- The skill activity strip (skills.lua): how often `ShroudOnSkillsChanged(false)` fires in combat, whether
+  `mode` reads as documented and changes with the game's triangle, a decaying skill's `experience` going down,
+  `ShroudGetSkills().icon` drawing, and `ShroudToggleWindow("skills")`. `/toolbox skills debug` prints the
+  readings.
 - The target getters' effect indices lining up with `ShroudGetTargetBuffIcon` / `Tooltip`, and
   `TotalDuration` on target effects (else no sweep); `/toolbox target debug` prints them.
 - API 24 crafting in game (`/toolbox api` shows `made` and the recipe's yield once the client updates).

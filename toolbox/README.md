@@ -105,6 +105,13 @@ gear needing repair, and friends or guild members coming online, in a Notificati
 list or a chat line, each with an optional sound of its own (chime, ping, tap, bell or low notes). Each one
 can be turned off.
 
+## Skill activity
+
+Like the game's own skill bar: your skills' icons pop up on a strip of their own as they level, with the
+level, the progress to the next and the training mode as the frame's colour. Vertical or horizontal; click
+one to open the Skills window. Skill level ups can also be listed on the notification HUD
+(`/toolbox skills`).
+
 ## Commands
 
 `/toolbox` and `/tbx` do the same thing; `/toolbox commands` lists them all in chat.

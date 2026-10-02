@@ -186,6 +186,16 @@ local function install_api()
       local e = S.char.present and S.buffs[i + 1]
       return e ~= nil and e ~= false and e.dismissable == true
     end
+    -- Docs (API 14): the game's own windows, opened or closed only on a player gesture.
+    ShroudToggleWindow = function(name, open)
+      local known = { skills = true, map = true, bags = true, character = true, journal = true }
+      if not known[name] then return false, "unknownWindow" end
+      if not S.gesture then return false, "needsGesture" end
+      S.stockOpen = S.stockOpen or {}
+      if open == nil then open = not S.stockOpen[name] end
+      S.stockOpen[name] = open == true
+      return true, "ok"
+    end
     ShroudDismissBuff = function(i)
       local e = S.char.present and S.buffs[i + 1]
       if type(i) ~= "number" or not e then return false, "badIndex" end
@@ -1214,6 +1224,28 @@ function H.setSkills(list, levelsChanged)
   end
   S.skills = list
   return H.callback("ShroudOnSkillsChanged", levelsChanged ~= false)
+end
+
+-- The skill activity strip (skills.lua): its frame, and its visible slots (Columns: frame Row, Bar, Label).
+function H.skillsFrame() return S.frames.toolbox_skills end
+function H.skillSlots()
+  local out = {}
+  local f = S.frames.toolbox_skills
+  local box = f and f:Find("skills")
+  for _, c in ipairs(box and box.children or {}) do
+    if c.id ~= "sk_placeholder" and c.visible ~= false then out[#out + 1] = c end
+  end
+  return out
+end
+-- The player clicks the n-th visible skill icon: a gesture while the handler runs.
+function H.clickSkill(n)
+  local slot = H.skillSlots()[n]
+  assert(slot, "no visible skill slot " .. n)
+  local icon = slot.children[1].children[1]
+  S.gesture = true
+  local ok, err = pcall(H.call, icon.onClick, icon)
+  S.gesture = false
+  if not ok then error(err, 2) end
 end
 
 -- You die (true) or are resurrected (false): ShroudOnDeathChanged.

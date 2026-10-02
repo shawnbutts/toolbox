@@ -1076,7 +1076,9 @@ local function prefsNow()
     if type(s.on) == "boolean" then sp.on = s.on end
     if s.sound == true then sp.sound = true end
     if N.SoundLabel(s.soundKey) then sp.soundKey = s.soundKey end
-    if type(s.via) == "string" and N.DELIVERY[s.via] then sp.via = s.via end
+    if type(s.via) == "string" and N.DELIVERY[s.via] and (not src.vias or N.Allows(src.key, s.via)) then
+      sp.via = s.via
+    end
     if src.transient then
       sp.seen = nil                          -- event numbers restart with the add-on
     elseif type(s.seen) == "table" then
@@ -1278,11 +1280,34 @@ N.VIAS = { { "window", "Window" }, { "hud", "HUD" }, { "chat", "Chat" } }
 N.SOUND_SUFFIX = " + sound"
 
 -- The settings dropdown's choices: each delivery, and each with the sound ("Window + sound").
-function N.Choices()
+-- Whether source `key` may be delivered `via` (a source's `vias` limits it: the skill level-ups go to the
+-- HUD only, never a window to close; owner, 2026-10-02).
+function N.Allows(key, via)
+  if not N.DELIVERY[via] then return false end
+  local src = sourceFor(key)
+  if not src or not src.vias then return src ~= nil end
+  for _, v in ipairs(src.vias) do if v == via then return true end end
+  return false
+end
+
+-- "the notification HUD" / "in the HUD or in chat": where source `key` can go, for chat.
+function N.AllowedText(key)
   local out = {}
   for _, v in ipairs(N.VIAS) do
-    out[#out + 1] = v[2]
-    out[#out + 1] = v[2] .. N.SOUND_SUFFIX
+    if N.Allows(key, v[1]) then out[#out + 1] = "via " .. v[1] end
+  end
+  return table.concat(out, " or ")
+end
+
+-- The settings dropdown's choices: each delivery (the ones source `key` allows, when given), and each with the
+-- sound ("Window + sound").
+function N.Choices(key)
+  local out = {}
+  for _, v in ipairs(N.VIAS) do
+    if key == nil or N.Allows(key, v[1]) then
+      out[#out + 1] = v[2]
+      out[#out + 1] = v[2] .. N.SOUND_SUFFIX
+    end
   end
   return out
 end
@@ -1368,7 +1393,7 @@ end
 -- Sends a source's notices another way (a key from N.DELIVERY). Returns false if unknown.
 function N.SetVia(key, via)
   local sp = prefsNow().sources[key]
-  if not sp or not N.DELIVERY[via] then return false end
+  if not sp or not N.Allows(key, via) then return false end
   sp.via = via
   save()
   NH.Tick()

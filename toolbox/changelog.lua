@@ -5,6 +5,9 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Added" },
+  { "item", "Skill activity strip (/toolbox skills; settings, Skill activity): like the game's own skill bar, your skills' icons pop up on a strip of their own as they level (or change mode, or, if you choose, gain any experience), with the level (gold when new), the progress to the next and the training mode as the frame's colour. Vertical or horizontal, how long they stay, how many show and the icon size are settings; click an icon to open the game's Skills window (add-ons can't change a skill's mode). Off by default." },
+  { "item", "Notifications: \"Skill level ups\", on the notification HUD only (never a window to close). Off by default." },
   { "version", "1.1.0 - 2026-10-02" },
   { "section", "Added" },
   { "item", "The target HUD has the health bars' look options, its own (settings, Toolbelt, Target bars; or /toolbox target text|bars on|off, bg, flash): show bars, show numbers (\"750 / 1000\", large ones shortened to \"12.5k\"), the number background and flash when low. Untick both bars and numbers for just the target's effect icons (on its own strip it then hides while the target has none). By default it looks as before: bars only, no flash. Its size still follows your health bars' Size and Bar length." },

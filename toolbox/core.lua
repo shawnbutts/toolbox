@@ -421,6 +421,8 @@ local function add(name, help, fn, aliases)
   for _, alias in ipairs(aliases or {}) do handlers[alias] = fn end
   order[#order + 1] = { name = name, help = help, aliases = aliases }
 end
+-- For a module in its own file to add its command (skills.lua: the skill activity strip).
+T.AddCommand = add
 
 -- The registered commands in order: { name, help, aliases } (for the Docs window).
 function T.CommandList()
@@ -1350,8 +1352,12 @@ add("notify", "notifications: list; <name> on|off; [<name>] via window|hud|chat;
       T.Print("Use " .. c .. " [<name>] via window|hud|chat.")
       return
     end
+    if word ~= "via" and not T.Notify.Allows(word, via) then
+      T.Print(T.Notify.Label(word) .. " can only show " .. T.Notify.AllowedText(word) .. ".")
+      return
+    end
     for _, src in ipairs(T.Notify.Sources()) do
-      if word == "via" or src.key == word then T.Notify.SetVia(src.key, via) end
+      if word == "via" or src.key == word then T.Notify.SetVia(src.key, via) end   -- refused where not allowed
     end
     local where = { hud = "in the notification HUD.", chat = "in chat.", window = "in the Notifications window." }
     T.Print((word == "via" and "All notifications" or T.Notify.Label(word)) .. " now show " .. where[via])
@@ -2017,6 +2023,7 @@ function ShroudOnStart()
   step("the target HUD", T.Target.Init)
   step("the consumables bar", T.Consumables.Init)
   step("the notification HUD", T.Notify.Hud.Init)
+  if T.SkillBar then step("the skill activity strip", T.SkillBar.Init) end   -- skills.lua, when present
   step("the HUD strips", T.Hud.Init)  -- builds the HUD strips (glued or not); retries on the cap
   step("the buff bar", T.BuffBar.Tick)
   step("the health bars", T.Vitals.Tick)
@@ -2079,6 +2086,7 @@ end
 -- A skill was learned, gained or lost a level (levelsChanged), or only gained experience.
 function ShroudOnSkillsChanged(levelsChanged)
   T.Daily.OnSkills(levelsChanged)
+  if T.SkillBar then T.SkillBar.OnSkillsChanged(levelsChanged) end   -- skills.lua, when present
 end
 
 -- You died (true) or are alive again (false).
