@@ -658,7 +658,7 @@ TG.FLASH_HALF = 0.5          -- seconds each half of a low-value flash (two poll
 
 local function defaultPrefs()
   return { show = false, glue = true, place = "top", mirror = false, effects = "all", bars = true, numbers = false,
-           bg = "None", flash = false, flashBelow = V.FLASH_DEFAULT, hidePet = false }
+           bg = "None", flash = false, flashBelow = V.FLASH_DEFAULT, hidePet = true }
 end
 local tprefs = defaultPrefs()
 local tContent, tInfo, tHealth, tFocus = nil, nil, nil, nil
@@ -823,7 +823,13 @@ local function reserved() return (tprefs.place ~= "bottom" or TG.Mirrored()) and
 -- Whether the row shows: a target, the settings window open (to place it), or its space kept.
 local function wantRow() return tHas == true or T.Config.IsShown() or reserved() end
 
-function TG.IsShown() return TG.Wanted() and wantRow() end
+-- On its own strip with neither bars nor numbers, a target with no effects shows nothing: no strip (it would
+-- be an empty grip). In the Toolbelt the row's kept space is the Toolbelt's business (reserved).
+function TG.IsShown()
+  if not (TG.Wanted() and wantRow()) then return false end
+  if not TG.Glued() and not TG.InfoShown() and #tList == 0 and not T.Config.IsShown() then return false end
+  return true
+end
 
 -- Cells the bars block takes (set when built; it depends on the health bars' size).
 local tInfoCells = 1
@@ -1049,6 +1055,19 @@ function TG.ApplySize()
   if TG.Glued() and not TG.Below() then T.BuffBar.Tick() else T.Hud.Refresh() end
 end
 
+-- Test flash: both bars flash for V.PREVIEW_SECONDS whatever the values (with no target, the empty health
+-- bar shown while settings are open). Returns false (and says why) when the target HUD is off.
+local tPreviewUntil = -math.huge
+function TG.PreviewFlash()
+  if not tprefs.show then
+    T.Print("Show the target HUD first (/" .. T.commands[1] .. " target on), then test the flash.")
+    return false
+  end
+  tPreviewUntil = T.Now() + V.PREVIEW_SECONDS
+  T.Print("Flashing the target's bars for " .. V.PREVIEW_SECONDS .. " s...")
+  return true
+end
+
 -- True while a value is below the target's flash threshold (and its flashing is on).
 function TG.IsLow(current, fill)
   return tprefs.flash == true and type(current) == "number" and fill < tprefs.flashBelow / 100
@@ -1151,8 +1170,9 @@ function TG.Poll(force)
       if hasFocus then T.SetText(tText[2].label, TG.NumberText(fcur, fmax)) end
     end
     local phase = math.floor(T.Now() / TG.FLASH_HALF) % 2 == 1
-    TG.Flash(1, phase and not dead and not hidden and TG.IsLow(cur, fill))
-    TG.Flash(2, phase and hasFocus and TG.IsLow(fcur, ffill))
+    local preview = T.Now() < tPreviewUntil
+    TG.Flash(1, phase and (preview or (not dead and not hidden and TG.IsLow(cur, fill))))
+    TG.Flash(2, phase and hasFocus and (preview or TG.IsLow(fcur, ffill)))
     local tip = name .. (hidden and "\nHealth hidden" or ((type(cur) == "number" and type(max) == "number"
       and max > 0) and string.format("\nHealth %s / %s (%s)", T.FormatNumber(cur), T.FormatNumber(max), pct) or ""))
       .. (hasFocus and string.format("\nFocus %s / %s", T.FormatNumber(fcur), T.FormatNumber(fmax)) or "")
@@ -1164,7 +1184,7 @@ function TG.Poll(force)
     T.SetVisible(tFocus, false)
     T.SetVisible(tText[2].wrap, false)
     T.SetText(tText[1].label, "--")
-    TG.Flash(1, false)
+    TG.Flash(1, T.Now() < tPreviewUntil and math.floor(T.Now() / TG.FLASH_HALF) % 2 == 1)   -- Test flash
     TG.Flash(2, false)
     T.SetTooltip(tInfo, "Your target's health and effects show here")
     tId, tCount = nil, nil
@@ -1374,7 +1394,7 @@ function TG.Init()
     if not tprefs.bars and not tprefs.numbers and tprefs.effects == "none" then tprefs.bars = true end
     tprefs.bg = V.BackgroundNamed(saved.bg).name
     tprefs.flash = saved.flash == true
-    tprefs.hidePet = saved.hidePet == true
+    tprefs.hidePet = saved.hidePet ~= false             -- on by default (owner, 2026-10-02)
     local fb = saved.flashBelow
     if type(fb) == "number" and fb >= V.FLASH_MIN and fb <= V.FLASH_MAX then tprefs.flashBelow = math.floor(fb) end
   end

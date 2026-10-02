@@ -1175,7 +1175,7 @@ add("gear", "worn gear's durability, lowest first (bar on|off: the equipment bar
 end)
 
 add("target", "your target's health and effects (on|off; toolbelt on|off; place top|bottom: in the Toolbelt; "
-    .. "mirror on|off; effects all|debuffs|none; icons <1-8>; text|bars on|off; bg; flash <%>|on|off; "
+    .. "mirror on|off; effects all|debuffs|none; icons <1-8>; text|bars on|off; bg; flash <%>|on|off|test; "
     .. "pet on|off; move [x y]; debug)", function(rest)
   local TG = T.Target
   local word, args = T.ParseArgs(rest)
@@ -1238,12 +1238,16 @@ add("target", "your target's health and effects (on|off; toolbelt on|off; place 
     return
   elseif word == "flash" then
     local a = args:lower()
+    if a == "test" then
+      TG.PreviewFlash()
+      return
+    end
     if a == "on" or a == "off" then
       TG.SetFlash(a == "on")
     elseif a ~= "" then
       if not TG.SetFlashBelow(tonumber(a)) then
         T.Print("Use /" .. T.commands[1] .. " target flash <" .. T.Vitals.FLASH_MIN .. "-" .. T.Vitals.FLASH_MAX
-          .. ">, on or off.")
+          .. ">, on, off or test.")
         return
       end
       TG.SetFlash(true)

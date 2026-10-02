@@ -563,6 +563,9 @@ function C.NotifySection()
   children[#children + 1] = slider("nhud_font", "Text size", T.Window.FONT_MIN, T.Window.FONT_MAX, 1, NH.GetFont(),
     "The notification HUD's text size (until you set it, the XP windows' size)",
     function(n) NH.SetFont(n) end)
+  children[#children + 1] = slider("nhud_spacing", "Line spacing", T.Window.SPACING_MIN, T.Window.SPACING_MAX, 1,
+    NH.GetSpacing(), "Extra pixels between the notification HUD's lines (until you set it, the XP windows')",
+    function(n) NH.SetSpacing(n) end)
   children[#children + 1] = UI.Row{ style = { justifyContent = "end", marginTop = 4 }, children = {
     UI.Button{ id = "nhud_clear", text = "Clear notification history",
       tooltip = "Delete the notification HUD's saved list (it can't be undone)",
@@ -712,6 +715,11 @@ function C.ToolbeltSection()
   children[#children + 1] = slider("target_flash_below", "Flash below (%)", T.Vitals.FLASH_MIN, T.Vitals.FLASH_MAX, 1,
     TG.GetFlashBelow(), "The target's health or focus under this percentage flashes",
     function(n) TG.SetFlashBelow(n) end)
+  children[#children + 1] = UI.Row{ style = { justifyContent = "end", marginTop = 2 }, children = {
+    UI.Button{ id = "target_flash_test", text = "Test flash",
+      tooltip = "Flash the target's bars for " .. T.Vitals.PREVIEW_SECONDS .. " seconds to see what it looks like",
+      onClick = function() TG.PreviewFlash() end },
+  } }
   children[#children + 1] = UI.Label{ text = "Their size follows your health bars' Size and Bar length (Health bars"
     .. " page).", class = "dim", style = { whiteSpace = "wrap", marginTop = 4 } }
   children[#children + 1] = UI.Label{ id = "hud_summary", text = "", class = "dim",
@@ -842,7 +850,7 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "volume", "volume_value", "hud_summary", "toolbelt_show",
   "toolbelt_vitals", "toolbelt_consumables", "toolbelt_gear", "toolbelt_target", "target_place", "target_mirror",
   "target_effects", "target_icons", "target_icons_value", "target_show_bars", "target_show_text", "target_bg",
-  "target_hide_pet",
+  "target_hide_pet", "target_flash_test", "nhud_spacing", "nhud_spacing_value",
   "target_flash", "target_flash_below", "target_flash_below_value",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
   "buff_countdown_secs_value", "backup_where", "backup_save", "settings_reset", "backup_pending",
@@ -1180,6 +1188,7 @@ function C.Sync()
   end
   sliderValue("notify_font", T.Notify.GetFont())
   sliderValue("nhud_font", T.Notify.Hud.GetFont())
+  sliderValue("nhud_spacing", T.Notify.Hud.GetSpacing())
   setValue("nhud_hide", T.Notify.Hud.HideLabel(T.Notify.Hud.GetHideAfter()) or "Never")
   -- Sounds
   sliderValue("volume", S.GetVolume())
@@ -1207,6 +1216,7 @@ function C.Sync()
   end
   setEnabled("target_bg", T.Target.GetShow() and T.Target.GetShowText())
   setEnabled("target_flash_below", T.Target.GetShow() and T.Target.GetFlash())
+  setEnabled("target_flash_test", T.Target.GetShow())
   setText("hud_summary", C.HudSummary())
   -- Backup & reset
   local pending = T.Backup.Pending() ~= nil

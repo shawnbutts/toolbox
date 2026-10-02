@@ -240,6 +240,27 @@ return function(t)
     t.eq(H.nhud():Find("nh_1").style.fontSize, 20, "built at that size")
   end)
 
+  t.test("the notification HUD's line spacing: the XP windows' until set, in place, saved", function()
+    H.boot()
+    H.chat("/tbx notify mail via hud")
+    H.setNotes{ unreadMail = 2 }
+    local NH = Toolbox.Notify.Hud
+    local W = Toolbox.Window
+    local row = H.nhud():Find("nh_1")
+    t.eq(NH.GetSpacing(), W.GetSpacing(), "the XP windows' until set")
+    H.chat("/tbx config")
+    H.change("toolbox_config", "nhud_spacing", 8)
+    t.eq(H.nhud():Find("nh_1"), row, "not rebuilt")
+    t.eq(row.style.height, W.LineHeight(NH.GetFont(), 8))
+    t.eq(H.nhud():Find("nh_scroll").style.height, W.LineHeight(NH.GetFont(), 8))
+    W.SetSpacing(0)
+    t.eq(row.style.height, W.LineHeight(NH.GetFont(), 8), "its own now")
+    t.eq(H.config():Find("nhud_spacing_value").text, "8")
+    t.eq(NH.SetSpacing(40), false, "out of range")
+    H.reload()
+    t.eq(NH.GetSpacing(), 8, "saved")
+  end)
+
   t.test("the Notifications page says where each notification's sound is picked", function()
     H.boot()
     H.chat("/tbx config")

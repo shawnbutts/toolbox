@@ -775,17 +775,18 @@ local visibleUntil = 0
 local hovered = {}
 local hudShown = nil      -- NH.IsShown() at the last check, to refresh the HUD when it changes
 
--- Text size: hprefs.font (T.Window.FONT_MIN..FONT_MAX), or the XP windows' size when unset (as before
--- it had its own). The line spacing is always the XP windows'.
+-- Text size and line spacing: hprefs.font (T.Window.FONT_MIN..FONT_MAX) and hprefs.spacing
+-- (T.Window.SPACING_MIN..SPACING_MAX), each the XP windows' when unset (as before it had its own).
 function NH.GetFont() return hprefs.font or T.Window.GetFont() end
-local function lineHeight() return T.Window.LineHeight(NH.GetFont()) end
+function NH.GetSpacing() return hprefs.spacing or T.Window.GetSpacing() end
+local function lineHeight() return T.Window.LineHeight(NH.GetFont(), NH.GetSpacing()) end
 local function rowStyle()
   return T.Window.TextStyle({ width = NH.WIDTH - NH.SCROLLBAR, whiteSpace = "nowrap", marginLeft = 0,
-                              marginRight = 0 }, NH.GetFont())
+                              marginRight = 0 }, NH.GetFont(), NH.GetSpacing())
 end
 local function emptyStyle()
   return T.Window.TextStyle({ width = NH.WIDTH, whiteSpace = "nowrap", marginLeft = 0, marginRight = 0 },
-                            NH.GetFont())
+                            NH.GetFont(), NH.GetSpacing())
 end
 
 local function clockText()
@@ -957,6 +958,10 @@ function NH.Init()
     if type(saved.x) == "number" and type(saved.y) == "number" then hprefs.x, hprefs.y = saved.x, saved.y end
     local f = saved.font
     if type(f) == "number" and f >= T.Window.FONT_MIN and f <= T.Window.FONT_MAX then hprefs.font = math.floor(f) end
+    local sp = saved.spacing
+    if type(sp) == "number" and sp >= T.Window.SPACING_MIN and sp <= T.Window.SPACING_MAX then
+      hprefs.spacing = math.floor(sp)
+    end
   end
   history = {}
   local h = T.Load("notify_history")
@@ -981,6 +986,18 @@ function NH.ApplyText()
   hudEmpty:SetStyle(emptyStyle())
   NH.Fill()
   T.Hud.Refresh()                     -- re-fit the strip
+end
+
+-- The line spacing (T.Window.SPACING_MIN..SPACING_MAX). Returns false when out of range.
+function NH.SetSpacing(n)
+  local W = T.Window
+  if type(n) ~= "number" or n ~= math.floor(n) or n < W.SPACING_MIN or n > W.SPACING_MAX then return false end
+  if n == hprefs.spacing then return true end
+  hprefs.spacing = n
+  saveHud()
+  NH.ApplyText()
+  T.Config.Sync()
+  return true
 end
 
 -- The text size (T.Window.FONT_MIN..FONT_MAX). Returns false when out of range.

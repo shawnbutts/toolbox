@@ -821,23 +821,27 @@ return function(t)
     t.eq(TG().IsPet("Rex", 800, nil), false, "no pet out")
   end)
 
-  t.test("leave out your pet: off by default; on, your pet as the target shows as none", function()
+  t.test("leave out your pet: on by default; your pet as the target shows as none", function()
     H.boot()
     H.chat("/tbx target on")
     H.setPet{ name = "Rex", hp = 500, maxHp = 800 }
     local rex = { id = 21, name = "Rex", hp = 500, maxHp = 800, effects = {
       { name = "Mend", remaining = 5, total = 10, icon = 44 } } }
     H.setTarget(copy(rex))
-    t.eq(H.targetRow().visible, true, "shown by default")
-    t.eq(TG().GetHidePet(), false)
-    H.chat("/tbx config")
-    H.change("toolbox_config", "target_hide_pet", true)
-    t.eq(TG().GetHidePet(), true)
-    t.eq(H.saved("target").hidePet, true)
-    H.closeWindow("toolbox_config")
-    H.advance(1)
+    t.eq(TG().GetHidePet(), true, "on by default")
     t.eq(H.targetRow().visible, false, "your pet: no target")
     t.eq(#H.targetSlots(), 0, "nor its effects")
+    H.chat("/tbx config")
+    H.change("toolbox_config", "target_hide_pet", false)
+    t.eq(H.saved("target").hidePet, false)
+    H.closeWindow("toolbox_config")
+    H.advance(1)
+    t.eq(H.targetRow().visible, true, "unticked: your pet shows")
+    H.chat("/tbx target pet off")
+    H.reload()
+    t.eq(TG().GetHidePet(), true, "saved")
+    H.setTarget(copy(rex))
+    t.eq(H.targetRow().visible, false)
     H.setTarget(copy(WOLF))
     t.eq(H.targetRow().visible, true, "a creature: shown")
     t.eq(H.targetRow():Find("target_health").value, 0.75)
@@ -867,5 +871,46 @@ return function(t)
     H.chat("/tbx target debug")
     t.ok(H.logged('Your pet: "Rex", health 500 / 800; leave out: on'), H.lastLog())
     t.ok(H.logged("The target is your pet: yes"))
+  end)
+
+  t.test("icons only on its own strip: no strip for a target with no effects", function()
+    H.boot()
+    H.chat("/tbx target on")
+    H.chat("/tbx target bars off")
+    H.setTarget{ id = 5, name = "Wolf", hp = 100, maxHp = 100, effects = {} }
+    H.advance(1)
+    t.eq(H.targetFrame().visible, false, "nothing to show: no empty strip")
+    H.setTarget{ id = 5, name = "Wolf", hp = 100, maxHp = 100,
+                 effects = { { name = "Bleed", remaining = 4, total = 8, icon = 42, debuff = true } } }
+    H.advance(1)
+    t.eq(H.targetFrame().visible, true, "an effect lands: shown")
+    H.setTarget{ id = 5, name = "Wolf", hp = 100, maxHp = 100, effects = {} }
+    H.advance(1)
+    t.eq(H.targetFrame().visible, false, "and gone again")
+    H.chat("/tbx config")
+    H.advance(1)
+    t.eq(H.targetFrame().visible, true, "shown while settings are open, to place it")
+  end)
+
+  t.test("Test flash: the target's bars flash for a few seconds, then stop", function()
+    H.boot()
+    H.chat("/tbx target on")
+    H.setTarget(copy(WOLF))                       -- 75%: not low
+    H.chat("/tbx config")
+    H.click("toolbox_config", "target_flash_test")
+    t.ok(H.logged("Flashing the target's bars"), H.lastLog())
+    local row = H.targetRow()
+    local seen = {}
+    for _ = 1, 8 do
+      H.advance(0.25)
+      seen[row:Find("target_health").color or "@red"] = true
+    end
+    t.ok(seen[Toolbox.Vitals.FLASH_COLOR] and seen["@red"], "flashing")
+    H.advance(Toolbox.Vitals.PREVIEW_SECONDS)
+    t.eq(row:Find("target_health").color, "@red", "and back to normal")
+    H.chat("/tbx target off")
+    H.clearLogs()
+    H.chat("/tbx target flash test")
+    t.ok(H.logged("Show the target HUD first"), H.lastLog())
   end)
 end

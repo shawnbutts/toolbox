@@ -46,25 +46,25 @@ local function spacing()
   return prefs.spacing or W.SPACING_DEFAULT
 end
 
--- Height of one text line at the current font size (or font size `f`) and spacing.
-function W.LineHeight(f)
-  return math.ceil((f or fontSize()) * 1.15) + spacing()
+-- Height of one text line at the current font size and spacing (or font size `f`, spacing `sp`).
+function W.LineHeight(f, sp)
+  return math.ceil((f or fontSize()) * 1.15) + (sp or spacing())
 end
 
 -- Size and line height for a text label. The height is pinned with minHeight and
 -- maxHeight too: a theme class can set its own minimum height, which would win over
 -- a smaller `height` and make small spacing values do nothing.
--- `f` overrides the font size (the notification HUD has its own).
-function W.LineStyle(f)
+-- `f` and `sp` override the font size and spacing (the notification HUD has its own).
+function W.LineStyle(f, sp)
   f = f or fontSize()
-  local h = W.LineHeight(f)
+  local h = W.LineHeight(f, sp)
   return { fontSize = f, height = h, minHeight = h, maxHeight = h }
 end
 
 -- Style for a text label: LineStyle plus no vertical margins or padding.
--- `extra` adds or overrides keys; `f` overrides the font size. Shared with the other windows.
-function W.TextStyle(extra, f)
-  local style = W.LineStyle(f)
+-- `extra` adds or overrides keys; `f` and `sp` override the font size and spacing. Shared with the other windows.
+function W.TextStyle(extra, f, sp)
+  local style = W.LineStyle(f, sp)
   style.marginTop, style.marginBottom, style.paddingTop, style.paddingBottom = 0, 0, 0, 0
   for k, v in pairs(extra or {}) do style[k] = v end
   return style
@@ -265,7 +265,7 @@ function W.ApplyText()
   T.Daily.ApplyText()
   T.DailyDetail.ApplyText()
   T.Vitals.ApplyText()
-  T.Notify.Hud.ApplyText()        -- its own size, or this one's when unset; this spacing either way
+  T.Notify.Hud.ApplyText()        -- its own size and spacing, or these when unset
   T.Config.Sync()
 end
 
