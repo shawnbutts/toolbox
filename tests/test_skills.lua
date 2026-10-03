@@ -517,6 +517,21 @@ return function(t)
     t.eq(H.S.stockOpen.skills, true, "the left half opens the Skills window")
   end)
 
+  t.test("markers: the level shrinks and moves left, clear of them; back without them", function()
+    marksOn()
+    local s = SK().GetSize()
+    local level = H.skillSlots()[1].children[1].children[#Toolbox.BuffBar.COUNT_OUTLINE + 2]
+    t.eq(level.style.textAlign, "left")
+    t.eq(level.style.fontSize, math.max(9, math.floor(Toolbox.BuffBar.CountFont(s) * 0.8)), "80% of its size")
+    t.ok(level.style.paddingLeft >= 1 and level.style.paddingLeft < s / 4, "a little in from the left")
+    H.chat("/tbx config")
+    H.change("toolbox_config", "skills_marks", false)
+    H.advance(1)
+    level = H.skillSlots()[1].children[1].children[#Toolbox.BuffBar.COUNT_OUTLINE + 2]
+    t.eq(level.style.textAlign, "center", "no markers: centred, full size")
+    t.eq(level.style.fontSize, Toolbox.BuffBar.CountFont(s))
+  end)
+
   t.test("markers: a click sets that mode, with its sound; clicking the lit one does nothing", function()
     marksOn()
     H.clickSkillPart(1, "maintain")

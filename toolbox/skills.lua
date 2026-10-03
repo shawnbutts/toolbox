@@ -292,10 +292,21 @@ end
 -- The level over the icon: the buff bar's count style (BB.CountStyle), a dark copy nudged each way
 -- (BB.COUNT_OUTLINE) under the bright one, so it reads on any icon. Index #outline + 1 is the bright one,
 -- whose colour Fill sets (gold when new); `sizeOnly` leaves the outline's colour out too (a resize).
+-- With the training markers on the right half, the level is SK.MARKED_FONT of its size and left-aligned,
+-- SK.MARKED_INSET of the icon in, so three digits stay clear of the markers (owner, 2026-10-03).
+SK.MARKED_FONT, SK.MARKED_INSET = 0.8, 0.06
 local function numberStyle(s, i, sizeOnly)
   local BB = T.BuffBar
   local d = BB.COUNT_OUTLINE[i] or { 0, 0 }
-  local style = BB.CountStyle(s, BB.CountFont(s), d[1], d[2])
+  local marked = SK.ShowMarks()
+  local f = BB.CountFont(s)
+  if marked then f = math.max(9, math.floor(f * SK.MARKED_FONT)) end
+  local style = BB.CountStyle(s, f, d[1], d[2])
+  if marked then              -- left-aligned: a nudge moves the text by itself, not by half (as when centred)
+    style.textAlign = "left"
+    style.paddingLeft = math.max(1, math.floor(s * SK.MARKED_INSET)) + 1 + d[1]
+    style.paddingRight = 0
+  end
   if BB.COUNT_OUTLINE[i] and not sizeOnly then style.color = BB.OUTLINE_COLOR end
   return style
 end
