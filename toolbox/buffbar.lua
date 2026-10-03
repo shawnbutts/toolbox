@@ -360,6 +360,9 @@ local clockTex = -1
 -- food and potions.
 local K = {}
 Toolbox.Consumables = K
+-- The buff block (end of the file): its own strip, every effect, no grouping (filled from BB.Tick).
+local MB = {}
+Toolbox.BuffBlock = MB
 local kContent = nil      -- the consumables bar's row (its own strip, or a row of the buff bar when glued)
 local kCount = 0          -- consumables showing on it
 local group = nil         -- the long-lasting buffs' slot { row, icon, count, ... }
@@ -587,11 +590,11 @@ function BB.CanDismiss()
   return type(ShroudCanDismissBuff) == "function" and type(ShroudDismissBuff) == "function"
 end
 
--- Hides the game's bar while "replace" is on and ours is showing; shows it otherwise, so the
+-- Hides the game's bar while "replace" is on and ours (or the buff block) is showing; shows it otherwise, so the
 -- player is never left without one. Runs every tick: the game forgets a hide on reload.
 local function applyStock()
   if not BB.CanReplace() then return end
-  local want = prefs.replaceStock == true and BB.IsShown() and content ~= nil
+  local want = prefs.replaceStock == true and ((BB.IsShown() and content ~= nil) or MB.Collecting())
   if want then
     if not stockHidden or ShroudIsBuffBarVisible() == true then
       ShroudSetBuffBarVisible(false)
@@ -749,8 +752,8 @@ function BB.SizeWedge(slot, s)
   slot.wedge:SetStyle(style)
 end
 
-local function makeSlot(debuff)
-  local s = size()
+local function makeSlot(debuff, iconSize)
+  local s = iconSize or size()                   -- the buff block has its own size
   -- The clock texture is a placeholder until a buff's icon is set. It's left out, not set to
   -- nil, when it didn't load: the game's Lua passes a nil entry on to the UI.
   local slotRef = {}
@@ -981,8 +984,22 @@ function BB.Unbuilt()
 end
 
 local NO_RUNE = {}             -- runes[] has no entry yet (shared, not a new table per slot per tick)
+-- Time left for a short tooltip, to the minute ("12 min left"), so the text changes at most once a minute
+-- (the sweep and the countdown show the seconds). "" when it doesn't run out. Pure.
+function BB.CoarseLeft(r)
+  if type(r) ~= "number" or r <= 0 then return "" end
+  if r < 60 then return "Under a minute left" end
+  if r < 3600 then return math.ceil(r / 60) .. " min left" end
+  local m = math.ceil(r / 60)
+  if r < 86400 then return string.format("%dh %dm left", math.floor(m / 60), m % 60) end
+  return string.format("%dd %dh left", math.floor(r / 86400), math.floor(r % 86400 / 3600))
+end
+
 -- `left` / `total`: the model's seconds left and the run's full length (nil when not known: no sweep).
-local function fill(slot, e, left, total, warn, flash)
+-- `outline`: a red border while shown (the buff block's debuffs; the buff bar's debuff row has it built in).
+-- `short`: a short tooltip (name, debuff, time left to the minute) instead of the game's full one: the buff
+-- block's, to stay inside the game's text budget with up to MB.SLOTS icons (owner, 2026-10-03).
+local function fill(slot, e, left, total, warn, flash, outline, short)
   if not e then
     if slot.used then
       slot.row:SetVisible(false)
@@ -998,9 +1015,10 @@ local function fill(slot, e, left, total, warn, flash)
     slot.name, slot.label = e.name, plainLabel(e.index, e.name)
   end
   local blink = flash == true and math.floor(T.Now() * 2) % 2 == 0
-  if blink ~= (slot.blink == true) then
-    slot.blink = blink
-    slot.row:SetStyle{ borderWidth = blink and 2 or 0 }
+  local border = blink or outline == true
+  if blink ~= (slot.blink == true) or border ~= (slot.border == true) then
+    slot.blink, slot.border = blink, border
+    slot.row:SetStyle{ borderWidth = border and 2 or 0 }
   end
   local rune = runes[e.name] or NO_RUNE
   local tex = (type(rune.icon) == "number" and rune.icon >= 0) and rune.icon or ShroudGetBuffIcon(e.index)
@@ -1014,7 +1032,13 @@ local function fill(slot, e, left, total, warn, flash)
     end
   end
   -- the tooltip is only rebuilt when the game's text (or the dismiss hint) changes
-  local raw = ShroudGetBuffTooltip(e.index)
+  local raw = nil
+  if short then
+    local left2 = BB.CoarseLeft(e.remaining)
+    raw = slot.label .. (outline and "\nDebuff" or "") .. (left2 ~= "" and ("\n" .. left2) or "")
+  else
+    raw = ShroudGetBuffTooltip(e.index)
+  end
   local dismiss = (prefs.clickDismiss and BB.CanDismiss() and ShroudCanDismissBuff(e.index)) == true
   if raw ~= slot.tip or dismiss ~= slot.tipDismiss then
     slot.tip, slot.tipDismiss = raw, dismiss
@@ -1088,6 +1112,7 @@ end
 local seenA, seenB = {}, {}
 local groupedList, buffList, debuffList, consList = {}, {}, {}, {}
 local groupedPool, buffPool, debuffPool, consPool = {}, {}, {}, {}
+local blockList, blockPool = {}, {}    -- the buff block: every effect
 local NOTHING = {}
 
 local function clear(t)
@@ -1109,6 +1134,8 @@ function BB.Tick()
   local seen = clear(lastSeen == seenA and seenB or seenA)
   local grouped, shownBuffs, shownDebuffs = clear(groupedList), clear(buffList), clear(debuffList)
   local shownCons = clear(consList)
+  local block = MB.Collecting()        -- the buff block is built and showing: it takes every effect
+  local inBlock = clear(blockList)
   local threshold = prefs.expireSeconds or BB.ALERT_DEFAULT
   local expiring = false
   local shown = BB.IsShown()
@@ -1152,6 +1179,13 @@ function BB.Tick()
     if st then st.missingSince = nil end
     timers[e.name] = st
     if fire and not rune.debuff then expiring = true end
+    if block then
+      local x = pooled(blockPool, #inBlock + 1)
+      x.e, x.left, x.total, x.name, x.remaining = e, left, total, e.name, e.remaining
+      x.debuff = rune.debuff == true
+      x.warn = not x.debuff and st ~= nil and st.warned == true
+      inBlock[#inBlock + 1] = x
+    end
     local consumable = not rune.debuff and K.Takes(e)
     if consumable then                   -- on the consumables bar, not the buff bar
       local x = pooled(consPool, #shownCons + 1)
@@ -1205,6 +1239,7 @@ function BB.Tick()
     fillGroup(group, grouped)          -- always last: the longest-lasting buffs
   end
   K.Fill(shownCons)                    -- before the fit: a glued consumables row counts in it
+  if block then MB.Fill(BB.SortByExpiry(inBlock)) else MB.Tick() end
   if content and shown then
     fitFrame(math.min(#shownBuffs, BB.BUFF_SLOTS) + (#grouped > 0 and 1 or 0),
       math.min(#shownDebuffs, BB.DEBUFF_SLOTS))
@@ -1442,6 +1477,7 @@ function BB.Init()
   for name in pairs(preexisting) do lastSeen[name] = true end
   BB.Quiet()
   BB.OnBuffsChanged("start")           -- the change callback only fires on changes
+  MB.Init()                            -- the buff block, filled by the same tick
   ShroudRegisterPeriodic(PERIODIC, BB.Tick, BB.TICK, true)
 end
 
@@ -2427,3 +2463,208 @@ function K.RemoveExclude(part)
   return removePart(kprefs.exclude, part, "No longer left out: %s.")
 end
 
+-- ===========================================================================
+-- Toolbox.BuffBlock (MB): the buff block (/toolbox buffs block)
+-- ===========================================================================
+-- Every buff and debuff in one block, soonest to run out first, row after row: no group slot, nothing
+-- folded into a count (owner, 2026-10-03). Its own strip, never in the Toolbelt; MB.WIDTH icons a row (the
+-- player's choice), its own icon size, its own "only during combat". The buff bar's sweeps, flash, countdown,
+-- click to dismiss and "replace the game's buff bar" apply to it too; the alerts run whatever shows.
+-- Debuffs are outlined in red. Up to MB.SLOTS icons, each with a SHORT tooltip (name, debuff, time left to
+-- the minute): the game's full tooltips on that many icons, beside the buff bar's, would run the add-on out
+-- of its 65,536 characters of text.
+--
+-- Filled from BB.Tick (MB.Collecting / MB.Fill); a fixed pool of MB.SLOTS slots built when shown, in rows of
+-- the width (a width change rebuilds it: rare), resized in place.
+-- Saved var "buffblock": { show = bool (default false), width = 1..MB.WIDTH_MAX, size = BB.SIZE_MIN..MAX,
+-- combatOnly = bool, x, y }.
+
+MB.FRAME_ID = "toolbox_buffblock"
+MB.HOME = { 40, 520 }
+MB.SLOTS = 60
+MB.WIDTH_MIN, MB.WIDTH_MAX, MB.WIDTH_DEFAULT = 1, 30, 10
+MB.PLACEHOLDER = "Buff block"
+
+local mprefs = { show = false }
+local mbContent, mbPlaceholder, mbPlaceholderShown = nil, nil, false
+local mbSlots, mbRows = {}, {}
+local mbCount = 0              -- effects showing now
+local mbShown = nil            -- MB.IsShown() at the last fill, to refresh the HUD when it changes
+
+local function mSave() T.Save("buffblock", mprefs) end
+local function mSize() return mprefs.size or BB.SIZE_DEFAULT end
+local function mWidth() return mprefs.width or MB.WIDTH_DEFAULT end
+
+-- For Toolbox.Hud: a strip only while it is on.
+function MB.Wanted() return mprefs.show == true end
+
+function MB.IsShown()
+  if mprefs.show ~= true then return false end
+  if T.Config.IsShown() then return true end      -- (empty or not) to place it
+  if mprefs.combatOnly and not BB.InCombatWindow() then return false end
+  return mbCount > 0
+end
+
+-- Built and showing (with an effect, or settings open): BB.Tick fills it.
+function MB.Collecting()
+  return mbContent ~= nil and mprefs.show == true and (T.Config.IsShown()
+    or not mprefs.combatOnly or BB.InCombatWindow())
+end
+
+function MB.BuildContent()
+  if clockTex < 0 then clockTex = ShroudLoadTexture(BB.CLOCK.path) end
+  local s, width = mSize(), mWidth()
+  mbPlaceholder = UI.Label{ id = "buffblock_placeholder", text = MB.PLACEHOLDER, class = "dim", visible = false,
+    style = placeholderStyle(s) }
+  mbPlaceholderShown = false
+  mbSlots, mbRows = {}, {}
+  local rows = { mbPlaceholder }
+  for r = 1, math.ceil(MB.SLOTS / width) do
+    local kids = {}
+    for c = 1, width do
+      local i = (r - 1) * width + c
+      if i <= MB.SLOTS then
+        mbSlots[i] = makeSlot(false, s)
+        kids[#kids + 1] = mbSlots[i].row
+      end
+    end
+    mbRows[r] = UI.Row{ visible = false, style = { marginBottom = BB.GAP }, children = kids }
+    rows[#rows + 1] = mbRows[r]
+  end
+  mbContent = UI.Column{ id = "buffblock", children = rows }
+  mbShown = nil
+  return mbContent
+end
+
+function MB.Unbuilt()
+  mbContent, mbPlaceholder, mbPlaceholderShown, mbShown = nil, nil, false, nil
+  mbSlots, mbRows = {}, {}
+end
+
+function MB.ContentSize()
+  local cell = mSize() + BB.GAP
+  if mbPlaceholderShown then return BB.PLACEHOLDER_CELLS * cell, cell end
+  local n = math.max(1, math.min(mbCount, MB.SLOTS))
+  return math.min(n, mWidth()) * cell, math.ceil(n / mWidth()) * cell
+end
+
+-- From BB.Tick: every effect ({ e, left, total, warn, debuff } each), soonest to run out first.
+function MB.Fill(list)
+  if not mbContent then return end
+  local n = math.min(#list, MB.SLOTS)
+  for i, slot in ipairs(mbSlots) do
+    local x = list[i]
+    if x then
+      fill(slot, x.e, x.left, x.total, x.warn, x.warn and prefs.flash, x.debuff, true)
+    else
+      fill(slot, nil)
+    end
+  end
+  local width = mWidth()
+  for r, row in ipairs(mbRows) do T.SetVisible(row, (r - 1) * width < n) end
+  local empty = n == 0 and T.Config.IsShown()
+  if empty ~= mbPlaceholderShown then
+    mbPlaceholderShown = empty
+    mbPlaceholder:SetVisible(empty)
+  end
+  mbCount = n
+  local shown = MB.IsShown()
+  if shown ~= mbShown or n ~= MB.sizedFor then          -- shown or hidden, or a re-fit
+    mbShown, MB.sizedFor = shown, n
+    T.Hud.Refresh()
+  end
+end
+
+-- When nothing fills it (the block hidden: off-combat with "only during combat"), it still needs to hide.
+function MB.Tick()
+  if not mbContent then return end
+  local shown = MB.IsShown()
+  if shown ~= mbShown then
+    mbShown = shown
+    if not MB.Collecting() then mbCount = 0 end
+    T.Hud.Refresh()
+  end
+end
+
+function MB.GetSavedPosition() return mprefs.x, mprefs.y end
+function MB.SavePosition(x, y)
+  if x ~= mprefs.x or y ~= mprefs.y then
+    mprefs.x, mprefs.y = x, y
+    mSave()
+  end
+end
+
+local blockMover = T.Hud.MoverFor("buffblock", MB.HOME)
+MB.GetPosition, MB.MoveTo, MB.Nudge, MB.ResetPosition = blockMover.Get, blockMover.MoveTo, blockMover.Nudge,
+  blockMover.Reset
+
+function MB.GetShow() return mprefs.show == true end
+function MB.SetShow(on)
+  mprefs.show = on == true
+  mSave()
+  if not mprefs.show then mbCount = 0 end
+  T.Hud.Build(true)                    -- its frame exists only while it is on (HUD frames are limited)
+  BB.Tick()
+  T.Hud.Refresh()
+  T.Config.Sync()
+end
+
+function MB.GetWidth() return mWidth() end
+function MB.SetWidth(n)
+  if not inRange(n, MB.WIDTH_MIN, MB.WIDTH_MAX) then return false end
+  if n == mWidth() then return true end
+  mprefs.width = n
+  mSave()
+  if mprefs.show then
+    T.Hud.Rebuild("buffblock")         -- other rows: its strip rebuilt (rare)
+    BB.Tick()
+  end
+  T.Config.Sync()
+  return true
+end
+
+function MB.GetSize() return mSize() end
+function MB.SetSize(n)
+  if not inRange(n, BB.SIZE_MIN, BB.SIZE_MAX) then return false end
+  mprefs.size = n
+  mSave()
+  for _, slot in ipairs(mbSlots) do                 -- in place: a slider fires many changes
+    slot.row:SetStyle{ width = n, height = n }
+    slot.icon:SetSize(n, n)
+    BB.SizeWedge(slot, n)
+    slot.countdown:SetStyle(countStyle(n, countFont(n), 0, 0))
+  end
+  if mbPlaceholder then mbPlaceholder:SetStyle(placeholderStyle(n)) end
+  MB.sizedFor = nil
+  BB.Tick()
+  T.Config.Sync()
+  return true
+end
+
+function MB.GetCombatOnly() return mprefs.combatOnly == true end
+function MB.SetCombatOnly(on)
+  mprefs.combatOnly = on == true
+  mSave()
+  BB.Tick()
+  MB.Tick()
+  T.Config.Sync()
+end
+
+-- From BB.Init (before Toolbox.Hud builds the strips).
+function MB.Init()
+  local saved = T.Load("buffblock")
+  mprefs = { show = false }
+  if type(saved) == "table" then
+    mprefs.show = saved.show == true
+    if inRange(saved.width, MB.WIDTH_MIN, MB.WIDTH_MAX) then mprefs.width = saved.width end
+    if inRange(saved.size, BB.SIZE_MIN, BB.SIZE_MAX) then mprefs.size = saved.size end
+    mprefs.combatOnly = saved.combatOnly == true
+    if type(saved.x) == "number" and type(saved.y) == "number" then mprefs.x, mprefs.y = saved.x, saved.y end
+  end
+  mbCount, mbShown = 0, nil
+  T.Hud.Register("buffblock", MB)
+end
+
+-- the strip: built before the target (which goes last); its settings cleared by Backup & reset
+table.insert(T.Hud.ORDER, #T.Hud.ORDER, "buffblock")
+T.Backup.KEYS[#T.Backup.KEYS + 1] = "buffblock"

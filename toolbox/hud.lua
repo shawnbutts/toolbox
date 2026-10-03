@@ -277,6 +277,23 @@ local function setSize(frame, w, h)
   pcall(function() frame:SetSize(w, h) end)   -- refused past the HUD area limit: keep the old size
 end
 
+-- Rebuilds one module's own strip and leaves the others alone (a setting that changes its elements, such as
+-- the buff block's width): a full Hud.Build would create every strip's elements again at once, past the
+-- game's creation cap for a big one. In the Toolbelt, the shared strip is rebuilt as before.
+function Hud.Rebuild(key)
+  if gluedHere(key) then
+    Hud.Build()
+    return
+  end
+  local frame = frames[key]
+  if frame then
+    pcall(function() frame:Destroy() end)
+    unbuilt(key)
+    frames[key], contents[key], sized[frame] = nil, nil, nil
+  end
+  Hud.Build(true)
+end
+
 -- Sizes and shows/hides the strips (call when a module's content size or shown state changes).
 function Hud.Refresh()
   local frame = prefs.glued and frames[Hud.GLUED_ID]

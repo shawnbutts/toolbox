@@ -480,7 +480,7 @@ function SK.GetVertical() return prefs.vertical ~= false end
 function SK.SetVertical(on)
   prefs.vertical = on == true
   save()
-  if prefs.show then T.Hud.Build() end             -- a Row or a Column: rebuilt (rare)
+  if prefs.show then T.Hud.Rebuild("skills") end   -- a Row or a Column: its strip rebuilt (rare)
 end
 
 function SK.GetSlots() return slotCount() end
@@ -488,7 +488,7 @@ function SK.SetSlots(n)
   if type(n) ~= "number" or n ~= math.floor(n) or n < SK.SLOTS_MIN or n > SK.SLOTS_MAX then return false end
   prefs.slots = n
   save()
-  if prefs.show then T.Hud.Build() end             -- other elements: rebuilt (rare)
+  if prefs.show then T.Hud.Rebuild("skills") end   -- other elements: its strip rebuilt (rare)
   return true
 end
 

@@ -15,6 +15,8 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
   buffs grouped into one slot, sound alerts and a red flash before a buff runs out, a sound when a
   debuff lands, an only-in-combat option, and (API 16) replacing the game's own buff bar and
   click-to-dismiss.
+- **Buff block**: every buff and debuff on a strip of its own, soonest to run out first, in rows as many
+  icons wide as you choose, nothing grouped (`/toolbox buffs block`).
 - **Consumables bar**: food, potions, weapon poisons and combat items in effect, by the game's buff
   categories, long-lasting ones grouped (on its own strip or in the Toolbelt).
 - **Target HUD**: your target's health and focus (bars, numbers or both, with the health bars' options), and

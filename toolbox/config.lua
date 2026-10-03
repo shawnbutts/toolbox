@@ -246,12 +246,13 @@ function C.BuffBarSection()
       onChange = function(_, v) B.SetCombatOnly(v) end },
     UI.Toggle{ id = "buff_replace", text = "Replace the game's buff bar", value = B.GetReplace(),
       enabled = B.CanReplace(), style = { marginLeft = 16 },
-      tooltip = B.CanReplace() and "Hides the game's own buff bar while this one is showing"
+      tooltip = B.CanReplace() and "Hides the game's own buff bar while this one (or the buff block) is showing"
         or "Needs a newer game client (Lua API 16)",
       onChange = function(_, v) C.OnReplace(v) end },
     UI.Toggle{ id = "buff_dismiss", text = "Click a buff to dismiss it", value = B.GetClickDismiss(),
       enabled = B.CanDismiss(), style = { marginLeft = 16 },
       tooltip = B.CanDismiss() and "Like the game's right-click Dismiss; only buffs the game lets you dismiss"
+        .. " (on the buff block too)"
         or "Needs a newer game client (Lua API 16)",
       onChange = function(_, v) C.OnDismiss(v) end },
     slider("buff_size", "Icon size", B.SIZE_MIN, B.SIZE_MAX, 1, B.GetSize(),
@@ -281,6 +282,29 @@ function C.BuffBarSection()
     C.CategoryToggles("buff_cat_", "Always group these kinds", B.GetGroupCategory, B.SetGroupCategory),
     C.NameList("buff_group", "Buffs whose names contain these are always grouped", B.AddGroupPart,
       B.RemoveGroupPart),
+    C.BuffBlockSection(),
+  } }
+end
+
+-- The buff block (Toolbox.BuffBlock), at the end of the Buffs page.
+function C.BuffBlockSection()
+  local MB = T.BuffBlock
+  return UI.Column{ children = {
+    heading("Buff block"),
+    UI.Label{ text = "Every buff and debuff on a strip of its own, soonest to run out first, row after row: nothing"
+      .. " grouped. Not part of the Toolbelt. The sweeps, flash, countdown and alerts above apply to it too.",
+      class = "dim", style = { whiteSpace = "wrap" } },
+    UI.Toggle{ id = "show_buffblock", text = "Show the buff block", value = MB.GetShow(),
+      onChange = function(_, v) MB.SetShow(v) end },
+    UI.Toggle{ id = "buffblock_combat", text = "Only during combat", value = MB.GetCombatOnly(),
+      style = { marginLeft = 16 }, tooltip = "Show the block only in combat (and a few seconds after); it also"
+        .. " shows while this window is open, so you can place it",
+      onChange = function(_, v) MB.SetCombatOnly(v) end },
+    slider("buffblock_width", "Icons per row", MB.WIDTH_MIN, MB.WIDTH_MAX, 1, MB.GetWidth(),
+      "How many icons wide the block is; more effects start a new row (up to " .. MB.SLOTS .. " in all)",
+      function(n) MB.SetWidth(n) end),
+    slider("buffblock_size", "Icon size", T.BuffBar.SIZE_MIN, T.BuffBar.SIZE_MAX, 1, MB.GetSize(),
+      "The block's icon size in pixels (its own)", function(n) MB.SetSize(n) end),
   } }
 end
 
@@ -613,7 +637,7 @@ local POSITIONED = {
   { "buff", T.BuffBar, "Buff bar" }, { "vitals", T.Vitals, "Health bars" },
   { "consumables", T.Consumables, "Consumables bar" }, { "gear", T.Gear, "Equipment bar" },
   { "combat", T.Combat, "Combat stats" }, { "nhud", T.Notify.Hud, "Notification HUD" },
-  { "target", T.Target, "Target HUD" },
+  { "target", T.Target, "Target HUD" }, { "buffblock", T.BuffBlock, "Buff block" },
 }
 if T.SkillBar then POSITIONED[#POSITIONED + 1] = { "skills", T.SkillBar, T.SkillBar.PAGE } end
 
@@ -854,6 +878,8 @@ end
 local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "xp_mode", "daily_mode", "show_xp",
   "show_daily_detail", "dd_values", "dd_values_msg", "dd_include", "hover_popup", "hover_daily",
   "show_buffs", "buffs_combat_only", "buff_replace", "buff_dismiss", "buff_size", "buff_size_value",
+  "show_buffblock", "buffblock_combat", "buffblock_width", "buffblock_width_value", "buffblock_size",
+  "buffblock_size_value",
   "expire_alert", "expire_seconds", "expire_seconds_value", "buff_flash", "debuff_alert", "buff_group_after",
   "buff_group", "show_consumables", "consumables_extra", "show_gear", "gear_threshold",
   "show_vitals", "vitals_scale", "vitals_scale_value", "vitals_width", "vitals_width_value", "vitals_show_bars",
@@ -1141,12 +1167,19 @@ function C.Sync()
   for _, id in ipairs({ "buffs_combat_only", "buff_flash", "buff_group_after" }) do
     setEnabled(id, buffsOn)
   end
-  setEnabled("buff_replace", buffsOn and B.CanReplace())
+  setEnabled("buff_replace", (buffsOn or T.BuffBlock.GetShow()) and B.CanReplace())
   for _, key in ipairs(T.Consumables.Categories()) do
     setValue("buff_cat_" .. key, B.GetGroupCategory(key))
     setEnabled("buff_cat_" .. key, buffsOn and T.Consumables.HasCategories())
   end
-  setEnabled("buff_dismiss", buffsOn and B.CanDismiss())
+  setEnabled("buff_dismiss", (buffsOn or T.BuffBlock.GetShow()) and B.CanDismiss())
+  -- the buff block
+  local MB = T.BuffBlock
+  setValue("show_buffblock", MB.GetShow())
+  setValue("buffblock_combat", MB.GetCombatOnly())
+  sliderValue("buffblock_width", MB.GetWidth())
+  sliderValue("buffblock_size", MB.GetSize())
+  for _, id in ipairs({ "buffblock_combat", "buffblock_width", "buffblock_size" }) do setEnabled(id, MB.GetShow()) end
   -- Consumables & gear
   local K = T.Consumables
   setValue("show_consumables", K.GetShow())

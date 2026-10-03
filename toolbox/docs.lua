@@ -144,7 +144,12 @@ D.SECTIONS = {
     "Two settings on newer game clients: Replace the game's buff bar hides the game's own bar while "
       .. "this one is showing (it comes back whenever this one is off), and Click a buff to dismiss it "
       .. "works like the game's right-click Dismiss. Chat: /toolbox buffs replace on|off, "
-      .. "/toolbox buffs dismiss on|off." },
+      .. "/toolbox buffs dismiss on|off.",
+    "The buff block (settings, Buffs, Buff block; or /toolbox buffs block on): every buff and debuff on a "
+      .. "strip of its own, soonest to run out first, row after row, nothing grouped. Not part of the Toolbelt. "
+      .. "Choose how many icons a row (/toolbox buffs block width 12), its icon size and only during combat; "
+      .. "move it by its grip or under HUD layout. Its tooltips are short (name and time left): the buff bar "
+      .. "has the game's full ones. The sweeps, flash, countdown, Replace and Click to dismiss apply to it too." },
   { "Health, focus & Vigor bars",
     "/toolbox vitals: your health and focus with \"current / max\", and a gold Vigor bar with its "
       .. "percentage (hover it for what Vigor adds to health regen, focus regen and critical chance). The "

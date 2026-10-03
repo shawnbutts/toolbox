@@ -10,7 +10,8 @@ return function(t)
   -- 250 names every second):
   --   veteran idle   2 calls/s,  3.3 / 4.6 KB/s,  0 made/s
   --   full bars      0 calls/s,  8.3 / 18.2 KB/s, 0 made/s (2026-09-30: the game runs the sweeps; before,
-  --                  16 calls/s and 8 made/s replacing sweep pictures)
+  --                  16 calls/s and 8 made/s replacing sweep pictures); 1.1 calls/s, 9.0 / 22.9 KB/s with the
+  --                  buff block showing every effect too (2026-10-03)
   --   heavy combat  67 calls/s, 61 / 75 KB/s (incl. the test's own 50 event tables a second), 0 made/s
   -- STRESS_PRINT=1 lua tests/run.lua stress prints them. Limits leave headroom.
   local LIMITS = {
@@ -169,6 +170,7 @@ return function(t)
     H.chat("/tbx buffs")
     H.chat("/tbx vitals")
     H.chat("/tbx notify via hud")
+    H.chat("/tbx buffs block on")                      -- and every effect again on the buff block
     H.chat("/tbx buffs group after off")               -- all 20 on the bar, none grouped
     -- long enough that none runs out during the measurement
     local list = {}
@@ -247,6 +249,7 @@ return function(t)
     H.advance(70)
     openEverything()
     if not Toolbox.BuffBar.IsEnabled() then H.chat("/tbx buffs") end   -- the veteran's was on: the toggle hid it
+    H.chat("/tbx buffs block on")                                     -- every effect again, short tooltips
     H.chat("/tbx buffs group after off")
     H.chat("/tbx target on")
     H.chat("/tbx target text on")
@@ -283,11 +286,14 @@ return function(t)
     H.advance(5)
     noErrors("settings, the guide and the version window")
     if os.getenv("STRESS_PRINT") then
-      print(string.format("  text: %d characters with everything open, %d at the peak (limit %d)", base,
-        H.S.textPeak, LIMITS.text))
+      print(string.format("  text: %d characters with everything open, %d at the peak (limit %d); %d elements",
+        base, H.S.textPeak, LIMITS.text, H.S.live))
     end
     t.ok(H.S.textPeak <= LIMITS.text, string.format("at most %d characters of text on screen: %d",
       LIMITS.text, H.S.textPeak))
+    -- elements: 1,400 measured 2026-10-03 with the buff block's 60 slots built (the game counts MORE than
+    -- the harness, against its 2,000: keep a margin)
+    t.ok(H.S.live <= 1500, "at most 1,500 live elements with everything open: " .. H.S.live)
   end)
 
   t.test("maximum saved data with corrupted entries: loads, keeps what is valid, drops the rest", function()

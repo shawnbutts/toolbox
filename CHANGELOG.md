@@ -8,6 +8,11 @@ ones included).
 ## [Unreleased]
 
 ### Added
+- The buff block (settings, Buffs, Buff block; /toolbox buffs block): every buff and debuff on a strip of its
+  own, soonest to run out first, row after row, nothing grouped into a count. You choose how many icons a row
+  (up to 60 icons in all), the icon size and only during combat; move it like the other strips. Not part of
+  the Toolbelt. The buff bar's sweeps, flash, countdown, Replace the game's buff bar and Click to dismiss apply
+  to it; its tooltips are short (name and time left to the minute). Off by default.
 - Skill activity strip (/toolbox skills; settings, Skill activity): like the game's own skill bar, your skills'
   icons pop up on a strip of their own as they level (or change mode, or, if you choose, gain any experience),
   with the level over the icon (gold when new; it can be hidden), a progress bar to the next level (green while

@@ -698,7 +698,8 @@ end
 
 add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off; add|remove <name>|reset]; "
     .. "combat on|off (only during combat); flash on|off; countdown on|off|<seconds>; replace on|off; "
-    .. "dismiss on|off; debug; raw; trace [name])", function(rest)
+    .. "dismiss on|off; block [on|off|width <n>|size <n>|combat on|off|move [x y]]; debug; raw; trace [name])",
+    function(rest)
   local word, name = T.ParseArgs(rest)
   if word == "countdown" then
     local B, arg = T.BuffBar, name:lower()
@@ -783,6 +784,35 @@ add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off;
     T.Print("Always, by kind: " .. (#cats > 0 and table.concat(cats, ", ") or "none") .. ".")
     local parts = B.GroupParts()
     T.Print("Also by name: " .. (#parts > 0 and table.concat(parts, ", ") or "none") .. ".")
+    return
+  end
+  if word == "block" then
+    local MB, c = T.BuffBlock, "/" .. T.commands[1] .. " buffs block"
+    local verb, arg = T.ParseArgs(name)
+    verb = verb:lower()
+    if verb == "move" then
+      T.MoveCommand(MB, "buffblock", "Buff block", arg)
+      return
+    elseif verb == "" then
+      MB.SetShow(not MB.GetShow())
+    elseif verb == "on" or verb == "off" then
+      MB.SetShow(verb == "on")
+    elseif verb == "combat" and (arg:lower() == "on" or arg:lower() == "off") then
+      MB.SetCombatOnly(arg:lower() == "on")
+    elseif verb == "width" or verb == "size" then
+      local ok = (verb == "width" and MB.SetWidth or MB.SetSize)(tonumber(arg))
+      if not ok then
+        local lo, hi = MB.WIDTH_MIN, MB.WIDTH_MAX
+        if verb == "size" then lo, hi = T.BuffBar.SIZE_MIN, T.BuffBar.SIZE_MAX end
+        T.Print("Use " .. c .. " " .. verb .. " <" .. lo .. "-" .. hi .. ">.")
+        return
+      end
+    else
+      T.Print("Use " .. c .. " [on|off], width <n>, size <n>, combat on|off or move [x y].")
+      return
+    end
+    T.Print("Buff block: " .. (MB.GetShow() and "on" or "off") .. ", " .. MB.GetWidth() .. " icons a row, size "
+      .. MB.GetSize() .. (MB.GetCombatOnly() and ", only during combat" or "") .. ".")
     return
   end
   if word == "move" then

@@ -133,8 +133,17 @@ into one if a new file is ever needed).
   `Place()`. At most `Hud.FrameCap()` strips (`Hud.MAX_FRAMES` = 25, or the limit learned when the game
   refused a frame for room, `Hud.OutOfRoom`: that strip's content is destroyed): past that a strip isn't built
   and chat says so once (`noRoom`; `Hud.ORDER` decides, target last). A strip failing with "too fast" is retried after
-  `Hud.RETRY_DELAY`. `Hud.TextStrip` is the HUD form of the XP and Today windows.
-- `buffbar.lua`: `Toolbox.BuffBar` (BB), plus `Toolbox.Consumables` (K) and `Toolbox.Gear` (G).
+  `Hud.RETRY_DELAY`. `Hud.TextStrip` is the HUD form of the XP and Today windows. `Hud.Rebuild(key)` rebuilds one
+  module's own strip (a setting that changes its elements); a full `Hud.Build()` makes every strip's elements
+  again at once, past the creation cap with a big strip (the buff block's 60 slots).
+- `buffbar.lua`: `Toolbox.BuffBar` (BB), plus `Toolbox.Consumables` (K), `Toolbox.Gear` (G) and
+  `Toolbox.BuffBlock` (MB, end of the file; owner, 2026-10-03).
+  - Buff block: its own strip (never in the Toolbelt), every effect sorted by expiry (`BB.Tick` collects them
+    when `MB.Collecting()`, `MB.Fill`), no group slot, debuffs outlined (`fill`'s `outline`), a fixed pool of
+    `MB.SLOTS` (60) in rows of `MB.GetWidth()` (a width change rebuilds only its strip: `Hud.Rebuild`), its own
+    size (in place) and combat-only. Short tooltips (`fill`'s `short`: name, debuff, `BB.CoarseLeft` to the
+    minute), not the game's full ones: 60 full ones beside the buff bar's would break the text budget.
+    Replace and click-to-dismiss use the buff bar's settings.
   - Buff bar: `OnBuffsChanged` (from the event AND from `Tick` when names change) reads
     `ShroudGetPlayerBuff()` through `BB.ReadRunes` (userdata-safe) for debuff flags, icons, categories and
     durations (`TotalDuration` = full seconds, `CurrentDuration` = seconds left); learned durations
@@ -263,7 +272,7 @@ into one if a new file is ever needed).
 - **A feature:** pure logic over plain data, API calls at the edges, hooked into `ShroudOnStart` /
   `Toolbox.Tick` / core's callbacks; a `Toolbox.Foo` table; tests; a CHANGELOG `[Unreleased]` entry; the
   guide (`D.SECTIONS`) and both READMEs if players see it.
-- **A HUD strip:** a Hud module (above). There are 10 strips already (25 frames, if the 2026-10-01 raise holds in
+- **A HUD strip:** a Hud module (above). There are 11 strips already (25 frames, if the 2026-10-01 raise holds in
   game; 8 before): still prefer a Toolbelt row.
 - **A window:** there is no slot (see Limits). Use a view of an existing window.
 
@@ -299,7 +308,7 @@ wedge (`SetSweep`, `SetSweepTimer`, refused as in game for a lone duration) read
   `H.hud()` (glued strip), `H.vitals()`, `H.config()` (all categories built) / `H.configRaw()`, `H.detail()`,
   `H.detailRows()`, `H.daily()`, `H.dailyText(id)`, `H.notify()`, `H.notice(key)`, `H.nhud()`,
   `H.gearFrame()`, `H.gearSlots()`, `H.targetFrame()`, `H.targetRow()`, `H.targetSlots()`,
-  `H.combatHud()`, `H.combatRows()`, `H.skillsFrame()`, `H.skillSlots()`, `H.clickSkill(n)`, `H.playedNames()`, `H.S.created` / `H.S.constructed`.
+  `H.combatHud()`, `H.combatRows()`, `H.S.frames.toolbox_buffblock` (the buff block), `H.skillsFrame()`, `H.skillSlots()`, `H.clickSkill(n)`, `H.playedNames()`, `H.S.created` / `H.S.constructed`.
 
 Stub any new API function in `install_api()` with its documented return values, including the "no
 character" sentinel.
@@ -314,6 +323,7 @@ character" sentinel.
 | `daily` | see the header comment of `daily.lua` (format `v = 1`) |
 | `daily_window` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, compact = bool, hx, hy }` |
 | `daily_detail` | `{ open = bool, x = number, y = number, values = bool, view = "looted"/"crafted"/"gathered", include = bool }` |
+| `buffblock` | `{ show = bool (default false), width = 1..30 (icons a row, default 10), size = 20..48, combatOnly = bool, x, y }` |
 | `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, flash, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), groupCats = { [category] = true }, countdown = bool, countdownSecs = 5..120, group = { name parts }, replaceStock, clickDismiss, combatOnly, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { [sound key] = "..." } }` |
 | `buff_timers` | `{ v = 3, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload |

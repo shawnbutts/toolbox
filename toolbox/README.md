@@ -43,6 +43,9 @@ game's own buff bar, and a click can dismiss a buff. To use your own sounds, put
 `toolbox_tap.ogg` (or `.wav`) in your Lua folder, beside the
 `toolbox` folder, or choose any file in the settings.
 
+The **buff block** shows every buff and debuff on a strip of its own instead, soonest to run out first, in
+rows as many icons wide as you choose, nothing grouped (`/toolbox buffs block`).
+
 ## Consumables bar
 
 Food, potions and combat items such as caltrops move to their own bar, soonest to run
