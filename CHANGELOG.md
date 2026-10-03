@@ -38,6 +38,11 @@ ones included).
 - Notifications: "Skill level changes", a skill's level gained or lost ("Fireball up to 42, Archery down to
   9."), on the notification HUD only (never a window to close). Off by default.
 
+### Fixed
+- Notification HUD: after switching to another character without a /lua reload, the previous character's
+  notices stayed on the HUD and were saved into the new character's history, and the HUD kept the previous
+  character's position and settings. It now loads each character's own.
+
 ## [1.1.0] - 2026-10-02
 
 ### Added

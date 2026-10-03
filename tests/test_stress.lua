@@ -250,6 +250,8 @@ return function(t)
     openEverything()
     if not Toolbox.BuffBar.IsEnabled() then H.chat("/tbx buffs") end   -- the veteran's was on: the toggle hid it
     H.chat("/tbx buffs block on")                                     -- every effect again, short tooltips
+    H.chat("/tbx skills on")                                          -- the skill activity strip
+    H.chat("/tbx combat shout on")                                    -- and the Toolbelt's shout overlay
     H.chat("/tbx buffs group after off")
     H.chat("/tbx target on")
     H.chat("/tbx target text on")
