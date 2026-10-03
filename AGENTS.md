@@ -397,6 +397,9 @@ you read back and fall back to defaults.
    `toolbox-<v>.zip` (store package) and `toolbox-<v>-beta.zip` (tester zip), notes from the changelog, a
    pre-release when the heading says "(beta N)". Public once pushed. First one planned: v1.0.0 (owner,
    2026-09-30; v0.7.0 and older tags predate the workflow and stay as they are).
+6. When handing over the store submission (package, version, change list), remind the owner to check that the
+   author / "by" fields read "shawn butts (shawn)" in the submit form and, once live, on the store page
+   (owner, 2026-10-03: the player name was added after 1.2.0, so 1.2.0's package still says "shawn butts").
 
 Tags: v0.2.0 (a52051c), v0.2.1 (ae2fa1f), v0.3.0 (607dcb3), v0.3.1 (7db2a15), v0.4.0 (4b4d5a5),
 v0.5.0 (820df19), v0.6.0 (03fdeef), v0.6.1 (6322846), v0.7.0 (2d07df7), v0.8.0 (9672d11), v1.0.0 (438a80d), v1.0.1 (1cfef96), v1.0.2 (fedf1ba), v1.0.3 (50bff65), v1.1.0 (26166ce), v1.2.0 (9077b9f).
