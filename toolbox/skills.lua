@@ -877,14 +877,15 @@ T.Notify.SOURCES[#T.Notify.SOURCES + 1] = {
 -- the guide topic, before "Moving the HUD strips"
 do
   local topic = { SK.PAGE,
-    "/toolbox skills shows a strip of the skills you're levelling, like the game's own along the right: each "
-      .. "icon pops up as the skill levels (or changes mode, or with \"Any experience\", gains any), with its "
-      .. "level on it (gold when new; the icon flashes for 2 seconds), a bar of its progress to the next (green while it rises, red while it "
-      .. "falls) and its mode as the frame's colour: green training, blue maintaining, red unlearning. It goes "
-      .. "after a while with no change (Keep it for; Always keeps it). Hover for details. Click the left half of "
-      .. "an icon to open the game's Skills window; its right half has the training controls (newer clients): "
-      .. "green arrow up train, yellow square maintain, red arrow down unlearn, the one in use lit. Click one "
-      .. "to set it, with a sound for each (Off is set in the Skills window).",
+    "/toolbox skills shows a strip of the skills you're levelling, like the game's own along the right: "
+      .. "each icon pops up as the skill levels (or changes mode, or with \"Any experience\", gains any), with"
+      .. " its level on it (gold when new; the icon flashes for 2 seconds), a bar of its progress to the next "
+      .. "(green while it rises, red while it falls) and its mode as the frame's colour: green training, blue "
+      .. "maintaining, red unlearning. It goes after a while with no change (Keep it for; Always keeps it). "
+      .. "Hover for details. Click the left half of an icon to open the game's Skills window; its right half "
+      .. "has the training controls (newer clients): green arrow up train, yellow square maintain, red arrow "
+      .. "down unlearn, the one in use lit. Click one to set it, with a sound for each (Off is set in the "
+      .. "Skills window).",
     "Settings, Skill activity: vertical or horizontal, what shows a skill, how long it stays, how many show, "
       .. "the icon size and whether the level shows on it. Notifications has \"Skill level changes\" for the "
       .. "notification HUD (off by default): levels gained and lost.",
