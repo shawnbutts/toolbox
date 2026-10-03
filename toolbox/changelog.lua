@@ -5,6 +5,7 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "version", "1.2.0 - 2026-10-03" },
   { "section", "Added" },
   { "item", "Block, parry & dodge (settings, Combat; /toolbox combat shout on): when you block, parry or dodge an attack, \"Block!\", \"Parry!\" or \"Dodge!\" pops up over the middle of the Toolbelt for a moment, outlined so it reads over the icons, with a sound for each (a shield thud, a blade clash, a whoosh). Choose the text size and each word's colour, and switch each word and sound on or off; Test shows one. Your own sounds work like the other alerts (the Sounds page, or toolbox_block.ogg / toolbox_parry.ogg / toolbox_dodge.ogg). Off by default." },
   { "item", "Settings search: a box at the top of the settings window finds settings on every page as you type (by their name, section, tooltip or choices, with a few synonyms: \"toolbar\" finds the Toolbelt). Pick a result (\"Buffs > Buff block > Icons per row\") to open its page with that setting's section at the top (the settings above it hidden until you press Show the whole page) and the setting blinking a few times; Enter goes to the first." },

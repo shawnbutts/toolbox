@@ -7,6 +7,8 @@ ones included).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-03
+
 ### Added
 - Block, parry & dodge (settings, Combat; /toolbox combat shout on): when you block, parry or dodge an attack,
   "Block!", "Parry!" or "Dodge!" pops up over the middle of the Toolbelt for a moment, outlined so it reads over
