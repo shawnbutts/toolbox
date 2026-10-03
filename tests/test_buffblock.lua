@@ -80,7 +80,7 @@ return function(t)
     t.eq(Toolbox.BuffBar.CoarseLeft(0), "", "permanent")
   end)
 
-  t.test("the width: icons a row; changing it rebuilds the rows; at most 60 icons", function()
+  t.test("the width: icons a row; changing it rebuilds the rows; at most MB.SLOTS (40) icons", function()
     settled()
     buffs(16)
     H.chat("/tbx buffs block on")

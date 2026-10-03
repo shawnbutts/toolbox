@@ -7,6 +7,10 @@ ones included).
 
 ## [Unreleased]
 
+### Changed
+- The buff block shows up to 40 icons (it was 60), the soonest to run out first: it keeps Toolbox well inside the
+  game's limit on how many UI elements an add-on can have with everything switched on.
+
 ### Added
 - Skill activity: training controls on each icon (needs Lua API 27). The right half of a skill's icon has three
   markers, top to bottom: train (green arrow up), maintain (yellow square) and unlearn (red arrow down); the

@@ -136,12 +136,12 @@ into one if a new file is ever needed).
   `Hud.RETRY_DELAY`. `Hud.TextStrip` is the HUD form of the XP and Today windows. `Hud.SetOverlay(provider)`:
   one overlay drawn over the Toolbelt (the combat shout). `Hud.Rebuild(key)` rebuilds one
   module's own strip (a setting that changes its elements); a full `Hud.Build()` makes every strip's elements
-  again at once, past the creation cap with a big strip (the buff block's 60 slots).
+  again at once, past the creation cap with a big strip (the buff block's 40 slots).
 - `buffbar.lua`: `Toolbox.BuffBar` (BB), plus `Toolbox.Consumables` (K), `Toolbox.Gear` (G) and
   `Toolbox.BuffBlock` (MB, end of the file; owner, 2026-10-03).
   - Buff block: its own strip (never in the Toolbelt), every effect sorted by expiry (`BB.Tick` collects them
     when `MB.Collecting()`, `MB.Fill`), no group slot, debuffs outlined (`fill`'s `outline`), a fixed pool of
-    `MB.SLOTS` (60) in rows of `MB.GetWidth()` (a width change rebuilds only its strip: `Hud.Rebuild`), its own
+    `MB.SLOTS` (40; 60 in 1.2.0, lowered for the element budget) in rows of `MB.GetWidth()` (a width change rebuilds only its strip: `Hud.Rebuild`), its own
     size (in place) and combat-only. Short tooltips (`fill`'s `short`: name, debuff, `BB.CoarseLeft` to the
     minute), not the game's full ones: 60 full ones beside the buff bar's would break the text budget.
     Replace and click-to-dismiss use the buff bar's settings.

@@ -293,8 +293,9 @@ return function(t)
     end
     t.ok(H.S.textPeak <= LIMITS.text, string.format("at most %d characters of text on screen: %d",
       LIMITS.text, H.S.textPeak))
-    -- elements: 1,400 measured 2026-10-03 with the buff block's 60 slots built (the game counts MORE than
-    -- the harness, against its 2,000: keep a margin)
+    -- elements: 1,400 measured 2026-10-03 with the buff block's 60 slots built, 1,490 after the skill strip's
+    -- markers; the block has 40 slots since (the game counts MORE than the harness, against its 2,000: keep a
+    -- margin)
     t.ok(H.S.live <= 1500, "at most 1,500 live elements with everything open: " .. H.S.live)
   end)
 
