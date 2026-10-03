@@ -462,6 +462,28 @@ ones (`tmp/client-issues.md` 14, 15): the slot getters reach the whole party (sl
 order, so `for slot = 0, count - 1` finds everyone, buffs included), `ShroudGetPartyMemberNamesInScene()`
 returns a plain list of real names, and `for v in list do` over a table walks its values.
 
+**Planned, agreed (owner, 2026-10-03): training-mode markers on the skill strip** (skills.lua; needs API 27,
+feature-detected; the owner's client reports 28). Not built yet:
+- Each skill icon's click area is split. LEFT HALF: open the Skills window (what the whole icon does now). RIGHT
+  HALF: three stacked click areas, top to bottom TRAIN (green up arrow), MAINTAIN (yellow square), UNLEARN (red
+  down arrow). A click sets that mode directly with `ShroudSetSkillMode(skill, mode)` (a gesture: the click);
+  no click-to-cycle (one extra click would land on Unlearn and drain the skill). Clicking the lit one does nothing.
+- The current mode's marker bright, the other two faded (opacity). `ShroudCanSetSkillMode` (no gesture) fades a
+  marker the game wouldn't take, and its click does nothing; after a click, follow the returned mode and reason
+  (notSpecialized -> maintains; belowFloor -> off; specialRule: elixir skills refused) and say it in chat when it
+  isn't what was asked.
+- "Off" (NotLearning) gets NO marker (owner): a skill that is off shows all three faded; off is set in the game's
+  own window. The docs don't explain off vs maintaining beyond belowFloor (a floor for maintain/unlearn).
+- A sound per mode set (train / maintain / unlearn), from art/alerts.py, overridable like the other alerts.
+- Drawing: one small arrow picture shipped like clock.png, tinted (@green / @red, SetTint) and rotated 180 for
+  down (SetRotation); the square from the same sprite (SetUV) in @gold or a yellow token. Click areas are
+  transparent pictures (tint alpha 0, as BB.WedgeCarrier) laid over the icon by negative margins (s <= 48, within
+  the -64 clamp), AFTER the level labels so a click can't land on a label. Each area's tooltip: the skill's,
+  plus "Click: train" etc.
+- A click reports no mouse button (onClick gets only the element), so no right-click. Small icons: at 20 px a
+  marker area is ~10 x 7 px; suggest 28+.
+- Tests: the harness needs ShroudSetSkillMode / ShroudCanSetSkillMode stubs (gesture rules, the reasons).
+
 **Ideas, not agreed:** a **Party Toolbelt** (owner, 2026-09-29): a dedicated party strip, separate from the
 player's own Toolbelt, so a healer keeps their Toolbelt for themselves and watches the party on its own
 strip: a row per member (name, health and focus bars sized like the player's, members in another scene
