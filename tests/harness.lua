@@ -186,6 +186,39 @@ local function install_api()
       local e = S.char.present and S.buffs[i + 1]
       return e ~= nil and e ~= false and e.dismissable == true
     end
+    -- Docs (API 27): a skill's training mode, as the skills window's menu sets it; Set needs a gesture. A skill
+    -- entry's `mastery` makes "train" maintain instead (notSpecialized), `low` makes maintain / unlearn stop
+    -- (belowFloor), `elixir` refuses (specialRule). S.modeCalls counts the Sets.
+    local MODE_WORDS = { learning = "Learning", train = "Learning", learn = "Learning", maintaining = "Maintaining",
+                         maintain = "Maintaining", unlearning = "Unlearning", unlearn = "Unlearning",
+                         notlearning = "NotLearning", off = "NotLearning" }
+    local function modeAnswer(skill, mode)
+      local want = type(mode) == "string" and MODE_WORDS[mode:lower()]
+      if not want then return false, "badMode" end
+      local sk = nil
+      for _, s in ipairs(S.skills or {}) do
+        if s.id == skill or s.key == skill or (type(skill) == "string" and type(s.name) == "string"
+            and s.name:lower() == skill:lower()) then sk = s end
+      end
+      if not sk then return false, "unknownSkill" end
+      if sk.elixir then return false, "specialRule", sk.mode end
+      if want == "Learning" and sk.mastery then return true, "notSpecialized", "Maintaining", sk end
+      if (want == "Maintaining" or want == "Unlearning") and sk.low then
+        return true, "belowFloor", "NotLearning", sk
+      end
+      return true, "ok", want, sk
+    end
+    ShroudCanSetSkillMode = function(skill, mode)
+      local ok, reason, now = modeAnswer(skill, mode)
+      return ok, reason, now
+    end
+    ShroudSetSkillMode = function(skill, mode)
+      if not S.gesture then return false, "needsGesture" end
+      local ok, reason, now, sk = modeAnswer(skill, mode)
+      S.modeCalls = (S.modeCalls or 0) + 1
+      if ok and sk then sk.mode = now end
+      return ok, reason, now
+    end
     -- Docs (API 14): the game's own windows, opened or closed only on a player gesture.
     ShroudToggleWindow = function(name, open)
       local known = { skills = true, map = true, bags = true, character = true, journal = true }
@@ -1237,6 +1270,27 @@ function H.skillSlots()
   end
   return out
 end
+-- The n-th visible skill slot's training click areas: the left half (open), the markers (train, maintain,
+-- unlearn); nil without them. Clicking one is a gesture.
+function H.skillMarks(n)
+  local slot = H.skillSlots()[n]
+  local kids = slot and slot.children[1].children
+  local overlay = kids and kids[#kids]
+  if not overlay or overlay.kind ~= "Row" then return nil end
+  return overlay.children[1], overlay.children[2].children
+end
+function H.clickSkillPart(n, part)          -- part: "open", "train", "maintain" or "unlearn"
+  local open, marks = H.skillMarks(n)
+  assert(open, "no training click areas on skill slot " .. n)
+  local target = open
+  if part == "train" then target = marks[1] elseif part == "maintain" then target = marks[2]
+  elseif part == "unlearn" then target = marks[3] end
+  S.gesture = true
+  local ok, err = pcall(H.call, target.onClick, target)
+  S.gesture = false
+  if not ok then error(err, 2) end
+end
+
 -- The player clicks the n-th visible skill icon: a gesture while the handler runs.
 function H.clickSkill(n)
   local slot = H.skillSlots()[n]

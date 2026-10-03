@@ -7,9 +7,14 @@
 -- "Skill level changes" notification (a level gained or lost), on the notification HUD only (never a window to
 -- close; owner, 2026-10-02).
 --
--- The API has the skills read-only (ShroudGetSkills: icon, level, progress, mode "Learning" / "Maintaining" /
--- "Unlearning" / "NotLearning"): there is no way to train, maintain or unlearn from an add-on, so a click
--- opens the game's Skills window instead (ShroudToggleWindow, on the click's gesture).
+-- Training markers (API 27, ShroudSetSkillMode; owner, 2026-10-03): each icon's LEFT half opens the game's
+-- Skills window (ShroudToggleWindow, on the click's gesture); its RIGHT half holds three click areas, top to
+-- bottom TRAIN (green arrow up), MAINTAIN (yellow square), UNLEARN (red arrow down). A click sets that mode
+-- directly (no cycling: one click too many would land on Unlearn). The skill's mode lit, the others faded;
+-- ShroudCanSetSkillMode fades further (SK.MARK_NO) a mode the game wouldn't take, whose click does nothing.
+-- "Off" (NotLearning) has no marker: all three faded. A sound per mode set. The click areas are pictures laid
+-- over the icon after its level labels (so a click can't land on a label); the markers are toolbox/skillmarks.png
+-- (art/marks.py), tinted and turned. Without API 27, or with the setting off, the whole icon opens the window.
 --
 -- ShroudOnSkillsChanged fires on every experience gain, which in combat is constantly: an event only marks
 -- the skills to be read, and the periodic (SK.TICK) reads them at most every SK.QUIET_EVERY s for experience
@@ -19,8 +24,9 @@
 -- Built to be easy to take out (owner, 2026-10-02: "not 100% sure"): everything is in this file, which
 -- registers itself (its strip, command, settings page, guide topic, notification source, saved-var key);
 -- the other files only call it where `Toolbox.SkillBar` exists. To remove: delete this file and its
--- manifest entry (and the README.md load-order line), toolbox/skill_up.ogg and skill_down.ogg (and their
--- entries in art/alerts.py), tests/test_skills.lua and its line in tests/run.lua, and the "Skill activity"
+-- manifest entry (and the README.md load-order line), toolbox/skill_up.ogg, skill_down.ogg, skill_train.ogg,
+-- skill_maintain.ogg and skill_unlearn.ogg (and their entries in art/alerts.py), toolbox/skillmarks.png and
+-- art/marks.py, tests/test_skills.lua and its line in tests/run.lua, and the "Skill activity"
 -- parts of both READMEs, CHANGELOG and AGENTS.md. The guarded lines elsewhere can stay.
 --
 -- Sounds (owner, 2026-10-02): a short celebration when a skill gains a level (skill_up) and a sad one when it
@@ -30,7 +36,8 @@
 --
 -- Saved var "skills": { show = bool (default false), vertical = bool (default true), slots = 1..12,
 -- stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels" | "xp", size = 20..48, number = bool
--- (the level on the icon, default true), soundUp = bool (default true), soundDown = bool (default true), x, y }.
+-- (the level on the icon, default true), marks = bool (the training markers, default true), soundUp = bool
+-- (default true), soundDown = bool (default true), x, y }.
 
 local T = Toolbox
 local SK = {}
@@ -67,6 +74,28 @@ SK.MODES = {
 }
 SK.PLACEHOLDER = "Skills"
 SK.SOUND_GAP = 3                      -- seconds: at most one level-up (and one level-down) sound in this time
+-- The training markers, top to bottom: the mode each sets, its colour, its frame of skillmarks.png (two 3:2
+-- frames: an arrow up, a square), its turn, its sound and the word for chat and tooltips.
+SK.MARK_PATH = "toolbox/skillmarks.png"
+SK.MARKS = {
+  { mode = "Learning", color = "@green", uv = { 0, 0, 0.5, 1 }, rotation = 0, sound = "skill_train", word = "train" },
+  { mode = "Maintaining", color = "@gold", uv = { 0.5, 0, 0.5, 1 }, rotation = 0, sound = "skill_maintain",
+    word = "maintain" },
+  { mode = "Unlearning", color = "@red", uv = { 0, 0, 0.5, 1 }, rotation = 180, sound = "skill_unlearn",
+    word = "unlearn" },
+}
+SK.MARK_ON, SK.MARK_OFF, SK.MARK_NO = 1, 0.35, 0.12   -- opacity: the mode now, another, one the game won't take
+-- What ShroudSetSkillMode's reasons mean, for chat.
+SK.MODE_REASONS = {
+  notSpecialized = "not one of your specializations, so it maintains instead",
+  belowFloor = "too low to maintain or unlearn, so it stops training instead",
+  specialRule = "an elixir skill: it only changes in the game's Skills window",
+  unknownSkill = "not a skill you have trained",
+  notNow = "not right now (loading, talking, crafting, looting or in a menu)",
+  needsGesture = "it needs a click",
+  gestureSpent = "too many changes from one click",
+  tooOften = "too many changes in a short time; wait a few seconds",
+}
 
 local prefs = { show = false }
 local state = nil                     -- the model (SK.NewState)
@@ -98,8 +127,10 @@ function SK.Read(list)
       local name = T.Field(s, "name")
       local exp, progress = T.Field(s, "experience"), T.Field(s, "progress")
       local trained, mode, icon = T.Field(s, "trainedLevel"), T.Field(s, "mode"), T.Field(s, "icon")
+      local key = T.Field(s, "key")
       out[#out + 1] = {
-        id = id, name = type(name) == "string" and name or tostring(T.Field(s, "key") or id), level = level,
+        id = id, key = type(key) == "string" and key or nil,
+        name = type(name) == "string" and name or tostring(key or id), level = level,
         trained = type(trained) == "number" and trained or level, exp = type(exp) == "number" and exp or 0,
         progress = type(progress) == "number" and math.max(0, math.min(1, progress)) or 0,
         mode = SK.MODES[mode] and mode or "NotLearning", icon = type(icon) == "number" and icon or -1,
@@ -275,16 +306,93 @@ local function placeholderStyle(s)
 end
 
 local function openSkills()
-  if type(ShroudToggleWindow) ~= "function" then return end
+  if type(ShroudToggleWindow) ~= "function" then return end   -- (an Image's click passes it; unused)
   local ok, done, reason = pcall(ShroudToggleWindow, "skills", true)
   if ok and not done and reason ~= "ok" then
     T.Print("The Skills window can't open right now (" .. tostring(reason) .. ").")
   end
 end
 
+-- Training markers ---------------------------------------------------------------
+
+local markTex = -1
+-- Whether this client can set a skill's mode (API 27).
+function SK.HasModes() return type(ShroudSetSkillMode) == "function" and type(ShroudCanSetSkillMode) == "function" end
+function SK.ShowMarks() return prefs.marks ~= false and SK.HasModes() end
+
+-- The click areas' sizes for icon size s: the left half, the right half, and the three bands' heights.
+local function markSizes(s)
+  local left = math.floor(s / 2)
+  local third = math.floor(s / 3)
+  return left, s - left, { third, third, s - 2 * third }
+end
+
+-- A picture spec without nil entries: `texture` only once it has loaded.
+local function picture(w, h, extra)
+  local spec = { width = w, height = h }
+  if markTex >= 0 then spec.texture = markTex end
+  for k, v in pairs(extra) do spec[k] = v end
+  return spec
+end
+
+-- Sets slot `i`'s skill to `mark`'s mode (a click on that marker: the gesture).
+function SK.SetMode(i, mark)
+  local slot = slots[i]
+  local e = slot and state.active[slot.at or i]
+  if not e or not SK.HasModes() then return end
+  local r = e.data
+  if r.mode == mark.mode then return end                       -- already: nothing to do
+  if slot.can and slot.can[mark.mode] == false then return end  -- the game wouldn't take it
+  local ok, okSet, reason, mode = pcall(ShroudSetSkillMode, r.key or r.id, mark.mode)
+  if not ok then return end
+  if okSet and type(mode) == "string" and SK.MODES[mode] then
+    r.mode = mode                                              -- at once; the game's event confirms it
+    local played = mark
+    for _, m in ipairs(SK.MARKS) do if m.mode == mode then played = m end end
+    if mode ~= "NotLearning" then T.Sounds.Play(played.sound) end
+    if reason ~= "ok" then
+      T.Print(r.name .. ": " .. (SK.MODE_REASONS[reason] or tostring(reason)) .. ".")
+    end
+    slot.can = nil
+    SK.Fill()
+  else
+    T.Print("Can't " .. mark.word .. " " .. r.name .. ": " .. (SK.MODE_REASONS[reason] or tostring(reason)) .. ".")
+  end
+end
+
+-- Lights the skill's mode, fades the others (further those the game wouldn't take: asked once per skill and
+-- mode, until the skill or its mode changes).
+local function fillMarks(slot, r, tip)
+  if not slot.marks then return end
+  local sig = tostring(r.id) .. ":" .. r.mode
+  if slot.can == nil or slot.canFor ~= sig then
+    slot.can, slot.canFor = {}, sig
+    for _, m in ipairs(SK.MARKS) do
+      if m.mode ~= r.mode then
+        local ok, can = pcall(ShroudCanSetSkillMode, r.key or r.id, m.mode)
+        slot.can[m.mode] = not ok or can == true
+      end
+    end
+  end
+  for j, m in ipairs(SK.MARKS) do
+    local now = m.mode == r.mode
+    local op = SK.MARK_OFF
+    if now then op = SK.MARK_ON elseif slot.can[m.mode] == false then op = SK.MARK_NO end
+    T.SetStyle(slot.marks[j], { opacity = op })
+    local how = "Click: " .. m.word
+    if now then how = "Now: " .. m.word .. "ing" elseif slot.can[m.mode] == false then how = "Can't " .. m.word end
+    T.SetTooltip(slot.marks[j], r.name .. "\n" .. how)
+  end
+  T.SetTooltip(slot.open, tip)
+end
+
 function SK.BuildContent()
   local s = size()
   local slotS, frameS, barS = slotStyles(s)
+  if SK.ShowMarks() and markTex < 0 then
+    local ok, tex = pcall(ShroudLoadTexture, SK.MARK_PATH)
+    if ok and type(tex) == "number" then markTex = tex end
+  end
   slots = {}
   local children = {}
   placeholder = UI.Label{ id = "sk_placeholder", text = SK.PLACEHOLDER, class = "dim", visible = false,
@@ -297,11 +405,25 @@ function SK.BuildContent()
       numbers[j] = UI.Label{ text = "", class = "bright", visible = numberShown(), style = numberStyle(s, j) }
       kids[#kids + 1] = numbers[j]
     end
+    local open, marks, overlay = nil, nil, nil
+    if SK.ShowMarks() then        -- over the icon, after the labels: the left half opens Skills, the right sets modes
+      local lw, rw, bands = markSizes(s)
+      open = UI.Image(picture(lw, s, { tint = "#ffffff00", onClick = openSkills }))
+      marks = {}
+      for j, m in ipairs(SK.MARKS) do
+        local slotIndex = i
+        marks[j] = UI.Image(picture(rw, bands[j], { tint = m.color, uv = m.uv, rotation = m.rotation,
+          onClick = function() SK.SetMode(slotIndex, m) end }))
+      end
+      overlay = UI.Row{ style = { width = s, height = s, minHeight = s, marginLeft = -s, alignItems = "start" },
+        children = { open, UI.Column{ children = marks } } }
+      kids[#kids + 1] = overlay
+    end
     local frame = UI.Row{ children = kids, style = frameS }
     local bar = UI.Bar{ value = 0, color = SK.BAR_COLOR, style = barS }
     local col = UI.Column{ id = "sk_" .. i, visible = false, style = slotS, children = { frame, bar } }
     slots[i] = { col = col, icon = icon, frame = frame, bar = bar, numbers = numbers, label = numbers[#numbers],
-                 barColor = SK.BAR_COLOR }
+                 barColor = SK.BAR_COLOR, open = open, marks = marks, overlay = overlay, at = i }
     children[#children + 1] = col
   end
   if prefs.vertical == false then
@@ -356,6 +478,7 @@ function SK.Fill()
       local fresh = now - e.levelAt < SK.NEW_FOR
       T.SetStyle(slot.label, { color = fresh and "@gold" or SK.NUMBER_COLOR })
       T.SetTooltip(slot.icon, tip)
+      fillMarks(slot, r, tip)
     end
     T.SetVisible(slot.col, e ~= nil)
   end
@@ -377,6 +500,12 @@ local function applySize()
     slot.icon:SetSize(s, s)
     slot.bar:SetStyle(barS)
     for j, label in ipairs(slot.numbers) do label:SetStyle(numberStyle(s, j, true)) end
+    if slot.marks then
+      local lw, rw, bands = markSizes(s)
+      slot.open:SetSize(lw, s)
+      for j, m in ipairs(slot.marks) do m:SetSize(rw, bands[j]) end
+      slot.overlay:SetStyle{ width = s, height = s, minHeight = s, marginLeft = -s }
+    end
   end
   placeholder:SetStyle(placeholderStyle(s))
   T.Hud.Refresh()
@@ -527,6 +656,14 @@ end
 
 -- The level over the icon.
 function SK.GetNumber() return numberShown() end
+-- The training markers on the icons (API 27; on by default). A change rebuilds the strip (other elements).
+function SK.GetMarks() return prefs.marks ~= false end
+function SK.SetMarks(on)
+  prefs.marks = on == true
+  save()
+  if prefs.show then T.Hud.Rebuild("skills") end
+end
+
 function SK.SetNumber(on)
   prefs.number = on == true
   save()
@@ -558,6 +695,7 @@ function SK.Init()
     if SK.StayLabel(saved.stay) then prefs.stay = saved.stay end
     if SK.TRIGGER_LABELS[saved.trigger] then prefs.trigger = saved.trigger end
     prefs.number = saved.number ~= false
+    prefs.marks = saved.marks ~= false
     prefs.soundUp = saved.soundUp ~= false
     prefs.soundDown = saved.soundDown ~= false
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
@@ -588,7 +726,7 @@ end
 -- The settings page (config.lua builds it with its helpers `h`): the controls' ids in CONFIG_IDS.
 SK.CONFIG_IDS = { "skills_show", "skills_vertical", "skills_trigger", "skills_stay", "skills_slots",
                   "skills_slots_value", "skills_size", "skills_size_value", "skills_number", "skills_sound_up",
-                  "skills_sound_down" }
+                  "skills_sound_down", "skills_marks" }
 
 function SK.ConfigSection(h)
   local ui = h.UI                      -- config's: the settings search reads the page through it
@@ -621,6 +759,11 @@ function SK.ConfigSection(h)
       "When more are active, the one quiet longest makes room", function(n) SK.SetSlots(n) end),
     h.slider("skills_size", "Icon size", SK.SIZE_MIN, SK.SIZE_MAX, 2, size(), "The icons' size in pixels",
       function(n) SK.SetSize(n) end),
+    ui.Toggle{ id = "skills_marks", text = "Training controls on the icons", value = SK.GetMarks(),
+      enabled = SK.HasModes(),
+      tooltip = SK.HasModes() and ("The right half of each icon: train (green), maintain (yellow), unlearn (red);"
+        .. " click one to set it. The left half opens the Skills window") or "Needs a newer game client (Lua API 27)",
+      onChange = function(_, v) SK.SetMarks(v) end },
     ui.Toggle{ id = "skills_number", text = "Show the level on the icon", value = SK.GetNumber(),
       tooltip = "The skill's level over its icon (gold just after it levels); its tooltip has it either way",
       onChange = function(_, v) SK.SetNumber(v) end },
@@ -646,6 +789,8 @@ function SK.ConfigSync(h)
   h.sliderValue("skills_slots", slotCount())
   h.sliderValue("skills_size", size())
   h.setValue("skills_number", SK.GetNumber())
+  h.setValue("skills_marks", SK.GetMarks())
+  h.setEnabled("skills_marks", prefs.show == true and SK.HasModes())
   h.setValue("skills_sound_up", SK.GetSoundUp())
   h.setValue("skills_sound_down", SK.GetSoundDown())
   for _, id in ipairs({ "skills_vertical", "skills_trigger", "skills_stay", "skills_slots", "skills_size",
@@ -665,6 +810,11 @@ T.Backup.KEYS[#T.Backup.KEYS + 1] = "skills"
 -- its sounds: the Sounds page lists them (Test, a custom file), and Lua/toolbox_skill_up.ogg replaces one
 T.Sounds.DEFS[#T.Sounds.DEFS + 1] = { key = "skill_up", file = "skill_up.ogg", label = "Skill level up" }
 T.Sounds.DEFS[#T.Sounds.DEFS + 1] = { key = "skill_down", file = "skill_down.ogg", label = "Skill level down" }
+T.Sounds.DEFS[#T.Sounds.DEFS + 1] = { key = "skill_train", file = "skill_train.ogg", label = "Skill set to train" }
+T.Sounds.DEFS[#T.Sounds.DEFS + 1] = { key = "skill_maintain", file = "skill_maintain.ogg",
+                                      label = "Skill set to maintain" }
+T.Sounds.DEFS[#T.Sounds.DEFS + 1] = { key = "skill_unlearn", file = "skill_unlearn.ogg",
+                                      label = "Skill set to unlearn" }
 -- ... and any notification can play them (Sounds page, Notification sounds)
 T.Notify.SOUNDS[#T.Notify.SOUNDS + 1] = { "skill_up", "Celebration" }
 T.Notify.SOUNDS[#T.Notify.SOUNDS + 1] = { "skill_down", "Sad notes" }
@@ -694,8 +844,10 @@ do
       .. "icon pops up as the skill levels (or changes mode, or with \"Any experience\", gains any), with its "
       .. "level on it (gold when new), a bar of its progress to the next (green while it rises, red while it "
       .. "falls) and its mode as the frame's colour: green training, blue maintaining, red unlearning. It goes "
-      .. "after a while with no change (Keep it for; Always keeps it). Hover for details; click to open the "
-      .. "game's Skills window (add-ons can't change a skill's mode).",
+      .. "after a while with no change (Keep it for; Always keeps it). Hover for details. Click the left half of "
+      .. "an icon to open the game's Skills window; its right half has the training controls (newer clients): "
+      .. "green arrow up train, yellow square maintain, red arrow down unlearn, the one in use lit. Click one "
+      .. "to set it, with a sound for each (Off is set in the Skills window).",
     "Settings, Skill activity: vertical or horizontal, what shows a skill, how long it stays, how many show, "
       .. "the icon size and whether the level shows on it. Notifications has \"Skill level changes\" for the "
       .. "notification HUD (off by default): levels gained and lost.",

@@ -32,8 +32,8 @@ return function(t)
     H.chat("/tbx skills on")
     H.advance(1)
   end
-  -- a slot: Column{ frame Row{ icon, the level's outline x4, the level }, progress Bar }
-  local function number(slot) local kids = slot.children[1].children; return kids[#kids] end
+  -- a slot: Column{ frame Row{ icon, the level's outline x4, the level[, training click areas] }, progress Bar }
+  local function number(slot) return slot.children[1].children[#Toolbox.BuffBar.COUNT_OUTLINE + 2] end
   local function slotText(slot) return number(slot).text end
   local function bar(slot) return slot.children[2] end
   local function slotTip(slot) return slot.children[1].children[1].tooltip or "" end
@@ -140,7 +140,8 @@ return function(t)
     t.eq(slotText(slots[1]), "31")
     t.eq(number(slots[1]).style.color, "@gold", "a new level in gold")
     t.eq(number(slots[1]).style.marginLeft, -Toolbox.SkillBar.GetSize(), "over the icon")
-    t.eq(#slots[1].children[1].children, 1 + #Toolbox.BuffBar.COUNT_OUTLINE + 1, "outlined like the buff count")
+    t.eq(#slots[1].children[1].children, 1 + #Toolbox.BuffBar.COUNT_OUTLINE + 1 + 1,
+      "outlined like the buff count (then the training click areas)")
     t.eq(bar(slots[1]).value, 0.4, "progress to the next")
     t.eq(bar(slots[1]).color, "@green", "it went up: green")
     t.eq(slots[1].children[1].style.borderColor, "@green", "training: green")
@@ -202,7 +203,9 @@ return function(t)
     H.chat("/tbx config")
     H.change("toolbox_config", "skills_number", false)
     local kids = slot.children[1].children
-    for i = 2, #kids do t.eq(kids[i].visible, false, "the level and its outline hidden") end
+    for i = 2, #Toolbox.BuffBar.COUNT_OUTLINE + 2 do
+      t.eq(kids[i].visible, false, "the level and its outline hidden")
+    end
     t.eq(H.skillSlots()[1], slot, "not rebuilt")
     t.ok(slot.children[1].children[1].tooltip:find("Level 11"), "the tooltip still has it")
     H.reload()
@@ -473,5 +476,100 @@ return function(t)
     H.clearLogs()
     H.chat("/tbx skills sideways")
     t.ok(H.logged("Use /toolbox skills"))
+  end)
+
+  -- training markers (API 27) ----------------------------------------------------------
+
+  local function marksOn(extra)
+    H.boot()
+    for _, f in ipairs({ "skill_train", "skill_maintain", "skill_unlearn" }) do
+      H.S.files["toolbox/" .. f .. ".ogg"] = true
+    end
+    H.setSkills(sheet(BASE, extra))
+    H.reload()
+    H.chat("/tbx skills on")
+    H.advance(3)
+    H.setSkills(sheet(levels{ Fireball = 41 }, extra))
+    H.advance(1)
+    H.S.played = {}
+  end
+  local function opacities(n)
+    local _, marks = H.skillMarks(n)
+    local out = {}
+    for i, m in ipairs(marks) do out[i] = tostring(m.style and m.style.opacity) end
+    return table.concat(out, ",")
+  end
+
+  t.test("markers: left half opens Skills; right half train / maintain / unlearn, the mode lit", function()
+    marksOn()
+    local open, marks = H.skillMarks(1)
+    t.ok(open and #marks == 3, "the click areas over the icon")
+    t.eq(marks[1].tint, "@green")
+    t.eq(marks[2].tint, "@gold")
+    t.eq(marks[3].tint, "@red")
+    t.eq(marks[3].rotation, 180, "the arrow turned down")
+    local s = SK().GetSize()
+    t.eq(open.width, math.floor(s / 2), "the left half")
+    t.eq(marks[1].width, s - math.floor(s / 2), "the right half")
+    t.eq(opacities(1), "1,0.35,0.35", "training: train lit, the others faded")
+    t.ok(marks[2].tooltip:find("Click: maintain"), marks[2].tooltip)
+    H.clickSkillPart(1, "open")
+    t.eq(H.S.stockOpen.skills, true, "the left half opens the Skills window")
+  end)
+
+  t.test("markers: a click sets that mode, with its sound; clicking the lit one does nothing", function()
+    marksOn()
+    H.clickSkillPart(1, "maintain")
+    t.eq(H.S.skills[1].mode, "Maintaining", "the game's mode set")
+    t.eq(opacities(1), "0.35,1,0.35", "maintain lit now")
+    t.ok(played("skill_maintain") == 1, H.playedNames())
+    local calls = H.S.modeCalls
+    H.clickSkillPart(1, "maintain")
+    t.eq(H.S.modeCalls, calls, "already maintaining: nothing")
+    H.clickSkillPart(1, "unlearn")
+    t.eq(H.S.skills[1].mode, "Unlearning")
+    t.eq(played("skill_unlearn"), 1)
+    t.eq(H.skillSlots()[1].children[1].style.borderColor, "@red", "the frame follows the mode")
+  end)
+
+  t.test("markers: the game's rules: maintains instead, stops instead, refused", function()
+    marksOn({ Fireball = { mastery = true } })
+    H.clearLogs()
+    H.clickSkillPart(1, "train")                 -- (it's training: unlearn first, then ask to train)
+    H.clickSkillPart(1, "unlearn")
+    H.clickSkillPart(1, "train")
+    t.ok(H.logged("Fireball: not one of your specializations, so it maintains instead%."), H.lastLog())
+    t.eq(opacities(1), "0.35,1,0.35", "it maintains")
+    marksOn({ Fireball = { low = true } })
+    H.clearLogs()
+    H.clickSkillPart(1, "maintain")
+    t.ok(H.logged("too low to maintain or unlearn, so it stops training instead"), H.lastLog())
+    t.eq(opacities(1), "0.35,0.35,0.35", "off: none lit")
+    marksOn({ Fireball = { elixir = true } })
+    t.eq(opacities(1), "1,0.12,0.12", "an elixir skill: the others can't be set")
+    local calls = H.S.modeCalls or 0
+    H.clickSkillPart(1, "unlearn")
+    t.eq(H.S.modeCalls or 0, calls, "nothing asked")
+  end)
+
+  t.test("markers: off in settings, or an older client: the whole icon opens Skills", function()
+    marksOn()
+    H.chat("/tbx config")
+    H.change("toolbox_config", "skills_marks", false)
+    H.advance(1)
+    t.eq(H.skillMarks(1), nil, "no click areas")
+    t.eq(H.saved("skills").marks, false)
+    H.clickSkill(1)
+    t.eq(H.S.stockOpen.skills, true)
+    H.boot()
+    ShroudSetSkillMode, ShroudCanSetSkillMode = nil, nil
+    H.setSkills(sheet(BASE))
+    H.chat("/tbx skills on")
+    H.advance(3)
+    H.setSkills(sheet(levels{ Fireball = 41 }))
+    H.advance(1)
+    t.eq(H.skillMarks(1), nil, "API 26: none")
+    H.chat("/tbx config")
+    t.eq(H.config():Find("skills_marks").enabled, false, "the setting greyed out")
   end)
 end

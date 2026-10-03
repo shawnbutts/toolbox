@@ -117,7 +117,8 @@ can be turned off.
 
 Like the game's own skill bar: your skills' icons pop up on a strip of their own as they level, with the
 level on the icon, a bar of the progress to the next (green rising, red falling) and the training mode as
-the frame's colour. Vertical or horizontal; click
+the frame's colour. On newer game clients the right half of each icon sets the skill to train, maintain or
+unlearn with one click. Vertical or horizontal; click
 one to open the Skills window. A short celebration plays when a skill gains a level and a sad one when it
 loses one (each can be switched off; your own `toolbox_skill_up.ogg` / `toolbox_skill_down.ogg` in the Lua
 folder replaces them). Skill level changes (gained or lost) can also be listed on the notification HUD (`/toolbox skills`).

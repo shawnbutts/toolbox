@@ -7,6 +7,14 @@ ones included).
 
 ## [Unreleased]
 
+### Added
+- Skill activity: training controls on each icon (needs Lua API 27). The right half of a skill's icon has three
+  markers, top to bottom: train (green arrow up), maintain (yellow square) and unlearn (red arrow down); the
+  one in use is lit, the others faded. Click one to set it, with its own sound (overridable like the other
+  alerts); a mode the game wouldn't take stays faded, and chat says when the game picks another (a mastery skill
+  maintains instead of training, for example). The left half still opens the Skills window. "Training controls
+  on the icons" switches them off.
+
 ### Fixed
 - Notification HUD: switching to a character (or account) that had never moved it sent it back to the top-left
   corner. It now stays where it is, and that becomes the new character's place.

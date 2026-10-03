@@ -225,6 +225,14 @@ into one if a new file is ever needed).
   `if T.SkillBar`. Levels are `trainedLevel` (`level` is the tile's, capped in some scenes: a capped scene must
   not read as levels lost; the tooltip names the cap). The change sequence and baseline are per character
   (the notification's `seen` is too), and its Check delivers nothing until a reading for the current character.
+  Training markers (built 2026-10-03, API 27, `SK.HasModes`; setting `marks`): each icon's left half opens the
+  Skills window, its right half has three click areas (`SK.MARKS`: train @green arrow, maintain @gold square,
+  unlearn @red arrow turned 180; toolbox/skillmarks.png from art/marks.py, two 3:2 frames by `uv`), laid over
+  the icon after the level labels. A click calls `ShroudSetSkillMode` (the gesture) for that mode, plays its
+  sound (skill_train / skill_maintain / skill_unlearn) and says in chat when the game picks another
+  (`SK.MODE_REASONS`); `ShroudCanSetSkillMode` (cached per skill and mode) fades one the game won't take
+  (`SK.MARK_NO`). No click-to-cycle (Unlearn one click away) and no "off" marker (owner). The harness stubs both
+  (skill fields `mastery`, `low`, `elixir`; `H.skillMarks`, `H.clickSkillPart`).
   Pure model: `SK.Read` / `SK.Update` (baseline first, a level / mode change, or experience
   with trigger "xp", puts a skill on top; one slot per skill) / `SK.Expire` / `SK.ChangesText`. Reads are throttled
   (an event only marks them; `SK.QUIET_EVERY` / `SK.XP_EVERY`). Its sounds (skill_up / skill_down,
@@ -265,9 +273,10 @@ into one if a new file is ever needed).
   (garbage measured under standard Lua only, in `test_perf.lua` too: LuaJIT's count is noisy). `STRESS_PRINT=1 lua tests/run.lua stress` prints the numbers.
 - `art/`: `icon.svg` (-> `toolbox/icon.png`, 256x256: `rsvg-convert -w 256 -h 256 art/icon.svg -o
   toolbox/icon.png`), `clock.py` (-> `toolbox/clock.png`: a normal and a red set of 120 frames; keep in sync
-  with `BuffBar.CLOCK`), `alerts.py` (-> `toolbox/*.ogg` via ffmpeg's Vorbis encoder: buff_expiring falls,
+  with `BuffBar.CLOCK`), `marks.py` (-> `toolbox/skillmarks.png`: the skill strip's training markers), `alerts.py` (-> `toolbox/*.ogg` via ffmpeg's Vorbis encoder: buff_expiring falls,
   debuff_landed steps down, notify rises; ping and tap are the other notification sounds; skill_up, a rising
-  arpeggio into a ringing chord, and skill_down, sinking "wah wah" notes, belong to skills.lua; block, parry and
+  arpeggio into a ringing chord, and skill_down, sinking "wah wah" notes, and skill_train / skill_maintain /
+  skill_unlearn, two quick notes up, even and down, belong to skills.lua; block, parry and
   dodge, a thud, a clash and a whoosh, to combat.lua's shout). Re-encoding changes the bytes even when the audio is the same:
   `git checkout` an .ogg you didn't mean to change. A player's own `Lua/toolbox_<name>` sounds win.
 - `tools/`: `check.py` (all checks), `build.py` (packaging rules, the source checks, the store README
@@ -462,28 +471,6 @@ ones (`tmp/client-issues.md` 14, 15): the slot getters reach the whole party (sl
 order, so `for slot = 0, count - 1` finds everyone, buffs included), `ShroudGetPartyMemberNamesInScene()`
 returns a plain list of real names, and `for v in list do` over a table walks its values.
 
-**Planned, agreed (owner, 2026-10-03): training-mode markers on the skill strip** (skills.lua; needs API 27,
-feature-detected; the owner's client reports 28). Not built yet:
-- Each skill icon's click area is split. LEFT HALF: open the Skills window (what the whole icon does now). RIGHT
-  HALF: three stacked click areas, top to bottom TRAIN (green up arrow), MAINTAIN (yellow square), UNLEARN (red
-  down arrow). A click sets that mode directly with `ShroudSetSkillMode(skill, mode)` (a gesture: the click);
-  no click-to-cycle (one extra click would land on Unlearn and drain the skill). Clicking the lit one does nothing.
-- The current mode's marker bright, the other two faded (opacity). `ShroudCanSetSkillMode` (no gesture) fades a
-  marker the game wouldn't take, and its click does nothing; after a click, follow the returned mode and reason
-  (notSpecialized -> maintains; belowFloor -> off; specialRule: elixir skills refused) and say it in chat when it
-  isn't what was asked.
-- "Off" (NotLearning) gets NO marker (owner): a skill that is off shows all three faded; off is set in the game's
-  own window. The docs don't explain off vs maintaining beyond belowFloor (a floor for maintain/unlearn).
-- A sound per mode set (train / maintain / unlearn), from art/alerts.py, overridable like the other alerts.
-- Drawing: one small arrow picture shipped like clock.png, tinted (@green / @red, SetTint) and rotated 180 for
-  down (SetRotation); the square from the same sprite (SetUV) in @gold or a yellow token. Click areas are
-  transparent pictures (tint alpha 0, as BB.WedgeCarrier) laid over the icon by negative margins (s <= 48, within
-  the -64 clamp), AFTER the level labels so a click can't land on a label. Each area's tooltip: the skill's,
-  plus "Click: train" etc.
-- A click reports no mouse button (onClick gets only the element), so no right-click. Small icons: at 20 px a
-  marker area is ~10 x 7 px; suggest 28+.
-- Tests: the harness needs ShroudSetSkillMode / ShroudCanSetSkillMode stubs (gesture rules, the reasons).
-
 **Ideas, not agreed:** a **Party Toolbelt** (owner, 2026-09-29): a dedicated party strip, separate from the
 player's own Toolbelt, so a healer keeps their Toolbelt for themselves and watches the party on its own
 strip: a row per member (name, health and focus bars sized like the player's, members in another scene
@@ -588,6 +575,8 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - Notification counts reading 0 until loaded (hence `N.SETTLE`); ransoms / rewards / applications in practice.
 - The notification HUD's Scroll inside a HudFrame, nowrap labels ending in "...".
 - Weapon poisons: whether a weapon coating shows as a buff at all.
+- The skill strip's training markers: the click areas over the icon receiving clicks in game, the tinted
+  and turned skillmarks.png, and the reasons ShroudSetSkillMode gives.
 - The skill activity strip (skills.lua): how often `ShroudOnSkillsChanged(false)` fires in combat, whether
   `mode` reads as documented and changes with the game's triangle, a decaying skill's `experience` going down,
   `ShroudGetSkills().icon` drawing, `ShroudToggleWindow("skills")`, and whether a click on the level over the

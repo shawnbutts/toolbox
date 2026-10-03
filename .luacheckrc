@@ -89,6 +89,8 @@ local api_probed = {
   "ShroudGetRecipe", "ShroudGetCraftingState", "ShroudGetFriends", "ShroudGetGuildMembers", "ShroudGetGuildMotd",
   "ShroudGetVigor",                                         -- API 20
   "ShroudGetBuffCategory", "ShroudGetTargetBuffCategory",  -- API 23
+  "ShroudSetSkillMode", "ShroudCanSetSkillMode", "ShroudGetTrackedSkills", "ShroudSetSkillTracked",   -- API 27
+  "ShroudSetPlayerVitalBarsVisible", "ShroudIsPlayerVitalBarsVisible",                             -- API 28
 }
 
 -- Callbacks an add-on may define. Listed as writable globals.
