@@ -403,7 +403,9 @@ v0.5.0 (820df19), v0.6.0 (03fdeef), v0.6.1 (6322846), v0.7.0 (2d07df7), v0.8.0 (
 
 **The store page** (addons.catnipgames.net) is where most players first meet Toolbox:
 - Cards show the icon, the **name** in full (manifest `name`: "Toolbox: Toolbelt, HUDs, Trackers and
-  more.", <= 60 characters), the author (from the submitting account, not the manifest), and a description
+  more.", <= 60 characters), the author (from the submitting account, not the manifest; every "by" / author
+  field we fill in, the manifest's `author` included, reads "shawn butts (shawn)": the real name and the player
+  name; owner, 2026-10-03), and a description
   clamped to 3 lines (about 100-120 characters).
 - That description isn't ours: the store's reviewer writes it, apparently from the package. So
   `toolbox/README.md` opens with the pitch for it to echo, and the manifest `description` says the same.

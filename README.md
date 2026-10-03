@@ -49,7 +49,7 @@ Each [GitHub release](https://github.com/shawnbutts/toolbox/releases) carries tw
 ## About
 
 - Store slug and package folder: `toolbox`
-- Author: shawn butts
+- Author: shawn butts (shawn)
 - License: MIT
 
 Built clean-room from the official docs only:
