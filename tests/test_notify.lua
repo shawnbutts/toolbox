@@ -558,6 +558,35 @@ return function(t)
     t.ok(H.nhud().visible ~= false)
   end)
 
+  t.test("another character: its own HUD list and settings, nothing carried over", function()
+    mailToHud()
+    H.setNotes{ unreadMail = 2 }
+    H.chat("/tbx notify hud hide never")
+    Toolbox.Notify.Hud.SetFont(18)
+    t.ok(H.nhudRow(1):find("2 unread letters"), "Tester's notice")
+    H.setNotes{ unreadMail = 0 }                  -- (the harness's mail count is shared: nothing new for Alt)
+    H.S.char.name = "Alt"                         -- logs in as another character, no reload
+    H.chat("/tbx notify mail via hud")
+    H.advance(1)
+    t.eq(H.nhudRow(1), nil, "none of Tester's rows on Alt's HUD")
+    t.eq(Toolbox.Notify.Hud.GetHideAfter(), Toolbox.Notify.Hud.HIDE_DEFAULT, "Alt's own settings")
+    t.eq(Toolbox.Notify.Hud.GetFont(), Toolbox.Window.GetFont())
+    H.setNotes{ unreadMail = 5 }
+    H.advance(1)
+    t.ok(H.nhudRow(1):find("5 unread letters"), "Alt's own notice: " .. tostring(H.nhudRow(1)))
+    t.eq(H.nhudRow(2), nil, "and only that")
+    local alt = H.saved("notify_history").list
+    t.eq(#alt, 1, "Alt's saved history has only Alt's")
+    H.S.char.name = "Tester"
+    H.advance(1)
+    -- (the shared count of 5 is new to Tester too: its own notice on top of its old one)
+    t.ok(H.nhudRow(2):find("2 unread letters"), "back to Tester: Tester's list again")
+    t.eq(H.nhudRow(3), nil, "none of Alt's")
+    t.eq(Toolbox.Notify.Hud.GetHideAfter(), 0, "and settings")
+    t.eq(Toolbox.Notify.Hud.GetFont(), 18)
+    t.eq(#H.saved("notify_history").list, 2, "Tester's history: Tester's two")
+  end)
+
   t.test("the HUD shows while settings are open, to place it", function()
     mailToHud()
     H.chat("/tbx config")

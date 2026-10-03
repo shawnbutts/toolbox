@@ -418,15 +418,16 @@ return function(t)
     H.setSkills(sheet(levels{ Fireball = 41 }))
     H.advance(1)
     t.ok(H.nhudRow(1):find("Fireball up to 41"), "delivered to Tester")
-    local count = Toolbox.Notify.Hud.Count()
     H.setSkills(sheet(levels{ Fireball = 41, Healing = 31 }))   -- Tester levels, and logs out before it's read
     H.S.char.name = "Alt"
     H.chat("/tbx notify skills on")
     H.advance(5)
-    t.eq(Toolbox.Notify.Hud.Count(), count, "nothing of Tester's reaches Alt: " .. tostring(H.nhudRow(1)))
+    t.eq(Toolbox.Notify.Hud.Count(), 0, "nothing of Tester's on Alt's HUD: " .. tostring(H.nhudRow(1)))
     H.setSkills(sheet(levels{ Fireball = 41, Healing = 31, Dodge = 6 }))
     H.advance(1)
     t.ok(H.nhudRow(1):find("Skill level changes: Dodge up to 6%.$"), "Alt's own: " .. tostring(H.nhudRow(1)))
+    t.eq(H.nhudRow(2), nil, "only Alt's")
+    t.eq(#H.saved("notify_history").list, 1, "Alt's saved history: only Alt's notice")
   end)
 
   t.test("sounds: the strip's own only with the strip on; the notification's only with its + sound", function()

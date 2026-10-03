@@ -36,7 +36,7 @@ D.SECTIONS = {
       .. "consumables and gear in one strip), XP & Today, Buffs, Consumables & gear, Health bars, Combat, "
       .. "Skill activity, Notifications, Sounds, HUD layout (every strip's position) and Backup & reset. "
       .. "Can't find a setting? Type in the Search box under it (sound, size, target...) and pick a result: "
-      .. "its page opens with the setting outlined in gold. Options "
+      .. "its page opens and the setting blinks. Options "
       .. "that do nothing while their feature is off are greyed out. Everything is saved per character. "
       .. "/toolbox help opens this guide; /toolbox commands lists the commands in chat.",
     "Shortcut: Ctrl+; opens the settings (if the game isn't using it). Change it, or pick one, in the "
@@ -921,6 +921,7 @@ NH.GetPosition, NH.MoveTo, NH.Nudge, NH.ResetPosition = hudMover.Get, hudMover.M
 
 -- Shows or hides the strip when that should change (from N.Check, every tick).
 function NH.Tick()
+  NH.FollowCharacter()
   local shown = NH.IsShown()
   -- new notices turn old when the HUD hides (or, never hidden, after NH.HIDE_DEFAULT seconds)
   local aged = false
@@ -947,6 +948,7 @@ N.DELIVERY.chat = function(list)
 end
 
 N.DELIVERY.hud = function(list)
+  NH.FollowCharacter()                 -- into this character's list
   for _, item in ipairs(list) do
     table.insert(history, 1, { when = clockText(), title = item.notice.title or item.source.label,
                                text = item.notice.text, fresh = true, at = T.Now() })
@@ -960,7 +962,10 @@ N.DELIVERY.hud = function(list)
   return true
 end
 
-function NH.Init()
+-- Loads the HUD's settings and history for the character playing now (character-scope saved vars).
+local hudFor = nil        -- the character they were loaded for
+local function loadHud()
+  hudFor = ShroudGetPlayerName()
   local saved = T.Load("notify_hud")
   hprefs = { hideAfter = NH.HIDE_DEFAULT }
   if type(saved) == "table" then
@@ -983,7 +988,22 @@ function NH.Init()
     end
   end
   visibleUntil, hovered, hudShown = 0, {}, nil
+end
+
+function NH.Init()
+  loadHud()
   T.Hud.Register("notify", NH)
+end
+
+-- Another character now (logged in without a reload): its own list and settings, as the notification
+-- preferences do (review, 2026-10-03: the previous character's rows showed and were saved into the new one's
+-- history). Applied in place: the rows refilled, the text restyled, the strip moved to its saved place.
+function NH.FollowCharacter()
+  local who = ShroudGetPlayerName()
+  if who == hudFor or type(who) ~= "string" or who == "" or who == "none" or who == "INVALID" then return end
+  loadHud()
+  NH.ApplyText()                       -- also refills the rows and re-fits the strip
+  if hprefs.x and hprefs.y then NH.MoveTo(hprefs.x, hprefs.y) else NH.ResetPosition() end
 end
 
 function NH.GetHideAfter() return hprefs.hideAfter end

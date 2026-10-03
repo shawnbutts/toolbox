@@ -993,14 +993,18 @@ end
 -- ---------------------------------------------------------------------------
 -- A box at the top: as you type, the settings whose label, section, tooltip or choices hold every word (or a
 -- word's synonym, C.SEARCH_SYNONYMS) are listed as "Page > Section > Setting"; picking one shows its page and
--- outlines the control in gold for C.SEARCH_HIGHLIGHT seconds. The UI has no way to scroll to it.
+-- blinks the control (its opacity, C.SEARCH_BLINKS times): an outline couldn't be undone safely (no style
+-- getter: a control's own themed border would be lost; review, 2026-10-03), and full opacity is the default.
+-- One control blinks at a time. The UI has no way to scroll to it.
 -- The index (C.SearchIndex) is built by running each page's builder with `recording` on (see UI above): only
 -- the page shown is ever built for real, so there is nothing else to search. Rebuilt each time the window
 -- opens (labels can change). Buttons of one character (the nudge arrows) are left out; a short one is named
 -- after its row ("Buff block (Reset)").
 
 C.SEARCH_MAX = 15
-C.SEARCH_HIGHLIGHT = 4
+C.SEARCH_BLINKS = 4                     -- times the found control fades and comes back
+C.SEARCH_BLINK_EVERY = 0.25             -- seconds per half blink
+C.SEARCH_DIM = 0.25                     -- opacity at the faded half
 C.SEARCH_PROMPT = "Type above to search the settings"
 C.SEARCH_SYNONYMS = {
   toolbar = { "toolbelt" }, chime = { "sound" }, width = { "wide", "length" }, wide = { "width" },
@@ -1152,18 +1156,42 @@ function C.Search(query)
   searchDrop:SetValue(labels[1])
 end
 
--- Shows a result's page and outlines its control (by its dropdown label; nil: the one picked now).
+-- The control blinking now, and its blink's number (a newer search's timer never touches an older control).
+local blink = { el = nil, gen = 0, left = 0 }
+local BLINK = "toolbox_search_blink"
+
+local function stopBlink()
+  if blink.el then
+    local e = blink.el
+    pcall(function() e:SetStyle{ opacity = 1 } end)       -- gone already if the page was switched
+  end
+  blink.el, blink.left = nil, 0
+  pcall(ShroudRemovePeriodic, BLINK)
+end
+
+-- Shows a result's page and blinks its control (by its dropdown label; nil: the one picked now).
 function C.SearchGo(label)
   if label == nil and searchDrop then label = searchDrop:GetValue() end
   local e = searchPicks[label]
   if not e then return false end
+  stopBlink()                                              -- one at a time, back to full opacity first
   if not C.ShowCategory(e.key) then return false end
   local hit = el[e.id] or (win and win:Find(e.id))
   if hit then
-    pcall(function() hit:SetStyle{ borderWidth = 2, borderColor = "@gold" } end)
-    ShroudRegisterPeriodic("toolbox_search_highlight", function()
-      pcall(function() hit:SetStyle{ borderWidth = 0 } end)      -- gone already if the page was switched
-    end, C.SEARCH_HIGHLIGHT, false)
+    blink.gen = blink.gen + 1
+    blink.el, blink.left = hit, 2 * C.SEARCH_BLINKS
+    local gen = blink.gen
+    ShroudRegisterPeriodic(BLINK, function()
+      if gen ~= blink.gen or not blink.el then return end
+      blink.left = blink.left - 1
+      if blink.left <= 0 then
+        stopBlink()
+        return
+      end
+      local faded = blink.left % 2 == 1
+      pcall(function() hit:SetStyle{ opacity = faded and C.SEARCH_DIM or 1 } end)
+    end, C.SEARCH_BLINK_EVERY, true)
+    pcall(function() hit:SetStyle{ opacity = C.SEARCH_DIM } end)   -- the first fade now
   end
   return true
 end
@@ -1376,9 +1404,10 @@ function C.Sync()
   local parts = B.GroupParts()
   setText("buff_group", "Always group by name: " .. (#parts > 0 and table.concat(parts, ", ") or "none"))
   -- (not the icon size: the consumables and equipment bars use it too)
-  for _, id in ipairs({ "buffs_combat_only", "buff_flash", "buff_group_after" }) do
+  for _, id in ipairs({ "buffs_combat_only", "buff_group_after" }) do   -- the buff bar's own
     setEnabled(id, buffsOn)
   end
+  setEnabled("buff_flash", buffsOn or T.BuffBlock.GetShow())          -- the buff block flashes too
   setEnabled("buff_replace", (buffsOn or T.BuffBlock.GetShow()) and B.CanReplace())
   for _, key in ipairs(T.Consumables.Categories()) do
     setValue("buff_cat_" .. key, B.GetGroupCategory(key))

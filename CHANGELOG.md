@@ -10,7 +10,7 @@ ones included).
 ### Added
 - Settings search: a box at the top of the settings window finds settings on every page as you type (by their
   name, section, tooltip or choices, with a few synonyms: "toolbar" finds the Toolbelt). Pick a result
-  ("Buffs > Buff block > Icons per row") to open its page with the setting outlined in gold for a few seconds;
+  ("Buffs > Buff block > Icons per row") to open its page with the setting blinking a few times;
   Enter goes to the first.
 - The buff block (settings, Buffs, Buff block; /toolbox buffs block): every buff and debuff on a strip of its
   own, soonest to run out first, row after row, nothing grouped into a count. You choose how many icons a row
