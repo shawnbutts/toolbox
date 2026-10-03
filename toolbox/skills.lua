@@ -358,7 +358,7 @@ function SK.SetMode(i, mark)
   if not e or not SK.HasModes() then return end
   local r = e.data
   if r.mode == mark.mode then return end                       -- already: nothing to do
-  if slot.can and slot.can[mark.mode] == false then return end  -- the game wouldn't take it
+  if slot.can and slot.can[mark.mode] == false then return end  -- the game won't take it (a rule, not "not now")
   local ok, okSet, reason, mode = pcall(ShroudSetSkillMode, r.key or r.id, mark.mode)
   if not ok then return end
   if okSet and type(mode) == "string" and SK.MODES[mode] then
@@ -376,18 +376,25 @@ function SK.SetMode(i, mark)
   end
 end
 
--- Lights the skill's mode, fades the others (further those the game wouldn't take: asked once per skill and
--- mode, until the skill or its mode changes).
+-- ShroudCanSetSkillMode's refusals that pass (outside normal play, the gesture limits): not a rule about the
+-- skill, so not remembered (review, 2026-10-03: a "notNow" at the first look left the markers refused all session).
+SK.PASSING = { notNow = true, needsGesture = true, gestureSpent = true, tooOften = true }
+
+-- Lights the skill's mode, fades the others (further those the game won't take). Per skill and mode, a firm
+-- answer is remembered until the skill or its mode changes: true, or false for a rule (an elixir skill...); a
+-- passing refusal or an error is unknown (nil), asked again at the next fill, and its click left to the game.
 local function fillMarks(slot, r, tip)
   if not slot.marks then return end
   local sig = tostring(r.id) .. ":" .. r.mode
-  if slot.can == nil or slot.canFor ~= sig then
-    slot.can, slot.canFor = {}, sig
-    for _, m in ipairs(SK.MARKS) do
-      if m.mode ~= r.mode then
-        local ok, can = pcall(ShroudCanSetSkillMode, r.key or r.id, m.mode)
-        slot.can[m.mode] = not ok or can == true
-      end
+  if slot.can == nil or slot.canFor ~= sig then slot.can, slot.canFor = {}, sig end
+  for _, m in ipairs(SK.MARKS) do
+    if m.mode ~= r.mode and slot.can[m.mode] == nil then
+      local ok, can, reason = pcall(ShroudCanSetSkillMode, r.key or r.id, m.mode)
+      if ok and can == true then
+        slot.can[m.mode] = true
+      elseif ok and not SK.PASSING[reason] then
+        slot.can[m.mode] = false
+      end                                   -- else unknown: asked again next time
     end
   end
   for j, m in ipairs(SK.MARKS) do

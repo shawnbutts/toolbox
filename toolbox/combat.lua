@@ -393,9 +393,14 @@ end
 function C.OnEvents(events, dropped)
   if type(events) ~= "table" then return end
   local now = T.Now()
-  local shout = nil                     -- the last block / parry / dodge of yours in these lines
-  for _, e in ipairs(events) do
-    if type(e) == "table" and e.toYou == true and C.Shout.KINDS[e.kind] then shout = e.kind end
+  -- your blocks / parries / dodges in these lines (the game sends a frame's lines at once): each kind's sound,
+  -- the last one's word (review, 2026-10-03: a mixed batch played only the last kind's sound)
+  local shoutAt = nil
+  for i, e in ipairs(events) do
+    if type(e) == "table" and e.toYou == true and C.Shout.KINDS[e.kind] then
+      shoutAt = shoutAt or {}
+      shoutAt[e.kind] = i
+    end
     if captureLeft > 0 then
       captureLeft = captureLeft - 1
       T.Print("Combat event: " .. C.EventLine(e))
@@ -411,7 +416,12 @@ function C.OnEvents(events, dropped)
     end
   end
   if fight and type(dropped) == "number" and dropped > 0 then fight.dropped = fight.dropped + dropped end
-  if shout then C.Shout.Shout(shout) end
+  if shoutAt then
+    local order = {}                    -- the kinds by their last line, so the last one's word is shown
+    for kind, at in pairs(shoutAt) do order[#order + 1] = { kind, at } end
+    table.sort(order, function(a, b) return a[2] < b[2] end)
+    for _, k in ipairs(order) do C.Shout.Shout(k[1]) end
+  end
 end
 
 function C.Reset()

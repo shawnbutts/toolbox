@@ -117,6 +117,18 @@ return function(t)
     t.eq(played("dodge"), 2)
   end)
 
+  t.test("one frame's lines at once: each kind's sound once, the last one's word", function()
+    boot(true)
+    H.chat("/tbx buffs")
+    H.chat("/tbx combat shout on")
+    local function e(kind) return { kind = kind, toYou = true, source = "Wolf", sourceKey = 7, time = ShroudTime } end
+    H.combat({ e("block"), e("parry"), e("block"), e("dodge"), e("parry") })
+    t.eq(played("block"), 1, H.playedNames())
+    t.eq(played("parry"), 1)
+    t.eq(played("dodge"), 1)
+    t.eq(word(shout()).text, "Parry!", "the last line's word")
+  end)
+
   t.test("text size: in place; Test shows it whatever the settings; saved", function()
     boot(true)
     H.chat("/tbx buffs")

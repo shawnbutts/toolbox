@@ -12,6 +12,8 @@ Toolbox.CHANGELOG = {
   { "item", "Skill activity: a skill that gains a level flashes for 4 seconds (its frame gold, the icon pulsing)." },
   { "section", "Fixed" },
   { "item", "Notification HUD: switching to a character (or account) that had never moved it sent it back to the top-left corner. It now stays where it is, and that becomes the new character's place." },
+  { "item", "With the settings window open while switching characters, the notification settings kept showing the previous character's choices (and changing one could save it for the new character). They now show the new character's." },
+  { "item", "Block, parry & dodge: when one moment held more than one kind (a block and a parry together), only the last kind's sound played. Each now plays its own sound; the last one's word shows." },
   { "version", "1.2.0 - 2026-10-03" },
   { "section", "Added" },
   { "item", "Block, parry & dodge (settings, Combat; /toolbox combat shout on): when you block, parry or dodge an attack, \"Block!\", \"Parry!\" or \"Dodge!\" pops up over the middle of the Toolbelt for a moment, outlined so it reads over the icons, with a sound for each (a shield thud, a blade clash, a whoosh). Choose the text size and each word's colour, and switch each word and sound on or off; Test shows one. Your own sounds work like the other alerts (the Sounds page, or toolbox_block.ogg / toolbox_parry.ogg / toolbox_dodge.ogg). Off by default." },

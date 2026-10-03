@@ -587,6 +587,28 @@ return function(t)
     t.eq(#H.saved("notify_history").list, 2, "Tester's history: Tester's two")
   end)
 
+  t.test("another character with settings open: the controls show its values", function()
+    mailToHud()
+    H.chat("/tbx notify hud hide never")
+    Toolbox.Notify.Hud.SetFont(18)
+    H.chat("/tbx notify rewards off")
+    H.chat("/tbx config")
+    H.change("toolbox_config", "category", "Notifications")
+    local w = H.configRaw()
+    t.eq(w:Find("nhud_hide").value, "Never")
+    H.S.char.name = "Alt"
+    H.advance(2)
+    t.eq(w:Find("nhud_hide").value, "10 seconds", "Alt's hide delay")
+    t.eq(w:Find("nhud_font").value, Toolbox.Window.GetFont(), "Alt's text size")
+    t.eq(w:Find("notify_rewards").value, true, "Alt's sources")
+    t.eq(w:Find("notify_mail_via").value, "Window", "Alt's delivery")
+    H.S.char.name = "Tester"
+    H.advance(2)
+    t.eq(w:Find("nhud_hide").value, "Never", "and Tester's again")
+    t.eq(w:Find("nhud_font").value, 18)
+    t.eq(w:Find("notify_rewards").value, false)
+  end)
+
   t.test("another character with no HUD position of its own: the HUD stays where it is", function()
     mailToHud()
     H.setNotes{ unreadMail = 2 }

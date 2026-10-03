@@ -529,6 +529,10 @@ local N = {}
 Toolbox.Notify = N
 
 local nprefs = nil        -- this character's prefs (the saved-var scope follows the character)
+-- Set when the notification prefs or the notification HUD follow another character: N.Check then syncs an
+-- open settings window, whose controls still showed the previous character's values (review, 2026-10-03).
+-- Not from where they reload: C.Sync reads those prefs, and could start a reload itself.
+local ownerChanged = false
 
 N.SETTLE = 30             -- seconds after start / a character change before counts can go down
 N.WINDOW_ID = "toolbox_notify"
@@ -1008,6 +1012,7 @@ function NH.FollowCharacter()
   local who = ShroudGetPlayerName()
   if who == hudFor or type(who) ~= "string" or who == "" or who == "none" or who == "INVALID" then return end
   loadHud()
+  ownerChanged = true
   NH.ApplyText()                       -- also refills the rows and re-fits the strip
   -- Its own place if it has one; else it stays where it is (owner, 2026-10-03: sent back to the top-left corner
   -- on switching account), and Toolbox.Hud's tick saves that place as this character's.
@@ -1092,6 +1097,7 @@ end
 local function prefsNow()
   local name = ShroudGetPlayerName()
   if nprefs ~= nil and nprefsFor == name then return nprefs end
+  if nprefs ~= nil then ownerChanged = true end   -- another character (not the first load)
   nprefsFor = name
   settleUntil = T.Now() + N.SETTLE
   local saved = T.Load("notify")
@@ -1198,6 +1204,10 @@ function N.Check()
   if deliver(byVia, true) then changed = true end
   if changed then save() end
   NH.Tick()
+  if ownerChanged then
+    ownerChanged = false
+    T.Config.Sync()                      -- an open settings window shows this character's values
+  end
 end
 
 -- Shows a source's current state (or every enabled one's), new or not. Returns how many showed.

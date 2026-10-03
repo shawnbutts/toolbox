@@ -24,6 +24,10 @@ ones included).
 ### Fixed
 - Notification HUD: switching to a character (or account) that had never moved it sent it back to the top-left
   corner. It now stays where it is, and that becomes the new character's place.
+- With the settings window open while switching characters, the notification settings kept showing the previous
+  character's choices (and changing one could save it for the new character). They now show the new character's.
+- Block, parry & dodge: when one moment held more than one kind (a block and a parry together), only the last
+  kind's sound played. Each now plays its own sound; the last one's word shows.
 
 ## [1.2.0] - 2026-10-03
 

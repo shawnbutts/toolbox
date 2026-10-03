@@ -615,4 +615,24 @@ return function(t)
     H.chat("/tbx config")
     t.eq(H.config():Find("skills_marks").enabled, false, "the setting greyed out")
   end)
+
+  t.test("markers: a passing \"not now\" isn't remembered; an error isn't taken for a yes", function()
+    marksOn()
+    local real = ShroudCanSetSkillMode
+    ShroudCanSetSkillMode = function() return false, "notNow", "Learning" end   -- a loading screen, say
+    H.setSkills(sheet(levels{ Fireball = 41, Healing = 31 }))
+    H.advance(1)
+    local slot = 1                                   -- Healing, on top
+    t.eq(opacities(slot), "1,0.35,0.35", "not now: faded as usual, not refused")
+    ShroudCanSetSkillMode = real
+    H.advance(10)
+    H.clickSkillPart(slot, "maintain")
+    t.eq(H.S.skills[2].mode, "Maintaining", "back in normal play: it works")
+    ShroudCanSetSkillMode = function() error("boom") end
+    H.setSkills(sheet(levels{ Fireball = 41, Healing = 31, Dodge = 6 }))
+    H.advance(1)
+    local _, marks = H.skillMarks(1)
+    t.eq(marks[2].style.opacity, Toolbox.SkillBar.MARK_OFF, "an error: unknown, not lit as allowed")
+    ShroudCanSetSkillMode = real
+  end)
 end
