@@ -7,6 +7,10 @@ ones included).
 
 ## [Unreleased]
 
+### Fixed
+- Notification HUD: switching to a character (or account) that had never moved it sent it back to the top-left
+  corner. It now stays where it is, and that becomes the new character's place.
+
 ## [1.2.0] - 2026-10-03
 
 ### Added

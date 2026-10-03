@@ -1009,7 +1009,9 @@ function NH.FollowCharacter()
   if who == hudFor or type(who) ~= "string" or who == "" or who == "none" or who == "INVALID" then return end
   loadHud()
   NH.ApplyText()                       -- also refills the rows and re-fits the strip
-  if hprefs.x and hprefs.y then NH.MoveTo(hprefs.x, hprefs.y) else NH.ResetPosition() end
+  -- Its own place if it has one; else it stays where it is (owner, 2026-10-03: sent back to the top-left corner
+  -- on switching account), and Toolbox.Hud's tick saves that place as this character's.
+  if hprefs.x and hprefs.y then NH.MoveTo(hprefs.x, hprefs.y) end
 end
 
 function NH.GetHideAfter() return hprefs.hideAfter end

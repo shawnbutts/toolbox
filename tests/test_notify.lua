@@ -587,6 +587,30 @@ return function(t)
     t.eq(#H.saved("notify_history").list, 2, "Tester's history: Tester's two")
   end)
 
+  t.test("another character with no HUD position of its own: the HUD stays where it is", function()
+    mailToHud()
+    H.setNotes{ unreadMail = 2 }
+    local function drag(x, y) H.S.frames.toolbox_notify_hud.x, H.S.frames.toolbox_notify_hud.y = x, y end
+    drag(600, 450)                                -- Tester places it by its grip
+    H.advance(1)
+    t.eq(H.saved("notify_hud").x, 600, "Tester's place saved")
+    H.setNotes{ unreadMail = 0 }
+    H.S.char.name = "Alt"                         -- a character (or account) that never moved it
+    H.chat("/tbx notify mail via hud")
+    H.chat("/tbx config")                         -- shown, to see where it is
+    H.advance(2)
+    local x, y = Toolbox.Notify.Hud.GetPosition()
+    t.eq(x, 600, "not back in the top-left corner")
+    t.eq(y, 450)
+    t.eq(H.saved("notify_hud").x, 600, "and now Alt's place too")
+    drag(300, 200)                                -- Alt moves it
+    H.advance(1)
+    H.S.char.name = "Tester"
+    H.advance(1)
+    x, y = Toolbox.Notify.Hud.GetPosition()
+    t.eq(x, 600, "back to Tester: Tester's own place")
+  end)
+
   t.test("the HUD shows while settings are open, to place it", function()
     mailToHud()
     H.chat("/tbx config")

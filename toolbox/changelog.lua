@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Fixed" },
+  { "item", "Notification HUD: switching to a character (or account) that had never moved it sent it back to the top-left corner. It now stays where it is, and that becomes the new character's place." },
   { "version", "1.2.0 - 2026-10-03" },
   { "section", "Added" },
   { "item", "Block, parry & dodge (settings, Combat; /toolbox combat shout on): when you block, parry or dodge an attack, \"Block!\", \"Parry!\" or \"Dodge!\" pops up over the middle of the Toolbelt for a moment, outlined so it reads over the icons, with a sound for each (a shield thud, a blade clash, a whoosh). Choose the text size and each word's colour, and switch each word and sound on or off; Test shows one. Your own sounds work like the other alerts (the Sounds page, or toolbox_block.ogg / toolbox_parry.ogg / toolbox_dodge.ogg). Off by default." },
