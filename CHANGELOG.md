@@ -15,7 +15,7 @@ ones included).
   maintains instead of training, for example). The left half still opens the Skills window. "Training controls
   on the icons" switches them off. With them on, the level on the icon is a little smaller and to the left, clear
   of the markers.
-- Skill activity: a skill that gains a level flashes for 2 seconds (its frame gold, the icon pulsing).
+- Skill activity: a skill that gains a level flashes for 4 seconds (its frame gold, the icon pulsing).
 
 ### Fixed
 - Notification HUD: switching to a character (or account) that had never moved it sent it back to the top-left
