@@ -34,7 +34,9 @@ D.SECTIONS = {
     "Type /toolbox (or /tbx) to open the settings window and tick what you want on screen. Its Settings "
       .. "dropdown picks a category: Toolbelt (first, and the quickest start: your buffs, health bars, "
       .. "consumables and gear in one strip), XP & Today, Buffs, Consumables & gear, Health bars, Combat, "
-      .. "Notifications, Sounds, and HUD layout (every strip's position). Options "
+      .. "Skill activity, Notifications, Sounds, HUD layout (every strip's position) and Backup & reset. "
+      .. "Can't find a setting? Type in the Search box under it (sound, size, target...) and pick a result: "
+      .. "its page opens with the setting outlined in gold. Options "
       .. "that do nothing while their feature is off are greyed out. Everything is saved per character. "
       .. "/toolbox help opens this guide; /toolbox commands lists the commands in chat.",
     "Shortcut: Ctrl+; opens the settings (if the game isn't using it). Change it, or pick one, in the "

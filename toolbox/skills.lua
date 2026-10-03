@@ -591,19 +591,20 @@ SK.CONFIG_IDS = { "skills_show", "skills_vertical", "skills_trigger", "skills_st
                   "skills_sound_down" }
 
 function SK.ConfigSection(h)
+  local ui = h.UI                      -- config's: the settings search reads the page through it
   local stays, triggers = {}, {}
   for i, c in ipairs(SK.STAY_CHOICES) do stays[i] = c[2] end
   for i, key in ipairs(SK.TRIGGERS) do triggers[i] = SK.TRIGGER_LABELS[key] end
-  return UI.Column{ children = {
+  return ui.Column{ children = {
     h.heading(SK.PAGE, true),
-    UI.Label{ text = "Your skills' icons pop up on a strip of their own as they level, with the level on the"
+    ui.Label{ text = "Your skills' icons pop up on a strip of their own as they level, with the level on the"
       .. " icon, a bar of the progress to the next (green rising, red falling) and the mode as the colour of the"
       .. " frame: green training, blue maintaining, red unlearning. Click one to open the game's Skills window.",
       class = "dim",
       style = { whiteSpace = "wrap" } },
-    UI.Toggle{ id = "skills_show", text = "Show the skill activity strip", value = SK.GetShow(),
+    ui.Toggle{ id = "skills_show", text = "Show the skill activity strip", value = SK.GetShow(),
       onChange = function(_, v) SK.SetShow(v) end },
-    UI.Toggle{ id = "skills_vertical", text = "Vertical (off: horizontal)", value = SK.GetVertical(),
+    ui.Toggle{ id = "skills_vertical", text = "Vertical (off: horizontal)", value = SK.GetVertical(),
       onChange = function(_, v) SK.SetVertical(v) end },
     h.dropdownRow("Show a skill on", { id = "skills_trigger", choices = triggers,
       value = SK.TRIGGER_LABELS[trigger()],
@@ -620,18 +621,18 @@ function SK.ConfigSection(h)
       "When more are active, the one quiet longest makes room", function(n) SK.SetSlots(n) end),
     h.slider("skills_size", "Icon size", SK.SIZE_MIN, SK.SIZE_MAX, 2, size(), "The icons' size in pixels",
       function(n) SK.SetSize(n) end),
-    UI.Toggle{ id = "skills_number", text = "Show the level on the icon", value = SK.GetNumber(),
+    ui.Toggle{ id = "skills_number", text = "Show the level on the icon", value = SK.GetNumber(),
       tooltip = "The skill's level over its icon (gold just after it levels); its tooltip has it either way",
       onChange = function(_, v) SK.SetNumber(v) end },
-    UI.Toggle{ id = "skills_sound_up", text = "Sound when a skill gains a level", value = SK.GetSoundUp(),
+    ui.Toggle{ id = "skills_sound_up", text = "Sound when a skill gains a level", value = SK.GetSoundUp(),
       style = { marginTop = 6 },
       tooltip = "A short celebration (at most one every few seconds), while the strip is on. Pick your own file"
         .. " on the Sounds page",
       onChange = function(_, v) SK.SetSoundUp(v) end },
-    UI.Toggle{ id = "skills_sound_down", text = "Sound when a skill loses a level", value = SK.GetSoundDown(),
+    ui.Toggle{ id = "skills_sound_down", text = "Sound when a skill loses a level", value = SK.GetSoundDown(),
       tooltip = "A sad one, for unlearning or decay, while the strip is on. Pick your own file on the Sounds page",
       onChange = function(_, v) SK.SetSoundDown(v) end },
-    UI.Label{ text = "A \"Skill level changes\" notification (Notifications page) can list them on the"
+    ui.Label{ text = "A \"Skill level changes\" notification (Notifications page) can list them on the"
       .. " notification HUD too. Move the strip under HUD layout, or by its grip.", class = "dim",
       style = { whiteSpace = "wrap", marginTop = 6 } },
   } }

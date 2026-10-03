@@ -225,7 +225,14 @@ into one if a new file is ever needed).
   in it was lost and the source's sound is the celebration: `notice.soundKey` overrides the source's). It also appends them to `N.SOUNDS` ("Celebration",
   "Sad notes"), and its source's `soundKey = "skill_up"` (a source's default sound, else "notify"). Skills are read-only in the API: a click opens
   the game's Skills window (`ShroudToggleWindow`, on the gesture). Removal steps are in its header.
-- `config.lua`: `Toolbox.Config`, the settings window. Categories (`C.CATEGORIES`, the "Settings" dropdown;
+- `config.lua`: `Toolbox.Config`, the settings window. **Settings search** (owner, 2026-10-03): `C.SearchIndex()`
+  runs every page's builder with `recording` on, so `UI` (a stand-in for `Shroud.UI`) returns plain
+  `{ kind, spec }` records instead of elements, and walks them (a heading names the section, a label the
+  control after it); `C.SearchMatches` / `C.Search` / `C.SearchGo` (shows the page, outlines the control in gold
+  for `C.SEARCH_HIGHLIGHT` s; the UI can't scroll to it). So page builders must (1) create elements only through
+  config's `UI` (another file's page: `h.UI` from `C.Helpers`), (2) not call element methods or change state
+  while building, and (3) give each control an id; `tests/test_config.lua` fails for a control the search can't
+  find. Categories (`C.CATEGORIES`, the "Settings" dropdown;
   Toolbelt first): only the one shown is built; switching destroys the previous one first (every page kept
   built took ~420 elements and hit the game's 2,000 cap in game, 2026-09-30). So `Sync` uses `setValue` /
   `setText` / `setEnabled`, which skip missing controls, every id it looks up must be in `ALL_IDS`, and state

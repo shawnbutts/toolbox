@@ -453,5 +453,69 @@ return function(t)
     t.eq(Toolbox.BuffBar.IsEnabled(), false)
     t.eq(w:Find("show_buffs").value, false, "the same setting as Buffs: Show buff bar")
   end)
-end
 
+  -- the settings search -------------------------------------------------------------
+
+  t.test("search: every control on every page can be found (the index is read from the pages)", function()
+    H.boot()
+    H.chat("/tbx config")
+    local C = Toolbox.Config
+    local made = H.S.constructed or 0
+    local index = C.SearchIndex()
+    t.eq(H.S.constructed or 0, made, "reading the pages makes no elements")
+    local indexed = {}
+    for _, e in ipairs(index) do
+      indexed[e.id] = true
+      for _, id in ipairs(e.also) do indexed[id] = true end
+    end
+    local header = { docs = true, category = true, search = true, search_results = true, search_go = true }
+    local kinds = { Toggle = true, Slider = true, Dropdown = true, TextField = true, Button = true }
+    for _, cat in ipairs(C.CATEGORIES) do
+      H.call(function() C.ShowCategory(cat.key) end)
+      local function scan(e)
+        local arrow = e.kind == "Button" and type(e.text) == "string" and #e.text <= 1   -- the nudge arrows
+        if e.id and kinds[e.kind] and not header[e.id] and not arrow then
+          t.ok(indexed[e.id], "searchable: " .. cat.label .. " / " .. e.id)
+        end
+        for _, c in ipairs(e.children or {}) do scan(c) end
+      end
+      scan(H.configRaw())
+    end
+  end)
+
+  t.test("search: as you type, matches list as Page > Section > Setting; picking one goes to it", function()
+    H.boot()
+    H.chat("/tbx config")
+    t.eq(H.config():Find("search_results").value, Toolbox.Config.SEARCH_PROMPT)
+    H.change("toolbox_config", "search", "icon size")
+    local choices = H.config():Find("search_results").choices
+    t.eq(choices[1], "Buffs > Buff bar > Icon size", table.concat(choices, " | "))
+    t.ok(table.concat(choices, "|"):find("Skill activity > Icon size", 1, true), "every page")
+    H.change("toolbox_config", "search_results", "Skill activity > Icon size")
+    t.eq(Toolbox.Config.CurrentCategory(), "skills", "its page shown")
+    local hit = H.configRaw():Find("skills_size")
+    t.eq(hit.style.borderWidth, 2, "outlined")
+    t.eq(hit.style.borderColor, "@gold")
+    H.advance(Toolbox.Config.SEARCH_HIGHLIGHT + 1)
+    t.eq(hit.style.borderWidth, 0, "for a few seconds")
+  end)
+
+  t.test("search: synonyms, Enter goes to the first, nothing found, too many", function()
+    H.boot()
+    H.chat("/tbx config")
+    H.change("toolbox_config", "search", "toolbar")
+    t.ok(H.config():Find("search_results").choices[1]:find("^Toolbelt"), "toolbar finds the Toolbelt")
+    H.submit("toolbox_config", "search", "leave out pet")
+    t.eq(Toolbox.Config.CurrentCategory(), "toolbelt", "Enter: straight to the first")
+    H.change("toolbox_config", "search", "zebra")
+    t.eq(H.config():Find("search_results").choices[1], "No setting matches 'zebra'")
+    H.click("toolbox_config", "search_go")
+    t.eq(Toolbox.Config.CurrentCategory(), "toolbelt", "nothing to go to")
+    H.change("toolbox_config", "search", "s")
+    local choices = H.config():Find("search_results").choices
+    t.eq(#choices, Toolbox.Config.SEARCH_MAX + 1, "the first ones and a line saying how many more")
+    t.ok(choices[#choices]:find("more: add a word"), choices[#choices])
+    H.change("toolbox_config", "search", "")
+    t.eq(H.config():Find("search_results").choices[1], Toolbox.Config.SEARCH_PROMPT)
+  end)
+end

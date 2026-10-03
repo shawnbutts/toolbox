@@ -12,7 +12,21 @@ local T = Toolbox
 local C = {}
 Toolbox.Config = C
 
-local UI = Shroud.UI
+-- Shroud.UI, through a stand-in: while `recording` (the settings search building its index, C.SearchIndex) the
+-- page builders' UI.X{...} calls return plain { kind, spec } records instead of creating elements, so the
+-- index is read from the pages themselves (it can't drift from them) and costs no elements.
+local REAL_UI = Shroud.UI
+local recording = false
+local recorders = {}
+local UI = setmetatable({}, { __index = function(_, kind)
+  if not recording then return REAL_UI[kind] end
+  local f = recorders[kind]
+  if not f then
+    f = function(spec) return { kind = kind, spec = spec } end
+    recorders[kind] = f
+  end
+  return f
+end })
 local WINDOW_ID = "toolbox_config"
 local GUTTER = 10
 C.WIDTH, C.HEIGHT = 360, 680
@@ -67,6 +81,7 @@ end
 
 -- What a page built in another file uses (skills.lua): the same controls and Sync helpers as the pages here.
 C.Helpers = {
+  UI = UI,                             -- build with this, not Shroud.UI: the settings search records the page
   slider = slider, dropdownRow = dropdownRow, heading = heading, setValue = setValue, setEnabled = setEnabled,
   sliderValue = function(id, v)
     setValue(id, v)
@@ -77,7 +92,7 @@ C.Helpers = {
 local function soundRows(def)
   local S = T.Sounds
   return UI.Column{ style = { marginTop = 4 }, children = {
-    UI.Label{ id = "snd_" .. def.key .. "_status", text = "", class = "dim" },
+    UI.Label{ id = "snd_" .. def.key .. "_status", text = def.label, class = "dim" },   -- its status, by Sync
     UI.Row{ style = { alignItems = "center" }, children = {
       UI.TextField{ id = "snd_" .. def.key .. "_path", text = S.GetPath(def.key),
         placeholder = "custom file in your Lua folder", maxLength = 200, style = { flexGrow = 1, flexShrink = 1 },
@@ -973,6 +988,186 @@ function C.ShowControl(id)
   return nil
 end
 
+-- ---------------------------------------------------------------------------
+-- Settings search (owner, 2026-10-03: "it can be hard to find a setting")
+-- ---------------------------------------------------------------------------
+-- A box at the top: as you type, the settings whose label, section, tooltip or choices hold every word (or a
+-- word's synonym, C.SEARCH_SYNONYMS) are listed as "Page > Section > Setting"; picking one shows its page and
+-- outlines the control in gold for C.SEARCH_HIGHLIGHT seconds. The UI has no way to scroll to it.
+-- The index (C.SearchIndex) is built by running each page's builder with `recording` on (see UI above): only
+-- the page shown is ever built for real, so there is nothing else to search. Rebuilt each time the window
+-- opens (labels can change). Buttons of one character (the nudge arrows) are left out; a short one is named
+-- after its row ("Buff block (Reset)").
+
+C.SEARCH_MAX = 15
+C.SEARCH_HIGHLIGHT = 4
+C.SEARCH_PROMPT = "Type above to search the settings"
+C.SEARCH_SYNONYMS = {
+  toolbar = { "toolbelt" }, chime = { "sound" }, width = { "wide", "length" }, wide = { "width" },
+  alert = { "sound", "flash" }, alarm = { "sound" },
+  audio = { "sound" }, volume = { "sound" }, hp = { "health" }, mana = { "focus" }, stamina = { "vigor" },
+  cooldown = { "sweep" }, timer = { "sweep", "seconds" }, font = { "text size" }, big = { "size" },
+  small = { "size" }, hide = { "show" }, position = { "move", "layout" }, location = { "layout" },
+  loot = { "today" }, xp = { "experience" }, exp = { "xp" }, dps = { "combat" },
+  potion = { "consumable" }, food = { "consumable" }, repair = { "gear", "equipment" },
+}
+
+local searchIndex = nil       -- the entries, built on the first search after the window opens
+local searchPicks = {}        -- a results-dropdown label -> its entry
+local searchDrop = nil
+local SEARCHABLE = { Toggle = true, Slider = true, Dropdown = true, Button = true, TextField = true }
+
+local function hasClass(class, name)
+  if type(class) == "table" then
+    for _, c in ipairs(class) do if c == name then return true end end
+    return false
+  end
+  return class == name
+end
+
+local function endsWith(s, tail) return #s >= #tail and s:sub(-#tail) == tail end
+
+-- Walks a recorded page ({ kind, spec } nodes) in build order, adding an entry per control: a heading label
+-- names the section; a plain label names the control after it (a slider's or a dropdown's).
+local function walk(node, ctx, out, seen)
+  if type(node) ~= "table" or type(node.spec) ~= "table" then return end
+  local kind, spec = node.kind, node.spec
+  local id = type(spec.id) == "string" and spec.id or nil
+  if kind == "Label" then
+    local text = type(spec.text) == "string" and spec.text or ""
+    if hasClass(spec.class, "heading") then
+      ctx.section, ctx.label = text, nil
+    elseif text ~= "" and not (id and (endsWith(id, "_value") or endsWith(id, "_pos"))) then
+      ctx.label = text
+    end
+  elseif id and SEARCHABLE[kind] then
+    local label = nil
+    if kind == "Toggle" then
+      label = spec.text
+    elseif kind == "Button" then
+      if type(spec.text) == "string" and #spec.text > 1 then
+        label = spec.text
+        if #label <= 6 and ctx.label then label = ctx.label .. " (" .. label .. ")" end
+      end
+    elseif kind == "TextField" then
+      label = ctx.label or spec.placeholder
+    else
+      label = ctx.label or spec.tooltip                -- a dropdown with no label in front: its tooltip
+    end
+    if type(label) == "string" and label ~= "" then
+      local where = ctx.page
+      if ctx.section and ctx.section ~= ctx.page then where = where .. " > " .. ctx.section end
+      local show = where .. " > " .. label
+      if #show > 120 then show = show:sub(1, 117) .. "..." end
+      if seen[show] then                             -- a toggle's dropdown beside it: one entry for both
+        local also = seen[show].also
+        also[#also + 1] = id
+      else
+        local hay = { label, ctx.section or "", ctx.page, type(spec.tooltip) == "string" and spec.tooltip or "" }
+        if type(spec.choices) == "table" then
+          for _, c in ipairs(spec.choices) do hay[#hay + 1] = tostring(c) end
+        end
+        out[#out + 1] = { key = ctx.key, id = id, also = {}, show = show, text = table.concat(hay, " "):lower(),
+                          name = (label .. " " .. (ctx.section or "")):lower() }
+        seen[show] = out[#out]
+      end
+    end
+    -- a toggle names the control beside it; a slider or dropdown uses its label up (a text box and buttons
+    -- share their row's)
+    if kind == "Toggle" then
+      ctx.label = spec.text
+    elseif kind == "Slider" or kind == "Dropdown" then
+      ctx.label = nil
+    end
+  end
+  for _, c in ipairs(spec.children or {}) do walk(c, ctx, out, seen) end
+end
+
+-- Every setting on every page: { key = page key, id, also = { ids of controls with the same name beside it },
+-- show = "Page > Section > Label", text, name }.
+function C.SearchIndex()
+  if searchIndex then return searchIndex end
+  local out = {}
+  for _, cat in ipairs(C.CATEGORIES) do
+    recording = true
+    local ok, root = pcall(cat.build)
+    recording = false
+    if ok then walk(root, { key = cat.key, page = cat.label, section = cat.label }, out, {}) end
+  end
+  searchIndex = out
+  return out
+end
+
+-- Whether `word` (or one of its synonyms) is in `text`.
+local function hasWord(text, word)
+  if text:find(word, 1, true) then return true end
+  for _, alt in ipairs(C.SEARCH_SYNONYMS[word] or {}) do
+    if text:find(alt, 1, true) then return true end
+  end
+  return false
+end
+
+-- The entries holding every word of `query`, those whose label or section has them all first; at most
+-- `max`. Returns the list and how many matched in all. Pure over the index.
+function C.SearchMatches(query, max)
+  local words = {}
+  for w in T.Trim(query or ""):lower():gmatch("%S+") do words[#words + 1] = w end
+  local best, rest = {}, {}
+  if #words == 0 then return best, 0 end
+  for _, e in ipairs(C.SearchIndex()) do
+    local all, named = true, true
+    for _, w in ipairs(words) do
+      if not hasWord(e.text, w) then all = false end
+      if not hasWord(e.name, w) then named = false end
+    end
+    if all then
+      if named then best[#best + 1] = e else rest[#rest + 1] = e end
+    end
+  end
+  local total = #best + #rest
+  for _, e in ipairs(rest) do best[#best + 1] = e end
+  for i = #best, (max or C.SEARCH_MAX) + 1, -1 do best[i] = nil end
+  return best, total
+end
+
+-- The search box changed: the results dropdown lists the matches.
+function C.Search(query)
+  if not searchDrop then return end
+  local list, total = C.SearchMatches(query)
+  searchPicks = {}
+  local labels = {}
+  for _, e in ipairs(list) do
+    labels[#labels + 1] = e.show
+    searchPicks[e.show] = e
+  end
+  local q = T.Trim(query or "")
+  if q == "" then
+    labels = { C.SEARCH_PROMPT }
+  elseif #labels == 0 then
+    labels = { "No setting matches '" .. q:sub(1, 40) .. "'" }
+  elseif total > #list then
+    labels[#labels + 1] = "(" .. (total - #list) .. " more: add a word)"
+  end
+  searchDrop:SetChoices(labels)
+  searchDrop:SetValue(labels[1])
+end
+
+-- Shows a result's page and outlines its control (by its dropdown label; nil: the one picked now).
+function C.SearchGo(label)
+  if label == nil and searchDrop then label = searchDrop:GetValue() end
+  local e = searchPicks[label]
+  if not e then return false end
+  if not C.ShowCategory(e.key) then return false end
+  local hit = el[e.id] or (win and win:Find(e.id))
+  if hit then
+    pcall(function() hit:SetStyle{ borderWidth = 2, borderColor = "@gold" } end)
+    ShroudRegisterPeriodic("toolbox_search_highlight", function()
+      pcall(function() hit:SetStyle{ borderWidth = 0 } end)      -- gone already if the page was switched
+    end, C.SEARCH_HIGHLIGHT, false)
+  end
+  return true
+end
+
 local function build()
   local labels = {}
   for i, c in ipairs(C.CATEGORIES) do labels[i] = c.label end
@@ -995,12 +1190,29 @@ local function build()
         dropdownRow("Settings", { id = "category", choices = labels, value = labels[1],
           tooltip = "Which settings to show",
           onChange = function(_, label) C.ShowCategory(label) end }),
+        UI.TextField{ id = "search", text = "", placeholder = "Search: sound, size, target, combat...",
+          maxLength = 40, style = { marginTop = 4 },
+          tooltip = "Finds settings on every page: pick one below to go to it (Enter: the first)",
+          onChange = function(_, text) C.Search(text) end,
+          onSubmit = function(_, text)
+            C.Search(text)
+            local first = C.SearchMatches(text, 1)[1]
+            if first then C.SearchGo(first.show) end
+          end },
+        UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
+          UI.Dropdown{ id = "search_results", choices = { C.SEARCH_PROMPT }, value = C.SEARCH_PROMPT,
+            style = { flexGrow = 1, flexShrink = 1 }, tooltip = "Settings matching the search: pick one to go to it",
+            onChange = function(_, label) C.SearchGo(label) end },
+          UI.Button{ id = "search_go", text = "Go", style = { marginLeft = 4 },
+            tooltip = "Show the setting picked above", onClick = function() C.SearchGo() end },
+        } },
       } },
       UI.Scroll{ style = { flexGrow = 1 }, children = { body } },
     },
   }
   el, built = {}, {}
   el.shortcut, el.category = win:Find("shortcut"), win:Find("category")
+  searchDrop, searchPicks, searchIndex = win:Find("search_results"), {}, nil
   C.ShowCategory(current or C.CATEGORIES[1].key)
 end
 
@@ -1320,6 +1532,7 @@ function C.Open()
   if not win then build() end
   if win:IsShown() then return end
   if win:Show() then
+    searchIndex = nil                  -- read the pages again at the next search (labels can change)
     C.Sync()
   else
     T.Print("The settings window can't open right now; type /" .. T.commands[1] .. " to try again.")
@@ -1331,6 +1544,7 @@ function C.Toggle()
   if win:IsShown() then
     win:Hide()
   elseif win:Show() then
+    searchIndex = nil
     C.Sync()
   else
     T.Print("The settings window can't reopen right now; try again in a few seconds.")

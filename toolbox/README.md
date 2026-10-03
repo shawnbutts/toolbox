@@ -18,7 +18,7 @@ crafted and gathered today with its market value, DPS and combat stats, and noti
 - **Today:** gold, kills, XP, and every item looted, crafted or gathered, with optional values from shroudoftheavatar.net.
 - **Combat stats:** DPS, damage taken, healing, crits, each skill's share, per-target damage and a fight timeline.
 - **Notifications:** guild message, mail, rewards, gear needing repair and friends coming online, in a window, on the HUD or in chat, with an optional sound.
-- **All set up in one settings window,** with a guide to every feature in the game. No files to edit.
+- **All set up in one settings window,** with a search to find any setting and a guide to every feature in the game. No files to edit.
 - **Back up your setup** by copying its settings files (the settings window shows where), or reset everything to the defaults.
 
 **Getting started:** type `/toolbox` (or `/tbx`, or press **Ctrl+;**) to open the settings window and
