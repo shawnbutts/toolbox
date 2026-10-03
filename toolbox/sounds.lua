@@ -178,19 +178,29 @@ end
 
 -- Plays a sound and reports in chat what happened, then checks a moment later whether the
 -- game is still playing it: a clip that loads but can't be decoded plays as silence.
+-- Why S.Play didn't play (its `info`), for chat.
+function S.WhyNot(info)
+  local why = {
+    notLoaded = "no sound loaded (see /toolbox sounds)",
+    muted = "the alert volume is 0",
+    cleared = "the game's sound list was cleared; reloading, try again in a few seconds",
+    refused = "the game refused to play clip " .. tostring(info.index) .. " (returned "
+      .. tostring(info.channel) .. "; all 5 channels busy, or a bad clip id)",
+  }
+  return why[info.reason] or tostring(info.reason)
+end
+
+-- A sound's label ("Buff expiring"), or its key.
+function S.Label(key)
+  for _, def in ipairs(S.DEFS) do if def.key == key then return def.label end end
+  return key
+end
+
 function S.Test(key)
-  local label = key
-  for _, def in ipairs(S.DEFS) do if def.key == key then label = def.label end end
+  local label = S.Label(key)
   local ok, info = S.Play(key)
   if not ok then
-    local why = {
-      notLoaded = "no sound loaded (see /toolbox sounds)",
-      muted = "the alert volume is 0",
-      cleared = "the game's sound list was cleared; reloading, try again in a few seconds",
-      refused = "the game refused to play clip " .. tostring(info.index) .. " (returned "
-        .. tostring(info.channel) .. "; all 5 channels busy, or a bad clip id)",
-    }
-    T.Print(label .. ": " .. (why[info.reason] or info.reason) .. ".")
+    T.Print(label .. ": " .. S.WhyNot(info) .. ".")
     return false
   end
   T.Print(string.format("%s: playing '%s' (clip %d) on channel %d at volume %d.",

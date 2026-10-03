@@ -1322,12 +1322,17 @@ local function hide()
   if box then T.SetVisible(box, false) end
 end
 
--- A block, parry or dodge of yours (or a preview, `force`: whatever the settings).
+-- A block, parry or dodge of yours (or a preview, `force`: the Test button, whatever the settings: its sound
+-- always tries to play, and chat says why when it can't, as the Sounds page's Test does).
 function CS.Shout(kind, force)
   if not CS.KINDS[kind] or (sprefs.on ~= true and not force) then return end
   local k = kindPrefs(kind)
   local now = T.Now()
-  if (k.sound or force) and now - (soundAt[kind] or -math.huge) >= CS.SOUND_GAP then
+  if force then
+    soundAt[kind] = now
+    local ok, info = T.Sounds.Play(kind)
+    if not ok then T.Print(T.Sounds.Label(kind) .. " sound: " .. T.Sounds.WhyNot(info) .. ".") end
+  elseif k.sound and now - (soundAt[kind] or -math.huge) >= CS.SOUND_GAP then
     soundAt[kind] = now
     T.Sounds.Play(kind)
   end
