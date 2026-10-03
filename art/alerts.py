@@ -20,6 +20,10 @@ Alerts:
                   1.6 s: a small celebration for a skill level gained (skills.lua)
   skill_down      four hollow notes sinking a semitone at a time (G4 F#4 F4 E4), each sagging, the last
                   long with a slow wobble, 1.8 s: the "wah wah wah waah" of a skill level lost
+  block           a low wooden-metal "thonk" (a thud with a short inharmonic ring), 0.35 s: a shield taking a hit
+  parry           a bright blade clash, "shing" (high inharmonic metal partials, a slight fall), 0.5 s
+  dodge           a quick airy whoosh (band-passed noise sweeping up and away), 0.35 s
+  (block / parry / dodge: the combat shout in combat.lua, short because they can come often)
 Tweak the constants in each render_* function and re-run.
 """
 
@@ -192,6 +196,60 @@ SKILL_DOWN = dict(
 
 
 # ---------------------------------------------------------------------------
+# block / parry / dodge: short combat sounds (they can come several times a fight)
+# ---------------------------------------------------------------------------
+
+def render_metal(duration: float, partials: list[tuple[float, float, float]], thud: float, fall: float) -> list[float]:
+    """Inharmonic struck metal: partials = (Hz, amplitude, decay 1/s); `thud` = level of a low noise knock
+    under it; `fall` = how far the pitch drops over the sound (0.02 = 2 %)."""
+    import random
+    rng = random.Random(7)                       # the same sound every run
+    n = int(RATE * duration)
+    out, low = [], 0.0
+    for i in range(n):
+        t = i / RATE
+        bend = 1.0 - fall * min(1.0, t / duration)
+        ring = sum(a * math.exp(-d * t) * math.sin(2 * math.pi * f * bend * t) for f, a, d in partials)
+        low += 0.08 * (rng.uniform(-1, 1) - low)  # low-passed noise: the knock
+        out.append(attack(t, 0.002) * (ring + thud * low * 6 * math.exp(-30 * t)))
+    return normalize(fade_out(add_echoes(out, [(0.05, 0.12)]), 0.05))
+
+
+def render_block() -> list[float]:
+    return render_metal(0.35, [(196.0, 1.0, 16.0), (471.0, 0.45, 22.0), (765.0, 0.25, 30.0), (1180.0, 0.12, 40.0)],
+                        thud=1.0, fall=0.03)
+
+
+def render_parry() -> list[float]:
+    return render_metal(0.5, [(1760.0, 1.0, 9.0), (2637.0, 0.7, 11.0), (3951.0, 0.45, 14.0), (5270.0, 0.25, 18.0)],
+                        thud=0.25, fall=0.02)
+
+
+def render_dodge() -> list[float]:
+    """Band-passed noise whose centre sweeps up as it swells and fades: a quick whoosh."""
+    import random
+    rng = random.Random(11)
+    duration = 0.35
+    n = int(RATE * duration)
+    out = []
+    y1 = y2 = x1 = x2 = 0.0
+    for i in range(n):
+        t = i / RATE
+        f0 = 400 + 2600 * (t / duration) ** 1.5    # centre frequency sweeping up
+        q = 2.5
+        w0 = 2 * math.pi * f0 / RATE
+        alpha = math.sin(w0) / (2 * q)
+        b0, b2 = alpha, -alpha                      # band-pass biquad (constant 0 dB peak)
+        a0, a1, a2 = 1 + alpha, -2 * math.cos(w0), 1 - alpha
+        x = rng.uniform(-1, 1)
+        y = (b0 * x + b2 * x2 - a1 * y1 - a2 * y2) / a0
+        x2, x1, y2, y1 = x1, x, y1, y
+        env = math.sin(math.pi * min(1.0, t / duration)) ** 1.5   # swells, then fades
+        out.append(env * y)
+    return normalize(out)
+
+
+# ---------------------------------------------------------------------------
 
 ALERTS = {
     "buff_expiring": render_buff_expiring,
@@ -201,6 +259,9 @@ ALERTS = {
     "tap": render_tap,
     "skill_up": render_skill_up,
     "skill_down": lambda: render_debuff(SKILL_DOWN),
+    "block": render_block,
+    "parry": render_parry,
+    "dodge": render_dodge,
 }
 
 

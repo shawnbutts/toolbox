@@ -393,7 +393,9 @@ end
 function C.OnEvents(events, dropped)
   if type(events) ~= "table" then return end
   local now = T.Now()
+  local shout = nil                     -- the last block / parry / dodge of yours in these lines
   for _, e in ipairs(events) do
+    if type(e) == "table" and e.toYou == true and C.Shout.KINDS[e.kind] then shout = e.kind end
     if captureLeft > 0 then
       captureLeft = captureLeft - 1
       T.Print("Combat event: " .. C.EventLine(e))
@@ -409,6 +411,7 @@ function C.OnEvents(events, dropped)
     end
   end
   if fight and type(dropped) == "number" and dropped > 0 then fight.dropped = fight.dropped + dropped end
+  if shout then C.Shout.Shout(shout) end
 end
 
 function C.Reset()
@@ -668,6 +671,7 @@ function C.Init()
   if inCombat then startFight() end
   T.Hud.Register("combat", C)
   C.Detail.Init()
+  C.Shout.Init()                        -- before Toolbox.Hud builds the Toolbelt (its overlay)
   ShroudRegisterPeriodic(PERIODIC, C.Tick, C.TICK, true)
 end
 
@@ -1224,3 +1228,209 @@ function CD.Init()
     end, CD.OPEN_DELAY, false)
   end
 end
+
+-- ===========================================================================
+-- Toolbox.CombatShout (C.Shout): "Block!", "Parry!", "Dodge!" over the Toolbelt
+-- ===========================================================================
+-- When you block, parry or dodge an attack (ShroudOnCombatEvents: kind "block" / "parry" / "dodge" with toYou),
+-- the word pops up for CS.SHOW_SECONDS over the middle of the Toolbelt, where you're looking whichever part of
+-- it you watch, and a sound plays (owner, 2026-10-03). Each kind: its text on or off, a colour from the theme
+-- (CS.COLORS), its sound on or off (Toolbox.Sounds "block" / "parry" / "dodge": a player's own file wins); one
+-- text size. Off by default (it makes noise in every fight). The last of a frame's lines wins; a sound plays at
+-- most once per CS.SOUND_GAP s per kind.
+-- The overlay is the Toolbelt frame's last child (Hud.SetOverlay): drawn over its rows, laid out with negative
+-- margins so it adds no size, centred on the content (margins clamp to -64: on a taller Toolbelt it sits lower).
+-- The text is outlined like the buff bar's count (dark copies nudged under the bright one), so it reads on icons.
+-- Saved var "combat_shout": { on = bool (default false), size = CS.SIZE_MIN..MAX,
+-- kinds = { [kind] = { text = bool, sound = bool, color = token } } }.
+
+local CS = {}
+C.Shout = CS
+Toolbox.CombatShout = CS
+
+CS.ORDER = { "block", "parry", "dodge" }
+CS.KINDS = { block = true, parry = true, dodge = true }
+CS.WORDS = { block = "Block!", parry = "Parry!", dodge = "Dodge!" }
+CS.LABELS = { block = "Block", parry = "Parry", dodge = "Dodge" }
+CS.COLORS = { { "@gold", "Gold" }, { "@red", "Red" }, { "@green", "Green" }, { "@blue", "Blue" },
+              { "@text-bright", "White" }, { "@text", "Text" } }
+CS.DEFAULT_COLORS = { block = "@blue", parry = "@gold", dodge = "@green" }
+CS.SIZE_MIN, CS.SIZE_MAX, CS.SIZE_DEFAULT = 12, 32, 26      -- fontSize is 9..32
+CS.SHOW_SECONDS = 1.2
+CS.SOUND_GAP = 0.6
+CS.OUTLINE = { { 2, 0 }, { -2, 0 }, { 0, 2 }, { 0, -2 } }   -- (dx, dy) px of the dark copies
+CS.OUTLINE_COLOR = "#000000"
+local HIDE = "toolbox_combat_shout"
+
+local sprefs = { on = false }
+local box, words = nil, {}      -- the overlay: a column of the dark copies and the bright word on top
+local fitTo = { 0, 0, 0 }       -- the Toolbelt's content w, h and left, from Toolbox.Hud
+local soundAt = {}
+
+local function kindPrefs(kind)
+  local k = sprefs.kinds and sprefs.kinds[kind]
+  if not k then
+    k = { text = true, sound = true, color = CS.DEFAULT_COLORS[kind] }
+    sprefs.kinds = sprefs.kinds or {}
+    sprefs.kinds[kind] = k
+  end
+  return k
+end
+local function sSave() T.Save("combat_shout", sprefs) end
+local function size() return sprefs.size or CS.SIZE_DEFAULT end
+local function lineH() return math.ceil(size() * 1.15) + 4 end
+
+-- A word's style: the bright one (i = #CS.OUTLINE + 1) or a dark copy nudged by CS.OUTLINE[i]; each after the
+-- first pulled up over the one before.
+local function wordStyle(i, w)
+  local d = CS.OUTLINE[i] or { 0, 0 }
+  local h = lineH()
+  return { width = w, height = h, minHeight = h, maxHeight = h, fontSize = size(), fontStyle = "bold",
+           textAlign = "center", whiteSpace = "nowrap", marginLeft = 0, marginRight = 0,
+           marginTop = i > 1 and -h or 0, marginBottom = 0, paddingTop = 2 + d[2], paddingBottom = 0,
+           paddingLeft = d[1] > 0 and 2 * d[1] or 0, paddingRight = d[1] < 0 and -2 * d[1] or 0 }
+end
+
+-- For Toolbox.Hud: the overlay's element (always built, hidden until a shout: switching it on needs no rebuild).
+function CS.OverlayBuild()
+  words = {}
+  local kids = {}
+  for i = 1, #CS.OUTLINE + 1 do
+    local style = wordStyle(i, math.max(1, fitTo[1]))
+    if CS.OUTLINE[i] then style.color = CS.OUTLINE_COLOR end
+    words[i] = UI.Label{ text = "", class = "bright", style = style }
+    kids[i] = words[i]
+  end
+  box = UI.Column{ id = "combat_shout", visible = false, children = kids }
+  return box
+end
+
+function CS.OverlayUnbuilt() box, words = nil, {} end
+
+-- Centred on the content: up from below the rows by half of (their height + its own), at most 64 (the clamp),
+-- with a bottom margin giving the height back, so it adds nothing.
+function CS.OverlayFit(w, h, left)
+  fitTo[1], fitTo[2], fitTo[3] = w, h, left
+  if not box then return end
+  local oh = lineH()
+  local up = math.min(64, math.floor((h + oh) / 2))
+  T.SetStyle(box, { width = w, marginLeft = left, marginTop = -up, marginBottom = up - oh })
+  for _, e in ipairs(words) do T.SetStyle(e, { width = w }) end
+end
+
+local function hide()
+  if box then T.SetVisible(box, false) end
+end
+
+-- A block, parry or dodge of yours (or a preview, `force`: whatever the settings).
+function CS.Shout(kind, force)
+  if not CS.KINDS[kind] or (sprefs.on ~= true and not force) then return end
+  local k = kindPrefs(kind)
+  local now = T.Now()
+  if (k.sound or force) and now - (soundAt[kind] or -math.huge) >= CS.SOUND_GAP then
+    soundAt[kind] = now
+    T.Sounds.Play(kind)
+  end
+  if box and (k.text or force) then
+    for i, e in ipairs(words) do
+      T.SetText(e, CS.WORDS[kind])
+      if not CS.OUTLINE[i] then T.SetStyle(e, { color = k.color }) end
+    end
+    T.SetVisible(box, true)
+    pcall(ShroudRemovePeriodic, HIDE)
+    ShroudRegisterPeriodic(HIDE, hide, CS.SHOW_SECONDS, false)
+  end
+end
+
+-- Settings ---------------------------------------------------------------------
+
+function CS.GetOn() return sprefs.on == true end
+function CS.SetOn(on)
+  sprefs.on = on == true
+  sSave()
+  if not sprefs.on then hide() end
+  T.Config.Sync()
+end
+
+function CS.GetSize() return size() end
+function CS.SetSize(n)
+  if type(n) ~= "number" or n ~= math.floor(n) or n < CS.SIZE_MIN or n > CS.SIZE_MAX then return false end
+  sprefs.size = n
+  sSave()
+  for i, e in ipairs(words) do                  -- in place (a slider fires many changes)
+    local style = wordStyle(i, math.max(1, fitTo[1]))
+    e:SetStyle(style)
+  end
+  CS.OverlayFit(fitTo[1], fitTo[2], fitTo[3])
+  T.Config.Sync()
+  return true
+end
+
+function CS.GetText(kind) return kindPrefs(kind).text == true end
+function CS.SetText(kind, on)
+  if not CS.KINDS[kind] then return false end
+  kindPrefs(kind).text = on == true
+  sSave()
+  T.Config.Sync()
+  return true
+end
+
+function CS.GetSound(kind) return kindPrefs(kind).sound == true end
+function CS.SetSound(kind, on)
+  if not CS.KINDS[kind] then return false end
+  kindPrefs(kind).sound = on == true
+  sSave()
+  T.Config.Sync()
+  return true
+end
+
+function CS.GetColor(kind) return kindPrefs(kind).color end
+function CS.ColorLabel(token)
+  for _, c in ipairs(CS.COLORS) do if c[1] == token then return c[2] end end
+  return CS.COLORS[1][2]
+end
+function CS.ColorLabels()
+  local out = {}
+  for i, c in ipairs(CS.COLORS) do out[i] = c[2] end
+  return out
+end
+-- By label ("Gold") or token ("@gold"). Returns false for anything else.
+function CS.SetColor(kind, which)
+  if not CS.KINDS[kind] then return false end
+  for _, c in ipairs(CS.COLORS) do
+    if c[1] == which or c[2]:lower() == tostring(which or ""):lower() then
+      kindPrefs(kind).color = c[1]
+      sSave()
+      T.Config.Sync()
+      return true
+    end
+  end
+  return false
+end
+
+function CS.Init()
+  local saved = T.Load("combat_shout")
+  sprefs = { on = false, kinds = {} }
+  if type(saved) == "table" then
+    sprefs.on = saved.on == true
+    if type(saved.size) == "number" and saved.size >= CS.SIZE_MIN and saved.size <= CS.SIZE_MAX then
+      sprefs.size = math.floor(saved.size)
+    end
+    local kinds = type(saved.kinds) == "table" and saved.kinds or {}
+    for _, kind in ipairs(CS.ORDER) do
+      local k = type(kinds[kind]) == "table" and kinds[kind] or {}
+      local color = CS.DEFAULT_COLORS[kind]
+      for _, c in ipairs(CS.COLORS) do if c[1] == k.color then color = c[1] end end
+      sprefs.kinds[kind] = { text = k.text ~= false, sound = k.sound ~= false, color = color }
+    end
+  end
+  soundAt = {}
+  T.Hud.SetOverlay(CS)
+end
+
+-- its settings are cleared by Backup & reset
+T.Backup.KEYS[#T.Backup.KEYS + 1] = "combat_shout"
+-- its sounds: the Sounds page lists them (Test, a custom file), and Lua/toolbox_parry.ogg replaces one
+T.Sounds.DEFS[#T.Sounds.DEFS + 1] = { key = "block", file = "block.ogg", label = "Block" }
+T.Sounds.DEFS[#T.Sounds.DEFS + 1] = { key = "parry", file = "parry.ogg", label = "Parry" }
+T.Sounds.DEFS[#T.Sounds.DEFS + 1] = { key = "dodge", file = "dodge.ogg", label = "Dodge" }

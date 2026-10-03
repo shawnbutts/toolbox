@@ -144,10 +144,34 @@ local function newFrame(what, spec)
   return nil
 end
 
+-- An overlay over the Toolbelt (Hud.SetOverlay: the combat shout): one provider with OverlayBuild() (an element,
+-- or nil), OverlayUnbuilt() (its element was destroyed) and OverlayFit(w, h, left) (the Toolbelt's content is
+-- w x h, starting `left` px in). Built as the last child of the Toolbelt's frame (the shared strip, or the buff
+-- bar's own strip), so it draws over the rows; it lays itself out with negative margins (no net size).
+local overlayIn = nil          -- the frame key holding it now
+function Hud.SetOverlay(provider) Hud.overlay = provider end
+local function overlayElement(frameKey)
+  if not Hud.overlay then return nil end
+  local ok, e = pcall(Hud.overlay.OverlayBuild)
+  if not ok or not e then return nil end
+  overlayIn = frameKey
+  return e
+end
+local function dropOverlay(frameKey)
+  if overlayIn and (frameKey == nil or frameKey == overlayIn) then
+    overlayIn = nil
+    if Hud.overlay then pcall(Hud.overlay.OverlayUnbuilt) end
+  end
+end
+local function fitOverlay(frameKey, w, h, left)
+  if overlayIn == frameKey and Hud.overlay then pcall(Hud.overlay.OverlayFit, w, h, left) end
+end
+
 local function destroyAll()
   for _, frame in pairs(frames) do pcall(function() frame:Destroy() end) end
   for key in pairs(contents) do unbuilt(key) end
   frames, contents, sized = {}, {}, {}
+  dropOverlay(nil)
 end
 
 -- Strips past the frame limit (Hud.FrameCap) aren't built; the player is told once (until it fits again).
@@ -172,6 +196,7 @@ function Hud.Build(missingOnly)
   for key, frame in pairs(frames) do
     if modules[key] and not present(key) then     -- a HUD frame slot is freed (8 per add-on)
       pcall(function() frame:Destroy() end)
+      dropOverlay(key)
       unbuilt(key)
       frames[key], contents[key], sized[frame] = nil, nil, nil
     end
@@ -212,14 +237,17 @@ function Hud.Build(missingOnly)
       for _, c in ipairs(under) do column[#column + 1] = c end
       ok, row = pcall(UI.Column, { children = column })
     end
+    local glued = { row }
+    if ok then glued[2] = overlayElement(Hud.GLUED_ID) end      -- after the row: drawn over it
     if ok then
       local frame, why = newFrame("glued", { id = Hud.GLUED_ID, x = prefs.x or Hud.GLUED_HOME[1],
         y = prefs.y or Hud.GLUED_HOME[2], width = 100, height = 40, visible = false,
         -- start past the drag grip; parts side by side, tops aligned
-        children = { row } })
+        children = glued })
       frames[Hud.GLUED_ID] = frame
       if why == "room" then                    -- its content goes too (it would hold elements for nothing)
         pcall(function() row:Destroy() end)
+        dropOverlay(Hud.GLUED_ID)
         for _, key in ipairs(Hud.ORDER) do
           if contents[key] and (Hud.GLUE[key] or below(key)) then
             unbuilt(key)
@@ -245,13 +273,16 @@ function Hud.Build(missingOnly)
     if contents[key] and not gluedHere(key) and not have then
       local m = modules[key]
       local x, y = m.GetSavedPosition()
-      local ok, column = pcall(UI.Column, { style = { paddingLeft = T.Window.GRIP }, children = { contents[key] } })
+      local kids = { contents[key] }
+      if key == "buffs" then kids[2] = overlayElement(key) end   -- the Toolbelt on its own: over the buffs
+      local ok, column = pcall(UI.Column, { style = { paddingLeft = T.Window.GRIP }, children = kids })
       if ok then
         local frame, why = newFrame(key, { id = m.FRAME_ID, x = x or m.HOME[1], y = y or m.HOME[2],
           width = 100, height = 40, visible = false, children = { column } })
         frames[key] = frame
         if why == "room" then
           pcall(function() column:Destroy() end)
+          dropOverlay(key)
           unbuilt(key)
           contents[key] = nil
           noRoom(key)
@@ -288,6 +319,7 @@ function Hud.Rebuild(key)
   local frame = frames[key]
   if frame then
     pcall(function() frame:Destroy() end)
+    dropOverlay(key)
     unbuilt(key)
     frames[key], contents[key], sized[frame] = nil, nil, nil
   end
@@ -329,7 +361,10 @@ function Hud.Refresh()
     end
     if hideAll then any = false end
     T.SetVisible(frame, any)
-    if any then setSize(frame, T.Window.GRIP + w + Hud.PAD, h + Hud.PAD) end
+    if any then
+      setSize(frame, T.Window.GRIP + w + Hud.PAD, h + Hud.PAD)
+      fitOverlay(Hud.GLUED_ID, w, h, T.Window.GRIP)
+    end
   end
   for key, own in pairs(frames) do
     if modules[key] and contents[key] then
@@ -338,6 +373,7 @@ function Hud.Refresh()
       if shown then
         local cw, ch = modules[key].ContentSize()
         setSize(own, T.Window.GRIP + cw + Hud.PAD, ch + Hud.PAD)
+        fitOverlay(key, cw, ch, 0)
       end
     end
   end

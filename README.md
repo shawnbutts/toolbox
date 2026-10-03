@@ -25,6 +25,8 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
 - **Combat stats**: DPS, damage taken and healing per second, crit and avoid rates, a fight timer and
   chosen character stats; hover it for **Combat Detailed** (damage by skill, the last minute as a
   chart, healing, targets, damage types, recent fights).
+- **Block, parry & dodge**: the word pops up over the Toolbelt when you avoid an attack, each with its own
+  colour and sound (`/toolbox combat shout`).
 - **Equipment bar and repair alerts**: worn items that need repair, with a durability sweep.
 - **Notifications**: guild message of the day, new mail, expiring mail, ransoms, rewards, guild
   applications and gear needing repair, in a window or on a scrolling notification HUD.

@@ -1039,6 +1039,19 @@ add("combat", "combat stats HUD; add stats while playing: /toolbox combat help",
   elseif word == "reset" then
     C.Reset()
     T.Print("Combat stats reset.")
+  elseif word == "shout" then
+    local CS, a = T.CombatShout, args:lower()
+    local verb, which = T.ParseArgs(a)
+    if verb == "on" or verb == "off" then
+      CS.SetOn(verb == "on")
+    elseif verb == "test" and CS.KINDS[which] then
+      CS.Shout(which, true)
+      return
+    elseif verb ~= "" then
+      T.Print("Use /" .. T.commands[1] .. " combat shout on|off, or test block|parry|dodge.")
+      return
+    end
+    T.Print("Block, parry & dodge shouts: " .. (CS.GetOn() and "on" or "off") .. ".")
   elseif word == "move" then
     T.MoveCommand(C, "combat", "Combat stats", args)
   elseif word == "debug" then

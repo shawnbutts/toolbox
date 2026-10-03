@@ -175,7 +175,12 @@ D.SECTIONS = {
       .. "overheal; your targets (damage to each creature and how long each took to kill); and damage "
       .. "types, a bar split by element for damage done and one for damage taken. Switch between this "
       .. "fight and the whole session with the dropdown (or /toolbox combat detail session). /toolbox "
-      .. "combat reset clears both." },
+      .. "combat reset clears both.",
+    "Block, parry & dodge (settings, Combat; or /toolbox combat shout on): when you block, parry or dodge an "
+      .. "attack, the word pops up over the middle of the Toolbelt for a moment, with its own sound. Choose the "
+      .. "text size, each word's colour, and each word and sound on or off; Test shows one now. Your own "
+      .. "sounds: the Sounds page, or toolbox_block.ogg / toolbox_parry.ogg / toolbox_dodge.ogg in your Lua "
+      .. "folder. The words need the Toolbelt showing; the sounds play either way." },
   { "Consumables bar",
     "Food, potions (Obsidian ones included), weapon poisons and combat consumables like caltrops get their "
       .. "own bar, by the kind the game gives each buff. Pick the kinds in settings (Consumables & gear, one "

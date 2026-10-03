@@ -469,7 +469,43 @@ function C.CombatSection()
     UI.Row{ style = { justifyContent = "end", marginTop = 2 }, children = {
       UI.Button{ id = "combat_reset", text = "Reset fight", onClick = function() M.Reset() end },
     } },
+    C.ShoutSection(),
   } }
+end
+
+-- Block, parry & dodge (Toolbox.CombatShout), at the end of the Combat page.
+function C.ShoutSection()
+  local CS = T.CombatShout
+  local children = {
+    heading("Block, parry & dodge"),
+    UI.Label{ text = "When you block, parry or dodge an attack, the word pops up over the middle of the Toolbelt"
+      .. " for a moment, with a sound. Pick each sound on the Sounds page.", class = "dim",
+      style = { whiteSpace = "wrap" } },
+    UI.Toggle{ id = "shout_on", text = "Shout blocks, parries and dodges", value = CS.GetOn(),
+      tooltip = "Needs the Toolbelt (the buff bar) showing for the words; the sounds play either way",
+      onChange = function(_, v) CS.SetOn(v) end },
+    slider("shout_size", "Text size", CS.SIZE_MIN, CS.SIZE_MAX, 1, CS.GetSize(), "The words' size in pixels",
+      function(n) CS.SetSize(n) end),
+  }
+  for _, kind in ipairs(CS.ORDER) do
+    local word = CS.WORDS[kind]
+    children[#children + 1] = UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
+      UI.Toggle{ id = "shout_" .. kind .. "_text", text = "Show " .. word, value = CS.GetText(kind),
+        style = { flexGrow = 1 }, tooltip = "\"" .. word .. "\" over the Toolbelt when you " .. kind,
+        onChange = function(_, v) CS.SetText(kind, v) end },
+      UI.Dropdown{ id = "shout_" .. kind .. "_color", choices = CS.ColorLabels(),
+        value = CS.ColorLabel(CS.GetColor(kind)), tooltip = "Its colour (your UI theme's)",
+        onChange = function(_, label) CS.SetColor(kind, label) end },
+    } }
+    children[#children + 1] = UI.Row{ style = { alignItems = "center", marginLeft = 16 }, children = {
+      UI.Toggle{ id = "shout_" .. kind .. "_sound", text = CS.LABELS[kind] .. " sound", value = CS.GetSound(kind),
+        style = { flexGrow = 1 }, onChange = function(_, v) CS.SetSound(kind, v) end },
+      UI.Button{ id = "shout_" .. kind .. "_test", text = "Test",
+        tooltip = "Show it over the Toolbelt and play its sound now",
+        onClick = function() CS.Shout(kind, true) end },
+    } }
+  end
+  return UI.Column{ children = children }
 end
 
 -- The combat HUD's stat picker (owner, 2026-09-29): a search over the readable character stats
@@ -900,6 +936,7 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "show_vitals", "vitals_scale", "vitals_scale_value", "vitals_width", "vitals_width_value", "vitals_show_bars",
   "vitals_show_text", "vitals_vigor", "vitals_bg", "vitals_flash", "vitals_flash_below", "vitals_flash_below_value",
   "vitals_flash_test", "show_combat", "combat_detail", "combat_detail_hover", "combat_pet", "combat_scale",
+  "shout_on", "shout_size", "shout_size_value",
   "combat_scale_value", "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "combat_stats",
   "stat_find", "stat_results", "stat_add", "stat_shown", "stat_remove", "stat_msg",
   "nhud_hide", "notify_compact", "notify_font", "notify_font_value", "nhud_font", "nhud_font_value",
@@ -921,6 +958,11 @@ for _, src in ipairs(T.Notify.Sources()) do
   ALL_IDS[#ALL_IDS + 1] = "notify_" .. src.key .. "_snd"
 end
 for _, p in ipairs(POSITIONED) do ALL_IDS[#ALL_IDS + 1] = p[1] .. "_pos" end
+for _, kind in ipairs(T.CombatShout.ORDER) do
+  for _, part in ipairs({ "_text", "_color", "_sound", "_test" }) do
+    ALL_IDS[#ALL_IDS + 1] = "shout_" .. kind .. part
+  end
+end
 if T.SkillBar then
   for _, id in ipairs(T.SkillBar.CONFIG_IDS) do ALL_IDS[#ALL_IDS + 1] = id end
 end
@@ -988,6 +1030,11 @@ function C.ShowControl(id)
   if not win then return nil end
   local hit = el[id] or win:Find(id)
   if hit then return hit end
+  local key = C.PageOf(id)                      -- from the pages' recordings: no element made to look
+  if key and C.ShowCategory(key) then
+    hit = win:Find(id)
+    if hit then return hit end
+  end
   for _, cat in ipairs(C.CATEGORIES) do
     if C.ShowCategory(cat.key) then
       hit = win:Find(id)
@@ -1094,6 +1141,25 @@ local function walk(node, ctx, out, seen)
     end
   end
   for _, c in ipairs(spec.children or {}) do walk(c, ctx, out, seen) end
+end
+
+-- The page holding element `id` (any element, searchable or not), from the pages' recordings; nil if none.
+local function holds(node, id)
+  if type(node) ~= "table" or type(node.spec) ~= "table" then return false end
+  if node.spec.id == id then return true end
+  for _, c in ipairs(node.spec.children or {}) do
+    if holds(c, id) then return true end
+  end
+  return false
+end
+function C.PageOf(id)
+  for _, cat in ipairs(C.CATEGORIES) do
+    recording = true
+    local ok, root = pcall(cat.build)
+    recording = false
+    if ok and holds(root, id) then return cat.key end
+  end
+  return nil
 end
 
 -- Every setting on every page: { key = page key, id, also = { ids of controls with the same name beside it },
@@ -1546,6 +1612,16 @@ function C.Sync()
   setValue("combat_detail", M.Detail.IsOpen())
   setValue("combat_detail_hover", M.Detail.GetHover())
   sliderValue("combat_scale", M.GetScale())
+  local CS = T.CombatShout
+  setValue("shout_on", CS.GetOn())
+  sliderValue("shout_size", CS.GetSize())
+  setEnabled("shout_size", CS.GetOn())
+  for _, kind in ipairs(CS.ORDER) do
+    setValue("shout_" .. kind .. "_text", CS.GetText(kind))
+    setValue("shout_" .. kind .. "_color", CS.ColorLabel(CS.GetColor(kind)))
+    setValue("shout_" .. kind .. "_sound", CS.GetSound(kind))
+    for _, part in ipairs({ "_text", "_color", "_sound" }) do setEnabled("shout_" .. kind .. part, CS.GetOn()) end
+  end
   local shownStats = M.Stats()
   setText("combat_stats", "Shown: " .. (#shownStats > 0 and table.concat(shownStats, ", ") or "none"))
   syncShownStats(shownStats)

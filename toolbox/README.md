@@ -101,6 +101,11 @@ to 8 character stats you choose in settings (search, pick, Add), such as magic r
 per-target damage, damage types, a timeline and your recent fights. `/toolbox combat help` lists every
 option.
 
+**Block, parry & dodge:** when you block, parry or dodge an attack, the word pops up over the middle of the
+Toolbelt for a moment, with its own sound. You choose the text size and each word's colour, and switch each
+word and sound on or off; your own `toolbox_block.ogg` / `toolbox_parry.ogg` / `toolbox_dodge.ogg` replace the
+sounds.
+
 ## Notifications
 
 Your guild's message of the day, unread and expiring mail, ransoms, new rewards, guild applications and
