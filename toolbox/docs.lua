@@ -36,7 +36,8 @@ D.SECTIONS = {
       .. "consumables and gear in one strip), XP & Today, Buffs, Consumables & gear, Health bars, Combat, "
       .. "Skill activity, Notifications, Sounds, HUD layout (every strip's position) and Backup & reset. "
       .. "Can't find a setting? Type in the Search box under it (sound, size, target...) and pick a result: "
-      .. "its page opens and the setting blinks. Options "
+      .. "its page opens with that part at the top (Show the whole page brings back the rest) and the setting "
+      .. "blinks. Options "
       .. "that do nothing while their feature is off are greyed out. Everything is saved per character. "
       .. "/toolbox help opens this guide; /toolbox commands lists the commands in chat.",
     "Shortcut: Ctrl+; opens the settings (if the game isn't using it). Change it, or pick one, in the "

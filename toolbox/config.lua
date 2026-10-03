@@ -937,7 +937,11 @@ end
 -- HUD layout page couldn't be built ("this add-on already has 2000 elements", found in game 2026-09-30).
 -- So the page left is destroyed first (freeing its elements before the next is made), and its controls
 -- leave `el`. Returns true when it shows.
+local buildFocused = nil       -- (settings search, below) builds a page with one control's part at the top
+local focusHidden = {}         -- ... the page's parts it built hidden ("Show the whole page" shows them)
+
 local function dropCategory(key)
+  focusHidden = {}
   local col = built[key]
   built[key] = nil
   if col then pcall(function() col:Destroy() end) end
@@ -945,16 +949,21 @@ local function dropCategory(key)
   el = { shortcut = keepShortcut, category = keepCategory }
 end
 
-function C.ShowCategory(which)
+-- `focusId` (the settings search): build the page with that control's part at the top (built again even if
+-- shown: the UI can't scroll to it).
+function C.ShowCategory(which, focusId)
   local cat = category(which)
   if not cat or not win then return false end
   for key in pairs(built) do
-    if key ~= cat.key then dropCategory(key) end
+    if key ~= cat.key or focusId then dropCategory(key) end
   end
   if not built[cat.key] then
     -- the game limits how fast elements are created: a category that can't be built now can be
     -- picked again in a moment
-    local ok, col = pcall(function() return body:Add(cat.build()) end)
+    local ok, col = pcall(function()
+      if focusId then return body:Add(buildFocused(cat, focusId)) end
+      return body:Add(cat.build())
+    end)
     if not ok then
       T.Print("The " .. cat.label .. " settings can't be shown right now; pick them again in a moment. ("
         .. tostring(col) .. ")")
@@ -1169,13 +1178,88 @@ local function stopBlink()
   pcall(ShroudRemovePeriodic, BLINK)
 end
 
+-- A page built from its recording (C.SearchIndex's way), with the part holding control `id` at the top:
+-- the parts before it, from the nearest heading above it, are built hidden, under a line saying so with a
+-- "Show the whole page" button (owner, 2026-10-03: a blink further down was over before you scrolled to
+-- it). The builders find their controls by id, never by a kept reference, so a replayed page works the same.
+local function containsId(node, id)
+  if type(node) ~= "table" or type(node.spec) ~= "table" then return false end
+  if node.spec.id == id then return true end
+  for _, c in ipairs(node.spec.children or {}) do
+    if containsId(c, id) then return true end
+  end
+  return false
+end
+
+local function replay(node, made)
+  if type(node) ~= "table" or not node.kind or type(node.spec) ~= "table" then return node end
+  local spec = {}
+  for k, v in pairs(node.spec) do spec[k] = v end
+  if type(node.spec.children) == "table" then
+    spec.children = {}
+    for i, c in ipairs(node.spec.children) do spec.children[i] = replay(c, made) end
+  end
+  local e = REAL_UI[node.kind](spec)
+  made[node] = e
+  return e
+end
+
+buildFocused = function(cat, id)
+  recording = true
+  local ok, root = pcall(cat.build)
+  recording = false
+  local kids = ok and type(root) == "table" and type(root.spec) == "table" and root.spec.children
+  if type(kids) ~= "table" then return cat.build() end           -- (not a recordable page: the whole page)
+  local at = nil
+  for i, c in ipairs(kids) do
+    if not at and containsId(c, id) then at = i end
+  end
+  local section = nil
+  for i = (at or 1) - 1, 1, -1 do                                   -- from the heading above it
+    local c = kids[i]
+    if type(c) == "table" and c.kind == "Label" and type(c.spec) == "table" and hasClass(c.spec.class, "heading") then
+      at, section = i, c.spec.text
+      break
+    end
+  end
+  local hidden = {}
+  for i = 1, (at or 1) - 1 do
+    if type(kids[i]) == "table" and type(kids[i].spec) == "table" then
+      kids[i].spec.visible = false
+      hidden[#hidden + 1] = kids[i]
+    end
+  end
+  if #hidden > 0 then
+    table.insert(kids, 1, { kind = "Row", spec = { id = "search_focus", style = { alignItems = "center",
+      marginBottom = 6 }, children = {
+      { kind = "Label", spec = { text = "The settings above " .. (section and ("\"" .. section .. "\"") or "it")
+        .. " are hidden.", class = "dim", style = { flexGrow = 1, flexShrink = 1, whiteSpace = "wrap" } } },
+      { kind = "Button", spec = { id = "search_showall", text = "Show the whole page", style = { marginLeft = 4 },
+        onClick = function() C.ShowWholePage() end } },
+    } } })
+  end
+  local made = {}
+  local page = replay(root, made)
+  focusHidden = {}
+  for _, n in ipairs(hidden) do focusHidden[#focusHidden + 1] = made[n] end
+  return page
+end
+
+-- "Show the whole page": the parts a search result's page hid come back, and the line goes.
+function C.ShowWholePage()
+  for _, e in ipairs(focusHidden) do pcall(function() e:SetVisible(true) end) end
+  focusHidden = {}
+  local line = win and win:Find("search_focus")
+  if line then pcall(function() line:SetVisible(false) end) end
+end
+
 -- Shows a result's page and blinks its control (by its dropdown label; nil: the one picked now).
 function C.SearchGo(label)
   if label == nil and searchDrop then label = searchDrop:GetValue() end
   local e = searchPicks[label]
   if not e then return false end
   stopBlink()                                              -- one at a time, back to full opacity first
-  if not C.ShowCategory(e.key) then return false end
+  if not C.ShowCategory(e.key, e.id) then return false end   -- its part at the top
   local hit = el[e.id] or (win and win:Find(e.id))
   if hit then
     blink.gen = blink.gen + 1

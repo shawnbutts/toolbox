@@ -229,7 +229,9 @@ into one if a new file is ever needed).
 - `config.lua`: `Toolbox.Config`, the settings window. **Settings search** (owner, 2026-10-03): `C.SearchIndex()`
   runs every page's builder with `recording` on, so `UI` (a stand-in for `Shroud.UI`) returns plain
   `{ kind, spec }` records instead of elements, and walks them (a heading names the section, a label the
-  control after it); `C.SearchMatches` / `C.Search` / `C.SearchGo` (shows the page, blinks the control's opacity
+  control after it); `C.SearchMatches` / `C.Search` / `C.SearchGo` (shows the page built from its recording with the control's part at the top: `buildFocused`
+  replays the recorded specs into real elements, the parts above it (from the nearest heading) built hidden
+  under a "Show the whole page" line, `C.ShowWholePage`; then blinks the control's opacity
   `C.SEARCH_BLINKS` times, one control at a time with a generation guard: an outline couldn't be undone
   without a style getter; the UI can't scroll to it). So page builders must (1) create elements only through
   config's `UI` (another file's page: `h.UI` from `C.Helpers`), (2) not call element methods or change state

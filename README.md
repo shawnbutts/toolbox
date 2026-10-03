@@ -58,7 +58,7 @@ Built clean-room from the official docs only:
 ## Commands
 
 The settings window has a search box: type a word (sound, size, target...) and pick a result to open its page
-with the setting blinking.
+with that setting's section at the top and the setting blinking.
 
 `/tbx` is the short form of `/toolbox`: every command below works with either (`/tbx help`, `/tbx target`...).
 
