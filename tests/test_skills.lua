@@ -144,7 +144,8 @@ return function(t)
       "outlined like the buff count (then the training click areas)")
     t.eq(bar(slots[1]).value, 0.4, "progress to the next")
     t.eq(bar(slots[1]).color, "@green", "it went up: green")
-    t.eq(slots[1].children[1].style.borderColor, "@green", "training: green")
+    t.ok(slots[1].children[1].style.borderColor == "@green" or slots[1].children[1].style.borderColor == "@gold",
+      "training: green (flashing gold just after its level)")
     t.eq(slots[1].children[1].children[1].texture, 502, "its icon")
     t.ok(slotTip(slots[1]):find("^Healing\nLevel 31, 40%% to the next\nTraining"), slotTip(slots[1]))
     H.advance(Toolbox.SkillBar.NEW_FOR + 1)
@@ -155,6 +156,33 @@ return function(t)
     t.eq(#slots, 2)
     t.eq(slotText(slots[1]), "40", "the newest on top: Fireball")
     t.eq(slots[1].children[1].style.borderColor, "@red", "unlearning: red")
+  end)
+
+  t.test("a level gained: the icon flashes for 2 seconds, then settles; a level lost doesn't", function()
+    on()
+    H.setSkills(sheet(levels{ Healing = 31 }))
+    H.advance(0.5, 0.25)
+    local slot = H.skillSlots()[1]
+    local frame, icon = slot.children[1], slot.children[1].children[1]
+    local borders, dims = {}, {}
+    for _ = 1, 6 do
+      H.advance(0.25, 0.25)
+      borders[frame.style.borderColor] = true
+      dims[icon.style.opacity] = true
+    end
+    t.ok(borders["@gold"] and borders["@green"], "the frame flashes gold (and back to training green)")
+    t.ok(dims[Toolbox.SkillBar.FLASH_DIM] and dims[1], "the icon pulses")
+    H.advance(2, 0.25)
+    t.eq(frame.style.borderColor, "@green", "then settles")
+    t.eq(icon.style.opacity, 1)
+    t.eq(H.S.periodics.toolbox_skills_flash, nil, "its quick timer stops")
+    H.setSkills(sheet(levels{ Healing = 31, Archery = 9 }))
+    H.advance(0.5, 0.25)
+    local lost = H.skillSlots()[1]
+    for _ = 1, 4 do
+      H.advance(0.25, 0.25)
+      t.eq(lost.children[1].style.borderColor, "@green", "a level lost: no flash")
+    end
   end)
 
   t.test("the progress bar: green while the skill rises, red while it falls", function()
@@ -490,7 +518,7 @@ return function(t)
     H.chat("/tbx skills on")
     H.advance(3)
     H.setSkills(sheet(levels{ Fireball = 41 }, extra))
-    H.advance(1)
+    H.advance(Toolbox.SkillBar.FLASH_SECONDS + 1)   -- past its level-up flash
     H.S.played = {}
   end
   local function opacities(n)

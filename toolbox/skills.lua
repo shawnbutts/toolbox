@@ -74,6 +74,10 @@ SK.MODES = {
 }
 SK.PLACEHOLDER = "Skills"
 SK.SOUND_GAP = 3                      -- seconds: at most one level-up (and one level-down) sound in this time
+-- A level gained: the icon flashes for SK.FLASH_SECONDS (owner, 2026-10-03: "help it stand out"), its frame
+-- turning SK.FLASH_COLOR and the icon dimming to SK.FLASH_DIM every other SK.FLASH_HALF s.
+SK.FLASH_SECONDS, SK.FLASH_HALF, SK.FLASH_COLOR, SK.FLASH_DIM = 2, 0.25, "@gold", 0.5
+local FLASH = "toolbox_skills_flash"
 -- The training markers, top to bottom: the mode each sets, its colour, its frame of skillmarks.png (two 3:2
 -- frames: an arrow up, a square), its turn, its sound and the word for chat and tooltips.
 SK.MARK_PATH = "toolbox/skillmarks.png"
@@ -151,6 +155,7 @@ local function touch(st, r, now, levelled, keep, dir)
   entry = entry or { id = r.id, levelAt = -math.huge }
   entry.at, entry.data = now, r
   if levelled then entry.levelAt = now end
+  if levelled and dir == "up" then entry.flashUntil = now + SK.FLASH_SECONDS end   -- a level gained: it flashes
   if dir then entry.dir = dir end
   table.insert(st.active, 1, entry)
   for i = #st.active, keep + 1, -1 do st.active[i] = nil end
@@ -158,8 +163,8 @@ end
 
 -- Takes a reading (SK.Read) at `now`: a skill whose level or mode changed (or, with trigger "xp", whose
 -- experience changed) goes on top of `active`; one already there gets the new reading. The first reading only
--- sets the baseline. A level gained or lost is queued in `changes` and counted in `ups` / `downs`. Returns true
--- when `active` changed. Pure.
+-- sets the baseline. A level gained or lost is queued in `changes` and counted in `ups` / `downs`; a level gained
+-- sets the entry's `flashUntil`. Returns true when `active` changed. Pure.
 function SK.Update(st, readings, now, trigger, keep)
   local changed = false
   for _, r in ipairs(readings) do
@@ -449,6 +454,10 @@ end
 
 function SK.Unbuilt()
   content, placeholder, slots, shownCount = nil, nil, {}, nil
+  if SK.flashing then
+    SK.flashing = false
+    pcall(ShroudRemovePeriodic, FLASH)
+  end
 end
 
 function SK.ContentSize()
@@ -464,6 +473,7 @@ function SK.Fill()
   if not content then return end
   local now = T.Now()
   local n = showing()
+  local flashing = false
   for i, slot in ipairs(slots) do
     local e = i <= n and state.active[i] or nil
     if e then
@@ -473,7 +483,15 @@ function SK.Fill()
         if r.icon >= 0 then slot.icon:SetTexture(r.icon) end
       end
       T.SetVisible(slot.icon, r.icon >= 0)
-      T.SetStyle(slot.frame, { borderColor = (SK.MODES[r.mode] or SK.MODES.NotLearning).color })
+      local flash = now < (e.flashUntil or -math.huge)
+      local lit = flash and math.floor(now / SK.FLASH_HALF) % 2 == 0
+      if flash then flashing = true end
+      local border = (SK.MODES[r.mode] or SK.MODES.NotLearning).color
+      if lit then border = SK.FLASH_COLOR end
+      T.SetStyle(slot.frame, { borderColor = border })
+      local dim = 1
+      if flash and not lit then dim = SK.FLASH_DIM end
+      T.SetStyle(slot.icon, { opacity = dim })
       T.SetValue(slot.bar, r.progress)
       local barColor = SK.DIR_COLORS[e.dir] or SK.BAR_COLOR
       if barColor ~= slot.barColor then
@@ -497,6 +515,14 @@ function SK.Fill()
   if n ~= shownCount then
     shownCount = n
     T.Hud.Refresh()
+  end
+  -- a quick periodic only while an icon flashes (the strip's own runs every SK.TICK)
+  if flashing and not SK.flashing then
+    SK.flashing = true
+    ShroudRegisterPeriodic(FLASH, SK.Fill, SK.FLASH_HALF, true)
+  elseif not flashing and SK.flashing then
+    SK.flashing = false
+    pcall(ShroudRemovePeriodic, FLASH)
   end
 end
 
@@ -853,7 +879,7 @@ do
   local topic = { SK.PAGE,
     "/toolbox skills shows a strip of the skills you're levelling, like the game's own along the right: each "
       .. "icon pops up as the skill levels (or changes mode, or with \"Any experience\", gains any), with its "
-      .. "level on it (gold when new), a bar of its progress to the next (green while it rises, red while it "
+      .. "level on it (gold when new; the icon flashes for 2 seconds), a bar of its progress to the next (green while it rises, red while it "
       .. "falls) and its mode as the frame's colour: green training, blue maintaining, red unlearning. It goes "
       .. "after a while with no change (Keep it for; Always keeps it). Hover for details. Click the left half of "
       .. "an icon to open the game's Skills window; its right half has the training controls (newer clients): "

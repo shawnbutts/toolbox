@@ -13,7 +13,9 @@ ones included).
   one in use is lit, the others faded. Click one to set it, with its own sound (overridable like the other
   alerts); a mode the game wouldn't take stays faded, and chat says when the game picks another (a mastery skill
   maintains instead of training, for example). The left half still opens the Skills window. "Training controls
-  on the icons" switches them off.
+  on the icons" switches them off. With them on, the level on the icon is a little smaller and to the left, clear
+  of the markers.
+- Skill activity: a skill that gains a level flashes for 2 seconds (its frame gold, the icon pulsing).
 
 ### Fixed
 - Notification HUD: switching to a character (or account) that had never moved it sent it back to the top-left
