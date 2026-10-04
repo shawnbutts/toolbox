@@ -84,11 +84,11 @@ bar shows only on hover) or HUD strips.
 
 Gold picked up, kills, adventurer and producer XP, skill levels gained and deaths today (resets at local
 midnight). Rest the
-pointer on it and **Today Detailed** lists every item you gained today, as **Looted**, **Crafted** (with
+pointer on it and the **Loot Tracker** lists every item you gained today, as **Looted**, **Crafted** (with
 crafts per recipe, exceptional and failed, and materials used) or **Gathered** (nodes and harvests).
 
 **Estimated values (optional, uses the internet):** turn on **Estimated values (SotANET)** in the
-settings and Today Detailed adds each item's value (its count times its 90-day average sale price at
+settings and the Loot Tracker adds each item's value (its count times its 90-day average sale price at
 shroudoftheavatar.net, built from receipts players upload) and a total for the day. It is off by
 default and needs **Internet** switched on for Toolbox in the add-on manager too. Toolbox then sends only
 item names to shroudoftheavatar.net, remembers each price for 24 hours, and contacts no other site. Like

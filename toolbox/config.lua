@@ -214,14 +214,14 @@ function C.XPSection()
     dropdownRow("Today window", { id = "daily_mode", choices = C.MODES, value = C.ModeOf(T.Daily),
       tooltip = "Gold, kills and XP since midnight: as a window, or as a HUD strip",
       onChange = function(_, v) onMode(T.Daily, "daily_mode", v) end }),
-    UI.Toggle{ id = "hover_daily", text = "Show Today Detailed on hover", value = T.Daily.GetHover(),
-      style = { marginLeft = 16 }, tooltip = "Hovering the Today window pops up the Today Detailed window",
+    UI.Toggle{ id = "hover_daily", text = "Show Loot Tracker on hover", value = T.Daily.GetHover(),
+      style = { marginLeft = 16 }, tooltip = "Hovering the Today window pops up the Loot Tracker window",
       onChange = function(_, value) T.Daily.SetHover(value) end },
-    UI.Toggle{ id = "show_daily_detail", text = "Show Today Detailed window", value = T.DailyDetail.IsOpen(),
+    UI.Toggle{ id = "show_daily_detail", text = "Show Loot Tracker window", value = T.DailyDetail.IsOpen(),
       onChange = function(_, value) C.OnShowDailyDetail(value) end },
     UI.Toggle{ id = "dd_values", text = "Estimated values (SotANET)", value = T.DailyDetail.GetValues(),
       style = { marginLeft = 16 },
-      tooltip = "Adds each item's value to Today Detailed: count x its 90-day average sale price from"
+      tooltip = "Adds each item's value to Loot Tracker: count x its 90-day average sale price from"
         .. " shroudoftheavatar.net (player-uploaded receipts); -- when it hasn't sold. Sends item"
         .. " names to that site. Also switch Internet on for Toolbox in the add-on manager.",
       onChange = function(_, value) T.DailyDetail.SetValues(value) end },
@@ -239,7 +239,7 @@ function C.XPSection()
     UI.Label{ id = "dd_values_msg", text = "", class = "dim", style = { whiteSpace = "wrap", marginLeft = 32 } },
     UI.Toggle{ id = "dd_include", text = "Include crafted and gathered items", value = T.DailyDetail.GetInclude(),
       style = { marginLeft = 16 }, enabled = T.Daily.HasResults(),
-      tooltip = T.Daily.HasResults() and "Off: Today Detailed's Looted list leaves out what you crafted or"
+      tooltip = T.Daily.HasResults() and "Off: Loot Tracker's Looted list leaves out what you crafted or"
         .. " gathered (they have their own views)" or "Needs a newer game client (Lua API 18)",
       onChange = function(_, value) T.DailyDetail.SetInclude(value) end },
     heading("Text in these windows"),
@@ -1054,7 +1054,7 @@ end
 -- key, label, builder. The first is shown when the window first opens.
 C.CATEGORIES = {
   { key = "toolbelt", label = "Toolbelt", build = function() return C.ToolbeltSection() end },
-  { key = "xp", label = "XP & Today", build = function() return C.XPSection() end },
+  { key = "xp", label = "XP & Loot", build = function() return C.XPSection() end },
   { key = "buffs", label = "Buffs", build = function() return C.BuffBarSection() end },
   { key = "gear", label = "Consumables & gear", build = function() return C.ConsumablesGearSection() end },
   { key = "vitals", label = "Health bars", build = function() return C.VitalsSection() end },
@@ -1128,7 +1128,7 @@ for _, list in ipairs({ "buff_group", "cons_exclude", "consumables_extra" }) do
 end
 
 -- Shows one category (by key or label), building it. Only the one shown is kept: every page built once
--- and kept took ~420 of the add-on's 2,000 elements, and with a busy Today Detailed and the rest open the
+-- and kept took ~420 of the add-on's 2,000 elements, and with a busy Loot Tracker and the rest open the
 -- HUD layout page couldn't be built ("this add-on already has 2000 elements", found in game 2026-09-30).
 -- So the page left is destroyed first (freeing its elements before the next is made), and its controls
 -- leave `el`. Returns true when it shows.
@@ -1674,7 +1674,7 @@ function C.Sync()
     setValue(id, v)
     setText(id .. "_value", fontLabel(v))
   end
-  -- XP & Today
+  -- XP & Loot
   sliderValue("font", W.GetFont())
   sliderValue("spacing", W.GetSpacing())
   setValue("xp_net", W.GetNet())

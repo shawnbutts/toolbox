@@ -22,8 +22,8 @@ To install it, follow INSTALL.txt (in the same zip): the "Installing by hand" pa
 The settings window's "Settings" dropdown picks a part to set up. It opens on the first:
   * Toolbelt: show it, and put the health bars, consumables bar and equipment bar Off, on their own
     strip, or In Toolbelt. The quickest way to get started.
-  * XP & Today: session time, pools, XP in the last hour; gold, kills and XP since midnight. Each
-    can be hidden, a window or a HUD strip. Hover them for XP Detailed / Today Detailed.
+  * XP & Loot: session time, pools, XP in the last hour; gold, kills and XP since midnight. Each
+    can be hidden, a window or a HUD strip. Hover them for XP Detailed / Loot Tracker.
   * Buffs, Consumables & gear, Health bars, Combat: the HUD strips.
   * Notifications: what's new since you last looked (guild message, mail, rewards, gear to repair...).
   * Sounds: alert volume and sound files.
@@ -90,7 +90,7 @@ From beta 7:
 From beta 6:
   * The Toolbelt page (the first page of settings): turn on the Toolbelt and put each bar In Toolbelt.
     Does it come together as one strip you can move by its grip? Try "Only during combat".
-  * Crafting and gathering: Today Detailed's "Show" dropdown switches between Looted, Crafted and
+  * Crafting and gathering: Loot Tracker's "Show" dropdown switches between Looted, Crafted and
     Gathered (/tbx crafted, /tbx gathered). Craft something, take it off the table, harvest a node:
     do the counts look right? Materials you take back off a station should NOT show as made.
   * Consumables bar: long-lasting ones share one icon with a count, and "Most icons" caps the icons.
@@ -101,7 +101,7 @@ From beta 6:
   * "Show seconds left near the end" (Buffs): whole seconds over icons about to run out.
   * "Always group these kinds" (Buffs): e.g. every Blessing in the group slot.
   * Health, focus and Vigor bars are thinner, with more space between them.
-  * Estimated values: the new "Test connection" button in settings (XP & Today).
+  * Estimated values: the new "Test connection" button in settings (XP & Loot).
 From beta 5:
   * Buff sweeps: they should now keep pace with the game's own buff bar all the way down (before,
     they froze at the step they first showed). Compare a buff's sweep on both bars for a minute.
@@ -134,7 +134,7 @@ From beta 3:
       - Getting a debuff plays a sound and shows it in the red second row.
       - Settings: "Replace the game's buff bar", "Click a buff to dismiss it", "Only during combat".
   * Estimated values: switch on "Estimated values (SotANET)" in settings and Internet for Toolbox in
-    the add-on manager. Today Detailed then shows each item's value from SotANET's price list.
+    the add-on manager. Loot Tracker then shows each item's value from SotANET's price list.
     Test connection in settings (or /tbx dd values test) checks the connection.
   * Sounds: /tbx sounds test plays both alerts; the "Alert volume" slider sets how loud.
   * XP after you die: "last hour" and XP/hour should keep counting. "Subtract XP lost" in settings

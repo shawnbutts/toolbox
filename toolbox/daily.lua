@@ -27,7 +27,7 @@
 --   skills   = n,              -- skill levels gained today (D.SkillGains)
 --   deaths   = n,              -- times you died today (ShroudOnDeathChanged)
 -- }
--- The loot list (Today Detailed, "Looted") is `items` minus `crafted`, `station` and `gathered` (plus
+-- The loot list (Loot Tracker, "Looted") is `items` minus `crafted`, `station` and `gathered` (plus
 -- `pending`, which isn't in `items` yet), per name, unless the player includes them.
 -- What was made: from API 24 a craft result says it (`item` x `made`, and `items` = everything it put
 -- out), counted at once. Before that (2026-09-29 in game: `item` = the recipe's name, no `made`) it is
@@ -518,7 +518,7 @@ function D.OnLogin(adv, prod)
   D.unsaved = true
 end
 
--- Bumped whenever today's items change, so Today Detailed redraws its list only then.
+-- Bumped whenever today's items change, so Loot Tracker redraws its list only then.
 D.itemsVersion = 0
 
 -- A crafting window is open (ShroudOnCraftingStateChanged; read at start where the client has it).
@@ -662,7 +662,7 @@ local prefs = { open = false, hover = true, hud = false }
 local strip = nil                     -- the HUD strip form (Toolbox.Hud.TextStrip; see compact.lua)
 D.HOME = { 40, 200 }
 
--- Hover pop-up of the Today Detailed window (Toolbox.DailyDetail).
+-- Hover pop-up of the Loot Tracker window (Toolbox.DailyDetail).
 local hover = T.Hover.New{
   name = "daily",
   enabled = function() return prefs.hover end,
@@ -871,7 +871,7 @@ function D.Track()
   if T.Window.TrackPosition(win, prefs) then D.SavePrefs() end
 end
 
--- Hover reports from the Today Detailed window (key without prefix).
+-- Hover reports from the Loot Tracker window (key without prefix).
 function D.PopupHover(key, over)
   hover:Report("p:" .. key, over)
 end

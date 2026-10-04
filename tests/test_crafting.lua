@@ -293,7 +293,7 @@ return function(t)
     t.eq(day().craft.dropped, 0, "a new day starts at 0")
   end)
 
-  -- Today Detailed views ---------------------------------------------------------
+  -- Loot Tracker views ---------------------------------------------------------
 
   -- A day with some of everything.
   local function busyDay()

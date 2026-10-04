@@ -6,7 +6,7 @@ local H = require("harness")
 
 return function(t)
   -- Measured 2026-09-29 (Lua 5.4 / LuaJIT), after the fixes these tests prompted (the gear notification
-  -- read the equipment every check; BB.Track made a closure per buff per tick; Today Detailed redrew
+  -- read the equipment every check; BB.Track made a closure per buff per tick; Loot Tracker redrew
   -- 250 names every second):
   --   veteran idle   2 calls/s,  3.3 / 4.6 KB/s,  0 made/s
   --   full bars      0 calls/s,  8.3 / 18.2 KB/s, 0 made/s (2026-09-30: the game runs the sweeps; before,
@@ -138,7 +138,7 @@ return function(t)
     openEverything()
     H.advance(10)
     noErrors("opening everything")
-    t.eq(#H.detailRows(), Toolbox.DailyDetail.MAX_ROWS, "Today Detailed shows its maximum rows")
+    t.eq(#H.detailRows(), Toolbox.DailyDetail.MAX_ROWS, "Loot Tracker shows its maximum rows")
     t.eq(#(H.S.requests or {}), 0, "cached prices: no lookups")
     within("veteran idle", LIMITS.veteran, measure(60))
   end)

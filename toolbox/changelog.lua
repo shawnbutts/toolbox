@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Changed" },
+  { "item", "Today Detailed is now the Loot Tracker, which is what it has become: today's looted, crafted and gathered items with their estimated values. Open it with /toolbox loot (dd and dailydetailed still work). The settings page \"XP & Today\" is now \"XP & Loot\". Nothing else changes: your settings and today's items carry over." },
   { "version", "1.4.1 - 2026-10-04" },
   { "section", "Fixed" },
   { "item", "Setups: if the game refused to store an import, the character's own settings were already gone and the import still said it worked. Now nothing changes and it says so. Exports, deletes and a shared copy the game refuses are reported too, and a shared copy is tried again later." },

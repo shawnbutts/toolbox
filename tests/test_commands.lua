@@ -109,8 +109,9 @@ return function(t)
     -- the guide costs one topic of the add-on's 65,536 characters of on-screen text (with everything else)
     t.ok(biggest < 6000, "each topic well inside the text budget: " .. biggestTopic .. " " .. biggest)
     local all = table.concat(texts, "\n")
-    for _, heading in ipairs({ "Getting started", "XP", "Today", "Buff bar", "Health, focus & Vigor bars",
-                               "Combat stats", "Moving the HUD strips", "Sounds", "Commands" }) do
+    for _, heading in ipairs({ "Getting started", "XP", "Today and the Loot Tracker", "Buff bar",
+                               "Health, focus & Vigor bars", "Combat stats", "Moving the HUD strips", "Sounds",
+                               "Commands" }) do
       t.ok(all:find("\n" .. heading .. "\n", 1, true) or all:find("^" .. heading .. "\n"), "section " .. heading)
     end
     for _, cmd in ipairs(Toolbox.CommandList()) do

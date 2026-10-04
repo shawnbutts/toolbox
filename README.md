@@ -9,7 +9,7 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
 - **XP**: a small window (or a compact window, API 19, or a HUD strip) with session time, your adventurer and producer pools, and XP
   earned in the last hour. Hover it for **XP Detailed**: levels, progress bars, XP/hour, time to the
   next level, and the last hour as a chart.
-- **Today**: gold picked up, kills, and XP gained since midnight. Hover it for **Today Detailed**:
+- **Today**: gold picked up, kills, and XP gained since midnight. Hover it for the **Loot Tracker**:
   every item gained today, with counts and optional estimated values from shroudoftheavatar.net.
 - **Buff bar**: your buffs and debuffs as their skill icons with a clock-style sweep, long-lasting
   buffs grouped into one slot, sound alerts and a red flash before a buff runs out, a sound when a
@@ -75,7 +75,7 @@ with that setting's section at the top and the setting blinking.
 | `/toolbox xpdetailed` (or `xpd`) | show or hide the XP Detailed window |
 | `/toolbox reset` | start a new XP session |
 | `/toolbox daily` | show or hide today's stats (gold, kills, XP) |
-| `/toolbox dailydetailed` (or `dd`) (`values on\|off\|test\|refresh`) | show or hide Today Detailed (every item gained today); estimated values |
+| `/toolbox loot` (or `dd`, `dailydetailed`) (`values on\|off\|test\|refresh`) | show or hide the Loot Tracker (every item gained today); estimated values |
 | `/toolbox buffs move [x y]` | place the buff bar (no numbers: say where it is) |
 | `/toolbox buffs` (`group` / `combat` / `flash` / `replace` / `dismiss` / `debug` / `raw` / `trace [name]`) | show or hide the buff bar; its options; diagnostics (`debug`: each buff's timing; `trace light`: log buffs matching "light" once a second for 10 s) |
 | `/toolbox consumables` (`bar` / `glue` / `add\|remove <name>` / `move`) | list food and potions in effect; the consumables bar's options |
@@ -198,10 +198,10 @@ Deaths                     1
 - **XP** is the rise in your total adventurer / producer XP today.
 - Per character, and kept across `/lua reload`, relogs and client restarts on the same day.
 
-### Today Detailed
+### Loot Tracker
 
-Rest the pointer on **Today** and **Today Detailed** pops up (same rules as XP Detailed: it stays
-while the pointer is over either window, and `/toolbox dailydetailed` or `dd` pins it). It shows
+Rest the pointer on **Today** and the **Loot Tracker** pops up (same rules as XP Detailed: it stays
+while the pointer is over either window, and `/toolbox loot` or `dd` pins it). It shows
 the day's gold and kills and a list of every item gained today with its count, highest first.
 
 - Items come from `ShroudOnItemsGained`: anything that arrives in your bags from outside them.
@@ -213,7 +213,7 @@ the day's gold and kills and a list of every item gained today with its count, h
   created, so new items are appended as they arrive and the list is re-sorted only when the window
   opens (at most every 10 seconds). Up to 250 item names are kept per day; the rest are counted
   under "(other items)".
-- Hover can be turned off with "Show Today Detailed on hover" in `/toolbox config`.
+- Hover can be turned off with "Show Loot Tracker on hover" in `/toolbox config`.
 
 ## Buff bar
 
@@ -380,9 +380,9 @@ toolbox/            the package (what ships)
   xp.lua            pure session XP model (rates, rolling window, time to level)
   ui.lua            the XP Detailed window (/toolbox xpdetailed; Toolbox.Window, id toolbox_xp)
   compact.lua       the XP window (/toolbox xp; Toolbox.Compact, id toolbox_compact)
-  hover.lua         shared hover pop-up controller (XP -> XP Detailed, Today -> Today Detailed)
+  hover.lua         shared hover pop-up controller (XP -> XP Detailed, Today -> Loot Tracker)
   daily.lua         daily stats and the Today window (/toolbox daily)
-  dailydetail.lua   the Today Detailed window (/toolbox dailydetailed, dd)
+  dailydetail.lua   the Loot Tracker window (/toolbox loot, dd)
   sounds.lua        alert sound loading (custom path, then defaults) and playback
   hud.lua           the HUD strips: one per module, or one shared strip for the Toolbelt
   buffbar.lua       the buff bar HUD, its sweeps, expiry and debuff alerts

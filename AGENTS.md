@@ -124,7 +124,7 @@ into one if a new file is ever needed).
   their result; without `made`, items gained at a station count as made by name (`D.IsProduct`), the rest
   as `station`. Looted = items - crafted - station - gathered + pending. Skill levels: `D.SkillGains` over
   the highest `trainedLevel` seen per skill (`skill_levels`); deaths from `ShroudOnDeathChanged(true)`.
-- `dailydetail.lua`: `Toolbox.DailyDetail`, **Today Detailed** (views Looted / Crafted / Gathered). Refreshes
+- `dailydetail.lua`: `Toolbox.DailyDetail`, **Loot Tracker** (views Looted / Crafted / Gathered). Refreshes
   on change only (`Daily.itemsVersion`, `Prices.version`, `DD.FULL_EVERY` catch-up). Rows are appended,
   never rebuilt on a timer (element cap; no reorder API); a sorted rebuild at most every `RESORT_SECONDS`
   while shown. `Toolbox.Prices` (bottom): estimated values from SotANET's

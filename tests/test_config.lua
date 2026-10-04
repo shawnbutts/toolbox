@@ -347,7 +347,7 @@ return function(t)
                          "/tbx toolbelt vitals on", "/tbx toolbelt consumables on", "/tbx toolbelt gear on" }) do
       H.chat(c)
     end
-    for i = 1, 250, 20 do                              -- a full day: Today Detailed's 250 kinds
+    for i = 1, 250, 20 do                              -- a full day: Loot Tracker's 250 kinds
       local batch = {}
       for j = i, math.min(i + 19, 250) do batch[#batch + 1] = { string.format("Loot Item %03d", j), 1 } end
       H.items(batch)

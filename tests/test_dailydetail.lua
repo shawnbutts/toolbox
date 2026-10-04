@@ -1,4 +1,4 @@
--- Items gained today and the Today Detailed window (pinned and hover pop-up).
+-- Items gained today and the Loot Tracker window (pinned and hover pop-up).
 local H = require("harness")
 
 return function(t)
@@ -69,7 +69,7 @@ return function(t)
     H.advance(1)
     H.chat("/tbx dailydetailed")
     t.ok(H.detail():IsShown())
-    t.eq(H.detail().title, "Today Detailed")
+    t.eq(H.detail().title, "Loot Tracker")
     local rows = H.detailRows()
     t.eq(#rows, 3)
     t.eq(rows[1][1], "Arrows")
@@ -178,7 +178,7 @@ return function(t)
 
   -- hover and pinning -------------------------------------------------------
 
-  t.test("hovering Today pops up Today Detailed after the delay", function()
+  t.test("hovering Today pops up Loot Tracker after the delay", function()
     H.boot()
     H.chat("/tbx daily")
     H.hover("toolbox_daily", nil, true)
@@ -206,7 +206,7 @@ return function(t)
     t.no(H.window():IsShown(), "XP Detailed not affected")
   end)
 
-  t.test("pinned Today Detailed stays and is remembered; dd pins a pop-up", function()
+  t.test("pinned Loot Tracker stays and is remembered; dd pins a pop-up", function()
     H.boot()
     H.chat("/tbx daily")
     H.hover("toolbox_daily", nil, true)
@@ -220,7 +220,7 @@ return function(t)
     t.ok(H.detail():IsShown(), "reopened after reload")
   end)
 
-  t.test("settings: show and hover checkboxes for Today Detailed", function()
+  t.test("settings: show and hover checkboxes for Loot Tracker", function()
     H.boot()
     H.chat("/tbx daily")
     H.chat("/tbx config")
@@ -236,10 +236,10 @@ return function(t)
     t.eq(H.config():Find("show_daily_detail").value, false)
   end)
 
-  t.test("help lists dailydetailed and its dd alias", function()
+  t.test("help lists loot and its aliases, the older dailydetailed and dd", function()
     H.boot()
     H.clearLogs()
     H.chat("/tbx commands")
-    t.ok(H.logged("/toolbox dailydetailed %(or dd%)"))
+    t.ok(H.logged("/toolbox loot %(or dailydetailed, dd%)"), H.logs()[1])
   end)
 end

@@ -1,11 +1,11 @@
--- Estimated values in Today Detailed (Toolbox.Prices), and the JSON / URL helpers behind them.
+-- Estimated values in Loot Tracker (Toolbox.Prices), and the JSON / URL helpers behind them.
 local H = require("harness")
 
 return function(t)
   local ANSWER = '{"generatedAt":"2026-09-28T07:55:19Z","count":1,"items":[{"item":"Iron Ore","lastPrice":5,'
     .. '"lastSoldAt":"2026-07-26T18:56:00Z","avg90d":5,"sold90d":1000}],"missing":["Rusty Nail"]}'
 
-  -- Booted with Today Detailed open and values on.
+  -- Booted with Loot Tracker open and values on.
   local function withValues()
     H.boot()
     H.chat("/tbx dd")
@@ -183,7 +183,7 @@ return function(t)
     H.advance(2)
     H.httpRespond(1, true, 200, ANSWER)
     t.eq(H.saved("prices", "account").items["iron ore"].avg, 5)
-    H.reload()                               -- Today Detailed reopens (it was open)
+    H.reload()                               -- Loot Tracker reopens (it was open)
     H.advance(3)
     t.eq(#H.S.requests, 1, "no new lookup")
     t.eq(row("Iron Ore")[3], "200g", "shown at once from the cache")

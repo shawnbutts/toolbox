@@ -175,7 +175,7 @@ return function(t)
     t.eq(H.S.windows.toolbox_compact.compact, true)
   end)
 
-  t.test("Today as a compact window; hovering it still pops up Today Detailed", function()
+  t.test("Today as a compact window; hovering it still pops up Loot Tracker", function()
     H.boot()
     H.chat("/tbx daily")                          -- open; the form commands keep open / closed as it is
     H.chat("/tbx daily compact")

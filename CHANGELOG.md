@@ -7,6 +7,11 @@ ones included).
 
 ## [Unreleased]
 
+### Changed
+- Today Detailed is now the Loot Tracker, which is what it has become: today's looted, crafted and gathered
+  items with their estimated values. Open it with /toolbox loot (dd and dailydetailed still work). The settings
+  page "XP & Today" is now "XP & Loot". Nothing else changes: your settings and today's items carry over.
+
 ## [1.4.1] - 2026-10-04
 
 ### Fixed

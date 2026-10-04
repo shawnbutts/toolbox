@@ -519,7 +519,7 @@ add("daily", "show or hide today's stats (gold, kills, XP; resets at midnight; h
   formCommand(T.Daily, "daily", "Today", rest)
 end)
 
-add("dailydetailed", "show or hide Today Detailed (every item gained today, with counts; view looted|crafted|"
+add("loot", "show or hide the Loot Tracker (every item gained today, with counts; view looted|crafted|"
     .. "gathered; include on|off: crafted and gathered items in Looted; values on|off: estimated values from"
     .. " SotANET; values each on|off: the price each in the count; values test [item]: check the connection;"
     .. " values refresh: look prices up again)", function(rest)
@@ -537,7 +537,7 @@ add("dailydetailed", "show or hide Today Detailed (every item gained today, with
   if word == "include" then
     local a = arg:lower()
     if a == "on" or a == "off" then DD.SetInclude(a == "on") end
-    T.Print("Crafted and gathered items in Today Detailed's Looted list: "
+    T.Print("Crafted and gathered items in Loot Tracker's Looted list: "
       .. (DD.GetInclude() and "included" or "left out") .. ".")
     return
   end
@@ -556,7 +556,7 @@ add("dailydetailed", "show or hide Today Detailed (every item gained today, with
     if sub == "refresh" then
       local n = T.Prices.Forget()
       T.Print("Forgot " .. n .. " cached price" .. (n == 1 and "" or "s")
-        .. "; Today Detailed looks them up again while it's open.")
+        .. "; Loot Tracker looks them up again while it's open.")
       return
     end
     arg = arg:lower()
@@ -566,7 +566,7 @@ add("dailydetailed", "show or hide Today Detailed (every item gained today, with
     return
   end
   T.DailyDetail.Toggle()
-end, { "dd" })
+end, { "dailydetailed", "dd" })
 
 -- The Toolbelt: the buff bar with the health bars, consumables and equipment bars joined to it.
 add("toolbelt", "the buff bar with your health bars, consumables, gear repair and target joined to it (vitals|"
@@ -599,7 +599,7 @@ add("toolbelt", "the buff bar with your health bars, consumables, gear repair an
   for line in (T.Config.HudSummary() .. "\n"):gmatch("([^\n]*)\n") do T.Print(line) end
 end)
 
--- Today Detailed on its Crafted / Gathered view.
+-- Loot Tracker on its Crafted / Gathered view.
 local function openView(view)
   if not T.DailyDetail.SetView(view) then
     T.Print("This game client doesn't report crafting and gathering (it needs Lua API 18).")
@@ -608,10 +608,10 @@ local function openView(view)
   if not T.DailyDetail.IsShown() then T.DailyDetail.SetOpen(true) end
 end
 
-add("crafted", "today's crafting: items made, crafts per recipe, exceptional and XP (Today Detailed)",
+add("crafted", "today's crafting: items made, crafts per recipe, exceptional and XP (Loot Tracker)",
   function() openView("crafted") end)
 
-add("gathered", "today's gathering: items harvested, nodes and XP (Today Detailed)",
+add("gathered", "today's gathering: items harvested, nodes and XP (Loot Tracker)",
   function() openView("gathered") end)
 
 add("config", "open or close the settings window", function()
@@ -1562,7 +1562,7 @@ end
 -- ---------------------------------------------------------------------------
 -- Result-event probe (API 18)
 -- ---------------------------------------------------------------------------
--- The craft / gather result events feed Today Detailed's Crafted / Gathered views (daily.lua); this
+-- The craft / gather result events feed Loot Tracker's Crafted / Gathered views (daily.lua); this
 -- probe also records them for /toolbox api (and one chat line the first time each fires), to check
 -- what a client really sends (it has differed from the docs: `item` before API 24).
 
@@ -2380,7 +2380,7 @@ local function startModules(places)
   step("XP Detailed", T.Window.Init)
   step("the XP window", T.Compact.Init)
   step("the Today window", T.Daily.InitWindow)
-  step("Today Detailed", T.DailyDetail.Init)
+  step("Loot Tracker", T.DailyDetail.Init)
   step("sounds", T.Sounds.Init)
   step("the buff bar", T.BuffBar.Init)
   step("the health bars", T.Vitals.Init)

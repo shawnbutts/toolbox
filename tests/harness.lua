@@ -1145,7 +1145,7 @@ function H.items(list, dropped)
 end
 
 function H.detail() return S.windows.toolbox_daily_detail end
--- The Today Detailed item list as { { name, count }, ... } in display order.
+-- The Loot Tracker item list as { { name, count }, ... } in display order.
 function H.detailRows()
   local out = {}
   for _, row in ipairs(H.detail():Find("list").children or {}) do

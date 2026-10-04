@@ -241,7 +241,7 @@ end
 function W.MeasureLine()
   local sources = {
     { "XP Detailed", W.SampleLabel }, { "XP", T.Compact.SampleLabel },
-    { "Today", T.Daily.SampleLabel }, { "Today Detailed", T.DailyDetail.SampleLabel },
+    { "Today", T.Daily.SampleLabel }, { "Loot Tracker", T.DailyDetail.SampleLabel },
   }
   for _, src in ipairs(sources) do
     local label = src[2]()

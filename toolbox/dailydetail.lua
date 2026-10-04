@@ -1,5 +1,5 @@
 -- Toolbox: dailydetail.lua
--- The "Today Detailed" window (/toolbox dailydetailed, dd): today's totals plus every
+-- The "Loot Tracker" window (/toolbox loot, dd; it was "Today Detailed"): today's totals plus every
 -- item gained, with counts. Pops up when the Today window is hovered (daily.lua), or
 -- can be pinned open like XP Detailed.
 --
@@ -120,7 +120,7 @@ end
 
 local function build()
   win = UI.Window{
-    id = WINDOW_ID, title = "Today Detailed",
+    id = WINDOW_ID, title = "Loot Tracker",
     width = 240, height = 260, minWidth = 170, minHeight = 60,
     x = prefs.x or T.Window.DEFAULT_X, y = prefs.y or T.Window.DEFAULT_Y,   -- never nil in a spec
     escCloses = true,
@@ -218,7 +218,7 @@ function DD.Init()
   end
   build()
   if prefs.open and not win:Show() then
-    T.Print("Today Detailed window could not reopen yet; use /toolbox dailydetailed.")
+    T.Print("Loot Tracker window could not reopen yet; use /toolbox loot.")
   end
   onShown()
 end
@@ -236,7 +236,7 @@ function DD.SetOpen(open)
     prefs.open, popup = true, false
     onShown()
   else
-    T.Print("The Today Detailed window can't reopen right now; try again in a few seconds.")
+    T.Print("The Loot Tracker window can't reopen right now; try again in a few seconds.")
     ok = false
   end
   DD.SavePrefs()
@@ -571,7 +571,7 @@ local function testSay(msg)
 end
 
 local cache = {}      -- lower name -> { avg, sold, last, day }
-P.version = 0         -- bumped when the cache changes (Today Detailed redraws its values then)
+P.version = 0         -- bumped when the cache changes (Loot Tracker redraws its values then)
 local queue = {}      -- names (as looted) waiting for a lookup
 local queued = {}     -- lower name -> true while queued or in flight
 local inflight = nil  -- { id, names, at }

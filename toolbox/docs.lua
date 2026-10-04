@@ -33,7 +33,7 @@ D.SECTIONS = {
   { "Getting started",
     "Type /toolbox (or /tbx) to open the settings window and tick what you want on screen. Its Settings "
       .. "dropdown picks a category: Toolbelt (first, and the quickest start: your buffs, health bars, "
-      .. "consumables and gear in one strip), XP & Today, Buffs, Consumables & gear, Health bars, Combat, "
+      .. "consumables and gear in one strip), XP & Loot, Buffs, Consumables & gear, Health bars, Combat, "
       .. "Skill activity, Notifications, Sounds, HUD layout (every strip's position) and Setups, backup & reset. "
       .. "Can't find a setting? Type in the Search box under it (sound, size, target...) and pick a result: "
       .. "its page opens with that part at the top (Show the whole page brings back the rest) and the setting "
@@ -59,12 +59,12 @@ D.SECTIONS = {
   { "XP over the last hour",
     "XP Detailed shows the last hour under each track as columns: XP gained in each 2-minute slice, "
       .. "tallest for your best stretch, with that best rate per hour beneath." },
-  { "Today",
+  { "Today and the Loot Tracker",
     "Today (/toolbox daily): gold picked up, kills by you or your pet, adventurer and producer XP, skill "
       .. "levels gained and deaths since midnight. A skill level counts when a skill's trained level passes "
       .. "the highest it has been (so unlearning and relearning doesn't count twice). Rest the pointer on "
-      .. "it for Today Detailed: every item that arrived in your bags today, with counts.",
-    "Today Detailed's Show dropdown: Looted (what you picked up; what you crafted or gathered is left "
+      .. "it for the Loot Tracker (/toolbox loot): every item that arrived in your bags today, with counts.",
+    "Loot Tracker's Show dropdown: Looted (what you picked up; what you crafted or gathered is left "
       .. "out unless you tick Include crafted and gathered items in settings, or /toolbox dd include on), "
       .. "Crafted (/toolbox crafted: the items you took off crafting stations, your crafts per recipe with "
       .. "exceptional and failed, and crafting XP) and Gathered (/toolbox gathered: what the nodes you "
@@ -73,7 +73,7 @@ D.SECTIONS = {
       .. "off a station (materials back, salvage returns) are listed apart. Crafted also lists the "
       .. "materials your crafts used (from each recipe's ingredients; tools and optional ones left out).",
     "Estimated values (optional): switch on Estimated values (SotANET) in settings, or /toolbox dd "
-      .. "values on, and switch Internet on for Toolbox in the add-on manager. Today Detailed then shows "
+      .. "values on, and switch Internet on for Toolbox in the add-on manager. The Loot Tracker then shows "
       .. "each item's count times its 90-day average sale price from shroudoftheavatar.net (player-uploaded "
       .. "receipts) and a total; hover a value for the price each (or switch on Show the price each: \"40 x "
       .. "5g\"). Items with no recent sales show --, and ... while their price is looked up. Only item names"
