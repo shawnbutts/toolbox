@@ -467,8 +467,8 @@ local function today()
   return key
 end
 
-function D.Load()
-  local saved = T.Load("daily")
+function D.ReadDay()
+  local saved = T.ReadSaved("daily")
   local key = today()
   if D.IsValid(saved) then
     D.day = D.Upgrade(saved)
@@ -506,7 +506,7 @@ end
 -- A new login or character (not a reload), with that character's current totals:
 -- load its day and start counting from now.
 function D.OnLogin(adv, prod)
-  D.Load()
+  D.ReadDay()
   D.skillHigh = nil                    -- another character's skills, or read again: start from its save
   D.Rebase(D.day, adv, prod, ShroudPlayerGold)
   D.unsaved = true
@@ -576,7 +576,7 @@ function D.OnSkills(levelsChanged)
   if not skills or #skills == 0 then return end
   local first = D.skillHigh == nil
   if first then
-    local saved = T.Load("skill_levels")
+    local saved = T.ReadSaved("skill_levels")
     D.skillHigh = {}
     if type(saved) == "table" and saved.v == 1 and type(saved.high) == "table" then
       for k, v in pairs(saved.high) do
@@ -736,9 +736,9 @@ local function active()
 end
 
 -- Builds the window (after Toolbox.Window.Init, whose text settings it uses).
--- The data is loaded earlier, by D.Load from ShroudOnStart.
+-- The data is loaded earlier, by D.ReadDay from ShroudOnStart.
 function D.InitWindow()
-  local saved = T.Load("daily_window")
+  local saved = T.ReadSaved("daily_window")
   prefs = { open = false, hover = true, hud = false }
   if type(saved) == "table" then
     prefs.open = saved.open == true

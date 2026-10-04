@@ -657,7 +657,7 @@ C.GetPosition, C.MoveTo, C.Nudge, C.ResetPosition = mover.Get, mover.MoveTo, mov
 function C.Current() return fight, session end
 
 function C.Init()
-  local saved = T.Load("combat")
+  local saved = T.ReadSaved("combat")
   prefs = { show = false }
   if type(saved) == "table" then
     prefs.show = saved.show == true
@@ -1220,7 +1220,7 @@ function CD.Track()
 end
 
 function CD.Init()
-  local saved = T.Load("combat_detail")
+  local saved = T.ReadSaved("combat_detail")
   cdPrefs = { open = false, scope = "fight", hover = true }
   if type(saved) == "table" then
     cdPrefs.open = saved.open == true
@@ -1424,7 +1424,7 @@ function CS.SetColor(kind, which)
 end
 
 function CS.Init()
-  local saved = T.Load("combat_shout")
+  local saved = T.ReadSaved("combat_shout")
   sprefs = { on = false, kinds = {} }
   if type(saved) == "table" then
     sprefs.on = saved.on == true

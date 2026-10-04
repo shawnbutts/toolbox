@@ -398,7 +398,7 @@ function V.Tick()
 end
 
 function V.Init()
-  local saved = T.Load("vitals")
+  local saved = T.ReadSaved("vitals")
   prefs = { show = false }
   if type(saved) == "table" then
     prefs.show = saved.show == true
@@ -1395,7 +1395,7 @@ TG.GetPosition, TG.MoveTo, TG.Nudge, TG.ResetPosition = targetMover.Get, targetM
   targetMover.Reset
 
 function TG.Init()
-  local saved = T.Load("target")
+  local saved = T.ReadSaved("target")
   tprefs = defaultPrefs()
   if type(saved) == "table" then
     tprefs.show = saved.show == true

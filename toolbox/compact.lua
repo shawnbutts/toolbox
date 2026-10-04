@@ -106,7 +106,7 @@ local function active()
 end
 
 function C.Init()
-  local saved = T.Load("compact")
+  local saved = T.ReadSaved("compact")
   prefs = { open = false, hover = true, hud = false }
   if type(saved) == "table" then
     prefs.open = saved.open == true

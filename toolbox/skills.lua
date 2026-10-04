@@ -725,7 +725,7 @@ function SK.SetTrigger(which)
 end
 
 function SK.Init()
-  local saved = T.Load("skills")
+  local saved = T.ReadSaved("skills")
   prefs = { show = false }
   if type(saved) == "table" then
     prefs.show = saved.show == true

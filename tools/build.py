@@ -59,11 +59,16 @@ MAX_UNPACKED = 24 * 1024 * 1024
 # the trim pattern over a long buff description (2026-09-28), killing the add-on.
 LAZY_PATTERN_RE = re.compile(r"\(\.-\)[^\"'\n]*\$")
 
-# Runtime code loading. The client scans source text (comments included) for these,
-# and review flags them, so they are refused anywhere in a package file.
+# Runtime code loading. The client scans source text (comments and strings included) for these
+# and refuses internet access to any add-on that matches (agent reference: "source matches
+# load(/loadstring(/loadfile(/dofile(/require(/_G["), and review flags them. Toolbox 1.3.0 was refused
+# the grant in game (2026-10-04) with no real code loading at all: the client's match is cruder than
+# a Lua parse. So this is deliberately broad: no word boundary ("reload(" and "T.Load(" count), any
+# case, a space before the bracket, and the string / table call forms.
 DYNAMIC_CODE_RE = re.compile(
-    r"\b(load|loadstring|loadfile|dofile|require|loadsafe)\s*[(\"'\[{]"
-    r"|\bdynamic\.eval\b|\b_G\s*\[|\b_ENV\s*\["
+    r"(load|loadstring|loadfile|dofile|require|loadsafe)\s*[(\"'\[{]"
+    r"|dynamic\.eval|_G\s*\[|_ENV\s*\[",
+    re.IGNORECASE,
 )
 # The game's Lua (MoonSharp) passes a nil table entry on to the UI, which rejects it: a
 # "color = ... or nil" in a style table hid a whole HUD strip in game. Refuse the pattern.

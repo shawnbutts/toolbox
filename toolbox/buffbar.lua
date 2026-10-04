@@ -1410,7 +1410,7 @@ function BB.Recall(name, remaining)
 end
 
 function BB.Init()
-  local saved = T.Load("buffbar")
+  local saved = T.ReadSaved("buffbar")
   prefs = defaults()
   if type(saved) == "table" then
     prefs.show = saved.show == true
@@ -1461,11 +1461,11 @@ function BB.Init()
   timers, debuffs, runes, groupedCache, stockHidden = {}, {}, {}, {}, false
   inCombat, combatUntil, lastShown = ShroudGetPlayerCombatMode() == true, 0, nil
   T.Hud.Register("buffs", BB)
-  local savedTimers = T.Load("buff_timers")
+  local savedTimers = T.ReadSaved("buff_timers")
   remembered = (type(savedTimers) == "table" and savedTimers.v == 3 and type(savedTimers.timers) == "table")
     and savedTimers.timers or {}
   learned = {}
-  local savedDurations = T.Load("buff_durations")
+  local savedDurations = T.ReadSaved("buff_durations")
   local durations = type(savedDurations) == "table" and savedDurations.v == 2
     and type(savedDurations.durations) == "table" and savedDurations.durations or {}
   for name, v in pairs(durations) do
@@ -2016,7 +2016,7 @@ function G.Tick()
 end
 
 function G.Init()
-  local saved = T.Load("gear")
+  local saved = T.ReadSaved("gear")
   gprefs = { show = true, threshold = G.THRESHOLD_DEFAULT }
   if type(saved) == "table" then
     gprefs.show = saved.show ~= false
@@ -2366,7 +2366,7 @@ local function nameParts(list)
 end
 
 function K.Init()
-  local saved = T.Load("consumables")
+  local saved = T.ReadSaved("consumables")
   kprefs = { show = true, glue = false, extra = {}, cats = defaultCats(), exclude = defaultExclude() }
   if type(saved) == "table" then
     kprefs.show = saved.show ~= false
@@ -2652,7 +2652,7 @@ end
 
 -- From BB.Init (before Toolbox.Hud builds the strips).
 function MB.Init()
-  local saved = T.Load("buffblock")
+  local saved = T.ReadSaved("buffblock")
   mprefs = { show = false }
   if type(saved) == "table" then
     mprefs.show = saved.show == true

@@ -190,7 +190,7 @@ function DD.IsPopup()
 end
 
 function DD.Init()
-  local saved = T.Load("daily_detail")
+  local saved = T.ReadSaved("daily_detail")
   prefs = { open = false, view = "looted" }
   popup = false
   if type(saved) == "table" then

@@ -976,7 +976,7 @@ end
 local hudFor = nil        -- the character they were loaded for
 local function loadHud()
   hudFor = ShroudGetPlayerName()
-  local saved = T.Load("notify_hud")
+  local saved = T.ReadSaved("notify_hud")
   hprefs = { hideAfter = NH.HIDE_DEFAULT }
   if type(saved) == "table" then
     for _, c in ipairs(NH.HIDE_CHOICES) do if saved.hideAfter == c[1] then hprefs.hideAfter = c[1] end end
@@ -989,7 +989,7 @@ local function loadHud()
     end
   end
   history = {}
-  local h = T.Load("notify_history")
+  local h = T.ReadSaved("notify_history")
   if type(h) == "table" and h.v == 1 and type(h.list) == "table" then
     for _, e in ipairs(h.list) do
       if type(e) == "table" and type(e.title) == "string" and type(e.text) == "string" and #history < NH.KEEP then
@@ -1100,10 +1100,10 @@ local function prefsNow()
   if nprefs ~= nil then ownerChanged = true end   -- another character (not the first load)
   nprefsFor = name
   settleUntil = T.Now() + N.SETTLE
-  local saved = T.Load("notify")
+  local saved = T.ReadSaved("notify")
   local stored = type(saved) == "table" and saved.v == 1 and type(saved.sources) == "table" and saved.sources or {}
   if type(saved) ~= "table" then
-    local old = T.Load("guild_motd")       -- before notifications, the guild message had its own
+    local old = T.ReadSaved("guild_motd")       -- before notifications, the guild message had its own
     if type(old) == "table" then
       stored = { motd = { on = old.show ~= false, seen = type(old.seen) == "string" and old.seen or "" } }
     end

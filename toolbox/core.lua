@@ -229,7 +229,7 @@ function T.Copy(v)
   return out
 end
 
-function T.Load(key)
+function T.ReadSaved(key)
   return T.Copy(ShroudGetSavedVar(key, SCOPE))
 end
 
@@ -630,8 +630,8 @@ add("settings", "where your settings files are, to back them up (save: write the
       T.Print("Couldn't ask for a reset: " .. why .. ".")
       return
     end
-    T.Print("Every setting and position will go back to its default when Toolbox next starts: type /lua reload"
-      .. " now. " .. cmd .. " cancel drops it.")
+    T.Print("Every setting and position will go back to its default when Toolbox next starts: type /lua reload now."
+      .. " " .. cmd .. " cancel drops it.")
   elseif word == "cancel" then
     local had, written = B2.Cancel()
     T.Print((had and "Dropped the waiting reset." or "Nothing was waiting.")
@@ -1718,7 +1718,7 @@ end
 add("key", "show the shortcut that opens the settings (change it in the add-on manager, under Keys)", function()
   T.Print("Settings shortcut: " .. T.KeyStatus() .. ". Change it in the add-on manager, on Toolbox's row"
     .. " under Keys." .. (T.keyNote and (" Note: " .. T.keyNote .. ".") or ""))
-  T.Print("Pressed " .. tostring(T.keyPresses or 0) .. " time(s) since the last reload"
+  T.Print("Pressed " .. tostring(T.keyPresses or 0) .. " time(s) since Toolbox last started"
     .. ((T.keyPresses or 0) == 0 and " (0 means the game hasn't delivered the key to Toolbox)." or "."))
 end)
 
@@ -1810,7 +1810,7 @@ end
 -- otherwise start a new one. See README "Sessions" for the rules.
 function T.ResumeOrStart()
   if not T.ReadTotals() then return "waiting" end
-  local saved = T.Load("session")
+  local saved = T.ReadSaved("session")
   local now = T.Now()
   if T.XP.IsValid(saved)
       and not saved.ended
@@ -2027,7 +2027,7 @@ end
 function B.ApplyPending()
   if not B.Pending() then return end
   ShroudDeleteSavedVar(B.PENDING, SCOPE)     -- first: a failure below doesn't repeat at every start
-  local notify = T.Load("notify")
+  local notify = T.ReadSaved("notify")
   for _, key in ipairs(B.KEYS) do ShroudDeleteSavedVar(key, SCOPE) end   -- false only for a key never set
   local saved = T.Save("notify", seenOnly(notify))
   if T.Flush() == false or not saved then
@@ -2050,7 +2050,7 @@ function ShroudOnStart()
   T.RegisterCommands()
   T.RegisterKeybind()
   step("the settings restore", T.Backup.ApplyPending)   -- before anything reads its settings
-  step("today's stats", T.Daily.Load)  -- before the session: a new login re-bases daily gold
+  step("today's stats", T.Daily.ReadDay)  -- before the session: a new login re-bases daily gold
   step("the crafting state", T.Daily.ReadCraftingState)
   T.ResumeOrStart()
   T.Sample()                         -- XP gained since the last save (e.g. across a reload)

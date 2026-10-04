@@ -42,9 +42,13 @@ This file holds current facts and rules; the history behind them is in git (`git
   assumption, and add it to "Unconfirmed" below.
 - **One global.** Everything lives in `Toolbox` or is `local`; the only other globals are the `ShroudOn*`
   callbacks (all add-ons share one environment). Define each callback once, in core.lua.
-- **No runtime code loading** (`load`, `loadstring`, `loadfile`, `dofile`, `require`, `_G[...]`, `_ENV[...]`,
-  or reaching a global through a built name) in package files, not even in comments: the client matches
-  source text. `tools/build.py` refuses it. Never name a Lua function `load`.
+- **No runtime code loading, and nothing that looks like it** (`load`, `loadstring`, `loadfile`, `dofile`,
+  `require`, `_G[...]`, `_ENV[...]`, or reaching a global through a built name) in package files, not even in
+  comments or strings: the client matches source TEXT and then refuses the add-on internet access ("loads Lua
+  code at runtime"). Its match is cruder than Lua: 1.3.0 was refused over `T.Load(` (2026-10-04). So
+  `tools/build.py` refuses those words followed by `(`, `"`, `'`, `[` or `{` in ANY case and with NO word
+  boundary: no `T.Load(`, `startLoad(`, `reload(`, and no text like `reload (` or `reload"` either. Saved
+  vars are read with `T.ReadSaved`.
 - **No `io.*` / `os.*`**, except feature-detected `os.date`/`os.time` for the local clock (`Toolbox.Today`,
   `Toolbox.Clock`). Persist with `ShroudSetSavedVar`/`ShroudGetSavedVar`, character scope.
 - **UI is `Shroud.UI` only.** No retained widgets (`ShroudUI*`), no immediate-mode GUI (`ShroudOnGUI`).
@@ -82,7 +86,8 @@ changelog, docs, skills, config. Later files may use earlier ones at top level; 
 inside functions. The package allows 16 Lua files and has 16: add code to an existing file (or fold skills.lua
 into one if a new file is ever needed).
 
-- `core.lua`: `Toolbox` (`T`), chat output (`T.Print`), saved-var helpers (`Load`/`Save` deep-copy; `Flush`
+- `core.lua`: `Toolbox` (`T`), chat output (`T.Print`), saved-var helpers (`ReadSaved`/`Save` deep-copy; never name anything `...load(`: the client's code-loading
+  scan matches source text, any case, and refused 1.3.0 internet access over `T.Load(` (2026-10-04); `Flush`
   reports a refused write in chat at most every `T.FLUSH_WARN_EVERY` s), formatting, `T.Field` / `T.List`,
   `T.ReadEvents`, JSON (`T.JsonDecode`) and URLs (`T.UrlEncode`), the command table and dispatcher, the
   XP session lifecycle, `Toolbox.Backup` (the settings files' location for the player to copy, `B.SaveNow`, and reset:

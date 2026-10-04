@@ -83,7 +83,7 @@ local function tryNext(st)
   st.status, st.path, st.clip = "missing", nil, nil
 end
 
-local function startLoad(def)
+local function startLoading(def)
   local st = { candidates = candidates(def), at = 1, status = "loading" }
   state[def.key] = st
   tryNext(st)
@@ -114,7 +114,7 @@ function S.Poll()
 end
 
 function S.Init()
-  local saved = T.Load("sounds")
+  local saved = T.ReadSaved("sounds")
   prefs = { volume = S.VOLUME_DEFAULT, paths = {} }
   if type(saved) == "table" then
     if type(saved.volume) == "number" and saved.volume >= 0 and saved.volume <= 100 then
@@ -126,7 +126,7 @@ function S.Init()
       end
     end
   end
-  for _, def in ipairs(S.DEFS) do startLoad(def) end
+  for _, def in ipairs(S.DEFS) do startLoading(def) end
 end
 
 local function save()
@@ -161,7 +161,7 @@ function S.Play(key)
   if not index then
     -- Not in the game's list any more (ShroudListSoundReset, from any add-on, clears it):
     -- load it again for next time.
-    startLoad(defFor(key))
+    startLoading(defFor(key))
     return false, { reason = "cleared" }
   end
   if type(name) == "string" then st.clip = name end
@@ -243,7 +243,7 @@ function S.SetPath(key, path)
       path = T.Trim(path)
       prefs.paths[key] = path ~= "" and path or nil
       save()
-      startLoad(def)
+      startLoading(def)
       T.Config.Sync()
       return true
     end

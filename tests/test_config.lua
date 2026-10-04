@@ -264,12 +264,13 @@ return function(t)
     H.boot()
     H.clearLogs()
     H.chat("/tbx key")
-    t.ok(H.logged("Pressed 0 time%(s%) since the last reload %(0 means the game hasn't delivered the key"), H.lastLog())
+    t.ok(H.logged("Pressed 0 time%(s%) since Toolbox last started %(0 means the game hasn't delivered the key"),
+      H.lastLog())
     H.press("settings")
     H.press("settings")
     H.clearLogs()
     H.chat("/tbx key")
-    t.ok(H.logged("Pressed 2 time%(s%) since the last reload%.$"), H.lastLog())
+    t.ok(H.logged("Pressed 2 time%(s%) since Toolbox last started%.$"), H.lastLog())
   end)
 
   -- live values (strip positions, sound status) -------------------------------

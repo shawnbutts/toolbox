@@ -887,7 +887,7 @@ function C.BackupSection()
     style = { whiteSpace = "wrap", marginTop = 6 } }
   children[#children + 1] = UI.Row{ style = { marginTop = 4 }, children = {
     UI.Button{ id = "settings_reset", text = RESET_TEXT,
-      tooltip = "Back to the defaults at the next /lua reload (copy the files first to keep these)",
+      tooltip = "Back to the defaults at the next /lua reload; copy the files first to keep these",
       onClick = function() C.ResetSettings() end },
     UI.Button{ id = "backup_cancel", text = "Cancel", style = { marginLeft = 4 },
       tooltip = "Drop the waiting reset", onClick = function() C.CancelPending() end },

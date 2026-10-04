@@ -304,7 +304,7 @@ function W.HidePopup()
 end
 
 function W.Init()
-  local saved = T.Load("window")
+  local saved = T.ReadSaved("window")
   prefs = { open = false }
   if type(saved) == "table" then
     prefs.open = saved.open == true

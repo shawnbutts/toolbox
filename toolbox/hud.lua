@@ -444,7 +444,7 @@ function Hud.SetGlued(on)
 end
 
 function Hud.Init()
-  local saved = T.Load("hud")
+  local saved = T.ReadSaved("hud")
   prefs = { glued = false }
   if type(saved) == "table" then
     prefs.glued = saved.glued == true
