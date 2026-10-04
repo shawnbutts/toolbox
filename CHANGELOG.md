@@ -13,6 +13,8 @@ ones included).
   rewritten; nothing else changes. Switch Internet on for Toolbox in the add-on manager to use the prices.
 - Today Detailed's estimated values are rounded to the nearest whole gold ("5g", not "4.6g"), and they and the
   "Estimated value ... SotANET" line above them use the normal text colour instead of the hard-to-read dim one.
+- A small box showed in front of estimated values (and in XP Detailed's time to the next level): the game's font
+  has no tilde, which Toolbox used for "about". The values show plainly now ("14g", "About 5g each").
 
 ## [1.3.0] - 2026-10-04
 
@@ -336,14 +338,14 @@ Docs and version windows, and performance fixes found by new stress tests.
   of about 70.
 - The version window (/toolbox version) shows one version's changes at a time, picked from a
   dropdown (newest first), each built the first time it's picked: it opens with about 25 elements
-  instead of the whole changelog's ~150.
+  instead of the whole changelog's about 150.
 - The store description and the project README list every current feature (they still described the
   add-on as it was two betas ago).
 - Health & focus bars: the bar length can now go down to 20 (was 100), for a compact strip.
 
 ### Fixed
 - Performance: once the settings window had been opened (the first-run welcome opens it), it kept
-  updating its hidden labels every second (~9 UI calls a second). It now only does that while shown,
+  updating its hidden labels every second (about 9 UI calls a second). It now only does that while shown,
   and refreshes them as it opens. Also: the XP totals are read once a second instead of twice, the
   health & focus bars allocate nothing on a quiet tick, and HUD strips are only shown or hidden
   when that changes.
@@ -351,7 +353,7 @@ Docs and version windows, and performance fixes found by new stress tests.
   re-read all your equipment on every notification check (every second for the first minute after
   login); it now uses the equipment bar's reading, and still notifies as soon as an item changes.
   Today Detailed redrew its whole list every second; now only when something on it changes (with a
-  full day's 250 items it made ~8x less garbage). The buff bar makes less garbage per buff.
+  full day's 250 items it made about 8x less garbage). The buff bar makes less garbage per buff.
 - Buff bar: a buff whose skill applies several effects could get its sweep's length from the wrong
   one, so the sweep sat out of step with the game's bar. The full length now comes from the effect
   whose time left matches, read the way the game reports it.
@@ -374,7 +376,7 @@ leaves more room for other add-ons, and fixes for start-up errors.
 
 ### Changed
 - Performance: Toolbox asks much less of the game each second, leaving more room for other
-  add-ons. With every window open, idle, it now makes about 4 UI updates a second instead of ~100
+  add-ons. With every window open, idle, it now makes about 4 UI updates a second instead of about 100
   and a sixth of the garbage; in combat about a quarter of the UI updates and half the garbage.
   Windows only update what changed, Combat Detailed refreshes once a second, and the buff bar, combat
   HUD and XP chart reuse their data instead of rebuilding it.
@@ -664,7 +666,7 @@ Full detail below.
   behind a label). Light is now a panel in the theme colour `@text` with dark numbers, on a
   wrapper so switching back to Dark still shows the `inset` panel.
 - The drag grip at a HUD strip's top-left corner covered the first number (health & focus bars)
-  or icon (buff bar): both strips now keep ~14 px free for it (`Toolbox.Window.GRIP`).
+  or icon (buff bar): both strips now keep about 14 px free for it (`Toolbox.Window.GRIP`).
 - Health & focus bars showed "--" and stayed empty in game: when the per-frame current value
   isn't a number they now read the `CurrentHealth` / `CurrentFocus` stats. `/toolbox vitals debug`
   shows each source.

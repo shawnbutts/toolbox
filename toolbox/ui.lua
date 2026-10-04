@@ -427,7 +427,7 @@ end
 function W.NextLevelText(progress, ratePerHour)
   local status, remaining, seconds = T.XP.NextLevel(progress, ratePerHour)
   if status == "eta" then
-    return "Next level: " .. T.FormatNumber(remaining) .. " XP (~" .. T.FormatDuration(seconds)
+    return "Next level: " .. T.FormatNumber(remaining) .. " XP (about " .. T.FormatDuration(seconds)
       .. " at " .. rateText(ratePerHour) .. ")"
   elseif status == "norate" then
     local why = (type(ratePerHour) == "number" and ratePerHour < 0) and "losing XP" or "no XP gained yet"

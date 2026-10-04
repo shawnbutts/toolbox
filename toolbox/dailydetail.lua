@@ -417,7 +417,7 @@ function DD.RefreshValues()
   for name, r in pairs(rows) do
     local each = P.Average(name)
     local n = shown[name] or 0
-    T.SetText(r.value, each and ("~" .. P.Format(n * each)) or "")
+    T.SetText(r.value, each and P.Format(n * each) or "")   -- (no "~": the game's font has no tilde)
     T.SetTooltip(r.value, P.Tooltip(name))
   end
   valued.total, valued.priced, valued.kinds = total, priced, kinds
@@ -432,7 +432,7 @@ function DD.ValueLine()
   if kinds == 0 then return "Estimated value: nothing gained yet" end
   if priced == 0 and P.Idle() then return "Estimated value: none of today's items sold recently (SotANET)" end
   if priced == 0 then return "Estimated value: looking up prices on SotANET..." end
-  return "Estimated value ~" .. P.Format(total) .. " (" .. priced .. " of " .. kinds .. " kinds priced, SotANET)"
+  return "Estimated value " .. P.Format(total) .. " (" .. priced .. " of " .. kinds .. " kinds priced, SotANET)"
 end
 
 function DD.GetValues() return prefs.values == true end
@@ -603,7 +603,7 @@ function P.Tooltip(name)
   if not e then return "Looking up its price on SotANET..." end
   if type(e.avg) ~= "number" then return "No sales on SotANET in the last 90 days" end
   local when = e.last ~= "" and ("; last sold " .. e.last:sub(1, 10)) or ""
-  return "~" .. P.Format(e.avg) .. " each: the average of " .. T.FormatNumber(e.sold)
+  return "About " .. P.Format(e.avg) .. " each: the average of " .. T.FormatNumber(e.sold)
     .. " sold in the last 90 days" .. when .. " (SotANET, from player-uploaded receipts)"
 end
 
@@ -783,7 +783,7 @@ function P.Report(name, ok, code, body, err, data)
       .. " (or no item has that exact name).")
     return
   end
-  testSay(string.format("connected. '%s': ~%s each (90-day average), %s sold in 90 days, last sold %s.",
+  testSay(string.format("connected. '%s': about %s each (90-day average), %s sold in 90 days, last sold %s.",
     tostring(it.item), P.Format(it.avg90d), T.FormatNumber(it.sold90d or 0),
     type(it.lastSoldAt) == "string" and it.lastSoldAt:sub(1, 10) or "?"))
 end

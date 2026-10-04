@@ -1124,7 +1124,7 @@ function CD.Refresh(force)
       if i <= 4 then parts[#parts + 1] = CD.TypeName(x.type) .. " " .. math.floor(x.share * 100 + 0.5) .. "%" end
     end
     for key, seg in pairs(cdEl.typeSegs[which]) do T.SetVisible(seg, widths[key] ~= nil) end
-    T.SetText(cdEl["cd_types_" .. which], #parts > 0 and table.concat(parts, "  ·  ") or "None yet.")
+    T.SetText(cdEl["cd_types_" .. which], #parts > 0 and table.concat(parts, ", ") or "None yet.")
   end
   local hist = session and session.history or {}
   local best = 0

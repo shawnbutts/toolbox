@@ -72,6 +72,11 @@ DYNAMIC_CODE_RE = re.compile(
 )
 # The game's Lua (MoonSharp) passes a nil table entry on to the UI, which rejects it: a
 # "color = ... or nil" in a style table hid a whole HUD strip in game. Refuse the pattern.
+# The game's UI font has no "~" (it drew a box, owner's screenshot 2026-10-04: "~14g"), and may lack other
+# non-ASCII characters (a middle dot was replaced the same day). Refused in string literals, which is where
+# shown text lives; the URL encoder's character class (core.lua) is the one allowed "~".
+STRING_RE = re.compile(r'"((?:[^"\\\n]|\\.)*)"')
+FONT_ALLOWED = {"[^%w%-%._~]"}
 NIL_ENTRY_RE = re.compile(r"\b\w+\s*=\s*[^=\n]*\bor\s+nil\s*[,}]")
 # The same through assignment: `spec.key = nil` does not remove the key in the game's Lua either,
 # so an IconButton spec with `width, height = nil, nil` was refused ("IconButton has no field
@@ -331,6 +336,15 @@ def check_sources(report: Report, manifest: dict) -> None:
             m = DYNAMIC_CODE_RE.search(line)
             if m:
                 report.error(f"{f}:{lineno}: runtime code loading '{m.group(0).strip()}' is not allowed")
+            if not line.lstrip().startswith("--"):
+                for sm in STRING_RE.finditer(line.split(" --")[0]):
+                    lit = sm.group(1)
+                    if lit in FONT_ALLOWED:
+                        continue
+                    if "~" in lit:
+                        report.error(f"{f}:{lineno}: '~' in shown text: the game's font has no tilde (write 'about')")
+                    elif any(ord(ch) > 126 for ch in lit):
+                        report.error(f"{f}:{lineno}: a non-ASCII character in shown text: the game's font may lack it")
             if BARE_LOCAL_RE.match(line):
                 report.error(f"{f}:{lineno}: a local without a value; write '= nil' (the game's Lua may not"
                              " reset it)")

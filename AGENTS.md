@@ -534,6 +534,8 @@ Rules learned the hard way; keep to them.
   `maxHealth` (951 / 950.36; `V.Format` never shows the max below it). The per-frame globals read nil before
   API 25 (another add-on overwrote them; now restored each frame). `ShroudPlayerGold` and `ShroudTime` work.
 - **XP:** totals can go down (death); see `XP.DROP_CONFIRM`.
+- **Font:** the game's UI font has no `~` (it draws a box; screenshot 2026-10-04) and may lack other non-ASCII
+  characters: write "about", plain ASCII. `tools/build.py` refuses `~` and non-ASCII in string literals.
 - **Internet (SotANET prices):** works (confirmed 2026-10-04, build 9c74679: "connected. 'Iron Ore': ~5g").
   It had never worked: the client refused the grant ("loads Lua code at runtime") because of
   `rawget(_G, "os")` / `rawget(_G, "ToolboxCopies")`. Renaming `T.Load(` and friends alone did NOT clear it;
