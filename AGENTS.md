@@ -572,6 +572,9 @@ Rules learned the hard way; keep to them.
 - **Party (API 25/26):** `ShroudGetPartyMemberBuffs(slot or name)` works (same shape as your buffs);
   `ShroudOnPartyChanged` fires with no arguments. From API 26 (confirmed 2026-10-01) slots run 0 (you) to
   count - 1 and the in-scene names are a plain list of real names.
+- **Characters and setups** (confirmed 2026-10-04): logging in as another character without a restart brings
+  up that character's own settings and places (`T.FollowCharacter`), and a setup listed by one character,
+  imported by another, applies at once and leaves the first one's untouched.
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
   target, skill levels and deaths, friends online, the notification chime, Combat Detailed, the game's wedge
   fitted and centred inside the icons, and the 0.7.0 + unreleased work on the dev client (2026-09-30: the
