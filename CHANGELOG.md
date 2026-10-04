@@ -19,6 +19,10 @@ ones included).
   priced and unpriced rows line up; an item with no sales on SotANET shows "--" instead of nothing, and "..."
   while its price is looked up.
 
+- Switching characters without restarting the game kept the last character's settings and window places, and
+  could save them into the new character's: each character now gets its own setup back as it logs in. A strip
+  the new character never placed stays where it is instead of jumping to its corner.
+
 ### Added
 - Today Detailed: with Estimated values on, the count also shows the price each, "40 x 5g" ("Show the price
   each", on by default; or /toolbox dd values each off).

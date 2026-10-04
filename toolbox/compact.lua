@@ -106,6 +106,8 @@ local function active()
 end
 
 function C.Init()
+  if win then pcall(function() win:Destroy() end) end   -- started again for another character
+  win = nil
   local saved = T.ReadSaved("compact")
   prefs = { open = false, hover = true, hud = false }
   if type(saved) == "table" then

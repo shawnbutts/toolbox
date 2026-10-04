@@ -1856,6 +1856,7 @@ function T.RefreshViews()
 end
 
 function T.Tick()
+  T.FollowCharacter()                -- first: nothing may save the last character's settings into this one
   local s = T.session
   local adv, prod = T.ReadTotals()   -- once a tick (it was read twice: review, 2026-09-29)
   if not s then
@@ -2052,15 +2053,9 @@ local function step(name, fn)
   if not ok then T.Print("Couldn't start " .. name .. ": " .. tostring(err)) end
 end
 
-function ShroudOnStart()
-  T.startedAt = T.Now()
-  T.RegisterCommands()
-  T.RegisterKeybind()
-  step("the settings restore", T.Backup.ApplyPending)   -- before anything reads its settings
-  step("today's stats", T.Daily.ReadDay)  -- before the session: a new login re-bases daily gold
-  step("the crafting state", T.Daily.ReadCraftingState)
-  T.ResumeOrStart()
-  T.Sample()                         -- XP gained since the last save (e.g. across a reload)
+-- Every module's start: reads its settings and builds its windows and strips. Run again for another character
+-- (T.FollowCharacter): each Init drops what it built before.
+local function startModules(places)
   step("XP Detailed", T.Window.Init)
   step("the XP window", T.Compact.Init)
   step("the Today window", T.Daily.InitWindow)
@@ -2074,11 +2069,48 @@ function ShroudOnStart()
   step("the consumables bar", T.Consumables.Init)
   step("the notification HUD", T.Notify.Hud.Init)
   if T.SkillBar then step("the skill activity strip", T.SkillBar.Init) end   -- skills.lua, when present
-  step("the HUD strips", T.Hud.Init)  -- builds the HUD strips (glued or not); retries on the cap
+  step("the HUD strips", function() T.Hud.Init(places) end)  -- builds the HUD strips (glued or not); retries on the cap
   step("the buff bar", T.BuffBar.Tick)
   step("the health bars", T.Vitals.Tick)
   step("the equipment bar", function() T.Gear.Poll(true) end)
   step("the target HUD", function() T.Target.Poll(true) end)
+end
+
+-- The character whose settings the modules hold: its name, or false when Toolbox started with none.
+T.settingsFor = false
+
+local function characterName()
+  local name = ShroudGetPlayerName()
+  if type(name) ~= "string" or name == "" or name == "INVALID" or name == "None" or name == "none" then return nil end
+  return name
+end
+
+-- Another character logged in without a reload: ShroudOnStart doesn't run again; the docs: check the name in
+-- ShroudOnSceneLoaded: every module starts again with that character's settings and positions, before
+-- anything saves (the tick's window tracking would write the last character's into this one's file).
+-- Returns true when it did.
+function T.FollowCharacter()
+  local name = characterName()
+  if not name or name == T.settingsFor then return false end
+  T.settingsFor = name                 -- (false: started with no character, so read no settings yet)
+  local places = T.Hud.Places()        -- before the strips go: kept where this character has none
+  step("the settings restore", T.Backup.ApplyPending)
+  startModules(places)
+  T.Config.Sync()
+  return true
+end
+
+function ShroudOnStart()
+  T.startedAt = T.Now()
+  T.RegisterCommands()
+  T.RegisterKeybind()
+  T.settingsFor = characterName() or false
+  step("the settings restore", T.Backup.ApplyPending)   -- before anything reads its settings
+  step("today's stats", T.Daily.ReadDay)  -- before the session: a new login re-bases daily gold
+  step("the crafting state", T.Daily.ReadCraftingState)
+  T.ResumeOrStart()
+  T.Sample()                         -- XP gained since the last save (e.g. across a reload)
+  startModules()
   step("skill levels", function() T.Daily.OnSkills(true) end)
   ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
   T.Welcome()                        -- first run only: a chat line and the settings window
@@ -2120,6 +2152,7 @@ function ShroudOnSceneUnloaded()
 end
 
 function ShroudOnSceneLoaded(_)
+  T.FollowCharacter()
   T.BuffBar.SceneChange()
 end
 

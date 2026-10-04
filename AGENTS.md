@@ -96,7 +96,10 @@ into one if a new file is ever needed).
   `B.KEYS` are the settings keys a reset clears, applied by `B.ApplyPending` at the start of the next run,
   before any module reads its settings, because the windows write their positions at shutdown; `T.SavePrefs()`
   writes every window's and strip's position now), EVERY `ShroudOn*` callback, and `ShroudOnStart`, which runs each module's init
-  through `step()` so one failure can't stop the rest. `T.DOCS_API` = the API the docs describe (equal to
+  through `step()` so one failure can't stop the rest. The module part (`startModules`) runs again when another
+  character logs in without a reload (`T.FollowCharacter`, first thing in `T.Tick` and in `ShroudOnSceneLoaded`;
+  the docs' advice): so every `Init` must be re-runnable (drop its old window first, re-register by name), and
+  `Hud.Init(places)` keeps a strip the new character never placed where it was (`Hud.Places`). `T.DOCS_API` = the API the docs describe (equal to
   build.py's `CLIENT_API_VERSION`; the build checks). `/toolbox api` probes newer functions and the result
   events (`T.ProbeEvent`, `T.ProbeLines`).
 - `xp.lua`: `Toolbox.XP`, a pure model over a plain-data session (header comment). Time is passed in. A

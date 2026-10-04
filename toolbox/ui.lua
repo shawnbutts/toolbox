@@ -304,6 +304,8 @@ function W.HidePopup()
 end
 
 function W.Init()
+  if win then pcall(function() win:Destroy() end) end   -- started again for another character
+  win = nil
   local saved = T.ReadSaved("window")
   prefs = { open = false }
   if type(saved) == "table" then

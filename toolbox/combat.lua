@@ -1220,6 +1220,8 @@ function CD.Track()
 end
 
 function CD.Init()
+  if cdWin then pcall(function() cdWin:Destroy() end) end   -- started again for another character
+  pcall(ShroudRemovePeriodic, "toolbox_combat_detail_open")
   local saved = T.ReadSaved("combat_detail")
   cdPrefs = { open = false, scope = "fight", hover = true }
   if type(saved) == "table" then

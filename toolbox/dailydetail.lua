@@ -201,6 +201,8 @@ function DD.IsPopup()
 end
 
 function DD.Init()
+  if win then pcall(function() win:Destroy() end) end   -- started again for another character
+  win = nil
   local saved = T.ReadSaved("daily_detail")
   prefs = { open = false, view = "looted" }
   popup = false

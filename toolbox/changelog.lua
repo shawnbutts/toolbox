@@ -10,6 +10,7 @@ Toolbox.CHANGELOG = {
   { "item", "Today Detailed's estimated values are rounded to the nearest whole gold (\"5g\", not \"4.6g\"), and they and the \"Estimated value ... SotANET\" line above them use the normal text colour instead of the hard-to-read dim one." },
   { "item", "A small box showed in front of estimated values (and in XP Detailed's time to the next level): the game's font has no tilde, which Toolbox used for \"about\". The values show plainly now (\"14g\", \"About 5g each\")." },
   { "item", "Today Detailed's estimated values line up in a column as wide as the longest value (never cut short), so priced and unpriced rows line up; an item with no sales on SotANET shows \"--\" instead of nothing, and \"...\" while its price is looked up." },
+  { "item", "Switching characters without restarting the game kept the last character's settings and window places, and could save them into the new character's: each character now gets its own setup back as it logs in. A strip the new character never placed stays where it is instead of jumping to its corner." },
   { "section", "Added" },
   { "item", "Today Detailed: with Estimated values on, the count also shows the price each, \"40 x 5g\" (\"Show the price each\", on by default; or /toolbox dd values each off)." },
   { "version", "1.3.0 - 2026-10-04" },

@@ -738,6 +738,8 @@ end
 -- Builds the window (after Toolbox.Window.Init, whose text settings it uses).
 -- The data is loaded earlier, by D.ReadDay from ShroudOnStart.
 function D.InitWindow()
+  if win then pcall(function() win:Destroy() end) end   -- started again for another character
+  win = nil
   local saved = T.ReadSaved("daily_window")
   prefs = { open = false, hover = true, hud = false }
   if type(saved) == "table" then

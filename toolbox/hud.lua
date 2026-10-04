@@ -443,12 +443,33 @@ function Hud.SetGlued(on)
   T.Config.Sync()
 end
 
-function Hud.Init()
+-- Where each strip is now, by its key (Hud.GLUED_ID for the Toolbelt): { x, y }. Taken before another
+-- character's settings are read (T.FollowCharacter), for Hud.Init to keep.
+function Hud.Places()
+  local out = {}
+  for key, frame in pairs(frames) do
+    local x, y = Hud.Position(frame)
+    if x then out[key] = { x, y } end
+  end
+  return out
+end
+
+-- Builds every strip. `places` (Hud.Places, on a character switch): a strip this character never placed stays
+-- where it was instead of going to its corner (owner, 2026-10-03), and that becomes its place.
+function Hud.Init(places)
   local saved = T.ReadSaved("hud")
   prefs = { glued = false }
   if type(saved) == "table" then
     prefs.glued = saved.glued == true
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
+  end
+  for key, p in pairs(places or {}) do
+    local m = modules[key]
+    if key == Hud.GLUED_ID then
+      if not prefs.x then prefs.x, prefs.y = p[1], p[2] end
+    elseif m and m.GetSavedPosition() == nil then
+      m.SavePosition(p[1], p[2])
+    end
   end
   Hud.Build()
 end
