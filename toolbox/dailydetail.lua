@@ -442,7 +442,7 @@ function DD.RefreshValues()
   for name, r in pairs(rows) do
     local count = T.FormatNumber(shown[name] or 0)
     local each = DD.GetEach() and P.Average(name)
-    if each then count = count .. " x " .. P.Format(each) end           -- "40 x 5g"
+    if each then count = count .. " x " .. P.FormatEach(each) end       -- "40 x 5g", "40 x 4.5g"
     T.SetText(r.count, count)
     T.SetText(r.value, texts[name])
     T.SetStyle(r.value, { minWidth = minWidth })           -- the same for every row: they line up
@@ -596,6 +596,18 @@ function P.Format(g)
   return T.FormatNumber(g) .. "g"                -- (rounds to the nearest whole number)
 end
 
+-- A price each, to 2 decimals with no trailing zeros ("4.5g", "0.25g", "1,234.67g"): a gold piece can't be split,
+-- but a stack's price shared out over its items can come to a fraction (feedback, 2026-10-04). Totals stay whole.
+function P.FormatEach(g)
+  if type(g) ~= "number" or g <= 0 then return "0g" end
+  local cents = math.floor(g * 100 + 0.5)
+  if cents < 1 then return "<0.01g" end
+  local whole, frac = math.floor(cents / 100), cents % 100
+  local eachText = T.FormatNumber(whole)
+  if frac > 0 then eachText = eachText .. (string.format(".%02d", frac):gsub("0$", "")) end
+  return eachText .. "g"
+end
+
 local function key(name) return tostring(name):lower() end
 
 local function readCache()
@@ -647,7 +659,7 @@ function P.Tooltip(name)
   if not e then return "Looking up its price on SotANET..." end
   if type(e.avg) ~= "number" then return "No sales on SotANET in the last 90 days" end
   local when = e.last ~= "" and ("; last sold " .. e.last:sub(1, 10)) or ""
-  return "About " .. P.Format(e.avg) .. " each: the average of " .. T.FormatNumber(e.sold)
+  return "About " .. P.FormatEach(e.avg) .. " each: the average of " .. T.FormatNumber(e.sold)
     .. " sold in the last 90 days" .. when .. " (SotANET, from player-uploaded receipts)"
 end
 
@@ -828,7 +840,7 @@ function P.Report(name, ok, code, body, err, data)
     return
   end
   testSay(string.format("connected. '%s': about %s each (90-day average), %s sold in 90 days, last sold %s.",
-    tostring(it.item), P.Format(it.avg90d), T.FormatNumber(it.sold90d or 0),
+    tostring(it.item), P.FormatEach(it.avg90d), T.FormatNumber(it.sold90d or 0),
     type(it.lastSoldAt) == "string" and it.lastSoldAt:sub(1, 10) or "?"))
 end
 

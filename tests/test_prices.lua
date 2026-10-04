@@ -79,7 +79,21 @@ return function(t)
     end
     scan(H.detail())
     t.ok(found, "the value label found")
-    t.ok(row("Iron Ore")[4]:find("^About 5g each"), "its tooltip too: " .. row("Iron Ore")[4])
+    t.ok(row("Iron Ore")[4]:find("^About 4.6g each"), "the price each keeps its decimals: " .. row("Iron Ore")[4])
+    t.eq(row("Iron Ore")[2], "3 x 4.6g", "in the count too")
+  end)
+
+  t.test("a price each: up to 2 decimals, no trailing zeros; totals whole", function()
+    H.boot()
+    local P = Toolbox.Prices
+    t.eq(P.FormatEach(5), "5g")
+    t.eq(P.FormatEach(4.5), "4.5g")
+    t.eq(P.FormatEach(0.25), "0.25g")
+    t.eq(P.FormatEach(2.333), "2.33g")
+    t.eq(P.FormatEach(2.996), "3g")
+    t.eq(P.FormatEach(1234.567), "1,234.57g")
+    t.eq(P.FormatEach(0.004), "<0.01g")
+    t.eq(P.Format(13.8), "14g")
   end)
 
   t.test("off by default: nothing is sent", function()
