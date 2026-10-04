@@ -125,7 +125,10 @@ into one if a new file is ever needed).
   as `station`. Looted = items - crafted - station - gathered + pending. Skill levels: `D.SkillGains` over
   the highest `trainedLevel` seen per skill (`skill_levels`); deaths from `ShroudOnDeathChanged(true)`.
 - `dailydetail.lua`: `Toolbox.DailyDetail`, **Loot Tracker** (views Looted / Crafted / Gathered). Refreshes
-  on change only (`Daily.itemsVersion`, `Prices.version`, `DD.FULL_EVERY` catch-up). Rows are appended,
+  on change only (`Daily.itemsVersion`, `Prices.version`, `DD.FULL_EVERY` catch-up). Reset (owner,
+  2026-10-04): `day.since` = a copy of the counts at that moment (`D.StartRun`); the tracker reads `DD.Day()` =
+  the day minus it (`D.RunOf`, remade only when a count changes); the Today window keeps the day; midnight
+  (`D.Roll`) drops it. Rows are appended,
   never rebuilt on a timer (element cap; no reorder API); a sorted rebuild at most every `RESORT_SECONDS`
   while shown. `Toolbox.Prices` (bottom): estimated values from SotANET's
   `GET /api/v1/receipts/prices?item=..` (<= 50 names) via `ShroudHttpGet`, one request `P.GAP` apart,

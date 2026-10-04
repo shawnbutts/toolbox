@@ -26,6 +26,8 @@
 --   gather   = { nodes = n, failed = n, xp = n, dropped = results not delivered },
 --   skills   = n,              -- skill levels gained today (D.SkillGains)
 --   deaths   = n,              -- times you died today (ShroudOnDeathChanged)
+--   since    = nil or a copy of the counts above when the player pressed the Loot Tracker's Reset, plus
+--              at = "HH:MM" (D.StartRun): the Loot Tracker shows the day minus it (D.RunOf); gone at midnight
 -- }
 -- The loot list (Loot Tracker, "Looted") is `items` minus `crafted`, `station` and `gathered` (plus
 -- `pending`, which isn't in `items` yet), per name, unless the player includes them.
@@ -378,8 +380,82 @@ function D.Roll(d, key)
   d.crafted, d.gathered, d.recipes, d.craft, d.gather = {}, {}, {}, nil, nil
   d.station, d.used, d.products, d.pending, d.early = {}, {}, {}, {}, {}
   d.skills, d.deaths = 0, 0
+  d.since = nil                      -- a run doesn't outlast its day
   D.Upgrade(d)                       -- zeroed craft and gather totals
   return true
+end
+
+-- ---------------------------------------------------------------------------
+-- A run (owner, 2026-10-04: "some want to reset it every combat run"): the Loot Tracker's Reset counts from
+-- now without losing the day. `since` is a copy of the counts at that moment; the tracker shows the day minus
+-- it, so the Today window keeps the whole day and "Show all of today" undoes it.
+-- ---------------------------------------------------------------------------
+D.RUN_KEEP = { v = true, key = true, last = true, la = true, lp = true, since = true, products = true }
+
+local function minus(cur, base)
+  if type(cur) == "number" then
+    local n = cur - (type(base) == "number" and base or 0)
+    if n < 0 then n = 0 end
+    return n
+  end
+  if type(cur) ~= "table" then return cur end
+  local out = {}
+  for k, v in pairs(cur) do
+    local n = minus(v, type(base) == "table" and base[k] or nil)
+    -- a name with nothing since the reset isn't listed (nor a recipe not crafted since)
+    if n ~= 0 and not (type(n) == "table" and next(n) == nil) then out[k] = n end
+  end
+  return out
+end
+
+-- Starts a run on day `d` now; `at` labels it ("HH:MM").
+function D.StartRun(d, at)
+  local snap = {}
+  for k, v in pairs(d) do
+    if not D.RUN_KEEP[k] then snap[k] = T.Copy(v) end
+  end
+  snap.at = at
+  d.since = snap
+end
+
+-- Starts a run on today's counts now (the Loot Tracker's Reset), or ends it (Show all of today).
+function D.ResetRun()
+  if not D.day then return false end
+  D.StartRun(D.day, T.ClockText())
+  D.itemsVersion = D.itemsVersion + 1  -- the Loot Tracker redraws
+  D.Save()
+  return true
+end
+
+function D.EndRun()
+  if not (D.day and D.day.since) then return false end
+  D.day.since = nil
+  D.itemsVersion = D.itemsVersion + 1
+  D.Save()
+  return true
+end
+
+-- "14:32" when the Loot Tracker counts from a reset, "" when it was reset with no clock, nil for the whole day.
+function D.RunStart()
+  local s = D.day and D.day.since
+  if type(s) ~= "table" then return nil end
+  return type(s.at) == "string" and s.at or ""
+end
+
+-- The day as the Loot Tracker shows it: since the run started, or the whole day.
+function D.RunOf(d)
+  if type(d) ~= "table" or type(d.since) ~= "table" then return d end
+  local out = {}
+  for k, v in pairs(d) do
+    if k ~= "since" then
+      if D.RUN_KEEP[k] then out[k] = v else out[k] = minus(v, d.since[k]) end
+    end
+  end
+  for k, v in pairs(d) do              -- counts read as plain numbers stay numbers (0, not absent)
+    if type(v) == "number" and out[k] == nil then out[k] = 0 end
+  end
+  D.Upgrade(out)                       -- every table the views read, even when empty
+  return out
 end
 
 -- XP totals: only increases count. A lower reading is a bad read (a 0 while a scene loads)
@@ -473,6 +549,7 @@ function D.ReadDay()
   local key = today()
   if D.IsValid(saved) then
     D.day = D.Upgrade(saved)
+    if type(D.day.since) ~= "table" then D.day.since = nil end
     D.Reclassify(D.day)
   else
     D.day = D.New(key or "none")

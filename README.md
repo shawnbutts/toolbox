@@ -9,7 +9,8 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
 - **XP**: a small window (or a compact window, API 19, or a HUD strip) with session time, your adventurer and producer pools, and XP
   earned in the last hour. Hover it for **XP Detailed**: levels, progress bars, XP/hour, time to the
   next level, and the last hour as a chart.
-- **Today**: gold picked up, kills, and XP gained since midnight. Hover it for the **Loot Tracker**:
+- **Today**: gold picked up, kills, and XP gained since midnight. Hover it for the **Loot Tracker** (its
+  **Reset** button counts one run from now, keeping the day underneath):
   every item gained today, with counts and optional estimated values from shroudoftheavatar.net.
 - **Buff bar**: your buffs and debuffs as their skill icons with a clock-style sweep, long-lasting
   buffs grouped into one slot, sound alerts and a red flash before a buff runs out, a sound when a
@@ -214,6 +215,10 @@ the day's gold and kills and a list of every item gained today with its count, h
   opens (at most every 10 seconds). Up to 250 item names are kept per day; the rest are counted
   under "(other items)".
 - Hover can be turned off with "Show Loot Tracker on hover" in `/toolbox config`.
+- **Reset** (top right, or `/toolbox loot reset`) counts from now, for one run: gold, kills, items, crafts and
+  gathering since that moment, with "Since 14:32" at the top. Nothing is lost: the Today window keeps the
+  whole day, and **Show all of today** (or `/toolbox loot today`) brings the day back here too. A run ends at
+  midnight with the day.
 
 ## Buff bar
 

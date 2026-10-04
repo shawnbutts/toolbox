@@ -55,6 +55,15 @@ function T.Clock()
   return nil
 end
 
+-- The local time as "HH:MM", or "" without a clock.
+function T.ClockText()
+  local osTable = os                 -- nil in a sandbox without it (read plainly: see AGENTS.md)
+  local date = type(osTable) == "table" and osTable.date
+  if type(date) ~= "function" then return "" end
+  local ok, s = pcall(date, "%H:%M")
+  return (ok and type(s) == "string") and s or ""
+end
+
 function T.Today()
   local osTable = os                 -- nil in a sandbox without it (read plainly: see AGENTS.md)
   local date = type(osTable) == "table" and osTable.date
@@ -519,12 +528,21 @@ add("daily", "show or hide today's stats (gold, kills, XP; resets at midnight; h
   formCommand(T.Daily, "daily", "Today", rest)
 end)
 
-add("loot", "show or hide the Loot Tracker (every item gained today, with counts; view looted|crafted|"
+add("loot", "show or hide the Loot Tracker (every item gained today, with counts; reset: count from now; today:"
+    .. " back to the whole day; view looted|crafted|"
     .. "gathered; include on|off: crafted and gathered items in Looted; values on|off: estimated values from"
     .. " SotANET; values each on|off: the price each in the count; values test [item]: check the connection;"
     .. " values refresh: look prices up again)", function(rest)
   local word, arg = T.ParseArgs(rest)
   local DD = T.DailyDetail
+  if word == "reset" then
+    T.Print(DD.ResetRun() and ("The Loot Tracker counts from now. The Today window keeps the whole day; /"
+      .. T.commands[1] .. " loot today brings it back here too.") or "Nothing to reset yet: no character data.")
+    return
+  elseif word == "today" then
+    T.Print(DD.EndRun() and "The Loot Tracker shows all of today again." or "It already shows all of today.")
+    return
+  end
   if word == "view" then
     if not DD.SetView(DD.ViewKey(arg)) then
       T.Print(T.Daily.HasResults() and "Use /" .. T.commands[1] .. " dd view looted, crafted or gathered."

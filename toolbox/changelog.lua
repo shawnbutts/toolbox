@@ -6,6 +6,7 @@
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "section", "Added" },
+  { "item", "Loot Tracker: a Reset button, for counting one hunt or run. It shows what came in since you pressed it (items, gold, kills, crafting and gathering, \"Since 14:32\" at the top). Nothing is lost: the Today window keeps the whole day, and Show all of today brings the day back to the Loot Tracker. In chat: /toolbox loot reset, /toolbox loot today. A run ends at midnight with the day." },
   { "item", "Muted effects: no expiry or debuff sound for the effects you choose, for the combat staples that come so often their sound is just noise. Their icons still flash. Settings, Buffs: pick one from a dropdown (your recent alerts first, then what's on you, then every effect you've cast) and press Mute; Unmute brings it back. In chat: /toolbox buffs quiet, quiet add <name>, quiet remove <name>." },
   { "section", "Changed" },
   { "item", "Today Detailed is now the Loot Tracker, which is what it has become: today's looted, crafted and gathered items with their estimated values. Open it with /toolbox loot (dd and dailydetailed still work). The settings page \"XP & Today\" is now \"XP & Loot\". Nothing else changes: your settings and today's items carry over." },

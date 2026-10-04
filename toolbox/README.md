@@ -87,6 +87,8 @@ Gold picked up, kills, adventurer and producer XP, skill levels gained and death
 midnight). Rest the
 pointer on it and the **Loot Tracker** lists every item you gained today, as **Looted**, **Crafted** (with
 crafts per recipe, exceptional and failed, and materials used) or **Gathered** (nodes and harvests).
+Its **Reset** button counts from now, for one hunt or run; the Today window keeps the whole day, and **Show all
+of today** brings it back.
 
 **Estimated values (optional, uses the internet):** turn on **Estimated values (SotANET)** in the
 settings and the Loot Tracker adds each item's value (its count times its 90-day average sale price at

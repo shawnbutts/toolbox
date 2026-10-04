@@ -43,7 +43,8 @@ local shown = {}       -- the counts the rows show (name -> n), for the current 
 
 DD.VIEWS = { { "looted", "Looted" }, { "crafted", "Crafted" }, { "gathered", "Gathered" } }
 
-local HEADER_IDS = { "date", "summary", "items_summary", "view_note", "value_summary", "more" }
+local HEADER_IDS = { "date", "dd_reset", "dd_today", "summary", "items_summary", "view_note", "value_summary",
+                     "more" }
 local P = {}           -- Toolbox.Prices (defined below)
 
 local function text(id, class, extra)
@@ -73,6 +74,43 @@ local function addRow(name)
   rowCount = rowCount + 1
   order[rowCount] = name
   return true
+end
+
+-- The day as the Loot Tracker shows it: since its Reset (Toolbox.Daily.RunOf), or the whole day. The run's
+-- copy is made again only when a count it reads changed (the window refreshes every tick it's shown).
+local runDay = nil
+local runFrom = {}                    -- what runDay was made from (compared field by field: no garbage per tick)
+function DD.Day()
+  local day = T.Daily.day
+  if not day or type(day.since) ~= "table" then return day end
+  local c, g = day.craft or {}, day.gather or {}
+  local now = runFrom
+  if runDay == nil or now[1] ~= T.Daily.itemsVersion or now[2] ~= day.key or now[3] ~= day.gold
+      or now[4] ~= day.kills or now[5] ~= c.n or now[6] ~= c.xp or now[7] ~= g.nodes or now[8] ~= g.xp
+      or now[9] ~= day.since then
+    now[1], now[2], now[3], now[4], now[5] = T.Daily.itemsVersion, day.key, day.gold, day.kills, c.n
+    now[6], now[7], now[8], now[9] = c.xp, g.nodes, g.xp, day.since
+    runDay = T.Daily.RunOf(day)
+  end
+  return runDay
+end
+
+-- Reset: the Loot Tracker counts from now; Show all of today: from midnight again (Toolbox.Daily's run).
+function DD.ResetRun()
+  if not T.Daily.ResetRun() then return false end
+  DD.Refresh(true)
+  return true
+end
+
+function DD.EndRun()
+  if not T.Daily.EndRun() then return false end
+  DD.Refresh(true)
+  return true
+end
+
+-- Which list the rows hold: the day, the view, and the run (a reset starts the list again).
+local function listKeyOf(day)
+  return day.key .. "/" .. DD.View() .. "/" .. tostring(T.Daily.RunStart())
 end
 
 -- The view in use: the saved one, or Looted where the client has no crafting results.
@@ -109,8 +147,8 @@ local function rebuildList()
   el.list:Clear()
   rows, order, rowCount = {}, {}, 0
   lastRebuild = T.Now()
-  local day = T.Daily.day
-  listKey = day and (day.key .. "/" .. DD.View())
+  local day = DD.Day()
+  listKey = day and listKeyOf(day)
   if not day then return end
   shown = DD.Counts(day, DD.View(), prefs.include)
   for _, name in ipairs(sortedNames(shown)) do
@@ -137,7 +175,15 @@ local function build()
       UI.Column{ id = "header", style = { paddingLeft = GUTTER, paddingRight = GUTTER },
         onHover = function(_, over) T.Daily.PopupHover("header", over) end,
         children = {
-          text("date", "title"),
+          UI.Row{ style = { alignItems = "center" }, children = {
+            text("date", "title", { flexGrow = 1 }),
+            UI.Button{ id = "dd_reset", text = "Reset", style = { marginLeft = 4 },
+              tooltip = "Count from now (a new run). The Today window keeps the whole day; Show all of today"
+                .. " brings it back here too",
+              onClick = function() DD.ResetRun() end },
+          } },
+          UI.Button{ id = "dd_today", text = "Show all of today", visible = false, style = { marginTop = 2 },
+            tooltip = "Back to everything since midnight", onClick = function() DD.EndRun() end },
           text("summary", "text"),
           UI.Row{ id = "view_row", visible = T.Daily.HasResults(), style = { alignItems = "center", marginTop = 3 },
             children = {
@@ -167,7 +213,7 @@ end
 -- True when the rows aren't in count order (or the day's list has rows missing that
 -- would fit): worth a rebuild when the window is shown.
 local function outOfOrder()
-  local day = T.Daily.day
+  local day = DD.Day()
   if not day then return false end
   local sorted = sortedNames(DD.Counts(day, DD.View(), prefs.include))
   local fit = math.min(#sorted, DD.MAX_ROWS)
@@ -361,10 +407,10 @@ local SUMMARY = {
 
 function DD.Refresh(force)
   if not DD.IsShown() then return end
-  local day = T.Daily.day
+  local day = DD.Day()
   if not day then return end
   local now = T.Now()
-  if day.key .. "/" .. DD.View() ~= listKey then
+  if listKeyOf(day) ~= listKey then
     rebuildList()
     force = true
   end
@@ -378,7 +424,13 @@ function DD.Refresh(force)
     return
   end
   drawn.items, drawn.prices, drawn.values, drawn.at = T.Daily.itemsVersion, P.version, prefs.values, now
-  T.SetText(el.date, (T.Daily.DateText()))
+  local run = T.Daily.RunStart()
+  if run then
+    T.SetText(el.date, run ~= "" and ("Since " .. run) or "Since your reset")
+  else
+    T.SetText(el.date, (T.Daily.DateText()))
+  end
+  T.SetVisible(el.dd_today, run ~= nil)
   local view = DD.View()
   shown = DD.Counts(day, view, prefs.include)
 

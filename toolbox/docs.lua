@@ -63,7 +63,10 @@ D.SECTIONS = {
     "Today (/toolbox daily): gold picked up, kills by you or your pet, adventurer and producer XP, skill "
       .. "levels gained and deaths since midnight. A skill level counts when a skill's trained level passes "
       .. "the highest it has been (so unlearning and relearning doesn't count twice). Rest the pointer on "
-      .. "it for the Loot Tracker (/toolbox loot): every item that arrived in your bags today, with counts.",
+      .. "it for the Loot Tracker (/toolbox loot): every item that arrived in your bags today, with counts. "
+      .. "Its Reset button counts from now instead, for one run (gold, kills, items, crafts and gathering); "
+      .. "the Today window keeps the whole day, and Show all of today brings it back (or /toolbox loot "
+      .. "reset, loot today). A run ends at midnight.",
     "Loot Tracker's Show dropdown: Looted (what you picked up; what you crafted or gathered is left "
       .. "out unless you tick Include crafted and gathered items in settings, or /toolbox dd include on), "
       .. "Crafted (/toolbox crafted: the items you took off crafting stations, your crafts per recipe with "
