@@ -468,6 +468,7 @@ local function today()
 end
 
 function D.ReadDay()
+  D.dayFor = ShroudGetPlayerName()     -- whose day D.day is
   local saved = T.ReadSaved("daily")
   local key = today()
   if D.IsValid(saved) then
@@ -506,7 +507,12 @@ end
 -- A new login or character (not a reload), with that character's current totals:
 -- load its day and start counting from now.
 function D.OnLogin(adv, prod)
-  D.ReadDay()
+  -- Already this character's (loaded at its scene, before its totals came): keep what it counted since.
+  if D.day and D.dayFor == ShroudGetPlayerName() then
+    if D.Roll(D.day, today()) then D.unsaved = true end
+  else
+    D.ReadDay()
+  end
   D.skillHigh = nil                    -- another character's skills, or read again: start from its save
   D.Rebase(D.day, adv, prod, ShroudPlayerGold)
   D.unsaved = true

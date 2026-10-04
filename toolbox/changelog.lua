@@ -5,6 +5,12 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Fixed" },
+  { "item", "Setups: if the game refused to store an import, the character's own settings were already gone and the import still said it worked. Now nothing changes and it says so. Exports, deletes and a shared copy the game refuses are reported too, and a shared copy is tried again later." },
+  { "item", "Setups: after clicking Import or Delete once, picking another setup and clicking again acted on that one at once. The second click must now be on the same setup." },
+  { "item", "Reset all settings switches off sharing a character's setup, but its copy stayed on the list. It's removed now." },
+  { "item", "Switching characters: the Notifications window kept showing the last character's notices. It closes now." },
+  { "item", "Switching characters: the XP and Today windows showed the last character's numbers until the next second, and an item picked up in that moment was lost. They follow the new character at once." },
   { "version", "1.4.0 - 2026-10-04" },
   { "section", "Fixed" },
   { "item", "Estimated values (SotANET prices) never connected: the game refused Toolbox internet access because a few lines of its code looked, to the game's simple text scan, like code that loads other code. Those were rewritten; nothing else changes. Switch Internet on for Toolbox in the add-on manager to use the prices." },

@@ -656,7 +656,10 @@ add("settings", "settings files and setups (save, reset, cancel; setups, export,
       for _, s in ipairs(list) do T.Print("  " .. s.label) end
     end
   elseif word == "share" then
-    if name == "on" or name == "off" then B2.SetShare(name == "on") end
+    if name == "on" or name == "off" then
+      local ok, why = B2.SetShare(name == "on")
+      if not ok then T.Print("Couldn't take your setup off the list: " .. why .. ".") end
+    end
     T.Print(B2.GetShare() and "This character's setup is listed for your other characters to import ("
       .. cmd .. " share off stops it)." or "This character's setup isn't listed for others (" .. cmd
       .. " share on lists it).")
@@ -671,17 +674,18 @@ add("settings", "settings files and setups (save, reset, cancel; setups, export,
       return
     end
     local ok, why = B2.Import(s)
-    T.Print(ok and ("Imported '" .. s.name .. "': this character now has a copy of its settings and positions.")
-      or ("Couldn't import: " .. tostring(why) .. "."))
+    T.Print(ok and ("Imported '" .. s.name .. "': this character now has a copy of its settings and positions."
+      .. (why and (" (" .. why .. ")") or "")) or ("Couldn't import: " .. tostring(why) .. "."))
   elseif word == "delete" then
     local s = B2.FindSetup(name)
     if not s then
       T.Print("No setup called '" .. name .. "'. " .. cmd .. " setups lists them.")
       return
     end
-    B2.DeleteSetup(s)
-    T.Print("Deleted the setup '" .. s.name .. "'." .. (s.character
-      and " (That character's copy comes back when it next plays.)" or ""))
+    local ok, why = B2.DeleteSetup(s)
+    T.Print(ok and ("Deleted the setup '" .. s.name .. "'." .. (s.character
+      and " (That character's copy comes back when it next plays, if it still lists its setup.)" or ""))
+      or ("Couldn't delete '" .. s.name .. "': " .. tostring(why) .. "."))
   elseif word == "" then
     for _, line in ipairs(B2.HowTo()) do T.Print(line) end
     if B2.Pending() then T.Print("A reset is waiting: type /lua reload to apply it (" .. cmd .. " cancel).") end
@@ -2170,35 +2174,47 @@ local function currentSettings()
 end
 
 -- Stores this character's settings as setup `name`. Returns true, or false and why.
+-- Stores this character's settings as setup `name`. Returns true, or false, why, and whether trying again later
+-- can help (the game refused a write) rather than not (a limit, nothing to store).
 local function store(name, character)
   local keys = currentSettings()
-  if not keys then return false, "this character has no settings of its own yet" end
+  if not keys then return false, "this character has no settings of its own yet", false end
   local list = allSetups()
   local at = nil
   for i, s in ipairs(list) do
     if s.name:lower() == name:lower() and (s.character == true) == character then at = i end
   end
   if not at and #list >= B.SETUP_MAX then
-    return false, "there are already " .. B.SETUP_MAX .. " setups: delete one first"
+    return false, "there are already " .. B.SETUP_MAX .. " setups: delete one first", false
   end
-  if not ShroudSetSavedVar(setupKey(name, character), { v = 1, name = name, keys = keys }, ACCOUNT) then
-    return false, "the game refused to store it"
+  local key = setupKey(name, character)
+  local before = ShroudGetSavedVar(key, ACCOUNT)
+  if not ShroudSetSavedVar(key, { v = 1, name = name, keys = keys }, ACCOUNT) then
+    return false, "the game refused to store it", true
   end
   local _, when = T.Today()
   local entry = { name = name, character = character, when = type(when) == "string" and when or "" }
   if at then list[at] = entry else list[#list + 1] = entry end
-  ShroudSetSavedVar(B.SETUPS, { v = 1, list = list }, ACCOUNT)
+  if not ShroudSetSavedVar(B.SETUPS, { v = 1, list = list }, ACCOUNT) then
+    if before == nil then ShroudDeleteSavedVar(key, ACCOUNT) else ShroudSetSavedVar(key, before, ACCOUNT) end
+    return false, "the game refused to store the list of setups", true
+  end
   return true
 end
 
 -- Keeps this character's own copy up to date (from T.Flush, after a setting changed). Never at the login
--- screen or for a character whose settings the modules don't hold.
+-- screen or for a character whose settings the modules don't hold. A refused write is tried again at the next
+-- flush (T.setupDirty stays set).
 function B.KeepCopy()
   local who = T.settingsFor
   if not who or ShroudGetPlayerName() ~= who then return end
-  T.setupDirty = false
   local name = B.CleanName(who)
-  if name and B.GetShare() then store(name, true) end
+  if not (name and B.GetShare()) then
+    T.setupDirty = false
+    return
+  end
+  local ok, _, retry = store(name, true)
+  T.setupDirty = not ok and retry == true
 end
 
 -- The setup a player means by `text`: a named one first, then a character's copy. Nil when none matches.
@@ -2219,21 +2235,19 @@ function B.Export(text)
   T.SavePrefs()                          -- where the windows and strips are now
   local ok, why = store(name, false)
   if not ok then return false, why end
-  T.Flush()
+  if T.Flush() == false then return false, "the game couldn't write it to disk" end
   return true, name
 end
 
--- Copies setup `s` (from B.Setups / B.FindSetup) into this character, now. What this character was told by
--- notifications stays its own. Returns true, or false and why.
-function B.Import(s)
-  if type(s) ~= "table" then return false, "pick a setup" end
-  local saved = ShroudGetSavedVar(setupKey(s.name, s.character), ACCOUNT)
-  if type(saved) ~= "table" or type(saved.keys) ~= "table" then return false, "that setup is gone" end
+-- The values an import writes: the setup's, notify without its `seen` but with this character's own.
+local function importValues(setupKeys)
+  local out = {}
   local mine = ShroudGetSavedVar("notify", SCOPE)
   for _, key in ipairs(B.KEYS) do
-    if key ~= B.SHARE then ShroudDeleteSavedVar(key, SCOPE) end
-    local v = saved.keys[key]
-    if key == "notify" then
+    local v = setupKeys[key]
+    if key == B.SHARE then
+      v = nil                             -- each character's own choice
+    elseif key == "notify" then
       v = withoutSeen(v)
       local own = type(mine) == "table" and type(mine.sources) == "table" and mine.sources or {}
       for src, o in pairs(own) do
@@ -2245,39 +2259,82 @@ function B.Import(s)
         end
       end
     end
-    if v ~= nil and key ~= B.SHARE then ShroudSetSavedVar(key, T.Copy(v), SCOPE) end
+    out[key] = v
+  end
+  return out
+end
+
+-- Copies setup `s` (from B.Setups / B.FindSetup) into this character, now. What this character was told by
+-- notifications stays its own. Nothing is deleted until every new value was stored: a refused write puts the
+-- old values back and changes nothing (review, 2026-10-04). Returns true, or false and why.
+function B.Import(s)
+  if type(s) ~= "table" then return false, "pick a setup" end
+  local saved = ShroudGetSavedVar(setupKey(s.name, s.character), ACCOUNT)
+  if type(saved) ~= "table" or type(saved.keys) ~= "table" then return false, "that setup is gone" end
+  local values = importValues(saved.keys)
+  local old, written = {}, {}
+  for _, key in ipairs(B.KEYS) do old[key] = T.Copy(ShroudGetSavedVar(key, SCOPE)) end
+  for _, key in ipairs(B.KEYS) do
+    if values[key] ~= nil then
+      if not ShroudSetSavedVar(key, T.Copy(values[key]), SCOPE) then
+        for _, k in ipairs(written) do
+          if old[k] == nil then ShroudDeleteSavedVar(k, SCOPE) else ShroudSetSavedVar(k, old[k], SCOPE) end
+        end
+        return false, "the game refused to store it, so nothing changed"
+      end
+      written[#written + 1] = key
+    end
+  end
+  for _, key in ipairs(B.KEYS) do
+    if values[key] == nil and key ~= B.SHARE and old[key] ~= nil then ShroudDeleteSavedVar(key, SCOPE) end
   end
   T.Restart()
   T.setupDirty = true                    -- this character's copy now holds the imported setup
-  T.Flush()
+  if T.Flush() == false then return true, "imported, but the game couldn't write it to disk yet" end
   return true
 end
 
--- Deletes a setup from the account file (a character's copy comes back when that character next plays).
+-- Deletes a setup from the account file (a character's copy comes back when that character next plays, if it
+-- lists its setup). Returns true when it was there and is gone; false and why otherwise.
 function B.DeleteSetup(s)
-  if type(s) ~= "table" then return false end
+  if type(s) ~= "table" then return false, "pick a setup" end
   local list, kept = allSetups(), {}
   for _, e in ipairs(list) do
     if not (e.name:lower() == s.name:lower() and (e.character == true) == s.character) then kept[#kept + 1] = e end
   end
-  ShroudDeleteSavedVar(setupKey(s.name, s.character), ACCOUNT)
-  ShroudSetSavedVar(B.SETUPS, { v = 1, list = kept }, ACCOUNT)
-  T.Flush()
-  return #kept < #list
+  local key = setupKey(s.name, s.character)
+  if #kept == #list and ShroudGetSavedVar(key, ACCOUNT) == nil then return false, "it wasn't there" end
+  if #kept < #list and not ShroudSetSavedVar(B.SETUPS, { v = 1, list = kept }, ACCOUNT) then
+    return false, "the game refused to change the list of setups"
+  end
+  ShroudDeleteSavedVar(key, ACCOUNT)
+  if T.Flush() == false then return false, "the game couldn't write it to disk yet" end
+  return true
+end
+
+-- Takes this character's copy out of the account file (sharing off, or a reset). Returns true, or false and why.
+local function unlistMine()
+  local name = T.settingsFor and B.CleanName(T.settingsFor)
+  if not name then return true end
+  local ok, why = B.DeleteSetup({ name = name, character = true })
+  if not ok and why ~= "it wasn't there" then return false, why end
+  return true
 end
 
 -- Lists this character's setup for the others, or stops (its copy is deleted from the account file).
+-- Returns true, or false and why (the choice is stored either way; a copy that couldn't be removed is said).
 function B.SetShare(on)
   on = on == true
   T.Save(B.SHARE, on)
   shareFor, share = T.settingsFor, on
-  local name = T.settingsFor and B.CleanName(T.settingsFor)
-  if not on and name then
-    B.DeleteSetup({ name = name, character = true })
-  else
+  local ok, why = true, nil
+  if on then
     T.Flush()                            -- its copy now (T.Save marked it behind)
+  else
+    ok, why = unlistMine()
   end
   T.Config.Sync()
+  return ok, why
 end
 
 -- The notification settings' defaults with this character's `seen` values kept (what was delivered stays
@@ -2295,6 +2352,9 @@ end
 function B.ApplyPending()
   if not B.Pending() then return end
   ShroudDeleteSavedVar(B.PENDING, SCOPE)     -- first: a failure below doesn't repeat at every start
+  local unlisted, why = unlistMine()         -- sharing goes back to off: its copy goes too (review, 2026-10-04)
+  if not unlisted then T.Print("Couldn't take this character's setup off the shared list: " .. why .. ".") end
+  shareFor = nil
   local notify = T.ReadSaved("notify")
   for _, key in ipairs(B.KEYS) do ShroudDeleteSavedVar(key, SCOPE) end   -- false only for a key never set
   local saved = T.Save("notify", seenOnly(notify))
@@ -2316,6 +2376,7 @@ end
 -- Every module's start: reads its settings and builds its windows and strips. Run again for another character
 -- (T.FollowCharacter): each Init drops what it built before.
 local function startModules(places)
+  step("the Notifications window", T.Notify.DropWindow)
   step("XP Detailed", T.Window.Init)
   step("the XP window", T.Compact.Init)
   step("the Today window", T.Daily.InitWindow)
@@ -2334,6 +2395,20 @@ local function startModules(places)
   step("the health bars", T.Vitals.Tick)
   step("the equipment bar", function() T.Gear.Poll(true) end)
   step("the target HUD", function() T.Target.Poll(true) end)
+end
+
+-- Another character: its XP session and day, before its windows are built (review, 2026-10-04: they showed the
+-- last character's for a tick, and a daily event in between went into the last character's day). With no totals
+-- yet, its saved day is loaded now and the session starts at the first tick that has them (T.Tick).
+local function followSession()
+  local s = T.session
+  if T.ReadTotals() then
+    if s and (s.ended or s.player ~= ShroudGetPlayerName()) then T.StartSession(s.ended and "login" or "character") end
+    if not s then T.ResumeOrStart() end
+  else
+    T.session = nil
+    T.Daily.ReadDay()
+  end
 end
 
 -- The character whose settings the modules hold: its name, or false when Toolbox started with none.
@@ -2355,6 +2430,7 @@ function T.FollowCharacter()
   T.settingsFor = name                 -- (false: started with no character, so read no settings yet)
   local places = T.Hud.Places()        -- before the strips go: kept where this character has none
   step("the settings restore", T.Backup.ApplyPending)
+  step("this character's session and day", followSession)   -- before its windows show them
   startModules(places)
   T.Config.Sync()
   T.setupDirty = true                  -- this character's copy in the account file, at the next flush

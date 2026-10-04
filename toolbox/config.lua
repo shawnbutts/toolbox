@@ -875,12 +875,27 @@ end
 -- Import and Delete take a second click within C.CONFIRM_SECONDS, like Reset.
 C.SETUP_NONE = "No setups yet"
 local setupPicks = {}                -- dropdown label -> setup
+-- The armed button: { at = T.Now(), id = the setup it was armed for } (review, 2026-10-04: a second click on
+-- another setup must not act on it).
 local setupArmed = { import = nil, delete = nil }
 local SETUP_BUTTONS = { import = { "setup_import", "Import" }, delete = { "setup_delete", "Delete" } }
 
 local function pickedSetup()
   local drop = el.setup_pick
   return drop and setupPicks[drop:GetValue()]
+end
+
+local function setupId(s) return (s.character and "c:" or "n:") .. s.name:lower() end
+
+-- Puts both buttons back (another pick, another list, an action done, or their time up when `stale` only).
+local function disarmSetups(staleOnly)
+  for which, b in pairs(SETUP_BUTTONS) do
+    local armed = setupArmed[which]
+    if armed and (not staleOnly or T.Now() - armed.at > C.CONFIRM_SECONDS) then
+      setupArmed[which] = nil
+      setText(b[1], b[2])
+    end
+  end
 end
 
 -- Fills the dropdown when the setups change (SetChoices is a UI call: only then).
@@ -897,32 +912,24 @@ local function syncSetups()
   for _, s in ipairs(list) do setupPicks[s.label] = s end
   local choices = #labels > 0 and labels or { C.SETUP_NONE }
   local keep = drop:GetValue()
+  disarmSetups()
   drop:SetChoices(choices)
   drop:SetValue(setupPicks[keep] and keep or choices[1])
   setEnabled("setup_import", #labels > 0)
   setEnabled("setup_delete", #labels > 0)
 end
 
--- A button that acts on its second click within C.CONFIRM_SECONDS.
-local function confirmed(which)
-  local b = SETUP_BUTTONS[which]
-  if not (setupArmed[which] and T.Now() - setupArmed[which] <= C.CONFIRM_SECONDS) then
-    setupArmed[which] = T.Now()
-    setText(b[1], "Click again to confirm")
-    return false
+-- A button that acts on its second click within C.CONFIRM_SECONDS, on the same setup `s`.
+local function confirmed(which, s)
+  local armed = setupArmed[which]
+  if armed and armed.id == setupId(s) and T.Now() - armed.at <= C.CONFIRM_SECONDS then
+    disarmSetups()
+    return true
   end
-  setupArmed[which] = nil
-  setText(b[1], b[2])
-  return true
-end
-
-local function disarmSetups()
-  for which, at in pairs(setupArmed) do
-    if at and T.Now() - at > C.CONFIRM_SECONDS then
-      setupArmed[which] = nil
-      setText(SETUP_BUTTONS[which][1], SETUP_BUTTONS[which][2])
-    end
-  end
+  disarmSetups()
+  setupArmed[which] = { at = T.Now(), id = setupId(s) }
+  setText(SETUP_BUTTONS[which][1], "Click again to confirm")
+  return false
 end
 
 function C.ImportSetup()
@@ -931,14 +938,14 @@ function C.ImportSetup()
     setText("setup_msg", "Pick a setup first.")
     return
   end
-  if not confirmed("import") then
+  if not confirmed("import", s) then
     setText("setup_msg", "Importing replaces this character's settings and positions with a copy of '"
       .. s.name .. "'. Click Import again to go ahead.")
     return
   end
   local ok, why = T.Backup.Import(s)
-  setText("setup_msg", ok and ("Imported '" .. s.name .. "'. Later changes stay this character's own.")
-    or ("Couldn't import: " .. tostring(why) .. "."))
+  setText("setup_msg", ok and ("Imported '" .. s.name .. "'. Later changes stay this character's own."
+    .. (why and (" (" .. why .. ")") or "")) or ("Couldn't import: " .. tostring(why) .. "."))
   C.Sync()
 end
 
@@ -948,13 +955,14 @@ function C.DeleteSetup()
     setText("setup_msg", "Pick a setup first.")
     return
   end
-  if not confirmed("delete") then
+  if not confirmed("delete", s) then
     setText("setup_msg", "Click Delete again to delete '" .. s.name .. "'.")
     return
   end
-  T.Backup.DeleteSetup(s)
-  setText("setup_msg", "Deleted '" .. s.name .. "'." .. (s.character
-    and " That character's copy comes back when it next plays." or ""))
+  local ok, why = T.Backup.DeleteSetup(s)
+  setText("setup_msg", ok and ("Deleted '" .. s.name .. "'." .. (s.character
+    and " That character's copy comes back when it next plays, if it still lists its setup." or ""))
+    or ("Couldn't delete '" .. s.name .. "': " .. tostring(why) .. "."))
   C.Sync()
 end
 
@@ -979,11 +987,17 @@ function C.SetupSection()
     UI.Toggle{ id = "setup_share", text = "List this character's setup for other characters",
       value = T.Backup.GetShare(), style = { marginTop = 4 },
       tooltip = "Off: nobody can import this character's settings and positions (named exports still work)",
-      onChange = function(_, v) T.Backup.SetShare(v) end },
+      onChange = function(_, v)
+        local ok, why = T.Backup.SetShare(v)
+        setText("setup_msg", ok and "" or ("Couldn't take your setup off the list: " .. tostring(why) .. "."))
+      end },
     UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
       UI.Dropdown{ id = "setup_pick", choices = { C.SETUP_NONE }, value = C.SETUP_NONE,
         style = { flexGrow = 1, flexShrink = 1 }, tooltip = "Named setups, then other characters' setups",
-        onChange = function() setText("setup_msg", "") end },
+        onChange = function()
+          disarmSetups()
+          setText("setup_msg", "")
+        end },
       UI.Button{ id = "setup_import", text = "Import", style = { marginLeft = 4 },
         tooltip = "Replace this character's settings and positions with a copy of this setup",
         onClick = function() C.ImportSetup() end },
@@ -1827,7 +1841,7 @@ end
 function C.SyncLive()
   if not C.IsShown() then return end
   disarm()
-  disarmSetups()
+  disarmSetups(true)
   C.SyncSounds()
   if el.shortcut then T.SetText(el.shortcut, "Shortcut: " .. T.KeyStatus()) end
   for _, p in ipairs(POSITIONED) do

@@ -762,6 +762,15 @@ end
 
 function N.IsShown() return nwin ~= nil and nwin:IsShown() end
 
+-- Closes and drops the window (another character, an imported setup): the notices it shows are the last
+-- character's, and its compact form and text size are fixed when built (review, 2026-10-04). The next notice
+-- builds it again with this character's settings.
+function N.DropWindow()
+  if not nwin then return end
+  pcall(function() nwin:Destroy() end)
+  nwin = nil
+end
+
 -- ---------------------------------------------------------------------------
 -- The notification HUD (delivery "hud"): a Toolbox.Hud module
 -- ---------------------------------------------------------------------------

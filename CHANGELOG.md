@@ -7,6 +7,17 @@ ones included).
 
 ## [Unreleased]
 
+### Fixed
+- Setups: if the game refused to store an import, the character's own settings were already gone and the import
+  still said it worked. Now nothing changes and it says so. Exports, deletes and a shared copy the game refuses
+  are reported too, and a shared copy is tried again later.
+- Setups: after clicking Import or Delete once, picking another setup and clicking again acted on that one at
+  once. The second click must now be on the same setup.
+- Reset all settings switches off sharing a character's setup, but its copy stayed on the list. It's removed now.
+- Switching characters: the Notifications window kept showing the last character's notices. It closes now.
+- Switching characters: the XP and Today windows showed the last character's numbers until the next second, and
+  an item picked up in that moment was lost. They follow the new character at once.
+
 ## [1.4.0] - 2026-10-04
 
 ### Fixed

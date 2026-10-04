@@ -73,4 +73,37 @@ return function(t)
     switchTo("Alt")
     t.eq(H.config():Find("buff_size").value, Toolbox.BuffBar.SIZE_DEFAULT, "Alt's")
   end)
+
+  -- Review 2026-10-04 (15): the session and the day follow at the scene, before the windows show them.
+  t.test("at the new character's scene: its own XP session and day, at once; events go into its day", function()
+    H.boot()
+    H.goldChange(250)
+    H.advance(2)
+    t.ok(Toolbox.Daily.day.gold >= 250, "Tester's gold today")
+    H.S.memory["character:Alt"] = { daily_window = { open = true } }
+    H.callback("ShroudOnLogOut")
+    H.S.char.name = "Alt"
+    H.callback("ShroudOnSceneLoaded", "Novia")   -- no tick in between
+    t.eq(Toolbox.session.player, "Alt", "Alt's session")
+    t.eq(Toolbox.Daily.day.gold, 0, "Alt's day")
+    t.ok(H.S.windows.toolbox_daily:IsShown(), "Alt's Today window open")
+    t.eq(H.dailyText("gold"), "0", "showing Alt's gold, not Tester's")
+    H.items({ { "Iron Ore", 3 } })
+    H.advance(2)
+    t.eq(Toolbox.Daily.day.items["Iron Ore"], 3, "kept in Alt's day after the tick")
+  end)
+
+  -- Review 2026-10-04 (14): the Notifications window shows only this character's notices.
+  t.test("the Notifications window doesn't carry the last character's notices", function()
+    H.boot()
+    H.setGuild("Knights", "Tester secret")
+    H.advance(3)
+    local tester = H.notify()
+    t.ok(tester and tester:IsShown(), "Tester's guild message shown")
+    H.callback("ShroudOnLogOut")
+    H.S.char.name = "Alt"
+    H.callback("ShroudOnSceneLoaded", "Novia")
+    t.ok(H.notify() == nil or H.notify() ~= tester, "Tester's window is gone")
+    t.ok(tester.destroyed or not tester:IsShown(), "not left on screen")
+  end)
 end
