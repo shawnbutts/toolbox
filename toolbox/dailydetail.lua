@@ -50,14 +50,15 @@ local function text(id, class, extra)
   return UI.Label{ id = id, text = "", class = class, style = T.Window.TextStyle(extra) }
 end
 
--- The value column (Estimated values): a fixed width, so every row's count and value line up whether it has a
--- price or not (owner, 2026-10-04: "more table like"), about DD.VALUE_EMS of the text size: room for
--- "300,336,608g". A row without a price shows DD.NO_PRICE (no sales on SotANET in 90 days) or DD.LOOKING
--- (not looked up yet); its tooltip says which. Plain ASCII: the game's font lacks some characters.
-DD.VALUE_EMS, DD.NO_PRICE, DD.LOOKING = 6.6, "--", "..."
+-- The value column (Estimated values): every row's value has the same MINIMUM width, from the longest value
+-- shown (DD.VALUE_CHAR of the text size per character), so the counts and values line up whether a row has a
+-- price or not (owner, 2026-10-04: "more table like"). A minimum, not a fixed width: a fixed one cut a big value
+-- ("...336,608g") however wide the window. A row without a price shows DD.NO_PRICE (no sales on SotANET in 90
+-- days) or DD.LOOKING (not looked up yet); its tooltip says which. Plain ASCII: the game's font lacks some.
+-- The minimum is set only by DD.RefreshValues (T.SetStyle), never in valueStyle.
+DD.VALUE_CHAR, DD.NO_PRICE, DD.LOOKING = 0.7, "--", "..."
 local function valueStyle()
-  local w = math.ceil(T.Window.GetFont() * DD.VALUE_EMS)
-  return T.Window.TextStyle{ textAlign = "right", marginLeft = 8, width = w, minWidth = w, flexShrink = 0 }
+  return T.Window.TextStyle{ textAlign = "right", marginLeft = 8, flexShrink = 0, whiteSpace = "nowrap" }
 end
 
 local function addRow(name)
@@ -266,6 +267,7 @@ function DD.ApplyText()
     r.count:SetStyle(style)
     r.value:SetStyle(valueStyle())
   end
+  DD.RefreshValues()                    -- the value column's minimum follows the text size
 end
 
 function DD.SampleLabel()
@@ -424,12 +426,19 @@ function DD.RefreshValues()
       end
     end
   end
-  for name, r in pairs(rows) do
+  local texts, longest = {}, 3
+  for name in pairs(rows) do
     local each = P.Average(name)
     local n = shown[name] or 0
     local shownValue = DD.LOOKING                          -- (no "~": the game's font has no tilde)
     if each then shownValue = P.Format(n * each) elseif P.Known(name) then shownValue = DD.NO_PRICE end
-    T.SetText(r.value, shownValue)
+    texts[name] = shownValue
+    if #shownValue > longest then longest = #shownValue end
+  end
+  local minWidth = math.ceil(longest * T.Window.GetFont() * DD.VALUE_CHAR) + 2
+  for name, r in pairs(rows) do
+    T.SetText(r.value, texts[name])
+    T.SetStyle(r.value, { minWidth = minWidth })           -- the same for every row: they line up
     T.SetTooltip(r.value, P.Tooltip(name))
   end
   valued.total, valued.priced, valued.kinds = total, priced, kinds

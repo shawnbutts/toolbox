@@ -114,25 +114,29 @@ return function(t)
     t.eq(#H.S.requests, 1, "no new lookup for a known item")
   end)
 
-  t.test("values: a fixed-width column, so priced and unpriced rows line up", function()
+  t.test("values: one minimum width for the column, from the longest value; never cut", function()
     withValues()
     H.items({ { "Iron Ore", 40 }, { "Rusty Nail", 3 } })
     H.advance(2)
     t.eq(row("Iron Ore")[3], "...", "while it is looked up")
     H.httpRespond(1, true, 200, ANSWER)
-    local widths = {}
+    local labels = {}
     local function scan(e)
-      if e.kind == "Label" and (e.text == "200g" or e.text == "--") then widths[#widths + 1] = e.style.width end
+      if e.kind == "Label" and (e.text == "200g" or e.text == "--") then labels[#labels + 1] = e end
       for _, c in ipairs(e.children or {}) do scan(c) end
     end
     scan(H.detail())
-    t.eq(#widths, 2)
-    t.eq(widths[1], widths[2], "the same width, priced or not")
-    t.eq(widths[1], math.ceil(Toolbox.Window.GetFont() * Toolbox.DailyDetail.VALUE_EMS), "from the text size")
+    t.eq(#labels, 2)
+    t.eq(labels[1].style.minWidth, labels[2].style.minWidth, "the same for priced and unpriced rows")
+    t.eq(labels[1].style.width, nil, "a minimum, not a fixed width (which cut big values)")
+    t.eq(labels[1].style.whiteSpace, "nowrap")
+    local small = labels[1].style.minWidth
+    H.items({ { "Iron Ore", 60000000 } })                -- 300,000,200g: a long value
+    H.advance(1)
+    t.ok(labels[1].style.minWidth > small, "wider for a longer value: " .. labels[1].style.minWidth)
+    t.ok(labels[1].style.minWidth >= #"300,000,200g" * Toolbox.Window.GetFont() * 0.6, "room for all of it")
     Toolbox.Window.SetFont(18)
-    widths = {}
-    scan(H.detail())
-    t.eq(widths[1], math.ceil(18 * Toolbox.DailyDetail.VALUE_EMS), "follows a text size change")
+    t.ok(labels[1].style.minWidth >= #"300,000,200g" * 18 * 0.6, "follows a text size change")
   end)
 
   t.test("prices are kept per account across a reload", function()
