@@ -386,8 +386,9 @@ character" sentinel.
 | `welcomed` (ACCOUNT scope) | set after the first-run welcome |
 | `skills` | `{ show = bool (default false), vertical = bool (default true), slots = 1..12, stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels"/"xp", size = 20..48, number = bool (the level on the icon, default true), marks = bool (the API 27 training controls, default true), soundUp = bool, soundDown = bool (both default true), x, y }` (skills.lua) |
 | `settings_pending` | `{ kind = "reset" }`: done and deleted at the next start |
+| `setup_share` | `true` = this character's copy is listed for the others (default off; a setting, but never copied into a setup or imported) |
 | `setups` (ACCOUNT scope) | `{ v = 1, list = { { name, character = bool, when = "YYYY-MM-DD" } } }`: the setups' index, at most `B.SETUP_MAX` |
-| `setup:<lower name>` / `setup_character:<lower name>` (ACCOUNT scope) | `{ v = 1, name, keys = { [a B.KEYS key] = its saved table } }` (notify without `seen`): a named setup / a character's copy, kept by `B.KeepCopy` from `T.Flush` when a setting changed |
+| `setup:<lower name>` / `setup_character:<lower name>` (ACCOUNT scope) | `{ v = 1, name, keys = { [a B.KEYS key] = its saved table } }` (notify without `seen`): a named setup / a character's copy, kept by `B.KeepCopy` from `T.Flush` when a setting changed and `setup_share` is on |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
 you read back and fall back to defaults.

@@ -248,9 +248,10 @@ D.SECTIONS = {
   { "Setups, backup & reset",
     "Each character has its own settings and positions. To copy another character's, yours or someone "
       .. "else's on this computer, pick it under Setups (Settings, Setups, backup & reset) and press Import "
-      .. "twice. Every character's setup is listed once it has played with Toolbox; Export saves yours under a "
-      .. "name too (Raid layout). An import is a copy: later changes stay each character's own. In chat: "
-      .. "/toolbox settings setups, import <name>, export <name>, delete <name>.",
+      .. "twice. A character's setup is listed once its player ticks List this character's setup (off at first); "
+      .. "Export saves yours under a name (Raid layout). An import is a copy: later changes stay each "
+      .. "character's own. In chat: /toolbox settings setups, import <name>, export <name>, delete <name>, "
+      .. "share on|off.",
     "Your settings are in the game's files in Lua/SavedVariables: toolbox.<character>.character.json "
       .. "for each character, and toolbox.account.json (the setups). To back up, press Save now and copy "
       .. "them. To restore or move computers, quit the game and copy them back.",

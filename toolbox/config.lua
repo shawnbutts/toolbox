@@ -973,9 +973,13 @@ function C.SetupSection()
   return UI.Column{ children = {
     heading("Setups"),
     UI.Label{ text = "Copy the settings and positions of another character on this computer, yours or"
-      .. " someone else's. Every character's setup is kept here as it plays; Export also saves yours under a"
-      .. " name. An import is a copy: later changes stay each character's own.", class = "dim",
+      .. " someone else's. A character's setup is listed once its player ticks the box below; Export saves"
+      .. " yours under a name. An import is a copy: later changes stay each character's own.", class = "dim",
       style = { whiteSpace = "wrap", marginTop = 6 } },
+    UI.Toggle{ id = "setup_share", text = "List this character's setup for other characters",
+      value = T.Backup.GetShare(), style = { marginTop = 4 },
+      tooltip = "Off: nobody can import this character's settings and positions (named exports still work)",
+      onChange = function(_, v) T.Backup.SetShare(v) end },
     UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
       UI.Dropdown{ id = "setup_pick", choices = { C.SETUP_NONE }, value = C.SETUP_NONE,
         style = { flexGrow = 1, flexShrink = 1 }, tooltip = "Named setups, then other characters' setups",
@@ -1079,8 +1083,8 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "target_flash", "target_flash_below", "target_flash_below_value",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
   "buff_countdown_secs_value", "backup_where", "backup_save", "settings_reset", "backup_pending",
-  "backup_cancel", "backup_msg", "setup_pick", "setup_import", "setup_delete", "setup_name", "setup_export",
-  "setup_msg" }
+  "backup_cancel", "backup_msg", "setup_share", "setup_pick", "setup_import", "setup_delete", "setup_name",
+  "setup_export", "setup_msg" }
 for _, def in ipairs(T.Sounds.DEFS) do
   ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_status"
   ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_path"
@@ -1811,6 +1815,7 @@ function C.Sync()
   local p = el.backup_pending
   if p and p:IsVisible() ~= pending then p:SetVisible(pending) end
   syncSetups()
+  setValue("setup_share", T.Backup.GetShare())
   if T.SkillBar then T.SkillBar.ConfigSync(C.Helpers) end   -- skills.lua, when present
   C.SyncLive()
 end

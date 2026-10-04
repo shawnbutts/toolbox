@@ -142,8 +142,9 @@ folder replaces them). Skill level changes (gained or lost) can also be listed o
 - `/toolbox settings`: settings files and setups (`save`, `reset`, `cancel`, `setups`, `import`, `export`)
 
 Settings are saved per character. To copy another character's setup, yours or someone else's on the same
-computer, pick it under **Setups** in the settings window and press **Import**; **Export** saves yours under a
-name. An import is a copy, so later changes stay each character's own.
+computer, pick it under **Setups** in the settings window and press **Import**. A character's setup is listed
+once its player ticks **List this character's setup for other characters** (off at first); **Export** saves
+yours under a name. An import is a copy, so later changes stay each character's own.
 
 The files are the game's saved-variable files in `Lua/SavedVariables`: `toolbox.<character>.character.json`
 for each character, and `toolbox.account.json` shared by all (it holds the setups). To back up, press

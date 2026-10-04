@@ -626,7 +626,7 @@ add("reset", "start a new XP session", function()
   end
 end)
 
-add("settings", "settings files and setups (save, reset, cancel; setups, export <name>, import <name>, delete <name>)",
+add("settings", "settings files and setups (save, reset, cancel; setups, export, import, delete <name>; share on|off)",
     function(rest)
   local B2 = T.Backup
   local word, name = T.ParseArgs(rest)
@@ -655,6 +655,11 @@ add("settings", "settings files and setups (save, reset, cancel; setups, export 
       T.Print("Setups you can import (" .. cmd .. " import <name>):")
       for _, s in ipairs(list) do T.Print("  " .. s.label) end
     end
+  elseif word == "share" then
+    if name == "on" or name == "off" then B2.SetShare(name == "on") end
+    T.Print(B2.GetShare() and "This character's setup is listed for your other characters to import ("
+      .. cmd .. " share off stops it)." or "This character's setup isn't listed for others (" .. cmd
+      .. " share on lists it).")
   elseif word == "export" then
     local ok, saved = B2.Export(name)
     T.Print(ok and ("Exported your settings and positions as '" .. saved .. "'. Any character can import it.")
@@ -682,7 +687,7 @@ add("settings", "settings files and setups (save, reset, cancel; setups, export 
     if B2.Pending() then T.Print("A reset is waiting: type /lua reload to apply it (" .. cmd .. " cancel).") end
   else
     T.Print("Use " .. cmd .. " (where the files are), " .. cmd .. " save, reset or cancel, or " .. cmd
-      .. " setups, export <name>, import <name> or delete <name>.")
+      .. " setups, export <name>, import <name>, delete <name> or share on|off.")
   end
   T.Config.Sync()
 end)
@@ -2065,6 +2070,19 @@ end
 B.SETUPS = "setups"         -- account: { v = 1, list = { { name, character = bool, when = "YYYY-MM-DD" } } }
 B.SETUP_MAX = 20            -- named setups and character copies together
 B.NAME_MAX = 24
+-- "setup_share" (character scope, a setting: reset clears it): true when this character's copy is listed for the
+-- others. Off by default (owner, 2026-10-04): nothing of a character's is shared until its player opts in.
+-- Each character's own choice: never copied into a setup or imported.
+B.SHARE = "setup_share"
+B.KEYS[#B.KEYS + 1] = B.SHARE
+
+local shareFor, share = nil, false  -- the choice, read once per character
+function B.GetShare()
+  if shareFor ~= T.settingsFor then
+    shareFor, share = T.settingsFor, T.ReadSaved(B.SHARE) == true
+  end
+  return share
+end
 
 local settingSet = nil
 function B.IsSetting(key)
@@ -2141,7 +2159,7 @@ end
 local function currentSettings()
   local keys, any = {}, false
   for _, key in ipairs(B.KEYS) do
-    local v = ShroudGetSavedVar(key, SCOPE)
+    local v = key ~= B.SHARE and ShroudGetSavedVar(key, SCOPE) or nil
     if v ~= nil then
       keys[key] = key == "notify" and withoutSeen(v) or T.Copy(v)
       any = true
@@ -2180,7 +2198,7 @@ function B.KeepCopy()
   if not who or ShroudGetPlayerName() ~= who then return end
   T.setupDirty = false
   local name = B.CleanName(who)
-  if name then store(name, true) end
+  if name and B.GetShare() then store(name, true) end
 end
 
 -- The setup a player means by `text`: a named one first, then a character's copy. Nil when none matches.
@@ -2213,7 +2231,7 @@ function B.Import(s)
   if type(saved) ~= "table" or type(saved.keys) ~= "table" then return false, "that setup is gone" end
   local mine = ShroudGetSavedVar("notify", SCOPE)
   for _, key in ipairs(B.KEYS) do
-    ShroudDeleteSavedVar(key, SCOPE)
+    if key ~= B.SHARE then ShroudDeleteSavedVar(key, SCOPE) end
     local v = saved.keys[key]
     if key == "notify" then
       v = withoutSeen(v)
@@ -2227,7 +2245,7 @@ function B.Import(s)
         end
       end
     end
-    if v ~= nil then ShroudSetSavedVar(key, T.Copy(v), SCOPE) end
+    if v ~= nil and key ~= B.SHARE then ShroudSetSavedVar(key, T.Copy(v), SCOPE) end
   end
   T.Restart()
   T.setupDirty = true                    -- this character's copy now holds the imported setup
@@ -2246,6 +2264,20 @@ function B.DeleteSetup(s)
   ShroudSetSavedVar(B.SETUPS, { v = 1, list = kept }, ACCOUNT)
   T.Flush()
   return #kept < #list
+end
+
+-- Lists this character's setup for the others, or stops (its copy is deleted from the account file).
+function B.SetShare(on)
+  on = on == true
+  T.Save(B.SHARE, on)
+  shareFor, share = T.settingsFor, on
+  local name = T.settingsFor and B.CleanName(T.settingsFor)
+  if not on and name then
+    B.DeleteSetup({ name = name, character = true })
+  else
+    T.Flush()                            -- its copy now (T.Save marked it behind)
+  end
+  T.Config.Sync()
 end
 
 -- The notification settings' defaults with this character's `seen` values kept (what was delivered stays
