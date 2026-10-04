@@ -9,9 +9,8 @@ ones included).
 
 ### Fixed
 - Estimated values (SotANET prices) never connected: the game refused Toolbox internet access because a few
-  names and messages in its code looked, to the game's simple text scan, like code that loads other code. Those
-  were renamed and reworded; nothing else changes. Switch Internet on for Toolbox in the add-on manager to use
-  the prices.
+  lines of its code looked, to the game's simple text scan, like code that loads other code. Those were
+  rewritten; nothing else changes. Switch Internet on for Toolbox in the add-on manager to use the prices.
 
 ## [1.3.0] - 2026-10-04
 

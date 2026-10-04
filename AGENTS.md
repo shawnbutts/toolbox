@@ -534,6 +534,11 @@ Rules learned the hard way; keep to them.
   `maxHealth` (951 / 950.36; `V.Format` never shows the max below it). The per-frame globals read nil before
   API 25 (another add-on overwrote them; now restored each frame). `ShroudPlayerGold` and `ShroudTime` work.
 - **XP:** totals can go down (death); see `XP.DROP_CONFIRM`.
+- **Internet (SotANET prices):** works (confirmed 2026-10-04, build 9c74679: "connected. 'Iron Ore': ~5g").
+  It had never worked: the client refused the grant ("loads Lua code at runtime") because of
+  `rawget(_G, "os")` / `rawget(_G, "ToolboxCopies")`. Renaming `T.Load(` and friends alone did NOT clear it;
+  removing every `_G` did (whether `T.Load(` also counted is unknown: the renames stay). The grant also needs
+  Internet on for the add-on in the manager. The game prints the code-loading line once per load.
 - **Sounds:** paths are relative to the Lua folder; `ShroudLoadSound` returns false for a missing / wrong
   file and true when an async load starts; `ShroudListSound()` is plain base names in load order; the
   ffmpeg-encoded .ogg plays.
