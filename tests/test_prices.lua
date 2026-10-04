@@ -92,7 +92,7 @@ return function(t)
     t.eq(row("Iron Ore")[3], "", "no value")
   end)
 
-  t.test("values: looked up, shown per row and in total; unsold items stay blank", function()
+  t.test("values: looked up, shown per row and in total; unsold items show a dash", function()
     withValues()
     H.items({ { "Iron Ore", 40 }, { "Rusty Nail", 3 } })
     H.advance(2)
@@ -105,13 +105,34 @@ return function(t)
     t.eq(row("Iron Ore")[3], "200g")
     t.ok(row("Iron Ore")[4]:find("About 5g each: the average of 1,000 sold in the last 90 days; last sold "
       .. "2026%-07%-26"))
-    t.eq(row("Rusty Nail")[3], "")
+    t.eq(row("Rusty Nail")[3], "--", "no sales: a dash, not a gap")
     t.eq(row("Rusty Nail")[4], "No sales on SotANET in the last 90 days")
     t.eq(header().text, "Estimated value 200g (1 of 2 kinds priced, SotANET)")
     H.items({ { "Iron Ore", 10 } })
     H.advance(1)
     t.eq(row("Iron Ore")[3], "250g", "follows the count")
     t.eq(#H.S.requests, 1, "no new lookup for a known item")
+  end)
+
+  t.test("values: a fixed-width column, so priced and unpriced rows line up", function()
+    withValues()
+    H.items({ { "Iron Ore", 40 }, { "Rusty Nail", 3 } })
+    H.advance(2)
+    t.eq(row("Iron Ore")[3], "...", "while it is looked up")
+    H.httpRespond(1, true, 200, ANSWER)
+    local widths = {}
+    local function scan(e)
+      if e.kind == "Label" and (e.text == "200g" or e.text == "--") then widths[#widths + 1] = e.style.width end
+      for _, c in ipairs(e.children or {}) do scan(c) end
+    end
+    scan(H.detail())
+    t.eq(#widths, 2)
+    t.eq(widths[1], widths[2], "the same width, priced or not")
+    t.eq(widths[1], math.ceil(Toolbox.Window.GetFont() * Toolbox.DailyDetail.VALUE_EMS), "from the text size")
+    Toolbox.Window.SetFont(18)
+    widths = {}
+    scan(H.detail())
+    t.eq(widths[1], math.ceil(18 * Toolbox.DailyDetail.VALUE_EMS), "follows a text size change")
   end)
 
   t.test("prices are kept per account across a reload", function()
@@ -231,7 +252,7 @@ return function(t)
     H.items({ { "Iron Ore", 40 } })
     H.advance(2)
     H.httpRespond(1, true, 200, "<html>oops</html>")
-    t.eq(row("Iron Ore")[3], "")
+    t.eq(row("Iron Ore")[3], "...", "not priced yet")
     t.ok(header().text:find("didn't answer"))
   end)
 

@@ -74,11 +74,11 @@ D.SECTIONS = {
       .. "materials your crafts used (from each recipe's ingredients; tools and optional ones left out).",
     "Estimated values (optional): switch on Estimated values (SotANET) in settings, or /toolbox dd "
       .. "values on, and switch Internet on for Toolbox in the add-on manager. Today Detailed then shows "
-      .. "each item's count times its 90-day average sale price from shroudoftheavatar.net (player-"
-      .. "uploaded receipts) and a total; hover a value for the price each. Items with no recent sales "
-      .. "stay blank. Only item names are sent, and each price is kept for 24 hours; /toolbox dd values "
-      .. "refresh looks them up again, and Test connection in settings (or /toolbox dd values test "
-      .. "[item]) checks the connection.",
+      .. "each item's count times its 90-day average sale price from shroudoftheavatar.net (player-uploaded "
+      .. "receipts) and a total; hover a value for the price each. Items with no recent sales show --, and "
+      .. "... while their price is looked up. Only item names are sent, and each price is kept for 24 hours;"
+      .. " /toolbox dd values refresh looks them up again, and Test connection in settings (or /toolbox dd "
+      .. "values test [item]) checks the connection.",
     "Like XP, it can be a compact window or a HUD strip: /toolbox daily compact, daily hud (and daily "
       .. "window, daily move <x> <y>)." },
   { "Toolbelt",

@@ -9,6 +9,7 @@ Toolbox.CHANGELOG = {
   { "item", "Estimated values (SotANET prices) never connected: the game refused Toolbox internet access because a few lines of its code looked, to the game's simple text scan, like code that loads other code. Those were rewritten; nothing else changes. Switch Internet on for Toolbox in the add-on manager to use the prices." },
   { "item", "Today Detailed's estimated values are rounded to the nearest whole gold (\"5g\", not \"4.6g\"), and they and the \"Estimated value ... SotANET\" line above them use the normal text colour instead of the hard-to-read dim one." },
   { "item", "A small box showed in front of estimated values (and in XP Detailed's time to the next level): the game's font has no tilde, which Toolbox used for \"about\". The values show plainly now (\"14g\", \"About 5g each\")." },
+  { "item", "Today Detailed's estimated values sit in a column of their own width, so priced and unpriced rows line up; an item with no sales on SotANET shows \"--\" instead of nothing, and \"...\" while its price is looked up." },
   { "version", "1.3.0 - 2026-10-04" },
   { "section", "Changed" },
   { "item", "The buff block shows up to 40 icons (it was 60), the soonest to run out first: it keeps Toolbox well inside the game's limit on how many UI elements an add-on can have with everything switched on." },

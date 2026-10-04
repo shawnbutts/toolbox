@@ -50,13 +50,23 @@ local function text(id, class, extra)
   return UI.Label{ id = id, text = "", class = class, style = T.Window.TextStyle(extra) }
 end
 
+-- The value column (Estimated values): a fixed width, so every row's count and value line up whether it has a
+-- price or not (owner, 2026-10-04: "more table like"), about DD.VALUE_EMS of the text size: room for
+-- "300,336,608g". A row without a price shows DD.NO_PRICE (no sales on SotANET in 90 days) or DD.LOOKING
+-- (not looked up yet); its tooltip says which. Plain ASCII: the game's font lacks some characters.
+DD.VALUE_EMS, DD.NO_PRICE, DD.LOOKING = 6.6, "--", "..."
+local function valueStyle()
+  local w = math.ceil(T.Window.GetFont() * DD.VALUE_EMS)
+  return T.Window.TextStyle{ textAlign = "right", marginLeft = 8, width = w, minWidth = w, flexShrink = 0 }
+end
+
 local function addRow(name)
   if rowCount >= DD.MAX_ROWS then return false end
   local nameLabel = UI.Label{ text = name, class = "text", style = T.Window.TextStyle{ flexGrow = 1, flexShrink = 1 } }
   local countLabel = UI.Label{ text = "", class = "text",
     style = T.Window.TextStyle{ textAlign = "right", marginLeft = 6 } }
   local valueLabel = UI.Label{ text = "", class = "text", visible = prefs.values == true,   -- (dim was too light)
-    style = T.Window.TextStyle{ textAlign = "right", marginLeft = 8 } }
+    style = valueStyle() }
   el.list:Add(UI.Row{ style = { alignItems = "center" }, children = { nameLabel, countLabel, valueLabel } })
   rows[name] = { name = nameLabel, count = countLabel, value = valueLabel }
   rowCount = rowCount + 1
@@ -254,7 +264,7 @@ function DD.ApplyText()
   for _, r in pairs(rows) do
     r.name:SetStyle(style)
     r.count:SetStyle(style)
-    r.value:SetStyle(style)
+    r.value:SetStyle(valueStyle())
   end
 end
 
@@ -417,7 +427,9 @@ function DD.RefreshValues()
   for name, r in pairs(rows) do
     local each = P.Average(name)
     local n = shown[name] or 0
-    T.SetText(r.value, each and P.Format(n * each) or "")   -- (no "~": the game's font has no tilde)
+    local shownValue = DD.LOOKING                          -- (no "~": the game's font has no tilde)
+    if each then shownValue = P.Format(n * each) elseif P.Known(name) then shownValue = DD.NO_PRICE end
+    T.SetText(r.value, shownValue)
     T.SetTooltip(r.value, P.Tooltip(name))
   end
   valued.total, valued.priced, valued.kinds = total, priced, kinds
@@ -596,7 +608,13 @@ function P.Average(name)
   return nil
 end
 
--- A row's tooltip: the unit price and sales, or why it's blank.
+-- Whether `name` has been looked up (a price or "no sales"), not only queued.
+function P.Known(name)
+  readCache()
+  return cache[key(name)] ~= nil
+end
+
+-- A row's tooltip: the unit price and sales, or why it has none.
 function P.Tooltip(name)
   readCache()
   local e = cache[key(name)]
