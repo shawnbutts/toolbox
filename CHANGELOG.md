@@ -7,6 +7,8 @@ ones included).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-04
+
 ### Fixed
 - Estimated values (SotANET prices) never connected: the game refused Toolbox internet access because a few
   lines of its code looked, to the game's simple text scan, like code that loads other code. Those were
@@ -19,7 +21,6 @@ ones included).
 - Today Detailed's estimated values line up in a column as wide as the longest value (never cut short), so
   priced and unpriced rows line up; an item with no sales on SotANET shows "--" instead of nothing, and "..."
   while its price is looked up.
-
 - Switching characters without restarting the game kept the last character's settings and window places, and
   could save them into the new character's: each character now gets its own setup back as it logs in. A strip
   the new character never placed stays where it is instead of jumping to its corner.

@@ -5,6 +5,7 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "version", "1.4.0 - 2026-10-04" },
   { "section", "Fixed" },
   { "item", "Estimated values (SotANET prices) never connected: the game refused Toolbox internet access because a few lines of its code looked, to the game's simple text scan, like code that loads other code. Those were rewritten; nothing else changes. Switch Internet on for Toolbox in the add-on manager to use the prices." },
   { "item", "Today Detailed's estimated values are rounded to the nearest whole gold (\"14g\", not \"13.8g\"; a price each keeps up to 2 decimals, \"4.6g\", since a stack's price shared out over its items can come to a fraction), and they and the \"Estimated value ... SotANET\" line above them use the normal text colour instead of the hard-to-read dim one." },

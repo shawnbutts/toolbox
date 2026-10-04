@@ -28,7 +28,8 @@ The settings window's "Settings" dropdown picks a part to set up. It opens on th
   * Notifications: what's new since you last looked (guild message, mail, rewards, gear to repair...).
   * Sounds: alert volume and sound files.
   * HUD layout: every strip's position.
-  * Backup & reset: where your settings files are, to copy them; and Reset all settings.
+  * Setups, backup & reset: copy another character's setup (Import), save yours under a name (Export);
+    where your settings files are, to copy them; and Reset all settings.
 Options that do nothing while their part is off are greyed out.
 
 Moving the HUD strips: drag the small grip at a strip's top-left corner. If you can't see the grip,
