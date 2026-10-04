@@ -7,6 +7,8 @@ ones included).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-04
+
 ### Changed
 - The buff block shows up to 40 icons (it was 60), the soonest to run out first: it keeps Toolbox well inside the
   game's limit on how many UI elements an add-on can have with everything switched on.
