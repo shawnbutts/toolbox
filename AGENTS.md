@@ -99,7 +99,10 @@ into one if a new file is ever needed).
   through `step()` so one failure can't stop the rest. The module part (`startModules`) runs again when another
   character logs in without a reload (`T.FollowCharacter`, first thing in `T.Tick` and in `ShroudOnSceneLoaded`;
   the docs' advice): so every `Init` must be re-runnable (drop its old window first, re-register by name), and
-  `Hud.Init(places)` keeps a strip the new character never placed where it was (`Hud.Places`). `T.DOCS_API` = the API the docs describe (equal to
+  `Hud.Init(places)` keeps a strip the new character never placed where it was (`Hud.Places`). Setups
+  (owner, 2026-10-04: settings stay per character, "managed individually, but easily copied"): the ACCOUNT
+  file is per computer ("on this install"), so it is the exchange: every character's settings are copied there
+  as it plays, named ones on Export, and `B.Import` copies one in and restarts the modules (`T.Restart`). `T.DOCS_API` = the API the docs describe (equal to
   build.py's `CLIENT_API_VERSION`; the build checks). `/toolbox api` probes newer functions and the result
   events (`T.ProbeEvent`, `T.ProbeLines`).
 - `xp.lua`: `Toolbox.XP`, a pure model over a plain-data session (header comment). Time is passed in. A
@@ -383,6 +386,8 @@ character" sentinel.
 | `welcomed` (ACCOUNT scope) | set after the first-run welcome |
 | `skills` | `{ show = bool (default false), vertical = bool (default true), slots = 1..12, stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels"/"xp", size = 20..48, number = bool (the level on the icon, default true), marks = bool (the API 27 training controls, default true), soundUp = bool, soundDown = bool (both default true), x, y }` (skills.lua) |
 | `settings_pending` | `{ kind = "reset" }`: done and deleted at the next start |
+| `setups` (ACCOUNT scope) | `{ v = 1, list = { { name, character = bool, when = "YYYY-MM-DD" } } }`: the setups' index, at most `B.SETUP_MAX` |
+| `setup:<lower name>` / `setup_character:<lower name>` (ACCOUNT scope) | `{ v = 1, name, keys = { [a B.KEYS key] = its saved table } }` (notify without `seen`): a named setup / a character's copy, kept by `B.KeepCopy` from `T.Flush` when a setting changed |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
 you read back and fall back to defaults.

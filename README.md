@@ -91,7 +91,7 @@ with that setting's section at the top and the setting blinking.
 | `/toolbox version` | the installed version and build (git commit), and whether more than one copy is loaded |
 | `/toolbox stats [word]` | list character stats whose name contains the word (for finding stat names) |
 | `/toolbox config` | open or close the settings window |
-| `/toolbox settings` (`save` / `reset` / `cancel`) | where the settings files are (`Lua/SavedVariables/toolbox.<character>.character.json` and `toolbox.account.json`) and how to back them up (copy them; to restore, quit the game and copy them back); `save` writes them now; `reset` puts every setting and position back to its default at the next `/lua reload` |
+| `/toolbox settings` (`save` / `reset` / `cancel` / `setups` / `import` / `export` / `delete`) | where the settings files are (`Lua/SavedVariables/toolbox.<character>.character.json` and `toolbox.account.json`) and how to back them up (copy them; to restore, quit the game and copy them back); `save` writes them now; `reset` puts every setting and position back to its default at the next `/lua reload`; `setups` lists the setups you can import (every character's on this computer, and named ones), `import <name>` copies one into this character now, `export <name>` saves yours under a name, `delete <name>` removes one |
 | `/toolbox spacing <0-12>` | set the extra space between lines in pixels (no number: show and measure it; default 2) |
 | `/toolbox font <9-32>` | set the window text size (no number: show the current size; default 12) |
 

@@ -19,6 +19,7 @@ local T = Toolbox
 -- second copy (an old folder left in Lua/) would tangle the two; /toolbox version reports it.
 ToolboxCopies = (ToolboxCopies or 0) + 1   -- (nil the first time; read plainly, see AGENTS.md)
 local SCOPE = "character"
+local ACCOUNT = "account"            -- shared by every character on this computer (the docs: "on this install")
 local PERIODIC = "toolbox_tick"
 
 -- ---------------------------------------------------------------------------
@@ -236,6 +237,7 @@ end
 function T.Save(key, value)
   local ok = ShroudSetSavedVar(key, T.Copy(value), SCOPE)
   if not ok then T.Print("Could not save '" .. key .. "'.") end
+  if T.Backup.IsSetting(key) then T.setupDirty = true end    -- this character's setup copy is behind
   return ok
 end
 
@@ -243,6 +245,7 @@ end
 -- say so in chat (at most every T.FLUSH_WARN_EVERY seconds) rather than lose settings silently.
 T.FLUSH_WARN_EVERY = 300
 function T.Flush()
+  if T.setupDirty then T.Backup.KeepCopy() end
   local ok = ShroudFlushSavedVars()
   if ok == false then
     T.flushFailures = (T.flushFailures or 0) + 1
@@ -623,10 +626,10 @@ add("reset", "start a new XP session", function()
   end
 end)
 
-add("settings", "where your settings files are, to back them up (save: write them now; reset; cancel)",
+add("settings", "settings files and setups (save, reset, cancel; setups, export <name>, import <name>, delete <name>)",
     function(rest)
   local B2 = T.Backup
-  local word = T.ParseArgs(rest)
+  local word, name = T.ParseArgs(rest)
   local cmd = "/" .. T.commands[1] .. " settings"
   if word == "save" then
     T.Print(B2.SaveNow() == false and "The game refused to write the files (see the line above)."
@@ -643,11 +646,43 @@ add("settings", "where your settings files are, to back them up (save: write the
     local had, written = B2.Cancel()
     T.Print((had and "Dropped the waiting reset." or "Nothing was waiting.")
       .. (written and "" or " (The game couldn't write that to disk.)"))
+  elseif word == "setups" then
+    local list = B2.Setups()
+    if #list == 0 then
+      T.Print("No setups to import yet. Other characters' setups show up here once they've played with Toolbox;"
+        .. " " .. cmd .. " export <name> saves yours under a name.")
+    else
+      T.Print("Setups you can import (" .. cmd .. " import <name>):")
+      for _, s in ipairs(list) do T.Print("  " .. s.label) end
+    end
+  elseif word == "export" then
+    local ok, saved = B2.Export(name)
+    T.Print(ok and ("Exported your settings and positions as '" .. saved .. "'. Any character can import it.")
+      or ("Couldn't export: " .. saved .. ". Use " .. cmd .. " export <name>."))
+  elseif word == "import" then
+    local s = B2.FindSetup(name)
+    if not s then
+      T.Print("No setup called '" .. name .. "'. " .. cmd .. " setups lists them.")
+      return
+    end
+    local ok, why = B2.Import(s)
+    T.Print(ok and ("Imported '" .. s.name .. "': this character now has a copy of its settings and positions.")
+      or ("Couldn't import: " .. tostring(why) .. "."))
+  elseif word == "delete" then
+    local s = B2.FindSetup(name)
+    if not s then
+      T.Print("No setup called '" .. name .. "'. " .. cmd .. " setups lists them.")
+      return
+    end
+    B2.DeleteSetup(s)
+    T.Print("Deleted the setup '" .. s.name .. "'." .. (s.character
+      and " (That character's copy comes back when it next plays.)" or ""))
   elseif word == "" then
     for _, line in ipairs(B2.HowTo()) do T.Print(line) end
     if B2.Pending() then T.Print("A reset is waiting: type /lua reload to apply it (" .. cmd .. " cancel).") end
   else
-    T.Print("Use " .. cmd .. " (where the files are), " .. cmd .. " save, reset or cancel.")
+    T.Print("Use " .. cmd .. " (where the files are), " .. cmd .. " save, reset or cancel, or " .. cmd
+      .. " setups, export <name>, import <name> or delete <name>.")
   end
   T.Config.Sync()
 end)
@@ -1877,7 +1912,7 @@ function T.Tick()
   -- samples per XP event would be wasteful), and write it to disk at most
   -- every flushSeconds. A reload re-reads the totals, so it loses no XP.
   if T.unsaved then T.SaveSession(false) end
-  if T.unflushed and T.Now() - T.lastFlush >= T.flushSeconds then
+  if (T.unflushed or T.setupDirty) and T.Now() - T.lastFlush >= T.flushSeconds then
     T.Flush()
     T.lastFlush = T.Now()
     T.unflushed = false
@@ -2020,6 +2055,199 @@ function B.Cancel()
   return had, T.Flush() ~= false
 end
 
+-- ---------------------------------------------------------------------------
+-- Setups: a character's settings and positions, copied into the account file (shared by every character on
+-- this computer, whoever plays them) for another character to import (owner, 2026-10-04: "dad could copy
+-- mom's settings to his own. so managed individually. but easily copied"). Each character's own copy is kept
+-- up to date as it plays (B.KeepCopy, from T.Flush when a setting changed), so nobody has to export first; a
+-- named one ("Raid layout") is exported on request. Importing copies one in now (T.Restart): never linked.
+-- An add-on can't read another character's file, hence the copies.
+B.SETUPS = "setups"         -- account: { v = 1, list = { { name, character = bool, when = "YYYY-MM-DD" } } }
+B.SETUP_MAX = 20            -- named setups and character copies together
+B.NAME_MAX = 24
+
+local settingSet = nil
+function B.IsSetting(key)
+  if not settingSet then                -- built at the first save: other files append to B.KEYS at load
+    settingSet = {}
+    for _, k in ipairs(B.KEYS) do settingSet[k] = true end
+  end
+  return settingSet[key] == true
+end
+
+-- A setup's saved-var key (<= 128 characters, no slashes: names are cleaned by B.CleanName).
+local function setupKey(name, character)
+  return (character and "setup_character:" or "setup:") .. name:lower()
+end
+
+-- A name as typed, made safe for a key and short enough to show: nil when nothing is left.
+function B.CleanName(text)
+  if type(text) ~= "string" then return nil end
+  local name = T.Trim((text:gsub("[%c/\\]", " "):gsub("%s+", " ")))
+  if #name > B.NAME_MAX then name = T.Trim(name:sub(1, B.NAME_MAX)) end
+  if name == "" then return nil end
+  return name
+end
+
+-- The setups in the account file, character copies after named ones, each { name, character, when, label }.
+-- This character's own copy is left out (importing it would change nothing).
+function B.Setups()
+  local saved = ShroudGetSavedVar(B.SETUPS, ACCOUNT)
+  local list = {}
+  local me = T.settingsFor
+  if type(saved) == "table" and saved.v == 1 and type(saved.list) == "table" then
+    for _, s in ipairs(saved.list) do
+      if type(s) == "table" and B.CleanName(s.name) == s.name then
+        local character = s.character == true
+        if not (character and me and s.name:lower() == me:lower()) then
+          local when = type(s.when) == "string" and s.when or ""
+          list[#list + 1] = { name = s.name, character = character, when = when,
+            label = s.name .. (character and " (character" .. (when ~= "" and ", " .. when or "") .. ")" or "") }
+        end
+      end
+    end
+  end
+  table.sort(list, function(a, b)
+    if a.character ~= b.character then return not a.character end
+    return a.name:lower() < b.name:lower()
+  end)
+  return list
+end
+
+-- The whole list as saved, own copy included.
+local function allSetups()
+  local saved = ShroudGetSavedVar(B.SETUPS, ACCOUNT)
+  local list = {}
+  if type(saved) == "table" and saved.v == 1 and type(saved.list) == "table" then
+    for _, s in ipairs(saved.list) do
+      if type(s) == "table" and type(s.name) == "string" then list[#list + 1] = T.Copy(s) end
+    end
+  end
+  return list
+end
+
+-- The notification settings without what this character was told (`seen` stays each character's own).
+local function withoutSeen(notify)
+  local out = T.Copy(notify)
+  if type(out) == "table" and type(out.sources) == "table" then
+    for _, s in pairs(out.sources) do
+      if type(s) == "table" then s.seen = nil end
+    end
+  end
+  return out
+end
+
+-- This character's settings and positions, as saved; nil when it has none.
+local function currentSettings()
+  local keys, any = {}, false
+  for _, key in ipairs(B.KEYS) do
+    local v = ShroudGetSavedVar(key, SCOPE)
+    if v ~= nil then
+      keys[key] = key == "notify" and withoutSeen(v) or T.Copy(v)
+      any = true
+    end
+  end
+  if not any then return nil end
+  return keys
+end
+
+-- Stores this character's settings as setup `name`. Returns true, or false and why.
+local function store(name, character)
+  local keys = currentSettings()
+  if not keys then return false, "this character has no settings of its own yet" end
+  local list = allSetups()
+  local at = nil
+  for i, s in ipairs(list) do
+    if s.name:lower() == name:lower() and (s.character == true) == character then at = i end
+  end
+  if not at and #list >= B.SETUP_MAX then
+    return false, "there are already " .. B.SETUP_MAX .. " setups: delete one first"
+  end
+  if not ShroudSetSavedVar(setupKey(name, character), { v = 1, name = name, keys = keys }, ACCOUNT) then
+    return false, "the game refused to store it"
+  end
+  local _, when = T.Today()
+  local entry = { name = name, character = character, when = type(when) == "string" and when or "" }
+  if at then list[at] = entry else list[#list + 1] = entry end
+  ShroudSetSavedVar(B.SETUPS, { v = 1, list = list }, ACCOUNT)
+  return true
+end
+
+-- Keeps this character's own copy up to date (from T.Flush, after a setting changed). Never at the login
+-- screen or for a character whose settings the modules don't hold.
+function B.KeepCopy()
+  local who = T.settingsFor
+  if not who or ShroudGetPlayerName() ~= who then return end
+  T.setupDirty = false
+  local name = B.CleanName(who)
+  if name then store(name, true) end
+end
+
+-- The setup a player means by `text`: a named one first, then a character's copy. Nil when none matches.
+function B.FindSetup(text)
+  local want = B.CleanName(text)
+  if not want then return nil end
+  want = want:lower()
+  for _, s in ipairs(B.Setups()) do
+    if s.name:lower() == want or s.label:lower() == want then return s end
+  end
+  return nil
+end
+
+-- Saves this character's settings and positions as a named setup. Returns true and the name, or false and why.
+function B.Export(text)
+  local name = B.CleanName(text)
+  if not name then return false, "give it a name" end
+  T.SavePrefs()                          -- where the windows and strips are now
+  local ok, why = store(name, false)
+  if not ok then return false, why end
+  T.Flush()
+  return true, name
+end
+
+-- Copies setup `s` (from B.Setups / B.FindSetup) into this character, now. What this character was told by
+-- notifications stays its own. Returns true, or false and why.
+function B.Import(s)
+  if type(s) ~= "table" then return false, "pick a setup" end
+  local saved = ShroudGetSavedVar(setupKey(s.name, s.character), ACCOUNT)
+  if type(saved) ~= "table" or type(saved.keys) ~= "table" then return false, "that setup is gone" end
+  local mine = ShroudGetSavedVar("notify", SCOPE)
+  for _, key in ipairs(B.KEYS) do
+    ShroudDeleteSavedVar(key, SCOPE)
+    local v = saved.keys[key]
+    if key == "notify" then
+      v = withoutSeen(v)
+      local own = type(mine) == "table" and type(mine.sources) == "table" and mine.sources or {}
+      for src, o in pairs(own) do
+        if type(o) == "table" and o.seen ~= nil then
+          if type(v) ~= "table" then v = { v = 1, sources = {} } end
+          if type(v.sources) ~= "table" then v.sources = {} end
+          if type(v.sources[src]) ~= "table" then v.sources[src] = {} end
+          v.sources[src].seen = T.Copy(o.seen)
+        end
+      end
+    end
+    if v ~= nil then ShroudSetSavedVar(key, T.Copy(v), SCOPE) end
+  end
+  T.Restart()
+  T.setupDirty = true                    -- this character's copy now holds the imported setup
+  T.Flush()
+  return true
+end
+
+-- Deletes a setup from the account file (a character's copy comes back when that character next plays).
+function B.DeleteSetup(s)
+  if type(s) ~= "table" then return false end
+  local list, kept = allSetups(), {}
+  for _, e in ipairs(list) do
+    if not (e.name:lower() == s.name:lower() and (e.character == true) == s.character) then kept[#kept + 1] = e end
+  end
+  ShroudDeleteSavedVar(setupKey(s.name, s.character), ACCOUNT)
+  ShroudSetSavedVar(B.SETUPS, { v = 1, list = kept }, ACCOUNT)
+  T.Flush()
+  return #kept < #list
+end
+
 -- The notification settings' defaults with this character's `seen` values kept (what was delivered stays
 -- delivered: the guild message isn't shown again).
 local function seenOnly(current)
@@ -2097,7 +2325,15 @@ function T.FollowCharacter()
   step("the settings restore", T.Backup.ApplyPending)
   startModules(places)
   T.Config.Sync()
+  T.setupDirty = true                  -- this character's copy in the account file, at the next flush
   return true
+end
+
+-- Every module starts again from this character's saved settings (an imported setup).
+function T.Restart()
+  T.Notify.ForgetPrefs()
+  startModules(nil)
+  T.Config.Sync()
 end
 
 function ShroudOnStart()
@@ -2113,6 +2349,7 @@ function ShroudOnStart()
   startModules()
   step("skill levels", function() T.Daily.OnSkills(true) end)
   ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
+  T.setupDirty = true                  -- this character's copy in the account file, at the next flush
   T.Welcome()                        -- first run only: a chat line and the settings window
   step("notifications", T.Notify.Check)   -- anything new: the guild message, mail, ...
 end

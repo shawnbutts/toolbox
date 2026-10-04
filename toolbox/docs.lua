@@ -34,7 +34,7 @@ D.SECTIONS = {
     "Type /toolbox (or /tbx) to open the settings window and tick what you want on screen. Its Settings "
       .. "dropdown picks a category: Toolbelt (first, and the quickest start: your buffs, health bars, "
       .. "consumables and gear in one strip), XP & Today, Buffs, Consumables & gear, Health bars, Combat, "
-      .. "Skill activity, Notifications, Sounds, HUD layout (every strip's position) and Backup & reset. "
+      .. "Skill activity, Notifications, Sounds, HUD layout (every strip's position) and Setups, backup & reset. "
       .. "Can't find a setting? Type in the Search box under it (sound, size, target...) and pick a result: "
       .. "its page opens with that part at the top (Show the whole page brings back the rest) and the setting "
       .. "blinks. Options "
@@ -245,10 +245,15 @@ D.SECTIONS = {
       .. "toolbox_tap.ogg (or .wav) in your Lua folder, "
       .. "beside the toolbox folder, or pick any file in settings. /toolbox sounds shows what "
       .. "each alert uses; /toolbox sounds 50 sets the volume." },
-  { "Backup & reset",
+  { "Setups, backup & reset",
+    "Each character has its own settings and positions. To copy another character's, yours or someone "
+      .. "else's on this computer, pick it under Setups (Settings, Setups, backup & reset) and press Import "
+      .. "twice. Every character's setup is listed once it has played with Toolbox; Export saves yours under a "
+      .. "name too (Raid layout). An import is a copy: later changes stay each character's own. In chat: "
+      .. "/toolbox settings setups, import <name>, export <name>, delete <name>.",
     "Your settings are in the game's files in Lua/SavedVariables: toolbox.<character>.character.json "
-      .. "for each character, and toolbox.account.json. To back up, press Save now (Settings, Backup "
-      .. "& reset) and copy them. To restore or move computers, quit the game and copy them back.",
+      .. "for each character, and toolbox.account.json (the setups). To back up, press Save now and copy "
+      .. "them. To restore or move computers, quit the game and copy them back.",
     "Reset all settings applies at the next /lua reload; stats are kept." },
 }
 
@@ -1087,6 +1092,12 @@ function NH.Count() return #history end
 -- ---------------------------------------------------------------------------
 
 local nprefsFor = nil     -- the player name they were loaded for
+
+-- Read again at the next use (an imported setup replaced them on disk).
+function N.ForgetPrefs()
+  nprefs, nprefsFor = nil, nil
+end
+
 local settleUntil = 0
 
 local function save()

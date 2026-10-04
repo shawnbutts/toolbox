@@ -871,6 +871,134 @@ function C.CancelPending()
   C.Sync()
 end
 
+-- Setups (Toolbox.Backup): import another character's settings and positions, export yours under a name.
+-- Import and Delete take a second click within C.CONFIRM_SECONDS, like Reset.
+C.SETUP_NONE = "No setups yet"
+local setupPicks = {}                -- dropdown label -> setup
+local setupArmed = { import = nil, delete = nil }
+local SETUP_BUTTONS = { import = { "setup_import", "Import" }, delete = { "setup_delete", "Delete" } }
+
+local function pickedSetup()
+  local drop = el.setup_pick
+  return drop and setupPicks[drop:GetValue()]
+end
+
+-- Fills the dropdown when the setups change (SetChoices is a UI call: only then).
+local function syncSetups()
+  local drop = el.setup_pick
+  if not drop then return end
+  local list = T.Backup.Setups()
+  local labels = {}
+  for _, s in ipairs(list) do labels[#labels + 1] = s.label end
+  local sig = table.concat(labels, "|")
+  if sig == C.setupSig then return end
+  C.setupSig = sig
+  setupPicks = {}
+  for _, s in ipairs(list) do setupPicks[s.label] = s end
+  local choices = #labels > 0 and labels or { C.SETUP_NONE }
+  local keep = drop:GetValue()
+  drop:SetChoices(choices)
+  drop:SetValue(setupPicks[keep] and keep or choices[1])
+  setEnabled("setup_import", #labels > 0)
+  setEnabled("setup_delete", #labels > 0)
+end
+
+-- A button that acts on its second click within C.CONFIRM_SECONDS.
+local function confirmed(which)
+  local b = SETUP_BUTTONS[which]
+  if not (setupArmed[which] and T.Now() - setupArmed[which] <= C.CONFIRM_SECONDS) then
+    setupArmed[which] = T.Now()
+    setText(b[1], "Click again to confirm")
+    return false
+  end
+  setupArmed[which] = nil
+  setText(b[1], b[2])
+  return true
+end
+
+local function disarmSetups()
+  for which, at in pairs(setupArmed) do
+    if at and T.Now() - at > C.CONFIRM_SECONDS then
+      setupArmed[which] = nil
+      setText(SETUP_BUTTONS[which][1], SETUP_BUTTONS[which][2])
+    end
+  end
+end
+
+function C.ImportSetup()
+  local s = pickedSetup()
+  if not s then
+    setText("setup_msg", "Pick a setup first.")
+    return
+  end
+  if not confirmed("import") then
+    setText("setup_msg", "Importing replaces this character's settings and positions with a copy of '"
+      .. s.name .. "'. Click Import again to go ahead.")
+    return
+  end
+  local ok, why = T.Backup.Import(s)
+  setText("setup_msg", ok and ("Imported '" .. s.name .. "'. Later changes stay this character's own.")
+    or ("Couldn't import: " .. tostring(why) .. "."))
+  C.Sync()
+end
+
+function C.DeleteSetup()
+  local s = pickedSetup()
+  if not s then
+    setText("setup_msg", "Pick a setup first.")
+    return
+  end
+  if not confirmed("delete") then
+    setText("setup_msg", "Click Delete again to delete '" .. s.name .. "'.")
+    return
+  end
+  T.Backup.DeleteSetup(s)
+  setText("setup_msg", "Deleted '" .. s.name .. "'." .. (s.character
+    and " That character's copy comes back when it next plays." or ""))
+  C.Sync()
+end
+
+function C.ExportSetup(text)
+  local field = el.setup_name
+  if text == nil then text = field and field:GetText() or "" end
+  local ok, name = T.Backup.Export(text)
+  setText("setup_msg", ok and ("Exported as '" .. name .. "'. Any character on this computer can import it.")
+    or ("Couldn't export: " .. name .. "."))
+  C.Sync()
+end
+
+function C.SetupSection()
+  C.setupSig = nil                     -- new controls: filled by the next Sync
+  setupArmed.import, setupArmed.delete = nil, nil
+  return UI.Column{ children = {
+    heading("Setups"),
+    UI.Label{ text = "Copy the settings and positions of another character on this computer, yours or"
+      .. " someone else's. Every character's setup is kept here as it plays; Export also saves yours under a"
+      .. " name. An import is a copy: later changes stay each character's own.", class = "dim",
+      style = { whiteSpace = "wrap", marginTop = 6 } },
+    UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
+      UI.Dropdown{ id = "setup_pick", choices = { C.SETUP_NONE }, value = C.SETUP_NONE,
+        style = { flexGrow = 1, flexShrink = 1 }, tooltip = "Named setups, then other characters' setups",
+        onChange = function() setText("setup_msg", "") end },
+      UI.Button{ id = "setup_import", text = "Import", style = { marginLeft = 4 },
+        tooltip = "Replace this character's settings and positions with a copy of this setup",
+        onClick = function() C.ImportSetup() end },
+      UI.Button{ id = "setup_delete", text = "Delete", style = { marginLeft = 4 },
+        tooltip = "Remove this setup from the list", onClick = function() C.DeleteSetup() end },
+    } },
+    UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
+      UI.TextField{ id = "setup_name", text = "", placeholder = "A name: Raid layout, Mom...",
+        maxLength = T.Backup.NAME_MAX, style = { flexGrow = 1, flexShrink = 1 },
+        tooltip = "Save this character's settings and positions under this name",
+        onSubmit = function(_, text) C.ExportSetup(text) end },
+      UI.Button{ id = "setup_export", text = "Export", style = { marginLeft = 4 },
+        tooltip = "Save this character's settings and positions under the name, for any character to import",
+        onClick = function() C.ExportSetup() end },
+    } },
+    UI.Label{ id = "setup_msg", text = "", class = "dim", style = { whiteSpace = "wrap", marginTop = 4 } },
+  } }
+end
+
 function C.BackupSection()
   local children = { heading("Backup", true) }
   for i, line in ipairs(T.Backup.HowTo()) do
@@ -884,6 +1012,7 @@ function C.BackupSection()
     UI.Button{ id = "backup_save", text = "Save now", tooltip = "Write the settings files now, ready to copy",
       onClick = function() C.SaveSettingsNow() end },
   } }
+  children[#children + 1] = C.SetupSection()
   children[#children + 1] = heading("Reset")
   children[#children + 1] = UI.Label{ text = "Every setting and position goes back to its default at the next"
     .. " /lua reload. Your stats, XP session and learned buff lengths are kept.", class = "dim",
@@ -913,7 +1042,7 @@ C.CATEGORIES = {
   { key = "notify", label = "Notifications", build = function() return C.NotifySection() end },
   { key = "sounds", label = "Sounds", build = function() return C.SoundsSection() end },
   { key = "hud", label = "HUD layout", build = function() return C.HudSection() end },
-  { key = "backup", label = "Backup & reset", build = function() return C.BackupSection() end },
+  { key = "backup", label = "Setups, backup & reset", build = function() return C.BackupSection() end },
 }
 -- skills.lua, when present: its page after Combat
 if T.SkillBar then
@@ -950,7 +1079,8 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "target_flash", "target_flash_below", "target_flash_below_value",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
   "buff_countdown_secs_value", "backup_where", "backup_save", "settings_reset", "backup_pending",
-  "backup_cancel", "backup_msg" }
+  "backup_cancel", "backup_msg", "setup_pick", "setup_import", "setup_delete", "setup_name", "setup_export",
+  "setup_msg" }
 for _, def in ipairs(T.Sounds.DEFS) do
   ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_status"
   ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_path"
@@ -1680,6 +1810,7 @@ function C.Sync()
   setEnabled("backup_cancel", pending)
   local p = el.backup_pending
   if p and p:IsVisible() ~= pending then p:SetVisible(pending) end
+  syncSetups()
   if T.SkillBar then T.SkillBar.ConfigSync(C.Helpers) end   -- skills.lua, when present
   C.SyncLive()
 end
@@ -1691,6 +1822,7 @@ end
 function C.SyncLive()
   if not C.IsShown() then return end
   disarm()
+  disarmSetups()
   C.SyncSounds()
   if el.shortcut then T.SetText(el.shortcut, "Shortcut: " .. T.KeyStatus()) end
   for _, p in ipairs(POSITIONED) do

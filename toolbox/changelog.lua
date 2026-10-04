@@ -12,6 +12,7 @@ Toolbox.CHANGELOG = {
   { "item", "Today Detailed's estimated values line up in a column as wide as the longest value (never cut short), so priced and unpriced rows line up; an item with no sales on SotANET shows \"--\" instead of nothing, and \"...\" while its price is looked up." },
   { "item", "Switching characters without restarting the game kept the last character's settings and window places, and could save them into the new character's: each character now gets its own setup back as it logs in. A strip the new character never placed stays where it is instead of jumping to its corner." },
   { "section", "Added" },
+  { "item", "Setups: copy another character's settings and positions, yours or someone else's on the same computer (Settings, Setups, backup & reset: pick one, Import). Every character's setup is listed once it has played with Toolbox; Export also saves yours under a name (\"Raid layout\"). An import is a copy: later changes stay each character's own. In chat: /toolbox settings setups, import <name>, export <name>, delete <name>." },
   { "item", "Today Detailed: with Estimated values on, the count also shows the price each, \"40 x 5g\" (\"Show the price each\", on by default; or /toolbox dd values each off)." },
   { "version", "1.3.0 - 2026-10-04" },
   { "section", "Changed" },

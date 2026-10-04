@@ -24,6 +24,10 @@ ones included).
   the new character never placed stays where it is instead of jumping to its corner.
 
 ### Added
+- Setups: copy another character's settings and positions, yours or someone else's on the same computer
+  (Settings, Setups, backup & reset: pick one, Import). Every character's setup is listed once it has played
+  with Toolbox; Export also saves yours under a name ("Raid layout"). An import is a copy: later changes stay
+  each character's own. In chat: /toolbox settings setups, import <name>, export <name>, delete <name>.
 - Today Detailed: with Estimated values on, the count also shows the price each, "40 x 5g" ("Show the price
   each", on by default; or /toolbox dd values each off).
 
