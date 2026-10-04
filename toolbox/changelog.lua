@@ -5,6 +5,7 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "version", "1.5.0 - 2026-10-04" },
   { "section", "Added" },
   { "item", "Loot Tracker: a Reset button, for counting one hunt or run. It shows what came in since you pressed it (items, gold, kills, crafting and gathering, \"Since 14:32\" at the top). Nothing is lost: the Today window keeps the whole day, and Show all of today brings the day back to the Loot Tracker. In chat: /toolbox loot reset, /toolbox loot today. A run ends at midnight with the day." },
   { "item", "Loot Tracker run rates: during a run, gold, kills and the estimated value show their rate per hour of play, \"Gold 1,240 (1,583/h)\", and the top line says how long the run has lasted, \"Since 14:32 (47m)\". Play time counts only while you're logged in, so a break doesn't drag the rates down; they show after the first minute." },

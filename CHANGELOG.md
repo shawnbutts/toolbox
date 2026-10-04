@@ -7,6 +7,8 @@ ones included).
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-04
+
 ### Added
 - Loot Tracker: a Reset button, for counting one hunt or run. It shows what came in since you pressed it (items,
   gold, kills, crafting and gathering, "Since 14:32" at the top). Nothing is lost: the Today window keeps the
