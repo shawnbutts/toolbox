@@ -222,9 +222,12 @@ function C.XPSection()
     UI.Toggle{ id = "dd_values", text = "Estimated values (SotANET)", value = T.DailyDetail.GetValues(),
       style = { marginLeft = 16 },
       tooltip = "Adds each item's value to Today Detailed: count x its 90-day average sale price from"
-        .. " shroudoftheavatar.net (player-uploaded receipts); blank when it hasn't sold. Sends item"
+        .. " shroudoftheavatar.net (player-uploaded receipts); -- when it hasn't sold. Sends item"
         .. " names to that site. Also switch Internet on for Toolbox in the add-on manager.",
       onChange = function(_, value) T.DailyDetail.SetValues(value) end },
+    UI.Toggle{ id = "dd_each", text = "Show the price each", value = T.DailyDetail.GetEach(),
+      style = { marginLeft = 32 }, tooltip = "The count also shows the price each: \"40 x 5g\"",
+      onChange = function(_, value) T.DailyDetail.SetEach(value) end },
     UI.Row{ style = { alignItems = "center", marginLeft = 32 }, children = {
       UI.Button{ id = "dd_values_test", text = "Test connection",
         tooltip = "Looks up one item (" .. T.Prices.TEST_ITEM .. ") on shroudoftheavatar.net now, even with"
@@ -927,7 +930,7 @@ end
 
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
 local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "xp_mode", "daily_mode", "show_xp",
-  "show_daily_detail", "dd_values", "dd_values_msg", "dd_include", "hover_popup", "hover_daily",
+  "show_daily_detail", "dd_values", "dd_each", "dd_values_msg", "dd_include", "hover_popup", "hover_daily",
   "show_buffs", "buffs_combat_only", "buff_replace", "buff_dismiss", "buff_size", "buff_size_value",
   "show_buffblock", "buffblock_combat", "buffblock_width", "buffblock_width_value", "buffblock_size",
   "buffblock_size_value",
@@ -1530,6 +1533,8 @@ function C.Sync()
   setValue("daily_mode", C.ModeOf(T.Daily))
   setValue("show_daily_detail", T.DailyDetail.IsOpen())
   setValue("dd_values", T.DailyDetail.GetValues())
+  setValue("dd_each", T.DailyDetail.GetEach())
+  setEnabled("dd_each", T.DailyDetail.GetValues())
   setText("dd_values_msg", T.Prices.testStatus)
   setValue("dd_include", T.DailyDetail.GetInclude())
   setValue("hover_popup", T.Compact.GetHover())

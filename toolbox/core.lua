@@ -518,7 +518,8 @@ end)
 
 add("dailydetailed", "show or hide Today Detailed (every item gained today, with counts; view looted|crafted|"
     .. "gathered; include on|off: crafted and gathered items in Looted; values on|off: estimated values from"
-    .. " SotANET; values test [item]: check the connection; values refresh: look prices up again)", function(rest)
+    .. " SotANET; values each on|off: the price each in the count; values test [item]: check the connection;"
+    .. " values refresh: look prices up again)", function(rest)
   local word, arg = T.ParseArgs(rest)
   local DD = T.DailyDetail
   if word == "view" then
@@ -541,6 +542,12 @@ add("dailydetailed", "show or hide Today Detailed (every item gained today, with
     local sub, item = T.ParseArgs(arg)
     if sub == "test" then
       T.Prices.Test(item)
+      return
+    end
+    if sub == "each" then
+      local a = item:lower()
+      if a == "on" or a == "off" then T.DailyDetail.SetEach(a == "on") end
+      T.Print("Price each in the count: " .. (T.DailyDetail.GetEach() and "on" or "off") .. ".")
       return
     end
     if sub == "refresh" then

@@ -19,6 +19,10 @@ ones included).
   priced and unpriced rows line up; an item with no sales on SotANET shows "--" instead of nothing, and "..."
   while its price is looked up.
 
+### Added
+- Today Detailed: "Show the price each" (with Estimated values; off by default, or /toolbox dd values each on):
+  the count also shows the price each, "40 x 5g".
+
 ## [1.3.0] - 2026-10-04
 
 ### Changed
