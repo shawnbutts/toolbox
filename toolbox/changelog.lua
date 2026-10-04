@@ -5,6 +5,7 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "version", "1.4.1 - 2026-10-04" },
   { "section", "Fixed" },
   { "item", "Setups: if the game refused to store an import, the character's own settings were already gone and the import still said it worked. Now nothing changes and it says so. Exports, deletes and a shared copy the game refuses are reported too, and a shared copy is tried again later." },
   { "item", "Setups: after clicking Import or Delete once, picking another setup and clicking again acted on that one at once. The second click must now be on the same setup." },

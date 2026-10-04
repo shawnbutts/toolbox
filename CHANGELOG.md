@@ -7,6 +7,8 @@ ones included).
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-10-04
+
 ### Fixed
 - Setups: if the game refused to store an import, the character's own settings were already gone and the import
   still said it worked. Now nothing changes and it says so. Exports, deletes and a shared copy the game refuses
