@@ -1048,7 +1048,7 @@ function T.CombatHelp()
     "  " .. c .. "combat bg dark 70 - background: dark, light or none, with opacity 10-100%",
     "  " .. c .. "combat pet on|off - count your pet's damage in DPS",
     "  " .. c .. "combat move 600 300 - place it (or drag its grip, or use settings)",
-    "Adding stats while playing (up to " .. Toolbox.Combat.MAX_STATS .. ", kept for all your characters):",
+    "Adding stats while playing (up to " .. Toolbox.Combat.MAX_STATS .. ", saved per character):",
     "  1. Find a stat's name: " .. c .. "stats resist  (any word: absorb, dodge, block, crit, regen...)",
     "  2. Add it by the name shown: " .. c .. "combat stat add CombatHealthRegen",
     "  3. Remove it: " .. c .. "combat stat remove CombatHealthRegen",
