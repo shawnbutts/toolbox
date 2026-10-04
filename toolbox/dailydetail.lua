@@ -207,7 +207,7 @@ function DD.Init()
   if type(saved) == "table" then
     prefs.open = saved.open == true
     prefs.values = saved.values == true
-    prefs.each = saved.each == true
+    prefs.each = saved.each ~= false
     prefs.include = saved.include == true
     for _, v in ipairs(DD.VIEWS) do
       if saved.view == v[1] then prefs.view = v[1] end
@@ -439,7 +439,7 @@ function DD.RefreshValues()
   local minWidth = math.ceil(longest * T.Window.GetFont() * DD.VALUE_CHAR) + 2
   for name, r in pairs(rows) do
     local count = T.FormatNumber(shown[name] or 0)
-    local each = prefs.each and P.Average(name)
+    local each = DD.GetEach() and P.Average(name)
     if each then count = count .. " x " .. P.Format(each) end           -- "40 x 5g"
     T.SetText(r.count, count)
     T.SetText(r.value, texts[name])
@@ -513,9 +513,9 @@ function DD.SetInclude(on)
   T.Config.Sync()
 end
 
--- "Show the price each" (with estimated values; off by default): the count reads "40 x 5g" (owner,
--- 2026-10-04: in the count, not a column of its own, which would add a label per row).
-function DD.GetEach() return prefs.each == true end
+-- "Show the price each" (with estimated values; ON by default, owner 2026-10-04): the count reads "40 x 5g"
+-- (in the count, not a column of its own, which would add a label per row).
+function DD.GetEach() return prefs.each ~= false end
 function DD.SetEach(on)
   prefs.each = on == true
   DD.SavePrefs()

@@ -11,7 +11,7 @@ Toolbox.CHANGELOG = {
   { "item", "A small box showed in front of estimated values (and in XP Detailed's time to the next level): the game's font has no tilde, which Toolbox used for \"about\". The values show plainly now (\"14g\", \"About 5g each\")." },
   { "item", "Today Detailed's estimated values line up in a column as wide as the longest value (never cut short), so priced and unpriced rows line up; an item with no sales on SotANET shows \"--\" instead of nothing, and \"...\" while its price is looked up." },
   { "section", "Added" },
-  { "item", "Today Detailed: \"Show the price each\" (with Estimated values; off by default, or /toolbox dd values each on): the count also shows the price each, \"40 x 5g\"." },
+  { "item", "Today Detailed: with Estimated values on, the count also shows the price each, \"40 x 5g\" (\"Show the price each\", on by default; or /toolbox dd values each off)." },
   { "version", "1.3.0 - 2026-10-04" },
   { "section", "Changed" },
   { "item", "The buff block shows up to 40 icons (it was 60), the soonest to run out first: it keeps Toolbox well inside the game's limit on how many UI elements an add-on can have with everything switched on." },

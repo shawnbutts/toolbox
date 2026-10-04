@@ -20,8 +20,8 @@ ones included).
   while its price is looked up.
 
 ### Added
-- Today Detailed: "Show the price each" (with Estimated values; off by default, or /toolbox dd values each on):
-  the count also shows the price each, "40 x 5g".
+- Today Detailed: with Estimated values on, the count also shows the price each, "40 x 5g" ("Show the price
+  each", on by default; or /toolbox dd values each off).
 
 ## [1.3.0] - 2026-10-04
 
