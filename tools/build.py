@@ -67,7 +67,7 @@ LAZY_PATTERN_RE = re.compile(r"\(\.-\)[^\"'\n]*\$")
 # case, a space before the bracket, and the string / table call forms.
 DYNAMIC_CODE_RE = re.compile(
     r"(load|loadstring|loadfile|dofile|require|loadsafe)\s*[(\"'\[{]"
-    r"|dynamic\.eval|_G\s*\[|_ENV\s*\[",
+    r"|dynamic\.eval|\b_G\b|\b_ENV\b",
     re.IGNORECASE,
 )
 # The game's Lua (MoonSharp) passes a nil table entry on to the UI, which rejects it: a

@@ -810,7 +810,7 @@ local function emptyStyle()
 end
 
 local function clockText()
-  local osTable = rawget(_G, "os")
+  local osTable = os
   local date = type(osTable) == "table" and osTable.date
   if type(date) ~= "function" then return "" end
   local ok, s = pcall(date, "%H:%M")

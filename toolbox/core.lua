@@ -17,7 +17,7 @@ local T = Toolbox
 
 -- Every copy of Toolbox that loads adds itself here. All add-ons share one global table, so a
 -- second copy (an old folder left in Lua/) would tangle the two; /toolbox version reports it.
-ToolboxCopies = (rawget(_G, "ToolboxCopies") or 0) + 1
+ToolboxCopies = (ToolboxCopies or 0) + 1   -- (nil the first time; read plainly, see AGENTS.md)
 local SCOPE = "character"
 local PERIODIC = "toolbox_tick"
 
@@ -46,7 +46,7 @@ end
 -- Seconds since 1970 from the local clock (os.time, undocumented in the SotA docs, so feature-
 -- detected like os.date in T.Today), or nil when there's no usable clock.
 function T.Clock()
-  local osTable = rawget(_G, "os")
+  local osTable = os                 -- nil in a sandbox without it (read plainly: see AGENTS.md)
   local time = type(osTable) == "table" and osTable.time
   if type(time) ~= "function" then return nil end
   local ok, now = pcall(time)
@@ -55,7 +55,7 @@ function T.Clock()
 end
 
 function T.Today()
-  local osTable = rawget(_G, "os")
+  local osTable = os                 -- nil in a sandbox without it (read plainly: see AGENTS.md)
   local date = type(osTable) == "table" and osTable.date
   if type(date) == "function" then
     local ok, d = pcall(date, "%Y-%m-%d")

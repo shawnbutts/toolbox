@@ -48,7 +48,9 @@ This file holds current facts and rules; the history behind them is in git (`git
   code at runtime"). Its match is cruder than Lua: 1.3.0 was refused over `T.Load(` (2026-10-04). So
   `tools/build.py` refuses those words followed by `(`, `"`, `'`, `[` or `{` in ANY case and with NO word
   boundary: no `T.Load(`, `startLoad(`, `reload(`, and no text like `reload (` or `reload"` either. Saved
-  vars are read with `T.ReadSaved`.
+  vars are read with `T.ReadSaved`. And no `_G` or `_ENV` at all, not even `rawget(_G, "os")` or in a
+  comment: the grant was still refused after the renames, with only those left (read a global plainly:
+  `os`, `ToolboxCopies`; nil when absent).
 - **No `io.*` / `os.*`**, except feature-detected `os.date`/`os.time` for the local clock (`Toolbox.Today`,
   `Toolbox.Clock`). Persist with `ShroudSetSavedVar`/`ShroudGetSavedVar`, character scope.
 - **UI is `Shroud.UI` only.** No retained widgets (`ShroudUI*`), no immediate-mode GUI (`ShroudOnGUI`).
