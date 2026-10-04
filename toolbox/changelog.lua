@@ -11,6 +11,8 @@ Toolbox.CHANGELOG = {
   { "item", "Reset all settings switches off sharing a character's setup, but its copy stayed on the list. It's removed now." },
   { "item", "Switching characters: the Notifications window kept showing the last character's notices. It closes now." },
   { "item", "Switching characters: the XP and Today windows showed the last character's numbers until the next second, and an item picked up in that moment was lost. They follow the new character at once." },
+  { "section", "Changed" },
+  { "item", "The guide and the Estimated values setting say where the prices come from: receipts players submit to shroudoftheavatar.net." },
   { "version", "1.4.0 - 2026-10-04" },
   { "section", "Fixed" },
   { "item", "Estimated values (SotANET prices) never connected: the game refused Toolbox internet access because a few lines of its code looked, to the game's simple text scan, like code that loads other code. Those were rewritten; nothing else changes. Switch Internet on for Toolbox in the add-on manager to use the prices." },

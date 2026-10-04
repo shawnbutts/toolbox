@@ -18,6 +18,10 @@ ones included).
 - Switching characters: the XP and Today windows showed the last character's numbers until the next second, and
   an item picked up in that moment was lost. They follow the new character at once.
 
+### Changed
+- The guide and the Estimated values setting say where the prices come from: receipts players submit to
+  shroudoftheavatar.net.
+
 ## [1.4.0] - 2026-10-04
 
 ### Fixed
