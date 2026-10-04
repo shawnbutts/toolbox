@@ -19,13 +19,6 @@ ones included).
   priced and unpriced rows line up; an item with no sales on SotANET shows "--" instead of nothing, and "..."
   while its price is looked up.
 
-### Changed
-- One setup for all your characters: settings and the places of every window and HUD strip are now shared by
-  all your characters (they were kept per character, and could seem to jump or reset when you switched). The
-  first time this version runs, your settings become the ones you're playing with; other characters take them
-  on when they log in. Stats stay per character: XP session, Today, skill levels, notification history and
-  what each character has already been told.
-
 ### Added
 - Today Detailed: with Estimated values on, the count also shows the price each, "40 x 5g" ("Show the price
   each", on by default; or /toolbox dd values each off).

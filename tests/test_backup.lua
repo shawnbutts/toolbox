@@ -11,8 +11,7 @@ return function(t)
 
   -- Saved keys that a reset leaves alone: state, stats, histories, caches, learned data.
   local KEPT = { session = true, daily = true, buff_timers = true, buff_durations = true, skill_levels = true,
-    notify_history = true, prices = true, welcomed = true, guild_motd = true, settings_pending = true,
-    notify_seen = true, settings_account = true }
+    notify_history = true, prices = true, welcomed = true, guild_motd = true, settings_pending = true }
 
   t.test("every saved key is a setting (reset clears it) or listed as kept", function()
     H.boot()
@@ -38,9 +37,8 @@ return function(t)
     H.clearLogs()
     H.chat("/tbx settings")
     t.ok(H.logs()[1]:find("in /Users/tester/SotA/Lua/SavedVariables:", 1, true), H.logs()[1])
-    t.ok(H.logged("^  toolbox%.account%.json %(your settings and positions, shared by all your characters%)"),
-      H.logs()[2])
-    t.ok(H.logged(" and toolbox%.Tester%.character%.json %(this character's stats"))
+    t.ok(H.logged("^  toolbox%.Tester%.character%.json %(this character's settings"), H.logs()[2])
+    t.ok(H.logged(" and toolbox%.account%.json %(shared by all your characters%)"))
     t.ok(H.logged("quit the game first"))
     H.S.luaPath = "C:\\Games\\SotA\\Lua\\"                    -- Windows, with a trailing separator
     H.reload()
@@ -56,7 +54,7 @@ return function(t)
     H.clearLogs()
     H.chat("/tbx settings save")
     t.ok(H.logged("^Saved: the files are up to date"), H.lastLog())
-    local disk = H.S.disk.account
+    local disk = H.S.disk["character:Tester"]
     t.eq(disk.compact.x, 300)
     t.eq(disk.compact.y, 400)
   end)
@@ -73,7 +71,7 @@ return function(t)
     H.S.memory["character:Tester"].buff_durations = { v = 2, durations = { Light = 1200 } }
     H.setGuild("Guild", "Welcome, all")
     H.advance(5)
-    local seen = H.saved("notify_seen").seen.motd
+    local seen = H.saved("notify").sources.motd.seen
     t.ok(seen ~= nil)
     H.clearLogs()
     H.chat("/tbx settings reset")
@@ -86,28 +84,11 @@ return function(t)
     t.eq(H.saved("vitals"), nil)
     t.eq(H.saved("daily").gold, gold, "today's stats kept")
     t.eq(H.saved("buff_durations").durations.Light, 1200)
-    t.eq(H.saved("notify_seen").seen.motd, seen, "the guild message isn't shown again")
+    t.eq(H.saved("notify").sources.motd.seen, seen, "the guild message isn't shown again")
     t.eq(B().Pending(), nil, "done once")
     H.clearLogs()
     H.reload()
     t.no(H.logged("back to their defaults"), "not again")
-  end)
-
-  t.test("the move to one setup: the first character's settings become everyone's, once; stats stay its own", function()
-    H.boot({ ["character:Tester"] = { buffbar = { show = true, size = 30 }, vitals = { show = true },
-                                       daily = { v = 1, key = "local:2026-09-27", gold = 5 } } })
-    t.eq(Toolbox.BuffBar.GetSize(), 30, "this character's settings kept")
-    t.eq(H.S.memory.account.buffbar.size, 30, "now the account's")
-    t.eq(H.S.memory.account.daily, nil, "stats aren't moved")
-    t.ok(H.S.memory.account.settings_account, "done once")
-    H.S.char.name = "Alt"
-    H.S.memory["character:Alt"] = { buffbar = { show = true, size = 44 } }
-    H.reload()
-    t.eq(Toolbox.BuffBar.GetSize(), 30, "another character's old settings don't replace the shared ones")
-    Toolbox.BuffBar.SetSize(26)
-    H.S.char.name = "Tester"
-    H.reload()
-    t.eq(Toolbox.BuffBar.GetSize(), 26, "one setup for all")
   end)
 
   t.test("cancel drops a waiting reset", function()

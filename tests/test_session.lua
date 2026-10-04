@@ -267,12 +267,12 @@ return function(t)
     t.eq(H.saved("window").open, false)
   end)
 
-  t.test("window prefs are account-wide, the session stays per character", function()
+  t.test("window prefs are per character scope", function()
     H.firstBoot()
     H.chat("/tbx xpdetailed")
-    t.eq(H.S.memory.account.window.open, true)
-    t.eq(H.S.memory["character:Tester"].window, nil, "settings aren't per character")
-    t.ok(H.S.memory["character:Tester"].session, "the session is")
-    t.eq(H.S.memory.account.session, nil)
+    t.eq(H.S.memory["character:Tester"].window.open, true)
+    local account = H.S.memory.account or {}
+    t.eq(account.window, nil, "window prefs aren't account-wide")
+    t.eq(account.welcomed, true, "only the one-time welcome flag is")
   end)
 end

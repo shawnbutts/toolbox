@@ -392,7 +392,7 @@ return function(t)
 
   t.test("beta 7's saved place \"left\" becomes Mirrored", function()
     H.boot()
-    H.S.memory.account.target = { show = true, glue = true, place = "left" }
+    H.S.memory["character:" .. H.S.char.name].target = { show = true, glue = true, place = "left" }
     H.reload()
     t.eq(TG().GetMirror(), true)
     t.eq(TG().GetPlace(), "top")

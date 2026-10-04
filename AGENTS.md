@@ -52,8 +52,7 @@ This file holds current facts and rules; the history behind them is in git (`git
   comment: the grant was still refused after the renames, with only those left (read a global plainly:
   `os`, `ToolboxCopies`; nil when absent).
 - **No `io.*` / `os.*`**, except feature-detected `os.date`/`os.time` for the local clock (`Toolbox.Today`,
-  `Toolbox.Clock`). Persist with `T.Save`/`T.ReadSaved`: settings (`Toolbox.Backup.KEYS`) in account scope,
-  everything else in character scope (owner, 2026-10-04: "One setup for all characters").
+  `Toolbox.Clock`). Persist with `ShroudSetSavedVar`/`ShroudGetSavedVar`, character scope.
 - **UI is `Shroud.UI` only.** No retained widgets (`ShroudUI*`), no immediate-mode GUI (`ShroudOnGUI`).
 - **No per-frame work.** Don't define `ShroudOnUpdate`. Use events and periodics.
 - **Be cheap per tick.** Set UI through `Toolbox.SetText` / `SetTooltip` / `SetVisible` / `SetValue` /
@@ -223,8 +222,8 @@ into one if a new file is ever needed).
   notification / guild / friend events), which marks a notice seen only once delivered. The guild message
   comes from `ShroudGetGuildMotd` (API 18) when present. friends / guild are `transient` (their `seen` is an
   event number from `N.OnStatus`'s queue, never read back). `N.SETTLE` s after start, counts going down
-  aren't remembered. The notification HUD's list (history) and `seen` are per character, its settings shared:
-  `NH.FollowCharacter` reloads them when the player changes without a reload (from `NH.Tick` and before a HUD delivery; review, 2026-10-03).
+  aren't remembered. The notification HUD's list and settings are per character: `NH.FollowCharacter` reloads
+  them when the player changes without a reload (from `NH.Tick` and before a HUD delivery; review, 2026-10-03).
 - `skills.lua`: `Toolbox.SkillBar` (SK), the **Skill activity** strip (owner, 2026-10-02, "not 100% sure": built
   to be removable). Self-contained: at top level it registers its Hud strip (inserted in `Hud.ORDER` before
   target), its saved-var key in `B.KEYS`, its "Skill level changes" notification source (levels up and down) (`vias = { "hud" }`: never a
@@ -350,12 +349,7 @@ wedge (`SetSweep`, `SetSweepTimer`, refused as in game for a lone duration) read
 Stub any new API function in `install_api()` with its documented return values, including the "no
 character" sentinel.
 
-## Saved vars
-
-Settings (the `Toolbox.Backup.KEYS` keys) are ACCOUNT scope: one setup and one set of positions for all
-characters (`T.Save` / `T.ReadSaved` pick the scope by key; `T.IsSetting`). The rest is character scope.
-`B.Migrate` (start, once: `settings_account` in the account) copies the first character's settings up;
-older per-character copies are then ignored. A reset clears each setting in both scopes.
+## Saved vars (character scope)
 
 | Key | Shape |
 | --- | --- |
@@ -379,15 +373,13 @@ older per-character copies are then ignored. A reset clears each setting in both
 | `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` |
 | `target` | `{ show = bool (default false), glue = bool (default true), place = "top" (default) / "bottom", mirror = bool, effects = "all"/"debuffs"/"none", icons = 1..8 (unset: 8, or 5 mirrored), bars = bool (default true), numbers = bool (default false), bg = "None"/"Dark"/"Light", flash = bool (default false), flashBelow = 1..95, x, y }` (a saved place "left", from beta 7, reads as mirror; bars and numbers both off = just the effect icons, refused with effects "none" too; hidePet = bool (default true): your pet as the target reads as no target, `TG.IsPet`) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
-| `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; the older `guild_motd` `{ show, seen }` (character) is read once to take over |
-| `notify_seen` (character) | `{ v = 1, seen = { [key] = last value delivered } }`; durability's is `{ [item key] = "low"/"broken" }`; friends / guild don't keep one; taken from the older per-character `notify` once |
+| `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), font = 9..32, spacing = 0..12 (each unset: the XP windows'), x, y }` |
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most 20 (which are new, `fresh`, is kept in memory only) |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last, day, at } } }`, at most `P.MAX_KEEP` |
 | `welcomed` (ACCOUNT scope) | set after the first-run welcome |
 | `skills` | `{ show = bool (default false), vertical = bool (default true), slots = 1..12, stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels"/"xp", size = 20..48, number = bool (the level on the icon, default true), marks = bool (the API 27 training controls, default true), soundUp = bool, soundDown = bool (both default true), x, y }` (skills.lua) |
-| `settings_pending` (ACCOUNT scope) | `{ kind = "reset" }`: done and deleted at the next start |
-| `settings_account` (ACCOUNT scope) | set once the settings moved to the account (`B.Migrate`) |
+| `settings_pending` | `{ kind = "reset" }`: done and deleted at the next start |
 
 Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
 you read back and fall back to defaults.
