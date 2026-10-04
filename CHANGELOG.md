@@ -7,6 +7,12 @@ ones included).
 
 ## [Unreleased]
 
+### Added
+- Muted effects: no expiry or debuff sound for the effects you choose, for the combat staples that come so
+  often their sound is just noise. Their icons still flash. Settings, Buffs: pick one from a dropdown (your
+  recent alerts first, then what's on you, then every effect you've cast) and press Mute; Unmute brings it
+  back. In chat: /toolbox buffs quiet, quiet add <name>, quiet remove <name>.
+
 ### Changed
 - Today Detailed is now the Loot Tracker, which is what it has become: today's looted, crafted and gathered
   items with their estimated values. Open it with /toolbox loot (dd and dailydetailed still work). The settings

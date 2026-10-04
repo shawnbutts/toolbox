@@ -127,7 +127,10 @@ D.SECTIONS = {
       .. "sweep shows the time left; it turns red when a buff is about to run out. Hover an icon "
       .. "for its tooltip.",
     "Options: icon size; a sound before a buff runs out (/toolbox buffalert 10 = ten seconds "
-      .. "before); a sound when a debuff lands (/toolbox debuffalert on/off).",
+      .. "before); a sound when a debuff lands (/toolbox debuffalert on/off). Effects that come so often "
+      .. "their sound is noise can be muted: settings, Buffs, Muted effects (pick one from your recent "
+      .. "alerts, what's on you or anything you've cast, then Mute), or /toolbox buffs quiet. A muted "
+      .. "effect's icon still flashes.",
     "Without relying on colour: debuffs have their own row (the second); a buff about to run out blinks "
       .. "its border (Flash, on by default) and sounds its alert; Show seconds left near the end adds the "
       .. "number; and a sweep's size shows the time left whatever its colour. The same goes for the "

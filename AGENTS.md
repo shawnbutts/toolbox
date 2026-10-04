@@ -366,7 +366,7 @@ character" sentinel.
 | `daily_window` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, compact = bool, hx, hy }` |
 | `daily_detail` | `{ open = bool, x = number, y = number, values = bool, each = bool (the price each in the count: "40 x 5g"; default true), view = "looted"/"crafted"/"gathered", include = bool }` |
 | `buffblock` | `{ show = bool (default false), width = 1..30 (icons a row, default 10), size = 20..48, combatOnly = bool, x, y }` |
-| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, flash, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), groupCats = { [category] = true }, countdown = bool, countdownSecs = 5..120, group = { name parts }, replaceStock, clickDismiss, combatOnly, x, y }` |
+| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, flash, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), groupCats = { [category] = true }, countdown = bool, countdownSecs = 5..120, group = { name parts }, quiet = { exact effect names, <= BB.QUIET_MAX } (muted: no expiry / debuff sound), replaceStock, clickDismiss, combatOnly, x, y }` |
 | `sounds` | `{ volume = 0..100, paths = { [sound key] = "..." } }` |
 | `buff_timers` | `{ v = 3, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts |

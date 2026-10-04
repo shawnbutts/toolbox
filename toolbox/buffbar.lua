@@ -351,6 +351,8 @@ BB.TIMER_SAVE = 5         -- seconds between saves of the running timers (for a 
 local debuffs = {}        -- debuff names seen at the last change (set)
 local timers = {}         -- rune name -> BB.Track state
 local quietUntil = 0      -- no debuff alerts before this T.Now()
+local quiet = {}          -- muted effect names -> true (BB.ReadQuiet, from prefs.quiet)
+BB.recent = {}            -- names that alerted this session, newest first (BB.NoteAlert)
 local lastDebuffSound = -math.huge
 local content = nil       -- the icon rows (in a strip owned by Toolbox.Hud)
 local contentW, contentH = 0, 0
@@ -522,10 +524,19 @@ function BB.OnBuffsChanged(from)
   if #new == 0 then return end
   -- What became of the last new debuff, for /toolbox buffs debug (a missing sound, 2026-09-28).
   local result = nil
+  local loud = false
+  if prefs.debuff and T.Now() >= quietUntil then
+    for _, n in ipairs(new) do
+      BB.NoteAlert(n)
+      if not quiet[n] then loud = true end
+    end
+  end
   if not prefs.debuff then
     result = "not played: the debuff alert is off"
   elseif T.Now() < quietUntil then
     result = "not played: quiet just after start or a scene change"
+  elseif not loud then
+    result = "not played: muted (settings, Buffs: Muted effects)"
   elseif T.Now() - lastDebuffSound < BB.DEBUFF_COOLDOWN then
     result = "not played: another debuff sounded under " .. BB.DEBUFF_COOLDOWN .. " s ago"
   else
@@ -1178,7 +1189,10 @@ function BB.Tick()
     end
     if st then st.missingSince = nil end
     timers[e.name] = st
-    if fire and not rune.debuff then expiring = true end
+    if fire and not rune.debuff and prefs.expire then
+      BB.NoteAlert(e.name)
+      if not quiet[e.name] then expiring = true end    -- a muted one still flashes and turns red
+    end
     if block then
       local x = pooled(blockPool, #inBlock + 1)
       x.e, x.left, x.total, x.name, x.remaining = e, left, total, e.name, e.remaining
@@ -1456,8 +1470,16 @@ function BB.Init()
         end
       end
     end
+    if type(saved.quiet) == "table" then
+      prefs.quiet = {}
+      for _, n in ipairs(saved.quiet) do
+        if type(n) == "string" and n ~= "" and #prefs.quiet < BB.QUIET_MAX then prefs.quiet[#prefs.quiet + 1] = n end
+      end
+    end
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
+  BB.ReadQuiet()
+  BB.recent = {}
   timers, debuffs, runes, groupedCache, stockHidden = {}, {}, {}, {}, false
   inCombat, combatUntil, lastShown = ShroudGetPlayerCombatMode() == true, 0, nil
   T.Hud.Register("buffs", BB)
@@ -1668,6 +1690,91 @@ function BB.RemoveGroupPart(part)
   if not found then return false, "'" .. part .. "' isn't in the list." end
   setGroup(kept)
   return true, "Buffs with '" .. found .. "' in their name show on the bar again."
+end
+
+-- ---------------------------------------------------------------------------
+-- Muted effects: no expiry or debuff sound for these (owner, 2026-10-04: in combat some effects come so
+-- often they're "standard"). Exact names as the game's buff list gives them; the icon still flashes and turns
+-- red. Picked from dropdowns (BB.QuietChoices), not typed: recent alerts, what's on you, and every effect this
+-- character has been seen to cast (the learned durations).
+-- ---------------------------------------------------------------------------
+BB.QUIET_MAX = 50
+BB.RECENT_MAX = 15
+BB.CHOICES_MAX = 150                 -- the dropdown's text counts against the game's on-screen budget
+
+-- The muted names as a set, rebuilt only when the list changes (read every tick).
+function BB.ReadQuiet()
+  quiet = {}
+  for _, n in ipairs(prefs.quiet or {}) do quiet[n] = true end
+end
+
+function BB.IsMuted(name) return quiet[name] == true end
+
+-- The muted names, A-Z (a copy).
+function BB.MutedList()
+  local out = {}
+  for _, n in ipairs(prefs.quiet or {}) do out[#out + 1] = n end
+  table.sort(out, function(a, b) return a:lower() < b:lower() end)
+  return out
+end
+
+-- An effect that alerted (sound on): kept at the top of the recent list for this session.
+function BB.NoteAlert(name)
+  local r = BB.recent
+  if r[1] == name then return end
+  for i = #r, 1, -1 do
+    if r[i] == name then table.remove(r, i) end
+  end
+  table.insert(r, 1, name)
+  if #r > BB.RECENT_MAX then r[#r] = nil end
+end
+
+-- What the "Mute an effect" dropdown offers, muted ones left out: { { label, name } }, recent alerts first
+-- ("(alerted)"), then what's on you now ("(on you)"), then the rest A-Z.
+function BB.QuietChoices()
+  local out, taken = {}, {}
+  local function add(name, note)
+    if type(name) ~= "string" or name == "" or taken[name] or quiet[name] or #out >= BB.CHOICES_MAX then return end
+    taken[name] = true
+    out[#out + 1] = { label = name .. (note and (" (" .. note .. ")") or ""), name = name }
+  end
+  for _, n in ipairs(BB.recent or {}) do add(n, "alerted") end
+  local now = {}
+  for n in pairs(runes or {}) do now[#now + 1] = n end
+  table.sort(now, function(a, b) return a:lower() < b:lower() end)
+  for _, n in ipairs(now) do add(n, "on you") end
+  local seen = {}
+  for n in pairs(learned or {}) do seen[#seen + 1] = n end
+  table.sort(seen, function(a, b) return a:lower() < b:lower() end)
+  for _, n in ipairs(seen) do add(n, nil) end
+  return out
+end
+
+-- Mutes / unmutes an exact name. Returns true and a message, or false and why.
+function BB.Mute(name)
+  if type(name) ~= "string" or T.Trim(name) == "" then return false, "Pick an effect first." end
+  name = T.Trim(name)
+  if quiet[name] then return false, "'" .. name .. "' is already muted." end
+  prefs.quiet = prefs.quiet or {}
+  if #prefs.quiet >= BB.QUIET_MAX then return false, "At most " .. BB.QUIET_MAX .. " muted; unmute one first." end
+  prefs.quiet[#prefs.quiet + 1] = name
+  BB.ReadQuiet()
+  savePrefs()
+  T.Config.Sync()
+  return true, "'" .. name .. "' is muted: no expiry or debuff sound for it (its icon still flashes)."
+end
+
+function BB.Unmute(name)
+  local kept, found = {}, nil
+  for _, n in ipairs(prefs.quiet or {}) do
+    if type(name) == "string" and n:lower() == T.Trim(name):lower() then found = n else kept[#kept + 1] = n end
+  end
+  if not found then return false, "'" .. tostring(name) .. "' isn't muted." end
+  prefs.quiet = kept
+  BB.ReadQuiet()
+  savePrefs()
+  T.Config.Sync()
+  return true, "'" .. found .. "' sounds again."
 end
 
 function BB.GetGroupAfter() return prefs.groupAfter or BB.GROUP_AFTER_DEFAULT end

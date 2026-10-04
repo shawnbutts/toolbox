@@ -748,6 +748,7 @@ function T.MoveCommand(m, cmd, what, args)
 end
 
 add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off; add|remove <name>|reset]; "
+    .. "quiet [add|remove <name>] (muted effects); "
     .. "combat on|off (only during combat); flash on|off; countdown on|off|<seconds>; replace on|off; "
     .. "dismiss on|off; block [on|off|width <n>|size <n>|combat on|off|move [x y]]; debug; raw; trace [name])",
     function(rest)
@@ -786,6 +787,22 @@ add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off;
     end
     local what = word == "replace" and "Replace the game's buff bar" or "Click a buff to dismiss it"
     T.Print(what .. ": " .. (get() and "on" or "off") .. ".")
+    return
+  end
+  if word == "quiet" then
+    local B, c = T.BuffBar, "/" .. T.commands[1] .. " buffs quiet"
+    local verb, effect = T.ParseArgs(name)
+    if verb == "add" or verb == "remove" then
+      local _, msg = (verb == "add" and B.Mute or B.Unmute)(effect)
+      T.Print(msg)
+      return
+    end
+    local muted = B.MutedList()
+    T.Print("Muted (no sound): " .. (#muted > 0 and table.concat(muted, ", ") or "none") .. ".")
+    local recent = {}
+    for _, n in ipairs(B.recent) do if not B.IsMuted(n) then recent[#recent + 1] = n end end
+    T.Print("Recent alerts: " .. (#recent > 0 and table.concat(recent, ", ") or "none yet") .. ".")
+    T.Print(c .. " add <name> mutes one (the exact name, as above); " .. c .. " remove <name> unmutes it.")
     return
   end
   if word == "group" then

@@ -77,7 +77,7 @@ with that setting's section at the top and the setting blinking.
 | `/toolbox daily` | show or hide today's stats (gold, kills, XP) |
 | `/toolbox loot` (or `dd`, `dailydetailed`) (`values on\|off\|test\|refresh`) | show or hide the Loot Tracker (every item gained today); estimated values |
 | `/toolbox buffs move [x y]` | place the buff bar (no numbers: say where it is) |
-| `/toolbox buffs` (`group` / `combat` / `flash` / `replace` / `dismiss` / `debug` / `raw` / `trace [name]`) | show or hide the buff bar; its options; diagnostics (`debug`: each buff's timing; `trace light`: log buffs matching "light" once a second for 10 s) |
+| `/toolbox buffs` (`group` / `quiet` / `combat` / `flash` / `replace` / `dismiss` / `debug` / `raw` / `trace [name]`) | show or hide the buff bar; its options; diagnostics (`debug`: each buff's timing; `trace light`: log buffs matching "light" once a second for 10 s) |
 | `/toolbox consumables` (`bar` / `glue` / `add\|remove <name>` / `move`) | list food and potions in effect; the consumables bar's options |
 | `/toolbox gear` (`bar` / `glue` / `repair <%>` / `move` / `debug`) | worn items' durability; the equipment bar's options |
 | `/toolbox notify` (`<name> on\|off` / `via window\|hud\|chat` / `sound on\|off` / `show` / `hud ...`) and `/toolbox motd` | notifications; the guild message of the day |
@@ -244,6 +244,11 @@ bar while this one is showing (the game restores it on reload, so it is applied 
 - **Debuff landed**: plays when a debuff you didn't have appears, at most once a second. The API
   doesn't say who applied an effect, so this is any new debuff. It stays quiet for 3 s after you
   log in or change scene, when the game rebuilds the buff list.
+- **Muted effects**: no sound for the effects you pick, for the combat staples that come so often their
+  sound is noise (their icons still flash). Settings, Buffs: pick one from the dropdown (recent alerts first,
+  then what's on you, then every effect you've been seen to cast) and press Mute; the second dropdown and
+  Unmute bring one back. In chat, `/toolbox buffs quiet` lists the muted ones and recent alerts, and
+  `/toolbox buffs quiet add <name>` / `remove <name>` change the list.
 
 **Sounds.** The default sounds live in the add-on's folder (`Lua/toolbox/buff_expiring.ogg`,
 `Lua/toolbox/debuff_landed.ogg`, `notify.ogg`, `ping.ogg`, `tap.ogg` for notifications, and `skill_up.ogg`,

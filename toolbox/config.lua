@@ -287,6 +287,7 @@ function C.BuffBarSection()
       onChange = function(_, v) B.SetFlash(v) end },
     UI.Toggle{ id = "debuff_alert", text = "Sound when a debuff lands", value = B.GetDebuffAlert(),
       onChange = function(_, v) B.SetDebuffAlert(v) end },
+    C.QuietRows(),
     UI.Toggle{ id = "buff_countdown", text = "Show seconds left near the end", value = B.GetCountdown(),
       style = { marginTop = 6 }, tooltip = "Whole seconds over the icon of a buff, debuff or consumable about to run"
         .. " out (the sweep also shows it)",
@@ -873,6 +874,80 @@ function C.CancelPending()
   C.Sync()
 end
 
+-- Muted effects (Toolbox.BuffBar): no expiry or debuff sound for the effects picked. Both lists are dropdowns
+-- (owner, 2026-10-04: names are hard to type): recent alerts, what's on you and every effect seen cast; and
+-- the muted ones, to unmute.
+C.QUIET_NONE = "Nothing to pick yet"
+C.MUTED_NONE = "None muted"
+local quietPicks = {}                -- dropdown label -> effect name
+
+-- Refills both dropdowns when what they'd offer changed (SetChoices is a UI call; only then). From Sync and,
+-- while the window shows, SyncLive (alerts and effects come and go).
+local function syncQuiet()
+  local pick, muted = el.quiet_pick, el.quiet_list
+  if not (pick and muted) then return end
+  local choices = T.BuffBar.QuietChoices()
+  local labels = {}
+  for i, c in ipairs(choices) do labels[i] = c.label end
+  local list = T.BuffBar.MutedList()
+  local sig = table.concat(labels, "|") .. "||" .. table.concat(list, "|")
+  if sig == C.quietSig then return end
+  C.quietSig = sig
+  quietPicks = {}
+  for _, c in ipairs(choices) do quietPicks[c.label] = c.name end
+  local keep = pick:GetValue()
+  local shown = #labels > 0 and labels or { C.QUIET_NONE }
+  pick:SetChoices(shown)
+  pick:SetValue(quietPicks[keep] and keep or shown[1])
+  local keepMuted = muted:GetValue()
+  local mshown = #list > 0 and list or { C.MUTED_NONE }
+  muted:SetChoices(mshown)
+  local still = false
+  for _, n in ipairs(list) do if n == keepMuted then still = true end end
+  muted:SetValue(still and keepMuted or mshown[1])
+  setEnabled("quiet_mute", #labels > 0)
+  setEnabled("quiet_unmute", #list > 0)
+end
+
+function C.MutePicked()
+  local drop = el.quiet_pick
+  local name = drop and quietPicks[drop:GetValue()]
+  local _, msg = T.BuffBar.Mute(name)
+  setText("quiet_msg", msg or "")
+end
+
+function C.UnmutePicked()
+  local drop = el.quiet_list
+  local name = drop and drop:GetValue()
+  if name == C.MUTED_NONE then name = nil end
+  local _, msg = T.BuffBar.Unmute(name)
+  setText("quiet_msg", msg or "")
+end
+
+function C.QuietRows()
+  C.quietSig = nil                     -- new controls: filled by the next Sync
+  return UI.Column{ style = { marginTop = 6 }, children = {
+    UI.Label{ text = "Muted effects: no sound for these, though their icons still flash. Pick from recent alerts,"
+      .. " what's on you, or anything you've cast.", class = "dim", style = { whiteSpace = "wrap" } },
+    UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
+      UI.Dropdown{ id = "quiet_pick", choices = { C.QUIET_NONE }, value = C.QUIET_NONE,
+        style = { flexGrow = 1, flexShrink = 1 },
+        tooltip = "Recent alerts first (alerted), then your effects now (on you), then every effect seen cast",
+        onChange = function() setText("quiet_msg", "") end },
+      UI.Button{ id = "quiet_mute", text = "Mute", style = { marginLeft = 4 },
+        tooltip = "No expiry or debuff sound for this effect", onClick = function() C.MutePicked() end },
+    } },
+    UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
+      UI.Dropdown{ id = "quiet_list", choices = { C.MUTED_NONE }, value = C.MUTED_NONE,
+        style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The muted effects",
+        onChange = function() setText("quiet_msg", "") end },
+      UI.Button{ id = "quiet_unmute", text = "Unmute", style = { marginLeft = 4 },
+        tooltip = "Its sounds come back", onClick = function() C.UnmutePicked() end },
+    } },
+    UI.Label{ id = "quiet_msg", text = "", class = "dim", style = { whiteSpace = "wrap" } },
+  } }
+end
+
 -- Setups (Toolbox.Backup): import another character's settings and positions, export yours under a name.
 -- Import and Delete take a second click within C.CONFIRM_SECONDS, like Reset.
 C.SETUP_NONE = "No setups yet"
@@ -1099,7 +1174,8 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "target_flash", "target_flash_below", "target_flash_below_value",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
   "buff_countdown_secs_value", "backup_where", "backup_save", "settings_reset", "backup_pending",
-  "backup_cancel", "backup_msg", "setup_share", "setup_pick", "setup_import", "setup_delete", "setup_name",
+  "backup_cancel", "backup_msg", "quiet_pick", "quiet_mute", "quiet_list", "quiet_unmute", "quiet_msg",
+  "setup_share", "setup_pick", "setup_import", "setup_delete", "setup_name",
   "setup_export", "setup_msg" }
 for _, def in ipairs(T.Sounds.DEFS) do
   ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_status"
@@ -1831,6 +1907,7 @@ function C.Sync()
   local p = el.backup_pending
   if p and p:IsVisible() ~= pending then p:SetVisible(pending) end
   syncSetups()
+  syncQuiet()
   setValue("setup_share", T.Backup.GetShare())
   if T.SkillBar then T.SkillBar.ConfigSync(C.Helpers) end   -- skills.lua, when present
   C.SyncLive()
@@ -1844,6 +1921,7 @@ function C.SyncLive()
   if not C.IsShown() then return end
   disarm()
   disarmSetups(true)
+  syncQuiet()
   C.SyncSounds()
   if el.shortcut then T.SetText(el.shortcut, "Shortcut: " .. T.KeyStatus()) end
   for _, p in ipairs(POSITIONED) do
