@@ -30,7 +30,8 @@ Change the key in the add-on manager, on Toolbox's row under **Keys**.
 Your buff bar with your health, focus and Vigor bars beside it and your consumables bar, equipment bar
 and target under it: one strip, moved as one, with everything you watch in a fight. Pick what joins it in the
 settings window (**Toolbelt**) or with `/toolbox toolbelt`, and tick **Only during combat** to have it
-appear only when you're fighting. Each bar also works on its own strip.
+appear only when you're fighting. Each bar also works on its own strip, and the game's own buff bar and
+health bars can be hidden while Toolbox's show.
 
 ## Buff bar
 
@@ -87,8 +88,8 @@ Gold picked up, kills, adventurer and producer XP, skill levels gained and death
 midnight). Rest the
 pointer on it and the **Loot Tracker** lists every item you gained today, as **Looted**, **Crafted** (with
 crafts per recipe, exceptional and failed, and materials used) or **Gathered** (nodes and harvests).
-Its **Reset** button counts from now, for one hunt or run; the Today window keeps the whole day, and **Show all
-of today** brings it back.
+Its **Reset** button counts from now, for one hunt or run, with gold, kills and loot value per hour of play
+("Since 14:32 (47m)"); the Today window keeps the whole day, and **Show all of today** brings it back.
 
 **Estimated values (optional, uses the internet):** turn on **Estimated values (SotANET)** in the
 settings and the Loot Tracker adds each item's value (its count times its 90-day average sale price at

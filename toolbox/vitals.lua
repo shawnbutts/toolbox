@@ -354,7 +354,39 @@ end
 
 -- Five times a second, so it allocates nothing on a quiet tick: one state table per bar (updated in
 -- place; `shown = {}` elsewhere forces a full re-apply) and the bars' elements looked up once at build.
+-- Replace the game's health bars (API 28, owner, 2026-10-04): the player's frame drops its health, focus and
+-- Vigor bars while ours show, so the screen doesn't have two sets. The game takes the hide back when Toolbox
+-- reloads or stops, and nothing is saved: applied again from every tick while wanted, as the buff bar's is.
+local stockHidden = false
+function V.CanReplace() return type(ShroudSetPlayerVitalBarsVisible) == "function" end
+function V.GetReplace() return prefs.replaceStock == true end
+
+local function applyStock()
+  if not V.CanReplace() then return end
+  local want = prefs.replaceStock == true and prefs.show == true and content ~= nil
+  if want then
+    local visible = type(ShroudIsPlayerVitalBarsVisible) == "function" and ShroudIsPlayerVitalBarsVisible()
+    if not stockHidden or visible == true then
+      pcall(ShroudSetPlayerVitalBarsVisible, false)
+      stockHidden = true
+    end
+  elseif stockHidden then
+    pcall(ShroudSetPlayerVitalBarsVisible, true)
+    stockHidden = false
+  end
+end
+
+function V.SetReplace(on)
+  if not V.CanReplace() then return false end
+  prefs.replaceStock = on == true
+  T.Save("vitals", prefs)
+  applyStock()
+  T.Config.Sync()
+  return true
+end
+
 function V.Tick()
+  applyStock()
   ticks = ticks + 1
   local phase = math.floor(ticks / V.FLASH_TICKS) % 2 == 1
   local now = T.Now()
@@ -418,7 +450,9 @@ function V.Init()
     end
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
     prefs.vigor = saved.vigor ~= false
+    prefs.replaceStock = saved.replaceStock == true
   end
+  stockHidden = false
   vigor, lastVigorRead, vigorRowShown = nil, -math.huge, nil
   vigorShow[1], vigorShow[2], vigorShow[3] = V.FormatVigor(nil)
   readVigorNow()                     -- the callback fires only on a change: read the start here

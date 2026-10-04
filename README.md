@@ -85,7 +85,7 @@ with that setting's section at the top and the setting blinking.
 | `/toolbox buffalert <1-60>` / `on` / `off` | alert this many seconds before a buff runs out (default 10) |
 | `/toolbox debuffalert on` / `off` | alert when a debuff lands |
 | `/toolbox sounds [0-100]` | show which sound files the alerts use; with a number, set the volume |
-| `/toolbox vitals` (`size <75-250>` / `text on\|off` / `bars on\|off` / `bg none\|dark\|light` / `flash <1-95>\|on\|off\|test` / `glue on\|off` / `move [x y]` / `debug`) | show or hide the health & focus bars (or place them) |
+| `/toolbox vitals` (`size <75-250>` / `text on\|off` / `bars on\|off` / `bg none\|dark\|light` / `flash <1-95>\|on\|off\|test` / `replace on\|off` / `glue on\|off` / `move [x y]` / `debug`) | show or hide the health & focus bars (or place them) |
 | `/toolbox combat` (`reset` / `size <n>` / `bg dark\|light\|none [%]` / `pet on\|off` / `stat add\|remove <Name>` / `stats` / `detail` / `events [n]` / `move [x y]`) | show or hide the combat stats HUD, Combat Detailed, and its options |
 | `/toolbox api` | which newer API functions this game client has |
 | `/toolbox welcome` (`reset`) | show the first-run welcome again: the line and the settings window (`reset`: at the next reload, as on a first run) |
@@ -322,6 +322,11 @@ current value (it is fractional: 950.36 with 951 current). `/toolbox vitals debu
 **Vigor** (API 20): a gold third bar with the percentage, from `ShroudGetVigor()` /
 `ShroudOnVigorChanged`; hover it for the regen and crit bonuses. It shows once you are past the level
 where Vigor applies; "Show Vigor" in settings or `/toolbox vitals vigor off` hides it.
+
+**Replacing the game's bars** (API 28, opt-in): "Replace the game's health bars" (or
+`/toolbox vitals replace on`) hides the health, focus and Vigor bars on the game's own player frame while
+these show, with `ShroudSetPlayerVitalBarsVisible`; the frame's name and buffs stay. The game gives the bars
+back when Toolbox reloads or stops, so Toolbox hides them again each update while the option is on.
 
 ## Combat stats
 

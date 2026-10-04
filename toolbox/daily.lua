@@ -27,7 +27,9 @@
 --   skills   = n,              -- skill levels gained today (D.SkillGains)
 --   deaths   = n,              -- times you died today (ShroudOnDeathChanged)
 --   since    = nil or a copy of the counts above when the player pressed the Loot Tracker's Reset, plus
---              at = "HH:MM" (D.StartRun): the Loot Tracker shows the day minus it (D.RunOf); gone at midnight
+--              at = "HH:MM" (D.StartRun) and played = seconds of play since (D.Tick: only while logged in
+--              with Toolbox running): the Loot Tracker shows the day minus it (D.RunOf) and rates per hour of
+--              that play; gone at midnight
 -- }
 -- The loot list (Loot Tracker, "Looted") is `items` minus `crafted`, `station` and `gathered` (plus
 -- `pending`, which isn't in `items` yet), per name, unless the player includes them.
@@ -414,7 +416,7 @@ function D.StartRun(d, at)
   for k, v in pairs(d) do
     if not D.RUN_KEEP[k] then snap[k] = T.Copy(v) end
   end
-  snap.at = at
+  snap.at, snap.played = at, 0
   d.since = snap
 end
 
@@ -433,6 +435,28 @@ function D.EndRun()
   D.itemsVersion = D.itemsVersion + 1
   D.Save()
   return true
+end
+
+-- Seconds played since the Loot Tracker's reset, or nil for the whole day.
+function D.RunPlayed()
+  local s = D.day and D.day.since
+  if type(s) ~= "table" then return nil end
+  return s.played or 0
+end
+
+-- "47m", "1h 12m" (whole minutes).
+function D.Duration(seconds)
+  local m = math.floor((seconds or 0) / 60)
+  if m < 1 then return "<1m" end
+  if m < 60 then return m .. "m" end
+  return math.floor(m / 60) .. "h " .. (m % 60) .. "m"
+end
+
+-- `n` an hour over `seconds` of play, or nil under D.RATE_AFTER (a first drop would read as thousands an hour).
+D.RATE_AFTER = 60
+function D.PerHour(n, seconds)
+  if type(n) ~= "number" or type(seconds) ~= "number" or seconds < D.RATE_AFTER then return nil end
+  return n * 3600 / seconds
 end
 
 -- "14:32" when the Loot Tracker counts from a reset, "" when it was reset with no clock, nil for the whole day.
@@ -550,6 +574,7 @@ function D.ReadDay()
   if D.IsValid(saved) then
     D.day = D.Upgrade(saved)
     if type(D.day.since) ~= "table" then D.day.since = nil end
+    if D.day.since and not isCount(D.day.since.played) then D.day.since.played = 0 end
     D.Reclassify(D.day)
   else
     D.day = D.New(key or "none")
@@ -570,10 +595,31 @@ function D.ObserveTotals(adv, prod)
   if D.ObserveXP(D.day, adv, prod) then D.unsaved = true end
 end
 
--- Once a tick, from Toolbox.Tick: day rollover, gold, and storing changes.
+-- A run's play time: the time between ticks while a character is in the world. A longer gap than D.PLAY_GAP
+-- (a reload, a loading screen, the game closed) isn't counted. Saved every D.PLAY_SAVE s of play, not every
+-- tick (the day is a big table to copy).
+D.PLAY_GAP, D.PLAY_SAVE = 10, 30
+local lastPlayAt = nil
+
+local function countPlay(hasCharacter)
+  local s = D.day.since
+  local now = T.Now()
+  if type(s) == "table" and hasCharacter and lastPlayAt then
+    local dt = now - lastPlayAt
+    if dt > 0 and dt <= D.PLAY_GAP then
+      local before = math.floor((s.played or 0) / D.PLAY_SAVE)
+      s.played = (s.played or 0) + dt
+      if math.floor(s.played / D.PLAY_SAVE) ~= before then D.unsaved = true end
+    end
+  end
+  if hasCharacter then lastPlayAt = now else lastPlayAt = nil end
+end
+
+-- Once a tick, from Toolbox.Tick: day rollover, gold, a run's play time, and storing changes.
 function D.Tick(hasCharacter)
   if not D.day then return end
   if D.Roll(D.day, today()) then D.unsaved = true end
+  countPlay(hasCharacter)
   if hasCharacter then
     local gold = ShroudPlayerGold
     if type(gold) == "number" and gold >= 0 and D.ObserveGold(D.day, gold) then D.unsaved = true end

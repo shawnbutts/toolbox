@@ -402,6 +402,11 @@ function C.VitalsSection()
       style = { marginTop = 6 }, onChange = function(_, v) V.SetShowBars(v) end },
     UI.Toggle{ id = "vitals_show_text", text = "Show numbers", value = V.GetShowText(),
       onChange = function(_, v) V.SetShowText(v) end },
+    UI.Toggle{ id = "vitals_replace", text = "Replace the game's health bars", value = V.GetReplace(),
+      enabled = V.CanReplace(),
+      tooltip = V.CanReplace() and "Hides the health, focus and Vigor bars on the game's player frame while these"
+        .. " show (the name and buffs there stay)" or "Needs a newer game client (Lua API 28)",
+      onChange = function(_, v) V.SetReplace(v) end },
     UI.Toggle{ id = "vitals_vigor", text = "Show Vigor", value = V.GetShowVigor(), enabled = V.HasVigor(),
       tooltip = V.HasVigor() and "A gold Vigor bar under focus (hover it for the regen and crit bonuses);"
         .. " it hides below the level where Vigor applies" or "Needs a newer game client (Lua API 20)",
@@ -1161,7 +1166,8 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "expire_alert", "expire_seconds", "expire_seconds_value", "buff_flash", "debuff_alert", "buff_group_after",
   "buff_group", "show_consumables", "consumables_extra", "show_gear", "gear_threshold",
   "show_vitals", "vitals_scale", "vitals_scale_value", "vitals_width", "vitals_width_value", "vitals_show_bars",
-  "vitals_show_text", "vitals_vigor", "vitals_bg", "vitals_flash", "vitals_flash_below", "vitals_flash_below_value",
+  "vitals_show_text", "vitals_replace", "vitals_vigor", "vitals_bg", "vitals_flash", "vitals_flash_below",
+  "vitals_flash_below_value",
   "vitals_flash_test", "show_combat", "combat_detail", "combat_detail_hover", "combat_pet", "combat_scale",
   "shout_on", "shout_size", "shout_size_value",
   "combat_scale_value", "combat_bg", "combat_bg_opacity", "combat_bg_opacity_value", "combat_stats",
@@ -1827,6 +1833,7 @@ function C.Sync()
   setValue("vitals_show_bars", V.GetShowBars())
   setValue("vitals_show_text", V.GetShowText())
   setValue("vitals_vigor", V.GetShowVigor())
+  setValue("vitals_replace", V.GetReplace())
   setValue("vitals_bg", V.GetBackground())
   setValue("vitals_flash", V.GetFlash())
   sliderValue("vitals_flash_below", V.GetFlashBelow())

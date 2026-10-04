@@ -1015,11 +1015,20 @@ function T.StatLines(filter)
   return lines
 end
 
-add("vitals", "health, focus & Vigor bars (size; text|bars|vigor on|off; bg; flash <%>|off|test; glue on|off; "
+add("vitals", "health, focus & Vigor bars (size; text|bars|vigor|replace on|off; bg; flash <%>|off|test; glue on|off; "
     .. "move)",
     function(rest)
   local word, args = T.ParseArgs(rest)
   local V = T.Vitals
+  if word == "replace" then
+    local a = args:lower()
+    if (a == "on" or a == "off") and not V.SetReplace(a == "on") then
+      T.Print("This game client can't hide its own health bars for add-ons (it needs Lua API 28).")
+      return
+    end
+    T.Print("Replace the game's health bars: " .. (V.GetReplace() and "on" or "off") .. ".")
+    return
+  end
   if word == "vigor" then
     local a = args:lower()
     if a == "on" or a == "off" then V.SetShowVigor(a == "on") end
@@ -1547,7 +1556,7 @@ end)
 -- 2026-09-27) lag the client (API 20), and a documented crafting/social group was withdrawn,
 -- so ask the game. Names are referenced directly: no lookup by a built name.
 -- The Lua API version the official docs described when this build was made (update with each docs check).
-T.DOCS_API = 26
+T.DOCS_API = 28
 
 function T.ApiLines()
   local function has(f) return type(f) == "function" end
@@ -1571,6 +1580,12 @@ function T.ApiLines()
       { "ShroudGetTargetBuffCategory", has(ShroudGetTargetBuffCategory) },
       { "ShroudBuffCategories", type(ShroudBuffCategories) == "table" } } },
     { "Vitals (API 25)", { { "ShroudGetPlayerVitals", has(ShroudGetPlayerVitals) } } },
+    { "Skill training (API 27)", {
+      { "ShroudSetSkillMode", has(ShroudSetSkillMode) },
+      { "ShroudCanSetSkillMode", has(ShroudCanSetSkillMode) } } },
+    { "Player frame bars (API 28)", {
+      { "ShroudSetPlayerVitalBarsVisible", has(ShroudSetPlayerVitalBarsVisible) },
+      { "ShroudIsPlayerVitalBarsVisible", has(ShroudIsPlayerVitalBarsVisible) } } },
   }
   local lines = { "Lua API " .. tostring(ShroudLuaApiVersion) .. " (the docs described " .. T.DOCS_API
     .. " when this build was made)." }

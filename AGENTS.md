@@ -128,7 +128,9 @@ into one if a new file is ever needed).
   on change only (`Daily.itemsVersion`, `Prices.version`, `DD.FULL_EVERY` catch-up). Reset (owner,
   2026-10-04): `day.since` = a copy of the counts at that moment (`D.StartRun`); the tracker reads `DD.Day()` =
   the day minus it (`D.RunOf`, remade only when a count changes); the Today window keeps the day; midnight
-  (`D.Roll`) drops it. Rows are appended,
+  (`D.Roll`) drops it. Run rates: `since.played` = seconds of play (`D.Tick` adds tick gaps up to
+  `D.PLAY_GAP` while a character is in; saved every `D.PLAY_SAVE` s); `D.PerHour` after `D.RATE_AFTER`; the header
+  and rates move once a minute. Rows are appended,
   never rebuilt on a timer (element cap; no reorder API); a sorted rebuild at most every `RESORT_SECONDS`
   while shown. `Toolbox.Prices` (bottom): estimated values from SotANET's
   `GET /api/v1/receipts/prices?item=..` (<= 50 names) via `ShroudHttpGet`, one request `P.GAP` apart,
@@ -373,7 +375,7 @@ character" sentinel.
 | `sounds` | `{ volume = 0..100, paths = { [sound key] = "..." } }` |
 | `buff_timers` | `{ v = 3, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts |
-| `vitals` | `{ show, width = 20..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, vigor = bool, x, y }` |
+| `vitals` | `{ show, width = 20..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, vigor = bool, replaceStock = bool (API 28: hide the game's player-frame bars), x, y }` |
 | `hud` | `{ glued = bool, x, y }` (the glued strip's position) |
 | `combat` | `{ show, scale = 75..250, pet, stats = { "MagicResistance", ... }, bg = None/Dark/Light, bgOpacity = 10..100, x, y }` |
 | `combat_detail` | `{ open = bool (pinned), x, y, scope = "fight"/"session", hover = bool }` |
@@ -482,6 +484,11 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   Same day, not tied to a version: up to 25 HUD frames (the reference still says 8), and the Community Addons
   window's "Run" checkbox is now "Enabled". The reference still doesn't mention `SetSweepTimer`'s one-day
   limit (dev report item 16).
+- **API 27**: skill training modes (`ShroudSetSkillMode`, `ShroudCanSetSkillMode`; used by skills.lua's markers),
+  skill tracking (`ShroudGetTrackedSkills`, `ShroudSetSkillTracked`; unused).
+- **API 28** (the owner's client, 2026-10-04; `T.DOCS_API` = 28, `min_api_version` stays 25): the player frame's
+  health, focus and Vigor bars hidden by `ShroudSetPlayerVitalBarsVisible(false)` (released on reload, so
+  re-applied every vitals tick while wanted, as the buff bar's): "Replace the game's health bars" (`V.SetReplace`).
 
 **Waiting on the developers:** a read-only game settings API (first use: the game's "stack buffs lasting
 longer than" option feeding `BB.GroupAfter()`). Everything reported is fixed: the API 25 client issues, and

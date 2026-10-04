@@ -172,6 +172,16 @@ local function install_api()
     if not S.char.present then return "INVALID" end
     return S.char.name
   end
+  -- API 28 player frame bars (H.S.noApi28 = true: an older client). Released on reload, like the buff bar's.
+  if S.noApi28 then
+    ShroudSetPlayerVitalBarsVisible, ShroudIsPlayerVitalBarsVisible = nil, nil
+  else
+    ShroudSetPlayerVitalBarsVisible = function(v)
+      S.vitalBarsCalls = (S.vitalBarsCalls or 0) + 1
+      S.vitalBarsHidden = v == false
+    end
+    ShroudIsPlayerVitalBarsVisible = function() return not S.vitalBarsHidden end
+  end
   -- API 16 buff bar (H.S.noApi16 = true: an older client without it). Hiding is per add-on and
   -- released on reload (see H.reload); dismissing needs a gesture (H.clickSlot).
   if S.noApi16 then
@@ -1035,6 +1045,7 @@ function H.reload()
   humanPace()                          -- /lua reload is typed by the player
   ShroudFlushSavedVars()
   S.stockHidden = false                -- the game releases an add-on's hide on reload
+  S.vitalBarsHidden = false
   S.commands, S.periodics, S.windows, S.keybinds = {}, {}, {}, {}
   S.live = 0                           -- the game removes every element the add-on made
   S.text = 0

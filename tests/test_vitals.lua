@@ -492,4 +492,38 @@ return function(t)
     H.chat("/tbx vitals debug")
     t.ok(H.logged("^Vigor: ShroudGetVigor missing"))
   end)
+
+  -- API 28 (owner, 2026-10-04): the game's own health, focus and Vigor bars hidden while ours show.
+  t.test("Replace the game's health bars: hidden while ours show, back when ours go; kept after a reload", function()
+    H.boot()
+    H.chat("/tbx vitals")
+    t.no(H.S.vitalBarsHidden, "off by default")
+    H.chat("/tbx config")
+    H.change("toolbox_config", "vitals_replace", true)
+    t.ok(H.S.vitalBarsHidden, "the game's bars hidden")
+    H.chat("/tbx vitals")                              -- ours off
+    H.advance(1)
+    t.no(H.S.vitalBarsHidden, "back when ours go")
+    H.chat("/tbx vitals")
+    H.advance(1)
+    t.ok(H.S.vitalBarsHidden)
+    H.reload()                                         -- the game releases the hide on reload
+    H.advance(1)
+    t.ok(H.S.vitalBarsHidden, "hidden again after a reload")
+    H.clearLogs()
+    H.chat("/tbx vitals replace off")
+    t.ok(H.logged("Replace the game's health bars: off"), H.lastLog())
+    t.no(H.S.vitalBarsHidden)
+  end)
+
+  t.test("Replace the game's health bars: greyed out and refused on a client before API 28", function()
+    H.boot()
+    H.S.noApi28 = true
+    H.reload()
+    H.chat("/tbx config")
+    t.eq(H.config():Find("vitals_replace").enabled, false)
+    H.clearLogs()
+    H.chat("/tbx vitals replace on")
+    t.ok(H.logged("needs Lua API 28"), H.lastLog())
+  end)
 end

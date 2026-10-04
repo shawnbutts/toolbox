@@ -12,6 +12,12 @@ ones included).
   gold, kills, crafting and gathering, "Since 14:32" at the top). Nothing is lost: the Today window keeps the
   whole day, and Show all of today brings the day back to the Loot Tracker. In chat: /toolbox loot reset,
   /toolbox loot today. A run ends at midnight with the day.
+- Loot Tracker run rates: during a run, gold, kills and the estimated value show their rate per hour of play,
+  "Gold 1,240 (1,583/h)", and the top line says how long the run has lasted, "Since 14:32 (47m)". Play time
+  counts only while you're logged in, so a break doesn't drag the rates down; they show after the first minute.
+- Health bars: "Replace the game's health bars" hides the health, focus and Vigor bars on the game's own player
+  frame while Toolbox's show (needs a game client with Lua API 28; or /toolbox vitals replace on).
+- /toolbox api lists the API 27 skill-training and API 28 player-frame functions.
 - Muted effects: no expiry or debuff sound for the effects you choose, for the combat staples that come so
   often their sound is just noise. Their icons still flash. Settings, Buffs: pick one from a dropdown (your
   recent alerts first, then what's on you, then every effect you've cast) and press Mute; Unmute brings it

@@ -66,7 +66,9 @@ D.SECTIONS = {
       .. "it for the Loot Tracker (/toolbox loot): every item that arrived in your bags today, with counts. "
       .. "Its Reset button counts from now instead, for one run (gold, kills, items, crafts and gathering); "
       .. "the Today window keeps the whole day, and Show all of today brings it back (or /toolbox loot "
-      .. "reset, loot today). A run ends at midnight.",
+      .. "reset, loot today). A run ends at midnight. During a run, gold, kills and the estimated value "
+      .. "show their rate per hour of play (the time you were logged in since the reset, after its first "
+      .. "minute), and the top line says how long it has been: Since 14:32 (47m).",
     "Loot Tracker's Show dropdown: Looted (what you picked up; what you crafted or gathered is left "
       .. "out unless you tick Include crafted and gathered items in settings, or /toolbox dd include on), "
       .. "Crafted (/toolbox crafted: the items you took off crafting stations, your crafts per recipe with "
@@ -168,7 +170,9 @@ D.SECTIONS = {
       .. "/toolbox vitals vigor off, hides it.",
     "Options: size (75-250%), bar length, show bars and/or numbers, a dark or light panel "
       .. "behind the numbers, and a flash when a value drops below a percentage (Test flash "
-      .. "shows it). They can join the Toolbelt, beside the buffs (Toolbelt in settings)." },
+      .. "shows it). They can join the Toolbelt, beside the buffs (Toolbelt in settings). Replace the "
+      .. "game's health bars (newer game clients) hides the health, focus and Vigor bars on the game's own "
+      .. "player frame while these show, or /toolbox vitals replace on." },
   { "Combat stats",
     "/toolbox combat: fight timer, DPS (last 5 seconds and fight average), damage taken and "
       .. "healing per second, crit % and avoided %, plus character stats you choose.",

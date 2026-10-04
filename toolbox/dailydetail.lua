@@ -405,6 +405,40 @@ local SUMMARY = {
   gathered = { "Items gathered: ", "Nothing gathered yet" },
 }
 
+-- "Gold 1,240 (1,583/h)  |  Kills 38 (48/h)": per hour of a run's play, once it has lasted D.RATE_AFTER.
+local function withRate(n, played)
+  local rate = T.Daily.PerHour(n, played)
+  if not rate then return T.FormatNumber(n) end
+  return T.FormatNumber(n) .. " (" .. T.FormatNumber(rate) .. "/h)"
+end
+
+function DD.SummaryLine(day, played)
+  return "Gold " .. withRate(day.gold, played) .. "  |  Kills " .. withRate(day.kills, played)
+end
+
+-- The rates' tooltip: what "per hour" is measured over.
+function DD.RateTip(played)
+  if not played then return "" end
+  if played < T.Daily.RATE_AFTER then return "Rates per hour show after a minute of play since the reset" end
+  return "Per hour over " .. T.Daily.Duration(played) .. " of play since the reset (logged-out time isn't counted)"
+end
+
+-- The title line: "Since 14:32 (47m)" during a run, else the day; Show all of today only during a run.
+local function setHeader()
+  local run = T.Daily.RunStart()
+  if run then
+    local since = run ~= "" and ("Since " .. run) or "Since your reset"
+    T.SetText(el.date, since .. " (" .. T.Daily.Duration(T.Daily.RunPlayed()) .. ")")
+    T.SetTooltip(el.date, "The Loot Tracker counts from your reset; the time is play time. The Today window keeps"
+      .. " the whole day.")
+  else
+    local date, tip = T.Daily.DateText()
+    T.SetText(el.date, date)
+    T.SetTooltip(el.date, tip)
+  end
+  T.SetVisible(el.dd_today, run ~= nil)
+end
+
 function DD.Refresh(force)
   if not DD.IsShown() then return end
   local day = DD.Day()
@@ -414,9 +448,18 @@ function DD.Refresh(force)
     rebuildList()
     force = true
   end
-  if day.gold ~= drawn.gold or day.kills ~= drawn.kills then
+  -- a run's play time moves its header and rates once a minute (owner, 2026-10-04)
+  local played = T.Daily.RunPlayed()
+  local minute = played and math.floor(played / 60) or -1
+  if day.gold ~= drawn.gold or day.kills ~= drawn.kills or minute ~= drawn.minute then
     drawn.gold, drawn.kills = day.gold, day.kills
-    T.SetText(el.summary, "Gold " .. T.FormatNumber(day.gold) .. "  |  Kills " .. T.FormatNumber(day.kills))
+    T.SetText(el.summary, DD.SummaryLine(day, played))
+    T.SetTooltip(el.summary, DD.RateTip(played))
+  end
+  if minute ~= drawn.minute then
+    drawn.minute = minute
+    setHeader()
+    if prefs.values then T.SetText(el.value_summary, DD.ValueLine()) end
   end
   if not (force or drawn.items ~= T.Daily.itemsVersion or drawn.prices ~= P.version
       or drawn.values ~= prefs.values or now - drawn.at >= DD.FULL_EVERY) then
@@ -424,13 +467,7 @@ function DD.Refresh(force)
     return
   end
   drawn.items, drawn.prices, drawn.values, drawn.at = T.Daily.itemsVersion, P.version, prefs.values, now
-  local run = T.Daily.RunStart()
-  if run then
-    T.SetText(el.date, run ~= "" and ("Since " .. run) or "Since your reset")
-  else
-    T.SetText(el.date, (T.Daily.DateText()))
-  end
-  T.SetVisible(el.dd_today, run ~= nil)
+  setHeader()
   local view = DD.View()
   shown = DD.Counts(day, view, prefs.include)
 
@@ -512,7 +549,9 @@ function DD.ValueLine()
   if kinds == 0 then return "Estimated value: nothing gained yet" end
   if priced == 0 and P.Idle() then return "Estimated value: none of today's items sold recently (SotANET)" end
   if priced == 0 then return "Estimated value: looking up prices on SotANET..." end
-  return "Estimated value " .. P.Format(total) .. " (" .. priced .. " of " .. kinds .. " kinds priced, SotANET)"
+  local rate = T.Daily.PerHour(total, T.Daily.RunPlayed())
+  return "Estimated value " .. P.Format(total) .. (rate and (", " .. P.Format(rate) .. "/h") or "")
+    .. " (" .. priced .. " of " .. kinds .. " kinds priced, SotANET)"
 end
 
 function DD.GetValues() return prefs.values == true end
