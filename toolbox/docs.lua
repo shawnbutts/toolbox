@@ -79,6 +79,8 @@ D.SECTIONS = {
       .. "5g\"). Items with no recent sales show --, and ... while their price is looked up. Only item names"
       .. " are sent, and each price is kept for 24 hours; /toolbox dd values refresh looks them up again, "
       .. "and Test connection in settings (or /toolbox dd values test [item]) checks the connection.",
+    "All price estimates come from receipt data retrieved from shroudoftheavatar.net. Submit your receipts "
+      .. "today.",
     "Like XP, it can be a compact window or a HUD strip: /toolbox daily compact, daily hud (and daily "
       .. "window, daily move <x> <y>)." },
   { "Toolbelt",
