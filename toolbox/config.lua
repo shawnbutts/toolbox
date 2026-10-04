@@ -1360,7 +1360,7 @@ local function build()
     style = { paddingTop = 6, paddingBottom = 6 },
     children = {
       UI.Column{ style = { paddingLeft = GUTTER, paddingRight = GUTTER, marginBottom = 4 }, children = {
-        UI.Label{ text = "Tick what you want on screen and tune it here. Everything is saved per character.",
+        UI.Label{ text = "Tick what you want on screen and tune it here. It is shared by all your characters.",
           class = "text", style = { whiteSpace = "wrap" } },
         UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
           UI.Label{ id = "shortcut", text = "", class = "dim", style = { flexGrow = 1, whiteSpace = "wrap" },

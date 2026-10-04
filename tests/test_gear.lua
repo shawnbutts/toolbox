@@ -25,8 +25,8 @@ return function(t)
   end
 
   local function seen()
-    local saved = H.saved("notify")
-    return saved and saved.sources.durability.seen
+    local saved = H.saved("notify_seen")
+    return saved and saved.seen.durability
   end
 
   -- model ---------------------------------------------------------------------

@@ -38,7 +38,8 @@ D.SECTIONS = {
       .. "Can't find a setting? Type in the Search box under it (sound, size, target...) and pick a result: "
       .. "its page opens with that part at the top (Show the whole page brings back the rest) and the setting "
       .. "blinks. Options "
-      .. "that do nothing while their feature is off are greyed out. Everything is saved per character. "
+      .. "that do nothing while their feature is off are greyed out. Settings and positions are shared by "
+      .. "all your characters. "
       .. "/toolbox help opens this guide; /toolbox commands lists the commands in chat.",
     "Shortcut: Ctrl+; opens the settings (if the game isn't using it). Change it, or pick one, in the "
       .. "add-on manager on Toolbox's row under Keys. /toolbox key shows the current one." },
@@ -246,8 +247,9 @@ D.SECTIONS = {
       .. "beside the toolbox folder, or pick any file in settings. /toolbox sounds shows what "
       .. "each alert uses; /toolbox sounds 50 sets the volume." },
   { "Backup & reset",
-    "Your settings are in the game's files in Lua/SavedVariables: toolbox.<character>.character.json "
-      .. "for each character, and toolbox.account.json. To back up, press Save now (Settings, Backup "
+    "Your settings are in the game's files in Lua/SavedVariables: toolbox.account.json (settings and "
+      .. "positions, shared by all your characters) and toolbox.<character>.character.json (each "
+      .. "character's stats). To back up, press Save now (Settings, Backup "
       .. "& reset) and copy them. To restore or move computers, quit the game and copy them back.",
     "Reset all settings applies at the next /lua reload; stats are kept." },
 }
@@ -518,8 +520,9 @@ end
 --     tried again next tick). Sources switched off are tracked quietly, so switching one on
 --     doesn't bring up old news. For N.SETTLE seconds after start or a character change, counts
 --     going down are not remembered: at login they read 0 until the game has loaded them.
--- Saved var "notify" (character scope): { v = 1, sources = { [key] = { on = bool, seen = any,
--- via = "window"|"hud"|"chat", sound = bool } } }. The older "guild_motd" ({ show, seen }) is taken over once.
+-- Saved var "notify" (a setting: account scope): { v = 1, sources = { [key] = { on = bool,
+-- via = "window"|"hud"|"chat", sound = bool } } }; what each character was told is "notify_seen" (character
+-- scope): { v = 1, seen = { [key] = any } }. The older "guild_motd" ({ show, seen }) is taken over once.
 -- `sound`: the source's sound (`soundKey`, one of N.SOUNDS; default the "notify" chime) plays once per check
 -- that delivered one of its notices; several sources arriving together play each distinct sound once.
 -- The HUD's: "notify_hud" { hideAfter = seconds (0 = never), x, y } and "notify_history"
@@ -1089,8 +1092,18 @@ function NH.Count() return #history end
 local nprefsFor = nil     -- the player name they were loaded for
 local settleUntil = 0
 
+-- The notification settings are account-wide (Toolbox.Backup.KEYS: "notify"); what each source has delivered
+-- (`seen`) is this character's ("notify_seen": { v = 1, seen = { [source key] = value } }), so one character's
+-- mail or guild message isn't taken as read for another. Before 2026-10-04 both were in this character's
+-- "notify", which prefsNow still reads `seen` from once.
 local function save()
-  T.Save("notify", nprefs)
+  local settings, seen = { v = 1, sources = {}, compact = nprefs.compact, font = nprefs.font }, { v = 1, seen = {} }
+  for key, sp in pairs(nprefs.sources) do
+    settings.sources[key] = { on = sp.on, via = sp.via, sound = sp.sound, soundKey = sp.soundKey }
+    if sp.seen ~= nil then seen.seen[key] = sp.seen end
+  end
+  T.Save("notify", settings)
+  T.Save("notify_seen", seen)
   T.unflushed = true      -- written to disk with the session's periodic flush
 end
 
@@ -1102,10 +1115,26 @@ local function prefsNow()
   settleUntil = T.Now() + N.SETTLE
   local saved = T.ReadSaved("notify")
   local stored = type(saved) == "table" and saved.v == 1 and type(saved.sources) == "table" and saved.sources or {}
+  local oldMotd = nil
   if type(saved) ~= "table" then
-    local old = T.ReadSaved("guild_motd")       -- before notifications, the guild message had its own
-    if type(old) == "table" then
-      stored = { motd = { on = old.show ~= false, seen = type(old.seen) == "string" and old.seen or "" } }
+    oldMotd = T.ReadSaved("guild_motd")         -- before notifications, the guild message had its own
+    if type(oldMotd) == "table" then
+      stored = { motd = { on = oldMotd.show ~= false } }
+    end
+  end
+  -- this character's `seen`: its own key, or (the first time) the old per-character notify
+  local seenSaved = T.ReadSaved("notify_seen")
+  local seenBy = type(seenSaved) == "table" and seenSaved.v == 1 and type(seenSaved.seen) == "table"
+    and seenSaved.seen or nil
+  if not seenBy then
+    seenBy = {}
+    local old = ShroudGetSavedVar("notify", "character")
+    local oldSources = type(old) == "table" and type(old.sources) == "table" and old.sources or {}
+    for key, s in pairs(oldSources) do
+      if type(s) == "table" and s.seen ~= nil then seenBy[key] = s.seen end
+    end
+    if type(oldMotd) == "table" and seenBy.motd == nil then
+      seenBy.motd = type(oldMotd.seen) == "string" and oldMotd.seen or ""
     end
   end
   nprefs = { v = 1, sources = {}, compact = type(saved) == "table" and saved.compact == true }
@@ -1122,12 +1151,13 @@ local function prefsNow()
     if type(s.via) == "string" and N.DELIVERY[s.via] and (not src.vias or N.Allows(src.key, s.via)) then
       sp.via = s.via
     end
+    local seen = seenBy[src.key]             -- this character's only (never the account copy's)
     if src.transient then
       sp.seen = nil                          -- event numbers restart with the add-on
-    elseif type(s.seen) == "table" then
-      sp.seen = plainStrings(s.seen)
-    elseif s.seen ~= nil then
-      sp.seen = s.seen
+    elseif type(seen) == "table" then
+      sp.seen = plainStrings(seen)
+    elseif seen ~= nil then
+      sp.seen = seen
     end
     nprefs.sources[src.key] = sp
   end

@@ -141,8 +141,9 @@ folder replaces them). Skill level changes (gained or lost) can also be listed o
 - `/toolbox notify`: notification settings
 - `/toolbox settings`: where your settings files are (`save` writes them now; `reset`; `cancel`)
 
-Settings are saved per character, in the game's saved-variable files in `Lua/SavedVariables`:
-`toolbox.<character>.character.json` for each character, and `toolbox.account.json` shared by all. To back up a setup, press
+Settings and window places are shared by all your characters, in the game's saved-variable files in
+`Lua/SavedVariables`: `toolbox.account.json` holds them, and `toolbox.<character>.character.json` holds each
+character's stats. To back up a setup, press
 **Save now** under **Backup & reset** in the settings window and copy those files; to restore it (or move to
 another computer), quit the game and copy them back. **Reset all settings** there puts everything back to
 the defaults at the next `/lua reload`.

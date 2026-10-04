@@ -3,8 +3,8 @@ local H = require("harness")
 
 return function(t)
   local function seen(key)
-    local saved = H.saved("notify")
-    return saved and saved.sources[key].seen
+    local saved = H.saved("notify_seen")
+    return saved and saved.seen[key]
   end
 
   -- Booted and past the start-up settling, so counts going down are remembered.
@@ -558,7 +558,7 @@ return function(t)
     t.ok(H.nhud().visible ~= false)
   end)
 
-  t.test("another character: its own HUD list and settings, nothing carried over", function()
+  t.test("another character: its own HUD list and history; the settings are shared", function()
     mailToHud()
     H.setNotes{ unreadMail = 2 }
     H.chat("/tbx notify hud hide never")
@@ -569,8 +569,8 @@ return function(t)
     H.chat("/tbx notify mail via hud")
     H.advance(1)
     t.eq(H.nhudRow(1), nil, "none of Tester's rows on Alt's HUD")
-    t.eq(Toolbox.Notify.Hud.GetHideAfter(), Toolbox.Notify.Hud.HIDE_DEFAULT, "Alt's own settings")
-    t.eq(Toolbox.Notify.Hud.GetFont(), Toolbox.Window.GetFont())
+    t.eq(Toolbox.Notify.Hud.GetHideAfter(), 0, "the same settings: one setup for all characters")
+    t.eq(Toolbox.Notify.Hud.GetFont(), 18)
     H.setNotes{ unreadMail = 5 }
     H.advance(1)
     t.ok(H.nhudRow(1):find("5 unread letters"), "Alt's own notice: " .. tostring(H.nhudRow(1)))
@@ -587,7 +587,7 @@ return function(t)
     t.eq(#H.saved("notify_history").list, 2, "Tester's history: Tester's two")
   end)
 
-  t.test("another character with settings open: the controls show its values", function()
+  t.test("another character with settings open: the same values, nothing carried over wrongly", function()
     mailToHud()
     H.chat("/tbx notify hud hide never")
     Toolbox.Notify.Hud.SetFont(18)
@@ -598,10 +598,10 @@ return function(t)
     t.eq(w:Find("nhud_hide").value, "Never")
     H.S.char.name = "Alt"
     H.advance(2)
-    t.eq(w:Find("nhud_hide").value, "10 seconds", "Alt's hide delay")
-    t.eq(w:Find("nhud_font").value, Toolbox.Window.GetFont(), "Alt's text size")
-    t.eq(w:Find("notify_rewards").value, true, "Alt's sources")
-    t.eq(w:Find("notify_mail_via").value, "Window", "Alt's delivery")
+    t.eq(w:Find("nhud_hide").value, "Never", "the shared hide delay")
+    t.eq(w:Find("nhud_font").value, 18, "the shared text size")
+    t.eq(w:Find("notify_rewards").value, false, "the shared sources")
+    t.eq(w:Find("notify_mail_via").value, "HUD", "the shared delivery")
     H.S.char.name = "Tester"
     H.advance(2)
     t.eq(w:Find("nhud_hide").value, "Never", "and Tester's again")
@@ -609,7 +609,7 @@ return function(t)
     t.eq(w:Find("notify_rewards").value, false)
   end)
 
-  t.test("another character with no HUD position of its own: the HUD stays where it is", function()
+  t.test("another character: the HUD stays where it is (one position for all)", function()
     mailToHud()
     H.setNotes{ unreadMail = 2 }
     local function drag(x, y) H.S.frames.toolbox_notify_hud.x, H.S.frames.toolbox_notify_hud.y = x, y end
@@ -617,20 +617,20 @@ return function(t)
     H.advance(1)
     t.eq(H.saved("notify_hud").x, 600, "Tester's place saved")
     H.setNotes{ unreadMail = 0 }
-    H.S.char.name = "Alt"                         -- a character (or account) that never moved it
+    H.S.char.name = "Alt"                         -- another character
     H.chat("/tbx notify mail via hud")
     H.chat("/tbx config")                         -- shown, to see where it is
     H.advance(2)
     local x, y = Toolbox.Notify.Hud.GetPosition()
     t.eq(x, 600, "not back in the top-left corner")
     t.eq(y, 450)
-    t.eq(H.saved("notify_hud").x, 600, "and now Alt's place too")
+    t.eq(H.saved("notify_hud").x, 600, "the one place")
     drag(300, 200)                                -- Alt moves it
     H.advance(1)
     H.S.char.name = "Tester"
     H.advance(1)
     x, y = Toolbox.Notify.Hud.GetPosition()
-    t.eq(x, 600, "back to Tester: Tester's own place")
+    t.eq(x, 300, "back to Tester: where Alt left it")
   end)
 
   t.test("the HUD shows while settings are open, to place it", function()

@@ -1439,8 +1439,18 @@ function H.logged(pattern)
   return false
 end
 
+-- A saved var as stored: a setting (Toolbox.IsSetting) in the account scope, the rest per character, unless
+-- `scope` says ("account", or "character" for a setting's old per-character copy).
 function H.saved(key, scope)
-  local t = S.memory[scopeOf(scope)]
+  local where = nil
+  if scope == "character" then
+    where = "character:" .. S.char.name
+  elseif scope == nil and Toolbox and Toolbox.IsSetting and Toolbox.IsSetting(key) then
+    where = "account"
+  else
+    where = scopeOf(scope)
+  end
+  local t = S.memory[where]
   return t and t[key]
 end
 

@@ -583,7 +583,7 @@ return function(t)
     H.boot()
     H.S.durationMode = mode
     H.S.buffs = { { name = "Light", remaining = 10, total = 40, icon = 5 } }
-    local saved = H.S.memory["character:Tester"]
+    local saved = H.S.memory.account
     saved.buffbar = { show = true }
     H.reload()
     H.advance(0.5, 0.5)
@@ -814,7 +814,7 @@ return function(t)
     H.S.durationMode = "absent"
     H.S.buffs = { { name = "Light", remaining = 112, total = 225, icon = 5 } }
     H.S.memory["character:Tester"].buff_timers = { Light = { total = 130, remaining = 112.5, at = ShroudTime } }
-    H.S.memory["character:Tester"].buffbar = { show = true }
+    H.S.memory.account.buffbar = { show = true }
     H.reload()
     H.advance(0.5, 0.5)
     t.eq(sweep(H.slots("buffs")[1]).visible, false, "unknown, not the stale 130 s")

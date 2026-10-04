@@ -229,12 +229,32 @@ function T.Copy(v)
   return out
 end
 
+-- Settings are ACCOUNT-wide (owner, 2026-10-04: "one setup for all characters"): every key in
+-- Toolbox.Backup.KEYS (layout, sizes, options, positions) is read and written in the account scope, so
+-- switching characters can't leave one character's setup in memory and write it over another's. Everything
+-- else (the XP session, Today, skill levels, buff timers, what each character's notifications have seen,
+-- their history) stays per character. Settings were per character until 2026-10-04: Toolbox.Backup.Migrate,
+-- once per account at the first start after that, copies this character's into the account; from then on the
+-- per-character copies are never read (an add-on can't delete another character's, and reading them would
+-- bring a reset's old settings back).
+local ACCOUNT = "account"
+function T.IsSetting(key)
+  for _, k in ipairs(T.Backup.KEYS) do
+    if k == key then return true end
+  end
+  return false
+end
+
 function T.ReadSaved(key)
-  return T.Copy(ShroudGetSavedVar(key, SCOPE))
+  local scope = SCOPE
+  if T.IsSetting(key) then scope = ACCOUNT end
+  return T.Copy(ShroudGetSavedVar(key, scope))
 end
 
 function T.Save(key, value)
-  local ok = ShroudSetSavedVar(key, T.Copy(value), SCOPE)
+  local scope = SCOPE
+  if T.IsSetting(key) then scope = ACCOUNT end
+  local ok = ShroudSetSavedVar(key, T.Copy(value), scope)
   if not ok then T.Print("Could not save '" .. key .. "'.") end
   return ok
 end
@@ -1925,15 +1945,16 @@ end
 -- ---------------------------------------------------------------------------
 -- Backups are the player's own copies of the game's saved-variable files (add-ons can't write files, and a
 -- backup inside a saved var would eat into its 256 KB): per the docs, Lua/SavedVariables/<addon>.<character>
--- .character.json (one per character: settings, positions, stats) and <addon>.account.json (shared). The page
+-- .character.json (one per character: stats) and <addon>.account.json (settings and positions). The page
 -- and the command say where they are and how to copy them back; "Save now" writes them first.
 -- Reset doesn't change anything while Toolbox runs: the windows write their positions again at shutdown
 -- (ShroudOnDisableScript / ShroudOnLogOut), and every module holds its settings in memory. It leaves an
--- instruction (B.PENDING, character scope) that ShroudOnStart carries out before any module reads its
--- settings; the player types /lua reload.
+-- instruction (B.PENDING, account scope, like the settings it clears) that ShroudOnStart carries out before any
+-- module reads its settings; the player types /lua reload.
 local B = {}
 T.Backup = B
-B.PENDING = "settings_pending"     -- character scope: { kind = "reset" }
+B.PENDING = "settings_pending"     -- account scope: { kind = "reset" }
+B.MIGRATED = "settings_account"    -- account scope: 1 once the settings moved there (B.Migrate)
 -- The settings and positions a reset clears (stats, the XP session, histories and learned data stay).
 B.KEYS = { "window", "compact", "daily_window", "daily_detail", "buffbar", "sounds", "vitals", "hud", "combat",
            "combat_detail", "consumables", "gear", "target", "notify", "notify_hud" }
@@ -1986,8 +2007,9 @@ end
 function B.HowTo()
   return {
     "Toolbox's settings are in the game's saved-variable files, in " .. B.Folder() .. ":",
-    "  " .. B.CharacterFile() .. " (this character's settings, positions and stats; each character has its"
-      .. " own) and " .. B.FILE_PREFIX .. ".account.json (shared by all your characters).",
+    "  " .. B.FILE_PREFIX .. ".account.json (your settings and positions, shared by all your characters) and "
+      .. B.CharacterFile() .. " (this character's stats: XP session, Today, skill levels; each character has"
+      .. " its own).",
     "To back up: Save now, then copy those files somewhere safe (keep a copy per setup you want to test).",
     "To restore, or to move to another computer: quit the game first (it writes the files as it closes),"
       .. " copy your saved files back into that folder, then start the game.",
@@ -1996,7 +2018,7 @@ end
 
 -- The waiting reset, or nil.
 function B.Pending()
-  local p = ShroudGetSavedVar(B.PENDING, SCOPE)
+  local p = ShroudGetSavedVar(B.PENDING, ACCOUNT)
   if type(p) ~= "table" or p.kind ~= "reset" then return nil end
   return p
 end
@@ -2004,7 +2026,7 @@ end
 -- Asks for a reset at the next start. Returns true, or false and why (the game refused to store the request,
 -- or to write it to disk: then it may not survive to the next start).
 function B.RequestReset()
-  if not ShroudSetSavedVar(B.PENDING, { kind = "reset" }, SCOPE) then
+  if not ShroudSetSavedVar(B.PENDING, { kind = "reset" }, ACCOUNT) then
     return false, "the game refused to store the request"
   end
   if T.Flush() == false then return false, "the game couldn't write it to disk, so it may not happen" end
@@ -2015,29 +2037,32 @@ end
 -- couldn't write the change to disk.
 function B.Cancel()
   local had = B.Pending() ~= nil
-  ShroudDeleteSavedVar(B.PENDING, SCOPE)
+  ShroudDeleteSavedVar(B.PENDING, ACCOUNT)
   return had, T.Flush() ~= false
 end
 
--- The notification settings' defaults with this character's `seen` values kept (what was delivered stays
--- delivered: the guild message isn't shown again).
-local function seenOnly(current)
-  local out = { v = 1, sources = {} }
-  local cur = type(current) == "table" and type(current.sources) == "table" and current.sources or {}
-  for key, s in pairs(cur) do
-    if type(s) == "table" and s.seen ~= nil then out.sources[key] = { seen = T.Copy(s.seen) } end
+-- From ShroudOnStart, first: the settings move to the account, once (see T.ReadSaved). This character's
+-- become everyone's; an account that has some already (another character moved first) keeps them.
+function B.Migrate()
+  if ShroudGetSavedVar(B.MIGRATED, ACCOUNT) then return end
+  for _, key in ipairs(B.KEYS) do
+    local mine = ShroudGetSavedVar(key, SCOPE)
+    if mine ~= nil and ShroudGetSavedVar(key, ACCOUNT) == nil then ShroudSetSavedVar(key, T.Copy(mine), ACCOUNT) end
   end
-  return out
+  ShroudSetSavedVar(B.MIGRATED, 1, ACCOUNT)
+  T.unflushed = true
 end
 
--- From ShroudOnStart, before any module reads its settings: carries out a waiting reset.
+-- From ShroudOnStart, before any module reads its settings: carries out a waiting reset (the account's
+-- settings, and this character's old per-character copies, which are no longer read).
 function B.ApplyPending()
   if not B.Pending() then return end
-  ShroudDeleteSavedVar(B.PENDING, SCOPE)     -- first: a failure below doesn't repeat at every start
-  local notify = T.ReadSaved("notify")
-  for _, key in ipairs(B.KEYS) do ShroudDeleteSavedVar(key, SCOPE) end   -- false only for a key never set
-  local saved = T.Save("notify", seenOnly(notify))
-  if T.Flush() == false or not saved then
+  ShroudDeleteSavedVar(B.PENDING, ACCOUNT)   -- first: a failure below doesn't repeat at every start
+  for _, key in ipairs(B.KEYS) do
+    ShroudDeleteSavedVar(key, ACCOUNT)       -- false only for a key never set
+    ShroudDeleteSavedVar(key, SCOPE)
+  end
+  if T.Flush() == false then
     T.Print("Toolbox's settings are back to their defaults for now, but the game couldn't write them to disk:"
       .. " your old settings may come back after a restart.")
   else
@@ -2056,6 +2081,7 @@ function ShroudOnStart()
   T.startedAt = T.Now()
   T.RegisterCommands()
   T.RegisterKeybind()
+  step("the settings' move to the account", T.Backup.Migrate)   -- once; before anything reads its settings
   step("the settings restore", T.Backup.ApplyPending)   -- before anything reads its settings
   step("today's stats", T.Daily.ReadDay)  -- before the session: a new login re-bases daily gold
   step("the crafting state", T.Daily.ReadCraftingState)

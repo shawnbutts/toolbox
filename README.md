@@ -91,7 +91,7 @@ with that setting's section at the top and the setting blinking.
 | `/toolbox version` | the installed version and build (git commit), and whether more than one copy is loaded |
 | `/toolbox stats [word]` | list character stats whose name contains the word (for finding stat names) |
 | `/toolbox config` | open or close the settings window |
-| `/toolbox settings` (`save` / `reset` / `cancel`) | where the settings files are (`Lua/SavedVariables/toolbox.<character>.character.json` and `toolbox.account.json`) and how to back them up (copy them; to restore, quit the game and copy them back); `save` writes them now; `reset` puts every setting and position back to its default at the next `/lua reload` |
+| `/toolbox settings` (`save` / `reset` / `cancel`) | where the settings files are (`Lua/SavedVariables/toolbox.account.json`, your settings and positions, shared by all your characters, and `toolbox.<character>.character.json`, each character's stats) and how to back them up (copy them; to restore, quit the game and copy them back); `save` writes them now; `reset` puts every setting and position back to its default at the next `/lua reload` |
 | `/toolbox spacing <0-12>` | set the extra space between lines in pixels (no number: show and measure it; default 2) |
 | `/toolbox font <9-32>` | set the window text size (no number: show the current size; default 12) |
 
@@ -333,7 +333,7 @@ ends when combat ends (or after 12 quiet seconds); its numbers stay until the ne
 `/toolbox combat reset` (or the settings button) clears them.
 
 **Choosing the stats, on the fly.** The docs name few stats, so the list is the player's, and it can
-be changed at any time, mid-fight included, without a reload (up to 8, saved per character):
+be changed at any time, mid-fight included, without a reload (up to 8, shared by all your characters):
 
 1. Find a name: `/toolbox stats resist` (any word: `absorb`, `dodge`, `block`, `crit`, `regen`,
    `speed` ...). Each line is `index Name (Display name) = value`; the name is the word after the index.
