@@ -54,10 +54,32 @@ return function(t)
     local F = Toolbox.Prices.Format
     t.eq(F(1234.4), "1,234g")
     t.eq(F(12), "12g")
-    t.eq(F(4.5), "4.5g")
+    t.eq(F(4.5), "5g", "to the nearest whole gold")
+    t.eq(F(4.4), "4g")
     t.eq(F(3), "3g")
-    t.eq(F(0.2), "<1g")
+    t.eq(F(0.6), "1g")
+    t.eq(F(0.2), "<1g", "under half a gold: not 0g")
     t.eq(F(0), "0g")
+  end)
+
+  t.test("the values and their summary line in the normal text colour, not dim; whole gold", function()
+    withValues()
+    H.items({ { "Iron Ore", 3 } })
+    H.advance(2)
+    H.httpRespond(1, true, 200, '{"items":[{"item":"Iron Ore","avg90d":4.6,"sold90d":10}],"missing":[]}')
+    t.eq(header().class, "text", "the summary line")
+    t.eq(row("Iron Ore")[3], "~14g", "3 x 4.6 = 13.8: to the nearest whole gold")
+    local found = false
+    local function scan(e)
+      if e.kind == "Label" and e.text == "~14g" then
+        t.eq(e.class, "text", "the value")
+        found = true
+      end
+      for _, c in ipairs(e.children or {}) do scan(c) end
+    end
+    scan(H.detail())
+    t.ok(found, "the value label found")
+    t.ok(row("Iron Ore")[4]:find("^~5g each"), "its tooltip too: " .. row("Iron Ore")[4])
   end)
 
   t.test("off by default: nothing is sent", function()

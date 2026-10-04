@@ -55,7 +55,7 @@ local function addRow(name)
   local nameLabel = UI.Label{ text = name, class = "text", style = T.Window.TextStyle{ flexGrow = 1, flexShrink = 1 } }
   local countLabel = UI.Label{ text = "", class = "text",
     style = T.Window.TextStyle{ textAlign = "right", marginLeft = 6 } }
-  local valueLabel = UI.Label{ text = "", class = "dim", visible = prefs.values == true,
+  local valueLabel = UI.Label{ text = "", class = "text", visible = prefs.values == true,   -- (dim was too light)
     style = T.Window.TextStyle{ textAlign = "right", marginLeft = 8 } }
   el.list:Add(UI.Row{ style = { alignItems = "center" }, children = { nameLabel, countLabel, valueLabel } })
   rows[name] = { name = nameLabel, count = countLabel, value = valueLabel }
@@ -138,7 +138,7 @@ local function build()
             } },
           text("items_summary", "heading", { marginTop = 3 }),
           text("view_note", "text", { whiteSpace = "wrap" }),
-          text("value_summary", "dim"),
+          text("value_summary", "text"),                  -- (dim was too light: owner, 2026-10-04)
         } },
       UI.Scroll{ id = "body", style = { flexGrow = 1 },
         onHover = function(_, over) T.Daily.PopupHover("body", over) end,
@@ -550,11 +550,12 @@ local STATUS = {
 }
 
 -- Gold for display: "1,234g", "12g", "4.5g", "<1g".
+-- Gold to the nearest whole piece (owner, 2026-10-04): "1,234g", "5g"; under half a gold "<1g" (not "0g",
+-- which would read as worthless).
 function P.Format(g)
   if type(g) ~= "number" or g <= 0 then return "0g" end
-  if g >= 10 then return T.FormatNumber(g) .. "g" end
-  if g >= 1 then return (string.format("%.1f", g):gsub("%.0$", "")) .. "g" end
-  return "<1g"
+  if g < 0.5 then return "<1g" end
+  return T.FormatNumber(g) .. "g"                -- (rounds to the nearest whole number)
 end
 
 local function key(name) return tostring(name):lower() end
