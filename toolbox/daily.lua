@@ -1219,9 +1219,15 @@ function D.RecipeLines(text)
       raw[name] = (raw[name] or 0) + qty
       return
     end
+    -- the recipe named like the item first ("Iron Ingot", not "Iron Ingot from Metal Scraps"): the usual way
     local m = makers[1]
+    for _, mk in ipairs(makers) do
+      if T.Field(recipes[mk.id], "name") == name then m = mk end
+    end
     local also = {}
-    for i = 2, #makers do also[#also + 1] = tostring(T.Field(recipes[makers[i].id], "name")) end
+    for _, mk in ipairs(makers) do
+      if mk ~= m then also[#also + 1] = tostring(T.Field(recipes[mk.id], "name")) end
+    end
     local mrec = recipes[m.id]
     if m.yield <= 0 then
       say(pad .. qty .. " x " .. name .. "  <- " .. tostring(T.Field(mrec, "name")) .. " (no fixed yield: stops here)")

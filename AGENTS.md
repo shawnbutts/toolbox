@@ -520,7 +520,12 @@ and stats wait on dev request 18. Caching (owner): recipes change only with a cl
 recipes "forever" (account scope, keyed by id; split across keys: a table must stay under 256 KB), with a "Reset
 recipe cache" button, and clear it when the client build changes (`ShroudGetClientInfo().build`) or when a later
 Toolbox release says so (a cache format number). Which recipes a character knows stays per character
-(`ShroudGetKnownRecipes`, re-read on `ShroudOnRecipesChanged`), and "have" counts are always read fresh; a gathering session HUD; lock-position / snap presets for strips
+(`ShroudGetKnownRecipes`, re-read on `ShroudOnRecipesChanged`), and "have" counts are always read fresh. Found with the probe on the live client (2026-10-05, 1,761 recipes): a
+recipe's ingredients can be SLOT CATEGORIES ("Metal Sheet", "Metal Binding", "Cloth or Leather Strap": no recipe
+makes an item by that name; the choices are e.g. the recipes whose result ends in "Sheet", "Glass Sheet" being a
+false match), and several recipes can make one item ("Iron Ingot" and "Iron Ingot from Metal Scraps": default to
+the one named like the item, let the player switch). Below a chosen item the chain expands exactly (Iron Sheet ->
+Iron Ingot -> ore and coal); a gathering session HUD; lock-position / snap presets for strips
 (only if a strip's grip can be hidden).
 
 ## Game behaviour (confirmed in game)

@@ -95,4 +95,23 @@ return function(t)
     t.ok(all():find("Reading your recipe book", 1, true), "read again after learning a recipe")
     ShroudGetRecipe = get
   end)
+
+  -- In game (2026-10-05) "Iron Ingot from Metal Scraps" was read before "Iron Ingot" and taken for the ingots.
+  t.test("several recipes make an item: the one named like it is used, the others listed", function()
+    H.boot()
+    book()
+    H.S.recipes[5] = { id = 0, name = "Iron Ingot from Metal Scraps", category = "Smelting",
+                       ingredients = { { name = "Metal Scrap", quantity = 12, have = 0 } },
+                       results = { { name = "Iron Ingot", quantity = 1 } } }
+    H.S.recipes[5].id = 5
+    H.S.recipes[3].id, H.S.recipes[9] = 9, H.S.recipes[3]   -- the usual one read after the scrap one
+    H.S.recipes[3] = nil
+    H.clearLogs()
+    H.chat("/tbx recipe iron plate chest")
+    H.advance(2)
+    local out = all()
+    t.ok(out:find("4 x Iron Ingot  <%- 4 x Iron Ingot %(Smelting, makes 1%)  %[also made by: Iron Ingot from Metal"),
+      out)
+    t.no(out:find("Metal Scrap\n"), "no scrap in the raw materials")
+  end)
 end
