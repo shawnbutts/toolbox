@@ -2475,13 +2475,21 @@ local function characterName()
   return name
 end
 
+-- The character in the world, or nil (the login screen, no character yet).
+function T.CharacterName() return characterName() end
+
 -- Another character logged in without a reload: ShroudOnStart doesn't run again; the docs: check the name in
 -- ShroudOnSceneLoaded: every module starts again with that character's settings and positions, before
 -- anything saves (the tick's window tracking would write the last character's into this one's file).
 -- Returns true when it did.
 function T.FollowCharacter()
   local name = characterName()
-  if not name or name == T.settingsFor then return false end
+  if not name then return false end
+  if T.loggedOut then                  -- back from the login screen: read from the files, whoever it is
+    T.loggedOut = false
+    T.settingsFor = false
+  end
+  if name == T.settingsFor then return false end
   T.settingsFor = name                 -- (false: started with no character, so read no settings yet)
   local places = T.Hud.Places()        -- before the strips go: kept where this character has none
   step("the settings restore", T.Backup.ApplyPending)
@@ -2624,6 +2632,7 @@ function ShroudOnCraftingStateChanged(state)
 end
 
 function ShroudOnLogOut()
+  T.loggedOut = true                   -- the next login reads its settings again, even the same character's
   if T.session then
     T.Sample()
     T.session.ended = true

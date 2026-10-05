@@ -690,4 +690,42 @@ return function(t)
     local NH = Toolbox.Notify.Hud
     t.eq(hud:Find("nh_1").style.width, NH.WIDTH - NH.SCROLLBAR, "narrower than the scroll area")
   end)
+
+  -- Owner, 2026-10-05 (1.5.0): the HUD went back to the top-left corner after client restarts and account
+  -- switches. A hidden strip (never laid out, or at the login screen) can report the corner: never saved.
+  t.test("a hidden HUD's position isn't saved: what it reports while hidden can't move it", function()
+    mailToHud()
+    H.setNotes{ unreadMail = 2 }
+    H.advance(1)
+    local f = H.S.frames.toolbox_notify_hud
+    f.x, f.y = 600, 450                          -- placed by its grip while shown
+    H.advance(1)
+    t.eq(H.saved("notify_hud").x, 600)
+    H.advance(Toolbox.Notify.Hud.HIDE_DEFAULT + 2)
+    t.eq(f.visible, false, "hidden after a while")
+    f.x, f.y = 0, 0                              -- a hidden frame reporting the corner
+    H.advance(3)
+    t.eq(H.saved("notify_hud").x, 600, "not saved while hidden")
+    t.eq(H.saved("notify_hud").y, 450)
+  end)
+
+  t.test("at the login screen nothing is saved, and the same character logging back in reads its own", function()
+    mailToHud()
+    H.setNotes{ unreadMail = 2 }
+    H.advance(1)
+    local f = H.S.frames.toolbox_notify_hud
+    f.x, f.y = 600, 450
+    H.advance(1)
+    H.callback("ShroudOnLogOut")
+    H.S.char.present = false                     -- the login screen
+    f.x, f.y = 0, 0
+    H.advance(3)
+    t.eq(H.saved("notify_hud").x, 600, "not saved at the login screen")
+    H.S.char.present = true                      -- the same character again
+    H.callback("ShroudOnSceneLoaded", "Novia")
+    H.advance(1)
+    local x, y = Toolbox.Notify.Hud.GetPosition()
+    t.eq(x, 600, "its own place, read again")
+    t.eq(y, 450)
+  end)
 end

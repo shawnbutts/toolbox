@@ -380,8 +380,20 @@ function Hud.Refresh()
 end
 
 -- Remembers where the player put the strips (grip drags included); from Toolbox.Tick.
+-- Whether a strip is on screen now. Only those are measured: a hidden strip can't be dragged, and one never
+-- shown may not be laid out yet (the notification HUD, hidden until a notice comes, was sent back to the top-left
+-- corner after client restarts and account switches; owner, 2026-10-05).
+local function onScreen(frame)
+  if not frame then return false end
+  local ok, v = pcall(frame.IsVisible, frame)
+  return ok and v == true
+end
+
+-- Remembers where the player put the strips (grip drags included); from Toolbox.Tick. Nothing while no character
+-- is in the world (the login screen, a loading screen): what the strips report then isn't the player's.
 function Hud.Tick()
-  if prefs.glued then
+  if not T.CharacterName() then return end
+  if prefs.glued and onScreen(frames[Hud.GLUED_ID]) then
     local x, y = Hud.Position(frames[Hud.GLUED_ID])
     if x and (x ~= prefs.x or y ~= prefs.y) then
       prefs.x, prefs.y = x, y
@@ -389,7 +401,7 @@ function Hud.Tick()
     end
   end
   for key, frame in pairs(frames) do
-    if modules[key] then
+    if modules[key] and onScreen(frame) then
       local x, y = Hud.Position(frame)
       if x then modules[key].SavePosition(x, y) end
     end
@@ -448,7 +460,8 @@ end
 function Hud.Places()
   local out = {}
   for key, frame in pairs(frames) do
-    local x, y = Hud.Position(frame)
+    local x, y = nil, nil
+    if onScreen(frame) then x, y = Hud.Position(frame) end
     if x then out[key] = { x, y } end
   end
   return out

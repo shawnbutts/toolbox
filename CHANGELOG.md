@@ -7,6 +7,12 @@ ones included).
 
 ## [Unreleased]
 
+### Fixed
+- The notification HUD (and potentially any HUD strip) could jump back to the top-left corner after restarting
+  the game or switching accounts: Toolbox saved where a hidden strip was, and a hidden strip, or one at the
+  login screen, can report the corner. Positions are now saved only while a strip is on screen and a character
+  is in the world, and logging back in reads each character's saved places again.
+
 ### Added
 - /toolbox recipe <name>: a recipe you know as the game reports it, and what it takes from raw materials through
   the other recipes you know (crafts needed and raw totals). A first step toward a crafting planner.
