@@ -151,7 +151,10 @@ into one if a new file is ever needed).
   `Place()`. At most `Hud.FrameCap()` strips (`Hud.MAX_FRAMES` = 25, or the limit learned when the game
   refused a frame for room, `Hud.OutOfRoom`: that strip's content is destroyed): past that a strip isn't built
   and chat says so once (`noRoom`; `Hud.ORDER` decides, target last). A strip failing with "too fast" is retried after
-  `Hud.RETRY_DELAY`. `Hud.TextStrip` is the HUD form of the XP and Today windows. `Hud.SetOverlay(provider)`:
+  `Hud.RETRY_DELAY`. `Hud.TextStrip` is the HUD form of the XP and Today windows. `Hud.Tick` saves a strip's position only
+  while it is on screen (`IsVisible`) and a character is in the world (`T.CharacterName`): a hidden or never-shown
+  strip, or one at the login screen, can report the top-left corner (owner, 2026-10-05). A logout (`T.loggedOut`)
+  makes the next login, the same character's too, read every module's settings again (`T.FollowCharacter`). `Hud.SetOverlay(provider)`:
   one overlay drawn over the Toolbelt (the combat shout). `Hud.Rebuild(key)` rebuilds one
   module's own strip (a setting that changes its elements); a full `Hud.Build()` makes every strip's elements
   again at once, past the creation cap with a big strip (the buff block's 40 slots).
