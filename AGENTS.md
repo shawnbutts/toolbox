@@ -512,8 +512,15 @@ health and focus by name (`...InScene(name)`), buffs by name
 expose only vitals; combat events carry a `party` flag. It needs a HUD frame of its own: with 25 frames (the
 2026-10-01 raise; confirm in game) there is room; on an 8-frame client the learned cap (`Hud.FrameCap`) leaves
 it out with the "no room" line. Also:
-a crafting skill tracker and a recipe lookup / shopping list (as Today
-Detailed views: no window slot left); a gathering session HUD; lock-position / snap presets for strips
+a crafting skill tracker and a recipe lookup / shopping list (as Loot
+Tracker views: no window slot left). **Crafting planner** (owner, 2026-10-05; probe: `/toolbox recipe`,
+`D.RecipeLines`): pick a recipe, expand it "from scratch" through the known recipes' results, a combined
+shopping list, and a build order grouped by station that ticks off from `ShroudOnCraftResults`; ingredient choices
+and stats wait on dev request 18. Caching (owner): recipes change only with a client release, so keep the read
+recipes "forever" (account scope, keyed by id; split across keys: a table must stay under 256 KB), with a "Reset
+recipe cache" button, and clear it when the client build changes (`ShroudGetClientInfo().build`) or when a later
+Toolbox release says so (a cache format number). Which recipes a character knows stays per character
+(`ShroudGetKnownRecipes`, re-read on `ShroudOnRecipesChanged`), and "have" counts are always read fresh; a gathering session HUD; lock-position / snap presets for strips
 (only if a strip's grip can be hidden).
 
 ## Game behaviour (confirmed in game)
