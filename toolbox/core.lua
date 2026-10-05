@@ -628,8 +628,25 @@ end
 
 add("recipe", "a known recipe as the game reports it, and what it takes from raw materials (recipe <name>)",
     function(rest)
-  for _, line in ipairs(T.Daily.RecipeLines(rest)) do T.Print(line) end
+  local D = T.Daily
+  local lines = D.RecipeLines(rest)
+  if lines then                        -- answered without the whole book (a list of matches, none, ...)
+    for _, line in ipairs(lines) do T.Print(line) end
+    return
+  end
+  local n = D.ReadRecipeBook(function(ok)
+    if not ok then return end
+    for _, line in ipairs(D.RecipeLines(rest) or {}) do T.Print(line) end
+  end)
+  if n and n > 0 then
+    T.Print("Reading your recipe book (" .. n .. " recipes): the answer follows in a few seconds.")
+  end
 end)
+
+-- You learned a recipe (or marked a favorite): /toolbox recipe reads the book again.
+function ShroudOnRecipesChanged()
+  T.Daily.ForgetRecipes()
+end
 
 add("crafted", "today's crafting: items made, crafts per recipe, exceptional and XP (Loot Tracker)",
   function() openView("crafted") end)

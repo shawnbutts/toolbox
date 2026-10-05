@@ -30,6 +30,8 @@ return function(t)
     book()
     H.clearLogs()
     H.chat("/tbx recipe iron plate chest")
+    t.ok(all():find("Reading your recipe book %(4 recipes%)"), all())
+    H.advance(2)
     local out = all()
     t.ok(out:find("Recipe 'Iron Plate Chest' %(id 1, Blacksmithy"), out)
     t.ok(out:find("2 x Leather Strap %(have 1%)  {choices=<table of 2>}"), "an undocumented field shows: " .. out)
@@ -47,10 +49,12 @@ return function(t)
     book()
     H.clearLogs()
     H.chat("/tbx recipe iron plate")
+    H.advance(2)
     t.ok(all():find("Iron Plate Chest %(Blacksmithy%)") == nil and all():find("Recipe 'Iron Plate'"),
       "an exact name wins: " .. all())
     H.clearLogs()
     H.chat("/tbx recipe helm")
+    H.advance(2)
     t.ok(all():find("no fixed yield"), all())
     H.clearLogs()
     H.chat("/tbx recipe iron")
@@ -62,5 +66,33 @@ return function(t)
     H.clearLogs()
     H.chat("/tbx recipe")
     t.ok(all():find("0 known recipes") or all():find("No known recipes yet"), all())
+  end)
+
+  -- In game, reading a big recipe book in one call ran past the game's time limit (owner, 2026-10-05).
+  t.test("a big recipe book is read a few recipes at a time, once; learning a recipe reads it again", function()
+    H.boot()
+    book()
+    for i = 10, 409 do
+      H.S.recipes[i] = { id = i, name = "Filler " .. i, ingredients = {}, results = { { name = "Filler " .. i,
+        quantity = 1 } } }
+    end
+    local calls = 0
+    local get = ShroudGetRecipe
+    ShroudGetRecipe = function(id) calls = calls + 1 return get(id) end
+    H.clearLogs()
+    H.chat("/tbx recipe iron plate chest")
+    t.ok(calls <= Toolbox.Daily.BOOK_STEP, "not all at once: " .. calls)
+    H.advance(6, 0.1)                                    -- 404 recipes, 8 a tenth of a second
+    t.ok(all():find("Raw materials in all", 1, true), "answered once read")
+    local after = calls
+    H.clearLogs()
+    H.chat("/tbx recipe iron plate chest")
+    t.ok(all():find("Raw materials in all", 1, true), "at once the second time")
+    t.ok(calls - after <= 1, "the book isn't read again (only the recipe itself, for current counts)")
+    H.callback("ShroudOnRecipesChanged")
+    H.clearLogs()
+    H.chat("/tbx recipe iron plate chest")
+    t.ok(all():find("Reading your recipe book", 1, true), "read again after learning a recipe")
+    ShroudGetRecipe = get
   end)
 end

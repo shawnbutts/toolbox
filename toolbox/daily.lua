@@ -1040,8 +1040,75 @@ end
 -- ShroudGetRecipe gives it, every field included (an undocumented one, such as a list of choices for an
 -- ingredient, would show here), then expands it "from scratch" through the recipes you know: an ingredient
 -- some known recipe makes (by its `results` name) is broken down into that recipe's ingredients, the rest are
--- raw. Read-only; reads every known recipe once per use.
+-- raw. Read-only. Reading every known recipe at once ran past the game's time limit for one call ("Lua addon
+-- exceeded its execution time budget", owner, 2026-10-05): the book is read D.BOOK_STEP recipes a
+-- D.BOOK_PERIOD (D.ReadRecipeBook), kept for the session, and read again after ShroudOnRecipesChanged.
 -- ---------------------------------------------------------------------------
+D.BOOK_STEP, D.BOOK_PERIOD = 8, 0.1
+D.recipeIndex = nil                       -- { recipes = { [id] = recipe }, byResult = { [item] = { { id, yield } } } }
+local reading = nil                       -- the book being read: { list, at, recipes, byResult, waiting }
+local BOOK_TIMER = "toolbox_recipe_book"
+
+function D.ForgetRecipes()
+  D.recipeIndex = nil
+  if reading then
+    pcall(ShroudRemovePeriodic, BOOK_TIMER)
+    local waiting = reading.waiting
+    reading = nil
+    for _, done in ipairs(waiting) do done(false) end
+  end
+end
+
+local function readSome()
+  local r = reading
+  if not r then return end
+  local stop = math.min(#r.list, r.at + D.BOOK_STEP - 1)
+  for i = r.at, stop do
+    local id = type(T.Field(r.list[i], "id")) == "number" and T.Field(r.list[i], "id") or nil
+    if id then
+      local ok, rec = pcall(ShroudGetRecipe, id)
+      if ok and rec then
+        r.recipes[id] = rec
+        for _, res in ipairs(T.List(T.Field(rec, "results"))) do
+          local name = T.Field(res, "name")
+          if type(name) == "string" then
+            r.byResult[name] = r.byResult[name] or {}
+            local makers = r.byResult[name]
+            local q = T.Field(res, "quantity")
+            makers[#makers + 1] = { id = id, yield = type(q) == "number" and q or 0 }
+          end
+        end
+      end
+    end
+  end
+  r.at = stop + 1
+  if r.at > #r.list then
+    pcall(ShroudRemovePeriodic, BOOK_TIMER)
+    reading = nil
+    D.recipeIndex = { recipes = r.recipes, byResult = r.byResult }
+    for _, done in ipairs(r.waiting) do done(true) end
+  end
+end
+
+-- Reads the recipe book a few recipes at a time, then calls done(true) (done(false) if it was dropped).
+-- Returns how many recipes it reads, or nil when there's nothing to read (no book: done isn't called).
+function D.ReadRecipeBook(done)
+  if D.recipeIndex then
+    done(true)
+    return 0
+  end
+  if reading then
+    reading.waiting[#reading.waiting + 1] = done
+    return #reading.list
+  end
+  if type(ShroudGetKnownRecipes) ~= "function" or type(ShroudGetRecipe) ~= "function" then return nil end
+  local ok, book = pcall(ShroudGetKnownRecipes)
+  local list = ok and T.List(book) or {}
+  if #list == 0 then return nil end
+  reading = { list = list, at = 1, recipes = {}, byResult = {}, waiting = { done } }
+  ShroudRegisterPeriodic(BOOK_TIMER, readSome, D.BOOK_PERIOD, true)
+  return #list
+end
 D.PROBE_DEPTH = 8
 D.PROBE_LINES = 80
 D.PROBE_MATCHES = 15
@@ -1105,26 +1172,9 @@ function D.RecipeLines(text)
     return lines
   end
   local pick = exact or matches[1]
-
-  -- every known recipe once: by id, and which recipes make each item name (from their results)
-  local recipes, byResult = {}, {}
-  for _, r in ipairs(known) do
-    local id = number(T.Field(r, "id"))
-    if id then
-      local okR, rec = pcall(ShroudGetRecipe, id)
-      if okR and rec then
-        recipes[id] = rec
-        for _, res in ipairs(T.List(T.Field(rec, "results"))) do
-          local name = T.Field(res, "name")
-          if type(name) == "string" then
-            byResult[name] = byResult[name] or {}
-            local makers = byResult[name]
-            makers[#makers + 1] = { id = id, yield = number(T.Field(res, "quantity")) or 0 }
-          end
-        end
-      end
-    end
-  end
+  local index = D.recipeIndex
+  if not index then return nil end         -- the caller reads the book first (D.ReadRecipeBook)
+  local recipes, byResult = index.recipes, index.byResult
 
   local lines = {}
   local function say(s)
@@ -1132,7 +1182,8 @@ function D.RecipeLines(text)
     elseif #lines == D.PROBE_LINES then lines[#lines + 1] = "... (cut short: " .. D.PROBE_LINES .. " lines)" end
   end
   local id = number(T.Field(pick, "id"))
-  local rec = id and recipes[id]
+  local okPick, fresh = pcall(ShroudGetRecipe, id)   -- read now: its "have" counts are current
+  local rec = (okPick and fresh) or (id and recipes[id])
   if not rec then return { "The game gave nothing for '" .. tostring(T.Field(pick, "name")) .. "'." } end
   say("Recipe '" .. tostring(T.Field(rec, "name")) .. "' (id " .. tostring(id) .. ", "
     .. tostring(T.Field(rec, "category")) .. " / " .. tostring(T.Field(rec, "categoryKey")) .. ", level "
