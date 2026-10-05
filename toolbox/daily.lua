@@ -1034,3 +1034,172 @@ function D.Refresh()
   T.SetText(e.skills, T.FormatNumber(D.day.skills))
   T.SetText(e.deaths, T.FormatNumber(D.day.deaths))
 end
+
+-- ---------------------------------------------------------------------------
+-- /toolbox recipe <name>: a probe for the crafting planner (owner, 2026-10-05). Prints a known recipe as
+-- ShroudGetRecipe gives it, every field included (an undocumented one, such as a list of choices for an
+-- ingredient, would show here), then expands it "from scratch" through the recipes you know: an ingredient
+-- some known recipe makes (by its `results` name) is broken down into that recipe's ingredients, the rest are
+-- raw. Read-only; reads every known recipe once per use.
+-- ---------------------------------------------------------------------------
+D.PROBE_DEPTH = 8
+D.PROBE_LINES = 80
+D.PROBE_MATCHES = 15
+local INGREDIENT_FIELDS = { name = true, quantity = true, have = true, optional = true, tool = true }
+local RECIPE_FIELDS = { id = true, name = true, category = true, categoryKey = true, requiredLevel = true,
+                        refine = true, ingredients = true, results = true, result = true }
+
+-- "k=v, k=v" for a table's fields outside `known` (sorted), or "" (a game object can't be walked: says so).
+local function extraFields(t, known)
+  if type(t) == "userdata" then return "(a game object: its other fields can't be listed)" end
+  if type(t) ~= "table" then return "" end
+  local keys = {}
+  for k in pairs(t) do
+    if not known[k] then keys[#keys + 1] = tostring(k) end
+  end
+  table.sort(keys)
+  local parts = {}
+  for _, k in ipairs(keys) do
+    local v = t[k]
+    if type(v) == "table" then
+      local n = 0
+      for _ in pairs(v) do n = n + 1 end
+      parts[#parts + 1] = k .. "=<table of " .. n .. ">"
+    else
+      parts[#parts + 1] = k .. "=" .. tostring(v)
+    end
+  end
+  return table.concat(parts, ", ")
+end
+
+local function number(v) if type(v) == "number" then return v end return nil end
+
+function D.RecipeLines(text)
+  if type(ShroudGetKnownRecipes) ~= "function" or type(ShroudGetRecipe) ~= "function" then
+    return { "This game client has no recipe calls for add-ons (they need Lua API 18)." }
+  end
+  local ok, book = pcall(ShroudGetKnownRecipes)
+  local known = ok and T.List(book) or {}
+  if #known == 0 then return { "No known recipes yet (the recipe book may still be loading)." } end
+  text = T.Trim(text or "")
+  if text == "" then
+    return { #known .. " known recipes. /toolbox recipe <part of a name> shows one as the game reports it, and "
+      .. "what it takes from raw materials." }
+  end
+  local want, exact, matches = text:lower(), nil, {}
+  for _, r in ipairs(known) do
+    local name = T.Field(r, "name")
+    if type(name) == "string" and name:lower():find(want, 1, true) then
+      matches[#matches + 1] = r
+      if name:lower() == want then exact = r end
+    end
+  end
+  if #matches == 0 then return { "No known recipe has '" .. text .. "' in its name." } end
+  if not exact and #matches > 1 then
+    local lines = { #matches .. " known recipes match '" .. text .. "'; type more of the name:" }
+    for i = 1, math.min(#matches, D.PROBE_MATCHES) do
+      local r = matches[i]
+      lines[#lines + 1] = "  " .. tostring(T.Field(r, "name")) .. " (" .. tostring(T.Field(r, "category")) .. ")"
+    end
+    if #matches > D.PROBE_MATCHES then lines[#lines + 1] = "  ... and " .. (#matches - D.PROBE_MATCHES) .. " more" end
+    return lines
+  end
+  local pick = exact or matches[1]
+
+  -- every known recipe once: by id, and which recipes make each item name (from their results)
+  local recipes, byResult = {}, {}
+  for _, r in ipairs(known) do
+    local id = number(T.Field(r, "id"))
+    if id then
+      local okR, rec = pcall(ShroudGetRecipe, id)
+      if okR and rec then
+        recipes[id] = rec
+        for _, res in ipairs(T.List(T.Field(rec, "results"))) do
+          local name = T.Field(res, "name")
+          if type(name) == "string" then
+            byResult[name] = byResult[name] or {}
+            local makers = byResult[name]
+            makers[#makers + 1] = { id = id, yield = number(T.Field(res, "quantity")) or 0 }
+          end
+        end
+      end
+    end
+  end
+
+  local lines = {}
+  local function say(s)
+    if #lines < D.PROBE_LINES then lines[#lines + 1] = s
+    elseif #lines == D.PROBE_LINES then lines[#lines + 1] = "... (cut short: " .. D.PROBE_LINES .. " lines)" end
+  end
+  local id = number(T.Field(pick, "id"))
+  local rec = id and recipes[id]
+  if not rec then return { "The game gave nothing for '" .. tostring(T.Field(pick, "name")) .. "'." } end
+  say("Recipe '" .. tostring(T.Field(rec, "name")) .. "' (id " .. tostring(id) .. ", "
+    .. tostring(T.Field(rec, "category")) .. " / " .. tostring(T.Field(rec, "categoryKey")) .. ", level "
+    .. tostring(T.Field(rec, "requiredLevel")) .. ", refine " .. tostring(T.Field(rec, "refine")) .. ")")
+  local extra = extraFields(rec, RECIPE_FIELDS)
+  if extra ~= "" then say("  other fields: " .. extra) end
+  local results = T.List(T.Field(rec, "results"))
+  if #results == 0 then say("  Makes: no fixed yield (a rolled result)") end
+  for _, res in ipairs(results) do
+    local more = extraFields(res, { name = true, quantity = true })
+    say("  Makes " .. tostring(T.Field(res, "quantity")) .. " x " .. tostring(T.Field(res, "name"))
+      .. (more ~= "" and ("  {" .. more .. "}") or ""))
+  end
+  say("Ingredients, as the game gives them:")
+  for _, ing in ipairs(T.List(T.Field(rec, "ingredients"))) do
+    local flags = {}
+    if T.Field(ing, "optional") == true then flags[#flags + 1] = "optional" end
+    if T.Field(ing, "tool") == true then flags[#flags + 1] = "tool" end
+    local more = extraFields(ing, INGREDIENT_FIELDS)
+    say("  " .. tostring(T.Field(ing, "quantity")) .. " x " .. tostring(T.Field(ing, "name")) .. " (have "
+      .. tostring(T.Field(ing, "have")) .. ")" .. (#flags > 0 and (" [" .. table.concat(flags, ", ") .. "]") or "")
+      .. (more ~= "" and ("  {" .. more .. "}") or ""))
+  end
+
+  -- from scratch: through the first known recipe that makes each ingredient
+  say("From scratch, through the recipes you know:")
+  local raw = {}
+  local function expand(name, qty, depth, seen)
+    local pad = string.rep("  ", depth)
+    local makers = byResult[name]
+    if not makers or depth >= D.PROBE_DEPTH or seen[name] then
+      say(pad .. qty .. " x " .. name .. (seen[name] and "  (made from itself: stops here)" or ""))
+      raw[name] = (raw[name] or 0) + qty
+      return
+    end
+    local m = makers[1]
+    local also = {}
+    for i = 2, #makers do also[#also + 1] = tostring(T.Field(recipes[makers[i].id], "name")) end
+    local mrec = recipes[m.id]
+    if m.yield <= 0 then
+      say(pad .. qty .. " x " .. name .. "  <- " .. tostring(T.Field(mrec, "name")) .. " (no fixed yield: stops here)")
+      raw[name] = (raw[name] or 0) + qty
+      return
+    end
+    local crafts = math.floor((qty + m.yield - 1) / m.yield)
+    say(pad .. qty .. " x " .. name .. "  <- " .. crafts .. " x " .. tostring(T.Field(mrec, "name")) .. " ("
+      .. tostring(T.Field(mrec, "category")) .. ", makes " .. m.yield .. ")"
+      .. (#also > 0 and ("  [also made by: " .. table.concat(also, "; ") .. "]") or ""))
+    seen[name] = true
+    for _, ing in ipairs(T.List(T.Field(mrec, "ingredients"))) do
+      local iname, iqty = T.Field(ing, "name"), number(T.Field(ing, "quantity")) or 0
+      if type(iname) == "string" and T.Field(ing, "tool") ~= true and T.Field(ing, "optional") ~= true then
+        expand(iname, iqty * crafts, depth + 1, seen)
+      end
+    end
+    seen[name] = nil
+  end
+  for _, ing in ipairs(T.List(T.Field(rec, "ingredients"))) do
+    local iname, iqty = T.Field(ing, "name"), number(T.Field(ing, "quantity")) or 0
+    if type(iname) == "string" and T.Field(ing, "tool") ~= true and T.Field(ing, "optional") ~= true then
+      expand(iname, iqty, 1, {})
+    end
+  end
+  local names = {}
+  for n in pairs(raw) do names[#names + 1] = n end
+  table.sort(names)
+  say("Raw materials in all (tools and optional ones left out):")
+  for _, n in ipairs(names) do say("  " .. raw[n] .. " x " .. n) end
+  return lines
+end

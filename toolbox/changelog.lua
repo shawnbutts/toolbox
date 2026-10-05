@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Added" },
+  { "item", "/toolbox recipe <name>: a recipe you know as the game reports it, and what it takes from raw materials through the other recipes you know (crafts needed and raw totals). A first step toward a crafting planner." },
   { "version", "1.5.0 - 2026-10-04" },
   { "section", "Added" },
   { "item", "Loot Tracker: a Reset button, for counting one hunt or run. It shows what came in since you pressed it (items, gold, kills, crafting and gathering, \"Since 14:32\" at the top). Nothing is lost: the Today window keeps the whole day, and Show all of today brings the day back to the Loot Tracker. In chat: /toolbox loot reset, /toolbox loot today. A run ends at midnight with the day." },

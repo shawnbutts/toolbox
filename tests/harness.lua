@@ -284,6 +284,21 @@ local function install_api()
       local r = S.recipes and S.recipes[id]
       return r and copy(r) or nil
     end
+    -- The recipe book: every H.S.recipes entry as { id, name, category, categoryKey, requiredLevel, favorite }.
+    ShroudGetKnownRecipes = function()
+      if not S.char.present then return nil end
+      local ids = {}
+      for id in pairs(S.recipes or {}) do ids[#ids + 1] = id end
+      table.sort(ids)
+      local out = {}
+      for _, id in ipairs(ids) do
+        local r = S.recipes[id]
+        out[#out + 1] = { id = id, name = r.name, category = r.category or "Blacksmithy",
+                          categoryKey = r.categoryKey or "Blacksmithy", requiredLevel = r.requiredLevel or 1,
+                          favorite = r.favorite == true }
+      end
+      return out
+    end
   else
     ShroudGetCraftingState, ShroudGetRecipe = nil, nil
   end

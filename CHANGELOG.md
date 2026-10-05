@@ -7,6 +7,10 @@ ones included).
 
 ## [Unreleased]
 
+### Added
+- /toolbox recipe <name>: a recipe you know as the game reports it, and what it takes from raw materials through
+  the other recipes you know (crafts needed and raw totals). A first step toward a crafting planner.
+
 ## [1.5.0] - 2026-10-04
 
 ### Added

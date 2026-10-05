@@ -626,6 +626,11 @@ local function openView(view)
   if not T.DailyDetail.IsShown() then T.DailyDetail.SetOpen(true) end
 end
 
+add("recipe", "a known recipe as the game reports it, and what it takes from raw materials (recipe <name>)",
+    function(rest)
+  for _, line in ipairs(T.Daily.RecipeLines(rest)) do T.Print(line) end
+end)
+
 add("crafted", "today's crafting: items made, crafts per recipe, exceptional and XP (Loot Tracker)",
   function() openView("crafted") end)
 
