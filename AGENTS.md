@@ -500,11 +500,15 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   limit (dev report item 16).
 - **API 27**: skill training modes (`ShroudSetSkillMode`, `ShroudCanSetSkillMode`; used by skills.lua's markers),
   skill tracking (`ShroudGetTrackedSkills`, `ShroudSetSkillTracked`; unused).
-- **API 28** (the owner's client, 2026-10-04; `T.DOCS_API` = 28, `min_api_version` stays 25): the player frame's
+- **API 28** (the owner's client, 2026-10-04; `min_api_version` stays 25): the player frame's
   health, focus and Vigor bars hidden by `ShroudSetPlayerVitalBarsVisible(false)` (released on reload, so
   re-applied every vitals tick while wanted, as the buff bar's): "Replace the game's health bars" (`V.SetReplace`),
   only while ours are on screen (`Hud.PartOnScreen("vitals")`: a combat-only Toolbelt hides its strip with the parts
   still built).
+- **API 29** (docs 2026-10-07; `T.DOCS_API` = 29, `min_api_version` stays 25): `ShroudGetLocationText()` (the line `/loc`
+  prints; English area name; "" while loading) and `ShroudFormatLocation(x, y, z)` (a position as `/loc` writes it, which
+  chat turns into a link; nil unless three finite numbers). Unused; `/toolbox api` probes them. Requests 18 and 19 are
+  not in it.
 
 **Waiting on the developers:** a read-only game settings API (first use: the game's "stack buffs lasting
 longer than" option feeding `BB.GroupAfter()`). Submitted 2026-10-07 (`tmp/client-issues.md`): **18**, for the

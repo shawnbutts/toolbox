@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PACKAGE = ROOT / "toolbox"
 DIST = ROOT / "dist"
 
-CLIENT_API_VERSION = 28  # newest API the docs describe (= Toolbox.DOCS_API); min_api_version above this cannot load
+CLIENT_API_VERSION = 29  # newest API the docs describe (= Toolbox.DOCS_API); min_api_version above this cannot load
 
 SLUG_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
 # The docs list these "among" the reserved slugs; the full list is not published.
