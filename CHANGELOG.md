@@ -29,7 +29,8 @@ ones included).
 - Setups: an Import or Delete clicked once by one character could be finished by the next character's single
   click if Settings stayed open across the switch. Now the new character is asked again.
 - Setups: "List this character's setup" said it was done even when the game refused to save the choice. It
-  now says so and leaves things as they were; at the setup limit it says to delete one first.
+  now says so and leaves things as they were (switched off, the setup stays listed until it can be taken off the
+  list); at the setup limit it says to delete one first.
 
 ## [1.5.1] - 2026-10-07
 

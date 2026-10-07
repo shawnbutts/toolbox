@@ -233,6 +233,28 @@ return function(t)
     t.ok(names():find("^Mom %(character"), names())
   end)
 
+  t.test("share off: a list the game won't change keeps sharing on; a refused choice puts the copy back", function()
+    momPlays()
+    H.S.refuseKeys = { setups = true }           -- the account's list of setups can't change
+    H.clearLogs()
+    H.chat("/tbx settings share off")
+    t.ok(H.logged("Couldn't take your setup off the list"), H.lastLog())
+    t.eq(B().GetShare(), true, "still on, as its copy is still listed")
+    t.eq(H.saved("setup_share"), true)
+    H.S.refuseKeys = { setup_share = true }      -- now the choice can't be stored
+    H.clearLogs()
+    H.chat("/tbx settings share off")
+    t.ok(H.logged("Couldn't take your setup off the list"), H.lastLog())
+    t.eq(B().GetShare(), true)
+    H.S.refuseKeys = nil
+    switchTo("Dad")
+    t.ok(names():find("^Mom %(character"), "its copy put back: " .. names())
+    switchTo("Mom")
+    H.chat("/tbx settings share off")
+    switchTo("Dad")
+    t.eq(names(), "", "off once the game takes it")
+  end)
+
   t.test("share on: listed from its first setting; at the setup limit refused and said", function()
     H.boot()
     H.S.char.name = "Fresh"

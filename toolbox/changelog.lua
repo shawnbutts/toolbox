@@ -13,7 +13,7 @@ Toolbox.CHANGELOG = {
   { "section", "Fixed" },
   { "item", "Replace the game's health bars with a Toolbelt shown only during combat: out of combat the Toolbelt hid and took your health bars with it, leaving no bars at all. The game's own bars now come back while it's hidden." },
   { "item", "Setups: an Import or Delete clicked once by one character could be finished by the next character's single click if Settings stayed open across the switch. Now the new character is asked again." },
-  { "item", "Setups: \"List this character's setup\" said it was done even when the game refused to save the choice. It now says so and leaves things as they were; at the setup limit it says to delete one first." },
+  { "item", "Setups: \"List this character's setup\" said it was done even when the game refused to save the choice. It now says so and leaves things as they were (switched off, the setup stays listed until it can be taken off the list); at the setup limit it says to delete one first." },
   { "version", "1.5.1 - 2026-10-07" },
   { "section", "Fixed" },
   { "item", "A character could lose ALL its Toolbox settings: the game saves a \"/\" in text in a form its own loader then refuses, drops the whole file and starts over with defaults. A custom sound path with a folder in it (\"my sounds/ding.ogg\") was enough, and so could be an item or effect name with a slash. Toolbox now never saves a \"/\" (it writes \"%2F\" and turns it back when reading), so the file always loads. Already reported to the developers." },

@@ -2430,7 +2430,8 @@ end
 -- Lists this character's setup for the others, or stops (its copy is deleted from the account file).
 -- Returns true, or false and why; nothing is claimed that wasn't stored (review, 2026-10-07, 16). On: the copy
 -- first, then the choice (a refused choice takes the copy back out); a character with no settings of its own yet
--- gets its copy at its first change (B.KeepCopy). Off: the choice first, then the copy goes.
+-- gets its copy at its first change (B.KeepCopy). Off: the copy goes first, then the choice; a refused choice puts
+-- the copy back (or, if that's refused too, B.KeepCopy does at the next flush: sharing is still on).
 function B.SetShare(on)
   on = on == true
   local ok, why = true, nil
@@ -2448,11 +2449,14 @@ function B.SetShare(on)
       shareFor, share = T.settingsFor, true
       if T.Flush() == false then ok, why = false, "the game couldn't write it to disk yet" end
     end
-  elseif not T.Save(B.SHARE, false) then
-    ok, why = false, "the game refused to store the choice"
   else
-    shareFor, share = T.settingsFor, false
+    T.setupDirty = false                 -- or unlistMine's flush would store the copy again (sharing is still on)
     ok, why = unlistMine()
+    if ok and not T.Save(B.SHARE, false) then
+      if currentSettings() then store(name, true) end
+      ok, why = false, "the game refused to store the choice"
+    end
+    if ok then shareFor, share = T.settingsFor, false else T.setupDirty = true end   -- still on: keep it current
   end
   T.Config.Sync()
   return ok, why
