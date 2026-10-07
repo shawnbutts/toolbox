@@ -5,11 +5,12 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "version", "1.5.1 - 2026-10-07" },
   { "section", "Fixed" },
   { "item", "A character could lose ALL its Toolbox settings: the game saves a \"/\" in text in a form its own loader then refuses, drops the whole file and starts over with defaults. A custom sound path with a folder in it (\"my sounds/ding.ogg\") was enough, and so could be an item or effect name with a slash. Toolbox now never saves a \"/\" (it writes \"%2F\" and turns it back when reading), so the file always loads. Already reported to the developers." },
   { "item", "The notification HUD (and potentially any HUD strip) could jump back to the top-left corner after restarting the game or switching accounts: Toolbox saved where a hidden strip was, and a hidden strip, or one at the login screen, can report the corner. Positions are now saved only while a strip is on screen and a character is in the world, and logging back in reads each character's saved places again." },
-  { "section", "Added" },
-  { "item", "/toolbox recipe <name>: a recipe you know as the game reports it, and what it takes from raw materials through the other recipes you know (crafts needed and raw totals). A first step toward a crafting planner." },
+  { "section", "Diagnostics" },
+  { "item", "/toolbox recipe <name> (chat only): a recipe you know as the game reports it, and what it takes from raw materials through the other recipes you know. A probe for a future crafting planner; nothing else uses it." },
   { "version", "1.5.0 - 2026-10-04" },
   { "section", "Added" },
   { "item", "Loot Tracker: a Reset button, for counting one hunt or run. It shows what came in since you pressed it (items, gold, kills, crafting and gathering, \"Since 14:32\" at the top). Nothing is lost: the Today window keeps the whole day, and Show all of today brings the day back to the Loot Tracker. In chat: /toolbox loot reset, /toolbox loot today. A run ends at midnight with the day." },

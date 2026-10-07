@@ -7,6 +7,8 @@ ones included).
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-07
+
 ### Fixed
 - A character could lose ALL its Toolbox settings: the game saves a "/" in text in a form its own loader then
   refuses, drops the whole file and starts over with defaults. A custom sound path with a folder in it
@@ -18,9 +20,9 @@ ones included).
   login screen, can report the corner. Positions are now saved only while a strip is on screen and a character
   is in the world, and logging back in reads each character's saved places again.
 
-### Added
-- /toolbox recipe <name>: a recipe you know as the game reports it, and what it takes from raw materials through
-  the other recipes you know (crafts needed and raw totals). A first step toward a crafting planner.
+### Diagnostics
+- /toolbox recipe <name> (chat only): a recipe you know as the game reports it, and what it takes from raw
+  materials through the other recipes you know. A probe for a future crafting planner; nothing else uses it.
 
 ## [1.5.0] - 2026-10-04
 
