@@ -616,6 +616,8 @@ Rules learned the hard way; keep to them.
   imported by another, applies at once and leaves the first one's untouched.
 - **1.5.0 work** (confirmed 2026-10-04): muted effects, the Loot Tracker's Reset and run rates, and "Replace the
   game's health bars" (API 28) work in game.
+- **Louder sounds** (confirmed 2026-10-07): the +7.5 dB .ogg files, the halved saved volume and the per-sound
+  volume sliders work in game.
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
   target, skill levels and deaths, friends online, the notification chime, Combat Detailed, the game's wedge
   fitted and centred inside the icons, and the 0.7.0 + unreleased work on the dev client (2026-09-30: the
