@@ -729,7 +729,10 @@ add("settings", "settings files and setups (save, reset, cancel; setups, export,
   elseif word == "share" then
     if name == "on" or name == "off" then
       local ok, why = B2.SetShare(name == "on")
-      if not ok then T.Print("Couldn't take your setup off the list: " .. why .. ".") end
+      if not ok then
+        T.Print((name == "on" and "Couldn't list your setup: " or "Couldn't take your setup off the list: ")
+          .. why .. ".")
+      end
     end
     T.Print(B2.GetShare() and "This character's setup is listed for your other characters to import ("
       .. cmd .. " share off stops it)." or "This character's setup isn't listed for others (" .. cmd
@@ -2425,15 +2428,30 @@ local function unlistMine()
 end
 
 -- Lists this character's setup for the others, or stops (its copy is deleted from the account file).
--- Returns true, or false and why (the choice is stored either way; a copy that couldn't be removed is said).
+-- Returns true, or false and why; nothing is claimed that wasn't stored (review, 2026-10-07, 16). On: the copy
+-- first, then the choice (a refused choice takes the copy back out); a character with no settings of its own yet
+-- gets its copy at its first change (B.KeepCopy). Off: the choice first, then the copy goes.
 function B.SetShare(on)
   on = on == true
-  T.Save(B.SHARE, on)
-  shareFor, share = T.settingsFor, on
   local ok, why = true, nil
-  if on then
-    T.Flush()                            -- its copy now (T.Save marked it behind)
+  local name = T.settingsFor and B.CleanName(T.settingsFor)
+  if not name then
+    ok, why = false, "no character is logged in"
+  elseif on then
+    local copied = false
+    if currentSettings() then ok, why = store(name, true); copied = ok end
+    if ok and not T.Save(B.SHARE, true) then
+      if copied then unlistMine() end
+      ok, why = false, "the game refused to store the choice"
+    end
+    if ok then
+      shareFor, share = T.settingsFor, true
+      if T.Flush() == false then ok, why = false, "the game couldn't write it to disk yet" end
+    end
+  elseif not T.Save(B.SHARE, false) then
+    ok, why = false, "the game refused to store the choice"
   else
+    shareFor, share = T.settingsFor, false
     ok, why = unlistMine()
   end
   T.Config.Sync()

@@ -389,6 +389,16 @@ local function onScreen(frame)
   return ok and v == true
 end
 
+-- Whether a module's part is on screen now: built, shown, and its strip (its own, or the Toolbelt's) showing. A
+-- combat-only Toolbelt hides the whole strip with the parts still built and shown (review, 2026-10-07, 17).
+function Hud.PartOnScreen(key)
+  local content = contents[key]
+  if not content or not onScreen(content) then return false end
+  local frame = frames[key]
+  if prefs.glued and Hud.GLUE[key] and frames[Hud.GLUED_ID] then frame = frames[Hud.GLUED_ID] end
+  return onScreen(frame)
+end
+
 -- Remembers where the player put the strips (grip drags included); from Toolbox.Tick. Nothing while no character
 -- is in the world (the login screen, a loading screen): what the strips report then isn't the player's.
 function Hud.Tick()

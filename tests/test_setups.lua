@@ -190,6 +190,69 @@ return function(t)
     t.ok(names():find("B"), "B not deleted on one click: " .. names())
   end)
 
+  -- Review 2026-10-07 (12): the armed button belongs to the character that clicked it.
+  t.test("Import and Delete: a click after a character switch only asks again", function()
+    momPlays()
+    H.chat("/tbx settings export A")
+    H.chat("/tbx config")
+    for _, button in ipairs({ "setup_import", "setup_delete" }) do
+      switchTo("Dad")
+      H.change("toolbox_config", "setup_pick", "A")
+      H.click("toolbox_config", button)          -- Dad arms it...
+      switchTo("Kid")                            -- ...and Kid, Settings still open, clicks once
+      t.eq(H.config():Find(button).text, button == "setup_import" and "Import" or "Delete", "disarmed")
+      H.change("toolbox_config", "setup_pick", "A")
+      H.click("toolbox_config", button)
+      t.no(Toolbox.BuffBar.IsEnabled(), button .. ": nothing imported on Kid's one click")
+      t.ok(names():find("A"), button .. ": nothing deleted on Kid's one click: " .. names())
+    end
+  end)
+
+  -- Review 2026-10-07 (16): sharing on or off is only reported once the game stored it.
+  t.test("share on/off: a refused write isn't reported as done and changes nothing", function()
+    momPlays()
+    H.chat("/tbx settings share off")
+    H.S.saveRefused = true
+    H.clearLogs()
+    H.chat("/tbx settings share on")
+    t.ok(H.logged("Couldn't list your setup"), H.lastLog())
+    t.eq(B().GetShare(), false, "still off")
+    H.S.saveRefused = false
+    switchTo("Dad")
+    t.eq(names(), "", "nothing listed")
+    switchTo("Mom")
+    H.chat("/tbx settings share on")
+    t.eq(B().GetShare(), true)
+    H.S.saveRefused = true
+    H.clearLogs()
+    H.chat("/tbx settings share off")
+    t.ok(H.logged("Couldn't take your setup off the list"), H.lastLog())
+    t.eq(B().GetShare(), true, "still on, and so its copy stays")
+    H.S.saveRefused = false
+    switchTo("Dad")
+    t.ok(names():find("^Mom %(character"), names())
+  end)
+
+  t.test("share on: listed from its first setting; at the setup limit refused and said", function()
+    H.boot()
+    H.S.char.name = "Fresh"
+    H.reload()
+    t.eq(B().SetShare(true), true, "the choice is kept, settings or not")
+    H.chat("/tbx buffs")
+    H.advance(40)
+    switchTo("Dad")
+    t.ok(names():find("^Fresh %(character"), names())
+    for i = 1, B().SETUP_MAX - 1 do H.chat("/tbx settings export N" .. i) end
+    switchTo("Full")
+    H.chat("/tbx buffs")
+    local ok, why = B().SetShare(false)
+    t.ok(ok, tostring(why))
+    ok, why = B().SetShare(true)
+    t.eq(ok, false)
+    t.ok(tostring(why):find("already"), tostring(why))
+    t.eq(B().GetShare(), false)
+  end)
+
   -- Review 2026-10-04 (13): reset turns sharing off, so the copy goes too.
   t.test("a reset takes the character's shared copy off the list", function()
     momPlays()

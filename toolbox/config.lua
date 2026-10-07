@@ -970,7 +970,8 @@ local function pickedSetup()
   return drop and setupPicks[drop:GetValue()]
 end
 
-local function setupId(s) return (s.character and "c:" or "n:") .. s.name:lower() end
+-- Who armed it is part of it (review, 2026-10-07, 12): a click after a character switch only asks again.
+local function setupId(s) return tostring(T.settingsFor) .. ">" .. (s.character and "c:" or "n:") .. s.name:lower() end
 
 -- Puts both buttons back (another pick, another list, an action done, or their time up when `stale` only).
 local function disarmSetups(staleOnly)
@@ -987,6 +988,10 @@ end
 local function syncSetups()
   local drop = el.setup_pick
   if not drop then return end
+  if C.setupOwner ~= T.settingsFor then  -- another character: the buttons it armed go back
+    C.setupOwner = T.settingsFor
+    disarmSetups()
+  end
   local list = T.Backup.Setups()
   local labels = {}
   for _, s in ipairs(list) do labels[#labels + 1] = s.label end
@@ -1074,7 +1079,8 @@ function C.SetupSection()
       tooltip = "Off: nobody can import this character's settings and positions (named exports still work)",
       onChange = function(_, v)
         local ok, why = T.Backup.SetShare(v)
-        setText("setup_msg", ok and "" or ("Couldn't take your setup off the list: " .. tostring(why) .. "."))
+        local fail = v and "Couldn't list your setup: " or "Couldn't take your setup off the list: "
+        setText("setup_msg", ok and "" or (fail .. tostring(why) .. "."))
       end },
     UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
       UI.Dropdown{ id = "setup_pick", choices = { C.SETUP_NONE }, value = C.SETUP_NONE,

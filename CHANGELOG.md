@@ -16,14 +16,20 @@ ones included).
 ### Added
 - A volume for each sound (settings, Sounds: under each one), a share of the alert volume; 0 silences just
   that sound.
-
-### Added
 - Loot Tracker run history: every run is kept when it ends (Reset again, Show all of today, or midnight), and
   the new Runs view lists your last 10, newest first: when and where, how long, gold per hour and estimated loot
   value per hour, to compare farming spots. Hover a run for all its numbers (kills, items, nodes gathered).
   Runs shorter than a minute aren't kept; each character has its own history. Also /toolbox loot view runs.
   A bar chart above the list compares them at a glance: one bar per run, oldest on the left, as tall as its loot
   value per hour (or gold per hour with estimated values off), the best one green; hover a bar for its run.
+
+### Fixed
+- Replace the game's health bars with a Toolbelt shown only during combat: out of combat the Toolbelt hid and
+  took your health bars with it, leaving no bars at all. The game's own bars now come back while it's hidden.
+- Setups: an Import or Delete clicked once by one character could be finished by the next character's single
+  click if Settings stayed open across the switch. Now the new character is asked again.
+- Setups: "List this character's setup" said it was done even when the game refused to save the choice. It
+  now says so and leaves things as they were; at the setup limit it says to delete one first.
 
 ## [1.5.1] - 2026-10-07
 

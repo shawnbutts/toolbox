@@ -355,15 +355,16 @@ end
 -- Five times a second, so it allocates nothing on a quiet tick: one state table per bar (updated in
 -- place; `shown = {}` elsewhere forces a full re-apply) and the bars' elements looked up once at build.
 -- Replace the game's health bars (API 28, owner, 2026-10-04): the player's frame drops its health, focus and
--- Vigor bars while ours show, so the screen doesn't have two sets. The game takes the hide back when Toolbox
--- reloads or stops, and nothing is saved: applied again from every tick while wanted, as the buff bar's is.
+-- Vigor bars while ours are on screen (not while a combat-only Toolbelt is hidden), so the screen doesn't have two
+-- sets. The game takes the hide back when Toolbox reloads or stops, and nothing is saved: applied again from every
+-- tick while wanted, as the buff bar's is.
 local stockHidden = false
 function V.CanReplace() return type(ShroudSetPlayerVitalBarsVisible) == "function" end
 function V.GetReplace() return prefs.replaceStock == true end
 
 local function applyStock()
   if not V.CanReplace() then return end
-  local want = prefs.replaceStock == true and prefs.show == true and content ~= nil
+  local want = prefs.replaceStock == true and prefs.show == true and content ~= nil and T.Hud.PartOnScreen("vitals")
   if want then
     local visible = type(ShroudIsPlayerVitalBarsVisible) == "function" and ShroudIsPlayerVitalBarsVisible()
     if not stockHidden or visible == true then
