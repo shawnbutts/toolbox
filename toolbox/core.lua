@@ -822,7 +822,7 @@ function T.MoveCommand(m, cmd, what, args)
 end
 
 add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off; add|remove <name>|reset]; "
-    .. "quiet [add|remove <name>] (muted effects); "
+    .. "quiet [add|remove <name>] (muted effects); repeat off|<minutes>|30s (don't repeat a sound); "
     .. "combat on|off (only during combat); flash on|off; countdown on|off|<seconds>; replace on|off; "
     .. "dismiss on|off; block [on|off|width <n>|size <n>|combat on|off|move [x y]]; debug; raw; trace [name])",
     function(rest)
@@ -861,6 +861,29 @@ add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off;
     end
     local what = word == "replace" and "Replace the game's buff bar" or "Click a buff to dismiss it"
     T.Print(what .. ": " .. (get() and "on" or "off") .. ".")
+    return
+  end
+  if word == "repeat" then
+    local B, arg = T.BuffBar, name:lower()
+    if arg ~= "" then
+      local secs, minutes = arg:match("^(%d+)%s*s$"), tonumber(arg)
+      local seconds = (arg == "off" and 0) or (secs and tonumber(secs)) or (minutes and math.floor(minutes * 60 + 0.5))
+        or -1
+      if not B.SetRepeat(seconds) then
+        local choices = {}
+        for _, ch in ipairs(B.REPEAT_CHOICES) do
+          if ch[1] > 0 then
+            choices[#choices + 1] = ch[1] < 60 and (ch[1] .. "s") or tostring(math.floor(ch[1] / 60))
+          end
+        end
+        T.Print("Use /" .. T.commands[1] .. " buffs repeat off, 30s or a number of minutes: "
+          .. table.concat(choices, ", ") .. ".")
+        return
+      end
+    end
+    local r = B.GetRepeat()
+    T.Print("Don't repeat a sound for the same effect within: " .. (B.RepeatLabel(r) or "Off")
+      .. (r > 0 and " (each alert starts the time again)." or "."))
     return
   end
   if word == "quiet" then

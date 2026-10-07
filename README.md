@@ -261,6 +261,10 @@ bar while this one is showing (the game restores it on reload, so it is applied 
   then what's on you, then every effect you've been seen to cast) and press Mute; the second dropdown and
   Unmute bring one back. In chat, `/toolbox buffs quiet` lists the muted ones and recent alerts, and
   `/toolbox buffs quiet add <name>` / `remove <name>` change the list.
+- **Don't repeat**: "Don't repeat a sound for the same effect within" (Off, 30 seconds, 1, 2, 5 or 10 minutes;
+  off at first) keeps an effect's alert quiet when its previous one was less than that long ago. Each alert starts
+  the time again, so a debuff that lands all fight sounds once, and again only after it has stayed away that long.
+  The expiry and debuff alerts are counted apart, and the icon still flashes. `/toolbox buffs repeat off|30s|<minutes>`.
 
 **Sounds.** The default sounds live in the add-on's folder (`Lua/toolbox/buff_expiring.ogg`,
 `Lua/toolbox/debuff_landed.ogg`, `notify.ogg`, `ping.ogg`, `tap.ogg` for notifications, and `skill_up.ogg`,

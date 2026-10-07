@@ -290,6 +290,11 @@ function C.BuffBarSection()
       onChange = function(_, v) B.SetFlash(v) end },
     UI.Toggle{ id = "debuff_alert", text = "Sound when a debuff lands", value = B.GetDebuffAlert(),
       onChange = function(_, v) B.SetDebuffAlert(v) end },
+    dropdownRow("Don't repeat a sound for the same effect within", { id = "buff_repeat",
+      choices = C.RepeatLabels(), value = B.RepeatLabel(B.GetRepeat()) or "Off",
+      tooltip = "An effect that alerted less than this long ago stays quiet (its icon still flashes); each alert"
+        .. " starts the time again, so one that keeps coming in a fight sounds once. Try 2 minutes.",
+      onChange = function(_, value) C.OnRepeat(value) end }),
     C.QuietRows(),
     UI.Toggle{ id = "buff_countdown", text = "Show seconds left near the end", value = B.GetCountdown(),
       style = { marginTop = 6 }, tooltip = "Whole seconds over the icon of a buff, debuff or consumable about to run"
@@ -1173,6 +1178,7 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
   "show_buffblock", "buffblock_combat", "buffblock_width", "buffblock_width_value", "buffblock_size",
   "buffblock_size_value",
   "expire_alert", "expire_seconds", "expire_seconds_value", "buff_flash", "debuff_alert", "buff_group_after",
+  "buff_repeat",
   "buff_group", "show_consumables", "consumables_extra", "show_gear", "gear_threshold",
   "show_vitals", "vitals_scale", "vitals_scale_value", "vitals_width", "vitals_width_value", "vitals_show_bars",
   "vitals_show_text", "vitals_replace", "vitals_vigor", "vitals_bg", "vitals_flash", "vitals_flash_below",
@@ -1683,6 +1689,18 @@ function C.GroupAfterLabels()
   return out
 end
 
+function C.RepeatLabels()
+  local out = {}
+  for i, ch in ipairs(T.BuffBar.REPEAT_CHOICES) do out[i] = ch[2] end
+  return out
+end
+
+function C.OnRepeat(label)
+  for _, ch in ipairs(T.BuffBar.REPEAT_CHOICES) do
+    if ch[2] == label then T.BuffBar.SetRepeat(ch[1]) return end
+  end
+end
+
 function C.OnGroupAfter(label)
   for _, ch in ipairs(T.BuffBar.GROUP_AFTER_CHOICES) do
     if ch[2] == label then T.BuffBar.SetGroupAfter(ch[1]) return end
@@ -1795,6 +1813,8 @@ function C.Sync()
   sliderValue("expire_seconds", B.GetExpireSeconds())
   setValue("buff_flash", B.GetFlash())
   setValue("debuff_alert", B.GetDebuffAlert())
+  setValue("buff_repeat", B.RepeatLabel(B.GetRepeat()) or "Off")
+  setEnabled("buff_repeat", B.GetExpireAlert() or B.GetDebuffAlert())
   setValue("buff_countdown", B.GetCountdown())
   sliderValue("buff_countdown_secs", B.GetCountdownSeconds())
   setEnabled("buff_countdown_secs", B.GetCountdown())

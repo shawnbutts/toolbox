@@ -138,7 +138,10 @@ D.SECTIONS = {
       .. "before); a sound when a debuff lands (/toolbox debuffalert on/off). Effects that come so often "
       .. "their sound is noise can be muted: settings, Buffs, Muted effects (pick one from your recent "
       .. "alerts, what's on you or anything you've cast, then Mute), or /toolbox buffs quiet. A muted "
-      .. "effect's icon still flashes.",
+      .. "effect's icon still flashes. Or let Toolbox quiet them: Don't repeat a sound for the same effect "
+      .. "within (off at first; try 2 minutes) keeps an effect quiet while it keeps coming: each alert starts "
+      .. "the time again, so a debuff that lands all fight sounds once (the expiry and debuff sounds are "
+      .. "counted apart). /toolbox buffs repeat 2 sets it.",
     "Without relying on colour: debuffs have their own row (the second); a buff about to run out blinks "
       .. "its border (Flash, on by default) and sounds its alert; Show seconds left near the end adds the "
       .. "number; and a sweep's size shows the time left whatever its colour. The same goes for the "

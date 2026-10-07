@@ -38,7 +38,7 @@ health bars can be hidden while Toolbox's show.
 Your buffs and debuffs as their skill icons, with a clock-style sweep for the time left and, if you
 like, the seconds counting down at the end. It can sound an alert a set number of seconds before a buff
 runs out (the icon flashes red) and when a debuff lands; effects that come so often their sound is noise can be
-muted, picked from your recent alerts. Buffs lasting longer than you choose, and whole
+muted, picked from your recent alerts, or kept from repeating within a time you choose. Buffs lasting longer than you choose, and whole
 kinds such as blessings, fold into one icon with a count; hover it for the list. It can replace the
 game's own buff bar, and a click can dismiss a buff. To use your own sounds, put
 `toolbox_buff_expiring.ogg` / `toolbox_debuff_landed.ogg` / `toolbox_notify.ogg` / `toolbox_ping.ogg` /

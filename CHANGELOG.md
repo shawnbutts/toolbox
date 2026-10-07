@@ -16,6 +16,9 @@ ones included).
 ### Added
 - A volume for each sound (settings, Sounds: under each one), a share of the alert volume; 0 silences just
   that sound.
+- Don't repeat a sound for the same effect within 30 seconds to 10 minutes (settings, Buffs; off at first): a buff
+  you keep recasting or a debuff that lands all fight sounds once, not every time. Each alert starts the time again,
+  so it sounds again once the effect has stayed away that long. Its icon still flashes. Also /toolbox buffs repeat.
 - Loot Tracker run history: every run is kept when it ends (Reset again, Show all of today, or midnight), and
   the new Runs view lists your last 10, newest first: when and where, how long, gold per hour and estimated loot
   value per hour, to compare farming spots. Hover a run for all its numbers (kills, items, nodes gathered).

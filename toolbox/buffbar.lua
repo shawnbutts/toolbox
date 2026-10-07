@@ -59,6 +59,13 @@ BB.GROUP_AFTER_CHOICES = {
   { 3600, "1 hour" }, { 7200, "2 hours" }, { 14400, "4 hours" }, { 43200, "12 hours" }, { 86400, "1 day" },
 }
 BB.GROUP_AFTER_DEFAULT = 900
+-- "Don't repeat a sound for the same effect within" (owner, 2026-10-07): an effect whose expiry or debuff alert came
+-- less than this long after its previous one stays quiet; each alert starts the time again, so a combat staple
+-- sounds once a fight. The two alerts are counted apart. Seconds; 0 = off (the default).
+BB.REPEAT_CHOICES = {
+  { 0, "Off" }, { 30, "30 seconds" }, { 60, "1 minute" }, { 120, "2 minutes" }, { 300, "5 minutes" },
+  { 600, "10 minutes" },
+}
 BB.GROUP_MAX = 20                  -- name parts kept
 BB.GROUP_LEN = 40                  -- characters per name part
 BB.HOME = { 40, 220 }         -- where the bar starts, and where Reset puts it
@@ -276,6 +283,22 @@ function BB.GroupAfterLabel(seconds)
   return nil
 end
 
+-- The label for a "don't repeat" value in seconds ("2 minutes"), or nil when it isn't a choice.
+function BB.RepeatLabel(seconds)
+  for _, c in ipairs(BB.REPEAT_CHOICES) do
+    if c[1] == seconds then return c[2] end
+  end
+  return nil
+end
+
+-- Whether an alert for `name` at `now` repeats one under `gap` seconds before it. `seen` = { [name] = time of its
+-- last alert }, updated: every alert starts the quiet time again, sounded or not.
+function BB.Repeats(seen, name, now, gap)
+  local last = seen[name]
+  seen[name] = now
+  return gap > 0 and last ~= nil and now - last < gap
+end
+
 -- True when the rune name or the displayed name contains one of the name parts (any case).
 function BB.Grouped(name, label, parts)
   local a, b = (name or ""):lower(), (label or ""):lower()
@@ -353,6 +376,8 @@ local timers = {}         -- rune name -> BB.Track state
 local quietUntil = 0      -- no debuff alerts before this T.Now()
 local quiet = {}          -- muted effect names -> true (BB.ReadQuiet, from prefs.quiet)
 BB.recent = {}            -- names that alerted this session, newest first (BB.NoteAlert)
+local alertedAt = { debuff = {}, expire = {} }   -- per alert, name -> T.Now() of its last alert (BB.Repeats)
+function BB.IsRepeat(kind, name) return BB.Repeats(alertedAt[kind], name, T.Now(), prefs.repeatQuiet or 0) end
 local lastDebuffSound = -math.huge
 local content = nil       -- the icon rows (in a strip owned by Toolbox.Hud)
 local contentW, contentH = 0, 0
@@ -376,7 +401,7 @@ local function defaults()
   for i, p in ipairs(BB.GROUP_DEFAULT) do parts[i] = p end
   return { show = false, size = BB.SIZE_DEFAULT, expire = true, expireSeconds = BB.ALERT_DEFAULT, debuff = true,
            group = parts, groupAfter = BB.GROUP_AFTER_DEFAULT, replaceStock = false, clickDismiss = false,
-           combatOnly = false, flash = true }
+           combatOnly = false, flash = true, repeatQuiet = 0 }
 end
 
 local function savePrefs()
@@ -524,17 +549,23 @@ function BB.OnBuffsChanged(from)
   if #new == 0 then return end
   -- What became of the last new debuff, for /toolbox buffs debug (a missing sound, 2026-09-28).
   local result = nil
-  local loud = false
+  local loud, repeated = false, false
   if prefs.debuff and T.Now() >= quietUntil then
     for _, n in ipairs(new) do
       BB.NoteAlert(n)
-      if not quiet[n] then loud = true end
+      local again = BB.IsRepeat("debuff", n)
+      if not quiet[n] then             -- (a muted one: neither)
+        if again then repeated = true else loud = true end
+      end
     end
   end
   if not prefs.debuff then
     result = "not played: the debuff alert is off"
   elseif T.Now() < quietUntil then
     result = "not played: quiet just after start or a scene change"
+  elseif not loud and repeated then
+    result = "not played: it sounded under " .. BB.RepeatLabel(prefs.repeatQuiet) .. " ago (settings, Buffs: Don't"
+      .. " repeat)"
   elseif not loud then
     result = "not played: muted (settings, Buffs: Muted effects)"
   elseif T.Now() - lastDebuffSound < BB.DEBUFF_COOLDOWN then
@@ -1191,7 +1222,8 @@ function BB.Tick()
     timers[e.name] = st
     if fire and not rune.debuff and prefs.expire then
       BB.NoteAlert(e.name)
-      if not quiet[e.name] then expiring = true end    -- a muted one still flashes and turns red
+      local again = BB.IsRepeat("expire", e.name)
+      if not quiet[e.name] and not again then expiring = true end   -- a quiet one still flashes and turns red
     end
     if block then
       local x = pooled(blockPool, #inBlock + 1)
@@ -1426,6 +1458,7 @@ end
 function BB.Init()
   local saved = T.ReadSaved("buffbar")
   prefs = defaults()
+  alertedAt.debuff, alertedAt.expire = {}, {}
   if type(saved) == "table" then
     prefs.show = saved.show == true
     if type(saved.size) == "number" and saved.size >= BB.SIZE_MIN and saved.size <= BB.SIZE_MAX then
@@ -1438,6 +1471,7 @@ function BB.Init()
     end
     prefs.debuff = saved.debuff ~= false
     if BB.GroupAfterLabel(saved.groupAfter) then prefs.groupAfter = saved.groupAfter end
+    if BB.RepeatLabel(saved.repeatQuiet) then prefs.repeatQuiet = saved.repeatQuiet end
     prefs.replaceStock = saved.replaceStock == true
     prefs.clickDismiss = saved.clickDismiss == true
     prefs.combatOnly = saved.combatOnly == true
@@ -1814,6 +1848,17 @@ function BB.SetGroupCategory(key, on)
   if on then prefs.groupCats[key] = true else prefs.groupCats[key] = nil end
   savePrefs()
   if content and prefs.show then BB.Tick() end
+  T.Config.Sync()
+  return true
+end
+
+function BB.GetRepeat() return prefs.repeatQuiet or 0 end
+
+-- Seconds, one of BB.REPEAT_CHOICES (0 = off). Returns false for anything else.
+function BB.SetRepeat(seconds)
+  if not BB.RepeatLabel(seconds) then return false end
+  prefs.repeatQuiet = seconds
+  savePrefs()
   T.Config.Sync()
   return true
 end
