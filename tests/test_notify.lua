@@ -324,7 +324,7 @@ return function(t)
     H.advance(1)
     H.closeWindow("toolbox_notify")
     H.S.char.name = "Alt"
-    H.advance(1)
+    H.advance(3)                 -- (a second after start-up the rebuild can wait a moment for the creation budget)
     t.ok(H.notice("motd").shown, "new to the alt")
   end)
 

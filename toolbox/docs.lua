@@ -70,7 +70,8 @@ D.SECTIONS = {
       .. "show their rate per hour of play (the time you were logged in since the reset, after its first "
       .. "minute), and the top line says how long it has been: Since 14:32 (47m). Each run is kept when it "
       .. "ends (Reset again, Show all of today, or midnight): Show, Runs lists your last 10 with where, how "
-      .. "long, and gold and loot value per hour, to compare farming spots; hover one for all its numbers.",
+      .. "long, and gold and loot value per hour, to compare farming spots, under a bar chart of them (the best "
+      .. "bar green); hover a run or a bar for its numbers.",
     "Loot Tracker's Show dropdown: Looted (what you picked up; what you crafted or gathered is left "
       .. "out unless you tick Include crafted and gathered items in settings, or /toolbox dd include on), "
       .. "Crafted (/toolbox crafted: the items you took off crafting stations, your crafts per recipe with "

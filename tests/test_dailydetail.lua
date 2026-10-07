@@ -424,4 +424,32 @@ return function(t)
     t.ok(row[3] == "150g/h" or row[3] == "149g/h", "30 ore x 5g over an hour: " .. tostring(row[3]))
     t.eq(Toolbox.Daily.Runs()[1].value, 150, "the run's value")
   end)
+
+  t.test("runs chart: a bar per run, oldest on the left, as tall as its rate; the best one green", function()
+    H.boot()
+    H.chat("/tbx loot")
+    t.eq(#H.detail():Find("runs_chart").children, 0, "no bars until the Runs view shows")
+    for _, gold in ipairs({ 100, 400, 200 }) do
+      H.chat("/tbx loot reset")
+      H.goldChange(gold)
+      H.advance(10 * 60 + 2)
+    end
+    H.chat("/tbx loot reset")
+    H.chat("/tbx loot view runs")
+    local chart = H.detail():Find("runs_chart")
+    t.ok(chart.visible ~= false, "shown in the Runs view")
+    t.eq(#chart.children, Toolbox.Daily.RUNS_KEEP, "made once shown")
+    local h = {}
+    for i = 1, 3 do h[i] = chart.children[i].style.height end
+    t.eq(h[2], Toolbox.DailyDetail.RUN_CHART_H, "the best run (400) is full height")
+    t.ok(h[1] < h[3] and h[3] < h[2], "100 < 200 < 400: " .. table.concat(h, ", "))
+    t.eq(chart.children[2].style.backgroundColor, "@green")
+    t.eq(chart.children[1].style.backgroundColor, "@gold")
+    t.eq(chart.children[4].style.height, 1, "an unused bar")
+    t.ok(chart.children[2].tooltip:find("gold/h"), chart.children[2].tooltip)
+    t.ok(H.detail():Find("runs_chart_note").text:find("^Gold per hour, oldest to newest%. Best: "),
+      H.detail():Find("runs_chart_note").text)
+    H.chat("/tbx loot view looted")
+    t.eq(chart.visible, false, "only in the Runs view")
+  end)
 end

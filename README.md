@@ -223,7 +223,9 @@ the day's gold and kills and a list of every item gained today with its count, h
 - **Runs** (the Show dropdown, or `/toolbox loot view runs`): each run is kept when it ends (Reset again, Show
   all of today, midnight; at least a minute of play), the last 10 per character, newest first: start time, the
   scene you played most in, length, gold per hour and, with estimated values on, loot value per hour (from the
-  prices when the run ended). Hover one for kills, items and nodes gathered.
+  prices when the run ended). Hover one for kills, items and nodes gathered. A bar chart above the list shows
+  the runs side by side, oldest on the left, each bar as tall as its loot value (or gold) per hour, the best one
+  green.
 
 ## Buff bar
 

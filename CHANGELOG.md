@@ -12,6 +12,8 @@ ones included).
   the new Runs view lists your last 10, newest first: when and where, how long, gold per hour and estimated loot
   value per hour, to compare farming spots. Hover a run for all its numbers (kills, items, nodes gathered).
   Runs shorter than a minute aren't kept; each character has its own history. Also /toolbox loot view runs.
+  A bar chart above the list compares them at a glance: one bar per run, oldest on the left, as tall as its loot
+  value per hour (or gold per hour with estimated values off), the best one green; hover a bar for its run.
 
 ## [1.5.1] - 2026-10-07
 

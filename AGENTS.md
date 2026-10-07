@@ -137,7 +137,9 @@ into one if a new file is ever needed).
   and rates move once a minute. Run history (owner, 2026-10-07): a run is filed as it ends (`D.FileRun` from
   `D.ResetRun`, `D.EndRun`, and `D.RollDay` before midnight's `D.Roll`) into `loot_runs`; `since.scenes` = play
   seconds per scene (`ShroudGetCurrentSceneName`), the run's place the most played; the value comes from
-  `DD.RunValue` (prices at that moment). The "Runs" view (`fillRuns`) reuses the item rows (`addRow(key, text)`). Rows are appended,
+  `DD.RunValue` (prices at that moment). The "Runs" view (`fillRuns`) reuses the item rows (`addRow(key, text)`), under a bar chart (`fillRunsChart`:
+  one Column per run, made the first time the view shows, `ensureRunCols`: built with the window, its elements
+  pushed a character switch's rebuild past the creation rate). Rows are appended,
   never rebuilt on a timer (element cap; no reorder API); a sorted rebuild at most every `RESORT_SECONDS`
   while shown. `Toolbox.Prices` (bottom): estimated values from SotANET's
   `GET /api/v1/receipts/prices?item=..` (<= 50 names) via `ShroudHttpGet`, one request `P.GAP` apart,

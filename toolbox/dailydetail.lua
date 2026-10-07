@@ -44,7 +44,7 @@ local shown = {}       -- the counts the rows show (name -> n), for the current 
 DD.VIEWS = { { "looted", "Looted" }, { "crafted", "Crafted" }, { "gathered", "Gathered" }, { "runs", "Runs" } }
 
 local HEADER_IDS = { "date", "dd_reset", "dd_today", "summary", "items_summary", "view_note", "value_summary",
-                     "more" }
+                     "more", "runs_chart", "runs_chart_note" }
 local P = {}           -- Toolbox.Prices (defined below)
 
 local function text(id, class, extra)
@@ -163,6 +163,71 @@ function DD.RunValue(run)
   return total
 end
 
+-- The Runs view's chart (owner, 2026-10-07): one bar per run, oldest on the left, as tall as its loot value per
+-- hour (estimated values on and priced) or else its gold per hour; the best run's bar green. One element per bar
+-- (Toolbox.Window's XP chart does the same), made the first time the Runs view shows: built with the window they
+-- pushed a character switch's rebuild past the game's element-creation rate. An unused bar is a transparent 1 px
+-- block, so the others don't slide.
+DD.RUN_COL_W, DD.RUN_COL_GAP, DD.RUN_CHART_H = 14, 3, 36
+DD.CHART_EMPTY = "#00000000"
+local runCols = {}
+
+local function runColumnStyle(h, color)
+  if h <= 0 then return { height = 1, marginTop = DD.RUN_CHART_H - 1, backgroundColor = DD.CHART_EMPTY } end
+  return { height = h, marginTop = DD.RUN_CHART_H - h, backgroundColor = color }
+end
+
+local function runsChart()
+  runCols = {}
+  return UI.Row{ id = "runs_chart", visible = false,
+    style = { marginTop = 4, height = DD.RUN_CHART_H, alignItems = "start" }, children = {} }
+end
+
+-- The bars, the first time they're needed.
+local function ensureRunCols()
+  if #runCols > 0 or not el.runs_chart then return end
+  for i = 1, T.Daily.RUNS_KEEP do
+    local style = runColumnStyle(0)
+    style.width, style.marginLeft = DD.RUN_COL_W, i > 1 and DD.RUN_COL_GAP or 0
+    runCols[i] = el.runs_chart:Add(UI.Column{ style = style, tooltip = "" })
+  end
+end
+
+-- Fills the chart from `list` (newest first). Returns the line under it.
+local function fillRunsChart(list)
+  if #list > 0 then ensureRunCols() end
+  local useValue = false
+  if prefs.values then
+    for _, r in ipairs(list) do
+      if type(r.value) == "number" then useValue = true end
+    end
+  end
+  local rates, best, peak = {}, nil, 0
+  for i, r in ipairs(list) do
+    local n = useValue and (type(r.value) == "number" and r.value or 0) or r.gold
+    rates[i] = T.Daily.PerHour(n, r.played) or 0
+    if rates[i] > peak then peak, best = rates[i], i end
+  end
+  local count = #list
+  for slot, col in ipairs(runCols) do
+    local i = count - slot + 1                -- oldest on the left
+    local r = list[i]
+    if r then
+      local h = peak > 0 and math.max(1, math.floor(DD.RUN_CHART_H * rates[i] / peak + 0.5)) or 1
+      T.SetStyle(col, runColumnStyle(h, i == best and "@green" or "@gold"))
+      T.SetTooltip(col, DD.RunLabel(r) .. "\n" .. (useValue and P.Format(rates[i]) or T.FormatNumber(rates[i]))
+        .. (useValue and "/h loot value" or " gold/h"))
+    else
+      T.SetStyle(col, runColumnStyle(0))
+      T.SetTooltip(col, "")
+    end
+  end
+  if not best then return "" end
+  local what = useValue and "Loot value per hour" or "Gold per hour"
+  local top = useValue and P.Format(rates[best]) or (T.FormatNumber(rates[best]) .. "g")
+  return what .. ", oldest to newest. Best: " .. top .. "/h, " .. DD.RunLabel(list[best]) .. "."
+end
+
 -- The rows of the Runs view (made by rebuildList; text set here).
 local function fillRuns()
   local list = T.Daily.Runs()
@@ -186,6 +251,10 @@ local function fillRuns()
       T.SetTooltip(row.value, "Estimated loot value per hour of play (SotANET prices when the run ended)")
     end
   end
+  local chartNote = fillRunsChart(list)
+  T.SetVisible(el.runs_chart, #list > 0)
+  T.SetText(el.runs_chart_note, chartNote)
+  T.SetVisible(el.runs_chart_note, chartNote ~= "")
   T.SetText(el.items_summary, #list == 0 and "No runs yet"
     or ("Last " .. #list .. (#list == 1 and " run" or " runs") .. ", newest first"))
   local note = #list == 0 and ("Press Reset to start a run. It's kept here when you press Reset again or Show"
@@ -284,6 +353,8 @@ local function build()
                   .. " Runs: your last runs (Reset), to compare spots.",
                 onChange = function(_, label) DD.SetView(DD.ViewKey(label)) end },
             } },
+          runsChart(),
+          text("runs_chart_note", "text", { whiteSpace = "wrap" }),
           text("items_summary", "heading", { marginTop = 3 }),
           text("view_note", "text", { whiteSpace = "wrap" }),
           text("value_summary", "text"),                  -- (dim was too light: owner, 2026-10-04)
@@ -565,6 +636,8 @@ function DD.Refresh(force)
     fillRuns()
     return
   end
+  T.SetVisible(el.runs_chart, false)          -- (the Runs view's)
+  T.SetVisible(el.runs_chart_note, false)
 
   local kinds, total, new = 0, 0, {}
   for name, n in pairs(shown) do
