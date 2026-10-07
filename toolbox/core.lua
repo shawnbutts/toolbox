@@ -239,12 +239,43 @@ function T.Copy(v)
   return out
 end
 
+-- Saved text never holds a "/" (owner, 2026-10-07: the game's saver writes "/" as "\/", valid JSON, which its own
+-- loader then refuses: "invalid escape sequence near '\/'", and the WHOLE file is dropped and overwritten with
+-- defaults). Every string and key Toolbox saves has "%" written as "%25" and "/" as "%2F"; reading turns them back.
+-- Text saved before this has no "%2F" and reads unchanged.
+local function encodeText(s)
+  if not s:find("[/%%]") then return s end
+  return (s:gsub("%%", "%%25"):gsub("/", "%%2F"))
+end
+
+local function decodeText(s)
+  if not s:find("%", 1, true) then return s end
+  return (s:gsub("%%2F", "/"):gsub("%%25", "%%"))
+end
+
+-- A deep copy with every string (keys too) encoded (`code` = encodeText) or decoded.
+local function codedCopy(v, code)
+  if type(v) == "string" then return code(v) end
+  if type(v) ~= "table" then return v end
+  local out = {}
+  for k, x in pairs(v) do
+    local key = k
+    if type(k) == "string" then key = code(k) end
+    out[key] = codedCopy(x, code)
+  end
+  return out
+end
+
+-- For the few places that call the saved-var API themselves (the price cache).
+function T.ForSaving(v) return codedCopy(v, encodeText) end
+function T.FromSaved(v) return codedCopy(v, decodeText) end
+
 function T.ReadSaved(key)
-  return T.Copy(ShroudGetSavedVar(key, SCOPE))
+  return codedCopy(ShroudGetSavedVar(key, SCOPE), decodeText)
 end
 
 function T.Save(key, value)
-  local ok = ShroudSetSavedVar(key, T.Copy(value), SCOPE)
+  local ok = ShroudSetSavedVar(key, codedCopy(value, encodeText), SCOPE)
   if not ok then T.Print("Could not save '" .. key .. "'.") end
   if T.Backup.IsSetting(key) then T.setupDirty = true end    -- this character's setup copy is behind
   return ok

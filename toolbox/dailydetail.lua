@@ -704,7 +704,7 @@ local function key(name) return tostring(name):lower() end
 local function readCache()
   if loaded then return end
   loaded = true
-  local saved = ShroudGetSavedVar("prices", "account")
+  local saved = T.FromSaved(ShroudGetSavedVar("prices", "account"))
   cache = {}
   P.version = P.version + 1
   if type(saved) == "table" and saved.v == 1 and type(saved.items) == "table" then
@@ -726,7 +726,7 @@ local function writeCache()
     table.sort(keys, function(a, b) return cache[a].day > cache[b].day end)
     for i = P.MAX_KEEP + 1, #keys do cache[keys[i]] = nil end
   end
-  ShroudSetSavedVar("prices", T.Copy({ v = 1, items = cache }), "account")
+  ShroudSetSavedVar("prices", T.ForSaving({ v = 1, items = cache }), "account")
 end
 
 -- The 90-day average price per unit, or nil (not looked up yet, or no recent sales).

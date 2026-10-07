@@ -6,6 +6,7 @@
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "section", "Fixed" },
+  { "item", "A character could lose ALL its Toolbox settings: the game saves a \"/\" in text in a form its own loader then refuses, drops the whole file and starts over with defaults. A custom sound path with a folder in it (\"my sounds/ding.ogg\") was enough, and so could be an item or effect name with a slash. Toolbox now never saves a \"/\" (it writes \"%2F\" and turns it back when reading), so the file always loads. Already reported to the developers." },
   { "item", "The notification HUD (and potentially any HUD strip) could jump back to the top-left corner after restarting the game or switching accounts: Toolbox saved where a hidden strip was, and a hidden strip, or one at the login screen, can report the corner. Positions are now saved only while a strip is on screen and a character is in the world, and logging back in reads each character's saved places again." },
   { "section", "Added" },
   { "item", "/toolbox recipe <name>: a recipe you know as the game reports it, and what it takes from raw materials through the other recipes you know (crafts needed and raw totals). A first step toward a crafting planner." },

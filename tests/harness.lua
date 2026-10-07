@@ -429,6 +429,20 @@ local function install_api()
     if type(key) ~= "string" or key == "" or #key > 128 or key:find("[/\\%c]") then return false end
     local t = type(value)
     if t == "function" or t == "thread" or t == "userdata" then return false end
+    -- In game (2026-10-07) a "/" in saved text was written as "\/", which the game's loader refuses, dropping the
+    -- whole file: Toolbox must never hand one over (core.lua's encodeText). Raised here so every test checks it.
+    local function slash(v, path)
+      if type(v) == "string" and v:find("/", 1, true) then
+        error("saved var '" .. key .. "' holds a '/' (" .. path .. "): the game's loader refuses it", 3)
+      end
+      if type(v) == "table" then
+        for k, x in pairs(v) do
+          slash(k, path .. " key")
+          slash(x, path .. "." .. tostring(k))
+        end
+      end
+    end
+    slash(value, key)
     local sc = scopeOf(scope)
     S.memory[sc] = S.memory[sc] or {}
     S.memory[sc][key] = copy(value)

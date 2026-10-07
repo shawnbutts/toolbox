@@ -51,6 +51,10 @@ This file holds current facts and rules; the history behind them is in git (`git
   vars are read with `T.ReadSaved`. And no `_G` or `_ENV` at all, not even `rawget(_G, "os")` or in a
   comment: the grant was still refused after the renames, with only those left (read a global plainly:
   `os`, `ToolboxCopies`; nil when absent).
+- **Never save a "/" in text** (owner, 2026-10-07: data loss). The game writes it as `\/` and its loader then
+  refuses the WHOLE file ("invalid escape sequence near '\/'"), which the next save overwrites with defaults. Save
+  through `T.Save` / `T.ReadSaved` (they encode "/" as "%2F", "%" as "%25", keys too), or `T.ForSaving` /
+  `T.FromSaved` around a direct `ShroudSetSavedVar`. The harness raises for a "/" in any saved value (dev report 19).
 - **No `io.*` / `os.*`**, except feature-detected `os.date`/`os.time` for the local clock (`Toolbox.Today`,
   `Toolbox.Clock`). Persist with `ShroudSetSavedVar`/`ShroudGetSavedVar`, character scope.
 - **UI is `Shroud.UI` only.** No retained widgets (`ShroudUI*`), no immediate-mode GUI (`ShroudOnGUI`).

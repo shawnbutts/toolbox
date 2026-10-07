@@ -167,4 +167,21 @@ return function(t)
     t.eq(B().Pending(), nil)
     t.eq(cfg:Find("backup_pending").visible, false)
   end)
+
+  -- Owner, 2026-10-07: the game wrote a saved "/" as "\/" and then refused to load the file, dropping every
+  -- setting of the character. The harness raises for a "/" in saved text; here text with "/" and "%" goes
+  -- through sounds, muted effects, the Loot Tracker and the price cache, and comes back whole after a restart.
+  t.test("text with / and % is saved without a slash and reads back the same", function()
+    H.boot()
+    Toolbox.Sounds.SetPath("buff_expiring", "my sounds/ding 100%.ogg")
+    Toolbox.BuffBar.Mute("Ward/Shield")
+    H.items({ { "Half/Half Ale", 2 }, { "100% Cotton", 1 } })
+    H.advance(2)
+    t.ok(H.S.memory["character:Tester"].sounds.paths.buff_expiring:find("%2F", 1, true), "stored encoded")
+    H.restart(nil, true)
+    t.eq(Toolbox.Sounds.GetPath("buff_expiring"), "my sounds/ding 100%.ogg")
+    t.ok(Toolbox.BuffBar.IsMuted("Ward/Shield"))
+    t.eq(Toolbox.Daily.day.items["Half/Half Ale"], 2)
+    t.eq(Toolbox.Daily.day.items["100% Cotton"], 1)
+  end)
 end
