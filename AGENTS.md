@@ -498,7 +498,10 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   re-applied every vitals tick while wanted, as the buff bar's): "Replace the game's health bars" (`V.SetReplace`).
 
 **Waiting on the developers:** a read-only game settings API (first use: the game's "stack buffs lasting
-longer than" option feeding `BB.GroupAfter()`). Everything reported is fixed: the API 25 client issues, and
+longer than" option feeding `BB.GroupAfter()`). Submitted 2026-10-07 (`tmp/client-issues.md`): **18**, for the
+crafting planner (ingredient choices for slot categories, item stats, language-independent item keys, a `have`
+that counts containers, the recipe book in one call, the station a recipe needs), and **19**, the saved "/" data
+loss (Toolbox is protected: never saves a "/"). Everything reported is fixed: the API 25 client issues, and
 (work log 2026-09-30, `ac63e8c01b`, **API 26**, in the next client build, not yet in the owner's) the party
 ones (`tmp/client-issues.md` 14, 15): the slot getters reach the whole party (slot 0 = you, then party-frame
 order, so `for slot = 0, count - 1` finds everyone, buffs included), `ShroudGetPartyMemberNamesInScene()`
