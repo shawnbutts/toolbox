@@ -7,6 +7,12 @@ ones included).
 
 ## [Unreleased]
 
+### Added
+- Loot Tracker run history: every run is kept when it ends (Reset again, Show all of today, or midnight), and
+  the new Runs view lists your last 10, newest first: when and where, how long, gold per hour and estimated loot
+  value per hour, to compare farming spots. Hover a run for all its numbers (kills, items, nodes gathered).
+  Runs shorter than a minute aren't kept; each character has its own history. Also /toolbox loot view runs.
+
 ## [1.5.1] - 2026-10-07
 
 ### Fixed

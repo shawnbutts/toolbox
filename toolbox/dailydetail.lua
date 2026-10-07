@@ -41,7 +41,7 @@ local prefs = { open = false, values = false, view = "looted", include = false }
 local popup = false
 local shown = {}       -- the counts the rows show (name -> n), for the current view
 
-DD.VIEWS = { { "looted", "Looted" }, { "crafted", "Crafted" }, { "gathered", "Gathered" } }
+DD.VIEWS = { { "looted", "Looted" }, { "crafted", "Crafted" }, { "gathered", "Gathered" }, { "runs", "Runs" } }
 
 local HEADER_IDS = { "date", "dd_reset", "dd_today", "summary", "items_summary", "view_note", "value_summary",
                      "more" }
@@ -62,9 +62,10 @@ local function valueStyle()
   return T.Window.TextStyle{ textAlign = "right", marginLeft = 8, flexShrink = 0, whiteSpace = "nowrap" }
 end
 
-local function addRow(name)
+local function addRow(name, shownName)
   if rowCount >= DD.MAX_ROWS then return false end
-  local nameLabel = UI.Label{ text = name, class = "text", style = T.Window.TextStyle{ flexGrow = 1, flexShrink = 1 } }
+  local nameLabel = UI.Label{ text = shownName or name, class = "text",
+    style = T.Window.TextStyle{ flexGrow = 1, flexShrink = 1 } }
   local countLabel = UI.Label{ text = "", class = "text",
     style = T.Window.TextStyle{ textAlign = "right", marginLeft = 6 } }
   local valueLabel = UI.Label{ text = "", class = "text", visible = prefs.values == true,   -- (dim was too light)
@@ -108,9 +109,91 @@ function DD.EndRun()
   return true
 end
 
--- Which list the rows hold: the day, the view, and the run (a reset starts the list again).
+-- Which list the rows hold: the day, the view, and the run (a reset starts the list again; a filed run changes
+-- the Runs view).
 local function listKeyOf(day)
-  return day.key .. "/" .. DD.View() .. "/" .. tostring(T.Daily.RunStart())
+  return day.key .. "/" .. DD.View() .. "/" .. tostring(T.Daily.RunStart()) .. "/" .. T.Daily.runsVersion
+end
+
+-- ---------------------------------------------------------------------------
+-- The Runs view (owner, 2026-10-07): the last runs, newest first: when and where, how long, and per hour of play
+-- the gold (the count column) and the estimated loot value (the value column, with estimated values on).
+-- ---------------------------------------------------------------------------
+local function perHour(n, played)
+  local rate = T.Daily.PerHour(n, played)
+  return rate and T.FormatNumber(rate) or "--"
+end
+
+-- "14:32 Novia (47m)", the date first for another day's run.
+function DD.RunLabel(r)
+  local _, today = T.Today()
+  local when = (r.date ~= "" and r.date ~= today) and (r.date .. " ") or ""
+  when = when .. (r.at ~= "" and r.at or "--:--")
+  return when .. (r.scene ~= "" and (" " .. r.scene) or "") .. " (" .. T.Daily.Duration(r.played) .. ")"
+end
+
+function DD.RunTooltip(r)
+  local F = T.FormatNumber
+  local where = r.scene ~= "" and (" in " .. r.scene) or ""
+  local lines = {
+    "Started " .. (r.at ~= "" and r.at or "?") .. (r.date ~= "" and (" on " .. r.date) or "") .. where .. "; "
+      .. T.Daily.Duration(r.played) .. " of play.",
+    "Gold " .. F(r.gold) .. " (" .. perHour(r.gold, r.played) .. "/h), kills " .. F(r.kills) .. " ("
+      .. perHour(r.kills, r.played) .. "/h).",
+    F(r.items) .. " items (" .. F(r.kinds) .. " kinds)" .. ((r.nodes or 0) > 0 and (", " .. F(r.nodes)
+      .. " nodes gathered (" .. perHour(r.nodes, r.played) .. "/h)") or "") .. ".",
+  }
+  if type(r.value) == "number" then
+    lines[#lines + 1] = "Estimated loot value " .. P.Format(r.value) .. " (" .. P.Format(T.Daily.PerHour(r.value,
+      r.played) or 0) .. "/h), from SotANET prices when the run ended."
+  end
+  return table.concat(lines, "\n")
+end
+
+-- The estimated value of a run's looted items (what the Looted view adds up), or nil with values off or no
+-- price known. Called by Toolbox.Daily.FileRun as a run ends.
+function DD.RunValue(run)
+  if not prefs.values then return nil end
+  local total, priced = 0, 0
+  for name, n in pairs(DD.Counts(run, "looted", prefs.include)) do
+    local each = name ~= T.Daily.OTHER and P.Average(name)
+    if each then total, priced = total + n * each, priced + 1 end
+  end
+  if priced == 0 then return nil end
+  return total
+end
+
+-- The rows of the Runs view (made by rebuildList; text set here).
+local function fillRuns()
+  local list = T.Daily.Runs()
+  local values, longest = {}, 3
+  for i, r in ipairs(list) do
+    local v = "--"
+    if type(r.value) == "number" then v = P.Format(T.Daily.PerHour(r.value, r.played) or 0) .. "/h" end
+    values[i] = v
+    if #v > longest then longest = #v end
+  end
+  local minWidth = math.ceil(longest * T.Window.GetFont() * DD.VALUE_CHAR) + 2
+  for i, r in ipairs(list) do
+    local row = rows["run" .. i]
+    if row then
+      T.SetText(row.count, perHour(r.gold, r.played) .. "g/h")
+      T.SetTooltip(row.count, "Gold picked up per hour of play")
+      T.SetTooltip(row.name, DD.RunTooltip(r))
+      T.SetVisible(row.value, prefs.values == true)
+      T.SetText(row.value, values[i])
+      T.SetStyle(row.value, { minWidth = minWidth })
+      T.SetTooltip(row.value, "Estimated loot value per hour of play (SotANET prices when the run ended)")
+    end
+  end
+  T.SetText(el.items_summary, #list == 0 and "No runs yet"
+    or ("Last " .. #list .. (#list == 1 and " run" or " runs") .. ", newest first"))
+  local note = #list == 0 and ("Press Reset to start a run. It's kept here when you press Reset again or Show"
+    .. " all of today, or at midnight (if it lasted a minute).") or "Hover a run for its numbers."
+  T.SetText(el.view_note, note)
+  T.SetVisible(el.view_note, true)
+  T.SetVisible(el.value_summary, false)
+  T.SetVisible(el.more, false)
 end
 
 -- The view in use: the saved one, or Looted where the client has no crafting results.
@@ -121,6 +204,7 @@ end
 
 -- name -> count for a view of a day (Looted leaves crafted and gathered items out unless included).
 function DD.Counts(day, view, include)
+  if view == "runs" then return {} end   -- (the Runs view lists runs, not items: fillRuns)
   if view == "crafted" then return day.crafted end
   if view == "gathered" then return day.gathered end
   if include or not T.Daily.HasResults() then return day.items end
@@ -151,6 +235,12 @@ local function rebuildList()
   listKey = day and listKeyOf(day)
   if not day then return end
   shown = DD.Counts(day, DD.View(), prefs.include)
+  if DD.View() == "runs" then
+    for i, r in ipairs(T.Daily.Runs()) do
+      if not addRow("run" .. i, DD.RunLabel(r)) then break end
+    end
+    return
+  end
   for _, name in ipairs(sortedNames(shown)) do
     if not addRow(name) then break end
   end
@@ -190,7 +280,8 @@ local function build()
               UI.Label{ text = "Show", class = "text", style = T.Window.TextStyle{ flexGrow = 1 } },
               UI.Dropdown{ id = "dd_view", choices = DD.ViewLabels(), value = DD.ViewLabel(DD.View()),
                 tooltip = "Looted: items gained today (crafted and gathered ones left out, unless you include"
-                  .. " them in settings). Crafted: items taken off crafting stations. Gathered: what you harvested.",
+                  .. " them in settings). Crafted: items taken off crafting stations. Gathered: what you harvested."
+                  .. " Runs: your last runs (Reset), to compare spots.",
                 onChange = function(_, label) DD.SetView(DD.ViewKey(label)) end },
             } },
           text("items_summary", "heading", { marginTop = 3 }),
@@ -214,7 +305,7 @@ end
 -- would fit): worth a rebuild when the window is shown.
 local function outOfOrder()
   local day = DD.Day()
-  if not day then return false end
+  if not day or DD.View() == "runs" then return false end
   local sorted = sortedNames(DD.Counts(day, DD.View(), prefs.include))
   local fit = math.min(#sorted, DD.MAX_ROWS)
   if rowCount ~= fit then return true end
@@ -470,6 +561,10 @@ function DD.Refresh(force)
   setHeader()
   local view = DD.View()
   shown = DD.Counts(day, view, prefs.include)
+  if view == "runs" then
+    fillRuns()
+    return
+  end
 
   local kinds, total, new = 0, 0, {}
   for name, n in pairs(shown) do

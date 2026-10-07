@@ -168,6 +168,11 @@ local function install_api()
     return msg
   end
 
+  -- The scene you're in: H.S.scene (default "Novia"), "" with no character.
+  ShroudGetCurrentSceneName = function()
+    if not S.char.present then return "" end
+    return S.scene or "Novia"
+  end
   ShroudGetPlayerName = function()
     if not S.char.present then return "INVALID" end
     return S.char.name

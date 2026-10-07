@@ -89,7 +89,9 @@ midnight). Rest the
 pointer on it and the **Loot Tracker** lists every item you gained today, as **Looted**, **Crafted** (with
 crafts per recipe, exceptional and failed, and materials used) or **Gathered** (nodes and harvests).
 Its **Reset** button counts from now, for one hunt or run, with gold, kills and loot value per hour of play
-("Since 14:32 (47m)"); the Today window keeps the whole day, and **Show all of today** brings it back.
+("Since 14:32 (47m)"); the Today window keeps the whole day, and **Show all of today** brings it back. Finished
+runs are kept: the **Runs** view lists your last 10 with where, how long and gold and loot value per hour, to
+compare farming spots.
 
 **Estimated values (optional, uses the internet):** turn on **Estimated values (SotANET)** in the
 settings and the Loot Tracker adds each item's value (its count times its 90-day average sale price at

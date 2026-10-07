@@ -561,7 +561,7 @@ end)
 
 add("loot", "show or hide the Loot Tracker (every item gained today, with counts; reset: count from now; today:"
     .. " back to the whole day; view looted|crafted|"
-    .. "gathered; include on|off: crafted and gathered items in Looted; values on|off: estimated values from"
+    .. "gathered|runs; include on|off: crafted and gathered items in Looted; values on|off: estimated values from"
     .. " SotANET; values each on|off: the price each in the count; values test [item]: check the connection;"
     .. " values refresh: look prices up again)", function(rest)
   local word, arg = T.ParseArgs(rest)
@@ -576,7 +576,7 @@ add("loot", "show or hide the Loot Tracker (every item gained today, with counts
   end
   if word == "view" then
     if not DD.SetView(DD.ViewKey(arg)) then
-      T.Print(T.Daily.HasResults() and "Use /" .. T.commands[1] .. " dd view looted, crafted or gathered."
+      T.Print(T.Daily.HasResults() and "Use /" .. T.commands[1] .. " dd view looted, crafted, gathered or runs."
         or "This game client doesn't report crafting and gathering (it needs Lua API 18).")
       return
     end

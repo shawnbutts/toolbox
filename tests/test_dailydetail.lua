@@ -347,4 +347,81 @@ return function(t)
     t.eq(D().PerHour(100, 59), nil)
     t.eq(D().PerHour(100, 1800), 200)
   end)
+
+  -- Run history (owner, 2026-10-07): runs filed as they end, to compare farming spots.
+  local function runRows()
+    local out = {}
+    for _, r in ipairs(H.detailRows()) do out[#out + 1] = r[1] .. " = " .. r[2] end
+    return out
+  end
+
+  t.test("runs: filed at the next Reset with their place, length and rates; listed newest first", function()
+    H.boot()
+    H.chat("/tbx loot")
+    H.chat("/tbx loot reset")
+    H.S.scene = "Northern Lowlands"
+    H.goldChange(600)
+    H.items({ { "Iron Ore", 10 } })
+    H.advance(30 * 60 + 2)                               -- half an hour
+    H.chat("/tbx loot reset")                            -- files it, starts the next
+    H.S.scene = "Highvale"
+    H.goldChange(100)
+    H.advance(10 * 60 + 2)
+    H.chat("/tbx loot reset")
+    H.chat("/tbx loot view runs")
+    local rows = runRows()
+    t.eq(#rows, 2, table.concat(rows, " | "))
+    t.ok(rows[1]:find("^%d%d:%d%d Highvale %(10m%) = [56]%d%dg/h$"), rows[1])          -- about 600 gold an hour
+    t.ok(rows[2]:find("^%d%d:%d%d Northern Lowlands %(30m%) = 1,[12]%d%dg/h$"), rows[2]) -- about 1,200
+    local tip = H.detail():Find("list").children[2].children[1].tooltip
+    t.ok(tip:find("Gold 600 %(1,[12]%d%d/h%), kills 0"), tip)
+    t.ok(tip:find("10 items %(1 kinds%)"), tip)
+    t.eq(H.detail():Find("items_summary").text, "Last 2 runs, newest first")
+  end)
+
+  t.test("runs: Show all of today and midnight file a run; under a minute isn't kept; at most 10; per character",
+      function()
+    H.boot()
+    H.chat("/tbx loot")
+    H.chat("/tbx loot reset")
+    H.advance(30)
+    H.chat("/tbx loot today")
+    t.eq(#Toolbox.Daily.Runs(), 0, "30 s: not kept")
+    H.chat("/tbx loot reset")
+    H.advance(120)
+    H.chat("/tbx loot today")
+    t.eq(#Toolbox.Daily.Runs(), 1, "filed by Show all of today")
+    H.chat("/tbx loot reset")
+    H.advance(120)
+    H.S.date = "2026-09-28"
+    H.advance(2)
+    t.eq(#Toolbox.Daily.Runs(), 2, "filed at midnight")
+    for _ = 1, 12 do
+      H.chat("/tbx loot reset")
+      H.advance(61)
+    end
+    t.eq(#Toolbox.Daily.Runs(), Toolbox.Daily.RUNS_KEEP)
+    H.restart(nil, true)
+    t.eq(#Toolbox.Daily.Runs(), Toolbox.Daily.RUNS_KEEP, "kept across a restart")
+    H.callback("ShroudOnLogOut")
+    H.S.char.name = "Alt"
+    H.callback("ShroudOnSceneLoaded", "Novia")
+    t.eq(#Toolbox.Daily.Runs(), 0, "Alt's own history")
+  end)
+
+  t.test("runs: the estimated value per hour, from the prices when the run ended", function()
+    H.boot()
+    H.chat("/tbx loot")
+    H.chat("/tbx loot values on")
+    H.chat("/tbx loot reset")
+    H.items({ { "Iron Ore", 30 } })
+    H.advance(2)
+    H.httpRespond(#H.S.requests, true, 200, '{"items":[{"item":"Iron Ore","avg90d":5,"sold90d":10}],"missing":[]}')
+    H.advance(60 * 60)                                   -- an hour
+    H.chat("/tbx loot reset")
+    H.chat("/tbx loot view runs")
+    local row = H.detailRows()[1]
+    t.ok(row[3] == "150g/h" or row[3] == "149g/h", "30 ore x 5g over an hour: " .. tostring(row[3]))
+    t.eq(Toolbox.Daily.Runs()[1].value, 150, "the run's value")
+  end)
 end

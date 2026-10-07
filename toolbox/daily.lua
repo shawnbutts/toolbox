@@ -423,6 +423,7 @@ end
 -- Starts a run on today's counts now (the Loot Tracker's Reset), or ends it (Show all of today).
 function D.ResetRun()
   if not D.day then return false end
+  D.FileRun(D.day)                     -- the run that ends here goes into the history
   D.StartRun(D.day, T.ClockText())
   D.itemsVersion = D.itemsVersion + 1  -- the Loot Tracker redraws
   D.Save()
@@ -431,6 +432,7 @@ end
 
 function D.EndRun()
   if not (D.day and D.day.since) then return false end
+  D.FileRun(D.day)
   D.day.since = nil
   D.itemsVersion = D.itemsVersion + 1
   D.Save()
@@ -464,6 +466,74 @@ function D.RunStart()
   local s = D.day and D.day.since
   if type(s) ~= "table" then return nil end
   return type(s.at) == "string" and s.at or ""
+end
+
+-- ---------------------------------------------------------------------------
+-- Run history (owner, 2026-10-07): a run ending (Reset again, Show all of today, midnight) is filed with its
+-- numbers, the last D.RUNS_KEEP per character, newest first, for comparing farming spots. Saved var
+-- "loot_runs" = { v = 1, list = { { at = "HH:MM", date = "YYYY-MM-DD", scene, played = s, gold, kills, items,
+-- kinds, nodes, value = estimated gold or nil } } }. A run under D.RUN_MIN s of play isn't kept.
+-- ---------------------------------------------------------------------------
+D.RUNS_KEEP, D.RUN_MIN = 10, 60
+D.runsVersion = 0
+local runs, runsFor = nil, nil
+
+local function isRun(r)
+  return type(r) == "table" and isCount(r.played) and isCount(r.gold) and isCount(r.kills)
+end
+
+-- This character's filed runs, newest first (read once per character).
+function D.Runs()
+  local who = ShroudGetPlayerName()
+  if runs and runsFor == who then return runs end
+  runs, runsFor = {}, who
+  local saved = T.ReadSaved("loot_runs")
+  if type(saved) == "table" and saved.v == 1 and type(saved.list) == "table" then
+    for _, r in ipairs(saved.list) do
+      if isRun(r) and #runs < D.RUNS_KEEP then runs[#runs + 1] = r end
+    end
+  end
+  return runs
+end
+
+-- The scene a run spent most of its play in, or "".
+local function mainScene(s)
+  local best, most = "", -1
+  for name, secs in pairs(type(s.scenes) == "table" and s.scenes or {}) do
+    if type(name) == "string" and type(secs) == "number" and secs > most then best, most = name, secs end
+  end
+  return best
+end
+
+-- Files the run on day `d` (when it has lasted D.RUN_MIN s of play). Its estimated value comes from the Loot
+-- Tracker's prices, when they're on (Toolbox.DailyDetail.RunValue).
+function D.FileRun(d)
+  local s = d and d.since
+  if type(s) ~= "table" or not isCount(s.played) or s.played < D.RUN_MIN then return false end
+  local run = D.RunOf(d)
+  local items, kinds = 0, 0
+  for _, n in pairs(run.items or {}) do
+    items, kinds = items + n, kinds + 1
+  end
+  local value = nil
+  local DD = T.DailyDetail
+  if DD and DD.RunValue then value = DD.RunValue(run) end
+  local date = tostring(d.key or ""):match("(%d+%-%d+%-%d+)") or ""
+  local entry = { at = type(s.at) == "string" and s.at or "", date = date,
+                  scene = mainScene(s), played = math.floor(s.played), gold = run.gold or 0, kills = run.kills or 0,
+                  items = items, kinds = kinds, nodes = (run.gather and run.gather.nodes) or 0, value = value }
+  local list = D.Runs()
+  table.insert(list, 1, entry)
+  while #list > D.RUNS_KEEP do list[#list] = nil end
+  T.Save("loot_runs", { v = 1, list = list })
+  D.runsVersion = D.runsVersion + 1
+  return true
+end
+
+-- A new day: the run in progress is filed first (D.Roll drops it).
+function D.RollDay(key)
+  if D.day and D.day.since and key ~= nil and D.day.key ~= key then D.FileRun(D.day) end
+  return D.Roll(D.day, key)
 end
 
 -- The day as the Loot Tracker shows it: since the run started, or the whole day.
@@ -579,7 +649,7 @@ function D.ReadDay()
   else
     D.day = D.New(key or "none")
   end
-  if D.Roll(D.day, key) then D.unsaved = true end
+  if D.RollDay(key) then D.unsaved = true end
 end
 
 function D.Save()
@@ -601,6 +671,8 @@ end
 D.PLAY_GAP, D.PLAY_SAVE = 10, 30
 local lastPlayAt = nil
 
+D.SCENES_MAX = 20                    -- scenes a run keeps play time for (its place: the one played most)
+
 local function countPlay(hasCharacter)
   local s = D.day.since
   local now = T.Now()
@@ -610,6 +682,13 @@ local function countPlay(hasCharacter)
       local before = math.floor((s.played or 0) / D.PLAY_SAVE)
       s.played = (s.played or 0) + dt
       if math.floor(s.played / D.PLAY_SAVE) ~= before then D.unsaved = true end
+      local okScene, scene = pcall(ShroudGetCurrentSceneName)
+      if okScene and type(scene) == "string" and scene ~= "" then
+        if type(s.scenes) ~= "table" then s.scenes = {} end
+        local n = 0
+        for _ in pairs(s.scenes) do n = n + 1 end
+        if s.scenes[scene] or n < D.SCENES_MAX then s.scenes[scene] = (s.scenes[scene] or 0) + dt end
+      end
     end
   end
   if hasCharacter then lastPlayAt = now else lastPlayAt = nil end
@@ -618,7 +697,7 @@ end
 -- Once a tick, from Toolbox.Tick: day rollover, gold, a run's play time, and storing changes.
 function D.Tick(hasCharacter)
   if not D.day then return end
-  if D.Roll(D.day, today()) then D.unsaved = true end
+  if D.RollDay(today()) then D.unsaved = true end
   countPlay(hasCharacter)
   if hasCharacter then
     local gold = ShroudPlayerGold
@@ -632,7 +711,7 @@ end
 function D.OnLogin(adv, prod)
   -- Already this character's (loaded at its scene, before its totals came): keep what it counted since.
   if D.day and D.dayFor == ShroudGetPlayerName() then
-    if D.Roll(D.day, today()) then D.unsaved = true end
+    if D.RollDay(today()) then D.unsaved = true end
   else
     D.ReadDay()
   end

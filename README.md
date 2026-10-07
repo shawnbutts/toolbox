@@ -220,6 +220,10 @@ the day's gold and kills and a list of every item gained today with its count, h
   gathering since that moment, with "Since 14:32" at the top. Nothing is lost: the Today window keeps the
   whole day, and **Show all of today** (or `/toolbox loot today`) brings the day back here too. A run ends at
   midnight with the day.
+- **Runs** (the Show dropdown, or `/toolbox loot view runs`): each run is kept when it ends (Reset again, Show
+  all of today, midnight; at least a minute of play), the last 10 per character, newest first: start time, the
+  scene you played most in, length, gold per hour and, with estimated values on, loot value per hour (from the
+  prices when the run ended). Hover one for kills, items and nodes gathered.
 
 ## Buff bar
 
