@@ -303,7 +303,8 @@ into one if a new file is ever needed).
   (garbage measured under standard Lua only, in `test_perf.lua` too: LuaJIT's count is noisy). `STRESS_PRINT=1 lua tests/run.lua stress` prints the numbers.
 - `art/`: `icon.svg` (-> `toolbox/icon.png`, 256x256: `rsvg-convert -w 256 -h 256 art/icon.svg -o
   toolbox/icon.png`), `clock.py` (-> `toolbox/clock.png`: a normal and a red set of 120 frames; keep in sync
-  with `BuffBar.CLOCK`), `marks.py` (-> `toolbox/skillmarks.png`: the skill strip's training markers), `alerts.py` (-> `toolbox/*.ogg` via ffmpeg's Vorbis encoder: buff_expiring falls,
+  with `BuffBar.CLOCK`), `marks.py` (-> `toolbox/skillmarks.png`: the skill strip's training markers), `alerts.py` (-> `toolbox/*.ogg` via ffmpeg's Vorbis encoder, +7.5 dB into a limiter at -1.5 dBFS since
+  2026-10-07 (twice as loud as before): buff_expiring falls,
   debuff_landed steps down, notify rises; ping and tap are the other notification sounds; skill_up, a rising
   arpeggio into a ringing chord, and skill_down, sinking "wah wah" notes, and skill_train / skill_maintain /
   skill_unlearn, two quick notes up, even and down, belong to skills.lua; block, parry and
@@ -384,7 +385,7 @@ character" sentinel.
 | `daily_detail` | `{ open = bool, x = number, y = number, values = bool, each = bool (the price each in the count: "40 x 5g"; default true), view = "looted"/"crafted"/"gathered", include = bool }` |
 | `buffblock` | `{ show = bool (default false), width = 1..30 (icons a row, default 10), size = 20..48, combatOnly = bool, x, y }` |
 | `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, flash, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), groupCats = { [category] = true }, countdown = bool, countdownSecs = 5..120, group = { name parts }, quiet = { exact effect names, <= BB.QUIET_MAX } (muted: no expiry / debuff sound), replaceStock, clickDismiss, combatOnly, x, y }` |
-| `sounds` | `{ volume = 0..100, paths = { [sound key] = "..." } }` |
+| `sounds` | `{ v = 2, volume = 0..100, paths = { [sound key] = "..." }, levels = { [sound key] = 0..100 } (unset: 100) }`; a volume without `v = 2` is from before the louder sounds (2026-10-07) and is halved once (`S.Init`). Played at volume x level / 100, twice that for a player's own file (`S.EffectiveVolume`), at most 100 |
 | `buff_timers` | `{ v = 3, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts |
 | `vitals` | `{ show, width = 20..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, vigor = bool, replaceStock = bool (API 28: hide the game's player-frame bars), x, y }` |

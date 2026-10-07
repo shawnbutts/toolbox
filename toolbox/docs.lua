@@ -259,7 +259,10 @@ D.SECTIONS = {
       .. "toolbox_buff_expiring.ogg, toolbox_debuff_landed.ogg, toolbox_notify.ogg, toolbox_ping.ogg or "
       .. "toolbox_tap.ogg (or .wav) in your Lua folder, "
       .. "beside the toolbox folder, or pick any file in settings. /toolbox sounds shows what "
-      .. "each alert uses; /toolbox sounds 50 sets the volume." },
+      .. "each alert uses; /toolbox sounds 50 sets the volume.",
+    "Volume (settings, Sounds): one alert volume for all, and under each sound its own volume, a share of "
+      .. "the alert volume (0 silences just that one). The add-on's sounds are loud enough that 50% is about "
+      .. "what 100% used to be; your own files play at twice the setting, so they keep their old loudness." },
   { "Setups, backup & reset",
     "Each character has its own settings and positions. To copy another character's, yours or someone "
       .. "else's on this computer, pick it under Setups (Settings, Setups, backup & reset) and press Import "

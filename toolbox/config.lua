@@ -102,6 +102,9 @@ local function soundRows(def)
         tooltip = "Play " .. def.label:lower(),
         onClick = function() S.Test(def.key) end },
     } },
+    slider("snd_" .. def.key .. "_vol", "Its volume (% of the alert volume)", 0, 100, 5, S.GetLevel(def.key),
+      "This sound's own volume, on top of the alert volume; 0 silences just this one",
+      function(n) S.SetLevel(def.key, n) end),
   } }
 end
 
@@ -1186,6 +1189,8 @@ local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "x
 for _, def in ipairs(T.Sounds.DEFS) do
   ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_status"
   ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_path"
+  ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_vol"
+  ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_vol_value"
 end
 for _, src in ipairs(T.Notify.Sources()) do
   ALL_IDS[#ALL_IDS + 1] = "notify_" .. src.key
@@ -1882,6 +1887,7 @@ function C.Sync()
   setValue("nhud_hide", T.Notify.Hud.HideLabel(T.Notify.Hud.GetHideAfter()) or "Never")
   -- Sounds
   sliderValue("volume", S.GetVolume())
+  for _, def in ipairs(S.DEFS) do sliderValue("snd_" .. def.key .. "_vol", S.GetLevel(def.key)) end
   -- Toolbelt
   setValue("toolbelt_combat", B.GetCombatOnly())
   setEnabled("toolbelt_combat", buffsOn)

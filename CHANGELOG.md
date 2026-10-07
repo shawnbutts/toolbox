@@ -7,6 +7,16 @@ ones included).
 
 ## [Unreleased]
 
+### Changed
+- Louder sounds: every sound Toolbox ships is now about twice as loud (some found 100% too quiet), so 50% sounds
+  like the old 100% and there's room to go louder. Your volume setting was halved once to match, so nothing
+  sounds different until you turn it up; with the default, sounds are twice as loud. Your own sound files
+  can't be made louder, so they play at twice the setting and sound as they did.
+
+### Added
+- A volume for each sound (settings, Sounds: under each one), a share of the alert volume; 0 silences just
+  that sound.
+
 ### Added
 - Loot Tracker run history: every run is kept when it ends (Reset again, Show all of today, or midnight), and
   the new Runs view lists your last 10, newest first: when and where, how long, gold per hour and estimated loot

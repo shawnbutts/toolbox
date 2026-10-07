@@ -293,7 +293,9 @@ def write(name: str, samples: list[float]) -> None:
         w.writeframes(b"".join(struct.pack("<h", int(max(-1.0, min(1.0, s)) * 32767)) for s in samples))
     subprocess.run(
         ["ffmpeg", "-y", "-loglevel", "error", "-i", str(wav),
-         "-af", "pan=stereo|c0=c0|c1=c0",   # the Vorbis encoder needs stereo; copy, don't -3 dB upmix
+         # +6 dB (twice as loud: some players found 100% too quiet; owner, 2026-10-07), a limiter keeping the
+         # peaks under -1.5 dBFS (they were at -3 dBFS: plain gain would clip), then stereo for the encoder
+         "-af", "volume=7.5dB,alimiter=limit=0.84:attack=1:release=60:level=disabled,pan=stereo|c0=c0|c1=c0",
          "-c:a", "vorbis", "-strict", "-2", "-q:a", "6", str(ogg)],
         check=True,
     )

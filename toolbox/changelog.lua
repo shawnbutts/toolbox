@@ -5,6 +5,10 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Changed" },
+  { "item", "Louder sounds: every sound Toolbox ships is now about twice as loud (some found 100% too quiet), so 50% sounds like the old 100% and there's room to go louder. Your volume setting was halved once to match, so nothing sounds different until you turn it up; with the default, sounds are twice as loud. Your own sound files can't be made louder, so they play at twice the setting and sound as they did." },
+  { "section", "Added" },
+  { "item", "A volume for each sound (settings, Sounds: under each one), a share of the alert volume; 0 silences just that sound." },
   { "section", "Added" },
   { "item", "Loot Tracker run history: every run is kept when it ends (Reset again, Show all of today, or midnight), and the new Runs view lists your last 10, newest first: when and where, how long, gold per hour and estimated loot value per hour, to compare farming spots. Hover a run for all its numbers (kills, items, nodes gathered). Runs shorter than a minute aren't kept; each character has its own history. Also /toolbox loot view runs. A bar chart above the list compares them at a glance: one bar per run, oldest on the left, as tall as its loot value per hour (or gold per hour with estimated values off), the best one green; hover a bar for its run." },
   { "version", "1.5.1 - 2026-10-07" },

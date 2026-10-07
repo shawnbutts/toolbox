@@ -19,6 +19,14 @@ Toolbox.Sounds = S
 
 S.LOAD_TIMEOUT = 2          -- seconds to wait for a candidate to appear (local files load fast)
 S.VOLUME_DEFAULT = 70
+-- Volumes, format 2 (owner, 2026-10-07: some found 100% too quiet; and a volume per sound). The shipped sounds
+-- were made twice as loud (art/alerts.py: +7.5 dB into a limiter), so a saved volume from before is halved once
+-- (the old 100% is the new 50%: nothing changes for whoever chose it), while the default (70) is now twice as
+-- loud. Each sound also has its own level (S.LEVEL_DEFAULT %), applied on top: played at volume x level / 100.
+-- A player's own file can't be made louder, so it plays at twice that (capped at the game's 100): as loud as it
+-- was before.
+S.VOLUME_FORMAT = 2
+S.LEVEL_DEFAULT = 100
 S.DEFS = {
   { key = "buff_expiring", file = "buff_expiring.ogg", label = "Buff expiring" },
   { key = "debuff_landed", file = "debuff_landed.ogg", label = "Debuff landed" },
@@ -30,7 +38,7 @@ S.DEFS = {
 -- state[key] = { candidates = {...}, at = index, since = t, before = n, clip = name|nil,
 --               path = path|nil, status = "loading"|"ready"|"missing" }
 local state = {}
-local prefs = { volume = S.VOLUME_DEFAULT, paths = {} }
+local prefs = { v = S.VOLUME_FORMAT, volume = S.VOLUME_DEFAULT, paths = {}, levels = {} }
 
 -- The game's loaded clips as a list of names (the file's base name), in clip-id order: the id
 -- is the 1-based position. Confirmed in game 2026-09-28: plain strings, as documented.
@@ -115,10 +123,20 @@ end
 
 function S.Init()
   local saved = T.ReadSaved("sounds")
-  prefs = { volume = S.VOLUME_DEFAULT, paths = {} }
+  prefs = { v = S.VOLUME_FORMAT, volume = S.VOLUME_DEFAULT, paths = {}, levels = {} }
+  local migrate = false
   if type(saved) == "table" then
     if type(saved.volume) == "number" and saved.volume >= 0 and saved.volume <= 100 then
       prefs.volume = math.floor(saved.volume)
+      if saved.v ~= S.VOLUME_FORMAT then        -- saved before the louder sounds: the same loudness now
+        prefs.volume = math.floor(prefs.volume / 2 + 0.5)
+        migrate = true
+      end
+    end
+    if type(saved.levels) == "table" then
+      for k, n in pairs(saved.levels) do
+        if type(k) == "string" and type(n) == "number" and n >= 0 and n <= 100 then prefs.levels[k] = math.floor(n) end
+      end
     end
     if type(saved.paths) == "table" then
       for _, def in ipairs(S.DEFS) do
@@ -127,10 +145,40 @@ function S.Init()
     end
   end
   for _, def in ipairs(S.DEFS) do startLoading(def) end
+  if migrate then T.Save("sounds", prefs) end
 end
 
 local function save()
   T.Save("sounds", prefs)
+end
+
+local function defFor(key)
+  for _, def in ipairs(S.DEFS) do if def.key == key then return def end end
+end
+
+function S.GetLevel(key)
+  local n = prefs.levels[key]
+  if type(n) == "number" then return n end
+  return S.LEVEL_DEFAULT
+end
+
+function S.SetLevel(key, n)
+  if type(n) ~= "number" or n ~= math.floor(n) or n < 0 or n > 100 then return false end
+  prefs.levels[key] = n ~= S.LEVEL_DEFAULT and n or nil
+  save()
+  T.Config.Sync()
+  return true
+end
+
+-- The volume a sound plays at (0..100 for the game): the alert volume x its own level, twice that for a file of
+-- the player's (the shipped ones were made twice as loud), at most 100.
+function S.EffectiveVolume(key)
+  local v = prefs.volume * S.GetLevel(key) / 100
+  local st = state[key]
+  local def = defFor(key)
+  if st and st.path and def and st.path ~= "toolbox/" .. def.file then v = v * 2 end
+  if v > 100 then v = 100 end
+  return math.floor(v + 0.5)
 end
 
 -- Plays a sound by key. Returns true when it started, and a table saying what happened:
@@ -149,14 +197,12 @@ local function findClip(st, def)
   return nil
 end
 
-local function defFor(key)
-  for _, def in ipairs(S.DEFS) do if def.key == key then return def end end
-end
-
 function S.Play(key)
   local st = state[key]
   if not st or st.status ~= "ready" then return false, { reason = "notLoaded" } end
   if prefs.volume <= 0 then return false, { reason = "muted" } end
+  local volume = S.EffectiveVolume(key)
+  if volume <= 0 then return false, { reason = "soundMuted" } end
   local index, name = findClip(st, defFor(key))
   if not index then
     -- Not in the game's list any more (ShroudListSoundReset, from any add-on, clears it):
@@ -165,8 +211,8 @@ function S.Play(key)
     return false, { reason = "cleared" }
   end
   if type(name) == "string" then st.clip = name end
-  local ok, channel = pcall(ShroudPlaySoundChannel, index, prefs.volume)
-  local info = { clip = name, index = index }
+  local ok, channel = pcall(ShroudPlaySoundChannel, index, volume)
+  local info = { clip = name, index = index, volume = volume }
   if ok then info.channel = channel end
   if ok and type(channel) == "number" and channel > 0 then
     info.reason = "ok"
@@ -183,6 +229,7 @@ function S.WhyNot(info)
   local why = {
     notLoaded = "no sound loaded (see /toolbox sounds)",
     muted = "the alert volume is 0",
+    soundMuted = "its own volume is 0 (Sounds settings)",
     cleared = "the game's sound list was cleared; reloading, try again in a few seconds",
     refused = "the game refused to play clip " .. tostring(info.index) .. " (returned "
       .. tostring(info.channel) .. "; all 5 channels busy, or a bad clip id)",
@@ -204,7 +251,7 @@ function S.Test(key)
     return false
   end
   T.Print(string.format("%s: playing '%s' (clip %d) on channel %d at volume %d.",
-    label, info.clip, info.index, info.channel, prefs.volume))
+    label, info.clip, info.index, info.channel, info.volume))
   ShroudRegisterPeriodic("toolbox_soundcheck_" .. key, function()
     local now = ShroudIsChannelPlaying(info.channel)
     if type(now) == "string" and now ~= "" then
