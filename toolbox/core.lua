@@ -252,14 +252,16 @@ end
 --  3. T.SetSavedVar checks every value before it reaches the game (T.CheckSaved) and refuses one that breaks those
 --     rules, or would pass the game's 256 KB a table: that one value isn't saved, and chat says so once, instead of
 --     the whole file being lost.
--- Text saved by 1.5.1 to 1.6.0 reads the same: they wrote every "%" as "%25" (and "/" as "%2F"). Text from an older
--- release, not saved again since, reads a "%" and two hex digits ("%20") as that character (review 23: accepted,
--- no marker tells them apart; only a name a player typed into a list, if any, could hold one).
+-- Upgrades from 1.3.0 on (owner, 2026-10-08; review 23): a table saved this way carries T.SAVE_FORMAT_KEY (no text
+-- can be that key: a "%" in text is saved "%25"), and only such a table is read with the escapes above. One without
+-- it was saved by 1.6.0 or before and reads as 1.6.0 read it: "%2F" a "/", "%25" a "%", nothing else (1.3.0 saved
+-- text as typed, 1.5.1 and 1.6.0 wrote "%" and "/" so). A list (a table with [1]) carries no key; none is saved.
 T.SAFE_CHARS = "[^ !#$&'()*+,%-%.0-9:;<=>?@A-Z%[%]^_`a-z{|}\126]"   -- (the complement: what gets escaped)
 T.SAVED_CHARS = "[^ !#$%%&'()*+,%-%.0-9:;<=>?@A-Z%[%]^_`a-z{|}\126]"  -- what saved text may hold: those and the "%"
 T.SAVE_TINY, T.SAVE_HUGE = 1e-4, 1e15
 T.SAVE_MAX_CHARS = 240000            -- an estimate of a table's JSON size, under the game's 256 KB
 T.SAVE_MAX_DEPTH = 24
+T.SAVE_FORMAT_KEY = "%E"
 
 local function escapeChar(c)
   local b = c:byte()
@@ -320,11 +322,28 @@ local function codedCopy(v, code)
   return out
 end
 
--- For the few places that call the saved-var API themselves (the price cache).
-function T.ForSaving(v) return codedCopy(v, encodeText) end
-function T.FromSaved(v) return codedCopy(v, decodeText) end
+-- How 1.5.1 to 1.6.0 read text back (1.3.0 and before wrote it as typed).
+local function decodeOldText(s)
+  if not s:find("%", 1, true) then return s end
+  return (s:gsub("%%2F", "/"):gsub("%%25", "%%"))
+end
+
+-- For the few places that call the saved-var API themselves (the price cache, setups).
+function T.ForSaving(v)
+  local out = codedCopy(v, encodeText)
+  if type(out) == "table" and out[1] == nil then out[T.SAVE_FORMAT_KEY] = 1 end
+  return out
+end
+
+function T.FromSaved(v)
+  if type(v) ~= "table" then return codedCopy(v, decodeText) end    -- (only tables were saved with text)
+  if v[T.SAVE_FORMAT_KEY] == nil then return codedCopy(v, decodeOldText) end
+  local out = codedCopy(v, decodeText)
+  out[T.SAVE_FORMAT_KEY] = nil
+  return out
+end
 -- A value read straight from the saved vars, put in today's form (text saved before the escaping, for a copy).
-function T.Resaved(v) return codedCopy(codedCopy(v, decodeText), encodeText) end
+function T.Resaved(v) return T.ForSaving(T.FromSaved(v)) end
 
 -- Whether `v` (as it will be saved: already through T.ForSaving) is safe to hand to the game. Returns true, or
 -- false and why ("text with a '/' at notify.sources.x.title").
@@ -398,11 +417,11 @@ function T.SetSavedVar(key, value, scope)
 end
 
 function T.ReadSaved(key)
-  return codedCopy(ShroudGetSavedVar(key, SCOPE), decodeText)
+  return T.FromSaved(ShroudGetSavedVar(key, SCOPE))
 end
 
 function T.Save(key, value)
-  local ok = T.SetSavedVar(key, codedCopy(value, encodeText), SCOPE)
+  local ok = T.SetSavedVar(key, T.ForSaving(value), SCOPE)
   if not ok then T.Print("Could not save '" .. key .. "'.") end
   if T.Backup.IsSetting(key) then T.setupDirty = true end    -- this character's setup copy is behind
   return ok
@@ -2624,12 +2643,13 @@ function B.Export(text)
   return true, name
 end
 
--- The values an import writes: the setup's, notify without its `seen` but with this character's own.
+-- The values an import writes, read (each copy and file as it was saved): the setup's, notify without its `seen`
+-- but with this character's own.
 local function importValues(setupKeys)
   local out = {}
-  local mine = ShroudGetSavedVar("notify", SCOPE)
+  local mine = T.ReadSaved("notify")
   for _, key in ipairs(B.KEYS) do
-    local v = setupKeys[key]
+    local v = T.FromSaved(setupKeys[key])
     if key == B.SHARE then
       v = nil                             -- each character's own choice
     elseif key == "notify" then
@@ -2661,7 +2681,7 @@ function B.Import(s)
   for _, key in ipairs(B.KEYS) do old[key] = T.Resaved(ShroudGetSavedVar(key, SCOPE)) end
   for _, key in ipairs(B.KEYS) do
     if values[key] ~= nil then
-      if not T.SetSavedVar(key, T.Resaved(values[key]), SCOPE) then
+      if not T.SetSavedVar(key, T.ForSaving(values[key]), SCOPE) then
         for _, k in ipairs(written) do
           if old[k] == nil then ShroudDeleteSavedVar(k, SCOPE) else T.SetSavedVar(k, old[k], SCOPE) end
         end

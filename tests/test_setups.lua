@@ -178,6 +178,21 @@ return function(t)
     t.eq(account["setup:caf\195\169"], nil, "the old copy is gone")
   end)
 
+  -- Upgrades from 1.3.0 on (owner, 2026-10-08): a copy 1.6.0 kept (unmarked, its "%" written "%25") imports as it
+  -- was, into a character whose own file is in today's form.
+  t.test("a setup copy kept by 1.6.0 imports its text as it was", function()
+    momPlays()
+    switchTo("Dad")
+    local copy = H.S.memory.account["setup_character:mom"]
+    t.ok(copy, "Mom's copy")
+    copy.keys.buffbar = { show = true, size = 30, group = { "cost%2520gold", "Ward%2FShield", "50%25" } }
+    H.chat("/tbx settings import Mom")
+    local saved = Toolbox.ReadSaved("buffbar")
+    t.eq(saved.group[1], "cost%20gold")
+    t.eq(saved.group[2], "Ward/Shield")
+    t.eq(saved.group[3], "50%")
+  end)
+
   -- Review 2026-10-04 (11): a refused write changes nothing and isn't reported as done.
   t.test("an import the game refuses to store changes nothing and says so", function()
     momPlays()

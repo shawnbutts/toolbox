@@ -58,6 +58,10 @@ This file holds current facts and rules; the history behind them is in git (`git
   - text keeps only printable ASCII other than `" \ / %` (`T.SAFE_CHARS`); anything else is written `%XX` (`%uXXXX`
     past 255: MoonSharp strings are UTF-16), keys too, and read back. `T.ForSaving` / `T.FromSaved` around a direct
     write; `T.Resaved` puts a raw saved value (perhaps from before the escaping) in today's form for a copy;
+  - upgrades from 1.3.0 on read their files as they were (owner, 2026-10-08): `T.ForSaving` marks each table it writes
+    (`T.SAVE_FORMAT_KEY`, "%E"); `T.FromSaved` decodes only a marked table with the escapes, an unmarked one (1.6.0 or
+    before) as 1.6.0 did ("%2F", "%25" only; 1.3.0 wrote text as typed). Decode a copy or file before mixing it with
+    another (`importValues`); `T.Resaved` = `ForSaving(FromSaved(v))`;
   - a number below 0, under `T.SAVE_TINY` or from `T.SAVE_HUGE` (the saver may write an exponent) is saved as text
     `%N<number>` and read back as the number; NaN and infinities aren't saved;
   - `T.SetSavedVar` (every write; never call `ShroudSetSavedVar` elsewhere) checks the value with `T.CheckSaved`

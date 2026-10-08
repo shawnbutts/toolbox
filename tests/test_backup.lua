@@ -229,7 +229,23 @@ return function(t)
     t.eq(old.a, "100% sure")
     t.eq(old.b, "Ward/Shield")
     t.eq(old.c, "plain")
-    -- review 23: as 1.5.1 to 1.6.0 saved them (every "%" written "%25"), text that looks escaped reads as typed
+    t.eq(H.S.memory["character:Tester"].location[T.SAVE_FORMAT_KEY], 1, "saved marked")
+    t.eq(back[T.SAVE_FORMAT_KEY], nil, "the mark isn't read back")
+    -- review 23 (owner: upgrades from 1.3.0 on): as 1.3.0 saved text (as typed, unmarked), it reads as typed
+    H.S.memory["character:Tester"].legacy = { a = "cost%20gold", b = "literal%u0041", c = "%N5", d = -4,
+      ["key%20x"] = { "%41" } }
+    old = T.ReadSaved("legacy")
+    t.eq(old.a, "cost%20gold")
+    t.eq(old.b, "literal%u0041")
+    t.eq(old.c, "%N5", "text, not a number")
+    t.eq(old.d, -4)
+    t.eq(old["key%20x"][1], "%41", "keys and nested text too")
+    T.Save("legacy", old)                        -- saved again: marked, and the same when read
+    local again = T.ReadSaved("legacy")
+    t.eq(again.a, "cost%20gold")
+    t.eq(again.c, "%N5")
+    t.eq(again["key%20x"][1], "%41")
+    -- as 1.5.1 to 1.6.0 saved them (every "%" written "%25"), text that looks escaped reads as typed
     H.S.memory["character:Tester"].legacy = { a = "cost%2520gold", b = "literal%25u0041", c = "%25N5",
       ["key%2520x"] = "%252F" }
     old = T.ReadSaved("legacy")
