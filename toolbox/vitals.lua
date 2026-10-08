@@ -787,9 +787,9 @@ function TG.Before(a, b)
   return a.name < b.name
 end
 
--- Groups the flat effects (`raw`, entries { name, remaining, index }) by name, keeping the longest time
--- left, fills in debuff and full duration from `infoBy`, sorts them (TG.Before) and writes at most `max`
--- into `out` (reused entries). Returns how many. Pure.
+-- Groups the flat effects (`raw`, entries { name, remaining, index }) by name, keeping every index (`indices`,
+-- for the tooltip) and the longest time left, fills in debuff and full duration from `infoBy`, sorts them
+-- (TG.Before) and writes at most `max` into `out` (reused entries). Returns how many. Pure.
 function TG.Collect(raw, n, infoBy, out, max, debuffsOnly)
   local count = 0
   for i = 1, n do
@@ -803,12 +803,16 @@ function TG.Collect(raw, n, infoBy, out, max, debuffsOnly)
     if skip then                                     -- a buff, with debuffs only: left out
       found = nil
     elseif found then
+      found.indices[#found.indices + 1] = r.index      -- every effect's index, for its tooltip
       if r.remaining > found.remaining then found.remaining, found.index = r.remaining, r.index end
     else
       count = count + 1
       local e = out[count] or {}
       out[count] = e
-      e.name, e.remaining, e.index = r.name, r.remaining, r.index
+      local indices = e.indices or {}
+      for k = #indices, 1, -1 do indices[k] = nil end
+      indices[1] = r.index
+      e.name, e.remaining, e.index, e.indices = r.name, r.remaining, r.index, indices
       e.debuff = info ~= nil and info.debuff == true
       e.total = info ~= nil and info.total or 0
     end
@@ -1158,7 +1162,7 @@ local function fillSlots()
         slot.name = e.name
         T.BuffBar.SetTimer(slot, nil)                  -- a new effect in this slot: its own wedge
       end
-      local tip = ShroudGetTargetBuffTooltip(e.index)
+      local tip = T.BuffBar.EffectTooltip(e, ShroudGetTargetBuffTooltip)
       T.SetTooltip(slot.icon, (type(tip) == "string" and tip ~= "") and tip or e.name)
       T.BuffBar.SetTimer(slot, e.remaining, e.total)
     end

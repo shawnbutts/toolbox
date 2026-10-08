@@ -264,6 +264,10 @@ return function(t)
                  focus = 400, maxFocus = 500, effects = effects }
     local list, tip = {}, string.rep("What this effect does, at length. ", 12)    -- ~400 characters
     for i = 1, 20 do list[#list + 1] = { name = "Buff" .. i, remaining = 90 + i * 60, icon = i, tooltip = tip } end
+    for i = 1, 20 do                  -- a second effect each, its tooltip merged into the icon's, at the cap
+      list[#list + 1] = { name = "Buff" .. i, remaining = 60 + i * 60, icon = i,
+                          tooltip = string.rep("And more. ", 9) .. i }
+    end
     for i = 1, 10 do
       list[#list + 1] = { name = "Bane" .. i, remaining = 80 + i * 10, icon = 40 + i, debuff = true, tooltip = tip }
     end

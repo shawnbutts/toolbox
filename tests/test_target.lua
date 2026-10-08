@@ -64,6 +64,7 @@ return function(t)
     t.eq(out[3].name, "B")
     t.eq(out[3].remaining, 7, "the longest-lasting component")
     t.eq(out[3].index, 2)
+    t.eq(table.concat(out[3].indices, ","), "0,2", "every effect's index, for its tooltip")
     t.eq(out[4].name, "C", "permanent (0 left) last")
     t.eq(TG().Collect(raw, #raw, info, out, 2), 2)
     t.eq(#out, 2, "capped")
@@ -143,6 +144,17 @@ return function(t)
     t.eq(slot.style.borderWidth, 2, "outlined as a debuff after the grouped refresh")
     local done = slot.children[2]:SweepNow()
     t.ok(done and math.abs(done - 0.5) < 0.1, "its own 8 s length, not Haste's 60 s: " .. tostring(done))
+  end)
+
+  t.test("a target effect with several parts: every benefit in its icon's tooltip", function()
+    H.boot()
+    H.chat("/tbx target on")
+    H.setTarget({ id = 9, name = "Mage", hp = 100, maxHp = 100, effects = {
+      { name = "Blessing", remaining = 600, total = 600, icon = 43, tooltip = "Blessing\n+50 Focus\n10:00" },
+      { name = "Blessing", remaining = 300, total = 300, icon = 43, tooltip = "Blessing\n+25 Health\n5:00" },
+    } })
+    t.eq(#H.targetSlots(), 1)
+    t.eq(H.targetSlots()[1].children[1].tooltip, "Blessing\n+50 Focus\n+25 Health (5:00)\n10:00")
   end)
 
   t.test("effect sweeps show the time used, run by the game", function()

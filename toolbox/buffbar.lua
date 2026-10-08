@@ -589,7 +589,8 @@ function BB.SceneChange()
   sceneQuietUntil = T.Now() + BB.SETTLE
 end
 
--- One entry per rune in the game's order: { name, remaining, index (first flat index) }.
+-- One entry per rune in the game's order: { name, remaining, index (its longest effect's flat index), indices
+-- (every flat index of the rune, in list order: BB.EffectTooltip) }.
 -- The list and its entries are reused call to call (it runs twice a second): callers must not
 -- keep them past the tick.
 local effOut, effByName, effPool = {}, {}, {}
@@ -609,15 +610,85 @@ function readEffects()
           e = {}
           effPool[name] = e
         end
-        e.name, e.remaining, e.index = name, remaining, i
+        local indices = e.indices or {}
+        for k = #indices, 1, -1 do indices[k] = nil end
+        indices[1] = i
+        e.name, e.remaining, e.index, e.indices = name, remaining, i, indices
         byName[name] = e
         out[#out + 1] = e
-      elseif type(remaining) == "number" and remaining > (e.remaining or -1) then
-        e.remaining, e.index = remaining, i   -- a rune lasts until its last effect ends; its tooltip
+      else
+        e.indices[#e.indices + 1] = i
+        if type(remaining) == "number" and remaining > (e.remaining or -1) then
+          e.remaining, e.index = remaining, i   -- a rune lasts until its last effect ends; its tooltip
+        end
       end
     end
   end
   return out
+end
+
+-- One icon's tooltip for a rune with several effects. The game gives each effect (flat index) its own
+-- tooltip, naming only its own benefit (confirmed 2026-10-08, Blessing of Atos: "Blessing of Atos / You /
+-- +5 Health / 71:58:42", then "+5 Focus", then "+12.5% Melee and Ranged Critical Hit Damage Reduction" with
+-- 23:58:42). So: the longest effect's tooltip (the one the icon and its sweep follow), with every other
+-- effect's lines after its own benefit (the lines both start with left out once), each followed by its own
+-- time in brackets when it ends at another time; the time line last. At most BB.TIP_MAX characters,
+-- cut at a whole line (the game cuts a tooltip at 512). `e`: a readEffects / TG.Collect entry; `getter`:
+-- ShroudGetBuffTooltip or ShroudGetTargetBuffTooltip. One effect: the game's text as it is.
+BB.TIP_MAX = 500
+local tipBase, tipMore, tipOut, tipSeen = {}, {}, {}, {}
+
+local function splitLines(text, into)
+  for k = #into, 1, -1 do into[k] = nil end
+  for line in (text .. "\n"):gmatch("([^\r\n]*)[\r\n]") do
+    if line ~= "" then into[#into + 1] = line end
+  end
+  return into
+end
+
+-- "71:58:42", "10m", "1h 5m", "30s": a tooltip's last line when it is the time left.
+function BB.IsTimeLine(line)
+  return type(line) == "string" and line:find("%d") ~= nil and line:find("^[%d%s:%.,dhms]+$") ~= nil
+end
+
+function BB.EffectTooltip(e, getter)
+  local raw = getter(e.index)
+  if type(raw) ~= "string" then raw = "" end
+  if not e.indices or #e.indices < 2 then return raw end
+  local base = splitLines(raw, tipBase)
+  local baseTime = BB.IsTimeLine(base[#base]) and base[#base] or nil
+  local out, seen = tipOut, tipSeen
+  for k = #out, 1, -1 do out[k] = nil end
+  for k in pairs(seen) do seen[k] = nil end
+  for k = 1, #base - (baseTime and 1 or 0) do
+    out[#out + 1] = base[k]
+    seen[base[k]] = true
+  end
+  for _, index in ipairs(e.indices) do
+    local text = index ~= e.index and getter(index) or nil
+    if type(text) == "string" then
+      local more = splitLines(text, tipMore)
+      local time = BB.IsTimeLine(more[#more]) and more[#more] or nil
+      local first = 1
+      while first <= #more and more[first] == base[first] do first = first + 1 end
+      local note = (time and time ~= baseTime) and (" (" .. time .. ")") or ""
+      for k = first, #more - (time and 1 or 0) do
+        local line = more[k] .. note
+        if not seen[line] then
+          seen[line] = true
+          out[#out + 1] = line
+        end
+      end
+    end
+  end
+  if baseTime then out[#out + 1] = baseTime end
+  local text = table.concat(out, "\n")
+  if #text <= BB.TIP_MAX then return text end
+  local keep = #out
+  while keep > 1 and #table.concat(out, "\n", 1, keep) + 4 > BB.TIP_MAX do keep = keep - 1 end
+  text = table.concat(out, "\n", 1, keep)
+  if #text + 4 > BB.TIP_MAX then text = text:sub(1, BB.TIP_MAX - 4) end
+  return text .. "\n..."
 end
 
 -- ---------------------------------------------------------------------------
@@ -1079,7 +1150,7 @@ local function fill(slot, e, left, total, warn, flash, outline, short)
     local left2 = BB.CoarseLeft(e.remaining)
     raw = slot.label .. (outline and "\nDebuff" or "") .. (left2 ~= "" and ("\n" .. left2) or "")
   else
-    raw = ShroudGetBuffTooltip(e.index)
+    raw = BB.EffectTooltip(e, ShroudGetBuffTooltip)
   end
   local dismiss = (prefs.clickDismiss and BB.CanDismiss() and ShroudCanDismissBuff(e.index)) == true
   if raw ~= slot.tip or dismiss ~= slot.tipDismiss then
@@ -1336,8 +1407,8 @@ end
 
 -- /toolbox buffs tips [name]: what the game gives for an effect that takes several places in the flat list
 -- (a rune applying several effects): each place's ShroudGetBuffTooltip, line by line, and the rune's Effects
--- from ShroudGetPlayerBuff. Decides whether one place's tooltip already names every benefit. No name: the
--- effects that take several places.
+-- from ShroudGetPlayerBuff (each place names only its own benefit: BB.EffectTooltip). The name matches the
+-- rune's, the bar's label or the tooltip's first line. No name: the effects that take several places.
 BB.TIPS_MAX, BB.TIPS_LINES = 3, 20
 function BB.TipLines(filter)
   filter = (filter or ""):lower()
@@ -1372,7 +1443,10 @@ function BB.TipLines(filter)
   for _, name in ipairs(order) do
     local first = places[name][1]
     local label = plainLabel(first, name)
-    if (name:lower():find(filter, 1, true) or label:lower():find(filter, 1, true)) and shown < BB.TIPS_MAX then
+    local title = ShroudGetBuffTooltip(first)            -- its first line: "Blessing of Atos" for "+5 Health"
+    title = type(title) == "string" and (title:match("^[^\r\n]*") or ""):lower() or ""
+    if (name:lower():find(filter, 1, true) or label:lower():find(filter, 1, true) or title:find(filter, 1, true))
+        and shown < BB.TIPS_MAX then
       shown = shown + 1
       local effects = byName[name] and byName[name].Effects or {}
       lines[#lines + 1] = label .. " [" .. name .. "]: " .. #places[name] .. " place(s) in the list, "

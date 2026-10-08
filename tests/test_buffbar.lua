@@ -1476,7 +1476,31 @@ return function(t)
     t.eq(H.playedNames(), "toolbox_debuff_landed", "once")
   end)
 
-  t.test("a rune with two effects: one icon, with the longer-lasting effect's tooltip", function()
+  -- In game (2026-10-08, /toolbox buffs tips Atos): each effect's tooltip names only its own benefit.
+  local function atos()
+    return { { name = "Reward_Blessing_CastleAtos4_7", label = "+5 Health", remaining = 259122, total = 259200,
+               icon = 5, tooltip = "Blessing of Atos\nYou\n+5 Health\n71:58:42" },
+             { name = "Reward_Blessing_CastleAtos4_7", label = "+5 Health", remaining = 259122, total = 259200,
+               icon = 5, tooltip = "Blessing of Atos\nYou\n+5 Focus\n71:58:42" },
+             { name = "Reward_Blessing_CastleAtos4_7", label = "+5 Health", remaining = 86321.6, total = 86400,
+               icon = 5, tooltip = "Blessing of Atos\nYou\n+12.5% Melee and Ranged Critical Hit Damage Reduction\n"
+                 .. "23:58:42" } }
+  end
+  local ATOS_TIP = "Blessing of Atos\nYou\n+5 Health\n+5 Focus\n"
+    .. "+12.5% Melee and Ranged Critical Hit Damage Reduction (23:58:42)\n71:58:42"
+
+  t.test("a rune with several effects: one icon, every benefit in its tooltip, other ends in brackets", function()
+    H.boot()
+    H.chat("/tbx buffs")
+    H.chat("/tbx buffs group after off")
+    H.addBuffs(atos())
+    H.advance(1)
+    t.eq(#H.slots("buffs"), 1)
+    t.eq(H.slots("buffs")[1].children[1].tooltip, ATOS_TIP)
+  end)
+
+  t.test("a rune with two effects of different lengths: the longer one's time, a bare time line not repeated",
+      function()
     H.boot()
     H.chat("/tbx buffs")
     H.addBuffs({ { name = "Light", remaining = 30, icon = 5, tooltip = "Light\n30s" },
@@ -1484,6 +1508,39 @@ return function(t)
     H.advance(1)
     t.eq(#H.slots("buffs"), 1)
     t.eq(H.slots("buffs")[1].children[1].tooltip, "Light\n10m")
+  end)
+
+  t.test("EffectTooltip: one effect as the game gives it; capped at whole lines; time lines", function()
+    H.boot()
+    local BB = Toolbox.BuffBar
+    local tips = { [0] = "A\n+1 Strength\n10m", [1] = "A\n+1 Dexterity\n10m" }
+    local get = function(i) return tips[i] end
+    t.eq(BB.EffectTooltip({ index = 0, indices = { 0 } }, get), "A\n+1 Strength\n10m")
+    t.eq(BB.EffectTooltip({ index = 1, indices = { 0, 1 } }, get), "A\n+1 Dexterity\n+1 Strength\n10m",
+      "the icon's effect first")
+    t.eq(BB.EffectTooltip({ index = 0, indices = { 0, 1 } }, function() return nil end), "", "no text")
+    local many, idx = {}, {}
+    for i = 0, 9 do
+      many[i] = "Big\n" .. string.rep("Effect " .. i .. " does a lot. ", 4) .. "\n71:58:42"
+      idx[#idx + 1] = i
+    end
+    local text = BB.EffectTooltip({ index = 0, indices = idx }, function(i) return many[i] end)
+    t.ok(#text <= BB.TIP_MAX, "capped: " .. #text)
+    t.ok(text:find("\n%.%.%.$"), "ends with ...")
+    t.ok(text:find("^Big\nEffect 0 does a lot%."), "whole lines kept")
+    t.ok(BB.IsTimeLine("71:58:42") and BB.IsTimeLine("10m") and BB.IsTimeLine("1h 5m") and BB.IsTimeLine("30s"))
+    t.no(BB.IsTimeLine("+5 Health"))
+    t.no(BB.IsTimeLine("You"))
+    t.no(BB.IsTimeLine(""))
+  end)
+
+  t.test("/tbx buffs tips finds an effect by its tooltip's first line", function()
+    H.boot()
+    H.addBuffs(atos())
+    H.clearLogs()
+    H.chat("/tbx buffs tips blessing of atos")
+    t.ok(H.logged("^%+5 Health %[Reward_Blessing_CastleAtos4_7%]: 3 place%(s%) in the list"))
+    t.ok(H.logged("^    | %+5 Focus$"))
   end)
 
   t.test("PlainLabel: colour codes out, first line only, capped", function()

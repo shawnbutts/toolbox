@@ -133,7 +133,7 @@ D.SECTIONS = {
     "/toolbox buffs: your buffs and debuffs (outlined red) as their skill icons, the one that runs out "
       .. "soonest on the left. A darkening "
       .. "sweep shows the time left; it turns red when a buff is about to run out. Hover an icon "
-      .. "for its tooltip.",
+      .. "for its tooltip; a buff with several effects lists them all, one ending sooner with its time.",
     "Options: icon size; a sound before a buff runs out (/toolbox buffalert 10 = ten seconds "
       .. "before); a sound when a debuff lands (/toolbox debuffalert on/off). Effects that come so often "
       .. "their sound is noise can be muted: settings, Buffs, Muted effects (pick one from your recent "

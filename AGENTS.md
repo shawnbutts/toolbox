@@ -582,6 +582,10 @@ Rules learned the hard way; keep to them.
   `ShroudGetBuffTimeRemaining` counts down smoothly; permanent effects report 0 left; the moon
   timer reports `TotalDuration = 0`. Buffs loading in after login look new: nothing counts as freshly cast
   within `BB.SETTLE` s of start, a scene change or a player change, or when 2+ names appear at once.
+- **Several effects, one rune** (confirmed 2026-10-08, Blessing of Atos: +5 Health and +5 Focus for 72 h, +12.5%
+  crit damage reduction for 24 h): each effect takes its own place in the flat list, and each place's
+  `ShroudGetBuffTooltip` names only its own benefit ("Blessing of Atos / You / +5 Focus / 71:58:42"). One icon per
+  rune, so `BB.EffectTooltip` merges them (the target's too); `/toolbox buffs tips [name]` prints each place.
 - **Categories (API 23):** Food (`RuneFood_*`), Potion (Obsidian `BlessingOf*`), Blessing (`POT_Blessing_*`,
   `Rune_Reward_Blessing_Shrine_*`: shrine blessings, not potions), Other (Stillness, MoonlightWatch).
 - **Vitals:** `ShroudGetPlayerVitals` gives health, focus and their maximums; `health` can read a hair above
@@ -650,9 +654,6 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - Notification counts reading 0 until loaded (hence `N.SETTLE`); ransoms / rewards / applications in practice.
 - The notification HUD's Scroll inside a HudFrame, nowrap labels ending in "...".
 - Weapon poisons: whether a weapon coating shows as a buff at all.
-- A rune with several effects (several places in the flat list, one icon): whether each place's
-  `ShroudGetBuffTooltip` names only its own effect or every benefit (the icon shows the longest effect's).
-  `/toolbox buffs tips [name]` prints each place's tooltip and the rune's Effects.
 - The skill strip's training markers: the click areas over the icon receiving clicks in game, the tinted
   and turned skillmarks.png, and the reasons ShroudSetSkillMode gives.
 - The skill activity strip (skills.lua): how often `ShroudOnSkillsChanged(false)` fires in combat, whether

@@ -49,6 +49,19 @@ return function(t)
     t.eq(K(nil), nil)
   end)
 
+  t.test("a potion with several effects: every benefit in its consumable icon's tooltip", function()
+    H.boot()
+    H.chat("/tbx buffs")
+    H.chat("/tbx buffs group after off")
+    H.addBuffs({ { name = "BlessingOfStamina", remaining = 600, total = 600, icon = 7,
+                   tooltip = "Potion of Stamina\nYou\n+10 Strength\n10:00" },
+                 { name = "BlessingOfStamina", remaining = 600, total = 600, icon = 7,
+                   tooltip = "Potion of Stamina\nYou\n+10 Dexterity\n10:00" } })
+    H.advance(1)
+    t.eq(#consSlots(), 1)
+    t.eq(consSlots()[1].children[1].tooltip, "Potion of Stamina\nYou\n+10 Strength\n+10 Dexterity\n10:00")
+  end)
+
   t.test("food and potions go on their own bar, soonest first; everything else stays on the buff bar", function()
     H.boot()
     H.S.durationMode = "remaining"

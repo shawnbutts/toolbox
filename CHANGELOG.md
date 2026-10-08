@@ -27,6 +27,9 @@ ones included).
   value per hour (or gold per hour with estimated values off), the best one green; hover a bar for its run.
 
 ### Fixed
+- A buff with several effects showed only one of them in its icon's tooltip (Blessing of Atos: +5 Health, but
+  not +5 Focus or the critical damage reduction). The tooltip now lists every benefit, an effect ending sooner
+  with its own time in brackets; on the buff bar, the consumables and the target's effects.
 - Replace the game's health bars with a Toolbelt shown only during combat: out of combat the Toolbelt hid and
   took your health bars with it, leaving no bars at all. The game's own bars now come back while it's hidden.
 - Setups: an Import or Delete clicked once by one character could be finished by the next character's single
