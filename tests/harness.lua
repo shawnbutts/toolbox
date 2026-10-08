@@ -570,8 +570,8 @@ local function install_api()
       if S.durationMode == "absent" then       -- what the game seemed to report while its objects went unread
         r.Effects[#r.Effects + 1] = { Description = "", Value = 0 }
       else
-        r.Effects[#r.Effects + 1] = { Description = "", Value = 0, CurrentDuration = cur, TotalDuration = tot,
-                                      TotalTick = 0 }
+        r.Effects[#r.Effects + 1] = { Description = e.description or "", Value = e.value or 0, CurrentDuration = cur,
+                                      TotalDuration = tot, TotalTick = 0 }
       end
     end
     -- H.S.buffObjects: like the game (2026-09-28), entries are objects whose fields can only be read

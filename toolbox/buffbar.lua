@@ -1334,6 +1334,75 @@ function BB.RawLines()
   return lines
 end
 
+-- /toolbox buffs tips [name]: what the game gives for an effect that takes several places in the flat list
+-- (a rune applying several effects): each place's ShroudGetBuffTooltip, line by line, and the rune's Effects
+-- from ShroudGetPlayerBuff. Decides whether one place's tooltip already names every benefit. No name: the
+-- effects that take several places.
+BB.TIPS_MAX, BB.TIPS_LINES = 3, 20
+function BB.TipLines(filter)
+  filter = (filter or ""):lower()
+  local places, order = {}, {}
+  local n = ShroudGetBuffCount() or 0
+  for i = 0, n - 1 do
+    local name = ShroudGetBuffName(i)
+    if type(name) == "string" and name ~= "Invalid" then
+      if not places[name] then
+        places[name] = {}
+        order[#order + 1] = name
+      end
+      local list = places[name]
+      list[#list + 1] = i
+    end
+  end
+  local lines = {}
+  if filter == "" then
+    for _, name in ipairs(order) do
+      if #places[name] > 1 then
+        lines[#lines + 1] = "  " .. plainLabel(places[name][1], name) .. " [" .. name .. "]: " .. #places[name]
+          .. " places"
+      end
+    end
+    table.insert(lines, 1, #lines == 0 and "No effect takes several places in the buff list."
+      or "Effects taking several places in the buff list (/toolbox buffs tips <name> for each one's tooltips):")
+    return lines
+  end
+  local byName = {}
+  for _, rune in ipairs(playerRunes()) do byName[rune.RuneName] = rune end
+  local shown = 0
+  for _, name in ipairs(order) do
+    local first = places[name][1]
+    local label = plainLabel(first, name)
+    if (name:lower():find(filter, 1, true) or label:lower():find(filter, 1, true)) and shown < BB.TIPS_MAX then
+      shown = shown + 1
+      local effects = byName[name] and byName[name].Effects or {}
+      lines[#lines + 1] = label .. " [" .. name .. "]: " .. #places[name] .. " place(s) in the list, "
+        .. #effects .. " effect(s) in ShroudGetPlayerBuff"
+      for _, i in ipairs(places[name]) do
+        local tip = ShroudGetBuffTooltip(i)
+        local tipLines = {}
+        if type(tip) == "string" then
+          for line in (tip .. "\n"):gmatch("([^\n]*)\n") do tipLines[#tipLines + 1] = line end
+        end
+        lines[#lines + 1] = "  place " .. i .. ", " .. num(ShroudGetBuffTimeRemaining(i)) .. " s left, tooltip "
+          .. (type(tip) == "string" and (#tip .. " characters, " .. #tipLines .. " line(s):") or tostring(tip))
+        for k, line in ipairs(tipLines) do
+          if k > BB.TIPS_LINES then
+            lines[#lines + 1] = "    | ... " .. (#tipLines - BB.TIPS_LINES) .. " more"
+            break
+          end
+          lines[#lines + 1] = "    | " .. line
+        end
+      end
+      for k, fx in ipairs(effects) do
+        lines[#lines + 1] = "  effect " .. k .. ": Description=" .. tostring(fx.Description) .. "; Value="
+          .. num(fx.Value) .. "; " .. num(fx.CurrentDuration) .. "/" .. num(fx.TotalDuration)
+      end
+    end
+  end
+  if shown == 0 then lines[1] = "No effect named like \"" .. filter .. "\" is on you." end
+  return lines
+end
+
 function BB.DebugLines()
   local lines = {}
   local byName = {}

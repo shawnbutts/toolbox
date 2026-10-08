@@ -1512,6 +1512,30 @@ return function(t)
       .. "Category=Creature; Effects=1 %[1%] {Description=, Value=0, "))
   end)
 
+  t.test("/tbx buffs tips: each place's tooltip and the rune's effects, for a rune with several effects", function()
+    H.boot()
+    H.addBuffs({ { name = "BlessingOfAtos", label = "Blessing of Atos", remaining = 600, icon = 5,
+                   tooltip = "Blessing of Atos\n+50 Focus\n10m", description = "Focus", value = 50 },
+                 { name = "BlessingOfAtos", label = "Blessing of Atos", remaining = 590, icon = 5,
+                   tooltip = "Blessing of Atos\n+25 Health\n10m", description = "Health", value = 25 },
+                 { name = "Light", remaining = 40, icon = 6 } })
+    H.clearLogs()
+    H.chat("/tbx buffs tips")
+    t.ok(H.logged("^  Blessing of Atos %[BlessingOfAtos%]: 2 places$"), "the effects taking several places")
+    t.no(H.logged("Light"), "one place: not listed")
+    H.clearLogs()
+    H.chat("/tbx buffs tips blessing of atos")
+    t.ok(H.logged("^Blessing of Atos %[BlessingOfAtos%]: 2 place%(s%) in the list, "
+      .. "2 effect%(s%) in ShroudGetPlayerBuff$"))
+    t.ok(H.logged("^  place 0, 600 s left, tooltip 30 characters, 3 line%(s%):$"))
+    t.ok(H.logged("^  place 1, 590 s left, tooltip 31 characters, 3 line%(s%):$"))
+    t.ok(H.logged("^    | %+25 Health$"))
+    t.ok(H.logged("^  effect 2: Description=Health; Value=25; "))
+    H.clearLogs()
+    H.chat("/tbx buffs tips nosuch")
+    t.ok(H.logged("^No effect named like \"nosuch\" is on you%.$"))
+  end)
+
   t.test("game objects instead of tables (as in game): debuff flag, icons and durations are read", function()
     H.boot()
     H.S.buffObjects = true

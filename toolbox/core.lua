@@ -824,7 +824,8 @@ end
 add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off; add|remove <name>|reset]; "
     .. "quiet [add|remove <name>] (muted effects); repeat off|<minutes>|30s (don't repeat a sound); "
     .. "combat on|off (only during combat); flash on|off; countdown on|off|<seconds>; replace on|off; "
-    .. "dismiss on|off; block [on|off|width <n>|size <n>|combat on|off|move [x y]]; debug; raw; trace [name])",
+    .. "dismiss on|off; block [on|off|width <n>|size <n>|combat on|off|move [x y]]; debug; raw; trace [name]; "
+    .. "tips [name])",
     function(rest)
   local word, name = T.ParseArgs(rest)
   if word == "countdown" then
@@ -994,6 +995,10 @@ add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off;
   end
   if word == "trace" then
     T.BuffBar.Trace(name)
+    return
+  end
+  if word == "tips" then
+    for _, line in ipairs(T.BuffBar.TipLines(name)) do T.Print(line) end
     return
   end
   T.BuffBar.Toggle()

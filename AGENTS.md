@@ -650,6 +650,9 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - Notification counts reading 0 until loaded (hence `N.SETTLE`); ransoms / rewards / applications in practice.
 - The notification HUD's Scroll inside a HudFrame, nowrap labels ending in "...".
 - Weapon poisons: whether a weapon coating shows as a buff at all.
+- A rune with several effects (several places in the flat list, one icon): whether each place's
+  `ShroudGetBuffTooltip` names only its own effect or every benefit (the icon shows the longest effect's).
+  `/toolbox buffs tips [name]` prints each place's tooltip and the rune's Effects.
 - The skill strip's training markers: the click areas over the icon receiving clicks in game, the tinted
   and turned skillmarks.png, and the reasons ShroudSetSkillMode gives.
 - The skill activity strip (skills.lua): how often `ShroudOnSkillsChanged(false)` fires in combat, whether
