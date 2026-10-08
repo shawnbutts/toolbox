@@ -134,6 +134,50 @@ return function(t)
     t.eq(#B().CleanName(string.rep("x", 60)), B().NAME_MAX)
   end)
 
+  -- Review 22 (2026-10-08): a name with letters the saved file can't hold as they are is saved escaped, keys too.
+  t.test("names with accents, quotes or a percent sign export, list, import and delete", function()
+    momPlays()
+    local fancy = { "Caf\195\169", '100% "raid"', "Tank & heal" }
+    for _, name in ipairs(fancy) do
+      H.clearLogs()
+      H.chat("/tbx settings export " .. name)
+      t.ok(H.logged("Exported your settings and positions as"), name .. ": " .. H.lastLog())
+    end
+    for key in pairs(H.S.memory.account) do
+      t.no(key:find("[^ -~]"), "an ASCII key: " .. key)
+    end
+    Toolbox.BuffBar.SetSize(22)
+    switchTo("Kid")
+    for _, name in ipairs(fancy) do t.ok(names():find(name, 1, true), names()) end
+    H.chat("/tbx settings import caf\195\169")
+    t.eq(Toolbox.BuffBar.GetSize(), 30)
+    for _, name in ipairs(fancy) do
+      H.clearLogs()
+      H.chat("/tbx settings delete " .. name)
+      t.no(names():find(name, 1, true), names())
+    end
+    for key in pairs(H.S.memory.account) do t.no(key:find("^setup:"), "left behind: " .. key) end
+  end)
+
+  t.test("a setup 1.6.0 saved under a plain accented name still imports and is moved on its next export", function()
+    momPlays()
+    H.chat("/tbx settings export Caf\195\169")
+    local account = H.S.memory.account
+    local key = "setup:caf%C3%A9"
+    t.ok(account[key], "saved escaped")
+    account["setup:caf\195\169"], account[key] = account[key], nil      -- as 1.6.0 left it
+    account["setup:caf\195\169"].name = "Caf\195\169"
+    account.setups.list[1].name = "Caf\195\169"
+    switchTo("Kid")
+    t.ok(names():find("Caf\195\169", 1, true), names())
+    Toolbox.BuffBar.SetSize(22)
+    H.chat("/tbx settings import caf\195\169")
+    t.eq(Toolbox.BuffBar.GetSize(), 30, "the old copy imports")
+    H.chat("/tbx settings export Caf\195\169")
+    t.ok(account[key], "saved escaped again")
+    t.eq(account["setup:caf\195\169"], nil, "the old copy is gone")
+  end)
+
   -- Review 2026-10-04 (11): a refused write changes nothing and isn't reported as done.
   t.test("an import the game refuses to store changes nothing and says so", function()
     momPlays()

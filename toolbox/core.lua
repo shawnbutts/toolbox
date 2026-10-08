@@ -252,7 +252,9 @@ end
 --  3. T.SetSavedVar checks every value before it reaches the game (T.CheckSaved) and refuses one that breaks those
 --     rules, or would pass the game's 256 KB a table: that one value isn't saved, and chat says so once, instead of
 --     the whole file being lost.
--- Text saved before any of this reads unchanged (it has no "%XX" in it, or only the "%2F" / "%25" of 1.5.1 on).
+-- Text saved by 1.5.1 to 1.6.0 reads the same: they wrote every "%" as "%25" (and "/" as "%2F"). Text from an older
+-- release, not saved again since, reads a "%" and two hex digits ("%20") as that character (review 23: accepted,
+-- no marker tells them apart; only a name a player typed into a list, if any, could hold one).
 T.SAFE_CHARS = "[^ !#$&'()*+,%-%.0-9:;<=>?@A-Z%[%]^_`a-z{|}\126]"   -- (the complement: what gets escaped)
 T.SAVED_CHARS = "[^ !#$%%&'()*+,%-%.0-9:;<=>?@A-Z%[%]^_`a-z{|}\126]"  -- what saved text may hold: those and the "%"
 T.SAVE_TINY, T.SAVE_HUGE = 1e-4, 1e15
@@ -2365,10 +2367,26 @@ function B.IsSetting(key)
   return settingSet[key] == true
 end
 
--- A setup's saved-var key (<= 128 characters, no slashes: names are cleaned by B.CleanName).
+-- A setup's saved-var key: the name in saved form (review 22: "Cafe" with an accent, "100%"). Over 128 characters
+-- (B.NAME_MAX letters past 255, 6 characters each saved) the game won't take it: store says so.
 local function setupKey(name, character)
-  return (character and "setup_character:" or "setup:") .. name:lower()
+  return (character and "setup_character:" or "setup:") .. T.ForSaving(name:lower())
 end
+
+-- Where setup `name` is saved: its key, or the plain-name key 1.6.0 used for a name with such letters, if only
+-- that one is there.
+local function foundSetupKey(name, character)
+  local key = setupKey(name, character)
+  local old = (character and "setup_character:" or "setup:") .. name:lower()
+  if old ~= key and ShroudGetSavedVar(key, ACCOUNT) == nil and ShroudGetSavedVar(old, ACCOUNT) ~= nil then
+    return old
+  end
+  return key
+end
+
+-- The setups' index as saved (names in saved form; 1.6.0's plain names read the same), and writing it.
+local function readSetups() return T.FromSaved(ShroudGetSavedVar(B.SETUPS, ACCOUNT)) end
+local function writeSetups(list) return T.SetSavedVar(B.SETUPS, T.ForSaving({ v = 1, list = list }), ACCOUNT) end
 
 -- A name as typed, made safe for a key and short enough to show: nil when nothing is left.
 function B.CleanName(text)
@@ -2382,7 +2400,7 @@ end
 -- The setups in the account file, character copies after named ones, each { name, character, when, label }.
 -- This character's own copy is left out (importing it would change nothing).
 function B.Setups()
-  local saved = ShroudGetSavedVar(B.SETUPS, ACCOUNT)
+  local saved = readSetups()
   local list = {}
   local me = T.settingsFor
   if type(saved) == "table" and saved.v == 1 and type(saved.list) == "table" then
@@ -2406,7 +2424,7 @@ end
 
 -- The whole list as saved, own copy included.
 local function allSetups()
-  local saved = ShroudGetSavedVar(B.SETUPS, ACCOUNT)
+  local saved = readSetups()
   local list = {}
   if type(saved) == "table" and saved.v == 1 and type(saved.list) == "table" then
     for _, s in ipairs(saved.list) do
@@ -2456,17 +2474,22 @@ local function store(name, character)
     return false, "there are already " .. B.SETUP_MAX .. " setups: delete one first", false
   end
   local key = setupKey(name, character)
+  if #key > 128 then return false, "that name is too long for its special letters: try a shorter one", false end
   local before = ShroudGetSavedVar(key, ACCOUNT)
-  if not T.SetSavedVar(key, { v = 1, name = name, keys = keys }, ACCOUNT) then
+  local value = T.ForSaving({ v = 1, name = name })
+  value.keys = keys                      -- already in saved form
+  if not T.SetSavedVar(key, value, ACCOUNT) then
     return false, "the game refused to store it", true
   end
   local _, when = T.Today()
   local entry = { name = name, character = character, when = type(when) == "string" and when or "" }
   if at then list[at] = entry else list[#list + 1] = entry end
-  if not T.SetSavedVar(B.SETUPS, { v = 1, list = list }, ACCOUNT) then
-    if before == nil then ShroudDeleteSavedVar(key, ACCOUNT) else T.SetSavedVar(key, before, ACCOUNT) end
+  if not writeSetups(list) then
+    if before == nil then ShroudDeleteSavedVar(key, ACCOUNT) else T.SetSavedVar(key, T.Resaved(before), ACCOUNT) end
     return false, "the game refused to store the list of setups", true
   end
+  local old = (character and "setup_character:" or "setup:") .. name:lower()
+  if old ~= key then ShroudDeleteSavedVar(old, ACCOUNT) end   -- 1.6.0's copy under the plain name
   return true
 end
 
@@ -2521,7 +2544,7 @@ function B.Recovers(key)
   return recoverSet[key] == true
 end
 
-local function recoveryKey(name) return "recovery:" .. name:lower() end
+local function recoveryKey(name) return "recovery:" .. T.ForSaving(name:lower()) end
 
 -- This character's recovery copy as saved, or nil.
 function B.RecoveryCopy(name)
@@ -2631,7 +2654,7 @@ end
 -- old values back and changes nothing (review, 2026-10-04). Returns true, or false and why.
 function B.Import(s)
   if type(s) ~= "table" then return false, "pick a setup" end
-  local saved = ShroudGetSavedVar(setupKey(s.name, s.character), ACCOUNT)
+  local saved = ShroudGetSavedVar(foundSetupKey(s.name, s.character), ACCOUNT)
   if type(saved) ~= "table" or type(saved.keys) ~= "table" then return false, "that setup is gone" end
   local values = importValues(saved.keys)
   local old, written = {}, {}
@@ -2664,9 +2687,9 @@ function B.DeleteSetup(s)
   for _, e in ipairs(list) do
     if not (e.name:lower() == s.name:lower() and (e.character == true) == s.character) then kept[#kept + 1] = e end
   end
-  local key = setupKey(s.name, s.character)
+  local key = foundSetupKey(s.name, s.character)
   if #kept == #list and ShroudGetSavedVar(key, ACCOUNT) == nil then return false, "it wasn't there" end
-  if #kept < #list and not T.SetSavedVar(B.SETUPS, { v = 1, list = kept }, ACCOUNT) then
+  if #kept < #list and not writeSetups(kept) then
     return false, "the game refused to change the list of setups"
   end
   ShroudDeleteSavedVar(key, ACCOUNT)

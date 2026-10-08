@@ -229,6 +229,14 @@ return function(t)
     t.eq(old.a, "100% sure")
     t.eq(old.b, "Ward/Shield")
     t.eq(old.c, "plain")
+    -- review 23: as 1.5.1 to 1.6.0 saved them (every "%" written "%25"), text that looks escaped reads as typed
+    H.S.memory["character:Tester"].legacy = { a = "cost%2520gold", b = "literal%25u0041", c = "%25N5",
+      ["key%2520x"] = "%252F" }
+    old = T.ReadSaved("legacy")
+    t.eq(old.a, "cost%20gold")
+    t.eq(old.b, "literal%u0041")
+    t.eq(old.c, "%N5", "text, not a number")
+    t.eq(old["key%20x"], "%2F")
   end)
 
   t.test("a value the game couldn't read back isn't saved: one key refused, said once, the rest saved", function()
