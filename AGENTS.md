@@ -61,7 +61,8 @@ This file holds current facts and rules; the history behind them is in git (`git
   - upgrades from 1.3.0 on read their files as they were (owner, 2026-10-08): `T.ForSaving` marks each table it writes
     (`T.SAVE_FORMAT_KEY`, "%E"); `T.FromSaved` decodes only a marked table with the escapes, an unmarked one (1.6.0 or
     before) as 1.6.0 did ("%2F", "%25" only; 1.3.0 wrote text as typed). Decode a copy or file before mixing it with
-    another (`importValues`); `T.Resaved` = `ForSaving(FromSaved(v))`;
+    another (`importValues`); `T.Resaved` = `ForSaving(FromSaved(v))`; a list saved whole goes in a marked
+    wrapper (`T.SAVE_LIST_KEY`, review 24);
   - a number below 0, under `T.SAVE_TINY` or from `T.SAVE_HUGE` (the saver may write an exponent) is saved as text
     `%N<number>` and read back as the number; NaN and infinities aren't saved;
   - `T.SetSavedVar` (every write; never call `ShroudSetSavedVar` elsewhere) checks the value with `T.CheckSaved`
@@ -723,8 +724,9 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - Notification counts reading 0 until loaded (hence `N.SETTLE`); ransoms / rewards / applications in practice.
 - The notification HUD's Scroll inside a HudFrame, nowrap labels ending in "...".
 - Weapon poisons: whether a weapon coating shows as a buff at all.
-- Effect sounds: the clip name the game gives a player's file (matched by its base name, `S.Poll`; two files with
-  one base name in different folders may mix up), a path with spaces, and dozens of extra clips loaded at once.
+- Effect sounds: the clip name the game gives a player's file (assumed its base name without the extension, as for
+  the shipped ones; a second file of a name another sound has is refused, review 25), a path with spaces, and dozens
+  of extra clips loaded at once.
 - The skill strip's training markers: the click areas over the icon receiving clicks in game, the tinted
   and turned skillmarks.png, and the reasons ShroudSetSkillMode gives.
 - The skill activity strip (skills.lua): how often `ShroudOnSkillsChanged(false)` fires in combat, whether

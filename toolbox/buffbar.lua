@@ -2193,10 +2193,8 @@ function BB.SetEffectSound(text, pathText, when)
     end
   end
   local shown = BB.SoundShownName(name)
-  if not T.Sounds.UseFile(path, shown, true) then
-    return false, "Too many sound files loaded this session (" .. T.Sounds.FILES_MAX .. "): /lua reload, then try"
-      .. " again."
-  end
+  local usable, refused = T.Sounds.UseFile(path, shown, true)
+  if not usable then return false, refused end
   local e = prefs.effectSounds[name] or {}
   e.shown, e[when] = shown, path
   prefs.effectSounds[name] = e

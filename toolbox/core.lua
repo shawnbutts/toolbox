@@ -255,13 +255,15 @@ end
 -- Upgrades from 1.3.0 on (owner, 2026-10-08; review 23): a table saved this way carries T.SAVE_FORMAT_KEY (no text
 -- can be that key: a "%" in text is saved "%25"), and only such a table is read with the escapes above. One without
 -- it was saved by 1.6.0 or before and reads as 1.6.0 read it: "%2F" a "/", "%25" a "%", nothing else (1.3.0 saved
--- text as typed, 1.5.1 and 1.6.0 wrote "%" and "/" so). A list (a table with [1]) carries no key; none is saved.
+-- text as typed, 1.5.1 and 1.6.0 wrote "%" and "/" so). A list (a table with [1]) saved whole is wrapped in a marked
+-- table, its items under T.SAVE_LIST_KEY (a list can't carry a string key; review 24).
 T.SAFE_CHARS = "[^ !#$&'()*+,%-%.0-9:;<=>?@A-Z%[%]^_`a-z{|}\126]"   -- (the complement: what gets escaped)
 T.SAVED_CHARS = "[^ !#$%%&'()*+,%-%.0-9:;<=>?@A-Z%[%]^_`a-z{|}\126]"  -- what saved text may hold: those and the "%"
 T.SAVE_TINY, T.SAVE_HUGE = 1e-4, 1e15
 T.SAVE_MAX_CHARS = 240000            -- an estimate of a table's JSON size, under the game's 256 KB
 T.SAVE_MAX_DEPTH = 24
 T.SAVE_FORMAT_KEY = "%E"
+T.SAVE_LIST_KEY = "%L"
 
 local function escapeChar(c)
   local b = c:byte()
@@ -331,7 +333,9 @@ end
 -- For the few places that call the saved-var API themselves (the price cache, setups).
 function T.ForSaving(v)
   local out = codedCopy(v, encodeText)
-  if type(out) == "table" and out[1] == nil then out[T.SAVE_FORMAT_KEY] = 1 end
+  if type(out) ~= "table" then return out end
+  if out[1] ~= nil then out = { [T.SAVE_LIST_KEY] = out } end
+  out[T.SAVE_FORMAT_KEY] = 1
   return out
 end
 
@@ -340,6 +344,7 @@ function T.FromSaved(v)
   if v[T.SAVE_FORMAT_KEY] == nil then return codedCopy(v, decodeOldText) end
   local out = codedCopy(v, decodeText)
   out[T.SAVE_FORMAT_KEY] = nil
+  if type(out[T.SAVE_LIST_KEY]) == "table" and next(out, next(out)) == nil then return out[T.SAVE_LIST_KEY] end
   return out
 end
 -- A value read straight from the saved vars, put in today's form (text saved before the escaping, for a copy).

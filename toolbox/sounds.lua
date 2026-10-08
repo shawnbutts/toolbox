@@ -202,8 +202,27 @@ function S.CleanPath(text)
   return path
 end
 
+-- The name the game gives a file's clip: its base name without the extension (any case, to be safe).
+local function clipName(file) return (file:match("([^/]+)$") or file):gsub("%.%w+$", ""):lower() end
+
+-- Whether another sound's clip would have the same name as `path`'s: the game lists clips by base name only, so
+-- two would play one recording (review 25). Returns the other's path or file, or nil.
+local function sameName(path)
+  local name = clipName(path)
+  for other in pairs(files) do
+    if other ~= path and clipName(other) == name then return other end
+  end
+  for _, def in ipairs(S.DEFS) do
+    if clipName(def.file) == name or clipName("toolbox_" .. def.file) == name then return def.file end
+    local own = prefs.paths[def.key]
+    if type(own) == "string" and own ~= "" and clipName(own) == name then return own end
+  end
+  return nil
+end
+
 -- Starts loading a player's file (a path from S.CleanPath) for an effect labelled `label`, unless it already is;
--- `again`: try a file that wasn't found once more. Returns false past S.FILES_MAX.
+-- `again`: try a file that wasn't found once more. Returns true, or false and why (past S.FILES_MAX, or a file
+-- whose name another sound already has).
 function S.UseFile(path, label, again)
   local def = files[path]
   if def then
@@ -214,7 +233,14 @@ function S.UseFile(path, label, again)
     end
     return true
   end
-  if fileCount >= S.FILES_MAX then return false end
+  if fileCount >= S.FILES_MAX then
+    return false, "Too many sound files loaded this session (" .. S.FILES_MAX .. "): /lua reload, then try again."
+  end
+  local other = sameName(path)
+  if other then
+    return false, "Another sound already has a file named like " .. (path:match("([^/]+)$") or path) .. " ("
+      .. other .. "), and the game tells sounds apart by name only: rename this one."
+  end
   def = { key = "file:" .. path, file = path:match("([^/]+)$") or path, label = label or path, custom = path }
   files[path], fileCount = def, fileCount + 1
   startLoading(def)

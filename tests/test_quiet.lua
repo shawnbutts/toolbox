@@ -349,6 +349,23 @@ return function(t)
     t.eq(B().EffectSound("Heal", "get"), "toolbox_sounds/heal on.ogg", "the other stays")
   end)
 
+  -- Review 25: the game lists clips by base name only, so two files of one name would play one recording.
+  t.test("effect sounds: a second file with a name another sound has is refused: rename it", function()
+    bootWithSounds()
+    H.S.files["a/heal.ogg"] = true
+    H.S.files["b/heal.ogg"] = true
+    H.S.files["mine/mail.ogg"] = true
+    t.ok(B().SetEffectSound("One", "a/heal.ogg", "get"))
+    local ok, why = B().SetEffectSound("Two", "b/Heal.ogg", "get")
+    t.no(ok)
+    t.ok(why:find("rename this one", 1, true), why)
+    t.eq(B().EffectSound("Two", "get"), nil)
+    t.ok(B().SetEffectSound("Two", "a/heal.ogg", "end"), "the same file twice is fine")
+    ok, why = B().SetEffectSound("Three", "mine/mail.ogg", "get")
+    t.no(ok, "Toolbox's own mail sound has that name")
+    t.ok(why:find("mail.ogg", 1, true), why)
+  end)
+
   t.test("the Sounds page points to effect sounds and goes there", function()
     bootWithSounds()
     H.chat("/tbx config")

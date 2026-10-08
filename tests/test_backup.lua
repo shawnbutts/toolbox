@@ -255,6 +255,29 @@ return function(t)
     t.eq(old["key%20x"], "%2F")
   end)
 
+  -- Review 24: a list saved whole is marked too (wrapped), and reads back as the list.
+  t.test("a list saved whole reads back the same; an unmarked one from before reads as it did", function()
+    H.boot()
+    local T = Toolbox
+    local list = { -1, 0.00002, "Caf\195\169", "a/b", "%N5", "100%", { x = -2 } }
+    T.Save("probe_list", list)
+    local raw = H.S.memory["character:Tester"].probe_list
+    t.eq(raw[T.SAVE_FORMAT_KEY], 1, "marked")
+    H.restart(nil, true)
+    local back = T.ReadSaved("probe_list")
+    t.eq(#back, #list)
+    for i = 1, 6 do t.eq(back[i], list[i], "item " .. i) end
+    t.eq(back[7].x, -2)
+    t.eq(back[T.SAVE_FORMAT_KEY], nil)
+    t.eq(back[T.SAVE_LIST_KEY], nil)
+    H.S.memory["character:Tester"].old_list = { "cost%20gold", "Ward%2FShield" }
+    local old = T.ReadSaved("old_list")
+    t.eq(old[1], "cost%20gold")
+    t.eq(old[2], "Ward/Shield")
+    H.S.memory["character:Tester"].probe_list = nil
+    H.S.memory["character:Tester"].old_list = nil
+  end)
+
   t.test("a value the game couldn't read back isn't saved: one key refused, said once, the rest saved", function()
     H.boot()
     local T = Toolbox
