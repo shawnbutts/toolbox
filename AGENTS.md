@@ -629,6 +629,9 @@ Rules learned the hard way; keep to them.
   imported by another, applies at once and leaves the first one's untouched.
 - **1.5.0 work** (confirmed 2026-10-04): muted effects, the Loot Tracker's Reset and run rates, and "Replace the
   game's health bars" (API 28) work in game.
+- **1.6.0 work** (confirmed 2026-10-08): the Loot Tracker's Runs view and chart, the game's health bars back while a
+  combat-only Toolbelt hides, don't repeat, the merged several-effect tooltips, effect names from the tooltip's first
+  line, and the setups' confirmations and sharing.
 - **Louder sounds** (confirmed 2026-10-07): the +7.5 dB .ogg files, the halved saved volume and the per-sound
   volume sliders work in game.
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
