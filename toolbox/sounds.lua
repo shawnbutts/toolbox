@@ -124,6 +124,9 @@ local function poll(def)
     for i = st.before + 1, #list do
       if type(list[i]) == "string" and list[i]:find(stem, 1, true) then found = list[i] end
     end
+    for i = st.before + 1, #list do         -- the exact name first: "heal" isn't "heal on" (effect sounds)
+      if list[i] == stem then found = list[i] end
+    end
     if not found and #list == st.before + 1 and list[#list] ~= "" then found = list[#list] end   -- name didn't say
     if type(found) == "string" and found ~= "" then
       st.status, st.clip, st.path = "ready", found, st.candidates[st.at]
@@ -268,6 +271,9 @@ local function findClip(st, def)
     if name == st.clip then return i, name end
   end
   local stem = def.file:gsub("%.%w+$", "")
+  for i, name in ipairs(list) do
+    if name == stem then return i, name end
+  end
   for i, name in ipairs(list) do
     if type(name) == "string" and name:find(stem, 1, true) then return i, name end
   end

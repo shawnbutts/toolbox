@@ -375,9 +375,10 @@ local debuffs = {}        -- debuff names seen at the last change (set)
 local timers = {}         -- rune name -> BB.Track state
 local quietUntil = 0      -- no debuff alerts before this T.Now()
 local quiet = {}          -- muted effect names -> true (BB.ReadQuiet, from prefs.quiet)
-local loudNames, expiringNames, playedPaths = {}, {}, {}   -- reused by the alerts
+local loudNames, expiringNames, gainedNames, playedPaths = {}, {}, {}, {}   -- reused by the alerts
+local wasDebuff = {}      -- names seen as debuffs this session (BB.UsualWhen)
 BB.recent = {}            -- names that alerted this session, newest first (BB.NoteAlert)
-local alertedAt = { debuff = {}, expire = {} }   -- per alert, name -> T.Now() of its last alert (BB.Repeats)
+local alertedAt = { debuff = {}, expire = {}, gain = {} }   -- per alert, name -> T.Now() of its last alert (BB.Repeats)
 function BB.IsRepeat(kind, name) return BB.Repeats(alertedAt[kind], name, T.Now(), prefs.repeatQuiet or 0) end
 local lastDebuffSound = -math.huge
 local content = nil       -- the icon rows (in a strip owned by Toolbox.Hud)
@@ -568,7 +569,10 @@ function BB.OnBuffsChanged(from)
     runes[rune.RuneName] = { debuff = rune.IsDebuff == true, icon = rune.IconId,
       total = BB.TotalFromEffects(remainingByName[rune.RuneName], rune.Effects) }
     if type(rune.Category) == "string" and rune.Category ~= "" then runes[rune.RuneName].category = rune.Category end
-    if rune.IsDebuff == true then now[rune.RuneName] = true end
+    if rune.IsDebuff == true then
+      now[rune.RuneName] = true
+      wasDebuff[rune.RuneName] = true
+    end
   end
   K.Forget()                           -- categories may have arrived: decide consumables again
   local new = BB.NewNames(debuffs, now)
@@ -576,18 +580,22 @@ function BB.OnBuffsChanged(from)
   if #new == 0 then return end
   -- What became of the last new debuff, for /toolbox buffs debug (a missing sound, 2026-09-28).
   local result = nil
-  local loud, repeated = loudNames, false
+  local loud, repeated, own = loudNames, false, false
   for k = #loud, 1, -1 do loud[k] = nil end
-  if prefs.debuff and T.Now() >= quietUntil then
+  if T.Now() >= quietUntil then
     for _, n in ipairs(new) do
-      BB.NoteAlert(n)
-      local again = BB.IsRepeat("debuff", n)
-      if not quiet[n] then             -- (a muted one: neither)
-        if again then repeated = true else loud[#loud + 1] = n end
+      local mine = BB.EffectSound(n, "get") ~= nil       -- its own sound plays with the debuff alert off too
+      if prefs.debuff or mine then
+        own = own or mine
+        BB.NoteAlert(n)
+        local again = BB.IsRepeat("debuff", n)
+        if not quiet[n] then           -- (a muted one: neither)
+          if again then repeated = true else loud[#loud + 1] = n end
+        end
       end
     end
   end
-  if not prefs.debuff then
+  if not prefs.debuff and not own then
     result = "not played: the debuff alert is off"
   elseif T.Now() < quietUntil then
     result = "not played: quiet just after start or a scene change"
@@ -600,7 +608,7 @@ function BB.OnBuffsChanged(from)
     result = "not played: another debuff sounded under " .. BB.DEBUFF_COOLDOWN .. " s ago"
   else
     lastDebuffSound = T.Now()
-    local ok, info = BB.PlayAlert("debuff_landed", loud)
+    local ok, info = BB.PlayAlert("get", loud, prefs.debuff and "debuff_landed" or nil)
     result = ok and ("played on channel " .. tostring(info.channel))
       or ("not played: " .. tostring(info.reason) .. " (see /toolbox sounds)")
   end
@@ -1278,7 +1286,7 @@ function BB.Tick()
   local block = MB.Collecting()        -- the buff block is built and showing: it takes every effect
   local inBlock = clear(blockList)
   local threshold = prefs.expireSeconds or BB.ALERT_DEFAULT
-  local expiring = clear(expiringNames)
+  local expiring, gained = clear(expiringNames), clear(gainedNames)
   local shown = BB.IsShown()
   if shown ~= lastShown then          -- combat started or ended, the settings window opened or closed
     lastShown = shown
@@ -1311,6 +1319,10 @@ function BB.Tick()
     if not known and not timers[e.name] then known = BB.Recall(e.name, e.remaining) end
     if not known then known = learned[e.name] end
     local fresh = not preexisting[e.name] and not settling
+    if not timers[e.name] and not settling and not rune.debuff and BB.EffectSound(e.name, "get") then
+      BB.NoteAlert(e.name)                               -- a buff cast: its own "get" sound (debuffs: OnBuffsChanged)
+      if not quiet[e.name] and not BB.IsRepeat("gain", e.name) then gained[#gained + 1] = e.name end
+    end
     local st, fraction, fire, left = BB.Track(timers[e.name], e.remaining, threshold, known, nil, fresh)
     local total = fraction and st.total or nil          -- a sweep only for a trusted full length
     if st and st.learn then
@@ -1319,7 +1331,7 @@ function BB.Tick()
     end
     if st then st.missingSince = nil end
     timers[e.name] = st
-    if fire and not rune.debuff and prefs.expire then
+    if fire and ((prefs.expire and not rune.debuff) or BB.EffectSound(e.name, "end")) then
       BB.NoteAlert(e.name)
       local again = BB.IsRepeat("expire", e.name)
       if not quiet[e.name] and not again then expiring[#expiring + 1] = e.name end   -- a quiet one still flashes
@@ -1390,7 +1402,8 @@ function BB.Tick()
     fitFrame(math.min(#shownBuffs, BB.BUFF_SLOTS) + (#grouped > 0 and 1 or 0),
       math.min(#shownDebuffs, BB.DEBUFF_SLOTS))
   end
-  if #expiring > 0 and prefs.expire then BB.PlayAlert("buff_expiring", expiring) end
+  if #expiring > 0 then BB.PlayAlert("end", expiring, prefs.expire and "buff_expiring" or nil) end
+  if #gained > 0 then BB.PlayAlert("get", gained, nil) end
   if T.Now() - lastTimerSave >= BB.TIMER_SAVE then BB.SaveTimers() end
   applyStock()
 end
@@ -1630,7 +1643,7 @@ end
 function BB.Init()
   local saved = T.ReadSaved("buffbar")
   prefs = defaults()
-  alertedAt.debuff, alertedAt.expire = {}, {}
+  alertedAt.debuff, alertedAt.expire, alertedAt.gain = {}, {}, {}
   if type(saved) == "table" then
     prefs.show = saved.show == true
     if type(saved.size) == "number" and saved.size >= BB.SIZE_MIN and saved.size <= BB.SIZE_MAX then
@@ -1693,17 +1706,21 @@ function BB.Init()
     if type(saved.effectSounds) == "table" then
       local n = 0
       for name, e in pairs(saved.effectSounds) do
-        local path = type(e) == "table" and T.Sounds.CleanPath(e.path)
-        if type(name) == "string" and name ~= "" and path and n < BB.SOUNDS_MAX then
+        local get = type(e) == "table" and T.Sounds.CleanPath(e.get) or nil
+        local ends = type(e) == "table" and T.Sounds.CleanPath(e["end"]) or nil
+        if type(name) == "string" and name ~= "" and (get or ends) and n < BB.SOUNDS_MAX then
           n = n + 1
-          prefs.effectSounds[name] = { path = path,
+          prefs.effectSounds[name] = { get = get, ["end"] = ends,
             shown = (type(e.shown) == "string" and e.shown ~= "") and e.shown:sub(1, BB.LABEL_MAX) or name }
         end
       end
     end
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
-  for name, e in pairs(prefs.effectSounds or {}) do T.Sounds.UseFile(e.path, e.shown or name) end
+  for name, e in pairs(prefs.effectSounds or {}) do
+    if e.get then T.Sounds.UseFile(e.get, e.shown or name) end
+    if e["end"] then T.Sounds.UseFile(e["end"], e.shown or name) end
+  end
   BB.ReadQuiet()
   BB.recent = {}
   timers, debuffs, runes, groupedCache, stockHidden = {}, {}, {}, {}, false
@@ -2067,51 +2084,47 @@ function BB.Unmute(name)
 end
 
 -- ---------------------------------------------------------------------------
--- Effect sounds (owner, 2026-10-08): a player's own file for one effect, played instead of the expiry or debuff
--- sound for it ("so they know exactly which it is": its name said aloud). prefs.effectSounds = { [rune name] =
--- { path (inside the Lua folder, T.Sounds.CleanPath), shown } }. Not set, or not loaded: the usual sound. Picked
--- from the same dropdown as Muted effects.
+-- Effect sounds (owner, 2026-10-08): a player's own file for one effect ("so they know exactly which it is": its
+-- name said aloud), for when it lands on you ("get") and / or when it's about to run out ("end"), buffs and debuffs
+-- alike. prefs.effectSounds = { [rune name] = { shown, get = path, ["end"] = path } } (paths inside the Lua folder,
+-- T.Sounds.CleanPath). "get" replaces the debuff sound (a buff has none); "end" the expiry sound (a debuff has none).
+-- An own sound plays whatever the general alerts are set to; muting and Don't repeat still apply. A file not loaded
+-- plays the usual sound, if the effect has one. Picked in Muted effects' dropdown.
 -- ---------------------------------------------------------------------------
 BB.SOUNDS_MAX = 40
+BB.SOUND_WHEN = { { "get", "When you get it" }, { "end", "When it's about to run out" } }
 
-function BB.EffectSound(name)
+function BB.EffectSound(name, when)
   local e = prefs.effectSounds and prefs.effectSounds[name]
-  return e and e.path or nil
+  return e and e[when] or nil
 end
 
--- Plays the `kind` alert (buff_expiring / debuff_landed) for `names`: each one's own file once, and the usual sound
--- once for those without one (or whose file isn't loaded). Returns whether something played, and S.Play's info.
-function BB.PlayAlert(kind, names)
-  local usual, ok, info = false, false, nil
+function BB.WhenLabel(when)
+  for _, w in ipairs(BB.SOUND_WHEN) do if w[1] == when then return w[2] end end
+end
+
+-- Plays the alert `when` ("get" / "end") for `names`: each one's own file once, and `usual` (a sound key, or nil:
+-- none) once for those without one or whose file isn't loaded. Returns whether something played, and S.Play's info.
+local levelOf = { get = "debuff_landed", ["end"] = "buff_expiring" }
+function BB.PlayAlert(when, names, usual)
+  local needUsual, ok, info = false, false, nil
   clear(playedPaths)
   for _, n in ipairs(names) do
-    local path = BB.EffectSound(n)
+    local path = BB.EffectSound(n, when)
     if not path then
-      usual = true
+      needUsual = true
     elseif not playedPaths[path] then
       playedPaths[path] = true
-      local played, why = T.Sounds.PlayFile(path, kind)
-      if played then ok, info = true, why else usual = true end
+      local played, why = T.Sounds.PlayFile(path, levelOf[when])
+      if played then ok, info = true, why else needUsual = true end
     end
   end
-  if usual then
-    local played, why = T.Sounds.Play(kind)
+  if needUsual and usual then
+    local played, why = T.Sounds.Play(usual)
     if played or not ok then ok, info = played, why end
   end
+  if not info then info = { reason = "notLoaded" } end
   return ok, info
-end
-
--- The effects with a sound, A-Z by what is shown: { { label = "Shown: path", name, path } }.
-function BB.EffectSoundChoices()
-  local names = {}
-  for n in pairs(prefs.effectSounds or {}) do names[#names + 1] = n end
-  table.sort(names, function(a, b) return BB.SoundShownName(a):lower() < BB.SoundShownName(b):lower() end)
-  local out = {}
-  for i, n in ipairs(namedChoices(names)) do
-    out[i] = { label = BB.SoundShownName(n.name) .. ": " .. prefs.effectSounds[n.name].path, name = n.name,
-      path = prefs.effectSounds[n.name].path }
-  end
-  return out
 end
 
 function BB.SoundShownName(name)
@@ -2119,7 +2132,25 @@ function BB.SoundShownName(name)
   return labels[name] or (e and e.shown) or BB.ShownName(name)
 end
 
--- An effect with a sound, typed by either name (any case): its rune name, or nil and why.
+-- Every own sound, A-Z by effect, "get" first: { { label = "Shown, when you get it: path", name, when, path } }.
+function BB.EffectSoundChoices()
+  local names = {}
+  for n in pairs(prefs.effectSounds or {}) do names[#names + 1] = n end
+  table.sort(names, function(a, b) return BB.SoundShownName(a):lower() < BB.SoundShownName(b):lower() end)
+  local out = {}
+  for _, n in ipairs(names) do
+    for _, w in ipairs(BB.SOUND_WHEN) do
+      local path = prefs.effectSounds[n][w[1]]
+      if path then
+        out[#out + 1] = { label = BB.SoundShownName(n) .. ", " .. w[2]:lower() .. ": " .. path, name = n,
+          when = w[1], path = path }
+      end
+    end
+  end
+  return out
+end
+
+-- An effect with an own sound, typed by either name (any case): its rune name, or nil and why.
 local function soundEffectNamed(text)
   local want, found = T.Trim(text or ""):lower(), {}
   for n in pairs(prefs.effectSounds or {}) do
@@ -2135,9 +2166,16 @@ local function soundEffectNamed(text)
   return nil, "'" .. T.Trim(text or "") .. "' has no sound of its own."
 end
 
--- Gives effect `text` (either name) the file at `pathText`. Returns true and a message, or false and why.
-function BB.SetEffectSound(text, pathText)
+-- The usual moment for an effect: when a debuff lands, when a buff is about to run out.
+function BB.UsualWhen(name)
+  return (wasDebuff[name] or (runes[name] and runes[name].debuff)) and "get" or "end"
+end
+
+-- Gives effect `text` (either name) the file at `pathText` for `when` ("get" / "end"; nil: its usual moment).
+-- Returns true and a message, or false and why.
+function BB.SetEffectSound(text, pathText, when)
   if type(text) ~= "string" or T.Trim(text) == "" then return false, "Pick an effect first." end
+  if when ~= nil and not BB.WhenLabel(when) then return false, "When: get or end." end
   local path, bad = T.Sounds.CleanPath(pathText)
   if not path then return false, bad end
   local name, why = soundEffectNamed(text)
@@ -2145,46 +2183,62 @@ function BB.SetEffectSound(text, pathText)
     name, why = BB.ResolveEffect(text, false)
     if not name then return false, why end
   end
+  when = when or BB.UsualWhen(name)
   prefs.effectSounds = prefs.effectSounds or {}
   if not prefs.effectSounds[name] then
     local n = 0
     for _ in pairs(prefs.effectSounds) do n = n + 1 end
-    if n >= BB.SOUNDS_MAX then return false, "At most " .. BB.SOUNDS_MAX .. " effect sounds; remove one first." end
+    if n >= BB.SOUNDS_MAX then
+      return false, "At most " .. BB.SOUNDS_MAX .. " effects with sounds; remove one first."
+    end
   end
   local shown = BB.SoundShownName(name)
   if not T.Sounds.UseFile(path, shown, true) then
     return false, "Too many sound files loaded this session (" .. T.Sounds.FILES_MAX .. "): /lua reload, then try"
       .. " again."
   end
-  prefs.effectSounds[name] = { path = path, shown = shown }
+  local e = prefs.effectSounds[name] or {}
+  e.shown, e[when] = shown, path
+  prefs.effectSounds[name] = e
   savePrefs()
   T.Config.Sync()
   local muted = quiet[name] and " It's muted, though: unmute it to hear it." or ""
-  return true, "'" .. shown .. "' plays " .. path .. " instead of the usual sound." .. muted
+  return true, "'" .. shown .. "' plays " .. path .. " " .. BB.WhenLabel(when):lower() .. "." .. muted
 end
 
-function BB.RemoveEffectSound(text)
-  local name, why = soundEffectNamed(text)
-  if not name then return false, why end
-  local shown = BB.SoundShownName(name)
-  prefs.effectSounds[name] = nil
-  savePrefs()
-  T.Config.Sync()
-  return true, "'" .. shown .. "' plays the usual sound again."
-end
-
--- Plays effect `text`'s own sound now, saying in chat what happened. Returns whether it played.
-function BB.TestEffectSound(text)
+-- Takes effect `text`'s own sound for `when` away (nil: both). Returns true and a message, or false and why.
+function BB.RemoveEffectSound(text, when)
   local name, why = soundEffectNamed(text)
   if not name then return false, why end
   local e = prefs.effectSounds[name]
-  local status = T.Sounds.FileStatus(e.path)
-  if status == "loading" then return false, e.path .. " is still loading: try again in a moment." end
-  if status ~= "ready" then return false, "Couldn't open " .. e.path .. ": check it's inside your Lua folder." end
-  local kind = (runes[name] and runes[name].debuff) and "debuff_landed" or "buff_expiring"
-  local ok, info = T.Sounds.PlayFile(e.path, kind)
+  if when and not e[when] then
+    return false, "'" .. BB.SoundShownName(name) .. "' has no sound of its own " .. BB.WhenLabel(when):lower() .. "."
+  end
+  local shown = BB.SoundShownName(name)
+  if when then e[when] = nil else e.get, e["end"] = nil, nil end
+  if not (e.get or e["end"]) then prefs.effectSounds[name] = nil end
+  savePrefs()
+  T.Config.Sync()
+  return true, "'" .. shown .. "' plays the usual sound again" .. (when and (" " .. BB.WhenLabel(when):lower()) or "")
+    .. "."
+end
+
+-- Plays effect `text`'s own sound for `when` (nil: the first it has) now. Returns whether it played, and a message.
+function BB.TestEffectSound(text, when)
+  local name, why = soundEffectNamed(text)
+  if not name then return false, why end
+  local e = prefs.effectSounds[name]
+  when = when or (e.get and "get") or "end"
+  local path = e[when]
+  if not path then
+    return false, "'" .. BB.SoundShownName(name) .. "' has no sound of its own " .. BB.WhenLabel(when):lower() .. "."
+  end
+  local status = T.Sounds.FileStatus(path)
+  if status == "loading" then return false, path .. " is still loading: try again in a moment." end
+  if status ~= "ready" then return false, "Couldn't open " .. path .. ": check it's inside your Lua folder." end
+  local ok, info = T.Sounds.PlayFile(path, levelOf[when])
   if not ok then return false, BB.SoundShownName(name) .. ": " .. T.Sounds.WhyNot(info) .. "." end
-  return true, "Playing " .. e.path .. " (" .. BB.SoundShownName(name) .. ")."
+  return true, "Playing " .. path .. " (" .. BB.SoundShownName(name) .. ", " .. BB.WhenLabel(when):lower() .. ")."
 end
 
 function BB.GetGroupAfter() return prefs.groupAfter or BB.GROUP_AFTER_DEFAULT end

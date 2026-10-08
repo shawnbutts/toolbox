@@ -264,14 +264,16 @@ bar while this one is showing (the game restores it on reload, so it is applied 
   then what's on you, then every effect you've been seen to cast) and press Mute; the second dropdown and
   Unmute bring one back. In chat, `/toolbox buffs quiet` lists the muted ones and recent alerts, and
   `/toolbox buffs quiet add <name>` / `remove <name>` change the list.
-- **Effect sounds**: your own sound file for an effect, played instead of the usual expiry or debuff sound
-  (record yourself saying its name, and you'll know which one it is). The file goes in your Lua folder or a
+- **Effect sounds**: your own sound file for a buff or debuff, when you get it and / or when it's about to run
+  out (record yourself saying its name, and you'll know which one it is). The file goes in your Lua folder or a
   folder in it, such as `Lua/toolbox_sounds/` (not `Lua/toolbox/`, which updates replace). Settings, Buffs: pick
-  the effect in Muted effects' list, paste the path (`toolbox_sounds/atos.ogg`; a full path is cut to the part
-  after `Lua`) and press Set; Test and Remove are below it. In chat:
-  `/toolbox buffs sound Blessing of Atos = toolbox_sounds/atos.ogg`, `/toolbox buffs sound test <name>`,
-  `/toolbox buffs sound remove <name>`, and `/toolbox buffs sound` to list them. Effects without one, or whose file
-  won't load (chat says so once), play the usual sound.
+  the effect in Muted effects' list, choose when, paste the path (`toolbox_sounds/atos.ogg`; a full path is cut to
+  the part after `Lua`) and press Set; Test and Remove are below it, and the Sounds page has a button to get there.
+  In chat: `/toolbox buffs sound get|end Blessing of Atos = toolbox_sounds/atos.ogg` (without get or end: a
+  debuff's when you get it, a buff's when it's about to run out), `/toolbox buffs sound test|remove [get|end]
+  <name>`, and `/toolbox buffs sound` to list them. Each replaces the usual debuff or expiry sound and plays even
+  with those alerts off; muting still silences it. A file that won't open (chat says so once) plays the usual
+  sound.
 - **Don't repeat**: "Don't repeat a sound for the same effect within" (Off, 30 seconds, 1, 2, 5 or 10 minutes;
   off at first) keeps an effect's alert quiet when its previous one was less than that long ago. Each alert starts
   the time again, so a debuff that lands all fight sounds once, and again only after it has stayed away that long.

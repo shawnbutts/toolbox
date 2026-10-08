@@ -689,6 +689,15 @@ function C.SoundsSection()
       style = { whiteSpace = "wrap", marginTop = 6 } },
   }
   for _, def in ipairs(S.DEFS) do children[#children + 1] = soundRows(def) end
+  -- A sound for one effect is set where the effect is picked (the Buffs page); owner, 2026-10-08: looked for here.
+  children[#children + 1] = heading("Sounds for one buff or debuff")
+  children[#children + 1] = UI.Label{ text = "Any buff or debuff can play your own file (a recording of its name,"
+    .. " say) when you get it or when it's about to run out. They're set on the Buffs page, under Muted effects.",
+    class = "dim", style = { whiteSpace = "wrap" } }
+  children[#children + 1] = UI.Row{ style = { marginTop = 2 }, children = {
+    UI.Button{ id = "fx_goto", text = "Go to effect sounds", tooltip = "Opens the Buffs page where they're set",
+      onClick = function() C.GoToControl("fx_path") end },
+  } }
   -- Which sound each notification plays (when its delivery says "+ sound", on the Notifications page).
   children[#children + 1] = heading("Notification sounds")
   children[#children + 1] = UI.Label{ text = "Played when a notification set to \"+ sound\" arrives"
@@ -979,7 +988,7 @@ end
 -- expiry or debuff sound. The effect is picked in Muted effects' dropdown (one list of up to BB.CHOICES_MAX names on
 -- screen, not two: the text budget), the path pasted, Set; the list below has Test and Remove.
 C.FX_NONE = "No effect sounds yet"
-local fxSet = {}                     -- the list's label -> effect name
+local fxSet = {}                     -- the list's label -> { name, when }
 
 local function syncEffectSounds()
   local list = el.fx_list
@@ -992,7 +1001,7 @@ local function syncEffectSounds()
   if sig == C.fxSig then return end
   C.fxSig = sig
   fxSet = {}
-  for _, c in ipairs(set) do fxSet[c.label] = c.name end
+  for _, c in ipairs(set) do fxSet[c.label] = c end
   local keepSet = list:GetValue()
   local sshown = #setLabels > 0 and setLabels or { C.FX_NONE }
   list:SetChoices(sshown)
@@ -1006,7 +1015,12 @@ function C.SetEffectSound(text)
   local name = drop and quietPicks[drop:GetValue()]
   local path = text
   if path == nil and field then path = field:GetText() end
-  local ok, msg = T.BuffBar.SetEffectSound(name, path)
+  local whenDrop = el.fx_when
+  local when = nil
+  for _, w in ipairs(T.BuffBar.SOUND_WHEN) do
+    if whenDrop and whenDrop:GetValue() == w[2] then when = w[1] end
+  end
+  local ok, msg = T.BuffBar.SetEffectSound(name, path, when or "end")
   setText("fx_msg", msg or "")
   if ok and field then field:SetText("") end
 end
@@ -1017,20 +1031,35 @@ local function pickedSound()
 end
 
 function C.TestEffectSound()
-  local _, msg = T.BuffBar.TestEffectSound(pickedSound())
+  local c = pickedSound()
+  local _, msg = T.BuffBar.TestEffectSound(c and c.name, c and c.when)
   setText("fx_msg", msg or "")
 end
 
 function C.RemoveEffectSound()
-  local _, msg = T.BuffBar.RemoveEffectSound(pickedSound())
+  local c = pickedSound()
+  if not c then return end
+  local _, msg = T.BuffBar.RemoveEffectSound(c.name, c.when)
   setText("fx_msg", msg or "")
+end
+
+local function whenLabels()
+  local out = {}
+  for i, w in ipairs(T.BuffBar.SOUND_WHEN) do out[i] = w[2] end
+  return out
 end
 
 function C.EffectSoundRows()
   C.fxSig = nil                        -- new controls: filled by the next Sync
   return UI.Column{ style = { marginTop = 6 }, children = {
-    UI.Label{ text = "Or give the effect picked above its own sound (record its name, say): a file inside your Lua"
-      .. " folder, not the toolbox folder.", class = "dim", style = { whiteSpace = "wrap" } },
+    UI.Label{ text = "Or give the effect picked above its own sound (record its name, say), when you get it or when"
+      .. " it's about to run out: a file inside your Lua folder, not the toolbox folder.", class = "dim",
+      style = { whiteSpace = "wrap" } },
+    UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
+      UI.Dropdown{ id = "fx_when", choices = whenLabels(), value = T.BuffBar.WhenLabel("end"),
+        style = { flexGrow = 1, flexShrink = 1 }, tooltip = "When this file plays",
+        onChange = function() setText("fx_msg", "") end },
+    } },
     UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
       UI.TextField{ id = "fx_path", text = "", placeholder = "toolbox_sounds/atos.ogg", maxLength = 200,
         style = { flexGrow = 1, flexShrink = 1 },
@@ -1289,7 +1318,7 @@ local ALL_IDS = { "loc_show", "loc_facing",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
   "buff_countdown_secs_value", "backup_where", "backup_save", "settings_reset", "backup_pending",
   "backup_cancel", "backup_msg", "quiet_pick", "quiet_mute", "quiet_list", "quiet_unmute", "quiet_msg",
-  "fx_path", "fx_set", "fx_list", "fx_test", "fx_remove", "fx_msg",
+  "fx_when", "fx_path", "fx_set", "fx_list", "fx_test", "fx_remove", "fx_msg",
   "setup_share", "setup_pick", "setup_import", "setup_delete", "setup_name",
   "setup_export", "setup_msg" }
 for _, def in ipairs(T.Sounds.DEFS) do
@@ -1372,6 +1401,14 @@ function C.CurrentCategory() return current end
 
 -- Shows the category holding control `id` (for the tests, which look controls up by id): the one shown
 -- if it has it, else each in turn. Returns the control, or nil.
+-- Shows the page holding control `id`, its part at the top (as a search result does). Returns whether it did.
+function C.GoToControl(id)
+  local key = C.PageOf(id)
+  if not key then return false end
+  local shown = C.ShowCategory(key, id)
+  return shown ~= nil and shown ~= false
+end
+
 function C.ShowControl(id)
   if not win then return nil end
   local hit = el[id] or win:Find(id)

@@ -340,11 +340,15 @@ into one if a new file is ever needed).
   skill_unlearn, two quick notes up, even and down, belong to skills.lua; block, parry and
   dodge, a thud, a clash and a whoosh, to combat.lua's shout). Re-encoding changes the bytes even when the audio is the same:
   `git checkout` an .ogg you didn't mean to change. A player's own `Lua/toolbox_<name>` sounds win.
-  Effect sounds (owner, 2026-10-08): a player's file per buff / debuff (`BB.EffectSound`, `BB.PlayAlert`: each one's
-  own file once, the usual sound for the rest), loaded by path (`S.UseFile`, keys "file:<path>", at most
+  Effect sounds (owner, 2026-10-08): a player's file per buff / debuff, for when you get it ("get": a debuff's
+  landing, or a buff appearing outside the settling, `timers` empty) and / or when it's about to run out ("end": the
+  expiry `fire`, debuffs too) (`BB.EffectSound(name, when)`, `BB.PlayAlert(when, names, usual)`: each one's own file
+  once, the usual sound for the rest; an own sound plays with the general alert off; muted / Don't repeat apply;
+  clips matched by their exact name first, "heal" not "heal on"), loaded by path (`S.UseFile`, keys "file:<path>", at most
   `S.FILES_MAX` a session: clips can't be unloaded) at the alert's volume (`S.PlayFile(path, kind)`); a file that
   won't load plays the usual sound and chat says so once. Picked in Muted effects' dropdown (one list on screen: the
-  text budget), `/toolbox buffs sound <name> = <file>`.
+  text budget; the Sounds page's "Go to effect sounds" opens it, `C.GoToControl`), `/toolbox buffs sound [get|end]
+  <name> = <file>`.
 - `tools/`: `check.py` (all checks), `build.py` (packaging rules, the source checks, the store README
   renderer's rules, the support URL's form, the root README's API line, the changelog section, the docs API
   constants; stamps `build = "<commit>[+]"` into dist), `beta.py` (`make beta`), `install.py`,
@@ -422,8 +426,8 @@ character" sentinel.
 | `daily_window` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, compact = bool, hx, hy }` |
 | `daily_detail` | `{ open = bool, x = number, y = number, values = bool, each = bool (the price each in the count: "40 x 5g"; default true), view = "looted"/"crafted"/"gathered", include = bool }` |
 | `buffblock` | `{ show = bool (default false), width = 1..30 (icons a row, default 10), size = 20..48, combatOnly = bool, x, y }` |
-| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, flash, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), groupCats = { [category] = true }, countdown = bool, countdownSecs = 5..120, group = { name parts }, quiet = { exact effect names, <= BB.QUIET_MAX } (muted: no expiry / debuff sound), quietNames = { [muted rune name] = its shown name } (for the lists when it isn't on you), effectSounds = { [rune name] = { path (in the Lua folder, `S.CleanPath`), shown } } (<= BB.SOUNDS_MAX: the effect's own sound,
-`BB.PlayAlert`), repeatQuiet = a BB.REPEAT_CHOICES value (seconds, 0 = off: an alert within that long of the same effect's last one, counted per alert kind, is quiet: `BB.Repeats`), replaceStock, clickDismiss, combatOnly, x, y }` |
+| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, flash, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), groupCats = { [category] = true }, countdown = bool, countdownSecs = 5..120, group = { name parts }, quiet = { exact effect names, <= BB.QUIET_MAX } (muted: no expiry / debuff sound), quietNames = { [muted rune name] = its shown name } (for the lists when it isn't on you), effectSounds = { [rune name] = { shown, get = path, ["end"] = path } } (paths in the Lua folder, `S.CleanPath`;
+<= BB.SOUNDS_MAX: the effect's own sounds, `BB.PlayAlert`), repeatQuiet = a BB.REPEAT_CHOICES value (seconds, 0 = off: an alert within that long of the same effect's last one, counted per alert kind, is quiet: `BB.Repeats`), replaceStock, clickDismiss, combatOnly, x, y }` |
 | `sounds` | `{ v = 2, volume = 0..100, paths = { [sound key] = "..." }, levels = { [sound key] = 0..100 } (unset: 100) }`; a volume without `v = 2` is from before the louder sounds (2026-10-07) and is halved once (`S.Init`). Played at volume x level / 100, twice that for a player's own file (`S.EffectiveVolume`), at most 100 |
 | `buff_timers` | `{ v = 3, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts |
