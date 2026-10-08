@@ -307,6 +307,48 @@ return function(t)
     for _, name in ipairs(H.requestedItems(1)) do t.ok(name ~= Toolbox.Daily.OTHER) end
   end)
 
+  t.test("a non-English client: SotANET's English names are explained where prices are missing", function()
+    H.boot()
+    H.S.language = { "German", "de" }
+    H.reload()
+    H.chat("/tbx dd")
+    H.clearLogs()
+    H.chat("/tbx dd values on")
+    local NOTE = "SotANET lists items by their English names; with the game in German, most items won't be "
+      .. "found (--)."
+    t.ok(H.logged("^Estimated values: " .. NOTE:gsub("[%(%)%-%.]", "%%%0") .. "$"), "said once, switched on")
+    H.items({ { "Eisenerz", 40 } })
+    H.advance(2)
+    H.httpRespond(1, true, 200, '{"items":[],"missing":["Eisenerz"]}')
+    t.eq(row("Eisenerz")[3], "--")
+    t.eq(row("Eisenerz")[4], "No sales on SotANET in the last 90 days\n" .. NOTE)
+    t.eq(header().text, "Estimated value: none found. SotANET lists English item names; the game is in German")
+    H.chat("/tbx config")
+    H.change("toolbox_config", "category", "XP & Loot")
+    local found = false
+    local function walk(el)
+      if type(el.text) == "string" and el.text:find(NOTE, 1, true) then found = true end
+      for _, c in ipairs(el.children or {}) do walk(c) end
+    end
+    walk(H.configRaw())
+    t.ok(found, "the settings say so too")
+    H.advance(Toolbox.Prices.GAP)
+    H.clearLogs()
+    H.chat("/tbx dd values test")
+    H.httpRespond(2, true, 200, ANSWER)
+    t.ok(H.logged("connected%. 'Iron Ore': about 5g each.* German, most items won't be found"), "the test too")
+  end)
+
+  t.test("an English or unknown language: no note", function()
+    for _, lang in ipairs({ { "English", "en" }, { "English (UK)", "en-GB" }, false }) do
+      H.boot()
+      H.S.language, H.S.noLanguage = lang or nil, lang == false
+      H.reload()
+      t.eq(Toolbox.Prices.LanguageNote(), nil, tostring(lang and lang[2]))
+    end
+    H.S.noLanguage = false
+  end)
+
   t.test("values test: one lookup now, even with values off, each step in chat", function()
     H.boot()
     H.clearLogs()

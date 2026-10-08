@@ -715,7 +715,11 @@ function DD.ValueLine()
   if line then return line end
   local total, priced, kinds = valued.total, valued.priced, valued.kinds
   if kinds == 0 then return "Estimated value: nothing gained yet" end
-  if priced == 0 and P.Idle() then return "Estimated value: none of today's items sold recently (SotANET)" end
+  if priced == 0 and P.Idle() then
+    local lang = P.OtherLanguage()
+    if lang then return "Estimated value: none found. SotANET lists English item names; the game is in " .. lang end
+    return "Estimated value: none of today's items sold recently (SotANET)"
+  end
   if priced == 0 then return "Estimated value: looking up prices on SotANET..." end
   local rate = T.Daily.PerHour(total, T.Daily.RunPlayed())
   return "Estimated value " .. P.Format(total) .. (rate and (", " .. P.Format(rate) .. "/h") or "")
@@ -788,7 +792,11 @@ function DD.SetValues(on)
   prefs.values = on == true
   DD.SavePrefs()
   for _, r in pairs(rows) do T.SetVisible(r.value, prefs.values) end
-  if prefs.values then P.Wake() end
+  if prefs.values then
+    P.Wake()
+    local note = P.LanguageNote()
+    if note then T.Print("Estimated values: " .. note) end
+  end
   DD.Refresh(true)
   T.Config.Sync()
 end
@@ -916,7 +924,10 @@ function P.Tooltip(name)
   readCache()
   local e = cache[key(name)]
   if not e then return "Looking up its price on SotANET..." end
-  if type(e.avg) ~= "number" then return "No sales on SotANET in the last 90 days" end
+  if type(e.avg) ~= "number" then
+    local note = P.LanguageNote()
+    return "No sales on SotANET in the last 90 days" .. (note and ("\n" .. note) or "")
+  end
   local when = e.last ~= "" and ("; last sold " .. e.last:sub(1, 10)) or ""
   return "About " .. P.FormatEach(e.avg) .. " each: the average of " .. T.FormatNumber(e.sold)
     .. " sold in the last 90 days" .. when .. " (SotANET, from player-uploaded receipts)"
@@ -939,6 +950,32 @@ function P.Want(name)
   if P.Fresh(cache[k]) then return end
   queued[k] = true
   queue[#queue + 1] = name
+end
+
+-- SotANET lists items by their English names, and the game names what you loot in your language: on another
+-- language most lookups find nothing ("--"). The client's language (ShroudGetClientInfo): its name ("German")
+-- when it isn't English, else nil (English or unknown). Read once: it changes only with a restart.
+local otherLanguage = nil      -- nil = not read yet; false = English or unknown; else the language's name
+function P.OtherLanguage()
+  if otherLanguage == nil then
+    otherLanguage = false
+    local ok, info = false, nil
+    if type(ShroudGetClientInfo) == "function" then ok, info = pcall(ShroudGetClientInfo) end
+    local code = ok and T.Field(info, "languageCode") or nil
+    if type(code) == "string" and code ~= "" and code:lower():sub(1, 2) ~= "en" then
+      local name = T.Field(info, "language")
+      otherLanguage = (type(name) == "string" and name ~= "") and name or code
+    end
+  end
+  return otherLanguage or nil
+end
+
+-- The note for players on another language, or nil.
+function P.LanguageNote()
+  local lang = P.OtherLanguage()
+  if not lang then return nil end
+  return "SotANET lists items by their English names; with the game in " .. lang .. ", most items won't be"
+    .. " found (--)."
 end
 
 -- True when nothing is waiting or in flight.
@@ -1093,14 +1130,16 @@ function P.Report(name, ok, code, body, err, data)
     return
   end
   local it = type(data.items) == "table" and data.items[1] or nil
+  local note = P.LanguageNote()
+  note = note and (" " .. note) or ""
   if type(it) ~= "table" or type(it.avg90d) ~= "number" then
     testSay("connected. '" .. name .. "' has no sales on SotANET in the last 90 days"
-      .. " (or no item has that exact name).")
+      .. " (or no item has that exact name)." .. note)
     return
   end
-  testSay(string.format("connected. '%s': about %s each (90-day average), %s sold in 90 days, last sold %s.",
+  testSay(string.format("connected. '%s': about %s each (90-day average), %s sold in 90 days, last sold %s.%s",
     tostring(it.item), P.FormatEach(it.avg90d), T.FormatNumber(it.sold90d or 0),
-    type(it.lastSoldAt) == "string" and it.lastSoldAt:sub(1, 10) or "?"))
+    type(it.lastSoldAt) == "string" and it.lastSoldAt:sub(1, 10) or "?", note))
 end
 
 -- ShroudOnHttpResponse (from core.lua). Returns true when the answer was ours.

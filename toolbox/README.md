@@ -99,6 +99,8 @@ shroudoftheavatar.net, built from receipts players upload) and a total for the d
 default and needs **Internet** switched on for Toolbox in the add-on manager too. Toolbox then sends only
 item names to shroudoftheavatar.net, remembers each price for 24 hours, and contacts no other site. Like
 any website, that site can see your IP address. **Test connection** in the settings checks it works.
+SotANET lists items by their English names, so with the game in another language most items show "--";
+Toolbox says so.
 
 ## Combat stats
 

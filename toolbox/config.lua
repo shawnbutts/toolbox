@@ -229,7 +229,8 @@ function C.XPSection()
         .. " names to that site. Also switch Internet on for Toolbox in the add-on manager.",
       onChange = function(_, value) T.DailyDetail.SetValues(value) end },
     UI.Label{ text = "All price estimates come from receipt data retrieved from shroudoftheavatar.net. Submit"
-      .. " your receipts today.", class = "dim", style = { whiteSpace = "wrap", marginLeft = 32 } },
+      .. " your receipts today." .. (T.Prices.LanguageNote() and (" " .. T.Prices.LanguageNote()) or ""),
+      class = "dim", style = { whiteSpace = "wrap", marginLeft = 32 } },
     UI.Toggle{ id = "dd_each", text = "Show the price each", value = T.DailyDetail.GetEach(),
       style = { marginLeft = 32 }, tooltip = "The count also shows the price each: \"40 x 5g\"",
       onChange = function(_, value) T.DailyDetail.SetEach(value) end },

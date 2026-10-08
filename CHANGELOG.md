@@ -7,6 +7,11 @@ ones included).
 
 ## [Unreleased]
 
+### Fixed
+- Estimated values on a game client in another language showed "--" for nearly every item with no reason
+  given: SotANET lists items by their English names, and the game names them in your language. The Loot
+  Tracker, its tooltips, the settings and Test connection now say so.
+
 ## [1.6.0] - 2026-10-08
 
 ### Changed

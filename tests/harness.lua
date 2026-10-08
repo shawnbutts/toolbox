@@ -257,6 +257,15 @@ local function install_api()
       return true, "ok"
     end
   end
+  -- The client: H.S.language = { "German", "de" } sets its language (default English); H.S.noLanguage leaves
+  -- the language fields out.
+  ShroudGetClientInfo = function()
+    local lang = S.language or { "English", "en" }
+    local info = { uiScale = 1, theme = "Default", build = 1234, pingMs = -1, playedMinutes = -1,
+                   characterPlayedMinutes = -1 }
+    if not S.noLanguage then info.language, info.languageCode = lang[1], lang[2] end
+    return info
+  end
   -- Web requests: H.S.httpRefuse = "not_permitted" (etc.) refuses them; H.S.requests records the
   -- accepted ones ({ id, url, done }); H.httpRespond answers one.
   ShroudHttpGet = function(url)

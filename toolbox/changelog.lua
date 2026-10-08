@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Fixed" },
+  { "item", "Estimated values on a game client in another language showed \"--\" for nearly every item with no reason given: SotANET lists items by their English names, and the game names them in your language. The Loot Tracker, its tooltips, the settings and Test connection now say so." },
   { "version", "1.6.0 - 2026-10-08" },
   { "section", "Changed" },
   { "item", "Louder sounds: every sound Toolbox ships is now about twice as loud (some found 100% too quiet), so 50% sounds like the old 100% and there's room to go louder. Your volume setting was halved once to match, so nothing sounds different until you turn it up; with the default, sounds are twice as loud. Your own sound files can't be made louder, so they play at twice the setting and sound as they did." },

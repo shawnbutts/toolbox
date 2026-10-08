@@ -143,7 +143,9 @@ into one if a new file is ever needed).
   never rebuilt on a timer (element cap; no reorder API); a sorted rebuild at most every `RESORT_SECONDS`
   while shown. `Toolbox.Prices` (bottom): estimated values from SotANET's
   `GET /api/v1/receipts/prices?item=..` (<= 50 names) via `ShroudHttpGet`, one request `P.GAP` apart,
-  cached per account for `P.MAX_AGE`; `P.Test` backs the Test connection button.
+  cached per account for `P.MAX_AGE`; `P.Test` backs the Test connection button. SotANET matches English names only;
+  `P.OtherLanguage` (`ShroudGetClientInfo().languageCode` not "en*", read once) adds `P.LanguageNote` where
+  prices are missing (header, row tooltips, settings, switching on, the test).
 - `sounds.lua`: `Toolbox.Sounds`, five sounds (`S.DEFS`: buff_expiring, debuff_landed, and notify, ping, tap
   for notifications: each source picks one, `N.SOUNDS` / `soundKey`), plus skill_up and skill_down, which
   skills.lua appends. Candidates in
@@ -366,7 +368,8 @@ wedge (`SetSweep`, `SetSweepTimer`, refused as in game for a lone duration) read
   `H.httpRespond(n, ok, code, body, err)`, `H.callback(name, ...)`.
 - Switches: `H.S.date`, `H.S.serverTime`, `H.S.clock` / `H.S.noClock`, `H.S.files[path] = true`,
   `H.S.acceptMissing`, `H.S.noCategories`, `H.S.noCrafting`, `H.S.noGuildMotd`, `H.S.flushFails`,
-  `H.S.httpRefuse`, `H.S.saveRefused` / `H.S.refuseKeys` (every saved-var write, or those keys), `H.S.recipes`, `H.S.showRefused`; `element.laidOut = { w, h }` sets what GetSize reports.
+  `H.S.httpRefuse`, `H.S.saveRefused` / `H.S.refuseKeys` (every saved-var write, or those keys), `H.S.language = { "German", "de" }` / `H.S.noLanguage`
+  (the client's language; read at load: set it, then `H.reload()`), `H.S.recipes`, `H.S.showRefused`; `element.laidOut = { w, h }` sets what GetSize reports.
 - Reading: `H.logged(pattern)`, `H.logs()`, `H.lastLog()`, `H.saved(key, scope)`, `H.frame()` (buff strip),
   `H.hud()` (glued strip), `H.vitals()`, `H.config()` (all categories built) / `H.configRaw()`, `H.detail()`,
   `H.detailRows()`, `H.daily()`, `H.dailyText(id)`, `H.notify()`, `H.notice(key)`, `H.nhud()`,
@@ -659,6 +662,7 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - `os.date` in the sandbox (feature-detected; fallback: the date part of `ShroudServerTime`).
 - `ShroudOnItemsGained` names as stable keys (localized; same-named items merge); whether they match
   SotANET's names (English) for prices.
+- `ShroudGetClientInfo().languageCode` on a non-English client (assumed "de", "fr"...; the docs' example is "en").
 - `ShroudHttpGet`: whether every shard allows it; the reviewer may question declaring a host we don't own.
 - Notification counts reading 0 until loaded (hence `N.SETTLE`); ransoms / rewards / applications in practice.
 - The notification HUD's Scroll inside a HudFrame, nowrap labels ending in "...".
