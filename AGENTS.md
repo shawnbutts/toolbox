@@ -152,7 +152,9 @@ into one if a new file is ever needed).
   (`D.Roll`) drops it. Run rates: `since.played` = seconds of play (`D.Tick` adds tick gaps up to
   `D.PLAY_GAP` while a character is in; saved every `D.PLAY_SAVE` s); `D.PerHour` after `D.RATE_AFTER`; the header
   and rates move once a minute. Run history (owner, 2026-10-07): a run is filed as it ends (`D.FileRun` from
-  `D.ResetRun`, `D.EndRun`, and `D.RollDay` before midnight's `D.Roll`) into `loot_runs`; `since.scenes` = play
+  `D.ResetRun`, `D.EndRun`, and `D.RollDay` before midnight's `D.Roll`) into `loot_runs` (`/toolbox loot log`
+  prints the last `D.ITEM_LOG_MAX` item events as the game sent them, `D.itemLog`, memory only; owner, 2026-10-08:
+  2 sharks counted as 4); `since.scenes` = play
   seconds per scene (`ShroudGetCurrentSceneName`), the run's place the most played; the value comes from
   `DD.RunValue` (prices at that moment). Where (owner, 2026-10-08): `since.spots` = play seconds per
   `D.SPOT_CELL` square (keyed by `ShroudGetCurrentSceneNameRaw` and the square, with the time-weighted position
