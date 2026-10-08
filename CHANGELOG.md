@@ -7,6 +7,8 @@ ones included).
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-08
+
 ### Changed
 - Louder sounds: every sound Toolbox ships is now about twice as loud (some found 100% too quiet), so 50% sounds
   like the old 100% and there's room to go louder. Your volume setting was halved once to match, so nothing
@@ -42,6 +44,11 @@ ones included).
 - Setups: "List this character's setup" said it was done even when the game refused to save the choice. It
   now says so and leaves things as they were (switched off, the setup stays listed until it can be taken off the
   list); at the setup limit it says to delete one first.
+- Muting an effect typed by its internal name in other capitals now mutes it.
+
+### Diagnostics
+- /toolbox buffs tips [name] (chat only): each part of a buff with several effects as the game reports it, its
+  tooltip line by line. Without a name, the buffs that have several parts.
 
 ## [1.5.1] - 2026-10-07
 

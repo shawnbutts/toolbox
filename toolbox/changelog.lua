@@ -5,6 +5,7 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "version", "1.6.0 - 2026-10-08" },
   { "section", "Changed" },
   { "item", "Louder sounds: every sound Toolbox ships is now about twice as loud (some found 100% too quiet), so 50% sounds like the old 100% and there's room to go louder. Your volume setting was halved once to match, so nothing sounds different until you turn it up; with the default, sounds are twice as loud. Your own sound files can't be made louder, so they play at twice the setting and sound as they did." },
   { "item", "Effects go by their own name, the first line of their tooltip (\"Blessing of Atos\"), where Toolbox used the game's description, which for a buff with several effects is one benefit (\"+5 Health\"): in the muted effects, the list on a grouped icon, the short tooltips and the debug lines. Two effects with the same name show their internal name in brackets, and /toolbox buffs quiet add takes either. Names you group by still match the old ones too." },
@@ -17,6 +18,9 @@ Toolbox.CHANGELOG = {
   { "item", "Replace the game's health bars with a Toolbelt shown only during combat: out of combat the Toolbelt hid and took your health bars with it, leaving no bars at all. The game's own bars now come back while it's hidden." },
   { "item", "Setups: an Import or Delete clicked once by one character could be finished by the next character's single click if Settings stayed open across the switch. Now the new character is asked again." },
   { "item", "Setups: \"List this character's setup\" said it was done even when the game refused to save the choice. It now says so and leaves things as they were (switched off, the setup stays listed until it can be taken off the list); at the setup limit it says to delete one first." },
+  { "item", "Muting an effect typed by its internal name in other capitals now mutes it." },
+  { "section", "Diagnostics" },
+  { "item", "/toolbox buffs tips [name] (chat only): each part of a buff with several effects as the game reports it, its tooltip line by line. Without a name, the buffs that have several parts." },
   { "version", "1.5.1 - 2026-10-07" },
   { "section", "Fixed" },
   { "item", "A character could lose ALL its Toolbox settings: the game saves a \"/\" in text in a form its own loader then refuses, drops the whole file and starts over with defaults. A custom sound path with a folder in it (\"my sounds/ding.ogg\") was enough, and so could be an item or effect name with a slash. Toolbox now never saves a \"/\" (it writes \"%2F\" and turns it back when reading), so the file always loads. Already reported to the developers." },
