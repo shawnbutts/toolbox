@@ -969,7 +969,8 @@ function T.MoveCommand(m, cmd, what, args)
 end
 
 add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off; add|remove <name>|reset]; "
-    .. "quiet [add|remove <name>] (muted effects); repeat off|<minutes>|30s (don't repeat a sound); "
+    .. "quiet [add|remove <name>] (muted effects); sound [<name> = <file>|test|remove <name>] (an effect's own "
+    .. "sound); repeat off|<minutes>|30s (don't repeat a sound); "
     .. "combat on|off (only during combat); flash on|off; countdown on|off|<seconds>; replace on|off; "
     .. "dismiss on|off; block [on|off|width <n>|size <n>|combat on|off|move [x y]]; debug; raw; trace [name]; "
     .. "tips [name])",
@@ -1032,6 +1033,28 @@ add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off;
     local r = B.GetRepeat()
     T.Print("Don't repeat a sound for the same effect within: " .. (B.RepeatLabel(r) or "Off")
       .. (r > 0 and " (each alert starts the time again)." or "."))
+    return
+  end
+  if word == "sound" or word == "sounds" then
+    local B, c = T.BuffBar, "/" .. T.commands[1] .. " buffs sound"
+    local verb, effect = T.ParseArgs(name)
+    local eq = name:find("=", 1, true)
+    if eq then
+      local _, msg = B.SetEffectSound(T.Trim(name:sub(1, eq - 1)), name:sub(eq + 1))
+      T.Print(msg)
+      return
+    end
+    if verb == "remove" or verb == "test" then
+      local _, msg = (verb == "remove" and B.RemoveEffectSound or B.TestEffectSound)(effect)
+      T.Print(msg)
+      return
+    end
+    local set = {}
+    for _, ch in ipairs(B.EffectSoundChoices()) do set[#set + 1] = ch.label end
+    T.Print("Effect sounds: " .. (#set > 0 and table.concat(set, "; ") or "none") .. ".")
+    T.Print(c .. " <name> = <file> gives one its own (a file inside your Lua folder: toolbox_sounds/atos.ogg); "
+      .. c .. " test <name> plays it; " .. c .. " remove <name> takes it away. Names as in /" .. T.commands[1]
+      .. " buffs quiet.")
     return
   end
   if word == "quiet" then

@@ -15,6 +15,10 @@ ones included).
   to mark it on your compass and map with the game's beacon (the one /beacon sets), to find a good farming spot
   again. It works while you're in that run's scene, and replaces any beacon you set. Runs from before this
   version have no spot.
+- **Your own sound for any buff or debuff:** record yourself saying its name, say, and you'll know which one it
+  is. Put the file in your Lua folder (Lua/toolbox_sounds is a good place; not the toolbox folder, which updates
+  replace), then in Settings, Buffs, pick the effect, paste the file's path and press Set (or /toolbox buffs sound
+  Blessing of Atos = toolbox_sounds/atos.ogg). Effects without one keep the usual sound.
 - **A sound for mail:** new mail and mail about to expire ring a doorbell of their own when their sound is on, so
   you can tell mail from other notifications (the other sounds are still there to pick). Replace it with
   toolbox_mail.ogg in your Lua folder or any file on the Sounds page.

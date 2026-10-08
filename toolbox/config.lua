@@ -297,6 +297,7 @@ function C.BuffBarSection()
         .. " starts the time again, so one that keeps coming in a fight sounds once. Try 2 minutes.",
       onChange = function(_, value) C.OnRepeat(value) end }),
     C.QuietRows(),
+    C.EffectSoundRows(),
     UI.Toggle{ id = "buff_countdown", text = "Show seconds left near the end", value = B.GetCountdown(),
       style = { marginTop = 6 }, tooltip = "Whole seconds over the icon of a buff, debuff or consumable about to run"
         .. " out (the sweep also shows it)",
@@ -974,6 +975,84 @@ function C.QuietRows()
   } }
 end
 
+-- Effect sounds (Toolbox.BuffBar; owner, 2026-10-08): a player's own file for an effect, instead of the usual
+-- expiry or debuff sound. The effect is picked in Muted effects' dropdown (one list of up to BB.CHOICES_MAX names on
+-- screen, not two: the text budget), the path pasted, Set; the list below has Test and Remove.
+C.FX_NONE = "No effect sounds yet"
+local fxSet = {}                     -- the list's label -> effect name
+
+local function syncEffectSounds()
+  local list = el.fx_list
+  if not list then return end
+  local set = T.BuffBar.EffectSoundChoices()
+  local setLabels = {}
+  for i, c in ipairs(set) do setLabels[i] = c.label end
+  setEnabled("fx_set", next(quietPicks) ~= nil)
+  local sig = table.concat(setLabels, "|")
+  if sig == C.fxSig then return end
+  C.fxSig = sig
+  fxSet = {}
+  for _, c in ipairs(set) do fxSet[c.label] = c.name end
+  local keepSet = list:GetValue()
+  local sshown = #setLabels > 0 and setLabels or { C.FX_NONE }
+  list:SetChoices(sshown)
+  list:SetValue(fxSet[keepSet] and keepSet or sshown[1])
+  setEnabled("fx_test", #setLabels > 0)
+  setEnabled("fx_remove", #setLabels > 0)
+end
+
+function C.SetEffectSound(text)
+  local drop, field = el.quiet_pick, el.fx_path
+  local name = drop and quietPicks[drop:GetValue()]
+  local path = text
+  if path == nil and field then path = field:GetText() end
+  local ok, msg = T.BuffBar.SetEffectSound(name, path)
+  setText("fx_msg", msg or "")
+  if ok and field then field:SetText("") end
+end
+
+local function pickedSound()
+  local drop = el.fx_list
+  return drop and fxSet[drop:GetValue()]
+end
+
+function C.TestEffectSound()
+  local _, msg = T.BuffBar.TestEffectSound(pickedSound())
+  setText("fx_msg", msg or "")
+end
+
+function C.RemoveEffectSound()
+  local _, msg = T.BuffBar.RemoveEffectSound(pickedSound())
+  setText("fx_msg", msg or "")
+end
+
+function C.EffectSoundRows()
+  C.fxSig = nil                        -- new controls: filled by the next Sync
+  return UI.Column{ style = { marginTop = 6 }, children = {
+    UI.Label{ text = "Or give the effect picked above its own sound (record its name, say): a file inside your Lua"
+      .. " folder, not the toolbox folder.", class = "dim", style = { whiteSpace = "wrap" } },
+    UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
+      UI.TextField{ id = "fx_path", text = "", placeholder = "toolbox_sounds/atos.ogg", maxLength = 200,
+        style = { flexGrow = 1, flexShrink = 1 },
+        tooltip = "A .ogg/.wav/.mp3 inside your Lua folder (a full path is cut after Lua); Enter sets it",
+        onSubmit = function(_, text) C.SetEffectSound(text) end },
+      UI.Button{ id = "fx_set", text = "Set", style = { marginLeft = 4 },
+        tooltip = "The effect picked above plays this file instead of the usual sound",
+        onClick = function() C.SetEffectSound() end },
+    } },
+    UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
+      UI.Dropdown{ id = "fx_list", choices = { C.FX_NONE }, value = C.FX_NONE,
+        style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The effects with a sound of their own",
+        onChange = function() setText("fx_msg", "") end },
+      UI.Button{ id = "fx_test", text = "Test", style = { marginLeft = 4 },
+        tooltip = "Play it now", onClick = function() C.TestEffectSound() end },
+      UI.Button{ id = "fx_remove", text = "Remove", style = { marginLeft = 4 },
+        tooltip = "It plays the usual sound again", onClick = function() C.RemoveEffectSound() end },
+    } },
+    UI.Label{ id = "fx_msg", text = "", class = "dim", style = { whiteSpace = "wrap" } },
+  } }
+end
+
 -- Setups (Toolbox.Backup): import another character's settings and positions, export yours under a name.
 -- Import and Delete take a second click within C.CONFIRM_SECONDS, like Reset.
 C.SETUP_NONE = "No setups yet"
@@ -1210,6 +1289,7 @@ local ALL_IDS = { "loc_show", "loc_facing",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
   "buff_countdown_secs_value", "backup_where", "backup_save", "settings_reset", "backup_pending",
   "backup_cancel", "backup_msg", "quiet_pick", "quiet_mute", "quiet_list", "quiet_unmute", "quiet_msg",
+  "fx_path", "fx_set", "fx_list", "fx_test", "fx_remove", "fx_msg",
   "setup_share", "setup_pick", "setup_import", "setup_delete", "setup_name",
   "setup_export", "setup_msg" }
 for _, def in ipairs(T.Sounds.DEFS) do
@@ -1961,6 +2041,7 @@ function C.Sync()
   if p and p:IsVisible() ~= pending then p:SetVisible(pending) end
   syncSetups()
   syncQuiet()
+  syncEffectSounds()
   setValue("setup_share", T.Backup.GetShare())
   setValue("loc_show", T.Location.GetShow())
   setValue("loc_facing", T.Location.GetFacing())
@@ -1978,6 +2059,7 @@ function C.SyncLive()
   disarm()
   disarmSetups(true)
   syncQuiet()
+  syncEffectSounds()
   C.SyncSounds()
   if el.shortcut then T.SetText(el.shortcut, "Shortcut: " .. T.KeyStatus()) end
   for _, p in ipairs(POSITIONED) do

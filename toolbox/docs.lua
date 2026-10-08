@@ -146,6 +146,13 @@ D.SECTIONS = {
       .. "within (off at first; try 2 minutes) keeps an effect quiet while it keeps coming: each alert starts "
       .. "the time again, so a debuff that lands all fight sounds once (the expiry and debuff sounds are "
       .. "counted apart). /toolbox buffs repeat 2 sets it.",
+    "Your own sound for an effect: record yourself saying its name, say, and you'll know which one it is. Put "
+      .. "the file (.ogg, .wav or .mp3) in your Lua folder or a folder in it, such as Lua/toolbox_sounds (not "
+      .. "the toolbox folder: updates replace it). Settings, Buffs: pick the effect in Muted effects' list, "
+      .. "paste the file's path (toolbox_sounds/atos.ogg; a full path is cut to the part after Lua) and press "
+      .. "Set; the list below it has Test and Remove. Or /toolbox buffs sound Blessing of Atos = "
+      .. "toolbox_sounds/atos.ogg. It plays instead of the usual expiry or debuff sound, at that sound's "
+      .. "volume; effects without one, or whose file can't be opened (chat says so), play the usual sound.",
     "Without relying on colour: debuffs have their own row (the second); a buff about to run out blinks "
       .. "its border (Flash, on by default) and sounds its alert; Show seconds left near the end adds the "
       .. "number; and a sweep's size shows the time left whatever its colour. The same goes for the "

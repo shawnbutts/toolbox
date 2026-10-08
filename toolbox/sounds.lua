@@ -58,7 +58,15 @@ local function audioType(path)
   return AudioType.OGGVORBIS
 end
 
+-- Effect sounds (owner, 2026-10-08): a player's own file for one buff or debuff (its name said aloud, say), played
+-- instead of buff_expiring / debuff_landed for it (buffbar.lua's BB.EffectSound). Loaded like the others, one entry per
+-- path (key "file:<path>"), from its path only. A clip can't be unloaded (ShroudListSoundReset clears every add-on's),
+-- so at most S.FILES_MAX files a session.
+S.FILES_MAX = 60
+local files, fileCount = {}, 0          -- path -> its def
+
 local function candidates(def)
+  if def.custom then return { def.custom } end
   local list = {}
   local custom = prefs.paths[def.key]
   if type(custom) == "string" and custom ~= "" then list[#list + 1] = custom end
@@ -90,36 +98,45 @@ local function tryNext(st)
     st.at = st.at + 1                    -- refused outright (e.g. escapes the Lua folder)
   end
   st.status, st.path, st.clip = "missing", nil, nil
+  local def = st.def
+  if def and def.custom and not def.told then
+    def.told = true                      -- once a session: the usual sound plays meanwhile
+    T.Print("Couldn't load your sound '" .. def.custom .. "' (" .. def.label .. "): the usual sound plays instead."
+      .. " The file must be inside your Lua folder, its path starting there (toolbox_sounds/atos.ogg).")
+  end
 end
 
 local function startLoading(def)
-  local st = { candidates = candidates(def), at = 1, status = "loading" }
+  local st = { candidates = candidates(def), at = 1, status = "loading", def = def }
   state[def.key] = st
   tryNext(st)
 end
 
 -- Checks pending loads (from Toolbox.Tick, once a second).
-function S.Poll()
-  for _, def in ipairs(S.DEFS) do
-    local st = state[def.key]
-    if st and st.status == "loading" then
-      local list = listSounds()
-      local stem = def.file:gsub("%.%w+$", "")
-      -- `= nil` matters: in game, a bare `local found` here seemed to keep a table from an earlier
-      -- use of the slot (both sounds "ready" with the same table as their clip, the list empty).
-      local found = nil
-      for i = st.before + 1, #list do
-        if type(list[i]) == "string" and list[i]:find(stem, 1, true) then found = list[i] end
-      end
-      if not found and #list == st.before + 1 and list[#list] ~= "" then found = list[#list] end   -- name didn't say
-      if type(found) == "string" and found ~= "" then
-        st.status, st.clip, st.path = "ready", found, st.candidates[st.at]
-      elseif T.Now() - st.since >= S.LOAD_TIMEOUT then
-        st.at = st.at + 1
-        tryNext(st)
-      end
+local function poll(def)
+  local st = state[def.key]
+  if st and st.status == "loading" then
+    local list = listSounds()
+    local stem = def.file:gsub("%.%w+$", "")
+    -- `= nil` matters: in game, a bare `local found` here seemed to keep a table from an earlier
+    -- use of the slot (both sounds "ready" with the same table as their clip, the list empty).
+    local found = nil
+    for i = st.before + 1, #list do
+      if type(list[i]) == "string" and list[i]:find(stem, 1, true) then found = list[i] end
+    end
+    if not found and #list == st.before + 1 and list[#list] ~= "" then found = list[#list] end   -- name didn't say
+    if type(found) == "string" and found ~= "" then
+      st.status, st.clip, st.path = "ready", found, st.candidates[st.at]
+    elseif T.Now() - st.since >= S.LOAD_TIMEOUT then
+      st.at = st.at + 1
+      tryNext(st)
     end
   end
+end
+
+function S.Poll()
+  for _, def in ipairs(S.DEFS) do poll(def) end
+  for _, def in pairs(files) do poll(def) end
 end
 
 function S.Init()
@@ -155,6 +172,65 @@ end
 
 local function defFor(key)
   for _, def in ipairs(S.DEFS) do if def.key == key then return def end end
+  if type(key) == "string" and key:sub(1, 5) == "file:" then return files[key:sub(6)] end
+end
+
+-- A path as typed or pasted, made the path the game wants (relative to the Lua folder, "/" between folders), or nil
+-- and why. A full path holding a "Lua" folder is cut to what follows it.
+function S.CleanPath(text)
+  if type(text) ~= "string" then return nil, "Give the file's path." end
+  local path = T.Trim(T.Trim(T.Trim(text), "\"'")):gsub("\\", "/")
+  local low, cut = path:lower(), nil
+  local at = low:find("/lua/", 1, true)
+  while at do
+    cut = at
+    at = low:find("/lua/", at + 1, true)
+  end
+  if cut then path = path:sub(cut + 5) end
+  if path == "" then return nil, "Give the file's path." end
+  if path:sub(1, 1) == "/" or path:find("^%a:") or path:find("..", 1, true) then
+    return nil, "That file is outside your Lua folder: copy it into the game's Lua folder (or a folder in it) first."
+  end
+  local ext = (path:match("%.(%w+)$") or ""):lower()
+  if ext ~= "ogg" and ext ~= "wav" and ext ~= "mp3" then return nil, "Use a .ogg, .wav or .mp3 file." end
+  if path:lower():sub(1, 8) == "toolbox/" then
+    return nil, "Not in the toolbox folder: every update replaces it. Put your sounds beside it (toolbox_sounds/...)."
+  end
+  return path
+end
+
+-- Starts loading a player's file (a path from S.CleanPath) for an effect labelled `label`, unless it already is;
+-- `again`: try a file that wasn't found once more. Returns false past S.FILES_MAX.
+function S.UseFile(path, label, again)
+  local def = files[path]
+  if def then
+    local st = state[def.key]
+    if again and st and st.status == "missing" then
+      def.told = false
+      startLoading(def)
+    end
+    return true
+  end
+  if fileCount >= S.FILES_MAX then return false end
+  def = { key = "file:" .. path, file = path:match("([^/]+)$") or path, label = label or path, custom = path }
+  files[path], fileCount = def, fileCount + 1
+  startLoading(def)
+  return true
+end
+
+-- Plays a player's file at the volume of `levelKey`'s alert (buff_expiring / debuff_landed). Returns S.Play's answer;
+-- false while it loads or when it couldn't (the caller plays the usual sound).
+function S.PlayFile(path, levelKey)
+  if not files[path] then
+    S.UseFile(path)
+    return false, { reason = "notLoaded" }
+  end
+  return S.Play("file:" .. path, levelKey)
+end
+
+function S.FileStatus(path)
+  local def = files[path]
+  return def and S.Status(def.key) or "missing"
 end
 
 function S.GetLevel(key)
@@ -173,8 +249,8 @@ end
 
 -- The volume a sound plays at (0..100 for the game): the alert volume x its own level, twice that for a file of
 -- the player's (the shipped ones were made twice as loud), at most 100.
-function S.EffectiveVolume(key)
-  local v = prefs.volume * S.GetLevel(key) / 100
+function S.EffectiveVolume(key, levelKey)
+  local v = prefs.volume * S.GetLevel(levelKey or key) / 100
   local st = state[key]
   local def = defFor(key)
   if st and st.path and def and st.path ~= "toolbox/" .. def.file then v = v * 2 end
@@ -198,11 +274,11 @@ local function findClip(st, def)
   return nil
 end
 
-function S.Play(key)
+function S.Play(key, levelKey)
   local st = state[key]
   if not st or st.status ~= "ready" then return false, { reason = "notLoaded" } end
   if prefs.volume <= 0 then return false, { reason = "muted" } end
-  local volume = S.EffectiveVolume(key)
+  local volume = S.EffectiveVolume(key, levelKey)
   if volume <= 0 then return false, { reason = "soundMuted" } end
   local index, name = findClip(st, defFor(key))
   if not index then
@@ -310,7 +386,10 @@ function S.DebugLines()
   local names = listSounds()
   lines[#lines + 1] = "Loaded clips (all add-ons): " .. #names
     .. (#names > 0 and (": " .. table.concat(names, ", ")) or "")
-  for _, def in ipairs(S.DEFS) do
+  local all = {}
+  for _, def in ipairs(S.DEFS) do all[#all + 1] = def end
+  for _, def in pairs(files) do all[#all + 1] = def end
+  for _, def in ipairs(all) do
     local st = state[def.key] or {}
     lines[#lines + 1] = string.format("%s: status %s, path %s, recorded clip %s (%s), tried %s of %s",
       def.label, tostring(st.status), tostring(st.path), tostring(st.clip), type(st.clip),
