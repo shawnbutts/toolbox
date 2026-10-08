@@ -564,7 +564,9 @@ crafting planner (ingredient choices for slot categories, item stats, language-i
 that counts containers, the recipe book in one call, the station a recipe needs), and **19**, the saved "/" data
 loss (Toolbox is protected: never saves a "/"). **20** (submitted 2026-10-08): add-on markers on the region map and minimap (an
 icon, a label and a hover note per marker, scene-scoped, display only, rate-limited, local); until then a run's spot
-uses the shared beacon on a click (`DD.MarkRun`). Everything reported is fixed: the API 25 client issues, and
+uses the shared beacon on a click (`DD.MarkRun`). **21** (submitted 2026-10-08): a negative number in saved vars
+makes the loader refuse the whole file ("Unexpected token : '-'"), which the next save then overwrites, like 19
+(Toolbox is protected: `T.SetSavedVar` and the "%N" numbers above). Everything reported is fixed: the API 25 client issues, and
 (work log 2026-09-30, `ac63e8c01b`, **API 26**, in the next client build, not yet in the owner's) the party
 ones (`tmp/client-issues.md` 14, 15): the slot getters reach the whole party (slot 0 = you, then party-frame
 order, so `for slot = 0, count - 1` finds everyone, buffs included), `ShroudGetPartyMemberNamesInScene()`
