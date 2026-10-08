@@ -671,6 +671,9 @@ Rules learned the hard way; keep to them.
 - **1.6.0 work** (confirmed 2026-10-08): the Loot Tracker's Runs view and chart, the game's health bars back while a
   combat-only Toolbelt hides, don't repeat, the merged several-effect tooltips, effect names from the tooltip's first
   line, and the setups' confirmations and sharing.
+- **Window positions** (confirmed 2026-10-08): XP Detailed dragged partly past the left edge saved no negative number
+  (`window` in the character file), so 1.6.0 doesn't save a negative position; no 1.6.1 (owner). Today's saves
+  encode one anyway.
 - **Louder sounds** (confirmed 2026-10-07): the +7.5 dB .ogg files, the halved saved volume and the per-sound
   volume sliders work in game.
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
