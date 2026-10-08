@@ -425,8 +425,21 @@ function BB.PlainLabel(label, fallback)
   return label ~= "" and label or fallback
 end
 
+-- The name to show: the tooltip's first line, the buff's own name ("Blessing of Atos"); else the game's
+-- description, which for a rune with several effects is its first effect's benefit ("+5 Health"; 2026-10-08),
+-- and the same for other buffs giving it; else `fallback`.
 local function plainLabel(index, fallback)
+  local title = BB.PlainLabel(ShroudGetBuffTooltip(index), nil)
+  if title and not BB.IsTimeLine(title) then return title end
   return BB.PlainLabel(ShroudGetBuffDescription(index), fallback)
+end
+
+-- What the player's name parts (grouping, the consumables' rules) are matched against: the name shown and the
+-- description, so a part chosen from either still matches.
+local function matchLabel(index, fallback)
+  local title = plainLabel(index, fallback)
+  local desc = BB.PlainLabel(ShroudGetBuffDescription(index), nil)
+  return (desc and desc ~= title) and (title .. "\n" .. desc) or title
 end
 
 -- The "group after" limit in use, in seconds (0 = off). This is where a game setting would come
@@ -438,12 +451,22 @@ function BB.GroupAfter()
 end
 
 -- A buff's display name, remembered by rune name (it doesn't change; read once, not twice a second).
-local labels = {}
+local labels, matchLabels = {}, {}
 function labelFor(e)
   local l = labels[e.name]
   if not l then
     l = plainLabel(e.index, e.name)
     labels[e.name] = l
+  end
+  return l
+end
+
+-- matchLabel, remembered the same way.
+local function matchFor(e)
+  local l = matchLabels[e.name]
+  if not l then
+    l = matchLabel(e.index, e.name)
+    matchLabels[e.name] = l
   end
   return l
 end
@@ -456,7 +479,7 @@ local function isGrouped(e)
   if rune and rune.category and prefs.groupCats and prefs.groupCats[rune.category] then return true end
   local g = groupedCache[e.name]
   if g == nil then
-    g = BB.Grouped(e.name, plainLabel(e.index, e.name), prefs.group)
+    g = BB.Grouped(e.name, matchFor(e), prefs.group)
     groupedCache[e.name] = g
   end
   return g
@@ -534,7 +557,10 @@ function BB.OnBuffsChanged(from)
   if BB.changes[from] then BB.changes[from] = BB.changes[from] + 1 end
   local list = playerRunes()
   local remainingByName = {}
-  for _, e in ipairs(readEffects()) do remainingByName[e.name] = e.remaining end
+  for _, e in ipairs(readEffects()) do
+    remainingByName[e.name] = e.remaining
+    labelFor(e)                                      -- every effect's shown name known (BB.ShownName)
+  end
   runes = {}
   local now = {}
   for _, rune in ipairs(list) do
@@ -1653,6 +1679,13 @@ function BB.Init()
         if type(n) == "string" and n ~= "" and #prefs.quiet < BB.QUIET_MAX then prefs.quiet[#prefs.quiet + 1] = n end
       end
     end
+    prefs.quietNames = {}
+    if type(saved.quietNames) == "table" then
+      for _, n in ipairs(prefs.quiet or {}) do
+        local shown = saved.quietNames[n]
+        if type(shown) == "string" and shown ~= "" then prefs.quietNames[n] = shown:sub(1, BB.LABEL_MAX) end
+      end
+    end
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
   BB.ReadQuiet()
@@ -1887,6 +1920,57 @@ end
 
 function BB.IsMuted(name) return quiet[name] == true end
 
+-- The name a player knows an effect by: its shown name (the tooltip's first line, BB.plainLabel) when seen
+-- this session or remembered for a muted one, else the rune name.
+function BB.ShownName(name)
+  return labels[name] or (prefs.quietNames and prefs.quietNames[name]) or name
+end
+
+-- { { label, name } } for a dropdown of rune names: the shown name, with the rune name in brackets when two
+-- share a shown name (there may be other "+5 Health" effects). `notes[i]`: added in brackets after it.
+local function namedChoices(names, notes)
+  local count, out = {}, {}
+  for _, n in ipairs(names) do
+    local shown = BB.ShownName(n)
+    count[shown] = (count[shown] or 0) + 1
+  end
+  for i, n in ipairs(names) do
+    local shown = BB.ShownName(n)
+    if count[shown] > 1 and shown ~= n then shown = shown .. " [" .. n .. "]" end
+    out[i] = { label = shown .. ((notes and notes[i]) and (" (" .. notes[i] .. ")") or ""), name = n }
+  end
+  return out
+end
+
+-- An effect typed by name (any case), for Mute (`muted` false) or Unmute (true): a rune name, or the shown
+-- name of one seen this session (to mute) or muted (to unmute). Returns the rune name, or nil and why when
+-- the shown name is several effects'. A name matching nothing comes back as typed.
+function BB.ResolveEffect(text, muted)
+  if type(text) ~= "string" then return nil, "Pick an effect first." end
+  text = T.Trim(text)
+  local want, found = text:lower(), {}
+  for n in pairs(quiet) do if n:lower() == want then return n end end
+  if not muted and ((runes and runes[text]) or (learned and learned[text])) then return text end
+  if muted then
+    for n in pairs(quiet) do if BB.ShownName(n):lower() == want then found[#found + 1] = n end end
+  else
+    for n, l in pairs(labels) do if l:lower() == want and not quiet[n] then found[#found + 1] = n end end
+  end
+  if #found > 1 then
+    table.sort(found)
+    return nil, "'" .. text .. "' is the name of several effects; use the name in brackets: "
+      .. table.concat(found, ", ") .. "."
+  end
+  return found[1] or text
+end
+
+-- The muted ones for a dropdown, A-Z by what is shown: { { label, name } }.
+function BB.MutedChoices()
+  local names = BB.MutedList()
+  table.sort(names, function(a, b) return BB.ShownName(a):lower() < BB.ShownName(b):lower() end)
+  return namedChoices(names)
+end
+
 -- The muted names, A-Z (a copy).
 function BB.MutedList()
   local out = {}
@@ -1909,11 +1993,11 @@ end
 -- What the "Mute an effect" dropdown offers, muted ones left out: { { label, name } }, recent alerts first
 -- ("(alerted)"), then what's on you now ("(on you)"), then the rest A-Z.
 function BB.QuietChoices()
-  local out, taken = {}, {}
+  local names, notes, taken = {}, {}, {}
   local function add(name, note)
-    if type(name) ~= "string" or name == "" or taken[name] or quiet[name] or #out >= BB.CHOICES_MAX then return end
+    if type(name) ~= "string" or name == "" or taken[name] or quiet[name] or #names >= BB.CHOICES_MAX then return end
     taken[name] = true
-    out[#out + 1] = { label = name .. (note and (" (" .. note .. ")") or ""), name = name }
+    names[#names + 1], notes[#names + 1] = name, note
   end
   for _, n in ipairs(BB.recent or {}) do add(n, "alerted") end
   local now = {}
@@ -1924,34 +2008,43 @@ function BB.QuietChoices()
   for n in pairs(learned or {}) do seen[#seen + 1] = n end
   table.sort(seen, function(a, b) return a:lower() < b:lower() end)
   for _, n in ipairs(seen) do add(n, nil) end
-  return out
+  return namedChoices(names, notes)
 end
 
 -- Mutes / unmutes an exact name. Returns true and a message, or false and why.
 function BB.Mute(name)
   if type(name) ~= "string" or T.Trim(name) == "" then return false, "Pick an effect first." end
-  name = T.Trim(name)
-  if quiet[name] then return false, "'" .. name .. "' is already muted." end
+  local why = nil
+  name, why = BB.ResolveEffect(name, false)
+  if not name then return false, why end
+  local shown = BB.ShownName(name)
+  if quiet[name] then return false, "'" .. shown .. "' is already muted." end
   prefs.quiet = prefs.quiet or {}
   if #prefs.quiet >= BB.QUIET_MAX then return false, "At most " .. BB.QUIET_MAX .. " muted; unmute one first." end
   prefs.quiet[#prefs.quiet + 1] = name
+  prefs.quietNames = prefs.quietNames or {}
+  if shown ~= name then prefs.quietNames[name] = shown end
   BB.ReadQuiet()
   savePrefs()
   T.Config.Sync()
-  return true, "'" .. name .. "' is muted: no expiry or debuff sound for it (its icon still flashes)."
+  return true, "'" .. shown .. "' is muted: no expiry or debuff sound for it (its icon still flashes)."
 end
 
 function BB.Unmute(name)
-  local kept, found = {}, nil
+  local kept, found, why = {}, nil, nil
+  name, why = BB.ResolveEffect(name, true)
+  if not name then return false, why end
   for _, n in ipairs(prefs.quiet or {}) do
-    if type(name) == "string" and n:lower() == T.Trim(name):lower() then found = n else kept[#kept + 1] = n end
+    if type(name) == "string" and n:lower() == name:lower() then found = n else kept[#kept + 1] = n end
   end
   if not found then return false, "'" .. tostring(name) .. "' isn't muted." end
+  local shown = BB.ShownName(found)
   prefs.quiet = kept
+  if prefs.quietNames then prefs.quietNames[found] = nil end
   BB.ReadQuiet()
   savePrefs()
   T.Config.Sync()
-  return true, "'" .. found .. "' sounds again."
+  return true, "'" .. shown .. "' sounds again."
 end
 
 function BB.GetGroupAfter() return prefs.groupAfter or BB.GROUP_AFTER_DEFAULT end
@@ -2464,7 +2557,7 @@ function K.Takes(e)
   local take = kCache[e.name]
   if take == nil then
     local rune = runes[e.name] or NOTHING
-    take = BB.TakesConsumable(e.name, labelFor(e), rune.category, rune.debuff == true, kprefs.cats,
+    take = BB.TakesConsumable(e.name, matchFor(e), rune.category, rune.debuff == true, kprefs.cats,
       kprefs.exclude, kprefs.extra)
     kCache[e.name] = take
   end
@@ -2642,7 +2735,7 @@ function K.Current()
   local out = {}
   for _, e in ipairs(readEffects()) do
     local rune = runes[e.name] or NOTHING
-    if BB.TakesConsumable(e.name, labelFor(e), rune.category, rune.debuff == true, kprefs.cats, kprefs.exclude,
+    if BB.TakesConsumable(e.name, matchFor(e), rune.category, rune.debuff == true, kprefs.cats, kprefs.exclude,
         kprefs.extra) then
       out[#out + 1] = { label = labelFor(e), name = e.name, category = rune.category or "by name",
                         remaining = e.remaining }

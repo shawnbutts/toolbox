@@ -384,7 +384,7 @@ character" sentinel.
 | `daily_window` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, compact = bool, hx, hy }` |
 | `daily_detail` | `{ open = bool, x = number, y = number, values = bool, each = bool (the price each in the count: "40 x 5g"; default true), view = "looted"/"crafted"/"gathered", include = bool }` |
 | `buffblock` | `{ show = bool (default false), width = 1..30 (icons a row, default 10), size = 20..48, combatOnly = bool, x, y }` |
-| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, flash, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), groupCats = { [category] = true }, countdown = bool, countdownSecs = 5..120, group = { name parts }, quiet = { exact effect names, <= BB.QUIET_MAX } (muted: no expiry / debuff sound), repeatQuiet = a BB.REPEAT_CHOICES value (seconds, 0 = off: an alert within that long of the same effect's last one, counted per alert kind, is quiet: `BB.Repeats`), replaceStock, clickDismiss, combatOnly, x, y }` |
+| `buffbar` | `{ show, size = 20..48, expire, expireSeconds = 1..60, debuff, flash, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), groupCats = { [category] = true }, countdown = bool, countdownSecs = 5..120, group = { name parts }, quiet = { exact effect names, <= BB.QUIET_MAX } (muted: no expiry / debuff sound), quietNames = { [muted rune name] = its shown name } (for the lists when it isn't on you), repeatQuiet = a BB.REPEAT_CHOICES value (seconds, 0 = off: an alert within that long of the same effect's last one, counted per alert kind, is quiet: `BB.Repeats`), replaceStock, clickDismiss, combatOnly, x, y }` |
 | `sounds` | `{ v = 2, volume = 0..100, paths = { [sound key] = "..." }, levels = { [sound key] = 0..100 } (unset: 100) }`; a volume without `v = 2` is from before the louder sounds (2026-10-07) and is halved once (`S.Init`). Played at volume x level / 100, twice that for a player's own file (`S.EffectiveVolume`), at most 100 |
 | `buff_timers` | `{ v = 3, timers = { [rune name] = { total, remaining, at = T.Now() } } }`: trusted totals, for a reload |
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts |
@@ -586,6 +586,9 @@ Rules learned the hard way; keep to them.
   crit damage reduction for 24 h): each effect takes its own place in the flat list, and each place's
   `ShroudGetBuffTooltip` names only its own benefit ("Blessing of Atos / You / +5 Focus / 71:58:42"). One icon per
   rune, so `BB.EffectTooltip` merges them (the target's too); `/toolbox buffs tips [name]` prints each place.
+  `ShroudGetBuffDescription` is the first place's benefit ("+5 Health"), so the name shown (`plainLabel`) is the
+  tooltip's first line, the description only as a fallback; players' name parts match both (`matchFor`); muted
+  effects stay keyed by rune name, shown by name (`BB.ShownName`, the rune name in brackets for two alike).
 - **Categories (API 23):** Food (`RuneFood_*`), Potion (Obsidian `BlessingOf*`), Blessing (`POT_Blessing_*`,
   `Rune_Reward_Blessing_Shrine_*`: shrine blessings, not potions), Other (Stillness, MoonlightWatch).
 - **Vitals:** `ShroudGetPlayerVitals` gives health, focus and their maximums; `health` can read a hair above

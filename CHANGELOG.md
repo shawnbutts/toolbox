@@ -12,6 +12,11 @@ ones included).
   like the old 100% and there's room to go louder. Your volume setting was halved once to match, so nothing
   sounds different until you turn it up; with the default, sounds are twice as loud. Your own sound files
   can't be made louder, so they play at twice the setting and sound as they did.
+- Effects go by their own name, the first line of their tooltip ("Blessing of Atos"), where Toolbox used the
+  game's description, which for a buff with several effects is one benefit ("+5 Health"): in the muted effects,
+  the list on a grouped icon, the short tooltips and the debug lines. Two effects with the same name show their
+  internal name in brackets, and `/toolbox buffs quiet add` takes either. Names you group by still match the old
+  ones too.
 
 ### Added
 - A volume for each sound (settings, Sounds: under each one), a share of the alert volume; 0 silences just

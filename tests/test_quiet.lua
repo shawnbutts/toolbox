@@ -54,6 +54,44 @@ return function(t)
     t.eq(choices(), "Stillness (on you), Light", "muted ones aren't offered")
   end)
 
+  t.test("muted effects go by their shown name (the blessing's), the rune name only to tell two apart", function()
+    bootWithSounds()
+    H.addBuffs({ { name = "Reward_Blessing_CastleAtos4_7", label = "+5 Health", remaining = 600,
+                   tooltip = "Blessing of Atos\nYou\n+5 Health\n10:00" },
+                 { name = "Reward_Blessing_CastleAtos4_7", label = "+5 Health", remaining = 600,
+                   tooltip = "Blessing of Atos\nYou\n+5 Focus\n10:00" },
+                 { name = "Shrine_Atos", label = "+1 Health", remaining = 600,
+                   tooltip = "Blessing of Atos\nYou\n+1 Health\n10:00" },
+                 { name = "Stillness", remaining = 600 } })
+    H.advance(1)
+    t.eq(choices(), "Blessing of Atos [Reward_Blessing_CastleAtos4_7] (on you), Blessing of Atos [Shrine_Atos] "
+      .. "(on you), Stillness (on you)", choices())
+    H.chat("/tbx config")
+    local w = H.config()
+    H.change("toolbox_config", "quiet_pick", "Blessing of Atos [Shrine_Atos] (on you)")
+    H.click("toolbox_config", "quiet_mute")
+    t.ok(B().IsMuted("Shrine_Atos"), "the rune name is what is muted")
+    t.ok(w:Find("quiet_msg").text:find("'Blessing of Atos' is muted", 1, true), w:Find("quiet_msg").text)
+    t.eq(w:Find("quiet_list").value, "Blessing of Atos")
+    H.clearLogs()
+    H.chat("/tbx buffs quiet add blessing of atos")    -- typed: the one not muted yet
+    t.ok(B().IsMuted("Reward_Blessing_CastleAtos4_7"), H.logs())
+    H.chat("/tbx buffs quiet")
+    t.ok(H.logged("^Muted %(no sound%): Blessing of Atos %[Reward_Blessing_CastleAtos4_7%], "
+      .. "Blessing of Atos %[Shrine_Atos%]%.$"), H.logs())
+    H.reload()                                          -- not on you any more: their shown names were kept
+    H.clearLogs()
+    H.chat("/tbx buffs quiet remove Blessing of Atos")
+    t.ok(H.logged("is the name of several effects; use the name in brackets: Reward_Blessing_CastleAtos4_7, "
+      .. "Shrine_Atos%.$"), H.logs())
+    H.chat("/tbx buffs quiet remove shrine_atos")
+    t.ok(H.logged("'Blessing of Atos' sounds again%."), H.logs())
+    t.no(B().IsMuted("Shrine_Atos"))
+    t.ok(B().IsMuted("Reward_Blessing_CastleAtos4_7"))
+    H.chat("/tbx buffs quiet remove Blessing of Atos")   -- now only one muted by that name
+    t.no(B().IsMuted("Reward_Blessing_CastleAtos4_7"))
+  end)
+
   t.test("settings: pick and Mute, pick and Unmute; kept across a reload", function()
     bootWithSounds()
     H.addBuffs({ { name = "Bleed", remaining = 20, debuff = true } })

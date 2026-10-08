@@ -546,7 +546,7 @@ local function install_api()
   ShroudGetBuffTooltip = function(i)
     local e = effect(i)
     if not e then return "" end
-    return e.tooltip or (e.name .. "\n" .. math.floor(e.remaining or 0) .. "s")
+    return e.tooltip or ((e.label or e.name) .. "\n" .. math.floor(e.remaining or 0) .. "s")   -- its name first
   end
   ShroudGetPlayerBuff = function()
     if not S.char.present then return nil end

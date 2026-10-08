@@ -69,7 +69,8 @@ return function(t)
 
   t.test("short tooltips: name, debuff and the time left to the minute", function()
     settled()
-    buffs(1, { { name = "Bane", remaining = 125, icon = 40, debuff = true, tooltip = string.rep("Long text. ", 40) } })
+    buffs(1, { { name = "Bane", remaining = 125, icon = 40, debuff = true,
+                 tooltip = "Bane\n" .. string.rep("Long text. ", 40) } })
     H.chat("/tbx buffs block on")
     H.advance(1)
     local r = rows()[1]

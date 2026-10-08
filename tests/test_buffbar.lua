@@ -1534,13 +1534,27 @@ return function(t)
     t.no(BB.IsTimeLine(""))
   end)
 
-  t.test("/tbx buffs tips finds an effect by its tooltip's first line", function()
+  t.test("a buff's name is its tooltip's first line, not the description (a benefit for a multi-effect rune)",
+      function()
     H.boot()
+    H.chat("/tbx buffs")
+    H.chat("/tbx buffs group after off")
     H.addBuffs(atos())
+    H.advance(1)
+    t.eq(H.slots("buffs")[1].children[1].tooltip, ATOS_TIP, "not grouped yet")
     H.clearLogs()
-    H.chat("/tbx buffs tips blessing of atos")
-    t.ok(H.logged("^%+5 Health %[Reward_Blessing_CastleAtos4_7%]: 3 place%(s%) in the list"))
+    H.chat("/tbx buffs tips atos")
+    t.ok(H.logged("^Blessing of Atos %[Reward_Blessing_CastleAtos4_7%]: 3 place%(s%) in the list"))
     t.ok(H.logged("^    | %+5 Focus$"))
+    H.clearLogs()
+    H.chat("/tbx buffs debug")
+    t.ok(H.logged("^Blessing of Atos %[Reward_Blessing_CastleAtos4_7%]: "))
+    -- name parts match the name shown and the description: a part chosen from either still groups it
+    H.chat("/tbx buffs group add 5 health")
+    H.advance(1)
+    local tip = H.slots("buffs")[1].children[1].tooltip
+    t.ok(tip ~= ATOS_TIP and tip:find("Blessing of Atos", 1, true), "grouped by the old name (the description), "
+      .. "and the group's list names it: " .. tip)
   end)
 
   t.test("PlainLabel: colour codes out, first line only, capped", function()

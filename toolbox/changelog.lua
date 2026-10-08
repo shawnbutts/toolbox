@@ -7,6 +7,7 @@ Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "section", "Changed" },
   { "item", "Louder sounds: every sound Toolbox ships is now about twice as loud (some found 100% too quiet), so 50% sounds like the old 100% and there's room to go louder. Your volume setting was halved once to match, so nothing sounds different until you turn it up; with the default, sounds are twice as loud. Your own sound files can't be made louder, so they play at twice the setting and sound as they did." },
+  { "item", "Effects go by their own name, the first line of their tooltip (\"Blessing of Atos\"), where Toolbox used the game's description, which for a buff with several effects is one benefit (\"+5 Health\"): in the muted effects, the list on a grouped icon, the short tooltips and the debug lines. Two effects with the same name show their internal name in brackets, and /toolbox buffs quiet add takes either. Names you group by still match the old ones too." },
   { "section", "Added" },
   { "item", "A volume for each sound (settings, Sounds: under each one), a share of the alert volume; 0 silences just that sound." },
   { "item", "Don't repeat a sound for the same effect within 30 seconds to 10 minutes (settings, Buffs; off at first): a buff you keep recasting or a debuff that lands all fight sounds once, not every time. Each alert starts the time again, so it sounds again once the effect has stayed away that long. Its icon still flashes. Also /toolbox buffs repeat." },

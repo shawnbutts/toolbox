@@ -895,12 +895,17 @@ add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off;
       T.Print(msg)
       return
     end
-    local muted = B.MutedList()
+    local function named(n)                    -- "Blessing of Atos [Reward_Blessing_CastleAtos4_7]"
+      local shown = B.ShownName(n)
+      return shown ~= n and (shown .. " [" .. n .. "]") or n
+    end
+    local muted = {}
+    for _, n in ipairs(B.MutedList()) do muted[#muted + 1] = named(n) end
     T.Print("Muted (no sound): " .. (#muted > 0 and table.concat(muted, ", ") or "none") .. ".")
     local recent = {}
-    for _, n in ipairs(B.recent) do if not B.IsMuted(n) then recent[#recent + 1] = n end end
+    for _, n in ipairs(B.recent) do if not B.IsMuted(n) then recent[#recent + 1] = named(n) end end
     T.Print("Recent alerts: " .. (#recent > 0 and table.concat(recent, ", ") or "none yet") .. ".")
-    T.Print(c .. " add <name> mutes one (the exact name, as above); " .. c .. " remove <name> unmutes it.")
+    T.Print(c .. " add <name> mutes one (either name, as above); " .. c .. " remove <name> unmutes it.")
     return
   end
   if word == "group" then

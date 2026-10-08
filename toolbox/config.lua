@@ -893,6 +893,7 @@ end
 C.QUIET_NONE = "Nothing to pick yet"
 C.MUTED_NONE = "None muted"
 local quietPicks = {}                -- dropdown label -> effect name
+local mutedPicks = {}                -- the muted list's label -> effect name
 
 -- Refills both dropdowns when what they'd offer changed (SetChoices is a UI call; only then). From Sync and,
 -- while the window shows, SyncLive (alerts and effects come and go).
@@ -902,12 +903,15 @@ local function syncQuiet()
   local choices = T.BuffBar.QuietChoices()
   local labels = {}
   for i, c in ipairs(choices) do labels[i] = c.label end
-  local list = T.BuffBar.MutedList()
+  local list = {}
+  local mchoices = T.BuffBar.MutedChoices()
+  for i, c in ipairs(mchoices) do list[i] = c.label end
   local sig = table.concat(labels, "|") .. "||" .. table.concat(list, "|")
   if sig == C.quietSig then return end
   C.quietSig = sig
-  quietPicks = {}
+  quietPicks, mutedPicks = {}, {}
   for _, c in ipairs(choices) do quietPicks[c.label] = c.name end
+  for _, c in ipairs(mchoices) do mutedPicks[c.label] = c.name end
   local keep = pick:GetValue()
   local shown = #labels > 0 and labels or { C.QUIET_NONE }
   pick:SetChoices(shown)
@@ -931,8 +935,7 @@ end
 
 function C.UnmutePicked()
   local drop = el.quiet_list
-  local name = drop and drop:GetValue()
-  if name == C.MUTED_NONE then name = nil end
+  local name = drop and mutedPicks[drop:GetValue()]
   local _, msg = T.BuffBar.Unmute(name)
   setText("quiet_msg", msg or "")
 end
