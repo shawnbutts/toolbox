@@ -715,9 +715,16 @@ add("loot", "show or hide the Loot Tracker (every item gained today, with counts
     .. " back to the whole day; view looted|crafted|"
     .. "gathered|runs; include on|off: crafted and gathered items in Looted; values on|off: estimated values from"
     .. " SotANET; values each on|off: the price each in the count; values test [item]: check the connection;"
-    .. " values refresh: look prices up again)", function(rest)
+    .. " values refresh: look prices up again; log: the last item events as the game sent them)", function(rest)
   local word, arg = T.ParseArgs(rest)
   local DD = T.DailyDetail
+  if word == "log" then
+    local lines = T.Daily.ItemLogLines()
+    T.Print(#lines > 0 and ("The last " .. #lines .. " item events (each line is one call from the game):")
+      or "No items gained since Toolbox started.")
+    for _, line in ipairs(lines) do T.Print("  " .. line) end
+    return
+  end
   if word == "reset" then
     T.Print(DD.ResetRun() and ("The Loot Tracker counts from now. The Today window keeps the whole day; /"
       .. T.commands[1] .. " loot today brings it back here too.") or "Nothing to reset yet: no character data.")

@@ -300,4 +300,23 @@ return function(t)
     H.advance(1)
     t.eq(H.dailyText("skills"), "1")
   end)
+
+  -- Owner, 2026-10-08: 2 sharks counted as 4. The log shows what the game sent, one line a call.
+  t.test("loot log: the last item events as the game sent them, at most 20", function()
+    H.boot()
+    H.clearLogs()
+    H.chat("/tbx loot log")
+    t.ok(H.logged("No items gained since Toolbox started"), H.lastLog())
+    H.items({ { "Shark", 1 } })
+    H.advance(1)
+    H.items({ { "Shark", 1 }, { "Iron Ore", 3 } }, 2)
+    H.clearLogs()
+    H.chat("/tbx loot log")
+    t.ok(H.logged("The last 2 item events"), H.logs())
+    t.ok(H.logged("^  .*: Shark x1$"), H.logs())
+    t.ok(H.logged("^  .*: Shark x1, Iron Ore x3, %(2 more kinds%)$"), H.logs())
+    for _ = 1, 25 do H.items({ { "Bone", 1 } }) end
+    t.eq(#Toolbox.Daily.ItemLogLines(), Toolbox.Daily.ITEM_LOG_MAX)
+  end)
 end
+

@@ -888,7 +888,36 @@ function D.OnDeath(isDead)
   end
 end
 
+-- The latest item events as the game sent them, for /toolbox loot log (owner, 2026-10-08: 2 sharks counted as 4).
+-- Memory only, at most D.ITEM_LOG_MAX, newest last: { at = "HH:MM (game seconds)", text, station }.
+D.ITEM_LOG_MAX = 20
+D.itemLog = {}
+
+function D.NoteItems(items, dropped)
+  local parts = {}
+  for _, item in ipairs(T.List(items)) do
+    local name, qty = T.Field(item, "name"), T.Field(item, "quantity")
+    if type(name) == "string" then parts[#parts + 1] = name .. " x" .. tostring(qty) end
+  end
+  if type(dropped) == "number" and dropped > 0 then parts[#parts + 1] = "(" .. dropped .. " more kinds)" end
+  if #parts == 0 then parts[1] = "(empty)" end
+  local log = D.itemLog
+  local clock = T.ClockText()
+  log[#log + 1] = { at = (clock ~= "" and (clock .. " ") or "") .. string.format("(%.1f s)", T.Now()),
+    text = table.concat(parts, ", "), station = D.stationOpen == true }
+  while #log > D.ITEM_LOG_MAX do table.remove(log, 1) end
+end
+
+function D.ItemLogLines()
+  local lines = {}
+  for _, e in ipairs(D.itemLog) do
+    lines[#lines + 1] = e.at .. ": " .. e.text .. (e.station and " (a crafting window open)" or "")
+  end
+  return lines
+end
+
 function D.OnItems(items, dropped)
+  pcall(D.NoteItems, items, dropped)
   if D.day and D.AddItems(D.day, items, dropped, D.stationOpen) then changed() end
 end
 
