@@ -604,3 +604,208 @@ function Hud.TextStrip(spec)
     mover.Reset
   return strip
 end
+
+-- ---------------------------------------------------------------------------
+-- The location strip (Toolbox.Location; owner, 2026-10-08): where your character is, on a strip of its own: the
+-- scene, the position in whole numbers (x, y, z, as /loc gives them) and, optionally, which way you face (the
+-- HUD compass's heading, API 10). Read every LOC.TICK s while it shows; a label is set only when its text
+-- changes. Hovering shows /loc's whole line (API 29; else the scene and the position to two decimals). Its width
+-- follows the scene's name (the strip is refitted when the scene changes), so the numbers don't make it jump.
+-- Saved var "location": { show = bool (default false), facing = bool (default true), x, y }.
+-- ---------------------------------------------------------------------------
+local LOC = { FRAME_ID = "toolbox_location", HOME = { 600, 40 }, PAGE = "Location" }
+Toolbox.Location = LOC
+LOC.TICK = 0.5
+LOC.POINTS = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" }
+LOC.CHAR_W = 0.6                      -- a character's width, as a share of the text size
+LOC.MIN_CHARS = 19                    -- "-12345, 123, -12345"
+local LOC_PERIODIC = "toolbox_location"
+local locPrefs = { show = false, facing = true }
+local locEl = {}                      -- column, scene, coords, facing (empty until built)
+local locScene = ""                   -- the scene the width is fitted to
+local locLast = {}                    -- the last rounded reading: x, y, z, heading
+
+local function locSave()
+  T.Save("location", locPrefs)
+  if T.Config then T.Config.Sync() end
+end
+
+-- The scene's name ("" while loading), the position (nil when unknown) and the compass heading (nil without).
+function LOC.Read()
+  local okS, scene = pcall(ShroudGetCurrentSceneName)
+  if not okS or type(scene) ~= "string" then scene = "" end
+  local x, y, z = ShroudPlayerX, ShroudPlayerY, ShroudPlayerZ
+  if type(x) ~= "number" or type(y) ~= "number" or type(z) ~= "number" or x ~= x or y ~= y or z ~= z then
+    x, y, z = nil, nil, nil
+  end
+  local heading = nil
+  if type(ShroudGetPlayerCompassHeading) == "function" then
+    local okH, h = pcall(ShroudGetPlayerCompassHeading)
+    if okH and type(h) == "number" and h == h then heading = h end
+  end
+  return scene, x, y, z, heading
+end
+
+-- "2014, 30, -3015"
+function LOC.CoordsText(x, y, z)
+  if not x then return "--" end
+  return string.format("%d, %d, %d", math.floor(x + 0.5), math.floor(y + 0.5), math.floor(z + 0.5))
+end
+
+-- "Facing NE (45)", or "" without a heading.
+function LOC.FacingText(deg)
+  if type(deg) ~= "number" then return "" end
+  local d = math.floor(deg + 0.5) % 360
+  return "Facing " .. LOC.POINTS[math.floor((d + 22.5) / 45) % 8 + 1] .. " (" .. d .. ")"
+end
+
+-- The hover text: /loc's line (API 29), else the scene and the position.
+function LOC.LocLine(scene, x, y, z)
+  if type(ShroudGetLocationText) == "function" then
+    local ok, line = pcall(ShroudGetLocationText)
+    if ok and type(line) == "string" and line ~= "" then return line end
+  end
+  if not x then return scene end
+  return scene .. " (" .. string.format("%.2f, %.2f, %.2f", x, y, z) .. ")"
+end
+
+local function locWidth()
+  return math.ceil(math.max(LOC.MIN_CHARS, #locScene) * T.Window.GetFont() * LOC.CHAR_W)
+end
+
+local function locStyle()
+  return T.Window.TextStyle{ width = locWidth(), marginLeft = 0, marginRight = 0, paddingLeft = 0,
+    paddingRight = 0, whiteSpace = "nowrap" }
+end
+
+function LOC.Wanted() return locPrefs.show == true end
+function LOC.IsShown() return locPrefs.show == true end
+function LOC.Unbuilt() locEl, locLast = {}, {} end
+
+function LOC.ContentSize()
+  return locWidth() + 2 * Hud.STRIP_PAD, (locPrefs.facing and 3 or 2) * T.Window.LineHeight() + 2 * Hud.STRIP_PAD
+end
+
+function LOC.BuildContent()
+  locScene = LOC.Read()
+  local pad = Hud.STRIP_PAD
+  local built = {
+    scene = UI.Label{ id = "loc_scene", text = locScene, class = "title", style = locStyle() },
+    coords = UI.Label{ id = "loc_coords", text = "", class = "text", style = locStyle() },
+    facing = UI.Label{ id = "loc_facing", text = "", class = "text", visible = locPrefs.facing == true,
+      style = locStyle() },
+  }
+  built.column = UI.Column{ id = "loc_strip", class = "inset", tooltip = "",
+    style = { paddingLeft = pad, paddingRight = pad, paddingTop = pad, paddingBottom = pad,
+              marginLeft = 0, marginRight = 0, marginTop = 0, marginBottom = 0 },
+    children = { built.scene, built.coords, built.facing } }
+  locEl, locLast = built, {}
+  return built.column
+end
+
+-- Every LOC.TICK s: the labels, set only when what they show changed.
+function LOC.Update()
+  if not (locPrefs.show and locEl.column) then return end
+  local scene, x, y, z, heading = LOC.Read()
+  if scene ~= locScene then
+    locScene = scene
+    for _, key in ipairs({ "scene", "coords", "facing" }) do T.SetStyle(locEl[key], locStyle()) end
+    Hud.Refresh()                      -- the strip's width follows the name
+    locLast = {}
+  end
+  T.SetText(locEl.scene, scene ~= "" and scene or "--")
+  local rx, ry, rz = nil, nil, nil
+  if x then rx, ry, rz = math.floor(x + 0.5), math.floor(y + 0.5), math.floor(z + 0.5) end
+  if rx ~= locLast.x or ry ~= locLast.y or rz ~= locLast.z or locLast.x == nil then
+    locLast.x, locLast.y, locLast.z = rx, ry, rz
+    T.SetText(locEl.coords, LOC.CoordsText(x, y, z))
+    T.SetTooltip(locEl.column, LOC.LocLine(scene, x, y, z) .. "\nWhere you are: the scene and your position (x,"
+      .. " height, z). Type /loc for a line to paste in chat.")
+  end
+  local rh = heading and (math.floor(heading + 0.5) % 360) or nil
+  if locPrefs.facing and (rh ~= locLast.h or locLast.hSet == nil) then
+    locLast.h, locLast.hSet = rh, true
+    T.SetText(locEl.facing, LOC.FacingText(heading))
+  end
+end
+
+function LOC.GetShow() return locPrefs.show == true end
+function LOC.SetShow(on)
+  locPrefs.show = on == true
+  locSave()
+  Hud.Build(true)                      -- its frame exists only while it is in use (HUD frames are limited)
+  Hud.Refresh()
+  LOC.Update()
+end
+
+function LOC.GetFacing() return locPrefs.facing ~= false end
+function LOC.SetFacing(on)
+  locPrefs.facing = on == true
+  locSave()
+  if locEl.facing then
+    T.SetVisible(locEl.facing, locPrefs.facing)
+    locLast.hSet = nil
+    Hud.Refresh()
+    LOC.Update()
+  end
+end
+
+-- Follows the text size and line spacing settings (Toolbox.Window.ApplyText).
+function LOC.ApplyText()
+  if not locEl.column then return end
+  for _, key in ipairs({ "scene", "coords", "facing" }) do T.SetStyle(locEl[key], locStyle()) end
+  Hud.Refresh()
+end
+
+function LOC.GetSavedPosition() return locPrefs.x, locPrefs.y end
+function LOC.SavePosition(x, y)
+  if x ~= locPrefs.x or y ~= locPrefs.y then
+    locPrefs.x, locPrefs.y = x, y
+    T.Save("location", locPrefs)
+  end
+end
+
+local locMover = Hud.MoverFor("location", LOC.HOME)
+LOC.GetPosition, LOC.MoveTo, LOC.Nudge, LOC.ResetPosition = locMover.Get, locMover.MoveTo, locMover.Nudge,
+  locMover.Reset
+
+-- Re-runnable (another character's settings): before Toolbox.Hud.Init builds the strips.
+function LOC.Init()
+  local saved = T.ReadSaved("location")
+  locPrefs = { show = false, facing = true }
+  if type(saved) == "table" then
+    locPrefs.show = saved.show == true
+    locPrefs.facing = saved.facing ~= false
+    if type(saved.x) == "number" and type(saved.y) == "number" then locPrefs.x, locPrefs.y = saved.x, saved.y end
+  end
+  locEl, locLast = {}, {}
+  Hud.Register("location", LOC)
+  ShroudRegisterPeriodic(LOC_PERIODIC, LOC.Update, LOC.TICK, true)
+end
+
+-- The strip goes before the target (built last); a reset clears its settings.
+table.insert(Hud.ORDER, #Hud.ORDER, "location")
+Hud.NAMES.location = "location"
+T.Backup.KEYS[#T.Backup.KEYS + 1] = "location"
+
+-- /toolbox location
+T.AddCommand("location", "the location strip: your scene, position and facing (on|off; facing on|off; move [x y])",
+  function(rest)
+    local word, args = T.ParseArgs(rest)
+    word = word:lower()
+    if word == "" then
+      LOC.SetShow(not locPrefs.show)
+    elseif word == "on" or word == "off" then
+      LOC.SetShow(word == "on")
+    elseif word == "facing" and (args:lower() == "on" or args:lower() == "off") then
+      LOC.SetFacing(args:lower() == "on")
+    elseif word == "move" then
+      T.MoveCommand(LOC, "location", "The location strip", args)
+      return
+    else
+      T.Print("Use /" .. T.commands[1] .. " location [on|off], facing on|off or move [x y].")
+      return
+    end
+    T.Print("Location strip: " .. (locPrefs.show and "on" or "off") .. "; facing "
+      .. (LOC.GetFacing() and "shown" or "hidden") .. ".")
+  end)

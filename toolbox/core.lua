@@ -2551,6 +2551,7 @@ local function startModules(places)
   step("the consumables bar", T.Consumables.Init)
   step("the notification HUD", T.Notify.Hud.Init)
   if T.SkillBar then step("the skill activity strip", T.SkillBar.Init) end   -- skills.lua, when present
+  step("the location strip", T.Location.Init)
   step("the HUD strips", function() T.Hud.Init(places) end)  -- builds the HUD strips (glued or not); retries on the cap
   step("the buff bar", T.BuffBar.Tick)
   step("the health bars", T.Vitals.Tick)

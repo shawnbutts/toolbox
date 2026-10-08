@@ -173,7 +173,10 @@ into one if a new file is ever needed).
   makes the next login, the same character's too, read every module's settings again (`T.FollowCharacter`). `Hud.SetOverlay(provider)`:
   one overlay drawn over the Toolbelt (the combat shout). `Hud.Rebuild(key)` rebuilds one
   module's own strip (a setting that changes its elements); a full `Hud.Build()` makes every strip's elements
-  again at once, past the creation cap with a big strip (the buff block's 40 slots).
+  again at once, past the creation cap with a big strip (the buff block's 40 slots). At the end of the file,
+  `Toolbox.Location` (LOC; owner, 2026-10-08): the location strip (scene, position rounded, compass heading from
+  `ShroudGetPlayerCompassHeading`; hover = `ShroudGetLocationText`), its own `LOC.TICK` periodic setting text only
+  on change, its width from the scene name's length (refit on a scene change); controls on the HUD layout page.
 - `buffbar.lua`: `Toolbox.BuffBar` (BB), plus `Toolbox.Consumables` (K), `Toolbox.Gear` (G) and
   `Toolbox.BuffBlock` (MB, end of the file; owner, 2026-10-03).
   - Buff block: its own strip (never in the Toolbelt), every effect sorted by expiry (`BB.Tick` collects them
@@ -342,7 +345,7 @@ into one if a new file is ever needed).
 - **A feature:** pure logic over plain data, API calls at the edges, hooked into `ShroudOnStart` /
   `Toolbox.Tick` / core's callbacks; a `Toolbox.Foo` table; tests; a CHANGELOG `[Unreleased]` entry; the
   guide (`D.SECTIONS`) and both READMEs if players see it.
-- **A HUD strip:** a Hud module (above). There are 11 strips already (25 frames, if the 2026-10-01 raise holds in
+- **A HUD strip:** a Hud module (above). There are 12 strips already (25 frames, if the 2026-10-01 raise holds in
   game; 8 before): still prefer a Toolbelt row.
 - **A window:** there is no slot (see Limits). Use a view of an existing window.
 
@@ -376,7 +379,7 @@ wedge (`SetSweep`, `SetSweepTimer`, refused as in game for a lone duration) read
   `H.S.httpRefuse`, `H.S.saveRefused` / `H.S.refuseKeys` (every saved-var write, or those keys), `H.S.language = { "German", "de" }` / `H.S.noLanguage`
   (the client's language; read at load: set it, then `H.reload()`), `H.S.pos = { x, y, z }` (where you stand,
   `ShroudPlayerX/Y/Z`), `H.S.sceneRaw`, `H.S.beacon` (`ShroudSetBeacon`'s), `H.S.noMap` (the beacon refused),
-  `H.S.noApi29`, `H.S.recipes`, `H.S.showRefused`; `element.laidOut = { w, h }` sets what GetSize reports.
+  `H.S.noApi29`, `H.S.heading` (the compass heading), `H.S.recipes`, `H.S.showRefused`; `element.laidOut = { w, h }` sets what GetSize reports.
 - Reading: `H.logged(pattern)`, `H.logs()`, `H.lastLog()`, `H.saved(key, scope)`, `H.frame()` (buff strip),
   `H.hud()` (glued strip), `H.vitals()`, `H.config()` (all categories built) / `H.configRaw()`, `H.detail()`,
   `H.detailRows()`, `H.daily()`, `H.dailyText(id)`, `H.notify()`, `H.notice(key)`, `H.nhud()`,
@@ -410,6 +413,7 @@ character" sentinel.
 | `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` |
 | `target` | `{ show = bool (default false), glue = bool (default true), place = "top" (default) / "bottom", mirror = bool, effects = "all"/"debuffs"/"none", icons = 1..8 (unset: 8, or 5 mirrored), bars = bool (default true), numbers = bool (default false), bg = "None"/"Dark"/"Light", flash = bool (default false), flashBelow = 1..95, x, y }` (a saved place "left", from beta 7, reads as mirror; bars and numbers both off = just the effect icons, refused with effects "none" too; hidePet = bool (default true): your pet as the target reads as no target, `TG.IsPet`) |
 | `loot_runs` | `{ v = 1, list = { { at = "HH:MM", date = "YYYY-MM-DD", scene, played = s, gold, kills, items, kinds, nodes, value = estimated gold or nil, spot = { scene, raw, x, y, z } or nil } } }`, newest first, at most `D.RUNS_KEEP` (10); stats: a reset keeps it |
+| `location` | `{ show = bool (default false), facing = bool (default true), x, y }` (the location strip, hud.lua) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
 | `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), font = 9..32, spacing = 0..12 (each unset: the XP windows'), x, y }` |

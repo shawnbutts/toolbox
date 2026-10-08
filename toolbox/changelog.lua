@@ -6,6 +6,7 @@
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "section", "Added" },
+  { "item", "Location strip: a small HUD strip showing where you are: the scene, your position (as /loc gives it, in whole numbers) and which way you face (compass direction and degrees). Hover it for the whole /loc line. Off by default: switch it on under Settings, HUD layout (Show where you are), or type /toolbox location." },
   { "item", "Loot Tracker runs remember where you played most. Hover a run to see the spot, and press its Beacon button to mark it on your compass and map with the game's beacon (the one /beacon sets), to find a good farming spot again. It works while you're in that run's scene, and replaces any beacon you set. Runs from before this version have no spot." },
   { "section", "Fixed" },
   { "item", "Estimated values on a game client in another language showed \"--\" for nearly every item with no reason given: SotANET lists items by their English names, and the game names them in your language. The Loot Tracker, its tooltips, the settings and Test connection now say so." },

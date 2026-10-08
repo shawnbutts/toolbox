@@ -131,6 +131,12 @@ one to open the Skills window. A short celebration plays when a skill gains a le
 loses one (each can be switched off; your own `toolbox_skill_up.ogg` / `toolbox_skill_down.ogg` in the Lua
 folder replaces them). Skill level changes (gained or lost) can also be listed on the notification HUD (`/toolbox skills`).
 
+## Location
+
+A small strip showing where you are: the scene, your position (as `/loc` gives it, in whole numbers) and
+which way you face. Hover it for the whole `/loc` line. Off by default: switch it on under **HUD layout**, or
+type `/toolbox location`.
+
 ## Commands
 
 `/toolbox` and `/tbx` do the same thing; `/toolbox commands` lists them all in chat.
@@ -147,6 +153,7 @@ folder replaces them). Skill level changes (gained or lost) can also be listed o
 - `/toolbox daily` / `dailydetailed`: the Today windows
 - `/toolbox combat`: the combat stats HUD
 - `/toolbox notify`: notification settings
+- `/toolbox location`: the location strip (`on|off`, `facing on|off`)
 - `/toolbox settings`: settings files and setups (`save`, `reset`, `cancel`, `setups`, `import`, `export`)
 
 Settings are saved per character. To copy another character's setup, yours or someone else's on the same

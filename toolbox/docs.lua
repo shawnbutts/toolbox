@@ -233,6 +233,12 @@ D.SECTIONS = {
       .. "switches the bar off; the notification has its own switch under Notifications. /toolbox gear "
       .. "lists your worn items and their durability; /toolbox gear repair 30 sets the threshold; "
       .. "/toolbox gear bar off hides the bar; /toolbox gear move <x> <y> places it." },
+  { "Location strip",
+    "A small strip showing where you are: the scene, your position (x, height, z, in whole numbers, as /loc "
+      .. "gives them) and which way you face (the compass direction and degrees, 0 north, 90 east). It follows "
+      .. "you as you move. Hover it for the whole /loc line. Switch it on under Settings, HUD layout (Show "
+      .. "where you are), where you can also hide the facing line and place it, or type /toolbox location "
+      .. "(on, off, facing on|off, move <x> <y>). It's off by default." },
   { "Moving the HUD strips",
     "The buff bar, health & focus bars, combat stats, the consumables bar and the equipment bar are "
       .. "HUD strips. Drag the grip at a "

@@ -8,6 +8,9 @@ ones included).
 ## [Unreleased]
 
 ### Added
+- **Location strip:** a small HUD strip showing where you are: the scene, your position (as /loc gives it, in
+  whole numbers) and which way you face (compass direction and degrees). Hover it for the whole /loc line. Off
+  by default: switch it on under Settings, HUD layout (Show where you are), or type /toolbox location.
 - Loot Tracker runs remember where you played most. Hover a run to see the spot, and press its **Beacon** button
   to mark it on your compass and map with the game's beacon (the one /beacon sets), to find a good farming spot
   again. It works while you're in that run's scene, and replaces any beacon you set. Runs from before this

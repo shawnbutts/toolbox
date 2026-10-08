@@ -709,6 +709,7 @@ local POSITIONED = {
   { "consumables", T.Consumables, "Consumables bar" }, { "gear", T.Gear, "Equipment bar" },
   { "combat", T.Combat, "Combat stats" }, { "nhud", T.Notify.Hud, "Notification HUD" },
   { "target", T.Target, "Target HUD" }, { "buffblock", T.BuffBlock, "Buff block" },
+  { "location", T.Location, "Location strip" },
 }
 if T.SkillBar then POSITIONED[#POSITIONED + 1] = { "skills", T.SkillBar, T.SkillBar.PAGE } end
 
@@ -842,6 +843,14 @@ function C.HudSection()
     UI.Label{ text = "Strips show while this window is open, so you can place them. Drag a strip's grip"
       .. " (untick Options > Interface > Nameplates & Chat Bubbles > Lock Status Movement to see it) or"
       .. " use the buttons.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
+    heading("Location strip"),
+    UI.Toggle{ id = "loc_show", text = "Show where you are", value = T.Location.GetShow(),
+      tooltip = "A strip with the scene you're in, your position (x, height, z, as /loc gives it) and which way"
+        .. " you face. Hover it for the whole /loc line",
+      onChange = function(_, v) T.Location.SetShow(v) end },
+    UI.Toggle{ id = "loc_facing", text = "Which way you face", value = T.Location.GetFacing(),
+      tooltip = "The compass direction and degrees (0 north, 90 east)",
+      onChange = function(_, v) T.Location.SetFacing(v) end },
   }
   for _, p in ipairs(POSITIONED) do children[#children + 1] = C.PositionRows(p[1], p[2], p[3]) end
   return UI.Column{ children = children }
@@ -1176,7 +1185,8 @@ local function category(keyOrLabel)
 end
 
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
-local ALL_IDS = { "font", "font_value", "spacing", "spacing_value", "xp_net", "xp_mode", "daily_mode", "show_xp",
+local ALL_IDS = { "loc_show", "loc_facing",
+  "font", "font_value", "spacing", "spacing_value", "xp_net", "xp_mode", "daily_mode", "show_xp",
   "show_daily_detail", "dd_values", "dd_each", "dd_values_msg", "dd_include", "hover_popup", "hover_daily",
   "show_buffs", "buffs_combat_only", "buff_replace", "buff_dismiss", "buff_size", "buff_size_value",
   "show_buffblock", "buffblock_combat", "buffblock_width", "buffblock_width_value", "buffblock_size",
@@ -1952,6 +1962,9 @@ function C.Sync()
   syncSetups()
   syncQuiet()
   setValue("setup_share", T.Backup.GetShare())
+  setValue("loc_show", T.Location.GetShow())
+  setValue("loc_facing", T.Location.GetFacing())
+  setEnabled("loc_facing", T.Location.GetShow())
   if T.SkillBar then T.SkillBar.ConfigSync(C.Helpers) end   -- skills.lua, when present
   C.SyncLive()
 end

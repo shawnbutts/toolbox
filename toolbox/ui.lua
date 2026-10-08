@@ -266,6 +266,7 @@ function W.ApplyText()
   T.DailyDetail.ApplyText()
   T.Vitals.ApplyText()
   T.Notify.Hud.ApplyText()        -- its own size and spacing, or these when unset
+  T.Location.ApplyText()
   T.Config.Sync()
 end
 

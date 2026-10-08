@@ -179,6 +179,11 @@ local function install_api()
     if not S.char.present then return "" end
     return S.sceneRaw or (S.scene or "Novia"):gsub(" ", "")
   end
+  -- Which way you face, as the HUD compass names it (API 10): H.S.heading (default 0), 0 with no character.
+  ShroudGetPlayerCompassHeading = function()
+    if not S.char.present then return 0 end
+    return S.heading or 0
+  end
   -- Where you stand: H.S.pos = { x, y, z } (default the origin), read as ShroudPlayerX/Y/Z each step.
   -- The beacon (API 9): H.S.beacon = { x, y, z, name } or nil; H.S.noMap refuses it (loading).
   ShroudSetBeacon = function(x, y, z, label)
