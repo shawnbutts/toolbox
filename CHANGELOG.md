@@ -15,6 +15,9 @@ ones included).
   to mark it on your compass and map with the game's beacon (the one /beacon sets), to find a good farming spot
   again. It works while you're in that run's scene, and replaces any beacon you set. Runs from before this
   version have no spot.
+- **A sound for mail:** new mail and mail about to expire ring a doorbell of their own when their sound is on, so
+  you can tell mail from other notifications (the other sounds are still there to pick). Replace it with
+  toolbox_mail.ogg in your Lua folder or any file on the Sounds page.
 
 ### Fixed
 - **Your settings are better protected.** Twice, a value Toolbox saved turned out to be one the game couldn't

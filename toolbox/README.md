@@ -42,7 +42,7 @@ muted, picked from your recent alerts, or kept from repeating within a time you 
 kinds such as blessings, fold into one icon with a count; hover it for the list. It can replace the
 game's own buff bar, and a click can dismiss a buff. To use your own sounds, put
 `toolbox_buff_expiring.ogg` / `toolbox_debuff_landed.ogg` / `toolbox_notify.ogg` / `toolbox_ping.ogg` /
-`toolbox_tap.ogg` (or `.wav`) in your Lua folder, beside the
+`toolbox_tap.ogg` / `toolbox_mail.ogg` (or `.wav`) in your Lua folder, beside the
 `toolbox` folder, or choose any file in the settings.
 
 The **buff block** shows every buff and debuff on a strip of its own instead, soonest to run out first, in
@@ -118,7 +118,7 @@ sounds.
 
 Your guild's message of the day, unread and expiring mail, ransoms, new rewards, guild applications and
 gear needing repair, and friends or guild members coming online, in a Notifications window, a small HUD
-list or a chat line, each with an optional sound of its own (chime, ping, tap, bell or low notes). Each one
+list or a chat line, each with an optional sound of its own (chime, ping, tap, doorbell, bell or low notes; mail rings the doorbell). Each one
 can be turned off.
 
 ## Skill activity

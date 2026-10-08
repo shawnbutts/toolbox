@@ -266,18 +266,18 @@ return function(t)
     H.chat("/tbx config")
     local hint = H.config():Find("notify_sound_hint").text
     t.ok(hint:find("on the Sounds page", 1, true), hint)
-    t.ok(hint:find("Chime, Ping, Tap, Bell, Low notes", 1, true), "the choices, from the sound list: " .. hint)
+    t.ok(hint:find("Chime, Ping, Tap, Doorbell, Bell, Low notes", 1, true), "the choices, from the list: " .. hint)
   end)
 
   t.test("a sound per source: picked on the Sounds page or in chat; each distinct sound once", function()
     H.boot()
-    for _, f in ipairs({ "notify", "ping", "tap" }) do H.S.files["toolbox/" .. f .. ".ogg"] = true end
+    for _, f in ipairs({ "notify", "ping", "tap", "mail" }) do H.S.files["toolbox/" .. f .. ".ogg"] = true end
     H.reload()
     H.advance(2)
     H.chat("/tbx notify via chat")
     H.chat("/tbx notify friends sound ping")
     H.chat("/tbx notify motd sound tap")
-    H.chat("/tbx notify mail sound on")          -- the default chime
+    H.chat("/tbx notify mail sound on")          -- its own doorbell
     t.eq(Toolbox.Notify.GetSoundKey("friends"), "ping")
     t.eq(Toolbox.Notify.GetSound("friends"), true, "naming a sound turns it on")
     local before = #H.S.played
@@ -289,7 +289,7 @@ return function(t)
     local names = {}
     for i = before + 1, #H.S.played do names[#names + 1] = H.S.played[i].name end
     table.sort(names)
-    t.eq(table.concat(names, ","), "notify,ping,tap", "each source its own sound")
+    t.eq(table.concat(names, ","), "mail,ping,tap", "each source its own sound")
     before = #H.S.played
     H.callback("ShroudOnFriendStatusChanged", { { name = "Bob", online = true }, { name = "Cara", online = true } }, 0)
     t.eq(#H.S.played - before, 1, "two friends at once: one ping")
@@ -300,9 +300,36 @@ return function(t)
     t.eq(H.config():Find("notify_guild_snd").enabled, false, "greyed out while that source has no sound")
     H.clearLogs()
     H.chat("/tbx notify friends sound kazoo")
-    t.ok(H.logged("chime, ping, tap, bell, low notes"), H.lastLog())
+    t.ok(H.logged("chime, ping, tap, doorbell, bell, low notes"), H.lastLog())
     H.reload()
     t.eq(Toolbox.Notify.GetSoundKey("friends"), "buff_expiring", "saved")
+  end)
+
+  -- Owner, 2026-10-08: mail has a sound of its own.
+  t.test("mail rings the doorbell; a chime chosen before with its sound on is kept", function()
+    H.boot()
+    H.S.files["toolbox/mail.ogg"] = true
+    H.reload()
+    H.advance(2)
+    local N = Toolbox.Notify
+    t.eq(N.GetSoundKey("mail"), "mail")
+    t.eq(N.GetSoundKey("expiring"), "mail")
+    t.eq(N.GetSoundKey("motd"), "notify", "the others keep the chime")
+    t.eq(Toolbox.Sounds.Status("mail"), "ready", "the shipped sound loads")
+    H.chat("/tbx notify mail via chat")
+    H.chat("/tbx notify mail sound on")
+    local before = #H.S.played
+    H.setNotes{ unreadMail = 2 }
+    H.advance(1)
+    t.eq(#H.S.played - before, 1)
+    t.eq(H.S.played[#H.S.played].name, "mail")
+    -- as 1.6.0 saved them: every source with the chime; mail's sound on, expiring's off
+    local saved = H.S.memory["character:Tester"].notify
+    saved.sources.mail.soundKey, saved.sources.expiring.soundKey = "notify", "notify"
+    saved.sources.mail.sound, saved.sources.expiring.sound = true, false
+    N.ForgetPrefs()                              -- read again
+    t.eq(N.GetSoundKey("mail"), "notify", "heard and kept")
+    t.eq(N.GetSoundKey("expiring"), "mail", "never heard: the new default")
   end)
 
   t.test("a refused window is retried and not marked seen", function()

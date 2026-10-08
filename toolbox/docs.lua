@@ -258,8 +258,9 @@ D.SECTIONS = {
     "Each can show in the Notifications window, on the notification HUD or as a chat line, with or "
       .. "without a sound (the dropdown next to it in settings, e.g. HUD + sound; or /toolbox notify <name> "
       .. "via window|hud|chat and /toolbox notify <name> sound on|off, or leave out the name for all). The "
-      .. "sound is a rising chime by default; each source can have its own (Sounds page: Notification sounds: "
-      .. "Chime, Ping, Tap, Bell or Low notes; or /toolbox notify friends sound ping). Several "
+      .. "sound is a rising chime by default, and a doorbell for mail; each source can have its own (Sounds "
+      .. "page: Notification sounds: Chime, Ping, Tap, Doorbell, Bell or Low notes; or /toolbox notify friends "
+      .. "sound ping). Several "
       .. "together play each sound once. The window can be compact (settings: "
       .. "Compact Notifications window, or /toolbox notify compact on): its title bar shows only on hover. "
       .. "Both have a text size slider in settings. The HUD lists "
@@ -269,8 +270,8 @@ D.SECTIONS = {
       .. "strips (settings, or /toolbox notify hud move <x> <y>); /toolbox notify hud clear deletes its history." },
   { "Sounds",
     "The alert sounds live in the add-on's folder. To use your own, put "
-      .. "toolbox_buff_expiring.ogg, toolbox_debuff_landed.ogg, toolbox_notify.ogg, toolbox_ping.ogg or "
-      .. "toolbox_tap.ogg (or .wav) in your Lua folder, "
+      .. "toolbox_buff_expiring.ogg, toolbox_debuff_landed.ogg, toolbox_notify.ogg, toolbox_ping.ogg, "
+      .. "toolbox_tap.ogg or toolbox_mail.ogg (or .wav) in your Lua folder, "
       .. "beside the toolbox folder, or pick any file in settings. /toolbox sounds shows what "
       .. "each alert uses; /toolbox sounds 50 sets the volume.",
     "Volume (settings, Sounds): one alert volume for all, and under each sound its own volume, a share of "
@@ -676,13 +677,13 @@ N.SOURCES = {
       return { title = guild ~= "" and (guild .. ": message of the day") or "Guild message of the day",
                text = text, seen = text }
     end },
-  { key = "mail", label = "New mail", default = true,
+  { key = "mail", label = "New mail", default = true, soundKey = "mail",
     tip = "When new letters arrive in your mailbox",
     Check = countCheck("unreadMail", function(total, new)
       if new == total then return "You have " .. plural(total, "unread letter", "unread letters") .. "." end
       return plural(new, "new letter", "new letters") .. " (" .. T.FormatNumber(total) .. " unread in all)."
     end) },
-  { key = "expiring", label = "Mail about to expire", default = true,
+  { key = "expiring", label = "Mail about to expire", default = true, soundKey = "mail",
     tip = "When some of your mail is about to expire (expired mail is lost)",
     Check = flagCheck("mailExpiring", "Some of your mail is about to expire. Collect it before it's gone.") },
   { key = "ransoms", label = "Ransoms", default = true,
@@ -1174,7 +1175,11 @@ local function prefsNow()
                  soundKey = src.soundKey or "notify" }
     if type(s.on) == "boolean" then sp.on = s.on end
     if s.sound == true then sp.sound = true end
-    if N.SoundLabel(s.soundKey) then sp.soundKey = s.soundKey end
+    -- a saved choice, unless it's the chime with the sound off: the default before the source had its own (mail,
+    -- 2026-10-08), never heard, so it gets the new one
+    if N.SoundLabel(s.soundKey) and not (s.soundKey == "notify" and s.sound ~= true and src.soundKey) then
+      sp.soundKey = s.soundKey
+    end
     if type(s.via) == "string" and N.DELIVERY[s.via] and (not src.vias or N.Allows(src.key, s.via)) then
       sp.via = s.via
     end
@@ -1433,8 +1438,8 @@ function N.ParseChoice(label)
 end
 
 -- The sounds a notification can play, in the order settings offer them: { sound key, label }.
-N.SOUNDS = { { "notify", "Chime" }, { "ping", "Ping" }, { "tap", "Tap" }, { "buff_expiring", "Bell" },
-             { "debuff_landed", "Low notes" } }
+N.SOUNDS = { { "notify", "Chime" }, { "ping", "Ping" }, { "tap", "Tap" }, { "mail", "Doorbell" },
+             { "buff_expiring", "Bell" }, { "debuff_landed", "Low notes" } }
 
 function N.SoundLabel(soundKey)
   for _, s in ipairs(N.SOUNDS) do if s[1] == soundKey then return s[2] end end

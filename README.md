@@ -270,7 +270,7 @@ bar while this one is showing (the game restores it on reload, so it is applied 
   The expiry and debuff alerts are counted apart, and the icon still flashes. `/toolbox buffs repeat off|30s|<minutes>`.
 
 **Sounds.** The default sounds live in the add-on's folder (`Lua/toolbox/buff_expiring.ogg`,
-`Lua/toolbox/debuff_landed.ogg`, `notify.ogg`, `ping.ogg`, `tap.ogg` for notifications, and `skill_up.ogg`,
+`Lua/toolbox/debuff_landed.ogg`, `notify.ogg`, `ping.ogg`, `tap.ogg`, `mail.ogg` for notifications, and `skill_up.ogg`,
 `skill_down.ogg` for the skill activity strip); to use your own, put a replacement in the folder above it. Each
 alert takes the first that loads of:
 

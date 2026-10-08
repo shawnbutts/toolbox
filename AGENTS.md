@@ -167,8 +167,9 @@ into one if a new file is ever needed).
   cached per account for `P.MAX_AGE`; `P.Test` backs the Test connection button. SotANET matches English names only;
   `P.OtherLanguage` (`ShroudGetClientInfo().languageCode` not "en*", read once) adds `P.LanguageNote` where
   prices are missing (header, row tooltips, settings, switching on, the test).
-- `sounds.lua`: `Toolbox.Sounds`, five sounds (`S.DEFS`: buff_expiring, debuff_landed, and notify, ping, tap
-  for notifications: each source picks one, `N.SOUNDS` / `soundKey`), plus skill_up and skill_down, which
+- `sounds.lua`: `Toolbox.Sounds`, six sounds (`S.DEFS`: buff_expiring, debuff_landed, and notify, ping, tap,
+  mail for notifications: each source picks one, `N.SOUNDS` / `soundKey`; mail and expiring default to "mail", the
+  "Doorbell", and a saved "notify" with the sound off reads as the source's default), plus skill_up and skill_down, which
   skills.lua appends. Candidates in
   order: the custom path, `Lua/toolbox_<file>` (.ogg, .wav), the shipped `toolbox/<file>`. A load counts once
   its clip appears in `ShroudListSound()` (async); clips are found by name at play time. Never call
@@ -334,7 +335,7 @@ into one if a new file is ever needed).
   toolbox/icon.png`), `clock.py` (-> `toolbox/clock.png`: a normal and a red set of 120 frames; keep in sync
   with `BuffBar.CLOCK`), `marks.py` (-> `toolbox/skillmarks.png`: the skill strip's training markers), `alerts.py` (-> `toolbox/*.ogg` via ffmpeg's Vorbis encoder, +7.5 dB into a limiter at -1.5 dBFS since
   2026-10-07 (twice as loud as before): buff_expiring falls,
-  debuff_landed steps down, notify rises; ping and tap are the other notification sounds; skill_up, a rising
+  debuff_landed steps down, notify rises; ping, tap and mail (a doorbell, D6 A5 D6) are the other notification sounds; skill_up, a rising
   arpeggio into a ringing chord, and skill_down, sinking "wah wah" notes, and skill_train / skill_maintain /
   skill_unlearn, two quick notes up, even and down, belong to skills.lua; block, parry and
   dodge, a thud, a clash and a whoosh, to combat.lua's shout). Re-encoding changes the bytes even when the audio is the same:

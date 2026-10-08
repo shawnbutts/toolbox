@@ -16,6 +16,8 @@ Alerts:
                   opposite way to buff_expiring's fall)
   ping            one bright bell (C6), 0.6 s: a light single note for notifications
   tap             two quick soft low notes (G4, G4), 0.5 s: an unobtrusive "knock" for notifications
+  mail            three bright chimes, high, lower, high (D6 A5 D6), 0.9 s: a doorbell's "ding-dong-ding" for new
+                  mail (the mail notifications' own sound)
   skill_up        a quick rising major arpeggio (C5 E5 G5 C6) into a bright ringing chord (C6 E6 G6),
                   1.6 s: a small celebration for a skill level gained (skills.lua)
   skill_down      four hollow notes sinking a semitone at a time (G4 F#4 F4 E4), each sagging, the last
@@ -112,6 +114,10 @@ def render_ping() -> list[float]:
 
 def render_tap() -> list[float]:
     return render_chimes(0.5, [(0.00, 392.00, 1.0), (0.11, 392.00, 0.8)])      # G4 twice: a knock
+
+
+def render_mail() -> list[float]:
+    return render_chimes(0.9, [(0.00, 1174.66, 0.85), (0.12, 880.00, 0.8), (0.24, 1174.66, 1.0)])   # D6 A5 D6
 
 
 def render_skill_up() -> list[float]:
@@ -273,6 +279,7 @@ ALERTS = {
     "notify": render_notify,
     "ping": render_ping,
     "tap": render_tap,
+    "mail": render_mail,
     "skill_up": render_skill_up,
     "skill_down": lambda: render_debuff(SKILL_DOWN),
     "block": render_block,
