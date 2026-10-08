@@ -573,7 +573,9 @@ makes the loader refuse the whole file ("Unexpected token : '-'"), which the nex
 clip's path beside its name in `ShroudListSound`, a handle from `ShroudLoadSound`, or a list per add-on); until then
 an effect file named like another sound's is refused (`S.UseFile`). **23** (submitted 2026-10-08): a file picker
 (`ShroudPickFile(kind, callback)` from a click: an in-game browser of the Lua folder, or the system dialog copying
-into `Lua/<slug>_files/`); until then players paste a path (`S.CleanPath`). Everything reported is fixed: the API 25 client issues, and
+into `Lua/<slug>_files/`); until then players paste a path (`S.CleanPath`). **24** (submitted 2026-10-08): one caught
+fish arrives as two `ShroudOnItemsGained` calls about 4 s apart, each x1 (`/toolbox loot log`), so the Loot Tracker
+counts fish twice; no workaround yet. Everything reported is fixed: the API 25 client issues, and
 (work log 2026-09-30, `ac63e8c01b`, **API 26**, in the next client build, not yet in the owner's) the party
 ones (`tmp/client-issues.md` 14, 15): the slot getters reach the whole party (slot 0 = you, then party-frame
 order, so `for slot = 0, count - 1` finds everyone, buffs included), `ShroudGetPartyMemberNamesInScene()`
