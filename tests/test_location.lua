@@ -38,6 +38,18 @@ return function(t)
     t.ok(Toolbox.Location.ContentSize() > w1, "wider for a long name")
   end)
 
+  t.test("the hover follows a move inside one whole unit (review 21)", function()
+    H.boot()
+    H.S.pos = { 1.1, 2, 3 }
+    H.chat("/tbx location on")
+    H.advance(1)
+    t.ok(strip():Find("loc_strip").tooltip:find("Loc: %(1%.1, 2, 3%)"), strip():Find("loc_strip").tooltip)
+    H.S.pos = { 1.4, 2, 3 }
+    H.advance(1)
+    t.eq(text("loc_coords"), "1, 2, 3", "the label stays")
+    t.ok(strip():Find("loc_strip").tooltip:find("Loc: %(1%.4, 2, 3%)"), strip():Find("loc_strip").tooltip)
+  end)
+
   t.test("facing can be hidden; settings and a restart keep the choices", function()
     H.boot()
     H.chat("/tbx location on")

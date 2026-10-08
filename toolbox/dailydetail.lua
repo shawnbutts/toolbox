@@ -148,6 +148,7 @@ function DD.RunSpot(r)
     local v = p[k]
     if type(v) ~= "number" or v ~= v or math.abs(v) > 100000 then return nil end
   end
+  if type(p.scene) ~= "string" then p.scene = "" end   -- (a damaged save: the spot still works, unnamed)
   return p
 end
 

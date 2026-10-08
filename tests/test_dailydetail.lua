@@ -490,6 +490,33 @@ return function(t)
     t.ok(H.lastLog():find("That run has no spot recorded%.$"), H.lastLog())
   end)
 
+  t.test("runs: a spot whose scene name is missing or damaged still works, unnamed (review 20)", function()
+    H.boot()
+    H.chat("/tbx loot reset")
+    H.advance(120)
+    H.chat("/tbx loot reset")
+    H.advance(120)
+    H.chat("/tbx loot reset")
+    H.advance(120)
+    H.chat("/tbx loot reset")
+    local list = Toolbox.Daily.Runs()
+    list[1].spot = { raw = "Novia", x = 1, y = 2, z = 3 }
+    list[2].spot = { raw = "Novia", scene = 7, x = 1, y = 2, z = 3 }
+    list[3].spot = { raw = "Novia", scene = "", x = 1, y = 2, z = 3 }
+    Toolbox.Daily.runsVersion = Toolbox.Daily.runsVersion + 1
+    H.chat("/tbx loot")
+    H.chat("/tbx loot view runs")
+    local rows = H.detail():Find("list").children
+    for i = 1, 3 do
+      local tip = rows[i].children[1].tooltip
+      t.ok(tip:find("Played most around %(1, 2, 3%)%. Beacon"), tip)
+      t.ok(rows[i].children[4].visible ~= false, "Beacon shown")
+      H.call(function() rows[i].children[4].onClick(rows[i].children[4]) end)
+      t.ok(H.lastLog():find("Beacon set where your %d%d:%d%d run was played most: another scene %(1, 2, 3%)"),
+        H.lastLog())
+    end
+  end)
+
   t.test("runs: the estimated value per hour, from the prices when the run ended", function()
     H.boot()
     H.chat("/tbx loot")

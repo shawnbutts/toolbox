@@ -719,6 +719,10 @@ function LOC.Update()
   if rx ~= locLast.x or ry ~= locLast.y or rz ~= locLast.z or locLast.x == nil then
     locLast.x, locLast.y, locLast.z = rx, ry, rz
     T.SetText(locEl.coords, LOC.CoordsText(x, y, z))
+  end
+  -- The hover has /loc's decimals: it follows any move, not just a whole unit (review 21).
+  if x ~= locLast.px or y ~= locLast.py or z ~= locLast.pz or locLast.px == nil then
+    locLast.px, locLast.py, locLast.pz = x, y, z
     T.SetTooltip(locEl.column, LOC.LocLine(scene, x, y, z) .. "\nWhere you are: the scene and your position (x,"
       .. " height, z). Type /loc for a line to paste in chat.")
   end
