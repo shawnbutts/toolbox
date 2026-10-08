@@ -62,7 +62,8 @@ local function valueStyle()
   return T.Window.TextStyle{ textAlign = "right", marginLeft = 8, flexShrink = 0, whiteSpace = "nowrap" }
 end
 
-local function addRow(name, shownName)
+-- `run` (the Runs view): that run's number, for its Beacon button.
+local function addRow(name, shownName, run)
   if rowCount >= DD.MAX_ROWS then return false end
   local nameLabel = UI.Label{ text = shownName or name, class = "text",
     style = T.Window.TextStyle{ flexGrow = 1, flexShrink = 1 } }
@@ -70,8 +71,15 @@ local function addRow(name, shownName)
     style = T.Window.TextStyle{ textAlign = "right", marginLeft = 6 } }
   local valueLabel = UI.Label{ text = "", class = "text", visible = prefs.values == true,   -- (dim was too light)
     style = valueStyle() }
-  el.list:Add(UI.Row{ style = { alignItems = "center" }, children = { nameLabel, countLabel, valueLabel } })
-  rows[name] = { name = nameLabel, count = countLabel, value = valueLabel }
+  local children = { nameLabel, countLabel, valueLabel }
+  local mark = nil
+  if run then
+    mark = UI.Button{ text = "Beacon", visible = false, style = { marginLeft = 6, flexShrink = 0 },
+      tooltip = DD.MARK_TIP, onClick = function() DD.MarkRun(run) end }
+    children[4] = mark
+  end
+  el.list:Add(UI.Row{ style = { alignItems = "center" }, children = children })
+  rows[name] = { name = nameLabel, count = countLabel, value = valueLabel, mark = mark }
   rowCount = rowCount + 1
   order[rowCount] = name
   return true
@@ -132,6 +140,56 @@ function DD.RunLabel(r)
   return when .. (r.scene ~= "" and (" " .. r.scene) or "") .. " (" .. T.Daily.Duration(r.played) .. ")"
 end
 
+-- Where a run was played most (Toolbox.Daily.MainSpot): its spot if well formed, else nil.
+function DD.RunSpot(r)
+  local p = type(r) == "table" and r.spot
+  if type(p) ~= "table" or type(p.raw) ~= "string" or p.raw == "" then return nil end
+  for _, k in ipairs({ "x", "y", "z" }) do
+    local v = p[k]
+    if type(v) ~= "number" or v ~= v or math.abs(v) > 100000 then return nil end
+  end
+  return p
+end
+
+-- A position as /loc writes it ("(123.45, 8.2, -90.12)"; pasted in chat it becomes a link), on API 29.
+function DD.LocText(p)
+  if type(ShroudFormatLocation) == "function" then
+    local ok, loc = pcall(ShroudFormatLocation, p.x, p.y, p.z)
+    if ok and type(loc) == "string" and loc ~= "" then return loc end
+  end
+  return string.format("(%d, %d, %d)", math.floor(p.x + 0.5), math.floor(p.y + 0.5), math.floor(p.z + 0.5))
+end
+
+-- The Beacon button (owner, 2026-10-08): marks a run's spot on the compass and map with the game's beacon, the
+-- one /beacon sets. Only on a click (it replaces the player's own beacon), and only in that run's scene: the
+-- beacon marks a spot in the scene you're in.
+DD.MARK_TIP = "Mark where this run was played most, with the game's beacon on your compass and map (it replaces"
+  .. " any beacon you set). Works in that run's scene."
+
+function DD.MarkRun(i)
+  local r = T.Daily.Runs()[i]
+  local p = DD.RunSpot(r)
+  if not p then
+    T.Print("That run has no spot recorded.")
+    return false
+  end
+  local where = p.scene ~= "" and p.scene or "another scene"
+  local okRaw, raw = pcall(ShroudGetCurrentSceneNameRaw)
+  if not (okRaw and raw == p.raw) then
+    T.Print("That run was in " .. where .. ". A beacon marks a spot in the scene you're in: go there and click"
+      .. " Beacon again.")
+    return false
+  end
+  local ok, set = pcall(ShroudSetBeacon, p.x, p.y, p.z, "Loot run " .. (r.at ~= "" and r.at or ""))
+  if not (ok and set) then
+    T.Print("The game didn't set the beacon right now; try again in a moment.")
+    return false
+  end
+  T.Print("Beacon set where your " .. (r.at ~= "" and (r.at .. " ") or "") .. "run was played most: "
+    .. where .. " " .. DD.LocText(p) .. ". /beacon clear removes it.")
+  return true
+end
+
 function DD.RunTooltip(r)
   local F = T.FormatNumber
   local where = r.scene ~= "" and (" in " .. r.scene) or ""
@@ -143,6 +201,11 @@ function DD.RunTooltip(r)
     F(r.items) .. " items (" .. F(r.kinds) .. " kinds)" .. ((r.nodes or 0) > 0 and (", " .. F(r.nodes)
       .. " nodes gathered (" .. perHour(r.nodes, r.played) .. "/h)") or "") .. ".",
   }
+  local p = DD.RunSpot(r)
+  if p then
+    lines[#lines + 1] = "Played most around " .. DD.LocText(p) .. (p.scene ~= "" and (" in " .. p.scene) or "")
+      .. ". Beacon marks it."
+  end
   if type(r.value) == "number" then
     lines[#lines + 1] = "Estimated loot value " .. P.Format(r.value) .. " (" .. P.Format(T.Daily.PerHour(r.value,
       r.played) or 0) .. "/h), from SotANET prices when the run ended."
@@ -249,6 +312,7 @@ local function fillRuns()
       T.SetText(row.value, values[i])
       T.SetStyle(row.value, { minWidth = minWidth })
       T.SetTooltip(row.value, "Estimated loot value per hour of play (SotANET prices when the run ended)")
+      T.SetVisible(row.mark, DD.RunSpot(r) ~= nil)
     end
   end
   local chartNote = fillRunsChart(list)
@@ -306,7 +370,7 @@ local function rebuildList()
   shown = DD.Counts(day, DD.View(), prefs.include)
   if DD.View() == "runs" then
     for i, r in ipairs(T.Daily.Runs()) do
-      if not addRow("run" .. i, DD.RunLabel(r)) then break end
+      if not addRow("run" .. i, DD.RunLabel(r), i) then break end
     end
     return
   end

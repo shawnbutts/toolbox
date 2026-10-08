@@ -225,7 +225,9 @@ the day's gold and kills and a list of every item gained today with its count, h
   scene you played most in, length, gold per hour and, with estimated values on, loot value per hour (from the
   prices when the run ended). Hover one for kills, items and nodes gathered. A bar chart above the list shows
   the runs side by side, oldest on the left, each bar as tall as its loot value (or gold) per hour, the best one
-  green.
+  green. A run also keeps where you played most (the middle of its most-played 40-unit square in that scene;
+  the tooltip shows it as `/loc` writes it): its **Beacon** button sets the game's beacon there (the `/beacon`
+  marker on the compass and map; it replaces yours, so only on a click), while you're in that run's scene.
 
 ## Buff bar
 

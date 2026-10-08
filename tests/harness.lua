@@ -149,6 +149,7 @@ local function install_api()
   InvalidStatResult = -999
   ShroudTime = S.time or 100
   ShroudPlayerGold = S.char.gold
+  ShroudPlayerX, ShroudPlayerY, ShroudPlayerZ = 0, 0, 0
   ShroudPlayerCurrentHealth, ShroudPlayerCurrentFocus = S.char.hp, S.char.focus
   ShroudServerTime = S.serverTime
   -- The local clock the add-on reads for the daily reset.
@@ -172,6 +173,51 @@ local function install_api()
   ShroudGetCurrentSceneName = function()
     if not S.char.present then return "" end
     return S.scene or "Novia"
+  end
+  -- The internal scene id: H.S.sceneRaw, else the scene's name without spaces.
+  ShroudGetCurrentSceneNameRaw = function()
+    if not S.char.present then return "" end
+    return S.sceneRaw or (S.scene or "Novia"):gsub(" ", "")
+  end
+  -- Where you stand: H.S.pos = { x, y, z } (default the origin), read as ShroudPlayerX/Y/Z each step.
+  -- The beacon (API 9): H.S.beacon = { x, y, z, name } or nil; H.S.noMap refuses it (loading).
+  ShroudSetBeacon = function(x, y, z, label)
+    if S.noMap or type(x) ~= "number" or type(y) ~= "number" or type(z) ~= "number" then return false end
+    if math.abs(x) > 100000 or math.abs(y) > 100000 or math.abs(z) > 100000 then return false end
+    local name = (type(label) == "string" and label ~= "") and label:gsub("[%[%]<>]", ""):sub(1, 40) or "Beacon"
+    S.beacon = { x, y, z, name }
+    return true
+  end
+  ShroudGetBeacon = function()
+    if not S.beacon then return nil end
+    return S.beacon[1], S.beacon[2], S.beacon[3], S.beacon[4]
+  end
+  ShroudClearBeacon = function()
+    local had = S.beacon ~= nil
+    S.beacon = nil
+    return had
+  end
+  -- API 29 (H.S.noApi29 = true: an older client): /loc's line, and a position as /loc writes it.
+  if not S.noApi29 then
+    ShroudFormatLocation = function(x, y, z)
+      local function n(v)
+        if type(v) ~= "number" or v ~= v or v == math.huge or v == -math.huge then return nil end
+        local text = string.format("%.3f", v):gsub("0+$", ""):gsub("%.$", "")
+        if text == "-0" then text = "0" end
+        return text
+      end
+      local a, b, c = n(x), n(y), n(z)
+      if not (a and b and c) then return nil end
+      return "(" .. a .. ", " .. b .. ", " .. c .. ")"
+    end
+    ShroudGetLocationText = function()
+      if not S.char.present then return "" end
+      local p = S.pos or { 0, 0, 0 }
+      return "Area: " .. (S.scene or "Novia") .. " (" .. ShroudGetCurrentSceneNameRaw() .. ") Loc: "
+        .. ShroudFormatLocation(p[1], p[2], p[3])
+    end
+  else
+    ShroudFormatLocation, ShroudGetLocationText = nil, nil
   end
   ShroudGetPlayerName = function()
     if not S.char.present then return "INVALID" end
@@ -1120,6 +1166,8 @@ function H.advance(seconds, step)
   while ShroudTime < target - 1e-9 do
     ShroudTime = math.min(target, ShroudTime + step)
     ShroudPlayerGold = S.char.present and S.char.gold or 0   -- per-frame globals
+    local pos = S.pos or { 0, 0, 0 }
+    ShroudPlayerX, ShroudPlayerY, ShroudPlayerZ = pos[1], pos[2], pos[3]
     ShroudPlayerCurrentHealth, ShroudPlayerCurrentFocus = S.char.hp, S.char.focus
     ShroudServerTime = S.serverTime
     -- async sound loads finish

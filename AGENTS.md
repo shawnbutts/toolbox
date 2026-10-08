@@ -137,7 +137,12 @@ into one if a new file is ever needed).
   and rates move once a minute. Run history (owner, 2026-10-07): a run is filed as it ends (`D.FileRun` from
   `D.ResetRun`, `D.EndRun`, and `D.RollDay` before midnight's `D.Roll`) into `loot_runs`; `since.scenes` = play
   seconds per scene (`ShroudGetCurrentSceneName`), the run's place the most played; the value comes from
-  `DD.RunValue` (prices at that moment). The "Runs" view (`fillRuns`) reuses the item rows (`addRow(key, text)`), under a bar chart (`fillRunsChart`:
+  `DD.RunValue` (prices at that moment). Where (owner, 2026-10-08): `since.spots` = play seconds per
+  `D.SPOT_CELL` square (keyed by `ShroudGetCurrentSceneNameRaw` and the square, with the time-weighted position
+  sum; at most `D.SPOTS_MAX`, a new square replacing the least-played and starting from its time), filed as the
+  run's `spot` (`D.MainSpot`: the middle of the most-played square in its scene); a run row's Beacon button
+  (`DD.MarkRun`, a click only: it replaces the player's beacon) calls `ShroudSetBeacon` there when you're in that
+  scene (the beacon marks the scene you're in); `DD.LocText` writes it with `ShroudFormatLocation` (API 29). The "Runs" view (`fillRuns`) reuses the item rows (`addRow(key, text)`), under a bar chart (`fillRunsChart`:
   one Column per run, made the first time the view shows, `ensureRunCols`: built with the window, its elements
   pushed a character switch's rebuild past the creation rate). Rows are appended,
   never rebuilt on a timer (element cap; no reorder API); a sorted rebuild at most every `RESORT_SECONDS`
@@ -369,7 +374,9 @@ wedge (`SetSweep`, `SetSweepTimer`, refused as in game for a lone duration) read
 - Switches: `H.S.date`, `H.S.serverTime`, `H.S.clock` / `H.S.noClock`, `H.S.files[path] = true`,
   `H.S.acceptMissing`, `H.S.noCategories`, `H.S.noCrafting`, `H.S.noGuildMotd`, `H.S.flushFails`,
   `H.S.httpRefuse`, `H.S.saveRefused` / `H.S.refuseKeys` (every saved-var write, or those keys), `H.S.language = { "German", "de" }` / `H.S.noLanguage`
-  (the client's language; read at load: set it, then `H.reload()`), `H.S.recipes`, `H.S.showRefused`; `element.laidOut = { w, h }` sets what GetSize reports.
+  (the client's language; read at load: set it, then `H.reload()`), `H.S.pos = { x, y, z }` (where you stand,
+  `ShroudPlayerX/Y/Z`), `H.S.sceneRaw`, `H.S.beacon` (`ShroudSetBeacon`'s), `H.S.noMap` (the beacon refused),
+  `H.S.noApi29`, `H.S.recipes`, `H.S.showRefused`; `element.laidOut = { w, h }` sets what GetSize reports.
 - Reading: `H.logged(pattern)`, `H.logs()`, `H.lastLog()`, `H.saved(key, scope)`, `H.frame()` (buff strip),
   `H.hud()` (glued strip), `H.vitals()`, `H.config()` (all categories built) / `H.configRaw()`, `H.detail()`,
   `H.detailRows()`, `H.daily()`, `H.dailyText(id)`, `H.notify()`, `H.notice(key)`, `H.nhud()`,
@@ -402,7 +409,7 @@ character" sentinel.
 | `consumables` | `{ show = bool (default true), glue = bool, extra = { name parts, <= 20 }, cats = { [category] = true } (absent: defaults), exclude = { name parts } (absent: Scroll, Torch, Bait), max = 1..10, combatOnly = bool, x, y }` |
 | `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` |
 | `target` | `{ show = bool (default false), glue = bool (default true), place = "top" (default) / "bottom", mirror = bool, effects = "all"/"debuffs"/"none", icons = 1..8 (unset: 8, or 5 mirrored), bars = bool (default true), numbers = bool (default false), bg = "None"/"Dark"/"Light", flash = bool (default false), flashBelow = 1..95, x, y }` (a saved place "left", from beta 7, reads as mirror; bars and numbers both off = just the effect icons, refused with effects "none" too; hidePet = bool (default true): your pet as the target reads as no target, `TG.IsPet`) |
-| `loot_runs` | `{ v = 1, list = { { at = "HH:MM", date = "YYYY-MM-DD", scene, played = s, gold, kills, items, kinds, nodes, value = estimated gold or nil } } }`, newest first, at most `D.RUNS_KEEP` (10); stats: a reset keeps it |
+| `loot_runs` | `{ v = 1, list = { { at = "HH:MM", date = "YYYY-MM-DD", scene, played = s, gold, kills, items, kinds, nodes, value = estimated gold or nil, spot = { scene, raw, x, y, z } or nil } } }`, newest first, at most `D.RUNS_KEEP` (10); stats: a reset keeps it |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
 | `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), font = 9..32, spacing = 0..12 (each unset: the XP windows'), x, y }` |
@@ -513,7 +520,9 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   still built).
 - **API 29** (docs 2026-10-07; `T.DOCS_API` = 29, `min_api_version` stays 25): `ShroudGetLocationText()` (the line `/loc`
   prints; English area name; "" while loading) and `ShroudFormatLocation(x, y, z)` (a position as `/loc` writes it, which
-  chat turns into a link; nil unless three finite numbers). Unused; `/toolbox api` probes them. Requests 18 and 19 are
+  chat turns into a link; nil unless three finite numbers; used for a run's spot, `DD.LocText`). The area in the
+  location text is the scene's English name (`Area: Ardoris (Novia_R4_City_Ardoris) Loc: (...)`), nothing finer, so
+  runs use the coordinates. `/toolbox api` probes them. Requests 18 and 19 are
   not in it.
 
 **Waiting on the developers:** a read-only game settings API (first use: the game's "stack buffs lasting
@@ -663,6 +672,8 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - `ShroudOnItemsGained` names as stable keys (localized; same-named items merge); whether they match
   SotANET's names (English) for prices.
 - `ShroudGetClientInfo().languageCode` on a non-English client (assumed "de", "fr"...; the docs' example is "en").
+- The run Beacon (`ShroudSetBeacon`, API 9): the marker at the recorded spot on the compass and map, its "Loot run
+  HH:MM" label, and `ShroudGetCurrentSceneNameRaw` matching across visits to a scene (instanced scenes may differ).
 - `ShroudHttpGet`: whether every shard allows it; the reviewer may question declaring a host we don't own.
 - Notification counts reading 0 until loaded (hence `N.SETTLE`); ransoms / rewards / applications in practice.
 - The notification HUD's Scroll inside a HudFrame, nowrap labels ending in "...".

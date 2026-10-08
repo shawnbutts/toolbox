@@ -472,7 +472,8 @@ end
 -- Run history (owner, 2026-10-07): a run ending (Reset again, Show all of today, midnight) is filed with its
 -- numbers, the last D.RUNS_KEEP per character, newest first, for comparing farming spots. Saved var
 -- "loot_runs" = { v = 1, list = { { at = "HH:MM", date = "YYYY-MM-DD", scene, played = s, gold, kills, items,
--- kinds, nodes, value = estimated gold or nil } } }. A run under D.RUN_MIN s of play isn't kept.
+-- kinds, nodes, value = estimated gold or nil, spot = { scene, raw, x, y, z } or nil (where it was played most) } } }.
+-- A run under D.RUN_MIN s of play isn't kept.
 -- ---------------------------------------------------------------------------
 D.RUNS_KEEP, D.RUN_MIN = 10, 60
 D.runsVersion = 0
@@ -522,6 +523,7 @@ function D.FileRun(d)
   local entry = { at = type(s.at) == "string" and s.at or "", date = date,
                   scene = mainScene(s), played = math.floor(s.played), gold = run.gold or 0, kills = run.kills or 0,
                   items = items, kinds = kinds, nodes = (run.gather and run.gather.nodes) or 0, value = value }
+  entry.spot = D.MainSpot(s, entry.scene)
   local list = D.Runs()
   table.insert(list, 1, entry)
   while #list > D.RUNS_KEEP do list[#list] = nil end
@@ -673,6 +675,72 @@ local lastPlayAt = nil
 
 D.SCENES_MAX = 20                    -- scenes a run keeps play time for (its place: the one played most)
 
+-- Where a run was played (owner, 2026-10-08): play time per D.SPOT_CELL square of ground, keyed by the scene's
+-- internal name and the square, with the time-weighted sum of the positions in it. A run's spot is the middle of
+-- its most-played square (in its most-played scene). At most D.SPOTS_MAX squares: past that a new square takes
+-- the place of the least-played one and starts from its time (the busiest squares stay; a route can't push out
+-- the farming spot). since.spots = { ["<raw scene>|cx|cz"] = { s = scene name, r = raw scene, t = seconds,
+-- w = seconds here, x, y, z = position x seconds } }.
+D.SPOT_CELL, D.SPOTS_MAX = 40, 40
+
+local function playerPos()
+  local x, y, z = ShroudPlayerX, ShroudPlayerY, ShroudPlayerZ
+  if type(x) ~= "number" or type(y) ~= "number" or type(z) ~= "number" then return nil end
+  if x ~= x or y ~= y or z ~= z or math.abs(x) > 100000 or math.abs(y) > 100000 or math.abs(z) > 100000 then
+    return nil
+  end
+  return x, y, z
+end
+
+local function countSpot(s, scene, dt)
+  local okRaw, raw = pcall(ShroudGetCurrentSceneNameRaw)
+  local x, y, z = playerPos()
+  if not (okRaw and type(raw) == "string" and raw ~= "" and x) then return end
+  if type(s.spots) ~= "table" then s.spots = {} end
+  local key = raw .. "|" .. math.floor(x / D.SPOT_CELL) .. "|" .. math.floor(z / D.SPOT_CELL)
+  local cell = s.spots[key]
+  if type(cell) == "table" and not (type(cell.t) == "number" and type(cell.w) == "number"
+      and type(cell.x) == "number" and type(cell.y) == "number" and type(cell.z) == "number") then
+    s.spots[key], cell = nil, nil      -- (a damaged save)
+  end
+  if cell == nil then
+    local n, leastKey, least = 0, nil, nil
+    for k, c in pairs(s.spots) do
+      n = n + 1
+      local ct = type(c) == "table" and type(c.t) == "number" and c.t or 0
+      if least == nil or ct < least then leastKey, least = k, ct end
+    end
+    local start = 0
+    if n >= D.SPOTS_MAX then
+      s.spots[leastKey] = nil
+      start = least
+    end
+    cell = { s = scene, r = raw, t = start, w = 0, x = 0, y = 0, z = 0 }
+    s.spots[key] = cell
+  end
+  cell.t, cell.w = cell.t + dt, cell.w + dt
+  cell.x, cell.y, cell.z = cell.x + x * dt, cell.y + y * dt, cell.z + z * dt
+end
+
+-- The run's spot: { scene, raw, x, y, z } in scene `main` (else anywhere), or nil.
+local function mainSpot(s, main)
+  local best, bestIn = nil, nil
+  for _, c in pairs(type(s.spots) == "table" and s.spots or {}) do
+    if type(c) == "table" and type(c.t) == "number" and type(c.w) == "number" and c.w > 0
+        and type(c.x) == "number" and type(c.y) == "number" and type(c.z) == "number"
+        and type(c.r) == "string" and c.r ~= "" then
+      if not best or c.t > best.t then best = c end
+      if c.s == main and (not bestIn or c.t > bestIn.t) then bestIn = c end
+    end
+  end
+  local c = bestIn or best
+  if not c then return nil end
+  local function round(v) return math.floor(v / c.w * 100 + 0.5) / 100 end
+  return { scene = type(c.s) == "string" and c.s or "", raw = c.r, x = round(c.x), y = round(c.y),
+           z = round(c.z) }
+end
+D.MainSpot = mainSpot
+
 local function countPlay(hasCharacter)
   local s = D.day.since
   local now = T.Now()
@@ -688,6 +756,7 @@ local function countPlay(hasCharacter)
         local n = 0
         for _ in pairs(s.scenes) do n = n + 1 end
         if s.scenes[scene] or n < D.SCENES_MAX then s.scenes[scene] = (s.scenes[scene] or 0) + dt end
+        countSpot(s, scene, dt)
       end
     end
   end

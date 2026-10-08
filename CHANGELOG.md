@@ -7,6 +7,12 @@ ones included).
 
 ## [Unreleased]
 
+### Added
+- Loot Tracker runs remember where you played most. Hover a run to see the spot, and press its **Beacon** button
+  to mark it on your compass and map with the game's beacon (the one /beacon sets), to find a good farming spot
+  again. It works while you're in that run's scene, and replaces any beacon you set. Runs from before this
+  version have no spot.
+
 ### Fixed
 - Estimated values on a game client in another language showed "--" for nearly every item with no reason
   given: SotANET lists items by their English names, and the game names them in your language. The Loot

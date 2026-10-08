@@ -409,6 +409,87 @@ return function(t)
     t.eq(#Toolbox.Daily.Runs(), 0, "Alt's own history")
   end)
 
+  t.test("runs: where a run was played most is kept; Beacon marks it, only in that scene", function()
+    H.boot()
+    H.chat("/tbx loot")
+    H.chat("/tbx loot reset")
+    H.S.scene = "Northern Lowlands"
+    H.S.pos = { 1000, 20, -500 }                         -- the way there: a short stop
+    H.advance(60)
+    for i = 1, 30 do                                     -- the farming spot, moving about within it
+      H.S.pos = { 2010 + (i % 3) * 4, 30, 3010 + (i % 5) * 2 }
+      H.advance(10)
+    end
+    H.S.scene = "Highvale"                               -- back to town for a bit
+    H.S.pos = { 5, 1, 5 }
+    H.advance(30)
+    H.chat("/tbx loot reset")
+    local spot = Toolbox.Daily.Runs()[1].spot
+    t.ok(spot, "a spot is kept")
+    t.eq(spot.scene, "Northern Lowlands")
+    t.eq(spot.raw, "NorthernLowlands")
+    t.ok(math.abs(spot.x - 2014) < 3 and math.abs(spot.z - 3014) < 3 and spot.y == 30,
+      "the middle of the farming spot: " .. spot.x .. ", " .. spot.y .. ", " .. spot.z)
+
+    H.chat("/tbx loot view runs")
+    local row = H.detail():Find("list").children[1]
+    t.ok(row.children[1].tooltip:find("Played most around %(201%d[%.%d]*, 30, 301%d[%.%d]*%) in Northern Lowlands"),
+      row.children[1].tooltip)
+    local mark = row.children[4]
+    t.eq(mark.text, "Beacon")
+    t.ok(mark.visible ~= false, "shown for a run with a spot")
+    H.call(function() mark.onClick(mark) end)
+    t.eq(H.S.beacon, nil, "not from another scene")
+    t.ok(H.lastLog():find("That run was in Northern Lowlands"), H.lastLog())
+    H.S.scene = "Northern Lowlands"
+    H.call(function() mark.onClick(mark) end)
+    t.ok(H.S.beacon and math.abs(H.S.beacon[1] - spot.x) < 1e-6 and H.S.beacon[3] == spot.z, "set at the spot")
+    t.ok(H.S.beacon[4]:find("^Loot run %d%d:%d%d$"), H.S.beacon[4])
+    t.ok(H.lastLog():find("Beacon set where your %d%d:%d%d run was played most: Northern Lowlands %("), H.lastLog())
+    H.S.noMap = true
+    H.call(function() mark.onClick(mark) end)
+    t.ok(H.lastLog():find("didn't set the beacon"), H.lastLog())
+  end)
+
+  t.test("runs: a run's ground squares are capped; the busiest stays", function()
+    H.boot()
+    H.chat("/tbx loot reset")
+    H.S.pos = { 400, 0, 400 }
+    H.advance(300)                                       -- the spot: 5 minutes
+    for i = 1, Toolbox.Daily.SPOTS_MAX * 2 do            -- a long route afterwards, a new square each second
+      H.S.pos = { i * 50, 0, -2000 }
+      H.advance(1)
+    end
+    local n = 0
+    for _ in pairs(Toolbox.Daily.day.since.spots) do n = n + 1 end
+    t.eq(n, Toolbox.Daily.SPOTS_MAX)
+    H.chat("/tbx loot reset")
+    local spot = Toolbox.Daily.Runs()[1].spot
+    t.eq(spot.x, 400)
+    t.eq(spot.z, 400)
+  end)
+
+  t.test("runs: older runs without a spot, and a damaged one, get no Beacon", function()
+    H.boot()
+    H.chat("/tbx loot reset")
+    H.advance(120)
+    H.chat("/tbx loot reset")
+    H.advance(120)
+    H.chat("/tbx loot reset")
+    local list = Toolbox.Daily.Runs()
+    list[1].spot = nil
+    list[2].spot = { raw = "Novia", x = "1", y = 0, z = 0 }
+    Toolbox.Daily.runsVersion = Toolbox.Daily.runsVersion + 1
+    H.chat("/tbx loot")
+    H.chat("/tbx loot view runs")
+    local rows = H.detail():Find("list").children
+    t.eq(rows[1].children[4].visible, false)
+    t.eq(rows[2].children[4].visible, false)
+    t.ok(not rows[1].children[1].tooltip:find("Played most"), rows[1].children[1].tooltip)
+    t.eq(Toolbox.DailyDetail.MarkRun(1), false)
+    t.ok(H.lastLog():find("That run has no spot recorded%.$"), H.lastLog())
+  end)
+
   t.test("runs: the estimated value per hour, from the prices when the run ended", function()
     H.boot()
     H.chat("/tbx loot")
