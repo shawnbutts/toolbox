@@ -1950,7 +1950,10 @@ function BB.ResolveEffect(text, muted)
   text = T.Trim(text)
   local want, found = text:lower(), {}
   for n in pairs(quiet) do if n:lower() == want then return n end end
-  if not muted and ((runes and runes[text]) or (learned and learned[text])) then return text end
+  if not muted then                                  -- the rune name as the game spells it (alerts look it up)
+    for n in pairs(runes or {}) do if n:lower() == want then return n end end
+    for n in pairs(learned or {}) do if n:lower() == want then return n end end
+  end
   if muted then
     for n in pairs(quiet) do if BB.ShownName(n):lower() == want then found[#found + 1] = n end end
   else

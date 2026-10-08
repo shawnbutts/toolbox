@@ -90,6 +90,10 @@ return function(t)
     t.ok(B().IsMuted("Reward_Blessing_CastleAtos4_7"))
     H.chat("/tbx buffs quiet remove Blessing of Atos")   -- now only one muted by that name
     t.no(B().IsMuted("Reward_Blessing_CastleAtos4_7"))
+    H.clearLogs()
+    H.chat("/tbx buffs quiet add reward_blessing_castleatos4_7")   -- a rune name in another case
+    t.ok(B().IsMuted("Reward_Blessing_CastleAtos4_7"), "muted as the game spells it (alerts look that up)")
+    t.ok(H.logged("'Blessing of Atos' is muted"), "named by its shown name")
   end)
 
   t.test("settings: pick and Mute, pick and Unmute; kept across a reload", function()
