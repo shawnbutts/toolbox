@@ -55,6 +55,11 @@ This file holds current facts and rules; the history behind them is in git (`git
   refuses the WHOLE file ("invalid escape sequence near '\/'"), which the next save overwrites with defaults. Save
   through `T.Save` / `T.ReadSaved` (they encode "/" as "%2F", "%" as "%25", keys too), or `T.ForSaving` /
   `T.FromSaved` around a direct `ShroudSetSavedVar`. The harness raises for a "/" in any saved value (dev report 19).
+- **Never save a negative number** (owner, 2026-10-08: the same data loss). The loader stops at its "-"
+  ("Unexpected token : '-'"; first seen with a run spot's coordinates: no Toolbox save had held one before). The
+  same helpers save a number below 0, or one under `T.SAVE_TINY` / from `T.SAVE_HUGE` (the saver may write an
+  exponent, "1E-05": assumed, not seen), as text "%N<number>" and read it back as the number; NaN and infinities
+  aren't saved. The harness raises for such a number in any saved value or key (dev report 21).
 - **No `io.*` / `os.*`**, except feature-detected `os.date`/`os.time` for the local clock (`Toolbox.Today`,
   `Toolbox.Clock`). Persist with `ShroudSetSavedVar`/`ShroudGetSavedVar`, character scope.
 - **UI is `Shroud.UI` only.** No retained widgets (`ShroudUI*`), no immediate-mode GUI (`ShroudOnGUI`).
@@ -677,6 +682,8 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - `os.date` in the sandbox (feature-detected; fallback: the date part of `ShroudServerTime`).
 - `ShroudOnItemsGained` names as stable keys (localized; same-named items merge); whether they match
   SotANET's names (English) for prices.
+- Which numbers the saved-variable loader refuses: a negative one for certain (2026-10-08); exponent forms
+  ("1E-05", "1E+15") assumed, so `T.SAVE_TINY` / `T.SAVE_HUGE` encode them too.
 - `ShroudGetClientInfo().languageCode` on a non-English client (assumed "de", "fr"...; the docs' example is "en").
 - The run Beacon (`ShroudSetBeacon`, API 9): the marker at the recorded spot on the compass and map, its "Loot run
   HH:MM" label, and `ShroudGetCurrentSceneNameRaw` matching across visits to a scene (instanced scenes may differ).

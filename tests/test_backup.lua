@@ -185,4 +185,29 @@ return function(t)
     t.eq(Toolbox.Daily.day.items["Half/Half Ale"], 2)
     t.eq(Toolbox.Daily.day.items["100% Cotton"], 1)
   end)
+
+  -- 2026-10-08: the game's loader refused a saved negative number ("Unexpected token : '-'") and dropped the file.
+  t.test("negative, tiny and huge numbers are saved as text and read back as the numbers", function()
+    H.boot()
+    local T = Toolbox
+    T.Save("location", { show = true, x = -40, y = 12.5, tiny = 0.00002, huge = 2e15, zero = -0.0,
+                         nan = 0 / 0, list = { -1, 2, -3.25 }, text = "%N-5" })
+    local raw = H.S.memory["character:Tester"].location
+    t.eq(raw.x, "%N-40")
+    t.eq(raw.y, 12.5, "an ordinary number stays a number")
+    t.eq(type(raw.tiny), "string")
+    t.eq(type(raw.huge), "string")
+    t.eq(raw.zero, 0)
+    t.eq(raw.nan, nil, "NaN isn't saved")
+    t.eq(raw.text, "%25N-5", "text that looks like one stays text")
+    H.restart(nil, true)
+    local back = T.ReadSaved("location")
+    t.eq(back.x, -40)
+    t.eq(back.y, 12.5)
+    t.eq(back.tiny, 0.00002)
+    t.eq(back.huge, 2e15)
+    t.eq(back.list[1], -1)
+    t.eq(back.list[3], -3.25)
+    t.eq(back.text, "%N-5")
+  end)
 end

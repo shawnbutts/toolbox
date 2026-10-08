@@ -253,9 +253,36 @@ local function decodeText(s)
   return (s:gsub("%%2F", "/"):gsub("%%25", "%%"))
 end
 
--- A deep copy with every string (keys too) encoded (`code` = encodeText) or decoded.
+-- Nor a negative number (owner, 2026-10-08: the same loss): the loader stops at its "-" ("Unexpected token :
+-- '-'"). A number below 0, or one the saver might write with an exponent ("1E-05", "1E+15"), is saved as text:
+-- "%N" and the number ("%N-12.5"), read back as the number. Text can't start "%N" (its "%" is "%25"). NaN and
+-- infinities aren't saved at all; -0 is saved as 0.
+T.SAVE_TINY, T.SAVE_HUGE = 1e-4, 1e15
+local function encodeNumber(n)
+  if n ~= n or n == math.huge or n == -math.huge then return nil end
+  if n == 0 then return 0 end
+  if n < 0 or n < T.SAVE_TINY or n >= T.SAVE_HUGE then return "%N" .. string.format("%.17g", n) end
+  return n
+end
+
+local function decodeNumber(s)
+  if s:sub(1, 2) ~= "%N" then return nil end
+  return tonumber(s:sub(3))
+end
+
+-- A deep copy with every string (keys too) encoded (`code` = encodeText) or decoded, and numbers to match.
 local function codedCopy(v, code)
-  if type(v) == "string" then return code(v) end
+  if type(v) == "number" then
+    if code == encodeText then return encodeNumber(v) end
+    return v
+  end
+  if type(v) == "string" then
+    if code == decodeText then
+      local n = decodeNumber(v)
+      if n then return n end
+    end
+    return code(v)
+  end
   if type(v) ~= "table" then return v end
   local out = {}
   for k, x in pairs(v) do

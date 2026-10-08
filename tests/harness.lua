@@ -497,9 +497,16 @@ local function install_api()
     if t == "function" or t == "thread" or t == "userdata" then return false end
     -- In game (2026-10-07) a "/" in saved text was written as "\/", which the game's loader refuses, dropping the
     -- whole file: Toolbox must never hand one over (core.lua's encodeText). Raised here so every test checks it.
+    -- And (2026-10-08) a negative number: the loader stops at its "-" ("Unexpected token : '-'"), same loss. Numbers
+    -- the saver could write with an exponent ("1E-05", "1E+15") or as NaN / Infinity are refused here too.
     local function slash(v, path)
       if type(v) == "string" and v:find("/", 1, true) then
         error("saved var '" .. key .. "' holds a '/' (" .. path .. "): the game's loader refuses it", 3)
+      end
+      if type(v) == "number" and (v < 0 or v ~= v or v >= 1e15 or (v > 0 and v < 1e-4)
+          or (v == 0 and 1 / v < 0)) then
+        error("saved var '" .. key .. "' holds the number " .. tostring(v) .. " (" .. path .. "): the game's loader"
+          .. " refuses a '-' (or an exponent)", 3)
       end
       if type(v) == "table" then
         for k, x in pairs(v) do
