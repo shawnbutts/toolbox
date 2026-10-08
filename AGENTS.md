@@ -174,6 +174,9 @@ into one if a new file is ever needed).
     `MB.SLOTS` (40; 60 in 1.2.0, lowered for the element budget) in rows of `MB.GetWidth()` (a width change rebuilds only its strip: `Hud.Rebuild`), its own
     size (in place) and combat-only. Short tooltips (`fill`'s `short`: name, debuff, `BB.CoarseLeft` to the
     minute), not the game's full ones: 60 full ones beside the buff bar's would break the text budget.
+    No option for full ones either (owner, 2026-10-08, review 18 declined): 40 measured 55,068 characters at the
+    worst against the 48,000 budget, and a cap that fits (about 100 each) shows little more than the short one;
+    the buff bar has the full tooltips.
     Replace and click-to-dismiss use the buff bar's settings.
   - Buff bar: `OnBuffsChanged` (from the event AND from `Tick` when names change) reads
     `ShroudGetPlayerBuff()` through `BB.ReadRunes` (userdata-safe) for debuff flags, icons, categories and
