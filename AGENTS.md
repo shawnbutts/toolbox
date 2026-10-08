@@ -567,7 +567,11 @@ loss (Toolbox is protected: never saves a "/"). **20** (submitted 2026-10-08): a
 icon, a label and a hover note per marker, scene-scoped, display only, rate-limited, local); until then a run's spot
 uses the shared beacon on a click (`DD.MarkRun`). **21** (submitted 2026-10-08): a negative number in saved vars
 makes the loader refuse the whole file ("Unexpected token : '-'"), which the next save then overwrites, like 19
-(Toolbox is protected: `T.SetSavedVar` and the "%N" numbers above). Everything reported is fixed: the API 25 client issues, and
+(Toolbox is protected: `T.SetSavedVar` and the "%N" numbers above). **22** (submitted 2026-10-08): sound handles (the
+clip's path beside its name in `ShroudListSound`, a handle from `ShroudLoadSound`, or a list per add-on); until then
+an effect file named like another sound's is refused (`S.UseFile`). **23** (submitted 2026-10-08): a file picker
+(`ShroudPickFile(kind, callback)` from a click: an in-game browser of the Lua folder, or the system dialog copying
+into `Lua/<slug>_files/`); until then players paste a path (`S.CleanPath`). Everything reported is fixed: the API 25 client issues, and
 (work log 2026-09-30, `ac63e8c01b`, **API 26**, in the next client build, not yet in the owner's) the party
 ones (`tmp/client-issues.md` 14, 15): the slot getters reach the whole party (slot 0 = you, then party-frame
 order, so `for slot = 0, count - 1` finds everyone, buffs included), `ShroudGetPartyMemberNamesInScene()`
