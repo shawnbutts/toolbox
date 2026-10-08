@@ -239,29 +239,54 @@ function T.Copy(v)
   return out
 end
 
--- Saved text never holds a "/" (owner, 2026-10-07: the game's saver writes "/" as "\/", valid JSON, which its own
--- loader then refuses: "invalid escape sequence near '\/'", and the WHOLE file is dropped and overwritten with
--- defaults). Every string and key Toolbox saves has "%" written as "%25" and "/" as "%2F"; reading turns them back.
--- Text saved before this has no "%2F" and reads unchanged.
-local function encodeText(s)
-  if not s:find("[/%%]") then return s end
-  return (s:gsub("%%", "%%25"):gsub("/", "%%2F"))
+-- Saved data is kept to what the game's file reader is known to take (owner, 2026-10-08: twice a value it refused
+-- lost a character's whole file: the game starts the add-on with defaults and the next save overwrites the file):
+--  1. Text holds only printable ASCII other than " \ / and % (T.SAFE_CHARS). Anything else is written "%XX" (its
+--     byte; "%uXXXX" for a character past 255, MoonSharp's strings being UTF-16), keys too, and read back. Found:
+--     "/" (the saver writes "\/", the loader refuses it: "invalid escape sequence near '\/'", 2026-10-07). The
+--     rest (quotes, newlines, accented letters) go through the same escaping and aren't trusted either.
+--  2. A number is saved as a number only when it's 0 or positive, from T.SAVE_TINY and under T.SAVE_HUGE: a negative
+--     one stopped the loader at its "-" ("Unexpected token : '-'", 2026-10-08), and the saver may write an exponent
+--     ("1E-05"). Others are saved as text, "%N" and the number ("%N-12.5"), and read back as the number (text can't
+--     start "%N": its "%" is "%25"). NaN and infinities aren't saved; -0 is saved as 0.
+--  3. T.SetSavedVar checks every value before it reaches the game (T.CheckSaved) and refuses one that breaks those
+--     rules, or would pass the game's 256 KB a table: that one value isn't saved, and chat says so once, instead of
+--     the whole file being lost.
+-- Text saved before any of this reads unchanged (it has no "%XX" in it, or only the "%2F" / "%25" of 1.5.1 on).
+T.SAFE_CHARS = "[^ !#$&'()*+,%-%.0-9:;<=>?@A-Z%[%]^_`a-z{|}\126]"   -- (the complement: what gets escaped)
+T.SAVED_CHARS = "[^ !#$%%&'()*+,%-%.0-9:;<=>?@A-Z%[%]^_`a-z{|}\126]"  -- what saved text may hold: those and the "%"
+T.SAVE_TINY, T.SAVE_HUGE = 1e-4, 1e15
+T.SAVE_MAX_CHARS = 240000            -- an estimate of a table's JSON size, under the game's 256 KB
+T.SAVE_MAX_DEPTH = 24
+
+local function escapeChar(c)
+  local b = c:byte()
+  if b > 255 then return string.format("%%u%04X", b) end
+  return string.format("%%%02X", b)
 end
+
+local function encodeText(s)
+  if not s:find(T.SAFE_CHARS) then return s end
+  return (s:gsub(T.SAFE_CHARS, escapeChar))
+end
+
+local function unescapeWide(h)
+  local ok, c = pcall(string.char, tonumber(h, 16))
+  if ok then return c end
+  return "%u" .. h
+end
+
+local function unescapeByte(h) return string.char(tonumber(h, 16)) end
 
 local function decodeText(s)
   if not s:find("%", 1, true) then return s end
-  return (s:gsub("%%2F", "/"):gsub("%%25", "%%"))
+  return (s:gsub("%%u(%x%x%x%x)", unescapeWide):gsub("%%(%x%x)", unescapeByte))
 end
 
--- Nor a negative number (owner, 2026-10-08: the same loss): the loader stops at its "-" ("Unexpected token :
--- '-'"). A number below 0, or one the saver might write with an exponent ("1E-05", "1E+15"), is saved as text:
--- "%N" and the number ("%N-12.5"), read back as the number. Text can't start "%N" (its "%" is "%25"). NaN and
--- infinities aren't saved at all; -0 is saved as 0.
-T.SAVE_TINY, T.SAVE_HUGE = 1e-4, 1e15
 local function encodeNumber(n)
   if n ~= n or n == math.huge or n == -math.huge then return nil end
   if n == 0 then return 0 end
-  if n < 0 or n < T.SAVE_TINY or n >= T.SAVE_HUGE then return "%N" .. string.format("%.17g", n) end
+  if n < T.SAVE_TINY or n >= T.SAVE_HUGE then return "%N" .. string.format("%.17g", n) end
   return n
 end
 
@@ -296,13 +321,86 @@ end
 -- For the few places that call the saved-var API themselves (the price cache).
 function T.ForSaving(v) return codedCopy(v, encodeText) end
 function T.FromSaved(v) return codedCopy(v, decodeText) end
+-- A value read straight from the saved vars, put in today's form (text saved before the escaping, for a copy).
+function T.Resaved(v) return codedCopy(codedCopy(v, decodeText), encodeText) end
+
+-- Whether `v` (as it will be saved: already through T.ForSaving) is safe to hand to the game. Returns true, or
+-- false and why ("text with a '/' at notify.sources.x.title").
+local function numberOk(n)
+  return n == n and n >= 0 and not (n == 0 and 1 / n < 0) and (n == 0 or (n >= T.SAVE_TINY and n < T.SAVE_HUGE))
+end
+
+function T.CheckSaved(v)
+  local size, inside = 0, {}
+  local function walk(x, path, depth)
+    local kind = type(x)
+    if kind == "boolean" then
+      size = size + 6
+      return true
+    elseif kind == "number" then
+      if not numberOk(x) then return false, "the number " .. tostring(x) .. " at " .. path end
+      size = size + 24
+      return true
+    elseif kind == "string" then
+      local at = x:find(T.SAVED_CHARS)
+      if at then return false, "unsafe text (" .. string.format("%q", x:sub(at, at)) .. ") at " .. path end
+      size = size + #x + 3
+      return true
+    elseif kind == "table" then
+      if inside[x] then return false, "a table inside itself at " .. path end
+      if depth > T.SAVE_MAX_DEPTH then return false, "nesting deeper than " .. T.SAVE_MAX_DEPTH .. " at " .. path end
+      inside[x] = true
+      size = size + 2
+      for k, item in pairs(x) do
+        if type(k) == "string" then
+          if k:find(T.SAVED_CHARS) then return false, "an unsafe key at " .. path end
+          size = size + #k + 4
+        elseif type(k) == "number" then
+          if k < 1 or k ~= math.floor(k) or k >= T.SAVE_HUGE then
+            return false, "the key " .. tostring(k) .. " at " .. path
+          end
+        else
+          return false, "a " .. type(k) .. " key at " .. path
+        end
+        local ok, why = walk(item, path .. "." .. tostring(k), depth + 1)
+        if not ok then return false, why end
+        if size > T.SAVE_MAX_CHARS then return false, "more than the game's 256 KB a table" end
+      end
+      inside[x] = nil
+      return true
+    end
+    return false, "a " .. kind .. " at " .. path
+  end
+  return walk(v, "", 1)
+end
+
+-- Every saved-variable write goes through here. Refuses (false, why) a value that isn't safe to save (chat says so
+-- once per key a session: one setting not saved, not the whole file lost) or a key the game wouldn't take; else
+-- the game's answer. A write to this character's file marks the recovery copy behind (T.Backup.KeepRecovery).
+T.saveRefused = {}                   -- key -> why, this session (the tests fail on any they don't expect)
+function T.SetSavedVar(key, value, scope)
+  if type(key) ~= "string" or key == "" or #key > 128 or key:find("[/\\%c]") then
+    return false, "a bad key"
+  end
+  local ok, why = T.CheckSaved(value)
+  if not ok then
+    if not T.saveRefused[key] then
+      T.Print("Toolbox didn't save '" .. key .. "' (" .. why .. "): the game couldn't have read its file back."
+        .. " Your other settings are safe. Please report this with /" .. T.commands[1] .. " version.")
+    end
+    T.saveRefused[key] = why
+    return false, why
+  end
+  if scope ~= "account" and T.Backup and T.Backup.Recovers(key) then T.recoveryDirty = true end
+  return ShroudSetSavedVar(key, value, scope) == true
+end
 
 function T.ReadSaved(key)
   return codedCopy(ShroudGetSavedVar(key, SCOPE), decodeText)
 end
 
 function T.Save(key, value)
-  local ok = ShroudSetSavedVar(key, codedCopy(value, encodeText), SCOPE)
+  local ok = T.SetSavedVar(key, codedCopy(value, encodeText), SCOPE)
   if not ok then T.Print("Could not save '" .. key .. "'.") end
   if T.Backup.IsSetting(key) then T.setupDirty = true end    -- this character's setup copy is behind
   return ok
@@ -313,6 +411,7 @@ end
 T.FLUSH_WARN_EVERY = 300
 function T.Flush()
   if T.setupDirty then T.Backup.KeepCopy() end
+  if T.recoveryDirty then T.Backup.KeepRecovery() end
   local ok = ShroudFlushSavedVars()
   if ok == false then
     T.flushFailures = (T.flushFailures or 0) + 1
@@ -2127,7 +2226,7 @@ function T.Welcome()
   if ShroudGetSavedVar("welcomed", "account") then return false end
   T.Print("Toolbox is ready: type /" .. T.commands[1] .. " to open its settings, or /" .. T.commands[1]
     .. " docs for a guide to everything.")
-  ShroudSetSavedVar("welcomed", true, "account")
+  T.SetSavedVar("welcomed", true, "account")
   -- A moment later: start-up has just built every window and HUD strip, and the settings window's
   -- ~180 elements on top could pass the game's element-creation cap (2026-09-28).
   ShroudRegisterPeriodic("toolbox_welcome", function() T.Config.Open() end, T.WELCOME_DELAY, false)
@@ -2218,7 +2317,7 @@ end
 -- Asks for a reset at the next start. Returns true, or false and why (the game refused to store the request,
 -- or to write it to disk: then it may not survive to the next start).
 function B.RequestReset()
-  if not ShroudSetSavedVar(B.PENDING, { kind = "reset" }, SCOPE) then
+  if not T.SetSavedVar(B.PENDING, { kind = "reset" }, SCOPE) then
     return false, "the game refused to store the request"
   end
   if T.Flush() == false then return false, "the game couldn't write it to disk, so it may not happen" end
@@ -2334,7 +2433,7 @@ local function currentSettings()
   for _, key in ipairs(B.KEYS) do
     local v = key ~= B.SHARE and ShroudGetSavedVar(key, SCOPE) or nil
     if v ~= nil then
-      keys[key] = key == "notify" and withoutSeen(v) or T.Copy(v)
+      keys[key] = T.Resaved(key == "notify" and withoutSeen(v) or v)
       any = true
     end
   end
@@ -2358,14 +2457,14 @@ local function store(name, character)
   end
   local key = setupKey(name, character)
   local before = ShroudGetSavedVar(key, ACCOUNT)
-  if not ShroudSetSavedVar(key, { v = 1, name = name, keys = keys }, ACCOUNT) then
+  if not T.SetSavedVar(key, { v = 1, name = name, keys = keys }, ACCOUNT) then
     return false, "the game refused to store it", true
   end
   local _, when = T.Today()
   local entry = { name = name, character = character, when = type(when) == "string" and when or "" }
   if at then list[at] = entry else list[#list + 1] = entry end
-  if not ShroudSetSavedVar(B.SETUPS, { v = 1, list = list }, ACCOUNT) then
-    if before == nil then ShroudDeleteSavedVar(key, ACCOUNT) else ShroudSetSavedVar(key, before, ACCOUNT) end
+  if not T.SetSavedVar(B.SETUPS, { v = 1, list = list }, ACCOUNT) then
+    if before == nil then ShroudDeleteSavedVar(key, ACCOUNT) else T.SetSavedVar(key, before, ACCOUNT) end
     return false, "the game refused to store the list of setups", true
   end
   return true
@@ -2384,6 +2483,100 @@ function B.KeepCopy()
   end
   local ok, _, retry = store(name, true)
   T.setupDirty = not ok and retry == true
+end
+
+-- ---------------------------------------------------------------------------
+-- Recovery (owner, 2026-10-08, after two values the game's loader refused cost a character its whole file):
+-- the game gives no way to test a write or to read a file back, so each character's settings, positions and kept
+-- history (B.RecoverList) are also copied into the account file ("recovery:<name>"), a separate file the same bad
+-- value can't take with it, at the next flush after one changed (T.recoveryDirty, set by T.SetSavedVar). Each copy
+-- has a number, also saved in the character's own file (B.MARK). At start (and for another character), before
+-- anything reads its settings: a character whose file has no number but whose copy does lost its file (the game
+-- couldn't read it, and starts the add-on empty), so the copy is written back at once and chat says so. A file
+-- restored by hand, or one older than its copy, has its number: left alone. Stats that change all the time (the
+-- day, the XP session) aren't copied.
+-- ---------------------------------------------------------------------------
+B.MARK = "save_mark"                 -- character: the number of the recovery copy last written
+B.RECOVER_EXTRA = { "loot_runs", "skill_levels", "buff_durations" }
+local recoverList, recoverSet = nil, nil
+
+-- The keys copied: every setting (B.KEYS) and B.RECOVER_EXTRA. Built at the first use: files append to B.KEYS.
+function B.RecoverList()
+  if not recoverList then
+    recoverList, recoverSet = {}, {}
+    for _, list in ipairs({ B.KEYS, B.RECOVER_EXTRA }) do
+      for _, k in ipairs(list) do
+        if not recoverSet[k] then
+          recoverSet[k] = true
+          recoverList[#recoverList + 1] = k
+        end
+      end
+    end
+  end
+  return recoverList
+end
+
+function B.Recovers(key)
+  B.RecoverList()
+  return recoverSet[key] == true
+end
+
+local function recoveryKey(name) return "recovery:" .. name:lower() end
+
+-- This character's recovery copy as saved, or nil.
+function B.RecoveryCopy(name)
+  local copy = ShroudGetSavedVar(recoveryKey(name or T.settingsFor or ""), ACCOUNT)
+  if type(copy) ~= "table" or copy.v ~= 1 or type(copy.keys) ~= "table" or type(copy.n) ~= "number" then
+    return nil
+  end
+  return copy
+end
+
+-- Writes this character's recovery copy (from T.Flush, after a change). Its number goes into the character's file
+-- first: a copy refused afterwards leaves an older copy, never a file without a number.
+function B.KeepRecovery()
+  local who = T.settingsFor
+  if not who or ShroudGetPlayerName() ~= who then return end
+  local keys = {}
+  for _, key in ipairs(B.RecoverList()) do
+    local v = ShroudGetSavedVar(key, SCOPE)
+    if v ~= nil then keys[key] = T.Resaved(v) end
+  end
+  local mark = ShroudGetSavedVar(B.MARK, SCOPE)
+  local n = (type(mark) == "number" and mark >= 1 and math.floor(mark) or 0) + 1
+  if not T.SetSavedVar(B.MARK, n, SCOPE) then return end            -- tried again at the next flush
+  local _, date = T.Today()
+  local clock = T.ClockText()
+  local when = (type(date) == "string" and date or "") .. ((clock ~= "" and date) and " " or "") .. clock
+  local ok = T.SetSavedVar(recoveryKey(who), { v = 1, n = n, when = when, keys = keys }, ACCOUNT)
+  -- a value T.CheckSaved refused won't pass next time either (chat said so once): not retried every flush
+  T.recoveryDirty = not ok and T.saveRefused[recoveryKey(who)] == nil
+end
+
+-- At start and for another character, before anything reads its settings: writes the recovery copy back when the
+-- character's file came back without its number (above). Returns true when it did.
+function B.Recover()
+  local who = T.settingsFor
+  if not who or ShroudGetPlayerName() ~= who then return false end
+  if ShroudGetSavedVar(B.MARK, SCOPE) ~= nil then return false end
+  local copy = B.RecoveryCopy(who)
+  if not copy then return false end
+  local restored, skipped = 0, 0
+  for _, key in ipairs(B.RecoverList()) do
+    local v = copy.keys[key]
+    if v ~= nil then
+      if T.SetSavedVar(key, T.Resaved(v), SCOPE) then restored = restored + 1 else skipped = skipped + 1 end
+    end
+  end
+  T.SetSavedVar(B.MARK, math.floor(copy.n), SCOPE)
+  local flushed = T.Flush() ~= false
+  local when = type(copy.when) == "string" and copy.when ~= "" and (" from " .. copy.when) or ""
+  T.Print("The game couldn't read Toolbox's saved file for " .. who .. " (it started empty), so your settings,"
+    .. " positions and run history were put back from Toolbox's copy" .. when .. "." .. (skipped > 0 and (" "
+    .. skipped .. " part(s) couldn't be put back.") or "") .. " Stats from before then (today's counts, the XP"
+    .. " session) can't be." .. (flushed and "" or " The game couldn't write them to disk yet."))
+  T.recoveryDirty = false
+  return restored > 0
 end
 
 -- The setup a player means by `text`: a named one first, then a character's copy. Nil when none matches.
@@ -2442,12 +2635,12 @@ function B.Import(s)
   if type(saved) ~= "table" or type(saved.keys) ~= "table" then return false, "that setup is gone" end
   local values = importValues(saved.keys)
   local old, written = {}, {}
-  for _, key in ipairs(B.KEYS) do old[key] = T.Copy(ShroudGetSavedVar(key, SCOPE)) end
+  for _, key in ipairs(B.KEYS) do old[key] = T.Resaved(ShroudGetSavedVar(key, SCOPE)) end
   for _, key in ipairs(B.KEYS) do
     if values[key] ~= nil then
-      if not ShroudSetSavedVar(key, T.Copy(values[key]), SCOPE) then
+      if not T.SetSavedVar(key, T.Resaved(values[key]), SCOPE) then
         for _, k in ipairs(written) do
-          if old[k] == nil then ShroudDeleteSavedVar(k, SCOPE) else ShroudSetSavedVar(k, old[k], SCOPE) end
+          if old[k] == nil then ShroudDeleteSavedVar(k, SCOPE) else T.SetSavedVar(k, old[k], SCOPE) end
         end
         return false, "the game refused to store it, so nothing changed"
       end
@@ -2473,7 +2666,7 @@ function B.DeleteSetup(s)
   end
   local key = setupKey(s.name, s.character)
   if #kept == #list and ShroudGetSavedVar(key, ACCOUNT) == nil then return false, "it wasn't there" end
-  if #kept < #list and not ShroudSetSavedVar(B.SETUPS, { v = 1, list = kept }, ACCOUNT) then
+  if #kept < #list and not T.SetSavedVar(B.SETUPS, { v = 1, list = kept }, ACCOUNT) then
     return false, "the game refused to change the list of setups"
   end
   ShroudDeleteSavedVar(key, ACCOUNT)
@@ -2626,7 +2819,9 @@ function T.FollowCharacter()
   if name == T.settingsFor then return false end
   T.settingsFor = name                 -- (false: started with no character, so read no settings yet)
   local places = T.Hud.Places()        -- before the strips go: kept where this character has none
+  step("the recovery check", T.Backup.Recover)        -- a file the game couldn't read: put back first
   step("the settings restore", T.Backup.ApplyPending)
+  T.recoveryDirty = true               -- this character's recovery copy, at the next flush
   step("this character's session and day", followSession)   -- before its windows show them
   startModules(places)
   T.Config.Sync()
@@ -2646,7 +2841,9 @@ function ShroudOnStart()
   T.RegisterCommands()
   T.RegisterKeybind()
   T.settingsFor = characterName() or false
+  step("the recovery check", T.Backup.Recover)          -- a file the game couldn't read: put back first
   step("the settings restore", T.Backup.ApplyPending)   -- before anything reads its settings
+  T.recoveryDirty = true               -- this character's recovery copy, at the next flush
   step("today's stats", T.Daily.ReadDay)  -- before the session: a new login re-bases daily gold
   step("the crafting state", T.Daily.ReadCraftingState)
   T.ResumeOrStart()

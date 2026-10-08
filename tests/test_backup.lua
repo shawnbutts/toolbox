@@ -210,4 +210,108 @@ return function(t)
     t.eq(back.list[3], -3.25)
     t.eq(back.text, "%N-5")
   end)
+
+  -- Saving only what the game's reader is known to take (owner, 2026-10-08, after the second lost file).
+  t.test("any text is saved as plain ASCII and reads back the same; older text reads unchanged", function()
+    H.boot()
+    local T = Toolbox
+    local text = 'say "hi"\\ back/slash\nnew line, 100% \195\132pfel %u00E4 %N5'
+    T.Save("location", { note = text, [text] = true })
+    local raw = H.S.memory["character:Tester"].location
+    t.ok(not raw.note:find("[^ -~]"), "printable ASCII only: " .. raw.note)
+    t.ok(not raw.note:find('["\\/]'), "no quote, backslash or slash: " .. raw.note)
+    H.restart(nil, true)
+    local back = T.ReadSaved("location")
+    t.eq(back.note, text)
+    t.eq(back[text], true, "keys too")
+    H.S.memory["character:Tester"].legacy = { a = "100% sure", b = "Ward%2FShield", c = "plain" }
+    local old = T.ReadSaved("legacy")
+    t.eq(old.a, "100% sure")
+    t.eq(old.b, "Ward/Shield")
+    t.eq(old.c, "plain")
+  end)
+
+  t.test("a value the game couldn't read back isn't saved: one key refused, said once, the rest saved", function()
+    H.boot()
+    local T = Toolbox
+    t.eq(T.CheckSaved({ a = 1, b = "x", c = { true, 2.5 } }), true)
+    for _, bad in ipairs({ { -1 }, { 0 / 0 }, { "a/b" }, { "\n" }, { [0] = 1 }, { [1.5] = 1 } }) do
+      t.eq(T.CheckSaved(bad), false)
+    end
+    local loop = {}
+    loop.self = loop
+    t.eq(T.CheckSaved(loop), false)
+    t.eq(T.CheckSaved({ string.rep("x", T.SAVE_MAX_CHARS + 1) }), false, "past the game's 256 KB")
+    H.S.logs = {}
+    t.eq(T.SetSavedVar("probe", { -1 }, "character"), false)
+    t.eq(T.SetSavedVar("probe", { -2 }, "character"), false)
+    t.eq(H.S.memory["character:Tester"].probe, nil, "never handed to the game")
+    local said = 0
+    for _, l in ipairs(H.S.logs) do if l:find("didn't save 'probe'") then said = said + 1 end end
+    t.eq(said, 1, "said once")
+    t.eq(T.SetSavedVar("other", { 1 }, "character"), true, "the rest still saves")
+    T.saveRefused = {}
+  end)
+
+  local function lose(scope)          -- the game couldn't read a file: the add-on starts without it
+    Toolbox.Flush()                   -- (Toolbox's own flush, as at shutdown: the copy is written there)
+    H.S.disk[scope] = nil
+    H.restart(nil)
+  end
+
+  t.test("recovery: a character file the game couldn't read is put back from the account copy", function()
+    H.boot()
+    H.chat("/tbx location on")
+    H.chat("/tbx buffs quiet add Stillness")
+    H.chat("/tbx loot reset")
+    H.advance(120)
+    H.chat("/tbx loot reset")
+    H.advance(2)
+    t.ok(H.S.memory.account["recovery:tester"], "a copy in the account file")
+    lose("character:Tester")
+    t.eq(Toolbox.Location.GetShow(), true, "settings back")
+    t.ok(Toolbox.BuffBar.IsMuted("Stillness"), "muted effects back")
+    t.eq(#Toolbox.Daily.Runs(), 1, "run history back")
+    t.ok(H.logged("couldn't read Toolbox's saved file for Tester"), "said so")
+    H.S.logs = {}
+    H.restart(nil, true)
+    t.no(H.logged("couldn't read"), "once: the file has its number again")
+    t.eq(Toolbox.Location.GetShow(), true)
+  end)
+
+  t.test("recovery: a file with its number is left alone, even if older; no copy, nothing to do", function()
+    H.boot()
+    H.chat("/tbx location on")
+    H.advance(2)
+    ShroudFlushSavedVars()
+    local older = H.S.disk["character:Tester"]
+    older = Toolbox.Copy(older)
+    H.chat("/tbx location facing off")
+    H.advance(2)
+    ShroudFlushSavedVars()
+    H.S.disk["character:Tester"] = older       -- restored by hand from an older backup
+    H.restart(nil)
+    t.no(H.logged("couldn't read"))
+    t.eq(Toolbox.Location.GetFacing(), true, "the older file's own setting kept")
+
+    H.firstBoot()                                       -- a new player: nothing anywhere
+    t.no(H.logged("couldn't read"))
+  end)
+
+  t.test("recovery: Reset and an import carry into the copy; another character has its own", function()
+    H.boot()
+    H.chat("/tbx location on")
+    H.advance(2)
+    H.chat("/tbx settings reset")
+    H.reload()
+    H.advance(2)
+    lose("character:Tester")
+    t.eq(Toolbox.Location.GetShow(), false, "the reset kept: defaults, not the old settings")
+    H.callback("ShroudOnLogOut")
+    H.S.char.name = "Alt"
+    H.callback("ShroudOnSceneLoaded", "Novia")
+    H.advance(2)
+    t.eq(Toolbox.Location.GetShow(), false, "Alt's own")
+    t.ok(H.S.memory.account["recovery:alt"], "Alt's copy")
+  end)
 end

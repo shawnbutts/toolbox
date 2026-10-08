@@ -967,7 +967,7 @@ local function writeCache()
     table.sort(keys, function(a, b) return cache[a].day > cache[b].day end)
     for i = P.MAX_KEEP + 1, #keys do cache[keys[i]] = nil end
   end
-  ShroudSetSavedVar("prices", T.ForSaving({ v = 1, items = cache }), "account")
+  T.SetSavedVar("prices", T.ForSaving({ v = 1, items = cache }), "account")
 end
 
 -- The 90-day average price per unit, or nil (not looked up yet, or no recent sales).

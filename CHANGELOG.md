@@ -17,6 +17,12 @@ ones included).
   version have no spot.
 
 ### Fixed
+- **Your settings are better protected.** Twice, a value Toolbox saved turned out to be one the game couldn't
+  read back, and the game then started Toolbox with nothing and overwrote the file. Toolbox now saves only plain
+  text and numbers the game is known to read (anything else is stored in a safe form and turned back when read),
+  checks every value before saving it (one that fails isn't saved, chat says so, and nothing else is affected),
+  and keeps a copy of each character's settings, positions and run history in the account file. If the game
+  ever can't read a character's file, Toolbox puts them back from that copy and says so in chat.
 - Estimated values on a game client in another language showed "--" for nearly every item with no reason
   given: SotANET lists items by their English names, and the game names them in your language. The Loot
   Tracker, its tooltips, the settings and Test connection now say so.

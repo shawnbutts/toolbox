@@ -51,6 +51,11 @@ for _, case in ipairs(tests) do
   local label = case.suite .. ": " .. case.name
   if not filter or label:find(filter, 1, true) then
     local ok, err = pcall(case.fn)
+    -- A value Toolbox refused to save (core.lua's T.SetSavedVar) fails the test unless it cleared the record.
+    local refused = ok and rawget(_G, "Toolbox") and Toolbox.saveRefused and next(Toolbox.saveRefused)
+    if refused then
+      ok, err = false, "refused to save '" .. refused .. "': " .. tostring(Toolbox.saveRefused[refused])
+    end
     if ok then
       passed = passed + 1
       print("ok    " .. label)

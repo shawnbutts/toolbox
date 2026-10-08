@@ -166,3 +166,6 @@ for each character, and `toolbox.account.json` shared by all (it holds the setup
 **Save now** under **Setups, backup & reset** in the settings window and copy those files; to restore it (or move to
 another computer), quit the game and copy them back. **Reset all settings** there puts everything back to
 the defaults at the next `/lua reload`.
+
+Toolbox also keeps a copy of each character's settings, positions and run history in `toolbox.account.json`.
+If the game ever can't read a character's file, Toolbox puts them back from that copy and says so in chat.

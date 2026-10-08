@@ -326,6 +326,11 @@ def check_entries(report: Report, manifest: dict) -> list[Path]:
     return ordered
 
 
+# Every saved-variable write goes through Toolbox.SetSavedVar (core.lua), the one line allowed to call the game.
+RAW_SAVE_RE = re.compile(r"\bShroudSetSavedVar\s*\(")
+RAW_SAVE_OK = "return ShroudSetSavedVar(key, value, scope) == true"
+
+
 def check_sources(report: Report, manifest: dict) -> None:
     for f in manifest.get("files", []):
         path = PACKAGE / f if isinstance(f, str) else None
@@ -371,6 +376,10 @@ def check_sources(report: Report, manifest: dict) -> None:
             m = FORBIDDEN_LIB_RE.search(line)
             if m:
                 report.error(f"{f}:{lineno}: '{m.group(0)}' - use saved vars, not io/os (only os.date/os.time allowed)")
+            if (RAW_SAVE_RE.search(line) and not line.lstrip().startswith("--")
+                    and not (f == "core.lua" and RAW_SAVE_OK in line)):
+                report.error(f"{f}:{lineno}: a direct ShroudSetSavedVar: save with T.Save or T.SetSavedVar, which"
+                             " check the value first (a value the game can't read back loses the whole file)")
 
 
 def check_changelog(report: Report, manifest: dict) -> None:

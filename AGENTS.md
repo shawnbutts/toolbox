@@ -51,15 +51,22 @@ This file holds current facts and rules; the history behind them is in git (`git
   vars are read with `T.ReadSaved`. And no `_G` or `_ENV` at all, not even `rawget(_G, "os")` or in a
   comment: the grant was still refused after the renames, with only those left (read a global plainly:
   `os`, `ToolboxCopies`; nil when absent).
-- **Never save a "/" in text** (owner, 2026-10-07: data loss). The game writes it as `\/` and its loader then
-  refuses the WHOLE file ("invalid escape sequence near '\/'"), which the next save overwrites with defaults. Save
-  through `T.Save` / `T.ReadSaved` (they encode "/" as "%2F", "%" as "%25", keys too), or `T.ForSaving` /
-  `T.FromSaved` around a direct `ShroudSetSavedVar`. The harness raises for a "/" in any saved value (dev report 19).
-- **Never save a negative number** (owner, 2026-10-08: the same data loss). The loader stops at its "-"
-  ("Unexpected token : '-'"; first seen with a run spot's coordinates: no Toolbox save had held one before). The
-  same helpers save a number below 0, or one under `T.SAVE_TINY` / from `T.SAVE_HUGE` (the saver may write an
-  exponent, "1E-05": assumed, not seen), as text "%N<number>" and read it back as the number; NaN and infinities
-  aren't saved. The harness raises for such a number in any saved value or key (dev report 21).
+- **Save only through `T.Save` / `T.ReadSaved`, or `T.SetSavedVar`** (owner, 2026-10-07 and 2026-10-08: twice a value
+  the game's loader refused lost a character's WHOLE file: the game starts the add-on with defaults and the next save
+  overwrites it). The loader looks like MoonSharp's JSON reader on the Lua lexer: it refused "\/" (the saver's "/",
+  "invalid escape sequence near '\/'") and a negative number ("Unexpected token : '-'"). So (core.lua):
+  - text keeps only printable ASCII other than `" \ / %` (`T.SAFE_CHARS`); anything else is written `%XX` (`%uXXXX`
+    past 255: MoonSharp strings are UTF-16), keys too, and read back. `T.ForSaving` / `T.FromSaved` around a direct
+    write; `T.Resaved` puts a raw saved value (perhaps from before the escaping) in today's form for a copy;
+  - a number below 0, under `T.SAVE_TINY` or from `T.SAVE_HUGE` (the saver may write an exponent) is saved as text
+    `%N<number>` and read back as the number; NaN and infinities aren't saved;
+  - `T.SetSavedVar` (every write; never call `ShroudSetSavedVar` elsewhere) checks the value with `T.CheckSaved`
+    (types, the text and numbers above, positive whole list keys, no cycles, an estimate under 256 KB) and refuses one
+    that fails: that key isn't written, chat says so once (`T.saveRefused`). `tests/run.lua` fails any test that
+    leaves a refusal, and the harness raises for unescaped text, a "/" or such a number reaching
+    `ShroudSetSavedVar` (dev reports 19, 21);
+  - recovery (`B.Recover` / `B.KeepRecovery`): a copy of each character's `B.RecoverList()` keys in the account
+    file, numbered (`save_mark` in the character's file); a file back without its number is put back at start.
 - **No `io.*` / `os.*`**, except feature-detected `os.date`/`os.time` for the local clock (`Toolbox.Today`,
   `Toolbox.Clock`). Persist with `ShroudSetSavedVar`/`ShroudGetSavedVar`, character scope.
 - **UI is `Shroud.UI` only.** No retained widgets (`ShroudUI*`), no immediate-mode GUI (`ShroudOnGUI`).
@@ -426,6 +433,8 @@ character" sentinel.
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last, day, at } } }`, at most `P.MAX_KEEP` |
 | `welcomed` (ACCOUNT scope) | set after the first-run welcome |
 | `skills` | `{ show = bool (default false), vertical = bool (default true), slots = 1..12, stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels"/"xp", size = 20..48, number = bool (the level on the icon, default true), marks = bool (the API 27 training controls, default true), soundUp = bool, soundDown = bool (both default true), x, y }` (skills.lua) |
+| `save_mark` | the number of the recovery copy last written (core.lua, `B.KeepRecovery`); a file without it while its copy exists is put back at start (`B.Recover`) |
+| `recovery:<lower name>` (ACCOUNT scope) | `{ v = 1, n, when = "YYYY-MM-DD HH:MM", keys = { [a B.RecoverList() key] = its saved table } }`: settings (`B.KEYS`), `loot_runs`, `skill_levels`, `buff_durations`, written at the flush after one changed |
 | `settings_pending` | `{ kind = "reset" }`: done and deleted at the next start |
 | `setup_share` | `true` = this character's copy is listed for the others (default off; a setting, but never copied into a setup or imported) |
 | `setups` (ACCOUNT scope) | `{ v = 1, list = { { name, character = bool, when = "YYYY-MM-DD" } } }`: the setups' index, at most `B.SETUP_MAX` |
@@ -682,8 +691,11 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - `os.date` in the sandbox (feature-detected; fallback: the date part of `ShroudServerTime`).
 - `ShroudOnItemsGained` names as stable keys (localized; same-named items merge); whether they match
   SotANET's names (English) for prices.
-- Which numbers the saved-variable loader refuses: a negative one for certain (2026-10-08); exponent forms
-  ("1E-05", "1E+15") assumed, so `T.SAVE_TINY` / `T.SAVE_HUGE` encode them too.
+- Which values the saved-variable loader refuses: "\/" and a negative number for certain; exponent forms ("1E-05"),
+  escaped quotes, newlines and non-ASCII text assumed (escaped anyway). On MoonSharp: `c:byte()` of a character past
+  255 (written `%uXXXX`) and `string.char` of it reading back.
+- Recovery: that a character's own saved vars are loaded when `B.Recover` runs (ShroudOnStart with a character, and
+  `T.FollowCharacter`): read too early, a missing `save_mark` would put the copy back needlessly (same data, a chat line).
 - `ShroudGetClientInfo().languageCode` on a non-English client (assumed "de", "fr"...; the docs' example is "en").
 - The run Beacon (`ShroudSetBeacon`, API 9): the marker at the recorded spot on the compass and map, its "Loot run
   HH:MM" label, and `ShroudGetCurrentSceneNameRaw` matching across visits to a scene (instanced scenes may differ).

@@ -503,6 +503,10 @@ local function install_api()
       if type(v) == "string" and v:find("/", 1, true) then
         error("saved var '" .. key .. "' holds a '/' (" .. path .. "): the game's loader refuses it", 3)
       end
+      -- Stricter than the game is known to be: only the text Toolbox's escaping leaves (core.lua's T.SAVED_CHARS).
+      if type(v) == "string" and v:find("[^ !#$%%&'()*+,%-%.0-9:;<=>?@A-Z%[%]^_`a-z{|}~]") then
+        error("saved var '" .. key .. "' holds unescaped text " .. string.format("%q", v) .. " (" .. path .. ")", 3)
+      end
       if type(v) == "number" and (v < 0 or v ~= v or v >= 1e15 or (v > 0 and v < 1e-4)
           or (v == 0 and 1 / v < 0)) then
         error("saved var '" .. key .. "' holds the number " .. tostring(v) .. " (" .. path .. "): the game's loader"
