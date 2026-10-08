@@ -39,7 +39,8 @@ Your buffs and debuffs as their skill icons, with a clock-style sweep for the ti
 like, the seconds counting down at the end. It can sound an alert a set number of seconds before a buff
 runs out (the icon flashes red) and when a debuff lands; effects that come so often their sound is noise can be
 muted, picked from your recent alerts, or kept from repeating within a time you choose, and any effect can play
-your own sound file instead (record yourself saying its name). Buffs lasting longer than you choose, and whole
+your own sound file instead (record yourself saying its name, put it in your Lua folder, then Settings, Buffs,
+or `/toolbox buffs sound <name> = <file>`). Buffs lasting longer than you choose, and whole
 kinds such as blessings, fold into one icon with a count; hover it for the list. It can replace the
 game's own buff bar, and a click can dismiss a buff. To use your own sounds, put
 `toolbox_buff_expiring.ogg` / `toolbox_debuff_landed.ogg` / `toolbox_notify.ogg` / `toolbox_ping.ogg` /

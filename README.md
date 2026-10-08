@@ -79,7 +79,7 @@ with that setting's section at the top and the setting blinking.
 | `/toolbox loot` (or `dd`, `dailydetailed`) (`values on\|off\|test\|refresh`) | show or hide the Loot Tracker (every item gained today); estimated values |
 | `/toolbox recipe <name>` | a recipe you know as the game reports it, and what it takes from raw materials through your other known recipes |
 | `/toolbox buffs move [x y]` | place the buff bar (no numbers: say where it is) |
-| `/toolbox buffs` (`group` / `quiet` / `combat` / `flash` / `replace` / `dismiss` / `debug` / `raw` / `trace [name]`) | show or hide the buff bar; its options; diagnostics (`debug`: each buff's timing; `trace light`: log buffs matching "light" once a second for 10 s) |
+| `/toolbox buffs` (`group` / `quiet` / `sound` / `repeat` / `combat` / `flash` / `replace` / `dismiss` / `debug` / `raw` / `trace [name]`) | show or hide the buff bar; its options (`sound <name> = <file>`: an effect's own sound); diagnostics (`debug`: each buff's timing; `trace light`: log buffs matching "light" once a second for 10 s) |
 | `/toolbox consumables` (`bar` / `glue` / `add\|remove <name>` / `move`) | list food and potions in effect; the consumables bar's options |
 | `/toolbox gear` (`bar` / `glue` / `repair <%>` / `move` / `debug`) | worn items' durability; the equipment bar's options |
 | `/toolbox notify` (`<name> on\|off` / `via window\|hud\|chat` / `sound on\|off` / `show` / `hud ...`) and `/toolbox motd` | notifications; the guild message of the day |
@@ -286,6 +286,9 @@ alert takes the first that loads of:
 2. a replacement beside the add-on: `Lua/toolbox_buff_expiring.ogg` / `Lua/toolbox_debuff_landed.ogg` /
    `Lua/toolbox_notify.ogg` (or `.wav`), which store updates don't touch;
 3. the default in the add-on's folder, `Lua/toolbox/<name>.ogg`.
+
+A single buff or debuff can also have a sound of its own, say a recording of its name: see **Effect sounds** above
+(`/toolbox buffs sound <name> = <file>`).
 
 The defaults ship in the package (API 15 allows sounds; the package needs `min_api_version` 25
 anyway); paths are relative to the Lua folder (`ShroudLuaPath`).
