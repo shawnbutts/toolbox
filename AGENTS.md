@@ -583,7 +583,7 @@ ones (`tmp/client-issues.md` 14, 15): the slot getters reach the whole party (sl
 order, so `for slot = 0, count - 1` finds everyone, buffs included), `ShroudGetPartyMemberNamesInScene()`
 returns a plain list of real names, and `for v in list do` over a table walks its values.
 
-**Ideas, not agreed:** a **Party Toolbelt** (owner, 2026-09-29): a dedicated party strip, separate from the
+**Ideas, not agreed** (more in FUTURE.md, the owner's list for later: a farmer's helper): a **Party Toolbelt** (owner, 2026-09-29): a dedicated party strip, separate from the
 player's own Toolbelt, so a healer keeps their Toolbelt for themselves and watches the party on its own
 strip: a row per member (name, health and focus bars sized like the player's, members in another scene
 dimmed, the lowest health flagged). Party API (base API; see the reference's "Party" section):
