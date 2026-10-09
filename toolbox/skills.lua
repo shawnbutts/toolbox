@@ -35,7 +35,7 @@
 -- definitions, so a player's own file works as for the other alerts.
 --
 -- Saved var "skills": { show = bool (default false), vertical = bool (default true), slots = 1..12,
--- stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels" | "xp", size = 20..48, number = bool
+-- stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels" | "xp", size = 20..64, number = bool
 -- (the level on the icon, default true), marks = bool (the training markers, default true), soundUp = bool
 -- (default true), soundDown = bool (default true), x, y }.
 
@@ -53,7 +53,7 @@ SK.TICK = 0.5
 SK.QUIET_EVERY = 5                    -- seconds between reads for experience alone ("levels")
 SK.XP_EVERY = 1                       -- ... with "Any experience"
 SK.SLOTS_MIN, SK.SLOTS_MAX, SK.SLOTS_DEFAULT = 1, 12, 6
-SK.SIZE_MIN, SK.SIZE_MAX, SK.SIZE_DEFAULT = 20, 48, 32
+SK.SIZE_MIN, SK.SIZE_MAX, SK.SIZE_DEFAULT = 20, 64, 32   -- as the buff bar's
 SK.STAY_CHOICES = { { 10, "10 seconds" }, { 20, "20 seconds" }, { 30, "30 seconds" }, { 60, "1 minute" },
                     { 120, "2 minutes" }, { 300, "5 minutes" }, { 0, "Always" } }   -- 0: never goes
 -- The progress bar's colour by the way the skill last moved (none yet: gold).

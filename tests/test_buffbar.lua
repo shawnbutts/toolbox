@@ -298,6 +298,18 @@ return function(t)
     t.eq(B().GetSize(), 24)
   end)
 
+  t.test("the largest icon keeps its overlays within the game's -64 margin", function()
+    H.boot()
+    t.eq(B().SIZE_MAX, 64)
+    t.ok(B().SetSize(64))
+    t.no(B().SetSize(65), "past the clamp")
+    local s = B().SIZE_MAX
+    local _, wedge = B().WedgeStyle(s)
+    t.ok(wedge.marginLeft >= -64, "the wedge's pull-back")
+    t.ok(B().CountStyle(s, B().CountFont(s), 1, 0).marginLeft >= -64, "the count over the icon")
+    t.ok(Toolbox.SkillBar.SIZE_MAX <= 64, "the skill strip's overlay pulls back its size")
+  end)
+
   t.test("buff sweeps don't need the clock picture (it is the equipment bar's)", function()
     bootSettled()
     H.S.files["toolbox/clock.png"] = nil

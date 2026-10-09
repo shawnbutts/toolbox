@@ -24,6 +24,9 @@ ones included).
   you can tell mail from other notifications (the other sounds are still there to pick). Replace it with
   toolbox_mail.ogg in your Lua folder or any file on the Sounds page.
 
+### Changed
+- Bigger icons: the Icon size sliders (buff bar, buff block and skill activity) now go up to 64 pixels (was 48).
+
 ### Fixed
 - **Your settings are better protected.** Twice, a value Toolbox saved turned out to be one the game couldn't
   read back, and the game then started Toolbox with nothing and overwrote the file. Toolbox now saves only plain
