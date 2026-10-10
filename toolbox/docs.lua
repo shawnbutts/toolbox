@@ -42,13 +42,8 @@ D.SECTIONS = {
       .. "/toolbox help opens this guide; /toolbox commands lists the commands in chat.",
     "Shortcut: Ctrl+; opens the settings (if the game isn't using it). Change it, or pick one, in the "
       .. "add-on manager on Toolbox's row under Keys. /toolbox key shows the current one.",
-    "The menu, a column of gold buttons at the top left, opens a window with one click: XP, XP Detailed, "
-      .. "Today, Loot Tracker, Combat Detailed, Notifications (the news now, whatever each usually shows in), "
-      .. "Docs and Settings. A button is bright while its window is open; click it again to close it. Hover "
-      .. "one for its name. Move it by its grip. Under Settings, Menu, setups, backup & reset: make it a row, "
-      .. "change its icon size and the shade behind it, hide it during combat, pick its buttons, or switch it "
-      .. "off (then open windows from the settings, as before). Also /toolbox menu (on, off, vertical, "
-      .. "horizontal, size <n>, shade <n>, combat hide|show, move <x> <y>)." },
+    "The menu, the column of gold buttons at the top left, opens any Toolbox window with one click (see "
+      .. "Menu)." },
   { "XP",
     "XP (/toolbox xp): session time, your adventurer and producer pools, and the XP you earned "
       .. "in the last hour. Rest the pointer on it and XP Detailed pops up.",
@@ -251,6 +246,18 @@ D.SECTIONS = {
       .. "switches the bar off; the notification has its own switch under Notifications. /toolbox gear "
       .. "lists your worn items and their durability; /toolbox gear repair 30 sets the threshold; "
       .. "/toolbox gear bar off hides the bar; /toolbox gear move <x> <y> places it." },
+  { "Menu",
+    "A column of gold buttons, at the top left at first, that opens Toolbox's windows with one click: XP, "
+      .. "XP Detailed, Today, Loot Tracker, Combat Detailed, Notifications (the news now, whatever each usually "
+      .. "shows in), Docs and Settings. A button is bright while its window is open; click it again to close "
+      .. "it. Hover one for its name and its chat command. Move it by its grip, or with the Position buttons "
+      .. "under HUD layout.",
+    "Settings, Menu, setups, backup & reset: Show the menu (off: open the windows from the settings, as "
+      .. "before), Vertical (off: a row), Hide during combat (it comes back a few seconds after a fight, and "
+      .. "shows while the settings are open so you can place it), Icon size, Background shade (how dark the "
+      .. "panel behind the buttons is; 0 for none), and which buttons it has (at least one).",
+    "In chat: /toolbox menu (on, off, vertical, horizontal, size <n>, shade <n>, combat hide|show, "
+      .. "move <x> <y>); /toolbox launcher works too." },
   { "Location strip",
     "A small strip showing where you are: the scene, your position (x, height, z, in whole numbers, as /loc "
       .. "gives them) and which way you face (the compass direction and degrees, 0 north, 90 east). It follows "

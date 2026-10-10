@@ -28,8 +28,8 @@ The settings window's "Settings" dropdown picks a part to set up. It opens on th
   * Notifications: what's new since you last looked (guild message, mail, rewards, gear to repair...).
   * Sounds: alert volume and sound files.
   * HUD layout: every strip's position.
-  * Setups, backup & reset: copy another character's setup (Import), save yours under a name (Export);
-    where your settings files are, to copy them; and Reset all settings.
+  * Menu, setups, backup & reset: the menu's options (below); copy another character's setup (Import),
+    save yours under a name (Export); where your settings files are, to copy them; and Reset all settings.
 Options that do nothing while their part is off are greyed out.
 
 Moving the HUD strips: drag the small grip at a strip's top-left corner. If you can't see the grip,
@@ -38,6 +38,10 @@ Position buttons in settings (HUD layout), or e.g.  /tbx buffs move 600 40
 
 Shortcut: Ctrl+; opens the settings. You can change it in the add-on manager, on Toolbox's
 row under "Keys".
+
+The menu: the column of gold buttons at the top left opens any Toolbox window with one click (XP,
+XP Detailed, Today, Loot Tracker, Combat Detailed, Notifications, Docs, Settings); a button is bright
+while its window is open. Change it or switch it off under Menu, setups, backup & reset, or /tbx menu.
 
 
 2. What to try

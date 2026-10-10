@@ -710,6 +710,9 @@ Rules learned the hard way; keep to them.
 - **Window positions** (confirmed 2026-10-08): XP Detailed dragged partly past the left edge saved no negative number
   (`window` in the character file), so 1.6.0 doesn't save a negative position; no 1.6.1 (owner). Today's saves
   encode one anyway.
+- **The menu** (confirmed 2026-10-10): the gold-tinted launcher.png buttons, lit / dimmed by opacity, the black
+  shade behind them, and the panel pinned to its size with `alignItems = "center"` (unsized, a vertical one was as
+  wide as its frame and its buttons sat to the left).
 - **64 px icons** (confirmed 2026-10-09): the Icon size maximum (`BB.SIZE_MAX`, `SK.SIZE_MAX`) draws fine: the overlays
   pulled back by the icon's size (wedge, count, skill level and marks) stay on it. Past 64 they'd need another way
   (margins clamp at -64).

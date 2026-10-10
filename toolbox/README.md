@@ -18,6 +18,7 @@ crafted and gathered today with its market value, DPS and combat stats, and noti
 - **Today:** gold, kills, XP, and every item looted, crafted or gathered, with optional values from shroudoftheavatar.net.
 - **Combat stats:** DPS, damage taken, healing, crits, each skill's share, per-target damage and a fight timeline.
 - **Notifications:** guild message, mail, rewards, gear needing repair and friends coming online, in a window, on the HUD or in chat, with an optional sound.
+- **A one-click menu:** a column of gold buttons that opens any Toolbox window, lit while it's open.
 - **All set up in one settings window,** with a search to find any setting and a guide to every feature in the game. No files to edit.
 - **Back up your setup** by copying its settings files (the settings window shows where), or reset everything to the defaults.
 
@@ -134,6 +135,14 @@ unlearn with one click. Vertical or horizontal; click
 one to open the Skills window. A short celebration plays when a skill gains a level and a sad one when it
 loses one (each can be switched off; your own `toolbox_skill_up.ogg` / `toolbox_skill_down.ogg` in the Lua
 folder replaces them). Skill level changes (gained or lost) can also be listed on the notification HUD (`/toolbox skills`).
+
+## Menu
+
+A column of gold buttons on a shaded panel, at the top left at first: one click opens XP, XP Detailed, Today,
+the Loot Tracker, Combat Detailed, Notifications, the Docs or the settings, and a second click closes it. A
+button is bright while its window is open. Move it by its grip. Under **Menu, setups, backup & reset** in the
+settings make it a row, change its icon size and shade, hide it during combat, pick its buttons, or switch it
+off to open windows from the settings as before (`/toolbox menu`).
 
 ## Location
 
