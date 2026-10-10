@@ -397,6 +397,31 @@ return function(t)
     t.ok(B().EffectSound("One", "get") and B().EffectSound("Two", "get"), "both kept: the player renames one")
   end)
 
+  -- Review 27: the session's file limit counts files holding a clip (or loading), not ones that were never found.
+  t.test("effect sounds: missing files don't use up the session's file limit", function()
+    bootWithSounds()
+    local S = Toolbox.Sounds
+    for i = 1, S.FILES_MAX do t.ok(S.UseFile("nowhere/gone" .. i .. ".ogg", "x")) end
+    H.advance(S.LOAD_TIMEOUT + 2)
+    t.eq(S.FileStatus("nowhere/gone1.ogg"), "missing")
+    H.S.files["right/heal.ogg"] = true
+    local ok, why = S.UseFile("right/heal.ogg", "Heal")
+    t.ok(ok, why)
+    H.advance(1)
+    t.eq(S.FileStatus("right/heal.ogg"), "ready")
+    for i = 1, S.FILES_MAX - 1 do
+      H.S.files["full/f" .. i .. ".ogg"] = true
+      t.ok(S.UseFile("full/f" .. i .. ".ogg"))
+    end
+    ok, why = S.UseFile("full/extra.ogg")
+    t.no(ok, "60 in use")
+    t.ok(why:find("Too many sound files", 1, true), why)
+    H.S.files["nowhere/gone1.ogg"] = true
+    ok, why = S.UseFile("nowhere/gone1.ogg", "x", true)
+    t.no(ok, "a retry counts too")
+    t.ok(why:find("Too many sound files", 1, true), why)
+  end)
+
   t.test("the Sounds page points to effect sounds and goes there", function()
     bootWithSounds()
     H.chat("/tbx config")

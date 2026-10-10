@@ -61,9 +61,9 @@ end
 -- Effect sounds (owner, 2026-10-08): a player's own file for one buff or debuff (its name said aloud, say), played
 -- instead of buff_expiring / debuff_landed for it (buffbar.lua's BB.EffectSound). Loaded like the others, one entry per
 -- path (key "file:<path>"), from its path only. A clip can't be unloaded (ShroudListSoundReset clears every add-on's),
--- so at most S.FILES_MAX files a session.
+-- so at most S.FILES_MAX files a session. Only files loading or loaded count: a missing one made no clip (review 27).
 S.FILES_MAX = 60
-local files, fileCount = {}, 0          -- path -> its def
+local files = {}                        -- path -> its def
 
 local function candidates(def)
   if def.custom then return { def.custom } end
@@ -222,6 +222,20 @@ local function sameName(path)
   return nil
 end
 
+-- How many player files hold a clip or may still get one (not "missing").
+local function filesInUse()
+  local n = 0
+  for _, def in pairs(files) do
+    local st = state[def.key]
+    if not (st and st.status == "missing") then n = n + 1 end
+  end
+  return n
+end
+
+local function tooMany()
+  return "Too many sound files loaded this session (" .. S.FILES_MAX .. "): /lua reload, then try again."
+end
+
 local function nameTaken(path, other)
   return "Another sound already has a file named like " .. (path:match("([^/]+)$") or path) .. " (" .. other
     .. "), and the game tells sounds apart by name only: rename this one."
@@ -237,18 +251,17 @@ function S.UseFile(path, label, again)
     if again and st and st.status == "missing" then
       local other = sameName(path)          -- another file took the name while this one was missing
       if other then return false, nameTaken(path, other) end
+      if filesInUse() >= S.FILES_MAX then return false, tooMany() end
       def.told = false
       startLoading(def)
     end
     return true
   end
-  if fileCount >= S.FILES_MAX then
-    return false, "Too many sound files loaded this session (" .. S.FILES_MAX .. "): /lua reload, then try again."
-  end
+  if filesInUse() >= S.FILES_MAX then return false, tooMany() end
   local other = sameName(path)
   if other then return false, nameTaken(path, other) end
   def = { key = "file:" .. path, file = path:match("([^/]+)$") or path, label = label or path, custom = path }
-  files[path], fileCount = def, fileCount + 1
+  files[path] = def
   startLoading(def)
   return true
 end
