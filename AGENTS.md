@@ -392,7 +392,8 @@ into one if a new file is ever needed).
 
 `tests/harness.lua` models the documented host: constructors and `Shroud.Command` raise outside a callback
 and reject unknown fields; saved vars have a memory cache and a "disk" copy updated on flush; destroyed
-element trees raise on use and leave their parent; margins / paddings are clamped; the element-creation cap,
+element trees raise on use and leave their parent; margins / paddings are clamped; a style property the reference
+doesn't list raises (the game refused a whole settings page over `flexBasis`, 2026-10-10: it showed blank); the element-creation cap,
 the 2,000 live elements (`H.S.live`; the game counts MORE than the harness: keep a wide margin), the
 65,536 characters of on-screen text (`H.S.text`, `H.S.textPeak`: labels, buttons, toggles, tooltips,
 placeholders, dropdown choices; raises past it; the worst case is in `test_stress.lua`, 40k measured 2026-10-02,

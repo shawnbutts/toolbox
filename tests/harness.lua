@@ -777,7 +777,17 @@ local CLAMP = { margin = { -64, 256 }, marginLeft = { -64, 256 }, marginRight = 
                 marginTop = { -64, 256 }, marginBottom = { -64, 256 }, padding = { 0, 256 },
                 paddingLeft = { 0, 256 }, paddingRight = { 0, 256 }, paddingTop = { 0, 256 },
                 paddingBottom = { 0, 256 } }
+-- The style properties the reference documents ("Styles and classes"). An unknown one made the game refuse a whole
+-- settings page (flexBasis, 2026-10-10: the page showed blank), so it raises here too.
+local STYLE_KEYS = {}
+for k in ("width height minWidth minHeight maxWidth maxHeight flexDirection flexGrow flexShrink flexWrap alignItems "
+    .. "alignSelf justifyContent margin marginLeft marginRight marginTop marginBottom padding paddingLeft "
+    .. "paddingRight paddingTop paddingBottom color backgroundColor borderColor tint rotate opacity borderWidth "
+    .. "borderRadius fontSize fontStyle textAlign whiteSpace"):gmatch("%S+") do STYLE_KEYS[k] = true end
 local function clampStyle(style)
+  for k in pairs(style) do
+    if not STYLE_KEYS[k] then error("Shroud.UI: unknown style property '" .. tostring(k) .. "'", 3) end
+  end
   for k, range in pairs(CLAMP) do
     local v = style[k]
     if type(v) == "number" then style[k] = math.max(range[1], math.min(range[2], v)) end

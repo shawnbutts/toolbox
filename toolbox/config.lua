@@ -1257,7 +1257,7 @@ function C.MenuRows(children)
   for i, b in ipairs(L.BUTTONS) do        -- two to a row
     local key = b.key
     cells[#cells + 1] = UI.Toggle{ id = "ln_btn_" .. key, text = b.name, value = L.GetButton(key),
-      style = { flexGrow = 1, flexBasis = 0 }, tooltip = "Show the " .. b.name .. " button",
+      style = { flexGrow = 1, width = "50%" }, tooltip = "Show the " .. b.name .. " button",
       onChange = function(_, v)
         local ok, why = L.SetButton(key, v)
         if not ok then
