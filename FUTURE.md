@@ -49,3 +49,16 @@ A watering schedule and other help for small and large farms. Not for 1.7.0; may
 - No free window: a Loot Tracker view (beside Runs) or a HUD strip. The package is at 16 Lua files: add the code to an
   existing one.
 - sotalore's numbers are game facts, not add-on code, so the clean-room rule allows them.
+
+## Run markers on the map (owner, 2026-10-10)
+
+Waiting on dev request 20 (add-on markers on the region map and minimap), expected in the next client with new API
+docs. Build it only once the real API is in hand: its limits, scene scoping and hover note decide the design.
+
+- Markers become the main way runs show up: one per filed run (the last `D.RUNS_KEEP`), placed when a run is filed
+  (`D.FileRun`), at its spot (`D.MainSpot`), with a hover note (time, gold an hour, kills, items). They don't
+  take the player's own beacon, as a Beacon click does today.
+- Feature-detected: on a client without markers (API 25 is still the minimum), the Beacon button stays as it is.
+- Keep the Beacon button as "take me there" if markers don't reach the compass (the beacon does); drop it if they do.
+- Scene matching (`ShroudGetCurrentSceneNameRaw` across visits, instanced scenes) matters for scene-scoped markers
+  too: check it in game with the Beacon meanwhile.
