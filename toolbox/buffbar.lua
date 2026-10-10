@@ -43,6 +43,7 @@ BB.TICK = 0.5                 -- seconds between updates (sweep + alerts)
 BB.TIMER_SLACK = 0.5
 BB.WARN_COLOR = "#7a0a05cc"
 BB.BUFF_SLOTS, BB.DEBUFF_SLOTS = 20, 10
+BB.refusedTold = {}                 -- saved effect-sound paths UseFile refused, told in chat once a session
 BB.SIZE_MIN, BB.SIZE_MAX, BB.SIZE_DEFAULT = 20, 64, 32   -- 64: overlays pull back -s, margins clamp at -64
 BB.ALERT_MIN, BB.ALERT_MAX, BB.ALERT_DEFAULT = 1, 60, 10
 BB.GAP = 3
@@ -1718,8 +1719,14 @@ function BB.Init()
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
   for name, e in pairs(prefs.effectSounds or {}) do
-    if e.get then T.Sounds.UseFile(e.get, e.shown or name) end
-    if e["end"] then T.Sounds.UseFile(e["end"], e.shown or name) end
+    for _, path in ipairs({ e.get or false, e["end"] or false }) do
+      local ok, why = nil, nil
+      if path then ok, why = T.Sounds.UseFile(path, e.shown or name) end
+      if path and not ok and not BB.refusedTold[path] then   -- saved before the name check, or another character's
+        BB.refusedTold[path] = true                          -- file has the name: the usual sound plays (review 26)
+        T.Print("Your sound for '" .. (e.shown or name) .. "' (" .. path .. ") isn't used: " .. tostring(why))
+      end
+    end
   end
   BB.ReadQuiet()
   BB.recent = {}

@@ -366,6 +366,37 @@ return function(t)
     t.ok(why:find("mail.ogg", 1, true), why)
   end)
 
+  -- Review 26: a file that never loaded holds no clip name, and a clash already saved is told, not silent.
+  t.test("effect sounds: a missing file's name is free for its corrected path; a saved clash is told once", function()
+    bootWithSounds()
+    H.S.files["right/heal.ogg"] = true
+    t.ok(B().SetEffectSound("Heal", "wrong/heal.ogg", "get"))
+    H.advance(1)
+    t.eq(Toolbox.Sounds.FileStatus("wrong/heal.ogg"), "missing")
+    local ok, why = B().SetEffectSound("Heal", "right/heal.ogg", "get")
+    t.ok(ok, why)
+    t.eq(B().EffectSound("Heal", "get"), "right/heal.ogg")
+    H.advance(1)
+    t.eq(Toolbox.Sounds.FileStatus("right/heal.ogg"), "ready")
+    ok, why = B().SetEffectSound("Mend", "wrong/heal.ogg", "get")
+    t.no(ok, "retried while the other file has the name")
+    t.ok(why:find("rename this one", 1, true), why)
+
+    -- two paths of one name saved before the check
+    H.S.files["a/bleed.ogg"], H.S.files["b/bleed.ogg"] = true, true
+    local saved = Toolbox.ReadSaved("buffbar")
+    saved.effectSounds = { One = { shown = "One", get = "a/bleed.ogg" }, Two = { shown = "Two", get = "b/bleed.ogg" } }
+    Toolbox.Save("buffbar", saved)
+    H.clearLogs()
+    H.reload()
+    local told = 0
+    for _, l in ipairs(H.logs()) do
+      if l:find("isn't used: Another sound already has a file named like bleed.ogg", 1, true) then told = told + 1 end
+    end
+    t.eq(told, 1, table.concat(H.logs(), "\n"))
+    t.ok(B().EffectSound("One", "get") and B().EffectSound("Two", "get"), "both kept: the player renames one")
+  end)
+
   t.test("the Sounds page points to effect sounds and goes there", function()
     bootWithSounds()
     H.chat("/tbx config")

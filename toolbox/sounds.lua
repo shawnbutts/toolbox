@@ -206,11 +206,13 @@ end
 local function clipName(file) return (file:match("([^/]+)$") or file):gsub("%.%w+$", ""):lower() end
 
 -- Whether another sound's clip would have the same name as `path`'s: the game lists clips by base name only, so
--- two would play one recording (review 25). Returns the other's path or file, or nil.
+-- two would play one recording (review 25). Returns the other's path or file, or nil. A file that couldn't be
+-- loaded ("missing") has no clip and holds no name: a corrected path for it is fine (review 26).
 local function sameName(path)
   local name = clipName(path)
-  for other in pairs(files) do
-    if other ~= path and clipName(other) == name then return other end
+  for other, def in pairs(files) do
+    local st = state[def.key]
+    if other ~= path and clipName(other) == name and not (st and st.status == "missing") then return other end
   end
   for _, def in ipairs(S.DEFS) do
     if clipName(def.file) == name or clipName("toolbox_" .. def.file) == name then return def.file end
@@ -218,6 +220,11 @@ local function sameName(path)
     if type(own) == "string" and own ~= "" and clipName(own) == name then return own end
   end
   return nil
+end
+
+local function nameTaken(path, other)
+  return "Another sound already has a file named like " .. (path:match("([^/]+)$") or path) .. " (" .. other
+    .. "), and the game tells sounds apart by name only: rename this one."
 end
 
 -- Starts loading a player's file (a path from S.CleanPath) for an effect labelled `label`, unless it already is;
@@ -228,6 +235,8 @@ function S.UseFile(path, label, again)
   if def then
     local st = state[def.key]
     if again and st and st.status == "missing" then
+      local other = sameName(path)          -- another file took the name while this one was missing
+      if other then return false, nameTaken(path, other) end
       def.told = false
       startLoading(def)
     end
@@ -237,10 +246,7 @@ function S.UseFile(path, label, again)
     return false, "Too many sound files loaded this session (" .. S.FILES_MAX .. "): /lua reload, then try again."
   end
   local other = sameName(path)
-  if other then
-    return false, "Another sound already has a file named like " .. (path:match("([^/]+)$") or path) .. " ("
-      .. other .. "), and the game tells sounds apart by name only: rename this one."
-  end
+  if other then return false, nameTaken(path, other) end
   def = { key = "file:" .. path, file = path:match("([^/]+)$") or path, label = label or path, custom = path }
   files[path], fileCount = def, fileCount + 1
   startLoading(def)

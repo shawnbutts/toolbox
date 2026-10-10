@@ -349,7 +349,8 @@ into one if a new file is ever needed).
   once, the usual sound for the rest; an own sound plays with the general alert off; muted / Don't repeat apply;
   clips matched by their exact name first, "heal" not "heal on"), loaded by path (`S.UseFile`, keys "file:<path>", at most
   `S.FILES_MAX` a session: clips can't be unloaded) at the alert's volume (`S.PlayFile(path, kind)`); a file that
-  won't load plays the usual sound and chat says so once. Picked in Muted effects' dropdown (one list on screen: the
+  won't load plays the usual sound and chat says so once; it holds no clip name, so its corrected path is taken (review 26),
+  and a saved path refused for its name (saved before the check) is told in chat once a session (`BB.refusedTold`). Picked in Muted effects' dropdown (one list on screen: the
   text budget; the Sounds page's "Go to effect sounds" opens it, `C.GoToControl`), `/toolbox buffs sound [get|end]
   <name> = <file>`.
 - `tools/`: `check.py` (all checks), `build.py` (packaging rules, the source checks, the store README
