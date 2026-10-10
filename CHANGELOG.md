@@ -8,6 +8,11 @@ ones included).
 ## [Unreleased]
 
 ### Added
+- **The launcher:** a column of gold buttons at the top left that opens Toolbox's windows with one click:
+  Settings, Docs, XP, XP Detailed, Today, Loot Tracker, Combat Detailed and Notifications (the news now, in the
+  window). A button is bright while its window is open; click again to close it. On at first: move it by its grip,
+  or under Settings, HUD layout make it a row, change its size or switch it off to open windows the old way. Also
+  /toolbox launcher.
 - **Location strip:** a small HUD strip showing where you are: the scene, your position (as /loc gives it, in
   whole numbers) and which way you face (compass direction and degrees). Hover it for the whole /loc line. Off
   by default: switch it on under Settings, HUD layout (Show where you are), or type /toolbox location.

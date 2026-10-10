@@ -41,7 +41,13 @@ D.SECTIONS = {
       .. "that do nothing while their feature is off are greyed out. Everything is saved per character. "
       .. "/toolbox help opens this guide; /toolbox commands lists the commands in chat.",
     "Shortcut: Ctrl+; opens the settings (if the game isn't using it). Change it, or pick one, in the "
-      .. "add-on manager on Toolbox's row under Keys. /toolbox key shows the current one." },
+      .. "add-on manager on Toolbox's row under Keys. /toolbox key shows the current one.",
+    "The launcher, a column of gold buttons at the top left, opens a window with one click: Settings, Docs, "
+      .. "XP, XP Detailed, Today, Loot Tracker, Combat Detailed and Notifications (the news now, whatever "
+      .. "each usually shows in). A button is bright while its window is open; click it again to close it. "
+      .. "Hover one for its name. Move it by its grip; under Settings, HUD layout, make it a row, change its "
+      .. "size or switch it off (then open windows from the settings, as before). Also /toolbox launcher "
+      .. "(on, off, vertical, horizontal, size <n>, move <x> <y>)." },
   { "XP",
     "XP (/toolbox xp): session time, your adventurer and producer pools, and the XP you earned "
       .. "in the last hour. Rest the pointer on it and XP Detailed pops up.",
@@ -1313,6 +1319,32 @@ end
 -- ---------------------------------------------------------------------------
 -- Settings
 -- ---------------------------------------------------------------------------
+
+-- The launcher's Notifications button (owner, 2026-10-10): closes the window, or shows every switched-on source's
+-- news in it, wherever that source usually goes. False when there was nothing to show or it couldn't open.
+function N.ToggleWindow()
+  if N.IsShown() then
+    nwin:Hide()
+    clearWindow()
+    return true
+  end
+  local p, ctx, list = prefsNow(), context(), {}
+  for _, src in ipairs(N.SOURCES) do
+    if p.sources[src.key].on then
+      local ok, notice = pcall(src.Check, nil, ctx)
+      if ok and notice then list[#list + 1] = { source = src, notice = notice } end
+    end
+  end
+  if #list == 0 then
+    T.Print("No notifications right now.")
+    return false
+  end
+  if not N.DELIVERY.window(list) then
+    T.Print("The notifications window can't open right now; try again in a few seconds.")
+    return false
+  end
+  return true
+end
 
 function N.Sources() return N.SOURCES end
 

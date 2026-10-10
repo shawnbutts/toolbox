@@ -813,3 +813,212 @@ T.AddCommand("location", "the location strip: your scene, position and facing (o
     T.Print("Location strip: " .. (locPrefs.show and "on" or "off") .. "; facing "
       .. (LOC.GetFacing() and "shown" or "hidden") .. ".")
   end)
+
+-- ---------------------------------------------------------------------------
+-- The launcher (Toolbox.Launcher, LN; owner, 2026-10-10): a strip of buttons opening Toolbox's windows with one
+-- click, where Settings' tick boxes were the only way. Pictures: toolbox/launcher.png (art/launcher.py: one frame a
+-- button, in LN.BUTTONS order), tinted LN.COLOR: lit while its window is open, dimmed while it's closed. On by
+-- default, vertical, at the top-left corner; "Show the launcher" off gives the old way back. Without the picture,
+-- text buttons. Its own LN.TICK periodic follows the windows (they open and close from many places), setting an
+-- opacity only when it changes.
+-- Saved var "launcher": { show = bool (default true), vertical = bool (default true), size = LN.SIZE_MIN..MAX, x, y }.
+-- ---------------------------------------------------------------------------
+local LN = { FRAME_ID = "toolbox_launcher", HOME = { 0, 0 }, PAGE = "Launcher" }
+Toolbox.Launcher = LN
+LN.TICK = 0.5
+LN.PATH = "toolbox/launcher.png"
+LN.SIZE_MIN, LN.SIZE_MAX, LN.SIZE_DEFAULT = 20, 64, 32
+LN.GAP = 4
+LN.COLOR = "@gold"
+LN.LIT, LN.DIM = 1, 0.4               -- opacity: its window open, closed
+-- Each button: the window, a short word for the text form, its command (for the tooltip), whether it's open and
+-- what a click does. The pop-up windows count as open when pinned (a click pins or unpins them).
+LN.BUTTONS = {
+  { key = "settings", name = "Settings", short = "Set", cmd = "",
+    open = function() return T.Config.IsShown() end, toggle = function() T.Config.Toggle() end },
+  { key = "docs", name = "Docs", short = "Doc", cmd = " help",
+    open = function() return T.Docs.IsShown() end, toggle = function() T.Docs.Toggle() end },
+  { key = "xp", name = "XP", short = "XP", cmd = " xp",
+    open = function() return T.Compact.IsShown() end, toggle = function() T.Compact.Toggle() end },
+  { key = "xpdetail", name = "XP Detailed", short = "XPD", cmd = " xpd",
+    open = function() return T.Window.IsOpen() end, toggle = function() T.Window.Toggle() end },
+  { key = "today", name = "Today", short = "Day", cmd = " daily",
+    open = function() return T.Daily.IsShown() end, toggle = function() T.Daily.Toggle() end },
+  { key = "loot", name = "Loot Tracker", short = "Loot", cmd = " loot",
+    open = function() return T.DailyDetail.IsOpen() end, toggle = function() T.DailyDetail.Toggle() end },
+  { key = "combat", name = "Combat Detailed", short = "Fight", cmd = " combat detail",
+    open = function() return T.Combat.Detail.IsOpen() end, toggle = function() T.Combat.Detail.Toggle() end },
+  { key = "notify", name = "Notifications", short = "News", cmd = " notify show",
+    open = function() return T.Notify.IsShown() end, toggle = function() T.Notify.ToggleWindow() end },
+}
+local LN_PERIODIC = "toolbox_launcher"
+local lnPrefs = { show = true, vertical = true, size = LN.SIZE_DEFAULT }
+local lnEl = {}                       -- [i] = button i's element (empty until built)
+local lnLit = {}                      -- [i] = the opacity set on it
+local lnTex = -1
+
+local function lnSave()
+  T.Save("launcher", lnPrefs)
+  if T.Config then T.Config.Sync() end
+end
+
+function LN.Wanted() return lnPrefs.show == true end
+function LN.IsShown() return lnPrefs.show == true end
+function LN.Unbuilt() lnEl, lnLit = {}, {} end
+
+function LN.ContentSize()
+  local s, n = lnPrefs.size, #LN.BUTTONS
+  local long = n * s + (n - 1) * LN.GAP
+  if lnPrefs.vertical then return s, long end
+  return long, s
+end
+
+local function lnTooltip(b)
+  return b.name .. "\nClick to open or close it (/" .. T.commands[1] .. b.cmd .. ")"
+end
+
+function LN.BuildContent()
+  local s, n = lnPrefs.size, #LN.BUTTONS
+  if lnTex < 0 then
+    local ok, tex = pcall(ShroudLoadTexture, LN.PATH)
+    if ok and type(tex) == "number" and tex >= 0 then lnTex = tex end
+  end
+  local kids = {}
+  for i, b in ipairs(LN.BUTTONS) do
+    local index = i
+    local gap = i < n and LN.GAP or 0
+    local style = { opacity = LN.DIM, marginLeft = 0, marginTop = 0,
+                    marginRight = lnPrefs.vertical and 0 or gap, marginBottom = lnPrefs.vertical and gap or 0 }
+    local click = function() LN.Click(index) end
+    if lnTex >= 0 then
+      kids[i] = UI.Image{ id = "ln_" .. b.key, width = s, height = s, texture = lnTex,
+        uv = { (i - 1) / n, 0, 1 / n, 1 },
+        tint = LN.COLOR, tooltip = lnTooltip(b), onClick = click, style = style }
+    else
+      style.width, style.height, style.minHeight = s, s, s
+      style.fontSize, style.paddingLeft, style.paddingRight = math.max(9, math.floor(s * 0.3)), 0, 0
+      kids[i] = UI.Button{ id = "ln_" .. b.key, text = b.short, tooltip = lnTooltip(b), onClick = click, style = style }
+    end
+  end
+  local box = nil
+  if lnPrefs.vertical then
+    box = UI.Column{ id = "launcher", children = kids }
+  else
+    box = UI.Row{ id = "launcher", style = { alignItems = "start" }, children = kids }
+  end
+  lnEl, lnLit = kids, {}
+  LN.Update()
+  return box
+end
+
+-- Every LN.TICK s and after a click: lit or dimmed as its window is open or closed.
+function LN.Update()
+  if not (lnPrefs.show and lnEl[1]) then return end
+  for i, b in ipairs(LN.BUTTONS) do
+    local ok, open = pcall(b.open)
+    local op = (ok and open) and LN.LIT or LN.DIM
+    if lnLit[i] ~= op then
+      lnLit[i] = op
+      T.SetStyle(lnEl[i], { opacity = op })
+    end
+  end
+end
+
+function LN.Click(i)
+  local b = LN.BUTTONS[i]
+  if not b then return end
+  local ok, err = pcall(b.toggle)
+  if not ok then T.Print("Couldn't open " .. b.name .. ": " .. tostring(err)) end
+  LN.Update()
+end
+
+function LN.GetShow() return lnPrefs.show == true end
+function LN.SetShow(on)
+  lnPrefs.show = on == true
+  lnSave()
+  Hud.Build(true)                      -- its frame exists only while it is in use (HUD frames are limited)
+  Hud.Refresh()
+end
+
+function LN.GetVertical() return lnPrefs.vertical ~= false end
+function LN.SetVertical(on)
+  lnPrefs.vertical = on == true
+  lnSave()
+  if lnPrefs.show then Hud.Rebuild("launcher") end
+end
+
+function LN.GetSize() return lnPrefs.size end
+function LN.SetSize(n)
+  if type(n) ~= "number" or n ~= math.floor(n) or n < LN.SIZE_MIN or n > LN.SIZE_MAX then return false end
+  if n == lnPrefs.size then return true end
+  lnPrefs.size = n
+  lnSave()
+  if lnPrefs.show then Hud.Rebuild("launcher") end
+  return true
+end
+
+function LN.GetSavedPosition() return lnPrefs.x, lnPrefs.y end
+function LN.SavePosition(x, y)
+  if x ~= lnPrefs.x or y ~= lnPrefs.y then
+    lnPrefs.x, lnPrefs.y = x, y
+    T.Save("launcher", lnPrefs)
+  end
+end
+
+local lnMover = Hud.MoverFor("launcher", LN.HOME)
+LN.GetPosition, LN.MoveTo, LN.Nudge, LN.ResetPosition = lnMover.Get, lnMover.MoveTo, lnMover.Nudge, lnMover.Reset
+
+-- Re-runnable (another character's settings): before Toolbox.Hud.Init builds the strips. The first time a
+-- character has none saved (a new install, or an update to the version that brought it), chat says where it is.
+function LN.Init()
+  local saved = T.ReadSaved("launcher")
+  lnPrefs = { show = true, vertical = true, size = LN.SIZE_DEFAULT }
+  if type(saved) == "table" then
+    lnPrefs.show = saved.show ~= false
+    lnPrefs.vertical = saved.vertical ~= false
+    if type(saved.size) == "number" and saved.size == math.floor(saved.size) and saved.size >= LN.SIZE_MIN
+        and saved.size <= LN.SIZE_MAX then
+      lnPrefs.size = saved.size
+    end
+    if type(saved.x) == "number" and type(saved.y) == "number" then lnPrefs.x, lnPrefs.y = saved.x, saved.y end
+  else
+    T.Print("New: the launcher, top left: one click opens a Toolbox window. Move it by its grip; turn it off in"
+      .. " Settings, HUD layout (or /" .. T.commands[1] .. " launcher off).")
+    T.Save("launcher", lnPrefs)
+  end
+  lnEl, lnLit = {}, {}
+  Hud.Register("launcher", LN)
+  ShroudRegisterPeriodic(LN_PERIODIC, LN.Update, LN.TICK, true)
+end
+
+-- The strip goes before the target (built last); a reset clears its settings.
+table.insert(Hud.ORDER, #Hud.ORDER, "launcher")
+Hud.NAMES.launcher = "launcher"
+T.Backup.KEYS[#T.Backup.KEYS + 1] = "launcher"
+
+-- /toolbox launcher
+T.AddCommand("launcher", "the launcher: buttons opening Toolbox's windows (on|off; vertical|horizontal; size <n>;"
+    .. " move [x y])", function(rest)
+  local word, args = T.ParseArgs(rest)
+  word = word:lower()
+  if word == "" then
+    LN.SetShow(not lnPrefs.show)
+  elseif word == "on" or word == "off" then
+    LN.SetShow(word == "on")
+  elseif word == "vertical" or word == "horizontal" then
+    LN.SetVertical(word == "vertical")
+  elseif word == "size" then
+    if not LN.SetSize(tonumber(args)) then
+      T.Print("Use /" .. T.commands[1] .. " launcher size " .. LN.SIZE_MIN .. "-" .. LN.SIZE_MAX .. ".")
+      return
+    end
+  elseif word == "move" then
+    T.MoveCommand(LN, "launcher", "The launcher", args)
+    return
+  else
+    T.Print("Use /" .. T.commands[1] .. " launcher [on|off], vertical|horizontal, size <n> or move [x y].")
+    return
+  end
+  T.Print("Launcher: " .. (lnPrefs.show and "on" or "off") .. ", " .. (lnPrefs.vertical and "vertical" or "horizontal")
+    .. ", " .. lnPrefs.size .. " px.")
+end)

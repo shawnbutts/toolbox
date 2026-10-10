@@ -529,7 +529,7 @@ return function(t)
     t.ok(H.targetRow(), "in the Toolbelt it fits")
   end)
 
-  -- every strip on its own: 9 HUD frames
+  -- every strip on its own: 10 HUD frames (the launcher's too)
   local function everyStrip()
     for _, cmd in ipairs({ "/tbx buffs", "/tbx vitals", "/tbx combat", "/tbx xp", "/tbx xp hud", "/tbx daily",
                            "/tbx daily hud", "/tbx notify via hud", "/tbx gear bar on", "/tbx target on",
@@ -538,7 +538,7 @@ return function(t)
     end
   end
 
-  t.test("a client allowing 25 HUD frames builds all nine strips", function()
+  t.test("a client allowing 25 HUD frames builds all ten strips", function()
     local was = H.MAX_HUD_FRAMES
     H.MAX_HUD_FRAMES = 25                       -- the work log, 2026-10-01
     H.boot()
@@ -547,7 +547,7 @@ return function(t)
     H.MAX_HUD_FRAMES = was
     local n = 0
     for _ in pairs(H.S.frames) do n = n + 1 end
-    t.eq(n, 9)
+    t.eq(n, 10)
     t.no(H.logged("No room"))
     t.ok(H.targetFrame(), "the target on its own strip")
   end)

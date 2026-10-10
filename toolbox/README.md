@@ -23,7 +23,9 @@ crafted and gathered today with its market value, DPS and combat stats, and noti
 
 **Getting started:** type `/toolbox` (or `/tbx`, or press **Ctrl+;**) to open the settings window and
 tick what you want on screen. Its **Docs** button opens a guide to every feature, option and command.
-Change the key in the add-on manager, on Toolbox's row under **Keys**.
+Change the key in the add-on manager, on Toolbox's row under **Keys**. The **launcher**, a column of gold
+buttons at the top left, opens any Toolbox window with one click (settings, HUD layout to move it, make it a
+row or switch it off).
 
 ## The Toolbelt
 
@@ -156,6 +158,7 @@ type `/toolbox location`.
 - `/toolbox combat`: the combat stats HUD
 - `/toolbox notify`: notification settings
 - `/toolbox location`: the location strip (`on|off`, `facing on|off`)
+- `/toolbox launcher`: the launcher (`on|off`, `vertical|horizontal`, `size <n>`)
 - `/toolbox settings`: settings files and setups (`save`, `reset`, `cancel`, `setups`, `import`, `export`)
 
 Settings are saved per character. To copy another character's setup, yours or someone else's on the same

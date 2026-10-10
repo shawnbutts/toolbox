@@ -719,7 +719,7 @@ local POSITIONED = {
   { "consumables", T.Consumables, "Consumables bar" }, { "gear", T.Gear, "Equipment bar" },
   { "combat", T.Combat, "Combat stats" }, { "nhud", T.Notify.Hud, "Notification HUD" },
   { "target", T.Target, "Target HUD" }, { "buffblock", T.BuffBlock, "Buff block" },
-  { "location", T.Location, "Location strip" },
+  { "location", T.Location, "Location strip" }, { "launcher", T.Launcher, "Launcher" },
 }
 if T.SkillBar then POSITIONED[#POSITIONED + 1] = { "skills", T.SkillBar, T.SkillBar.PAGE } end
 
@@ -853,6 +853,15 @@ function C.HudSection()
     UI.Label{ text = "Strips show while this window is open, so you can place them. Drag a strip's grip"
       .. " (untick Options > Interface > Nameplates & Chat Bubbles > Lock Status Movement to see it) or"
       .. " use the buttons.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
+    heading("Launcher"),
+    UI.Toggle{ id = "ln_show", text = "Show the launcher", value = T.Launcher.GetShow(),
+      tooltip = "Buttons opening Toolbox's windows with one click, lit while a window is open. Off: open them"
+        .. " here, as before",
+      onChange = function(_, v) T.Launcher.SetShow(v) end },
+    UI.Toggle{ id = "ln_vertical", text = "Vertical", value = T.Launcher.GetVertical(),
+      tooltip = "Off: the buttons in a row", onChange = function(_, v) T.Launcher.SetVertical(v) end },
+    slider("ln_size", "Button size", T.Launcher.SIZE_MIN, T.Launcher.SIZE_MAX, 2, T.Launcher.GetSize(),
+      "The buttons' size in pixels", function(n) T.Launcher.SetSize(n) end),
     heading("Location strip"),
     UI.Toggle{ id = "loc_show", text = "Show where you are", value = T.Location.GetShow(),
       tooltip = "A strip with the scene you're in, your position (x, height, z, as /loc gives it) and which way"
@@ -1293,7 +1302,7 @@ local function category(keyOrLabel)
 end
 
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
-local ALL_IDS = { "loc_show", "loc_facing",
+local ALL_IDS = { "loc_show", "loc_facing", "ln_show", "ln_vertical", "ln_size", "ln_size_value",
   "font", "font_value", "spacing", "spacing_value", "xp_net", "xp_mode", "daily_mode", "show_xp",
   "show_daily_detail", "dd_values", "dd_each", "dd_values_msg", "dd_include", "hover_popup", "hover_daily",
   "show_buffs", "buffs_combat_only", "buff_replace", "buff_dismiss", "buff_size", "buff_size_value",
@@ -2080,6 +2089,11 @@ function C.Sync()
   syncQuiet()
   syncEffectSounds()
   setValue("setup_share", T.Backup.GetShare())
+  setValue("ln_show", T.Launcher.GetShow())
+  setValue("ln_vertical", T.Launcher.GetVertical())
+  sliderValue("ln_size", T.Launcher.GetSize())
+  setEnabled("ln_vertical", T.Launcher.GetShow())
+  setEnabled("ln_size", T.Launcher.GetShow())
   setValue("loc_show", T.Location.GetShow())
   setValue("loc_facing", T.Location.GetFacing())
   setEnabled("loc_facing", T.Location.GetShow())
