@@ -932,13 +932,16 @@ function LN.BuildContent()
       kids[#kids + 1], built[i] = e, e
     end
   end
+  -- Its exact size, the buttons centred across it: unsized, the column was as wide as the strip's frame and its
+  -- buttons sat to the left (owner, 2026-10-10).
+  local w, h = LN.ContentSize()
   local boxStyle = { backgroundColor = LN.ShadeColor(lnPrefs.shade), borderRadius = 4, paddingLeft = LN.PAD,
     paddingRight = LN.PAD, paddingTop = LN.PAD, paddingBottom = LN.PAD, marginLeft = 0, marginRight = 0,
-    marginTop = 0, marginBottom = 0 }
+    marginTop = 0, marginBottom = 0, width = w, minWidth = w, maxWidth = w, height = h, minHeight = h,
+    maxHeight = h, alignItems = "center" }
   if lnPrefs.vertical then
     lnBox = UI.Column{ id = "launcher", style = boxStyle, children = kids }
   else
-    boxStyle.alignItems = "start"
     lnBox = UI.Row{ id = "launcher", style = boxStyle, children = kids }
   end
   lnEl, lnLit = built, {}
