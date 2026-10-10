@@ -197,12 +197,14 @@ into one if a new file is ever needed).
   `Toolbox.Location` (LOC; owner, 2026-10-08): the location strip (scene, position rounded, compass heading from
   `ShroudGetPlayerCompassHeading`; hover = `ShroudGetLocationText`), its own `LOC.TICK` periodic setting text only
   on change, its width from the scene name's length (refit on a scene change); controls on the HUD layout page.
-  Then `Toolbox.Launcher` (LN; owner, 2026-10-10): the launcher strip, one button a window (`LN.BUTTONS`: its
+  Then `Toolbox.Launcher` (LN; owner, 2026-10-10; "the menu" to players, `/toolbox menu`, alias `launcher`): one button a window (`LN.BUTTONS`: its
   `open()` and `toggle()`; the pop-up windows count as open when pinned; Notifications = `N.ToggleWindow`, the news
   now in the window), pictures from `toolbox/launcher.png` (`art/launcher.py`, frames in `LN.BUTTONS` order) tinted
   `LN.COLOR` (@gold), `LN.LIT` / `LN.DIM` opacity as its window is open or not (its own `LN.TICK` periodic), text
   buttons without the picture. On by default, vertical, `HOME` = 0, 0; the first start without a saved
-  `launcher` says so in chat once (per character). Controls on the HUD layout page; `/toolbox launcher`.
+  `launcher` says so in chat once (per character). Settings last, Docs above it; a black shade behind (`shade` %,
+  `LN.ShadeColor`, set in place), hide during combat (`BB.InCombatWindow`, `LN.Update` refits on a change), and
+  which buttons show (`hide`; never all). Controls lead the "Menu, setups, backup & reset" page (`C.MenuRows`).
 - `buffbar.lua`: `Toolbox.BuffBar` (BB), plus `Toolbox.Consumables` (K), `Toolbox.Gear` (G) and
   `Toolbox.BuffBlock` (MB, end of the file; owner, 2026-10-03).
   - Buff block: its own strip (never in the Toolbelt), every effect sorted by expiry (`BB.Tick` collects them
@@ -348,7 +350,7 @@ into one if a new file is ever needed).
   arpeggio into a ringing chord, and skill_down, sinking "wah wah" notes, and skill_train / skill_maintain /
   skill_unlearn, two quick notes up, even and down, belong to skills.lua; block, parry and
   dodge, a thud, a clash and a whoosh, to combat.lua's shout), `launcher.py` (-> `toolbox/launcher.png`: the
-  launcher's eight button pictures, white line art with a dark edge, tinted in game). Re-encoding changes the bytes even when the audio is the same:
+  menu's eight button pictures (in `LN.BUTTONS` order), white line art with a dark edge, tinted in game). Re-encoding changes the bytes even when the audio is the same:
   `git checkout` an .ogg you didn't mean to change. A player's own `Lua/toolbox_<name>` sounds win.
   Effect sounds (owner, 2026-10-08): a player's file per buff / debuff, for when you get it ("get": a debuff's
   landing, or a buff appearing outside the settling, `timers` empty) and / or when it's about to run out ("end": the
@@ -452,7 +454,7 @@ character" sentinel.
 | `target` | `{ show = bool (default false), glue = bool (default true), place = "top" (default) / "bottom", mirror = bool, effects = "all"/"debuffs"/"none", icons = 1..8 (unset: 8, or 5 mirrored), bars = bool (default true), numbers = bool (default false), bg = "None"/"Dark"/"Light", flash = bool (default false), flashBelow = 1..95, x, y }` (a saved place "left", from beta 7, reads as mirror; bars and numbers both off = just the effect icons, refused with effects "none" too; hidePet = bool (default true): your pet as the target reads as no target, `TG.IsPet`) |
 | `loot_runs` | `{ v = 1, list = { { at = "HH:MM", date = "YYYY-MM-DD", scene, played = s, gold, kills, items, kinds, nodes, value = estimated gold or nil, spot = { scene, raw, x, y, z } or nil } } }`, newest first, at most `D.RUNS_KEEP` (10); stats: a reset keeps it |
 | `location` | `{ show = bool (default false), facing = bool (default true), x, y }` (the location strip, hud.lua) |
-| `launcher` | `{ show = bool (default true), vertical = bool (default true), size = 20..64 (default 32), x, y }` (hud.lua; absent = never started: the chat line) |
+| `launcher` | `{ show = bool (default true), vertical = bool (default true), size = 20..64 (default 32), shade = 0..90 (% black behind, default 40), combat = bool (hide during combat), hide = { [button key] = true } (never all), x, y }` (the menu, hud.lua; absent = never started: the chat line) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
 | `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), font = 9..32, spacing = 0..12 (each unset: the XP windows'), x, y }` |

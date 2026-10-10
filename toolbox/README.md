@@ -23,9 +23,9 @@ crafted and gathered today with its market value, DPS and combat stats, and noti
 
 **Getting started:** type `/toolbox` (or `/tbx`, or press **Ctrl+;**) to open the settings window and
 tick what you want on screen. Its **Docs** button opens a guide to every feature, option and command.
-Change the key in the add-on manager, on Toolbox's row under **Keys**. The **launcher**, a column of gold
-buttons at the top left, opens any Toolbox window with one click (settings, HUD layout to move it, make it a
-row or switch it off).
+Change the key in the add-on manager, on Toolbox's row under **Keys**. The **menu**, a column of gold
+buttons at the top left, opens any Toolbox window with one click (change it or switch it off under **Menu,
+setups, backup & reset** in the settings).
 
 ## The Toolbelt
 
@@ -158,7 +158,7 @@ type `/toolbox location`.
 - `/toolbox combat`: the combat stats HUD
 - `/toolbox notify`: notification settings
 - `/toolbox location`: the location strip (`on|off`, `facing on|off`)
-- `/toolbox launcher`: the launcher (`on|off`, `vertical|horizontal`, `size <n>`)
+- `/toolbox menu`: the menu (`on|off`, `vertical|horizontal`, `size <n>`, `shade <n>`, `combat hide|show`)
 - `/toolbox settings`: settings files and setups (`save`, `reset`, `cancel`, `setups`, `import`, `export`)
 
 Settings are saved per character. To copy another character's setup, yours or someone else's on the same
@@ -168,7 +168,7 @@ yours under a name. An import is a copy, so later changes stay each character's 
 
 The files are the game's saved-variable files in `Lua/SavedVariables`: `toolbox.<character>.character.json`
 for each character, and `toolbox.account.json` shared by all (it holds the setups). To back up, press
-**Save now** under **Setups, backup & reset** in the settings window and copy those files; to restore it (or move to
+**Save now** under **Menu, setups, backup & reset** in the settings window and copy those files; to restore it (or move to
 another computer), quit the game and copy them back. **Reset all settings** there puts everything back to
 the defaults at the next `/lua reload`.
 

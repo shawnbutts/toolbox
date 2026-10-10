@@ -3,9 +3,9 @@
 
     python3 art/launcher.py
 
-Frames, left to right (hud.lua's LN.BUTTONS uses the same order): settings (a gear), docs (an open book), XP (a
-star), XP Detailed (a star over a bar chart), Today (a sun), Loot Tracker (a bag), Combat Detailed (crossed
-swords), Notifications (a bell). White line art with a dark edge, so the game's tint (@gold) colours it and it
+Frames, left to right (hud.lua's LN.BUTTONS uses the same order): XP (a star), XP Detailed (a star over a bar
+chart), Today (a sun), Loot Tracker (a bag), Combat Detailed (crossed swords), Notifications (a bell), Docs (an
+open book), Settings (a gear): Settings last, Docs above it (owner, 2026-10-10). White line art with a dark edge, so the game's tint (@gold) colours it and it
 reads on any skin. Each frame is FRAME px square, drawn on a 64-unit grid. Writes art/launcher.svg and renders it
 with rsvg-convert, as art/marks.py does.
 """
@@ -41,11 +41,6 @@ def gear() -> str:
 
 
 FRAMES = [
-    ("settings", gear()),
-    ("docs", '<path d="M32 19 C25 14 15 14 8 17 V50 C15 47 25 47 32 52 C39 47 49 47 56 50 V17 C49 14 39 14 32 19 Z"/>'
-             '<line x1="32" y1="19" x2="32" y2="52"/><line x1="15" y1="26" x2="25" y2="26"/>'
-             '<line x1="15" y1="34" x2="25" y2="34"/><line x1="39" y1="26" x2="49" y2="26"/>'
-             '<line x1="39" y1="34" x2="49" y2="34"/>'),
     ("xp", '<polygon points="32,8 38.5,24 55,25 42,36 46.5,53 32,43.5 17.5,53 22,36 9,25 25.5,24" '
            'stroke-linejoin="round"/>'),
     ("xpdetail", '<polygon points="18,7 21.5,15.5 30,16 23.5,22 26,31 18,26 10,31 12.5,22 6,16 14.5,15.5" '
@@ -62,6 +57,11 @@ FRAMES = [
     ("notify", '<path d="M17 44 C21 40 19 22 32 20 C45 22 43 40 47 44 Z" stroke-linejoin="round"/>'
                '<line x1="13" y1="45" x2="51" y2="45"/><circle cx="32" cy="52" r="3.5"/>'
                '<circle cx="32" cy="15" r="3"/>'),
+    ("docs", '<path d="M32 19 C25 14 15 14 8 17 V50 C15 47 25 47 32 52 C39 47 49 47 56 50 V17 C49 14 39 14 32 19 Z"/>'
+             '<line x1="32" y1="19" x2="32" y2="52"/><line x1="15" y1="26" x2="25" y2="26"/>'
+             '<line x1="15" y1="34" x2="25" y2="34"/><line x1="39" y1="26" x2="49" y2="26"/>'
+             '<line x1="39" y1="34" x2="49" y2="34"/>'),
+    ("settings", gear()),
 ]
 
 

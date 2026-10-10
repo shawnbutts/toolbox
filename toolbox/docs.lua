@@ -34,7 +34,7 @@ D.SECTIONS = {
     "Type /toolbox (or /tbx) to open the settings window and tick what you want on screen. Its Settings "
       .. "dropdown picks a category: Toolbelt (first, and the quickest start: your buffs, health bars, "
       .. "consumables and gear in one strip), XP & Loot, Buffs, Consumables & gear, Health bars, Combat, "
-      .. "Skill activity, Notifications, Sounds, HUD layout (every strip's position) and Setups, backup & reset. "
+      .. "Skill activity, Notifications, Sounds, HUD layout (every strip's position) and Menu, setups, backup & reset. "
       .. "Can't find a setting? Type in the Search box under it (sound, size, target...) and pick a result: "
       .. "its page opens with that part at the top (Show the whole page brings back the rest) and the setting "
       .. "blinks. Options "
@@ -42,12 +42,13 @@ D.SECTIONS = {
       .. "/toolbox help opens this guide; /toolbox commands lists the commands in chat.",
     "Shortcut: Ctrl+; opens the settings (if the game isn't using it). Change it, or pick one, in the "
       .. "add-on manager on Toolbox's row under Keys. /toolbox key shows the current one.",
-    "The launcher, a column of gold buttons at the top left, opens a window with one click: Settings, Docs, "
-      .. "XP, XP Detailed, Today, Loot Tracker, Combat Detailed and Notifications (the news now, whatever "
-      .. "each usually shows in). A button is bright while its window is open; click it again to close it. "
-      .. "Hover one for its name. Move it by its grip; under Settings, HUD layout, make it a row, change its "
-      .. "size or switch it off (then open windows from the settings, as before). Also /toolbox launcher "
-      .. "(on, off, vertical, horizontal, size <n>, move <x> <y>)." },
+    "The menu, a column of gold buttons at the top left, opens a window with one click: XP, XP Detailed, "
+      .. "Today, Loot Tracker, Combat Detailed, Notifications (the news now, whatever each usually shows in), "
+      .. "Docs and Settings. A button is bright while its window is open; click it again to close it. Hover "
+      .. "one for its name. Move it by its grip. Under Settings, Menu, setups, backup & reset: make it a row, "
+      .. "change its icon size and the shade behind it, hide it during combat, pick its buttons, or switch it "
+      .. "off (then open windows from the settings, as before). Also /toolbox menu (on, off, vertical, "
+      .. "horizontal, size <n>, shade <n>, combat hide|show, move <x> <y>)." },
   { "XP",
     "XP (/toolbox xp): session time, your adventurer and producer pools, and the XP you earned "
       .. "in the last hour. Rest the pointer on it and XP Detailed pops up.",
@@ -297,7 +298,7 @@ D.SECTIONS = {
       .. "what 100% used to be; your own files play at twice the setting, so they keep their old loudness." },
   { "Setups, backup & reset",
     "Each character has its own settings and positions. To copy another character's, yours or someone "
-      .. "else's on this computer, pick it under Setups (Settings, Setups, backup & reset) and press Import "
+      .. "else's on this computer, pick it under Setups (Settings, Menu, setups, backup & reset) and press Import "
       .. "twice. A character's setup is listed once its player ticks List this character's setup (off at first); "
       .. "Export saves yours under a name (Raid layout). An import is a copy: later changes stay each "
       .. "character's own. In chat: /toolbox settings setups, import <name>, export <name>, delete <name>, "

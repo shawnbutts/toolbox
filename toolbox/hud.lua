@@ -815,29 +815,30 @@ T.AddCommand("location", "the location strip: your scene, position and facing (o
   end)
 
 -- ---------------------------------------------------------------------------
--- The launcher (Toolbox.Launcher, LN; owner, 2026-10-10): a strip of buttons opening Toolbox's windows with one
--- click, where Settings' tick boxes were the only way. Pictures: toolbox/launcher.png (art/launcher.py: one frame a
--- button, in LN.BUTTONS order), tinted LN.COLOR: lit while its window is open, dimmed while it's closed. On by
--- default, vertical, at the top-left corner; "Show the launcher" off gives the old way back. Without the picture,
--- text buttons. Its own LN.TICK periodic follows the windows (they open and close from many places), setting an
--- opacity only when it changes.
--- Saved var "launcher": { show = bool (default true), vertical = bool (default true), size = LN.SIZE_MIN..MAX, x, y }.
+-- The launcher (Toolbox.Launcher, LN; owner, 2026-10-10; "the menu" to players): a strip of buttons opening
+-- Toolbox's windows with one click, where Settings' tick boxes were the only way. Pictures: toolbox/launcher.png
+-- (art/launcher.py: one frame a button, in LN.BUTTONS order), tinted LN.COLOR: lit while its window is open, dimmed
+-- while it's closed, on a black shade of the player's darkness (`shade`, % alpha; 0 = none). On by default,
+-- vertical, at the top-left corner; "Show the menu" off gives the old way back. Without the picture, text buttons.
+-- Its own LN.TICK periodic follows the windows (they open and close from many places) and the combat hiding,
+-- setting an opacity only when it changes.
+-- Saved var "launcher": { show = bool (default true), vertical = bool (default true), size = LN.SIZE_MIN..MAX,
+-- shade = 0..LN.SHADE_MAX (default LN.SHADE_DEFAULT), combat = bool (hide during combat, default false),
+-- hide = { [button key] = true } (buttons left out; never all), x, y }.
 -- ---------------------------------------------------------------------------
-local LN = { FRAME_ID = "toolbox_launcher", HOME = { 0, 0 }, PAGE = "Launcher" }
+local LN = { FRAME_ID = "toolbox_launcher", HOME = { 0, 0 }, PAGE = "Menu" }
 Toolbox.Launcher = LN
 LN.TICK = 0.5
 LN.PATH = "toolbox/launcher.png"
 LN.SIZE_MIN, LN.SIZE_MAX, LN.SIZE_DEFAULT = 20, 64, 32
-LN.GAP = 4
+LN.SHADE_MAX, LN.SHADE_DEFAULT = 90, 40
+LN.GAP, LN.PAD = 4, 3
 LN.COLOR = "@gold"
 LN.LIT, LN.DIM = 1, 0.4               -- opacity: its window open, closed
 -- Each button: the window, a short word for the text form, its command (for the tooltip), whether it's open and
--- what a click does. The pop-up windows count as open when pinned (a click pins or unpins them).
+-- what a click does. The pop-up windows count as open when pinned (a click pins or unpins them). Settings last,
+-- Docs above it (owner).
 LN.BUTTONS = {
-  { key = "settings", name = "Settings", short = "Set", cmd = "",
-    open = function() return T.Config.IsShown() end, toggle = function() T.Config.Toggle() end },
-  { key = "docs", name = "Docs", short = "Doc", cmd = " help",
-    open = function() return T.Docs.IsShown() end, toggle = function() T.Docs.Toggle() end },
   { key = "xp", name = "XP", short = "XP", cmd = " xp",
     open = function() return T.Compact.IsShown() end, toggle = function() T.Compact.Toggle() end },
   { key = "xpdetail", name = "XP Detailed", short = "XPD", cmd = " xpd",
@@ -850,27 +851,53 @@ LN.BUTTONS = {
     open = function() return T.Combat.Detail.IsOpen() end, toggle = function() T.Combat.Detail.Toggle() end },
   { key = "notify", name = "Notifications", short = "News", cmd = " notify show",
     open = function() return T.Notify.IsShown() end, toggle = function() T.Notify.ToggleWindow() end },
+  { key = "docs", name = "Docs", short = "Doc", cmd = " help",
+    open = function() return T.Docs.IsShown() end, toggle = function() T.Docs.Toggle() end },
+  { key = "settings", name = "Settings", short = "Set", cmd = "",
+    open = function() return T.Config.IsShown() end, toggle = function() T.Config.Toggle() end },
 }
 local LN_PERIODIC = "toolbox_launcher"
-local lnPrefs = { show = true, vertical = true, size = LN.SIZE_DEFAULT }
-local lnEl = {}                       -- [i] = button i's element (empty until built)
+local function lnDefaults()
+  return { show = true, vertical = true, size = LN.SIZE_DEFAULT, shade = LN.SHADE_DEFAULT, combat = false, hide = {} }
+end
+local lnPrefs = lnDefaults()
+local lnEl = {}                       -- [i] = button i's element, nil while it's left out (empty until built)
+local lnBox = nil                     -- the strip's content
 local lnLit = {}                      -- [i] = the opacity set on it
 local lnTex = -1
+local lnShown = nil                   -- IsShown() at the last update (combat hiding)
 
 local function lnSave()
   T.Save("launcher", lnPrefs)
   if T.Config then T.Config.Sync() end
 end
 
+local function lnCount()
+  local n = 0
+  for _, b in ipairs(LN.BUTTONS) do if not lnPrefs.hide[b.key] then n = n + 1 end end
+  return n
+end
+
 function LN.Wanted() return lnPrefs.show == true end
-function LN.IsShown() return lnPrefs.show == true end
-function LN.Unbuilt() lnEl, lnLit = {}, {} end
+function LN.IsShown()
+  if lnPrefs.show ~= true then return false end
+  if lnPrefs.combat and not T.Config.IsShown() and T.BuffBar.InCombatWindow() then return false end
+  return true
+end
+function LN.Unbuilt() lnEl, lnLit, lnBox = {}, {}, nil end
 
 function LN.ContentSize()
-  local s, n = lnPrefs.size, #LN.BUTTONS
-  local long = n * s + (n - 1) * LN.GAP
-  if lnPrefs.vertical then return s, long end
-  return long, s
+  local s, n = lnPrefs.size, lnCount()
+  local long = n * s + (n - 1) * LN.GAP + 2 * LN.PAD
+  if lnPrefs.vertical then return s + 2 * LN.PAD, long end
+  return long, s + 2 * LN.PAD
+end
+
+-- The shade behind the buttons: black at `shade` % ("#00000066"), or none. A colour's alpha doesn't fade the
+-- buttons (opacity would).
+function LN.ShadeColor(pct)
+  if type(pct) ~= "number" or pct <= 0 then return "#00000000" end
+  return string.format("#000000%02x", math.floor(math.min(pct, 100) * 255 / 100 + 0.5))
 end
 
 local function lnTooltip(b)
@@ -878,48 +905,65 @@ local function lnTooltip(b)
 end
 
 function LN.BuildContent()
-  local s, n = lnPrefs.size, #LN.BUTTONS
+  local s, pictures, n = lnPrefs.size, #LN.BUTTONS, lnCount()
   if lnTex < 0 then
     local ok, tex = pcall(ShroudLoadTexture, LN.PATH)
     if ok and type(tex) == "number" and tex >= 0 then lnTex = tex end
   end
-  local kids = {}
+  local kids, built, at = {}, {}, 0
   for i, b in ipairs(LN.BUTTONS) do
-    local index = i
-    local gap = i < n and LN.GAP or 0
-    local style = { opacity = LN.DIM, marginLeft = 0, marginTop = 0,
-                    marginRight = lnPrefs.vertical and 0 or gap, marginBottom = lnPrefs.vertical and gap or 0 }
-    local click = function() LN.Click(index) end
-    if lnTex >= 0 then
-      kids[i] = UI.Image{ id = "ln_" .. b.key, width = s, height = s, texture = lnTex,
-        uv = { (i - 1) / n, 0, 1 / n, 1 },
-        tint = LN.COLOR, tooltip = lnTooltip(b), onClick = click, style = style }
-    else
-      style.width, style.height, style.minHeight = s, s, s
-      style.fontSize, style.paddingLeft, style.paddingRight = math.max(9, math.floor(s * 0.3)), 0, 0
-      kids[i] = UI.Button{ id = "ln_" .. b.key, text = b.short, tooltip = lnTooltip(b), onClick = click, style = style }
+    if not lnPrefs.hide[b.key] then
+      at = at + 1
+      local index = i
+      local gap = at < n and LN.GAP or 0
+      local style = { opacity = LN.DIM, marginLeft = 0, marginTop = 0,
+                      marginRight = lnPrefs.vertical and 0 or gap, marginBottom = lnPrefs.vertical and gap or 0 }
+      local click = function() LN.Click(index) end
+      local e = nil
+      if lnTex >= 0 then
+        e = UI.Image{ id = "ln_" .. b.key, width = s, height = s, texture = lnTex,
+          uv = { (i - 1) / pictures, 0, 1 / pictures, 1 }, tint = LN.COLOR, tooltip = lnTooltip(b), onClick = click,
+          style = style }
+      else
+        style.width, style.height, style.minHeight = s, s, s
+        style.fontSize, style.paddingLeft, style.paddingRight = math.max(9, math.floor(s * 0.3)), 0, 0
+        e = UI.Button{ id = "ln_" .. b.key, text = b.short, tooltip = lnTooltip(b), onClick = click, style = style }
+      end
+      kids[#kids + 1], built[i] = e, e
     end
   end
-  local box = nil
+  local boxStyle = { backgroundColor = LN.ShadeColor(lnPrefs.shade), borderRadius = 4, paddingLeft = LN.PAD,
+    paddingRight = LN.PAD, paddingTop = LN.PAD, paddingBottom = LN.PAD, marginLeft = 0, marginRight = 0,
+    marginTop = 0, marginBottom = 0 }
   if lnPrefs.vertical then
-    box = UI.Column{ id = "launcher", children = kids }
+    lnBox = UI.Column{ id = "launcher", style = boxStyle, children = kids }
   else
-    box = UI.Row{ id = "launcher", style = { alignItems = "start" }, children = kids }
+    boxStyle.alignItems = "start"
+    lnBox = UI.Row{ id = "launcher", style = boxStyle, children = kids }
   end
-  lnEl, lnLit = kids, {}
+  lnEl, lnLit = built, {}
   LN.Update()
-  return box
+  return lnBox
 end
 
--- Every LN.TICK s and after a click: lit or dimmed as its window is open or closed.
+-- Every LN.TICK s and after a click: lit or dimmed as its window is open or closed; hidden in combat if chosen.
 function LN.Update()
-  if not (lnPrefs.show and lnEl[1]) then return end
+  if not lnPrefs.show then return end
+  local shown = LN.IsShown()
+  if shown ~= lnShown then
+    lnShown = shown
+    Hud.Refresh()
+  end
+  if not lnBox then return end
   for i, b in ipairs(LN.BUTTONS) do
-    local ok, open = pcall(b.open)
-    local op = (ok and open) and LN.LIT or LN.DIM
-    if lnLit[i] ~= op then
-      lnLit[i] = op
-      T.SetStyle(lnEl[i], { opacity = op })
+    local e = lnEl[i]
+    if e then
+      local ok, open = pcall(b.open)
+      local op = (ok and open) and LN.LIT or LN.DIM
+      if lnLit[i] ~= op then
+        lnLit[i] = op
+        T.SetStyle(e, { opacity = op })
+      end
     end
   end
 end
@@ -930,6 +974,11 @@ function LN.Click(i)
   local ok, err = pcall(b.toggle)
   if not ok then T.Print("Couldn't open " .. b.name .. ": " .. tostring(err)) end
   LN.Update()
+end
+
+local function lnRebuild()
+  lnSave()
+  if lnPrefs.show then Hud.Rebuild("launcher") end
 end
 
 function LN.GetShow() return lnPrefs.show == true end
@@ -943,8 +992,7 @@ end
 function LN.GetVertical() return lnPrefs.vertical ~= false end
 function LN.SetVertical(on)
   lnPrefs.vertical = on == true
-  lnSave()
-  if lnPrefs.show then Hud.Rebuild("launcher") end
+  lnRebuild()
 end
 
 function LN.GetSize() return lnPrefs.size end
@@ -952,8 +1000,39 @@ function LN.SetSize(n)
   if type(n) ~= "number" or n ~= math.floor(n) or n < LN.SIZE_MIN or n > LN.SIZE_MAX then return false end
   if n == lnPrefs.size then return true end
   lnPrefs.size = n
+  lnRebuild()
+  return true
+end
+
+function LN.GetShade() return lnPrefs.shade end
+function LN.SetShade(n)
+  if type(n) ~= "number" or n ~= math.floor(n) or n < 0 or n > LN.SHADE_MAX then return false end
+  lnPrefs.shade = n
   lnSave()
-  if lnPrefs.show then Hud.Rebuild("launcher") end
+  if lnBox then T.SetStyle(lnBox, { backgroundColor = LN.ShadeColor(n) }) end     -- in place
+  return true
+end
+
+function LN.GetHideInCombat() return lnPrefs.combat == true end
+function LN.SetHideInCombat(on)
+  lnPrefs.combat = on == true
+  lnSave()
+  LN.Update()
+end
+
+-- Whether button `key` shows; switching off the last one is refused (false, why).
+function LN.GetButton(key) return not lnPrefs.hide[key] end
+function LN.SetButton(key, on)
+  local known = false
+  for _, b in ipairs(LN.BUTTONS) do if b.key == key then known = true end end
+  if not known then return false, "No such button." end
+  if on then
+    lnPrefs.hide[key] = nil
+  elseif not lnPrefs.hide[key] then
+    if lnCount() <= 1 then return false, "Keep at least one button (or switch the menu off)." end
+    lnPrefs.hide[key] = true
+  end
+  lnRebuild()
   return true
 end
 
@@ -972,35 +1051,42 @@ LN.GetPosition, LN.MoveTo, LN.Nudge, LN.ResetPosition = lnMover.Get, lnMover.Mov
 -- character has none saved (a new install, or an update to the version that brought it), chat says where it is.
 function LN.Init()
   local saved = T.ReadSaved("launcher")
-  lnPrefs = { show = true, vertical = true, size = LN.SIZE_DEFAULT }
+  lnPrefs = lnDefaults()
   if type(saved) == "table" then
     lnPrefs.show = saved.show ~= false
     lnPrefs.vertical = saved.vertical ~= false
-    if type(saved.size) == "number" and saved.size == math.floor(saved.size) and saved.size >= LN.SIZE_MIN
-        and saved.size <= LN.SIZE_MAX then
-      lnPrefs.size = saved.size
+    lnPrefs.combat = saved.combat == true
+    local function whole(v, lo, hi) return type(v) == "number" and v == math.floor(v) and v >= lo and v <= hi end
+    if whole(saved.size, LN.SIZE_MIN, LN.SIZE_MAX) then lnPrefs.size = saved.size end
+    if whole(saved.shade, 0, LN.SHADE_MAX) then lnPrefs.shade = saved.shade end
+    if type(saved.hide) == "table" then
+      for _, b in ipairs(LN.BUTTONS) do
+        if saved.hide[b.key] == true then lnPrefs.hide[b.key] = true end
+      end
+      if lnCount() == 0 then lnPrefs.hide = {} end
     end
     if type(saved.x) == "number" and type(saved.y) == "number" then lnPrefs.x, lnPrefs.y = saved.x, saved.y end
   else
-    T.Print("New: the launcher, top left: one click opens a Toolbox window. Move it by its grip; turn it off in"
-      .. " Settings, HUD layout (or /" .. T.commands[1] .. " launcher off).")
+    T.Print("New: the menu, top left: one click opens a Toolbox window. Move it by its grip; change or switch it"
+      .. " off in Settings, Menu, setups, backup & reset (or /" .. T.commands[1] .. " menu off).")
     T.Save("launcher", lnPrefs)
   end
-  lnEl, lnLit = {}, {}
+  lnEl, lnLit, lnBox, lnShown = {}, {}, nil, nil
   Hud.Register("launcher", LN)
   ShroudRegisterPeriodic(LN_PERIODIC, LN.Update, LN.TICK, true)
 end
 
 -- The strip goes before the target (built last); a reset clears its settings.
 table.insert(Hud.ORDER, #Hud.ORDER, "launcher")
-Hud.NAMES.launcher = "launcher"
+Hud.NAMES.launcher = "menu"
 T.Backup.KEYS[#T.Backup.KEYS + 1] = "launcher"
 
--- /toolbox launcher
-T.AddCommand("launcher", "the launcher: buttons opening Toolbox's windows (on|off; vertical|horizontal; size <n>;"
-    .. " move [x y])", function(rest)
+-- /toolbox menu (or launcher)
+T.AddCommand("menu", "the menu: buttons opening Toolbox's windows (on|off; vertical|horizontal; size <n>; shade <0-"
+    .. LN.SHADE_MAX .. ">; combat hide|show; move [x y])", function(rest)
   local word, args = T.ParseArgs(rest)
-  word = word:lower()
+  word, args = word:lower(), args:lower()
+  local c = "/" .. T.commands[1] .. " menu"
   if word == "" then
     LN.SetShow(not lnPrefs.show)
   elseif word == "on" or word == "off" then
@@ -1009,16 +1095,24 @@ T.AddCommand("launcher", "the launcher: buttons opening Toolbox's windows (on|of
     LN.SetVertical(word == "vertical")
   elseif word == "size" then
     if not LN.SetSize(tonumber(args)) then
-      T.Print("Use /" .. T.commands[1] .. " launcher size " .. LN.SIZE_MIN .. "-" .. LN.SIZE_MAX .. ".")
+      T.Print("Use " .. c .. " size " .. LN.SIZE_MIN .. "-" .. LN.SIZE_MAX .. ".")
       return
     end
+  elseif word == "shade" then
+    if not LN.SetShade(tonumber(args)) then
+      T.Print("Use " .. c .. " shade 0-" .. LN.SHADE_MAX .. " (0: none).")
+      return
+    end
+  elseif word == "combat" and (args == "hide" or args == "show") then
+    LN.SetHideInCombat(args == "hide")
   elseif word == "move" then
-    T.MoveCommand(LN, "launcher", "The launcher", args)
+    T.MoveCommand(LN, "menu", "The menu", args)
     return
   else
-    T.Print("Use /" .. T.commands[1] .. " launcher [on|off], vertical|horizontal, size <n> or move [x y].")
+    T.Print("Use " .. c .. " [on|off], vertical|horizontal, size <n>, shade <n>, combat hide|show or move [x y].")
     return
   end
-  T.Print("Launcher: " .. (lnPrefs.show and "on" or "off") .. ", " .. (lnPrefs.vertical and "vertical" or "horizontal")
-    .. ", " .. lnPrefs.size .. " px.")
-end)
+  T.Print("Menu: " .. (lnPrefs.show and "on" or "off") .. ", " .. (lnPrefs.vertical and "vertical" or "horizontal")
+    .. ", " .. lnPrefs.size .. " px, shade " .. lnPrefs.shade .. "%" .. (lnPrefs.combat and ", hidden in combat" or "")
+    .. ".")
+end, { "launcher" })

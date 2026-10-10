@@ -719,7 +719,7 @@ local POSITIONED = {
   { "consumables", T.Consumables, "Consumables bar" }, { "gear", T.Gear, "Equipment bar" },
   { "combat", T.Combat, "Combat stats" }, { "nhud", T.Notify.Hud, "Notification HUD" },
   { "target", T.Target, "Target HUD" }, { "buffblock", T.BuffBlock, "Buff block" },
-  { "location", T.Location, "Location strip" }, { "launcher", T.Launcher, "Launcher" },
+  { "location", T.Location, "Location strip" }, { "launcher", T.Launcher, "Menu" },
 }
 if T.SkillBar then POSITIONED[#POSITIONED + 1] = { "skills", T.SkillBar, T.SkillBar.PAGE } end
 
@@ -853,15 +853,6 @@ function C.HudSection()
     UI.Label{ text = "Strips show while this window is open, so you can place them. Drag a strip's grip"
       .. " (untick Options > Interface > Nameplates & Chat Bubbles > Lock Status Movement to see it) or"
       .. " use the buttons.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
-    heading("Launcher"),
-    UI.Toggle{ id = "ln_show", text = "Show the launcher", value = T.Launcher.GetShow(),
-      tooltip = "Buttons opening Toolbox's windows with one click, lit while a window is open. Off: open them"
-        .. " here, as before",
-      onChange = function(_, v) T.Launcher.SetShow(v) end },
-    UI.Toggle{ id = "ln_vertical", text = "Vertical", value = T.Launcher.GetVertical(),
-      tooltip = "Off: the buttons in a row", onChange = function(_, v) T.Launcher.SetVertical(v) end },
-    slider("ln_size", "Button size", T.Launcher.SIZE_MIN, T.Launcher.SIZE_MAX, 2, T.Launcher.GetSize(),
-      "The buttons' size in pixels", function(n) T.Launcher.SetSize(n) end),
     heading("Location strip"),
     UI.Toggle{ id = "loc_show", text = "Show where you are", value = T.Location.GetShow(),
       tooltip = "A strip with the scene you're in, your position (x, height, z, as /loc gives it) and which way"
@@ -1243,8 +1234,48 @@ function C.SetupSection()
   } }
 end
 
+-- The menu (Toolbox.Launcher, hud.lua; owner, 2026-10-10): its options lead this page.
+function C.MenuRows(children)
+  local L = T.Launcher
+  local function add(e) children[#children + 1] = e end
+  add(heading("Menu", true))
+  add(UI.Label{ text = "Buttons that open Toolbox's windows with one click, bright while a window is open. Move it by"
+    .. " its grip (or under HUD layout).", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } })
+  add(UI.Toggle{ id = "ln_show", text = "Show the menu", value = L.GetShow(),
+    tooltip = "Off: open the windows from these settings, as before", onChange = function(_, v) L.SetShow(v) end })
+  add(UI.Toggle{ id = "ln_vertical", text = "Vertical", value = L.GetVertical(),
+    tooltip = "Off: the buttons in a row", onChange = function(_, v) L.SetVertical(v) end })
+  add(UI.Toggle{ id = "ln_combat", text = "Hide during combat", value = L.GetHideInCombat(),
+    tooltip = "Out of the way in a fight; back a few seconds after",
+    onChange = function(_, v) L.SetHideInCombat(v) end })
+  add(slider("ln_size", "Icon size", L.SIZE_MIN, L.SIZE_MAX, 2, L.GetSize(), "The buttons' size in pixels",
+    function(n) L.SetSize(n) end))
+  add(slider("ln_shade", "Background shade (%)", 0, L.SHADE_MAX, 5, L.GetShade(),
+    "How dark the panel behind the buttons is, so they stand out; 0: none", function(n) L.SetShade(n) end))
+  add(UI.Label{ text = "Buttons:", class = "text", style = { marginTop = 6 } })
+  local cells = {}
+  for i, b in ipairs(L.BUTTONS) do        -- two to a row
+    local key = b.key
+    cells[#cells + 1] = UI.Toggle{ id = "ln_btn_" .. key, text = b.name, value = L.GetButton(key),
+      style = { flexGrow = 1, flexBasis = 0 }, tooltip = "Show the " .. b.name .. " button",
+      onChange = function(_, v)
+        local ok, why = L.SetButton(key, v)
+        if not ok then
+          T.Print(why)
+          C.Sync()
+        end
+      end }
+    if i % 2 == 0 or i == #L.BUTTONS then
+      add(UI.Row{ children = cells })
+      cells = {}
+    end
+  end
+end
+
 function C.BackupSection()
-  local children = { heading("Backup", true) }
+  local children = {}
+  C.MenuRows(children)
+  children[#children + 1] = heading("Backup")
   for i, line in ipairs(T.Backup.HowTo()) do
     local spec = { text = line, class = "dim", style = { whiteSpace = "wrap", marginTop = 3 } }
     if i == 1 then
@@ -1286,7 +1317,7 @@ C.CATEGORIES = {
   { key = "notify", label = "Notifications", build = function() return C.NotifySection() end },
   { key = "sounds", label = "Sounds", build = function() return C.SoundsSection() end },
   { key = "hud", label = "HUD layout", build = function() return C.HudSection() end },
-  { key = "backup", label = "Setups, backup & reset", build = function() return C.BackupSection() end },
+  { key = "backup", label = "Menu, setups, backup & reset", build = function() return C.BackupSection() end },
 }
 -- skills.lua, when present: its page after Combat
 if T.SkillBar then
@@ -1302,7 +1333,10 @@ local function category(keyOrLabel)
 end
 
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
-local ALL_IDS = { "loc_show", "loc_facing", "ln_show", "ln_vertical", "ln_size", "ln_size_value",
+local ALL_IDS = { "loc_show", "loc_facing",
+  "ln_show", "ln_vertical", "ln_combat", "ln_size", "ln_size_value", "ln_shade", "ln_shade_value",
+  "ln_btn_xp", "ln_btn_xpdetail", "ln_btn_today", "ln_btn_loot", "ln_btn_combat", "ln_btn_notify", "ln_btn_docs",
+  "ln_btn_settings",
   "font", "font_value", "spacing", "spacing_value", "xp_net", "xp_mode", "daily_mode", "show_xp",
   "show_daily_detail", "dd_values", "dd_each", "dd_values_msg", "dd_include", "hover_popup", "hover_daily",
   "show_buffs", "buffs_combat_only", "buff_replace", "buff_dismiss", "buff_size", "buff_size_value",
@@ -2089,11 +2123,18 @@ function C.Sync()
   syncQuiet()
   syncEffectSounds()
   setValue("setup_share", T.Backup.GetShare())
-  setValue("ln_show", T.Launcher.GetShow())
-  setValue("ln_vertical", T.Launcher.GetVertical())
-  sliderValue("ln_size", T.Launcher.GetSize())
-  setEnabled("ln_vertical", T.Launcher.GetShow())
-  setEnabled("ln_size", T.Launcher.GetShow())
+  -- the menu (on the Menu, setups, backup & reset page)
+  local L = T.Launcher
+  setValue("ln_show", L.GetShow())
+  setValue("ln_vertical", L.GetVertical())
+  setValue("ln_combat", L.GetHideInCombat())
+  sliderValue("ln_size", L.GetSize())
+  sliderValue("ln_shade", L.GetShade())
+  for _, id in ipairs({ "ln_vertical", "ln_combat", "ln_size", "ln_shade" }) do setEnabled(id, L.GetShow()) end
+  for _, b in ipairs(L.BUTTONS) do
+    setValue("ln_btn_" .. b.key, L.GetButton(b.key))
+    setEnabled("ln_btn_" .. b.key, L.GetShow())
+  end
   setValue("loc_show", T.Location.GetShow())
   setValue("loc_facing", T.Location.GetFacing())
   setEnabled("loc_facing", T.Location.GetShow())
