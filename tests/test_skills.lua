@@ -817,4 +817,66 @@ return function(t)
     t.ok(H.logged("needs a newer game client"), H.lastLog())
     ShroudSetSkillMode = real
   end)
+
+  t.test("Pause skills: the record is saved before any skill changes; a refused save pauses nothing", function()
+    pauseOn()
+    H.S.refuseKeys = { skills_paused = true }
+    H.chat("/tbx skills pause")
+    t.ok(H.logged("Couldn't pause your skills: the record to put them back couldn't be saved."), H.lastLog())
+    t.eq(#H.S.modeLists, 0, "no call made")
+    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Maintaining Archery=Unlearning "
+      .. "Dodge=NotLearning")
+    t.eq(SK().IsPaused(), false)
+    H.S.refuseKeys = nil
+    -- the clear on resume refused: the skills still go back, and the stale record finds nothing left to set back
+    H.chat("/tbx skills pause")
+    H.S.refuseKeys = { skills_paused = true }
+    H.chat("/tbx skills resume")
+    t.ok(H.logged("Could not save 'skills_paused'"), H.lastLog())
+    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Maintaining Archery=Unlearning "
+      .. "Dodge=NotLearning")
+    H.S.refuseKeys = nil
+  end)
+
+  t.test("Pause skills: the game's modes read from a game object; a skill too low to maintain goes off", function()
+    pauseOn()
+    H.S.modeObjects = true
+    H.S.skills[1].low = true                     -- Fireball: below the floor, the game stops it instead
+    SK().SetPauseHow("maintain")
+    H.chat("/tbx skills pause")
+    t.eq(H.S.skills[1].mode, "NotLearning")
+    t.eq(H.saved("skills_paused").list[1].to, "NotLearning", "recorded as the game left it, not as asked")
+    H.chat("/tbx skills resume")
+    t.ok(H.logged("Skills back on: 4 skills back as they were."), H.lastLog())
+    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Maintaining Archery=Unlearning "
+      .. "Dodge=NotLearning")
+    H.S.modeObjects = nil
+  end)
+
+  t.test("Pause skills: a resume the game didn't confirm keeps every skill for the next click", function()
+    pauseOn()
+    H.chat("/tbx skills pause")
+    H.S.modeThrow = "boom"
+    H.chat("/tbx skills resume")
+    t.ok(H.logged("The game refused 4 skills %(the game raised an error%): click again"), H.lastLog())
+    t.eq(#H.saved("skills_paused").list, 4, "still saved")
+    H.S.modeThrow = nil
+    H.S.modeRefuse = "somethingNew"              -- a reason this version doesn't know
+    H.chat("/tbx skills resume")
+    t.eq(#H.saved("skills_paused").list, 4, "kept again")
+    H.S.modeRefuse = nil
+    H.chat("/tbx skills resume")
+    t.eq(SK().IsPaused(), false)
+    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Maintaining Archery=Unlearning "
+      .. "Dodge=NotLearning")
+    -- a pause call that raises: the record saved first stays, and a resume puts back what moved
+    H.S.modeThrow = "boom"
+    H.chat("/tbx skills pause")
+    t.ok(H.logged("Couldn't tell whether your skills were paused"), H.lastLog())
+    t.eq(SK().IsPaused(), true)
+    H.S.modeThrow = nil
+    H.chat("/tbx skills resume")
+    t.ok(H.logged("4 skills changed since %(or gone%): left as they are"), H.lastLog())
+    t.eq(SK().IsPaused(), false)
+  end)
 end

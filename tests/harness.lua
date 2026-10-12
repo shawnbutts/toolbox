@@ -299,7 +299,9 @@ local function install_api()
       local ok, reason, now = modeAnswer(skill, mode)
       return ok, reason, now
     end
+    -- S.modeThrow: the call raises; S.modeObjects: a list's modes come back as a game object (read by name only).
     ShroudSetSkillMode = function(skill, mode)
+      if S.modeThrow then error("ShroudSetSkillMode: " .. tostring(S.modeThrow)) end
       if S.modeRefuse then return false, S.modeRefuse end
       if not S.gesture then return false, "needsGesture" end
       S.gestureUses = (S.gestureUses or 0) + 1
@@ -308,7 +310,18 @@ local function install_api()
       if type(skill) == "table" and skill[1] ~= nil then
         S.modeLists = S.modeLists or {}
         S.modeLists[#S.modeLists + 1] = { skills = skill, mode = mode }
-        return listAnswer(skill, mode, true)
+        local ok, reason, modes = listAnswer(skill, mode, true)
+        if S.modeObjects and type(modes) == "table" then
+          local proxy = rawget(_G, "newproxy")
+          if proxy then
+            local u = proxy(true)
+            getmetatable(u).__index = modes
+            modes = u
+          else
+            modes = setmetatable({}, { __index = modes })
+          end
+        end
+        return ok, reason, modes
       end
       local ok, reason, now, sk = modeAnswer(skill, mode)
       if ok and sk then sk.mode = now end

@@ -306,12 +306,12 @@ function SK.PauseTargets(readings, how)
 end
 
 -- The record of a pause: { key, from, to } for each target the game moved, from the call's `modes`
--- ({ [key] = mode }); a skill missing there is taken as `asked` (a skill that didn't move then fails the resume's
--- check and is left alone). Pure.
+-- ({ [key] = mode }, a table or a game object: read by T.Field, review 29); a skill missing there is taken as
+-- `asked` (a skill that didn't move then fails the resume's check and is left alone). Pure.
 function SK.PauseRecord(targets, modes, asked)
   local list = {}
   for _, t in ipairs(targets) do
-    local now = type(modes) == "table" and modes[t.key] or nil
+    local now = T.Field(modes, t.key)
     if not (type(now) == "string" and SK.MODES[now]) then now = asked end
     if now ~= t.from then list[#list + 1] = { key = t.key, from = t.from, to = now } end
   end
@@ -782,7 +782,7 @@ end
 
 local function reasonText(reason) return SK.MODE_REASONS[reason] or tostring(reason) end
 
-local function savePaused() T.Save(SK.PAUSE_KEY, paused) end
+local function savePaused() return T.Save(SK.PAUSE_KEY, paused) end
 
 -- The tile's tooltip.
 function SK.PauseTooltip()
@@ -825,13 +825,34 @@ function SK.Pause()
   local keys = {}
   for i, t in ipairs(targets) do keys[i] = t.key end
   local asked = SK.PAUSE_HOW[how].mode
-  local called, ok, reason, modes = pcall(ShroudSetSkillMode, keys, asked)
-  if not called or not ok then
-    T.Print("Couldn't pause your skills: " .. (called and reasonText(reason) or "the game refused") .. ".")
+  -- The way back is saved before anything changes (review 28): every target as asked, the resume's check leaving
+  -- one that didn't move. No saved record, no pause.
+  local when = T.ClockText()
+  paused = { v = 1, how = how, when = when, list = SK.PauseRecord(targets, nil, asked) }
+  if not savePaused() then
+    paused = { list = {} }
+    T.Print("Couldn't pause your skills: the record to put them back couldn't be saved.")
     return false
   end
-  paused = { v = 1, how = how, when = T.ClockText(), list = SK.PauseRecord(targets, modes, asked) }
-  savePaused()
+  local called, ok, reason, modes = pcall(ShroudSetSkillMode, keys, asked)
+  if not called then                             -- unknown what changed: the record stays, a resume checks each
+    T.Print("Couldn't tell whether your skills were paused (the game raised an error). Click the pause tile to"
+      .. " put back any that were.")
+    local mine = {}
+    for _, e in ipairs(paused.list) do mine[e.key] = e.to end
+    SK.Expect(state, mine, T.Now())
+    needRead = true
+    SK.Fill()
+    return false
+  end
+  if not ok then
+    paused = { list = {} }
+    savePaused()
+    T.Print("Couldn't pause your skills: " .. reasonText(reason) .. ".")
+    return false
+  end
+  paused = { v = 1, how = how, when = when, list = SK.PauseRecord(targets, modes, asked) }
+  local saved = savePaused()
   local mine = {}
   for _, e in ipairs(paused.list) do mine[e.key] = e.to end
   SK.Expect(state, mine, T.Now())
@@ -840,6 +861,7 @@ function SK.Pause()
   else
     local note = ""
     if reason ~= "ok" then note = " Some skills: " .. reasonText(reason) .. "." end
+    if not saved then note = note .. " Resume before a reload: the game's answer couldn't be saved." end
     T.Print("Skills paused: " .. SK.Count(#paused.list) .. " set to " .. SK.PAUSE_HOW[how].word .. ". Click the pause"
       .. " tile on the skill strip again (or /" .. T.commands[1] .. " skills resume) to put them back." .. note)
   end
@@ -872,16 +894,16 @@ function SK.Resume()
       back = back + #keys
       local mine = {}
       for _, k in ipairs(keys) do
-        local m = type(after) == "table" and after[k] or nil
+        local m = T.Field(after, k)
         mine[k] = (type(m) == "string" and SK.MODES[m]) and m or mode
       end
       SK.Expect(state, mine, T.Now())
       if reason ~= "ok" then note = reasonText(reason) end
     else
-      refused = called and reason or "error"
-      if SK.PASSING[refused] then               -- a passing refusal: kept for the next click
-        for _, k in ipairs(keys) do keep[k] = true end
-      end
+      -- Not confirmed: kept for the next click, whatever the reason (review 30). A list is refused whole, and
+      -- the groups hold only skills still as the pause left them.
+      refused = called and reason or "the game raised an error"
+      for _, k in ipairs(keys) do keep[k] = true end
     end
   end
   local left = {}

@@ -307,10 +307,11 @@ into one if a new file is ever needed).
   Pause skills (owner, 2026-10-12, a player's request): a tile first on the strip (`sk_pause`, skillmarks.png frames 3
   and 4, cropped: a play triangle while skills run, gold pause bars while paused; a thin tile, `SK.PauseSize`; setting `pause`, shown always while paused; its own mode changes are `SK.Expect`ed, so they pop nothing up) and `/toolbox
   skills pause|resume` (a command is a gesture). `SK.Pause` sets EVERY skill (unlearning ones too; owner) to Off
-  or Maintain (`pauseHow`) in ONE list call; `SK.PauseRecord` keeps `{ key, from, to }` in `skills_paused`;
+  or Maintain (`pauseHow`) in ONE list call; `SK.PauseRecord` keeps `{ key, from, to }` in `skills_paused` (saved as asked BEFORE the call, no pause if that
+  save is refused, then the game's answer read by `T.Field`; reviews 28, 29);
   `SK.Resume` sets back, one call per mode (at most three: a click's limit; `SK.ResumeGroups`: only skills still in
-  `to`; a gone one would refuse the whole list), keeping a group refused by an `SK.PASSING` reason. Harness: lists in `ShroudSetSkillMode` (`H.S.modeLists`), three actions a gesture
-  (`gestureSpent`), `H.S.modeRefuse`, `H.chat` is a gesture, `H.skillPause()`, `H.clickSkillPause()`.
+  `to`; a gone one would refuse the whole list), keeping every group the game didn't confirm (any reason, or an error; review 30). Harness: lists in `ShroudSetSkillMode`
+  (`H.S.modeLists`), three actions a gesture (`gestureSpent`), `H.S.modeRefuse`, `H.S.modeThrow`, `H.S.modeObjects`, `H.chat` is a gesture, `H.skillPause()`, `H.clickSkillPause()`.
   Pure model: `SK.Read` / `SK.Update` (baseline first, a level / mode change, or experience
   with trigger "xp", puts a skill on top; one slot per skill) / `SK.Expire` / `SK.ChangesText`. Reads are throttled
   (an event only marks them; `SK.QUIET_EVERY` / `SK.XP_EVERY`). Its sounds (skill_up / skill_down,
