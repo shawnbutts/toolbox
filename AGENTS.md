@@ -304,13 +304,12 @@ into one if a new file is ever needed).
   (`SK.MODE_REASONS`); `ShroudCanSetSkillMode` (cached per skill and mode) fades one the game won't take
   (`SK.MARK_NO`). No click-to-cycle (Unlearn one click away) and no "off" marker (owner). The harness stubs both
   (skill fields `mastery`, `low`, `elixir`; `H.skillMarks`, `H.clickSkillPart`).
-  Pause XP (owner, 2026-10-12, a player's request): a tile first on the strip (`sk_pause`, skillmarks.png frames 3
+  Pause skills (owner, 2026-10-12, a player's request): a tile first on the strip (`sk_pause`, skillmarks.png frames 3
   and 4: pause bars, a gold play triangle while paused; setting `pause`, shown always while paused) and `/toolbox
-  skills pause|resume` (a command is a gesture). `SK.Pause` sets every training skill (and maintaining one, with
-  `pauseHow` "off") to Off or Maintain in ONE list call; `SK.PauseRecord` keeps `{ key, from, to }` in
-  `skills_paused`; `SK.Resume` sets back, one call per mode (`SK.ResumeGroups`: only skills still in `to`; a
-  gone one would refuse the whole list), keeping a group refused by an `SK.PASSING` reason. Unlearning skills are
-  left alone. Harness: lists in `ShroudSetSkillMode` (`H.S.modeLists`), three actions a gesture
+  skills pause|resume` (a command is a gesture). `SK.Pause` sets EVERY skill (unlearning ones too; owner) to Off
+  or Maintain (`pauseHow`) in ONE list call; `SK.PauseRecord` keeps `{ key, from, to }` in `skills_paused`;
+  `SK.Resume` sets back, one call per mode (at most three: a click's limit; `SK.ResumeGroups`: only skills still in
+  `to`; a gone one would refuse the whole list), keeping a group refused by an `SK.PASSING` reason. Harness: lists in `ShroudSetSkillMode` (`H.S.modeLists`), three actions a gesture
   (`gestureSpent`), `H.S.modeRefuse`, `H.chat` is a gesture, `H.skillPause()`, `H.clickSkillPause()`.
   Pure model: `SK.Read` / `SK.Update` (baseline first, a level / mode change, or experience
   with trigger "xp", puts a skill on top; one slot per skill) / `SK.Expire` / `SK.ChangesText`. Reads are throttled
@@ -465,13 +464,13 @@ character" sentinel.
 | `location` | `{ show = bool (default false), facing = bool (default true), x, y }` (the location strip, hud.lua) |
 | `launcher` | `{ show = bool (default true), vertical = bool (default true), size = 20..64 (default 32), shade = 0..90 (% black behind, default 40), combat = bool (hide during combat), hide = { [button key] = true } (never all), x, y }` (the menu, hud.lua; absent = never started: the chat line) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
-| `skills_paused` | `{ v = 1, how = "off"/"maintain", when = "HH:MM", list = { { key = skill key or name, from = mode, to = mode } } }`: Pause XP's record (skills.lua; empty list = not paused); kept by a reset, copied for recovery |
+| `skills_paused` | `{ v = 1, how = "off"/"maintain", when = "HH:MM", list = { { key = skill key or name, from = mode, to = mode } } }`: the pause's record (skills.lua; empty list = not paused); kept by a reset, copied for recovery |
 | `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), font = 9..32, spacing = 0..12 (each unset: the XP windows'), x, y }` |
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most 20 (which are new, `fresh`, is kept in memory only) |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last, day, at } } }`, at most `P.MAX_KEEP` |
 | `welcomed` (ACCOUNT scope) | set after the first-run welcome |
-| `skills` | `{ show = bool (default false), vertical = bool (default true), slots = 1..12, stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels"/"xp", size = 20..64, number = bool (the level on the icon, default true), marks = bool (the API 27 training controls, default true), soundUp = bool, soundDown = bool (both default true), pause = bool (the Pause XP tile, default true), pauseHow = "off"/"maintain" (default "off"), x, y }` (skills.lua) |
+| `skills` | `{ show = bool (default false), vertical = bool (default true), slots = 1..12, stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels"/"xp", size = 20..64, number = bool (the level on the icon, default true), marks = bool (the API 27 training controls, default true), soundUp = bool, soundDown = bool (both default true), pause = bool (the Pause skills tile, default true), pauseHow = "off"/"maintain" (default "off"), x, y }` (skills.lua) |
 | `save_mark` | the number of the recovery copy last written (core.lua, `B.KeepRecovery`); a file without it while its copy exists is put back at start (`B.Recover`) |
 | `recovery:<lower name>` (ACCOUNT scope) | `{ v = 1, n, when = "YYYY-MM-DD HH:MM", keys = { [a B.RecoverList() key] = its saved table } }`: settings (`B.KEYS`), `loot_runs`, `skill_levels`, `buff_durations`, written at the flush after one changed |
 | `settings_pending` | `{ kind = "reset" }`: done and deleted at the next start |
@@ -767,7 +766,7 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - Effect sounds: the clip name the game gives a player's file (assumed its base name without the extension, as for
   the shipped ones; a second file of a name another sound has is refused, review 25), a path with spaces, and dozens
   of extra clips loaded at once.
-- Pause XP: `ShroudSetSkillMode`'s list answer keyed by the skill's `key` (a missing one is taken as asked, and
+- Pause skills: `ShroudSetSkillMode`'s list answer keyed by the skill's `key` (a missing one is taken as asked, and
   the resume's check leaves a skill that didn't move alone), skills set to Off decaying meanwhile (the
   setting's tooltip says they may), and the game's per-skill menu matching a list call for mastery skills.
 - The skill strip's training markers: the click areas over the icon receiving clicks in game, the tinted

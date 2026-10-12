@@ -33,7 +33,7 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
   applications and gear needing repair, in a window or on a scrolling notification HUD.
 - **Skill activity**: your skills' icons pop up on a strip of their own as they level, with the level,
   progress and training mode (`/toolbox skills`), and one-click train / maintain / unlearn markers on each icon
-  (Lua API 27), plus a Pause XP tile that stops every skill spending pooled experience in one click and puts them
+  (Lua API 27), plus a Pause skills tile that sets every skill to Off (or Maintain) in one click and puts them
   back in another (`/toolbox skills pause` / `resume`); skill level changes (up or down) can go to the
   notification HUD too.
 - **Menu**: a column (or row) of gold buttons on a shaded panel, top left at first, opening Toolbox's windows with

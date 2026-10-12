@@ -1455,14 +1455,14 @@ function H.clickSkillPart(n, part)          -- part: "open", "train", "maintain"
   if not ok then error(err, 2) end
 end
 
--- The skill strip's Pause XP tile (its Column; nil when not built), and a click on its picture (a gesture).
+-- The skill strip's Pause skills tile (its Column; nil when not built), and a click on its picture (a gesture).
 function H.skillPause()
   local f = S.frames.toolbox_skills
   return f and f:Find("sk_pause")
 end
 function H.clickSkillPause()
   local tile = H.skillPause()
-  assert(tile and tile.visible ~= false, "no Pause XP tile on the skill strip")
+  assert(tile and tile.visible ~= false, "no Pause skills tile on the skill strip")
   local pic = tile.children[1].children[1]
   S.gesture, S.gestureUses = true, 0
   local ok, err = pcall(H.call, pic.onClick, pic)

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Generate toolbox/skillmarks.png: the skill strip's training-mode markers and its Pause XP tile, as a sprite.
+"""Generate toolbox/skillmarks.png: the skill strip's training-mode markers and its Pause skills tile, as a sprite.
 
     python3 art/marks.py
 
 Frame 0 (left half): an arrow pointing up (train; turned 180 degrees in game for unlearn).
 Frame 1: a square (maintain).
-Frame 2: two bars (Pause XP, while experience is spent).
+Frame 2: two bars (Pause skills, while not paused).
 Frame 3: a triangle pointing right (resume, while paused).
 Each frame is 3:2 (the shape of a marker's click area: half the icon wide, a third of it high), white with a
 dark edge, so the game's tint (SetTint: @green, @gold, @red) colours it and it reads over any skill icon.

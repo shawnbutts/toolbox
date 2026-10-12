@@ -8,9 +8,9 @@ ones included).
 ## [Unreleased]
 
 ### Added
-- **Pause XP** (a player's request): one click on the new tile at the start of the skill activity strip stops
-  every skill that spends your pooled experience, so the pool keeps all you earn while you farm. Another click
-  puts each skill back the way it was (training or maintaining); one you changed yourself in the meantime stays
+- **Pause skills** (a player's request): one click on the new tile at the start of the skill activity strip sets
+  every skill to Off, unlearning ones too, so your pool keeps all you earn while you farm. Another click puts
+  each skill back the way it was (training, maintaining or unlearning); one you changed yourself in the meantime stays
   as you set it. Under Settings, Skill activity, choose whether a pause sets skills to Off (nothing spent) or to
   Maintain (only what keeps their levels), or hide the tile (it still shows while paused). Also /toolbox skills
   pause and /toolbox skills resume. Needs a newer game client (Lua API 27), like the training markers.
