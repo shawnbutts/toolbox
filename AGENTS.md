@@ -581,6 +581,15 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   location text is the scene's English name (`Area: Ardoris (Novia_R4_City_Ardoris) Loc: (...)`), nothing finer, so
   runs use the coordinates. `/toolbox api` probes them. Requests 18 and 19 are
   not in it.
+- **API 30-36** (docs 2026-10-12; `T.DOCS_API` = 36, `min_api_version` stays 25; `/toolbox api` probes each group):
+  map markers (30: `ShroudSetMapMarker` etc., our request 20: per add-on and scene, session-only, 50 a scene, 10 s
+  between moves of one id, 20/min after a burst of 50, hidden in PvP), `ShroudGetScreenInfo` / `ShroudOnScreenChanged`
+  (31), fishable water (32: `ShroudGetSceneWaterTypes`, `ShroudGetNearestWaterType` within 30 m; request 25),
+  `ShroudPickFile` (33, a gesture; request 23), sound handles (34: `ShroudLoadSoundHandle`, `ShroudListSoundPaths`,
+  `ShroudGetSoundState`, the path on `ShroudOnPlaySound`; request 22), the world calendar (35, read only:
+  `ShroudGetCalendarEvents/Event/Summary/Reminders/Tags`, `ShroudOnCalendarChanged`; at most one fetch of each kind
+  per 10 s, all add-ons together), spoken expiry warnings (36: `ShroudPlayWarningSound`; not used, owner 2026-10-12:
+  the game's own Announce Expiring Buffs option covers it). Requests 18, 19, 21 and 24 are not in it.
 
 **Waiting on the developers:** a read-only game settings API (first use: the game's "stack buffs lasting
 longer than" option feeding `BB.GroupAfter()`). Submitted 2026-10-07 (`tmp/client-issues.md`): **18**, for the

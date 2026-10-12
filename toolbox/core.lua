@@ -1835,7 +1835,7 @@ end)
 -- 2026-09-27) lag the client (API 20), and a documented crafting/social group was withdrawn,
 -- so ask the game. Names are referenced directly: no lookup by a built name.
 -- The Lua API version the official docs described when this build was made (update with each docs check).
-T.DOCS_API = 29
+T.DOCS_API = 36
 
 function T.ApiLines()
   local function has(f) return type(f) == "function" end
@@ -1868,6 +1868,27 @@ function T.ApiLines()
     { "Location (API 29)", {
       { "ShroudGetLocationText", has(ShroudGetLocationText) },
       { "ShroudFormatLocation", has(ShroudFormatLocation) } } },
+    { "Map markers (API 30)", {
+      { "ShroudSetMapMarker", has(ShroudSetMapMarker) },
+      { "ShroudRemoveMapMarker", has(ShroudRemoveMapMarker) },
+      { "ShroudClearMapMarkers", has(ShroudClearMapMarkers) },
+      { "ShroudGetMapMarkers", has(ShroudGetMapMarkers) },
+      { "ShroudListMapMarkerIcons", has(ShroudListMapMarkerIcons) } } },
+    { "Screen (API 31)", { { "ShroudGetScreenInfo", has(ShroudGetScreenInfo) } } },
+    { "Water (API 32)", {
+      { "ShroudGetSceneWaterTypes", has(ShroudGetSceneWaterTypes) },
+      { "ShroudGetNearestWaterType", has(ShroudGetNearestWaterType) } } },
+    { "File picker (API 33)", { { "ShroudPickFile", has(ShroudPickFile) } } },
+    { "Sound handles (API 34)", {
+      { "ShroudLoadSoundHandle", has(ShroudLoadSoundHandle) },
+      { "ShroudListSoundPaths", has(ShroudListSoundPaths) },
+      { "ShroudGetSoundState", has(ShroudGetSoundState) } } },
+    { "World calendar (API 35)", {
+      { "ShroudGetCalendarEvents", has(ShroudGetCalendarEvents) },
+      { "ShroudGetCalendarEvent", has(ShroudGetCalendarEvent) },
+      { "ShroudGetCalendarSummary", has(ShroudGetCalendarSummary) },
+      { "ShroudGetCalendarReminders", has(ShroudGetCalendarReminders) },
+      { "ShroudGetCalendarTags", has(ShroudGetCalendarTags) } } },
   }
   local lines = { "Lua API " .. tostring(ShroudLuaApiVersion) .. " (the docs described " .. T.DOCS_API
     .. " when this build was made)." }

@@ -92,6 +92,14 @@ local api_probed = {
   "ShroudSetSkillMode", "ShroudCanSetSkillMode", "ShroudGetTrackedSkills", "ShroudSetSkillTracked",   -- API 27
   "ShroudSetPlayerVitalBarsVisible", "ShroudIsPlayerVitalBarsVisible",                             -- API 28
   "ShroudGetLocationText", "ShroudFormatLocation",                                                 -- API 29
+  "ShroudSetMapMarker", "ShroudRemoveMapMarker", "ShroudClearMapMarkers", "ShroudGetMapMarkers",
+  "ShroudListMapMarkerIcons",                                                                      -- API 30
+  "ShroudGetScreenInfo",                                                                           -- API 31
+  "ShroudGetSceneWaterTypes", "ShroudGetNearestWaterType",                                         -- API 32
+  "ShroudPickFile",                                                                                -- API 33
+  "ShroudLoadSoundHandle", "ShroudListSoundPaths", "ShroudGetSoundState",                          -- API 34
+  "ShroudGetCalendarEvents", "ShroudGetCalendarEvent", "ShroudGetCalendarSummary",
+  "ShroudGetCalendarReminders", "ShroudGetCalendarTags",                                           -- API 35
 }
 
 -- Callbacks an add-on may define. Listed as writable globals.
@@ -107,6 +115,8 @@ local api_callbacks = {
   "ShroudOnVigorChanged",                                   -- API 20
   "ShroudOnCraftResults", "ShroudOnGatherResults", "ShroudOnCraftingStateChanged",   -- API 18
   "ShroudOnGuildMotdChanged", "ShroudOnFriendStatusChanged", "ShroudOnGuildMemberStatusChanged",   -- API 18
+  "ShroudOnScreenChanged",                                  -- API 31
+  "ShroudOnCalendarChanged",                                -- API 35
 }
 
 -- The early global `Shroud` (read-only userdata) and its documented fields.
