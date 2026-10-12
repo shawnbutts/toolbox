@@ -47,7 +47,7 @@ def frame_pause(x0: float) -> str:
 
 
 def frame_play(x0: float) -> str:
-    # a right-pointing triangle, centred
+    # a right-pointing triangle, centered
     cy, left, right, half = FH / 2, x0 + FW / 2 - 10, x0 + FW / 2 + 12, 13
     pts = f"{left},{cy - half} {right},{cy} {left},{cy + half}"
     return (f'<polygon points="{pts}" fill="#ffffff" stroke="{EDGE}" stroke-width="{STROKE}" '

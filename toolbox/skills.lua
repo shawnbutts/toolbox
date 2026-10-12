@@ -87,7 +87,7 @@ SK.SOUND_GAP = 3                      -- seconds: at most one level-up (and one 
 -- turning SK.FLASH_COLOR and the icon dimming to SK.FLASH_DIM every other SK.FLASH_HALF s.
 SK.FLASH_SECONDS, SK.FLASH_HALF, SK.FLASH_COLOR, SK.FLASH_DIM = 4, 0.25, "@gold", 0.5
 local FLASH = "toolbox_skills_flash"
--- The training markers, top to bottom: the mode each sets, its colour, its frame of skillmarks.png (3:2
+-- The training markers, top to bottom: the mode each sets, its color, its frame of skillmarks.png (3:2
 -- frames of the four: an arrow up, a square), its turn, its sound and the word for chat and tooltips.
 SK.MARK_PATH = "toolbox/skillmarks.png"
 SK.MARKS = {
