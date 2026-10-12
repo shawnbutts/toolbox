@@ -5,8 +5,8 @@
 
 Frame 0 (left half): an arrow pointing up (train; turned 180 degrees in game for unlearn).
 Frame 1: a square (maintain).
-Frame 2: two bars (Pause skills, while not paused).
-Frame 3: a triangle pointing right (resume, while paused).
+Frame 2: two bars (the Pause skills tile while paused).
+Frame 3: a triangle pointing right (the Pause skills tile while skills run).
 Each frame is 3:2 (the shape of a marker's click area: half the icon wide, a third of it high), white with a
 dark edge, so the game's tint (SetTint: @green, @gold, @red) colours it and it reads over any skill icon.
 skills.lua (SK.MARKS) picks a frame with SetUV. Writes art/skillmarks.svg and renders it with rsvg-convert, as

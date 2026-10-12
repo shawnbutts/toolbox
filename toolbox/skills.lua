@@ -98,15 +98,18 @@ SK.MARKS = {
   { mode = "Unlearning", color = "@red", uv = { 0, 0, 0.25, 1 }, rotation = 180, sound = "skill_unlearn",
     word = "unlearn" },
 }
--- Pause skills: the saved record's key, what a pause sets (`pauseHow`), and the tile's pictures (frames 3 and 4).
+-- Pause skills: the saved record's key, what a pause sets (`pauseHow`), and the tile's pictures: frame 4, the play
+-- triangle, while skills run; frame 3, the pause bars (gold), while paused (owner, 2026-10-12). Their uv leaves
+-- out the frames' empty top and bottom (a tenth each) so the thin tile's picture stays as big as it can.
 SK.PAUSE_KEY = "skills_paused"
 SK.PAUSE_HOW = {
   off = { mode = "NotLearning", word = "off", label = "Off (no experience spent)" },
   maintain = { mode = "Maintaining", word = "maintain", label = "Maintain (only what keeps their levels)" },
 }
 SK.PAUSE_HOWS = { "off", "maintain" }
-SK.PAUSE_PICS = { run = { uv = { 0.5, 0, 0.25, 1 }, color = "@text-bright" },
-                  paused = { uv = { 0.75, 0, 0.25, 1 }, color = "@gold" } }
+SK.PAUSE_PICS = { run = { uv = { 0.75, 0.1, 0.25, 0.8 }, color = "@text-bright" },
+                  paused = { uv = { 0.5, 0.1, 0.25, 0.8 }, color = "@gold" } }
+SK.PAUSE_ASPECT = 60 / 32               -- the pictures' width to height, cropped as above
 SK.MARK_ON, SK.MARK_OFF, SK.MARK_NO = 1, 0.35, 0.12   -- opacity: the mode now, another, one the game won't take
 -- What ShroudSetSkillMode's reasons mean, for chat.
 SK.MODE_REASONS = {
@@ -354,8 +357,19 @@ local function showing()
 end
 
 function SK.Wanted() return prefs.show == true end
--- The Pause skills tile, as wide as an icon and two thirds as high (the pictures are 3:2).
-function SK.PauseSize(s) return s, math.floor(s * 2 / 3 + 0.5) end
+-- The Pause skills tile: as wide as an icon and a thin strip high (owner, 2026-10-12: a third of the first
+-- version's two thirds of an icon), at least 8 px; its picture, centered, a pixel short of it top and bottom.
+function SK.PauseSize(s) return s, math.max(8, math.floor(s * 2 / 9 + 0.5)) end
+function SK.PausePicSize(s)
+  local _, th = SK.PauseSize(s)
+  local h = th - 2
+  return math.floor(h * SK.PAUSE_ASPECT + 0.5), h
+end
+local function pauseFrameStyle(s)
+  local pw, ph = SK.PauseSize(s)
+  return { width = pw, height = ph, minHeight = ph, maxHeight = ph, justifyContent = "center",
+           alignItems = "center", backgroundColor = "#00000066" }
+end
 function SK.IsPaused() return #paused.list > 0 end
 -- The tile shows with the setting on, and always while paused (the way back).
 function SK.PauseShown() return SK.HasModes() and (prefs.pause ~= false or SK.IsPaused()) end
@@ -502,11 +516,10 @@ function SK.BuildContent()
   children[1] = placeholder
   pauseTile = nil
   if SK.HasModes() then                 -- Pause skills: first, so it stays put as skills come and go
-    local pw, ph = SK.PauseSize(s)
-    local pic = UI.Image(picture(pw, ph, { tint = SK.PAUSE_PICS.run.color, uv = SK.PAUSE_PICS.run.uv,
+    local iw, ih = SK.PausePicSize(s)
+    local pic = UI.Image(picture(iw, ih, { tint = SK.PAUSE_PICS.run.color, uv = SK.PAUSE_PICS.run.uv,
       onClick = function() SK.TogglePause() end }))
-    local frame = UI.Row{ children = { pic }, style = { width = pw, height = ph, minHeight = ph, borderWidth = 2,
-      borderColor = "#00000000", backgroundColor = "#00000066" } }
+    local frame = UI.Row{ children = { pic }, style = pauseFrameStyle(s) }
     local col = UI.Column{ id = "sk_pause", visible = false, style = slotS, children = { frame } }
     pauseTile = { col = col, frame = frame, pic = pic }
     children[#children + 1] = col
@@ -626,7 +639,6 @@ function SK.Fill()
       local pic = SK.IsPaused() and SK.PAUSE_PICS.paused or SK.PAUSE_PICS.run
       pauseTile.pic:SetUV(pic.uv[1], pic.uv[2], pic.uv[3], pic.uv[4])
       pauseTile.pic:SetTint(pic.color)
-      T.SetStyle(pauseTile.frame, { borderColor = SK.IsPaused() and SK.PAUSE_PICS.paused.color or "#00000000" })
       T.SetTooltip(pauseTile.pic, SK.PauseTooltip())
     end
   end
@@ -664,10 +676,9 @@ local function applySize()
     end
   end
   if pauseTile then
-    local pw, ph = SK.PauseSize(s)
     pauseTile.col:SetStyle(slotS)
-    pauseTile.frame:SetStyle{ width = pw, height = ph, minHeight = ph }
-    pauseTile.pic:SetSize(pw, ph)
+    pauseTile.frame:SetStyle(pauseFrameStyle(s))
+    pauseTile.pic:SetSize(SK.PausePicSize(s))
   end
   placeholder:SetStyle(placeholderStyle(s))
   T.Hud.Refresh()
@@ -1195,9 +1206,9 @@ do
       .. "has the training controls (newer clients): green arrow up train, yellow square maintain, red arrow "
       .. "down unlearn, the one in use lit. Click one to set it, with a sound for each (Off is set in the "
       .. "Skills window).",
-    "Pause skills (newer clients): the tile at the start of the strip (two bars) sets every skill to Off in "
-      .. "one click, unlearning ones too, so the pool keeps what you earn while you farm; it turns into a gold "
-      .. "triangle. Click it again and each skill goes back the way it was (training, maintaining or "
+    "Pause skills (newer clients): the thin tile at the start of the strip (a play triangle) sets every skill "
+      .. "to Off in one click, unlearning ones too, so the pool keeps what you earn while you farm; it shows gold "
+      .. "pause bars while paused. Click it again and each skill goes back the way it was (training, maintaining or "
       .. "unlearning); one you changed yourself meanwhile stays as you set it. Settings, Skill activity: a "
       .. "pause sets skills to Off (nothing spent; skills may decay) or Maintain (only what keeps their "
       .. "levels), and the tile can be hidden (it still shows while paused). /toolbox skills pause and "
