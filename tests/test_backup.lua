@@ -12,7 +12,7 @@ return function(t)
   -- Saved keys that a reset leaves alone: state, stats, histories, caches, learned data.
   local KEPT = { session = true, daily = true, buff_timers = true, buff_durations = true, skill_levels = true,
     notify_history = true, prices = true, welcomed = true, guild_motd = true, settings_pending = true,
-    loot_runs = true }
+    loot_runs = true, skills_paused = true }
 
   t.test("every saved key is a setting (reset clears it) or listed as kept", function()
     H.boot()

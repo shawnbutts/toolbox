@@ -131,7 +131,14 @@ return function(t)
 
   t.test("a level up pops the skill with its level, progress, mode colour and tooltip", function()
     on()
-    t.eq(H.skillsFrame().visible, false, "nothing to show yet: hidden")
+    t.ok(H.skillsFrame().visible ~= false, "nothing to show yet but the Pause XP tile")
+    t.eq(#H.skillSlots(), 0)
+    H.chat("/tbx config")
+    H.change("toolbox_config", "skills_pause", false)
+    H.closeWindow("toolbox_config")
+    H.reload()
+    H.advance(5)
+    t.eq(H.skillsFrame().visible, false, "without the tile, nothing to show yet: hidden")
     H.setSkills(sheet(levels{ Healing = 31 }, { Healing = { progress = 0.4 } }))
     H.advance(1)
     t.ok(H.skillsFrame().visible ~= false, "shown")
@@ -249,7 +256,7 @@ return function(t)
     t.ok(h > w, "taller than wide")
     H.advance(Toolbox.SkillBar.STAY_DEFAULT + 1)
     t.eq(#H.skillSlots(), 0, "gone after 30 seconds without a change")
-    t.eq(H.skillsFrame().visible, false)
+    t.ok(H.skillsFrame().visible ~= false, "the Pause XP tile stays")
     H.chat("/tbx skills horizontal")
     t.eq(H.skillsFrame():Find("skills").kind, "Row")
     H.setSkills(sheet(levels{ Archery = 12, Dodge = 6 }))
@@ -309,13 +316,13 @@ return function(t)
     H.chat("/tbx config")
     H.advance(1)
     t.ok(H.skillsFrame().visible ~= false, "empty, but shown to place it")
-    t.eq(H.skillsFrame():Find("sk_placeholder").visible, true)
+    t.eq(H.skillsFrame():Find("sk_placeholder").visible, false, "the Pause XP tile shows instead of the name")
     t.eq(H.config():Find("skills_show").value, true)
     H.change("toolbox_config", "skills_slots", 3)
     H.change("toolbox_config", "skills_size", 40)
     H.change("toolbox_config", "skills_stay", "1 minute")
     H.change("toolbox_config", "skills_trigger", "Any experience")
-    t.eq(#H.skillsFrame():Find("skills").children, 1 + 3, "three slots (and the placeholder)")
+    t.eq(#H.skillsFrame():Find("skills").children, 1 + 1 + 3, "three slots (and the placeholder and the tile)")
     H.reload()
     t.eq(SK().GetSlots(), 3)
     t.eq(SK().GetSize(), 40)
@@ -634,5 +641,152 @@ return function(t)
     local _, marks = H.skillMarks(1)
     t.eq(marks[2].style.opacity, Toolbox.SkillBar.MARK_OFF, "an error: unknown, not lit as allowed")
     ShroudCanSetSkillMode = real
+  end)
+
+  -- Pause XP (API 27) ----------------------------------------------------------------
+
+  -- Fireball and Healing training, Blacksmithing maintaining, Archery unlearning, Dodge off; the strip on.
+  local MIXED = { Blacksmithing = { mode = "Maintaining" }, Archery = { mode = "Unlearning" },
+                  Dodge = { mode = "NotLearning" } }
+  local function pauseOn()
+    H.boot()
+    H.setSkills(sheet(BASE, MIXED))
+    H.chat("/tbx skills on")
+    H.advance(1)
+    H.S.modeLists = {}
+  end
+  local function modes()
+    local out = {}
+    for _, sk in ipairs(H.S.skills) do out[#out + 1] = sk.key .. "=" .. sk.mode end
+    return table.concat(out, " ")
+  end
+  local function pic() return H.skillPause().children[1].children[1] end
+
+  t.test("Pause XP model: the targets, the record, and what a resume sets back", function()
+    H.boot()
+    local r = SK().Read(sheet(BASE, MIXED))
+    local off = SK().PauseTargets(r, "off")
+    t.eq(#off, 3, "training and maintaining")
+    t.eq(off[3].key, "Blacksmithing")
+    t.eq(off[3].from, "Maintaining")
+    t.eq(#SK().PauseTargets(r, "maintain"), 2, "Maintain: the training ones only")
+    local rec = SK().PauseRecord(off, { Fireball = "NotLearning", Healing = "Learning" }, "NotLearning")
+    t.eq(#rec, 2, "Healing didn't move: not recorded; Blacksmithing, missing, taken as asked")
+    t.eq(rec[1].key .. rec[1].to, "FireballNotLearning")
+    t.eq(rec[2].key .. rec[2].to, "BlacksmithingNotLearning")
+    local now = SK().Read(sheet(BASE, { Fireball = { mode = "NotLearning" }, Blacksmithing = { mode = "Learning" } }))
+    local groups, order, skipped = SK().ResumeGroups(rec, now)
+    t.eq(#order, 1)
+    t.eq(groups.Learning[1], "Fireball")
+    t.eq(skipped, 1, "Blacksmithing was changed since: left as it is")
+    t.eq(SK().Count(1) .. ", " .. SK().Count(3), "1 skill, 3 skills")
+  end)
+
+  t.test("Pause XP: one click stops every skill spending experience, one call; another puts them back", function()
+    pauseOn()
+    t.ok(H.skillPause().visible ~= false, "the tile, on by default")
+    t.eq(H.skillPause().children[1].children[1].uv[1], 0.5, "the pause bars")
+    t.ok(pic().tooltip:find("Pause XP"), pic().tooltip)
+    H.clickSkillPause()
+    t.eq(modes(), "Fireball=NotLearning Healing=NotLearning Blacksmithing=NotLearning Archery=Unlearning "
+      .. "Dodge=NotLearning", "unlearning left alone: it feeds the pool")
+    t.eq(#H.S.modeLists, 1, "one call for all of them")
+    t.ok(H.logged("XP paused: 3 skills set to off"), H.lastLog())
+    t.eq(SK().IsPaused(), true)
+    t.eq(#H.saved("skills_paused").list, 3, "recorded")
+    t.eq(pic().uv[1], 0.75, "the play triangle while paused")
+    t.eq(pic().tint, "@gold")
+    t.ok(pic().tooltip:find("XP paused") and pic().tooltip:find("put them back"), pic().tooltip)
+    H.advance(1)
+    H.clickSkillPause()
+    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Maintaining Archery=Unlearning "
+      .. "Dodge=NotLearning", "each back as it was")
+    t.eq(#H.S.modeLists, 3, "one call per mode: training, maintaining")
+    t.ok(H.logged("XP back on: 3 skills back as they were."), H.lastLog())
+    t.eq(SK().IsPaused(), false)
+    t.eq(#H.saved("skills_paused").list, 0)
+    t.eq(pic().uv[1], 0.5)
+  end)
+
+  t.test("Pause XP set to Maintain: training skills maintain; the setting is saved", function()
+    pauseOn()
+    H.chat("/tbx config")
+    t.eq(H.config():Find("skills_pause_how").value, "Off (no experience spent)", "Off by default")
+    H.change("toolbox_config", "skills_pause_how", "Maintain (only what keeps their levels)")
+    t.eq(H.saved("skills").pauseHow, "maintain")
+    H.closeWindow("toolbox_config")
+    H.chat("/tbx skills pause")
+    t.eq(modes(), "Fireball=Maintaining Healing=Maintaining Blacksmithing=Maintaining Archery=Unlearning "
+      .. "Dodge=NotLearning")
+    t.ok(H.logged("2 skills set to maintain"), H.lastLog())
+    H.chat("/tbx skills resume")
+    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Maintaining Archery=Unlearning "
+      .. "Dodge=NotLearning", "Blacksmithing was maintaining already: untouched")
+  end)
+
+  t.test("Pause XP: a skill changed by hand meanwhile, or gone, is left as it is", function()
+    pauseOn()
+    H.clickSkillPause()
+    H.S.skills[1].mode = "Unlearning"            -- the player set Fireball to unlearn in the Skills window
+    table.remove(H.S.skills, 2)                  -- and Healing is gone (it would refuse the whole list)
+    H.clickSkillPause()
+    t.eq(modes(), "Fireball=Unlearning Blacksmithing=Maintaining Archery=Unlearning Dodge=NotLearning")
+    t.ok(H.logged("1 skill back as they were. 2 skills changed since %(or gone%): left as they are."), H.lastLog())
+    t.eq(SK().IsPaused(), false)
+  end)
+
+  t.test("Pause XP: kept over a restart; the tile shows while paused even when switched off", function()
+    pauseOn()
+    H.clickSkillPause()
+    H.chat("/tbx config")
+    H.change("toolbox_config", "skills_pause", false)
+    H.closeWindow("toolbox_config")
+    H.advance(1)
+    t.ok(H.skillPause().visible ~= false, "paused: the way back stays")
+    local server = H.S.skills
+    H.restart(nil, true)
+    H.S.skills = server                          -- the modes live on the character
+    H.advance(5)
+    t.eq(SK().IsPaused(), true, "read back")
+    t.eq(SK().GetPauseTile(), false)
+    t.ok(H.skillPause() and H.skillPause().visible ~= false, "still there to resume")
+    H.clickSkillPause()
+    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Maintaining Archery=Unlearning "
+      .. "Dodge=NotLearning")
+    H.advance(1)
+    t.eq(H.skillPause().visible, false, "not paused, switched off: gone")
+  end)
+
+  t.test("Pause XP: a refusal for now keeps the record; nothing to pause; an elixir skill; older clients", function()
+    pauseOn()
+    H.chat("/tbx skills pause")
+    H.S.modeRefuse = "tooOften"
+    H.chat("/tbx skills resume")
+    t.ok(H.logged("The game refused 3 skills %(too many changes in a short time"), H.lastLog())
+    t.eq(SK().IsPaused(), true, "kept for the next click")
+    H.S.modeRefuse = nil
+    H.chat("/tbx skills resume")
+    t.eq(SK().IsPaused(), false)
+    H.chat("/tbx skills resume")
+    t.ok(H.logged("XP isn't paused."))
+    H.S.modeRefuse = "notNow"
+    H.chat("/tbx skills pause")
+    t.ok(H.logged("Couldn't pause XP: not right now"), H.lastLog())
+    t.eq(SK().IsPaused(), false)
+    H.S.modeRefuse = nil
+    -- an elixir skill training: the game leaves it, so it isn't recorded as changed
+    H.S.skills[1].elixir = true
+    H.chat("/tbx skills pause")
+    t.eq(H.S.skills[1].mode, "Learning")
+    t.ok(H.logged("XP paused: 2 skills set to off.*Some skills: an elixir skill"), H.lastLog())
+    H.chat("/tbx skills resume")
+    for _, sk in ipairs(H.S.skills) do sk.mode = "NotLearning" end
+    H.chat("/tbx skills pause")
+    t.ok(H.logged("No skill is training or maintaining: nothing to pause."), H.lastLog())
+    local real = ShroudSetSkillMode
+    ShroudSetSkillMode = nil
+    H.chat("/tbx skills pause")
+    t.ok(H.logged("needs a newer game client"), H.lastLog())
+    ShroudSetSkillMode = real
   end)
 end

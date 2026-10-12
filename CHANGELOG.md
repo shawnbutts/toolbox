@@ -8,6 +8,12 @@ ones included).
 ## [Unreleased]
 
 ### Added
+- **Pause XP** (a player's request): one click on the new tile at the start of the skill activity strip stops
+  every skill that spends your pooled experience, so the pool keeps all you earn while you farm. Another click
+  puts each skill back the way it was (training or maintaining); one you changed yourself in the meantime stays
+  as you set it. Under Settings, Skill activity, choose whether a pause sets skills to Off (nothing spent) or to
+  Maintain (only what keeps their levels), or hide the tile (it still shows while paused). Also /toolbox skills
+  pause and /toolbox skills resume. Needs a newer game client (Lua API 27), like the training markers.
 - **The menu:** a column of gold buttons on a shaded panel at the top left that opens Toolbox's windows with one
   click: XP, XP Detailed, Today, Loot Tracker, Combat Detailed, Notifications (the news now, in the window), Docs
   and Settings. A button is bright while its window is open; click again to close it. On at first: move it by its

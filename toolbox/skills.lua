@@ -16,6 +16,15 @@
 -- over the icon after its level labels (so a click can't land on a label); the markers are toolbox/skillmarks.png
 -- (art/marks.py), tinted and turned. Without API 27, or with the setting off, the whole icon opens the window.
 --
+-- Pause XP (owner, 2026-10-12, a player's request: keep earned experience in the pool while farming): a tile at
+-- the strip's start (and /toolbox skills pause) sets every skill that spends pooled experience to Off, or to
+-- Maintain (setting `pauseHow`), in ONE ShroudSetSkillMode call (a list is one of a click's three actions), and
+-- records each skill it changed (saved var "skills_paused", per character). The next click (or /toolbox skills
+-- resume) sets each back, one call per mode it had (training, maintaining: two actions), but only the skills
+-- still as the pause left them: one the player changed since, or no longer has, stays as it is (one unknown
+-- skill would refuse the whole list). A group the game refused for now (a gesture limit, a loading screen) is
+-- kept for the next click. The tile shows always with the setting `pause` on (default), else only while paused.
+--
 -- ShroudOnSkillsChanged fires on every experience gain, which in combat is constantly: an event only marks
 -- the skills to be read, and the periodic (SK.TICK) reads them at most every SK.QUIET_EVERY s for experience
 -- alone (SK.XP_EVERY with "Any experience"), at once for a level. Early on levels come often (owner): a skill
@@ -78,16 +87,25 @@ SK.SOUND_GAP = 3                      -- seconds: at most one level-up (and one 
 -- turning SK.FLASH_COLOR and the icon dimming to SK.FLASH_DIM every other SK.FLASH_HALF s.
 SK.FLASH_SECONDS, SK.FLASH_HALF, SK.FLASH_COLOR, SK.FLASH_DIM = 4, 0.25, "@gold", 0.5
 local FLASH = "toolbox_skills_flash"
--- The training markers, top to bottom: the mode each sets, its colour, its frame of skillmarks.png (two 3:2
--- frames: an arrow up, a square), its turn, its sound and the word for chat and tooltips.
+-- The training markers, top to bottom: the mode each sets, its colour, its frame of skillmarks.png (3:2
+-- frames of the four: an arrow up, a square), its turn, its sound and the word for chat and tooltips.
 SK.MARK_PATH = "toolbox/skillmarks.png"
 SK.MARKS = {
-  { mode = "Learning", color = "@green", uv = { 0, 0, 0.5, 1 }, rotation = 0, sound = "skill_train", word = "train" },
-  { mode = "Maintaining", color = "@gold", uv = { 0.5, 0, 0.5, 1 }, rotation = 0, sound = "skill_maintain",
+  { mode = "Learning", color = "@green", uv = { 0, 0, 0.25, 1 }, rotation = 0, sound = "skill_train", word = "train" },
+  { mode = "Maintaining", color = "@gold", uv = { 0.25, 0, 0.25, 1 }, rotation = 0, sound = "skill_maintain",
     word = "maintain" },
-  { mode = "Unlearning", color = "@red", uv = { 0, 0, 0.5, 1 }, rotation = 180, sound = "skill_unlearn",
+  { mode = "Unlearning", color = "@red", uv = { 0, 0, 0.25, 1 }, rotation = 180, sound = "skill_unlearn",
     word = "unlearn" },
 }
+-- Pause XP: the saved record's key, what a pause sets (`pauseHow`), and the tile's pictures (frames 3 and 4).
+SK.PAUSE_KEY = "skills_paused"
+SK.PAUSE_HOW = {
+  off = { mode = "NotLearning", word = "off", label = "Off (no experience spent)" },
+  maintain = { mode = "Maintaining", word = "maintain", label = "Maintain (only what keeps their levels)" },
+}
+SK.PAUSE_HOWS = { "off", "maintain" }
+SK.PAUSE_PICS = { run = { uv = { 0.5, 0, 0.25, 1 }, color = "@text-bright" },
+                  paused = { uv = { 0.75, 0, 0.25, 1 }, color = "@gold" } }
 SK.MARK_ON, SK.MARK_OFF, SK.MARK_NO = 1, 0.35, 0.12   -- opacity: the mode now, another, one the game won't take
 -- What ShroudSetSkillMode's reasons mean, for chat.
 SK.MODE_REASONS = {
@@ -108,6 +126,9 @@ local shownCount = nil                -- slots shown when the strip was last fit
 local needRead, xpDirty, lastRead = true, false, -math.huge
 local readFor = nil                   -- the character the state belongs to
 local wasInUse = false                -- read last tick: off and on again takes a new baseline
+local paused = { list = {} }          -- Pause XP's record (SK.PAUSE_KEY): { how, when, list = { { key, from, to } } }
+local pauseTile = nil                 -- { col, frame, pic, sig }
+local shownPause = nil                -- whether the tile showed when the strip was last fitted
 
 -- ---------------------------------------------------------------------------
 -- Model (pure): what changed between two readings, and the skills on the strip
@@ -252,6 +273,55 @@ function SK.ChangesText(changes, seen)
   return table.concat(parts, ", ") .. ".", changes.n, allDown
 end
 
+-- Pause XP: the skills a pause changes, as { key, from }: those training, and those maintaining too when `how`
+-- is "off" (Maintain leaves them). Unlearning ones feed the pool: left alone. Pure.
+function SK.PauseTargets(readings, how)
+  local out = {}
+  for _, r in ipairs(readings) do
+    if r.mode == "Learning" or (how == "off" and r.mode == "Maintaining") then
+      out[#out + 1] = { key = r.key or r.name, from = r.mode }
+    end
+  end
+  return out
+end
+
+-- The record of a pause: { key, from, to } for each target the game moved, from the call's `modes`
+-- ({ [key] = mode }); a skill missing there is taken as `asked` (a skill that didn't move then fails the resume's
+-- check and is left alone). Pure.
+function SK.PauseRecord(targets, modes, asked)
+  local list = {}
+  for _, t in ipairs(targets) do
+    local now = type(modes) == "table" and modes[t.key] or nil
+    if not (type(now) == "string" and SK.MODES[now]) then now = asked end
+    if now ~= t.from then list[#list + 1] = { key = t.key, from = t.from, to = now } end
+  end
+  return list
+end
+
+-- What a resume sets back: the recorded skills still in the mode the pause left them, by the mode they had
+-- ({ [mode] = { keys } }, the modes in `order`), and how many are left as they are (changed since, or gone). Pure.
+function SK.ResumeGroups(record, readings)
+  local now = {}
+  for _, r in ipairs(readings) do now[r.key or r.name] = r.mode end
+  local groups, order, skipped = {}, {}, 0
+  for _, e in ipairs(record) do
+    if now[e.key] == e.to then
+      if not groups[e.from] then
+        groups[e.from] = {}
+        order[#order + 1] = e.from
+      end
+      local g = groups[e.from]
+      g[#g + 1] = e.key
+    else
+      skipped = skipped + 1
+    end
+  end
+  return groups, order, skipped
+end
+
+-- "14 skills", "1 skill" (pure).
+function SK.Count(n) return math.floor(n) .. (n == 1 and " skill" or " skills") end
+
 -- A slot's tooltip (pure).
 -- The level shown is the trained one (the skill's own); a scene's cap is mentioned when it applies.
 function SK.Tooltip(r)
@@ -272,6 +342,7 @@ local function stay() return prefs.stay or SK.STAY_DEFAULT end
 local function trigger() return prefs.trigger or "levels" end
 local function font(s) return math.max(9, math.min(32, math.floor(s * 0.36 + 0.5))) end
 local function numberShown() return prefs.number ~= false end
+local function pauseHow() return SK.PAUSE_HOW[prefs.pauseHow] and prefs.pauseHow or "off" end
 local BAR_H = 3
 local function slotH(s) return s + 1 + BAR_H end
 
@@ -281,9 +352,15 @@ local function showing()
 end
 
 function SK.Wanted() return prefs.show == true end
+-- Pause XP's tile, as wide as an icon and two thirds as high (the pictures are 3:2).
+function SK.PauseSize(s) return s, math.floor(s * 2 / 3 + 0.5) end
+function SK.IsPaused() return #paused.list > 0 end
+-- The tile shows with the setting on, and always while paused (the way back).
+function SK.PauseShown() return SK.HasModes() and (prefs.pause ~= false or SK.IsPaused()) end
 function SK.IsShown()
   if prefs.show ~= true then return false end
-  return showing() > 0 or T.Config.IsShown()       -- empty while settings are open: its name, to place it
+  -- empty while settings are open: its name, to place it
+  return showing() > 0 or SK.PauseShown() or T.Config.IsShown()
 end
 
 local function slotStyles(s)
@@ -412,7 +489,7 @@ end
 function SK.BuildContent()
   local s = size()
   local slotS, frameS, barS = slotStyles(s)
-  if SK.ShowMarks() and markTex < 0 then
+  if (SK.ShowMarks() or SK.HasModes()) and markTex < 0 then
     local ok, tex = pcall(ShroudLoadTexture, SK.MARK_PATH)
     if ok and type(tex) == "number" then markTex = tex end
   end
@@ -421,6 +498,17 @@ function SK.BuildContent()
   placeholder = UI.Label{ id = "sk_placeholder", text = SK.PLACEHOLDER, class = "dim", visible = false,
     style = placeholderStyle(s) }
   children[1] = placeholder
+  pauseTile = nil
+  if SK.HasModes() then                 -- Pause XP: first, so it stays put as skills come and go
+    local pw, ph = SK.PauseSize(s)
+    local pic = UI.Image(picture(pw, ph, { tint = SK.PAUSE_PICS.run.color, uv = SK.PAUSE_PICS.run.uv,
+      onClick = function() SK.TogglePause() end }))
+    local frame = UI.Row{ children = { pic }, style = { width = pw, height = ph, minHeight = ph, borderWidth = 2,
+      borderColor = "#00000000", backgroundColor = "#00000066" } }
+    local col = UI.Column{ id = "sk_pause", visible = false, style = slotS, children = { frame } }
+    pauseTile = { col = col, frame = frame, pic = pic }
+    children[#children + 1] = col
+  end
   for i = 1, slotCount() do
     local icon = UI.Image{ width = s, height = s, onClick = openSkills }   -- a click handler: its tooltip shows
     local kids, numbers = { icon }, {}
@@ -454,13 +542,14 @@ function SK.BuildContent()
   else
     content = UI.Column{ id = "skills", children = children }
   end
-  shownCount = showing()               -- Toolbox.Hud is building: it fits the strip itself afterwards
+  shownCount, shownPause = showing(), SK.PauseShown()   -- Toolbox.Hud is building: it fits the strip itself
   SK.Fill()
   return content
 end
 
 function SK.Unbuilt()
   content, placeholder, slots, shownCount = nil, nil, {}, nil
+  pauseTile, shownPause = nil, nil
   if SK.flashing then
     SK.flashing = false
     pcall(ShroudRemovePeriodic, FLASH)
@@ -470,9 +559,17 @@ end
 function SK.ContentSize()
   local s = size()
   local n = showing()
-  if n == 0 then return 3 * s, s end              -- the placeholder (settings open)
-  if prefs.vertical == false then return n * (s + SK.GAP), slotH(s) end
-  return s, n * (slotH(s) + SK.GAP)
+  local pw, ph = 0, 0
+  if SK.PauseShown() then pw, ph = SK.PauseSize(s) end
+  if n == 0 and pw == 0 then return 3 * s, s end  -- the placeholder (settings open)
+  if prefs.vertical == false then
+    local w = n * (s + SK.GAP)
+    if pw > 0 then w = w + pw + SK.GAP end
+    return w, math.max(n > 0 and slotH(s) or 0, ph)
+  end
+  local h = n * (slotH(s) + SK.GAP)
+  if ph > 0 then h = h + ph + SK.GAP end
+  return s, h
 end
 
 -- Puts the active skills into the slots (and re-fits the strip when how many show changed).
@@ -518,9 +615,22 @@ function SK.Fill()
     end
     T.SetVisible(slot.col, e ~= nil)
   end
-  T.SetVisible(placeholder, n == 0)
-  if n ~= shownCount then
-    shownCount = n
+  local p = SK.PauseShown()
+  if pauseTile then
+    T.SetVisible(pauseTile.col, p)
+    local sig = tostring(SK.IsPaused()) .. ":" .. #paused.list .. ":" .. pauseHow()
+    if p and sig ~= pauseTile.sig then             -- only when the pause or the setting changed
+      pauseTile.sig = sig
+      local pic = SK.IsPaused() and SK.PAUSE_PICS.paused or SK.PAUSE_PICS.run
+      pauseTile.pic:SetUV(pic.uv[1], pic.uv[2], pic.uv[3], pic.uv[4])
+      pauseTile.pic:SetTint(pic.color)
+      T.SetStyle(pauseTile.frame, { borderColor = SK.IsPaused() and SK.PAUSE_PICS.paused.color or "#00000000" })
+      T.SetTooltip(pauseTile.pic, SK.PauseTooltip())
+    end
+  end
+  T.SetVisible(placeholder, n == 0 and not p)
+  if n ~= shownCount or p ~= shownPause then
+    shownCount, shownPause = n, p
     T.Hud.Refresh()
   end
   -- a quick periodic only while an icon flashes (the strip's own runs every SK.TICK)
@@ -550,6 +660,12 @@ local function applySize()
       for j, m in ipairs(slot.marks) do m:SetSize(rw, bands[j]) end
       slot.overlay:SetStyle{ width = s, height = s, minHeight = s, marginLeft = -s }
     end
+  end
+  if pauseTile then
+    local pw, ph = SK.PauseSize(s)
+    pauseTile.col:SetStyle(slotS)
+    pauseTile.frame:SetStyle{ width = pw, height = ph, minHeight = ph }
+    pauseTile.pic:SetSize(pw, ph)
   end
   placeholder:SetStyle(placeholderStyle(s))
   T.Hud.Refresh()
@@ -629,6 +745,146 @@ function SK.Tick()
     if age >= SK.NEW_FOR and age < SK.NEW_FOR + 2 * SK.TICK then fading = true end
   end
   if SK.Expire(state, now, stay()) or fading then SK.Fill() end
+end
+
+-- ---------------------------------------------------------------------------
+-- Pause XP
+-- ---------------------------------------------------------------------------
+
+local function reasonText(reason) return SK.MODE_REASONS[reason] or tostring(reason) end
+
+local function savePaused() T.Save(SK.PAUSE_KEY, paused) end
+
+-- The tile's tooltip.
+function SK.PauseTooltip()
+  if SK.IsPaused() then
+    local since = ""
+    if paused.when and paused.when ~= "" then since = " since " .. paused.when end
+    return "XP paused" .. since .. ": " .. SK.Count(#paused.list) .. " set to "
+      .. (SK.PAUSE_HOW[paused.how] or SK.PAUSE_HOW.off).word .. ", so your pool keeps what you earn.\n"
+      .. "Click: put them back as they were"
+  end
+  local what = "training"
+  if pauseHow() == "off" then what = "training or maintaining" end
+  return "Pause XP\nClick: set every skill " .. what .. " to " .. SK.PAUSE_HOW[pauseHow()].word
+    .. ", so your pool keeps the experience you earn. Click again to put them back"
+end
+
+-- Reads the skills now (nil when they can't be read).
+local function readSkills()
+  local ok, list = pcall(ShroudGetSkills)
+  if not ok or list == nil then return nil end
+  return SK.Read(list)
+end
+
+-- Pauses: every skill spending experience to Off or Maintain, in one call (needs the player's gesture).
+function SK.Pause()
+  if not SK.HasModes() then
+    T.Print("Pausing XP needs a newer game client (Lua API 27).")
+    return false
+  end
+  if SK.IsPaused() then return false end
+  local readings = readSkills()
+  if not readings then
+    T.Print("Your skills can't be read right now: try again in a moment.")
+    return false
+  end
+  local how = pauseHow()
+  local targets = SK.PauseTargets(readings, how)
+  if #targets == 0 then
+    T.Print("No skill is training" .. (how == "off" and " or maintaining" or "") .. ": nothing to pause.")
+    return false
+  end
+  local keys = {}
+  for i, t in ipairs(targets) do keys[i] = t.key end
+  local asked = SK.PAUSE_HOW[how].mode
+  local called, ok, reason, modes = pcall(ShroudSetSkillMode, keys, asked)
+  if not called or not ok then
+    T.Print("Couldn't pause XP: " .. (called and reasonText(reason) or "the game refused") .. ".")
+    return false
+  end
+  paused = { v = 1, how = how, when = T.ClockText(), list = SK.PauseRecord(targets, modes, asked) }
+  savePaused()
+  if #paused.list == 0 then
+    T.Print("Couldn't pause XP: no skill changed (" .. reasonText(reason) .. ").")
+  else
+    local note = ""
+    if reason ~= "ok" then note = " Some skills: " .. reasonText(reason) .. "." end
+    T.Print("XP paused: " .. SK.Count(#paused.list) .. " set to " .. SK.PAUSE_HOW[how].word .. ". Click the pause"
+      .. " tile on the skill strip again (or /" .. T.commands[1] .. " skills resume) to put them back." .. note)
+  end
+  needRead = true
+  SK.Fill()
+  return #paused.list > 0
+end
+
+-- Resumes: each recorded skill still as the pause left it back to its mode, one call per mode.
+function SK.Resume()
+  if not SK.IsPaused() then
+    T.Print("XP isn't paused.")
+    return false
+  end
+  if not SK.HasModes() then
+    T.Print("Resuming XP needs a newer game client (Lua API 27).")
+    return false
+  end
+  local readings = readSkills()
+  if not readings then
+    T.Print("Your skills can't be read right now: try again in a moment.")
+    return false
+  end
+  local groups, order, skipped = SK.ResumeGroups(paused.list, readings)
+  local back, keep, refused, note = 0, {}, nil, nil
+  for _, mode in ipairs(order) do
+    local keys = groups[mode]
+    local called, ok, reason = pcall(ShroudSetSkillMode, keys, mode)
+    if called and ok then
+      back = back + #keys
+      if reason ~= "ok" then note = reasonText(reason) end
+    else
+      refused = called and reason or "error"
+      if SK.PASSING[refused] then               -- a passing refusal: kept for the next click
+        for _, k in ipairs(keys) do keep[k] = true end
+      end
+    end
+  end
+  local left = {}
+  for _, e in ipairs(paused.list) do if keep[e.key] then left[#left + 1] = e end end
+  paused.list = left
+  savePaused()
+  local msg = "XP back on: " .. SK.Count(back) .. " back as they were."
+  if back == 0 then msg = "XP back on." end
+  if skipped > 0 then msg = msg .. " " .. SK.Count(skipped) .. " changed since (or gone): left as they are." end
+  if note then msg = msg .. " Some skills: " .. note .. "." end
+  if refused then
+    msg = msg .. " The game refused " .. (#left > 0 and SK.Count(#left) .. " (" or "some (") .. reasonText(refused)
+      .. ")" .. (#left > 0 and ": click again to try them." or ".")
+  end
+  T.Print(msg)
+  needRead = true
+  SK.Fill()
+  return back > 0
+end
+
+function SK.TogglePause()
+  if SK.IsPaused() then return SK.Resume() end
+  return SK.Pause()
+end
+
+-- A saved record, checked: entries with a key and two modes.
+local function readPaused()
+  local saved = T.ReadSaved(SK.PAUSE_KEY)
+  local out = { list = {} }
+  if type(saved) ~= "table" then return out end
+  if SK.PAUSE_HOW[saved.how] then out.how = saved.how end
+  if type(saved.when) == "string" then out.when = saved.when end
+  for _, e in ipairs(type(saved.list) == "table" and saved.list or {}) do
+    if type(e) == "table" and type(e.key) == "string" and SK.MODES[e.from] and SK.MODES[e.to] then
+      out.list[#out.list + 1] = { key = e.key, from = e.from, to = e.to }
+    end
+  end
+  out.v = 1
+  return out
 end
 
 -- ---------------------------------------------------------------------------
@@ -716,6 +972,22 @@ function SK.SetNumber(on)
   end
 end
 
+-- Pause XP: the tile always on the strip (off: only while paused), and what a pause sets.
+function SK.GetPauseTile() return prefs.pause ~= false end
+function SK.SetPauseTile(on)
+  prefs.pause = on == true
+  save()
+  SK.Fill()
+end
+function SK.GetPauseHow() return pauseHow() end
+function SK.SetPauseHow(how)
+  if not SK.PAUSE_HOW[how] then return false end
+  prefs.pauseHow = how
+  save()
+  SK.Fill()
+  return true
+end
+
 function SK.GetTrigger() return trigger() end
 function SK.SetTrigger(which)
   if not SK.TRIGGER_LABELS[which] then return false end
@@ -742,8 +1014,11 @@ function SK.Init()
     prefs.marks = saved.marks ~= false
     prefs.soundUp = saved.soundUp ~= false
     prefs.soundDown = saved.soundDown ~= false
+    prefs.pause = saved.pause ~= false
+    if SK.PAUSE_HOW[saved.pauseHow] then prefs.pauseHow = saved.pauseHow end
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
   end
+  paused = readPaused()
   state, readFor, wasInUse = SK.NewState(), nil, false
   needRead, xpDirty, lastRead = true, false, -math.huge
   T.Hud.Register("skills", SK)
@@ -758,6 +1033,12 @@ function SK.DebugLines()
   lines[1] = string.format("Skills read: %d; on the strip: %d; setting %s, %s, %s; %s", #readings,
     #(state and state.active or {}), prefs.show and "on" or "off", SK.GetVertical() and "vertical" or "horizontal",
     trigger(), T.Hud.Debug("skills"))
+  lines[#lines + 1] = string.format("Pause XP: %s, tile %s, sets %s", SK.IsPaused() and ("paused, " ..
+    SK.Count(#paused.list)) or "not paused", SK.GetPauseTile() and "on" or "off", pauseHow())
+  for i, e in ipairs(paused.list) do
+    if i > 5 then break end
+    lines[#lines + 1] = "  " .. e.key .. ": " .. e.from .. " -> " .. e.to
+  end
   for i, e in ipairs(state and state.active or {}) do
     if i > 5 then break end
     local r = e.data
@@ -770,11 +1051,12 @@ end
 -- The settings page (config.lua builds it with its helpers `h`): the controls' ids in CONFIG_IDS.
 SK.CONFIG_IDS = { "skills_show", "skills_vertical", "skills_trigger", "skills_stay", "skills_slots",
                   "skills_slots_value", "skills_size", "skills_size_value", "skills_number", "skills_sound_up",
-                  "skills_sound_down", "skills_marks" }
+                  "skills_sound_down", "skills_marks", "skills_pause", "skills_pause_how" }
 
 function SK.ConfigSection(h)
   local ui = h.UI                      -- config's: the settings search reads the page through it
-  local stays, triggers = {}, {}
+  local stays, triggers, hows = {}, {}, {}
+  for i, key in ipairs(SK.PAUSE_HOWS) do hows[i] = SK.PAUSE_HOW[key].label end
   for i, c in ipairs(SK.STAY_CHOICES) do stays[i] = c[2] end
   for i, key in ipairs(SK.TRIGGERS) do triggers[i] = SK.TRIGGER_LABELS[key] end
   return ui.Column{ children = {
@@ -808,6 +1090,20 @@ function SK.ConfigSection(h)
       tooltip = SK.HasModes() and ("The right half of each icon: train (green), maintain (yellow), unlearn (red);"
         .. " click one to set it. The left half opens the Skills window") or "Needs a newer game client (Lua API 27)",
       onChange = function(_, v) SK.SetMarks(v) end },
+    ui.Toggle{ id = "skills_pause", text = "Pause XP button on the strip", value = SK.GetPauseTile(),
+      enabled = SK.HasModes(),
+      tooltip = SK.HasModes() and ("A tile at the start of the strip: one click stops every skill spending your"
+        .. " pooled experience (so the pool keeps what you earn), another puts them back as they were. Off: the"
+        .. " tile shows only while paused. /toolbox skills pause and resume work too")
+        or "Needs a newer game client (Lua API 27)",
+      onChange = function(_, v) SK.SetPauseTile(v) end },
+    h.dropdownRow("Pause XP sets skills to", { id = "skills_pause_how", choices = hows,
+      value = SK.PAUSE_HOW[pauseHow()].label,
+      tooltip = "Off: training and maintaining skills stop, so no experience is spent (skills may decay). Maintain:"
+        .. " training ones maintain instead, spending only what keeps their levels",
+      onChange = function(_, label)
+        for key, how in pairs(SK.PAUSE_HOW) do if how.label == label then SK.SetPauseHow(key) end end
+      end }),
     ui.Toggle{ id = "skills_number", text = "Show the level on the icon", value = SK.GetNumber(),
       tooltip = "The skill's level over its icon (gold just after it levels); its tooltip has it either way",
       onChange = function(_, v) SK.SetNumber(v) end },
@@ -837,6 +1133,10 @@ function SK.ConfigSync(h)
   h.setEnabled("skills_marks", prefs.show == true and SK.HasModes())
   h.setValue("skills_sound_up", SK.GetSoundUp())
   h.setValue("skills_sound_down", SK.GetSoundDown())
+  h.setValue("skills_pause", SK.GetPauseTile())
+  h.setValue("skills_pause_how", SK.PAUSE_HOW[pauseHow()].label)
+  h.setEnabled("skills_pause", prefs.show == true and SK.HasModes())
+  h.setEnabled("skills_pause_how", SK.HasModes())
   for _, id in ipairs({ "skills_vertical", "skills_trigger", "skills_stay", "skills_slots", "skills_size",
                         "skills_number" }) do
     h.setEnabled(id, prefs.show == true)
@@ -851,6 +1151,8 @@ end
 table.insert(T.Hud.ORDER, #T.Hud.ORDER, "skills")
 -- its settings are cleared by Backup & reset
 T.Backup.KEYS[#T.Backup.KEYS + 1] = "skills"
+-- Pause XP's record isn't a setting (a reset keeps it: the way back), but losing it loses the way back: copied
+T.Backup.RECOVER_EXTRA[#T.Backup.RECOVER_EXTRA + 1] = SK.PAUSE_KEY
 -- its sounds: the Sounds page lists them (Test, a custom file), and Lua/toolbox_skill_up.ogg replaces one
 T.Sounds.DEFS[#T.Sounds.DEFS + 1] = { key = "skill_up", file = "skill_up.ogg", label = "Skill level up" }
 T.Sounds.DEFS[#T.Sounds.DEFS + 1] = { key = "skill_down", file = "skill_down.ogg", label = "Skill level down" }
@@ -893,6 +1195,13 @@ do
       .. "has the training controls (newer clients): green arrow up train, yellow square maintain, red arrow "
       .. "down unlearn, the one in use lit. Click one to set it, with a sound for each (Off is set in the "
       .. "Skills window).",
+    "Pause XP (newer clients): the tile at the start of the strip (two bars) stops every skill spending your "
+      .. "pooled experience in one click, so the pool keeps what you earn while you farm; it turns into a gold "
+      .. "triangle. Click it again and each skill goes back the way it was (training or maintaining); one you "
+      .. "changed yourself meanwhile stays as you set it. Unlearning skills are left alone. Settings, Skill "
+      .. "activity: a pause sets skills to Off (nothing spent; skills may decay) or Maintain (only what keeps "
+      .. "their levels), and the tile can be hidden (it still shows while paused). /toolbox skills pause and "
+      .. "/toolbox skills resume do the same. The pause is remembered over a restart, per character.",
     "Settings, Skill activity: vertical or horizontal, what shows a skill, how long it stays, how many show, "
       .. "the icon size and whether the level shows on it. Notifications has \"Skill level changes\" for the "
       .. "notification HUD (off by default): levels gained and lost.",
@@ -908,8 +1217,8 @@ do
 end
 
 -- /toolbox skills
-T.AddCommand("skills", "the skill activity strip (on|off; vertical|horizontal; xp|levels; sound on|off; move [x y]; "
-  .. "debug)",
+T.AddCommand("skills", "the skill activity strip (on|off; vertical|horizontal; xp|levels; sound on|off; pause|resume; "
+  .. "move [x y]; debug)",
   function(rest)
     local word, args = T.ParseArgs(rest)
     word = word:lower()
@@ -929,6 +1238,9 @@ T.AddCommand("skills", "the skill activity strip (on|off; vertical|horizontal; x
       end
       SK.SetSoundUp(a == "on")
       SK.SetSoundDown(a == "on")
+    elseif word == "pause" or word == "resume" then   -- a command is a player gesture
+      if word == "pause" then SK.Pause() else SK.Resume() end
+      return
     elseif word == "move" then
       T.MoveCommand(SK, "skills", SK.PAGE, args)
       return
@@ -937,7 +1249,7 @@ T.AddCommand("skills", "the skill activity strip (on|off; vertical|horizontal; x
       return
     else
       T.Print("Use /" .. T.commands[1] .. " skills [on|off], vertical|horizontal, xp|levels, sound on|off, "
-        .. "move [x y] or debug.")
+        .. "pause|resume, move [x y] or debug.")
       return
     end
     T.Print(SK.PAGE .. ": " .. (prefs.show and "on" or "off") .. ", " .. (SK.GetVertical() and "vertical" or

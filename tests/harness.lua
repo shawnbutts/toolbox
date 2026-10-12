@@ -258,30 +258,59 @@ local function install_api()
     local MODE_WORDS = { learning = "Learning", train = "Learning", learn = "Learning", maintaining = "Maintaining",
                          maintain = "Maintaining", unlearning = "Unlearning", unlearn = "Unlearning",
                          notlearning = "NotLearning", off = "NotLearning" }
-    local function modeAnswer(skill, mode)
-      local want = type(mode) == "string" and MODE_WORDS[mode:lower()]
-      if not want then return false, "badMode" end
+    local function findSkill(skill)
       local sk = nil
       for _, s in ipairs(S.skills or {}) do
         if s.id == skill or s.key == skill or (type(skill) == "string" and type(s.name) == "string"
             and s.name:lower() == skill:lower()) then sk = s end
       end
+      return sk
+    end
+    local function modeAnswer(skill, mode)
+      local want = type(mode) == "string" and MODE_WORDS[mode:lower()]
+      if not want then return false, "badMode" end
+      local sk = findSkill(skill)
       if not sk then return false, "unknownSkill" end
-      if sk.elixir then return false, "specialRule", sk.mode end
+      if sk.elixir then return false, "specialRule", sk.mode, sk end
       if want == "Learning" and sk.mastery then return true, "notSpecialized", "Maintaining", sk end
       if (want == "Maintaining" or want == "Unlearning") and sk.low then
         return true, "belowFloor", "NotLearning", sk
       end
       return true, "ok", want, sk
     end
+    -- A list (docs): one call, one of the gesture's three actions; one unknown skill refuses it all; an elixir
+    -- skill is left as it is; the modes after come back as { [key] = mode }. S.modeLists records the lists set.
+    local function listAnswer(list, mode, set)
+      if not (type(mode) == "string" and MODE_WORDS[mode:lower()]) then return false, "badMode" end
+      for _, k in ipairs(list) do
+        if not findSkill(k) then return false, "unknownSkill" end
+      end
+      local modes, reason = {}, "ok"
+      for _, k in ipairs(list) do
+        local ok, why, now, sk = modeAnswer(k, mode)
+        if why ~= "ok" and reason == "ok" then reason = why end
+        if set and ok and sk then sk.mode = now end
+        modes[sk.key] = now
+      end
+      return true, reason, modes
+    end
     ShroudCanSetSkillMode = function(skill, mode)
+      if type(skill) == "table" and skill[1] ~= nil then return listAnswer(skill, mode, false) end
       local ok, reason, now = modeAnswer(skill, mode)
       return ok, reason, now
     end
     ShroudSetSkillMode = function(skill, mode)
+      if S.modeRefuse then return false, S.modeRefuse end
       if not S.gesture then return false, "needsGesture" end
-      local ok, reason, now, sk = modeAnswer(skill, mode)
+      S.gestureUses = (S.gestureUses or 0) + 1
+      if S.gestureUses > 3 then return false, "gestureSpent" end
       S.modeCalls = (S.modeCalls or 0) + 1
+      if type(skill) == "table" and skill[1] ~= nil then
+        S.modeLists = S.modeLists or {}
+        S.modeLists[#S.modeLists + 1] = { skills = skill, mode = mode }
+        return listAnswer(skill, mode, true)
+      end
+      local ok, reason, now, sk = modeAnswer(skill, mode)
       if ok and sk then sk.mode = now end
       return ok, reason, now
     end
@@ -730,7 +759,12 @@ function H.chat(line)
   local name, args = line:match("^/(%S+)%s?(.*)$")
   local run = S.commands[name:lower()]
   assert(run, "no command /" .. name)
-  return H.call(function() return run(args or "") end)
+  -- running a command is a player gesture (docs, Slash commands)
+  S.gesture, S.gestureUses = true, 0
+  local ok, res = pcall(H.call, function() return run(args or "") end)
+  S.gesture, S.gestureUses = false, 0
+  if not ok then error(res, 2) end
+  return res
 end
 
 -- ---------------------------------------------------------------------------
@@ -855,6 +889,7 @@ function Element:SetTexture(id) self.texture = id end
 function Element:SetColor(c) self.color = c end
 -- API 25 redraws a picture when SetUV changes it (before, only its first uv was drawn).
 function Element:SetUV(x, y, w, h) self.uv = { x, y, w, h } end
+function Element:SetTint(color) self.tint = color end
 -- The cooldown wedge (API 25, Image and IconButton): SetSweep(fraction | nil) sets it and stops a timer;
 -- SetSweepTimer(start, duration[, { warnBelow, warnColor }]) lets the game run it on ShroudTime's clock
 -- (it clears itself at the end); SetSweepTimer(nil) stops it. Checked like the game: a lone duration
@@ -1316,7 +1351,7 @@ function H.clickSlot(row, n)
   assert(slot, "no visible slot " .. n .. " in " .. row)
   S.gesture = true
   local ok, err = pcall(H.call, slot.children[1].onClick, slot.children[1])
-  S.gesture = false
+  S.gesture, S.gestureUses = false, 0
   if not ok then error(err, 2) end
 end
 
@@ -1395,7 +1430,7 @@ function H.skillSlots()
   local f = S.frames.toolbox_skills
   local box = f and f:Find("skills")
   for _, c in ipairs(box and box.children or {}) do
-    if c.id ~= "sk_placeholder" and c.visible ~= false then out[#out + 1] = c end
+    if c.id ~= "sk_placeholder" and c.id ~= "sk_pause" and c.visible ~= false then out[#out + 1] = c end
   end
   return out
 end
@@ -1416,7 +1451,22 @@ function H.clickSkillPart(n, part)          -- part: "open", "train", "maintain"
   elseif part == "unlearn" then target = marks[3] end
   S.gesture = true
   local ok, err = pcall(H.call, target.onClick, target)
-  S.gesture = false
+  S.gesture, S.gestureUses = false, 0
+  if not ok then error(err, 2) end
+end
+
+-- The skill strip's Pause XP tile (its Column; nil when not built), and a click on its picture (a gesture).
+function H.skillPause()
+  local f = S.frames.toolbox_skills
+  return f and f:Find("sk_pause")
+end
+function H.clickSkillPause()
+  local tile = H.skillPause()
+  assert(tile and tile.visible ~= false, "no Pause XP tile on the skill strip")
+  local pic = tile.children[1].children[1]
+  S.gesture, S.gestureUses = true, 0
+  local ok, err = pcall(H.call, pic.onClick, pic)
+  S.gesture, S.gestureUses = false, 0
   if not ok then error(err, 2) end
 end
 
@@ -1427,7 +1477,7 @@ function H.clickSkill(n)
   local icon = slot.children[1].children[1]
   S.gesture = true
   local ok, err = pcall(H.call, icon.onClick, icon)
-  S.gesture = false
+  S.gesture, S.gestureUses = false, 0
   if not ok then error(err, 2) end
 end
 
