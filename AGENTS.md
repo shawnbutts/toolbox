@@ -305,7 +305,7 @@ into one if a new file is ever needed).
   (`SK.MARK_NO`). No click-to-cycle (Unlearn one click away) and no "off" marker (owner). The harness stubs both
   (skill fields `mastery`, `low`, `elixir`; `H.skillMarks`, `H.clickSkillPart`).
   Pause skills (owner, 2026-10-12, a player's request): a tile first on the strip (`sk_pause`, skillmarks.png frames 3
-  and 4, cropped: a play triangle while skills run, gold pause bars while paused; a thin tile, `SK.PauseSize`; setting `pause`, shown always while paused) and `/toolbox
+  and 4, cropped: a play triangle while skills run, gold pause bars while paused; a thin tile, `SK.PauseSize`; setting `pause`, shown always while paused; its own mode changes are `SK.Expect`ed, so they pop nothing up) and `/toolbox
   skills pause|resume` (a command is a gesture). `SK.Pause` sets EVERY skill (unlearning ones too; owner) to Off
   or Maintain (`pauseHow`) in ONE list call; `SK.PauseRecord` keeps `{ key, from, to }` in `skills_paused`;
   `SK.Resume` sets back, one call per mode (at most three: a click's limit; `SK.ResumeGroups`: only skills still in

@@ -142,8 +142,17 @@ local shownPause = nil                -- whether the tile showed when the strip 
 -- ({ id, at = last change, levelAt = last level change, data = the reading }), `changes` = levels gained or
 -- lost, for the notification ({ n, list = { { id = n, name, from, to } } }). `changes` carries over a new
 -- baseline: the notification remembers the last number it delivered, so the numbering must not start again.
+-- `expect` = mode changes Toolbox made itself (Pause skills): { [key or name] = { mode, at } }, absorbed by
+-- SK.Update for SK.EXPECT_FOR s: a pause changes every skill, and none of them is news (owner, 2026-10-12).
+SK.EXPECT_FOR = 10
 function SK.NewState(changes)
-  return { prev = {}, active = {}, based = false, changes = changes or { n = 0, list = {} }, ups = 0, downs = 0 }
+  return { prev = {}, active = {}, based = false, changes = changes or { n = 0, list = {} }, ups = 0, downs = 0,
+           expect = {} }
+end
+
+-- Marks `modes` ({ [key or name] = mode }) as set by Toolbox at `now`: SK.Update doesn't pop them up. Pure.
+function SK.Expect(st, modes, now)
+  for k, mode in pairs(modes) do st.expect[k] = { mode = mode, at = now } end
 end
 
 -- The game's skill list as plain readings { id, name, level, trained, exp, progress, mode, icon }.
@@ -198,6 +207,11 @@ function SK.Update(st, readings, now, trigger, keep)
       -- Levels are the TRAINED level: `level` is the tile's, capped in some scenes, and a capped scene would
       -- read as every skill losing levels (review, 2026-10-02).
       local levelled, moded = r.trained ~= p.trained, r.mode ~= p.mode
+      local ex = moded and st.expect and st.expect[r.key or r.name] or nil
+      if ex then
+        st.expect[r.key or r.name] = nil
+        if ex.mode == r.mode and now - ex.at <= SK.EXPECT_FOR then moded = false end   -- ours: not news
+      end
       -- which way it moved: up (a level, or experience at the same level) or down
       local dir = nil
       if r.trained > p.trained or (r.trained == p.trained and r.exp > p.exp) then
@@ -211,7 +225,8 @@ function SK.Update(st, readings, now, trigger, keep)
       else
         for _, e in ipairs(st.active) do
           local d = e.data
-          if e.id == r.id and (d.progress ~= r.progress or d.level ~= r.level or d.exp ~= r.exp) then
+          if e.id == r.id and (d.progress ~= r.progress or d.level ~= r.level or d.exp ~= r.exp
+              or d.mode ~= r.mode) then
             e.data, changed = r, true          -- on the strip already: its progress moves
             if dir then e.dir = dir end
           end
@@ -358,8 +373,9 @@ end
 
 function SK.Wanted() return prefs.show == true end
 -- The Pause skills tile: as wide as an icon and a thin strip high (owner, 2026-10-12: a third of the first
--- version's two thirds of an icon), at least 8 px; its picture, centered, a pixel short of it top and bottom.
-function SK.PauseSize(s) return s, math.max(8, math.floor(s * 2 / 9 + 0.5)) end
+-- version's two thirds of an icon), at least 12 px (owner: 8 was too small); its picture, centered, a pixel
+-- short of it top and bottom.
+function SK.PauseSize(s) return s, math.max(12, math.floor(s * 2 / 9 + 0.5)) end
 function SK.PausePicSize(s)
   local _, th = SK.PauseSize(s)
   local h = th - 2
@@ -816,6 +832,9 @@ function SK.Pause()
   end
   paused = { v = 1, how = how, when = T.ClockText(), list = SK.PauseRecord(targets, modes, asked) }
   savePaused()
+  local mine = {}
+  for _, e in ipairs(paused.list) do mine[e.key] = e.to end
+  SK.Expect(state, mine, T.Now())
   if #paused.list == 0 then
     T.Print("Couldn't pause your skills: no skill changed (" .. reasonText(reason) .. ").")
   else
@@ -848,9 +867,15 @@ function SK.Resume()
   local back, keep, refused, note = 0, {}, nil, nil
   for _, mode in ipairs(order) do
     local keys = groups[mode]
-    local called, ok, reason = pcall(ShroudSetSkillMode, keys, mode)
+    local called, ok, reason, after = pcall(ShroudSetSkillMode, keys, mode)
     if called and ok then
       back = back + #keys
+      local mine = {}
+      for _, k in ipairs(keys) do
+        local m = type(after) == "table" and after[k] or nil
+        mine[k] = (type(m) == "string" and SK.MODES[m]) and m or mode
+      end
+      SK.Expect(state, mine, T.Now())
       if reason ~= "ok" then note = reasonText(reason) end
     else
       refused = called and reason or "error"
