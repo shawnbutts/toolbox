@@ -219,22 +219,27 @@ into one if a new file is ever needed).
   page field) on the "Map & location" page (`C.MapSection`, key "map", with the run markers' toggle; owner, 2026-10-13:
   the home for map features to come).
   Then `Toolbox.Overlays` (OV; owner, 2026-10-13): map overlays, named sets of places (`/toolbox mark`, `/toolbox
-  overlay`, the "Map overlays" rows on Map & location, `C.OverlayRows`), STRICTLY ONE shown at a time (the 50 markers a
-  scene; `OV.SCENE_MAX` 40 beside the run flags' 10), `OV.MAX` 10 a character (owner: more later if players ask), per
-  character; each place its own icon and color (owner, 2026-10-13: the overlay's look restyled every mark), the
-  overlay's `icon` / `color` being the next marks' ("Set look", `OV.SetPlaceLook`, `/toolbox mark look`).
-  Marking happens in the Map overlays window (owner, 2026-10-13: not the whole settings page; id `toolbox_marks`, the
-  8th window's third user, `T.TakeSharedWindow`), opened by the location strip's pin (`loc_pin`, launcher.png's
-  map-pin frame; setting `pin`), `/toolbox overlay window` or the page's button (all the page keeps; owner: every
-  overlay control in the window): shown overlay, New / Rename / Delete (`OV.CONFIRM`), next look, Mark here, THIS
-  scene's places only (Beacon, Set look, Remove; every scene's places listed with the page open took the text past
-  its budget). `OV.Sync` (T.Tick, after each change) mirrors `DD.SyncMarkers`: ids "ov<overlay>-<place>" (a switch moves
-  none), ours unwanted ("ov") come down, one already up as wanted isn't sent again (a "rate" refusal after a big switch
-  retries after `OV.RETRY` s, sending only what's missing; the note, the overlay's name, is compared too, review
-  35). Every change is undone in memory when the game refuses its save (`ovSnapshot` / `ovSave(snap)`, review 34:
-  a refused one stayed live and the next save wrote it), and every command and button says so. The run flags stay their own toggle (owner); later ideas:
-  self-filling overlays (gathering spots, a death flag) and sharing one as a text string (no clipboard API; a
-  TextField takes 1,024 characters). Harness: `H.S.markerAllow` (n sets, then "rate").
+  overlay`), each BELONGING TO ONE SCENE (owner: a place is only good on its own map; 1,000+ scenes): a scene lists only
+  its own (`OV.List(raw)`, `OV.MAX` 10 a scene), shows STRICTLY ONE (the 50 markers a scene; `OV.SCENE_MAX` 40 places an
+  overlay, beside the run flags' 10) and remembers its own shown one; per character; each place its own icon and color
+  (owner: the overlay's look restyled every mark), the overlay's `icon` / `color` being the next marks' ("Set look",
+  `OV.SetPlaceLook`, `/toolbox mark look`). Room (owner, 2026-10-13): the game's 256 KB is a whole FILE's, so the
+  overlays of all scenes share `OV.BUDGET` (150,000 estimated) of the character file: places are packed into text
+  (`packPlaces`: "id|name|x|y|z|shape|color;...", whole metres), a scene's read (`OV.Places`, `unpackPlaces`) only when
+  needed, and a change that wouldn't fit (`ovSave`: `T.SavedSize` of the form, unless it frees room; or the file full,
+  T.Save's "full") is undone and refused by name (owner: a failed mark must say it was the mark: `OV.MarkFailed`,
+  `OV.RoomNote` past `OV.WARN`); `/toolbox overlay scenes` (`OV.Scenes`) and `forget <scene>` (typed twice in
+  `OV.FORGET_CONFIRM` s, `OV.Forget`) make room. Every change is undone in memory when its save fails (`ovSnapshot` /
+  `ovSave(snap)`, review 34), and every command and button says so. Marking happens in the Map overlays window (owner:
+  not the whole settings page; id `toolbox_marks`, the 8th window's third user, `T.TakeSharedWindow`), opened by the
+  location strip's pin (`loc_pin`, launcher.png's map-pin frame; setting `pin`), `/toolbox overlay window` or the
+  Map & location page's button (all the page keeps): shown overlay, New / Rename / Delete (`OV.CONFIRM`), next look,
+  Mark here, the shown overlay's places (Beacon, Set look, Remove), "Map storage: N% used" (`OV.StorageText`). `OV.Sync`
+  (T.Tick, after each change) mirrors `DD.SyncMarkers`: ids "ov<overlay>-<place>" (a switch moves none), ours unwanted
+  ("ov") come down, one already up as wanted isn't sent again (its note, the overlay's name, compared too, review 35; a
+  "rate" refusal after a big switch retries after `OV.RETRY` s, sending only what's missing). The run flags stay their
+  own toggle (owner); later ideas: self-filling overlays (gathering spots, a death flag) and sharing one as a text
+  string (no clipboard API; a TextField takes 1,024 characters). Harness: `H.S.markerAllow` (n sets, then "rate").
   Then `Toolbox.Launcher` (LN; owner, 2026-10-10; "the menu" to players, `/toolbox menu`, alias `launcher`): one button a window (`LN.BUTTONS`: its
   `open()` and `toggle()`; the pop-up windows count as open when pinned; Notifications = `N.ToggleWindow`, the news
   now in the window; Location shows or hides the location strip, `strip = true`: "show or hide" in its tooltip), pictures from `toolbox/launcher.png` (`art/launcher.py`, frames in `LN.BUTTONS` order) tinted
@@ -508,7 +513,7 @@ character" sentinel.
 | `loot_runs` | `{ v = 1, list = { { at = "HH:MM", date = "YYYY-MM-DD", scene, played = s, gold, kills, items, kinds, nodes, value = estimated gold or nil, spot = { scene, raw, x, y, z } or nil } } }`, newest first, at most `D.RUNS_KEEP` (10); stats: a reset keeps it |
 | `location` | `{ show = bool (default false), facing = bool (default true), water = bool (default true; API 32), pin = bool (the Map overlays pin, default true), x, y }` (the location strip, hud.lua) |
 | `launcher` | `{ show = bool (default true), vertical = bool (default true), size = 20..64 (default 32), shade = 0..90 (% black behind, default 40), combat = bool (hide during combat), hide = { [button key] = true } (never all), x, y }` (the menu, hud.lua; absent = never started: the chat line) |
-| `map_overlays` | `{ v = 1, shown = overlay id or 0, nextId, list = { { id, name (<= 24, unique), icon = an OV.ICONS shape, color = an OV.COLORS name, nextPlace, places = { { id, name (unique in it), raw (scene id), scene, x, y, z, icon, color (unset: the overlay's) } } } } }` (the overlay's icon / color: its next marks') (hud.lua; at most OV.MAX, OV.PLACES_MAX places each); kept by a reset; NOT in the recovery copy (`B.OTHER_KEYS`: the account file's 256 KB) |
+| `map_overlays` | `{ v = 2, nextId, scenes = { [scene id] = { scene = its name, shown = overlay id or 0, list = { { id, name (<= 24, unique in the scene), icon = an OV.ICONS shape, color = an OV.COLORS name (the next marks'), nextPlace, places = "id|name|x|y|z|shape n|color n;..." } } } } }` (hud.lua; at most OV.MAX a scene, OV.SCENE_MAX places each, OV.BUDGET in all); v = 1 (one list, places with raw / scene; development only) converted at the first read; kept by a reset; NOT in the recovery copy (`B.OTHER_KEYS`: the account file's 256 KB) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
 | `skills_paused` | `{ v = 1, how = "off"/"maintain", when = "HH:MM", list = { { key = skill key or name, from = mode, to = mode } } }`: the pause's record (skills.lua; empty list = not paused); kept by a reset, copied for recovery |
 | `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`, events' `{ [occurrence] = start (UTC seconds, as text) }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |

@@ -907,9 +907,9 @@ function C.OverlayRows()
   local OV = T.Overlays
   return UI.Column{ children = {
     heading("Map overlays"),
-    UI.Label{ text = "Sets of places you mark, one set on your map at a time: one for gathering, one for XP"
-      .. " farming... Up to " .. OV.MAX .. ", " .. OV.SCENE_MAX .. " places each in a scene. Make them, mark and"
-      .. " pick the one shown in the Map overlays window (also the pin on the location strip)."
+    UI.Label{ text = "Sets of places you mark in a scene, one set on its map at a time: one for loot, one for"
+      .. " gathering... Each scene has its own: up to " .. OV.MAX .. ", " .. OV.SCENE_MAX .. " places each. Make"
+      .. " them, mark and pick the one shown in the Map overlays window (also the pin on the location strip)."
       .. (OV.HasMarkers() and "" or " Your game client can't show them on the map yet (Lua API 30): Beacon finds"
         .. " a place."),
       class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },

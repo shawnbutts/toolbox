@@ -278,21 +278,26 @@ D.SECTIONS = {
       .. "location (on, off, facing on|off, water on|off, pin on|off, move <x> <y>). It's off by default. The "
       .. "pin beside the scene's name opens the Map overlays window (Map overlays button in settings)." },
   { "Map overlays",
-    "Sets of places you mark, shown on your map one set at a time: one for gathering, one for XP farming, one "
-      .. "for vendors... Each place is a mark on the region map and minimap in its scene (a newer game client), "
-      .. "in the shape and color you picked for it, named as you named it. Up to 10 overlays, each with up to 40 "
-      .. "places in a scene and 100 in all. They're this character's own. The Loot Tracker's run flags stay their own "
-      .. "setting and show beside any overlay.",
+    "Sets of places you mark in a scene, shown on its map one set at a time: one for loot, one for gathering, "
+      .. "one for vendors... Each scene has its own overlays (a place is only good on its own map), and remembers "
+      .. "which one it shows: a Loot overlay in every scene you farm, say. Each place is a mark on the region map "
+      .. "and minimap (a newer game client), in the shape and color you picked for it, named as you named it. Up "
+      .. "to 10 overlays a scene, 40 places each. They're this character's own. The Loot Tracker's run flags stay "
+      .. "their own setting and show beside any overlay.",
+    "Room: the game keeps at most 256 KB in each of an add-on's saved files, so the overlays of all your scenes "
+      .. "share a part of this character's file (thousands of places). The window shows how full it is. A mark "
+      .. "that won't fit is refused and named, and nothing is saved; /toolbox overlay scenes lists what each scene "
+      .. "takes, and /toolbox overlay forget <scene> (typed twice) deletes a scene's overlays.",
     "The Map overlays window (the pin on the location strip, /toolbox overlay window, or the button in "
       .. "Settings, Map & location) holds it all. Pick the overlay shown (or None); type a name and press New "
       .. "(shown at once), or Rename or Delete (click twice) the shown one. Pick a shape and color under New "
       .. "marks, then stand where you want a place, name it and press Mark here (no name: Place 1, Place 2...); "
-      .. "marks made before keep their look. The list holds the shown overlay's places in this scene: Beacon puts "
+      .. "marks made before keep their look. The list holds the shown overlay's places: Beacon puts "
       .. "the game's beacon on one (it reaches your compass, and replaces any beacon you set), Set look gives it "
       .. "the shape and color above, Remove takes it out.",
     "In chat: /toolbox mark Iron vein marks where you stand (your first mark makes an overlay called Places); "
       .. "/toolbox mark remove takes out the nearest place within 15 m (or one by name) and /toolbox mark beacon "
-      .. "<name> sets the beacon. /toolbox overlay lists your overlays; /toolbox overlay Gathering shows one, "
+      .. "<name> sets the beacon. /toolbox overlay lists this scene's overlays; /toolbox overlay Gathering shows one, "
       .. "overlay off none, and overlay new, rename <old> = <new>, delete and places (each with its /loc) do the "
       .. "rest; overlay icon star and overlay color Red set the next marks' look, mark look <name> gives it to a "
       .. "place." },

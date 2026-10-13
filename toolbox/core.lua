@@ -554,11 +554,12 @@ function T.ReadSaved(key)
   return T.FromSaved(ShroudGetSavedVar(key, SCOPE))
 end
 
+-- Returns T.SetSavedVar's answer: true, or false, why and (a file past 256 KB) "full".
 function T.Save(key, value)
-  local ok = T.SetSavedVar(key, T.ForSaving(value), SCOPE)
+  local ok, why, kind = T.SetSavedVar(key, T.ForSaving(value), SCOPE)
   if not ok then T.Print("Could not save '" .. key .. "'.") end
   if T.Backup.IsSetting(key) then T.setupDirty = true end    -- this character's setup copy is behind
-  return ok
+  return ok, why, kind
 end
 
 -- Writes the saved vars to disk. The game answers false when a write failed or a table passed 256 KB;

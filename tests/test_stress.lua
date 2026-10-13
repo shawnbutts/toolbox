@@ -103,20 +103,30 @@ return function(t)
     for i = 1, 250 do
       prices[string.format("loot item %03d", i)] = { avg = i * 3, sold = i, last = "2026-09-20", day = DAY }
     end
-    local overlays = {}                -- every overlay full, the shown one's 40 in this scene (the most a scene) and
-    for o = 1, 10 do                   -- 60 elsewhere; as saved (negative numbers as "%N" text)
-      local places = {}
-      for i = 1, 100 do
-        places[i] = { id = i, name = string.format("A long place name %03d", i),
-                      raw = (o == 1 and i <= 40) and "Novia" or "Elsewhere", scene = "A scene with a long name",
-                      x = "%N" .. (-1000.5 - i), y = 12.25, z = 2000 + i }
+    -- Map overlays at their room (OV.BUDGET, the character file's share): Novia's 10 full (the shown one's 40 places
+    -- on the map), and 90 other scenes with two overlays of 12 places each; as saved (packed places; marked "%E").
+    local function packed(n)
+      local each = {}
+      for i = 1, n do
+        each[i] = string.format("%d|A long place name %03d|-%d|12|%d|5|8", i, i, 1000 + i, 2000 + i)
       end
-      overlays[o] = { id = o, name = "Overlay number " .. o, icon = "star", color = "Blue", nextPlace = 101,
-                      places = places }
+      return table.concat(each, ";")
     end
+    local scenes, nextId = {}, 1
+    local function addScene(raw, n, places)
+      local list = {}
+      for o = 1, n do
+        list[o] = { id = nextId, name = "Overlay number " .. o, icon = "star", color = "Blue", nextPlace = places + 1,
+                    places = packed(places) }
+        nextId = nextId + 1
+      end
+      scenes[raw] = { scene = "A scene with a long name " .. raw, shown = list[1].id, list = list }
+    end
+    addScene("Novia", 10, 40)
+    for i = 1, 90 do addScene(string.format("Scene_%03d_R4_Long_Raw_Name", i), 2, 12) end
     local disk = {
       [CHAR] = {
-        map_overlays = { v = 1, shown = 1, nextId = 11, list = overlays, ["%E"] = 1 },
+        map_overlays = { v = 2, nextId = nextId, scenes = scenes, ["%E"] = 1 },
         daily = { v = 1, key = DAY, gold = 123456, kills = 900, a = 5000000, p = 2000000, items = items, dropped = 3,
                   last = {} },
         daily_detail = { open = false, values = true },
@@ -165,6 +175,10 @@ return function(t)
     noErrors("opening everything")
     t.eq(#H.detailRows(), Toolbox.DailyDetail.MAX_ROWS, "Loot Tracker shows its maximum rows")
     t.eq(#(H.S.requests or {}), 0, "cached prices: no lookups")
+    local use = Toolbox.Overlays.StorageUse()
+    t.ok(use > 0.85 and use <= 1, "the overlays fill their room: " .. use)
+    t.eq(#Toolbox.Overlays.Places(Toolbox.Overlays.Shown()), 40, "Novia's shown overlay read")
+    t.eq(rawget(Toolbox.Overlays.List("Scene_001_R4_Long_Raw_Name")[1], "places"), nil, "other scenes' places not read")
     within("veteran idle", LIMITS.veteran, measure(60))
   end)
 

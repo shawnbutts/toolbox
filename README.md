@@ -39,9 +39,11 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
 - **Menu**: a column (or row) of gold buttons on a shaded panel, top left at first, opening Toolbox's windows (and
   the location strip) with one click, bright while a window is open (`/toolbox menu`; settings under Menu, setups,
   backup & reset).
-- **Map overlays**: sets of places you mark (`/toolbox mark <name>`), one set shown on the region map and minimap
-  at a time (Lua API 30): one for gathering, one for XP farming... Each place in its own shape and color, up to 10 per
-  character, with a Beacon button for each place; all in a small window the location strip's pin opens
+- **Map overlays**: sets of places you mark in a scene (`/toolbox mark <name>`), one set shown on its region map and
+  minimap at a time (Lua API 30): one for loot, one for gathering... Each scene has its own (up to 10, 40 places each)
+  and remembers the one it shows; each place in its own shape and color, with a Beacon button; the window shows how
+  full the map storage is (all scenes share part of the character's saved file); all in a small window the location
+  strip's pin opens
   (`/toolbox overlay window`, or the button under Settings, Map & location).
 
 ## Install
@@ -99,7 +101,7 @@ with that setting's section at the top and the setting blinking.
 | `/toolbox vitals` (`size <75-250>` / `text on\|off` / `bars on\|off` / `bg none\|dark\|light` / `flash <1-95>\|on\|off\|test` / `replace on\|off` / `glue on\|off` / `move [x y]` / `debug`) | show or hide the health & focus bars (or place them) |
 | `/toolbox combat` (`reset` / `size <n>` / `bg dark\|light\|none [%]` / `pet on\|off` / `stat add\|remove <Name>` / `stats` / `detail` / `events [n]` / `move [x y]`) | show or hide the combat stats HUD, Combat Detailed, and its options |
 | `/toolbox location` (`on\|off` / `facing on\|off` / `water on\|off` / `move [x y]`) | show or hide the location strip: the scene, your position (x, height, z, whole numbers), which way you face and the nearest fishable water (Lua API 32); hover it for `/loc`'s whole line and the scene's kinds of water |
-| `/toolbox overlay` (`<name>` / `off` / `window` / `new <name>` / `rename <old> = <new>` / `delete <name>` / `places` / `icon <shape>` / `color <name>`) | map overlays: list them, show one (only one at a time), make, rename, delete, list the shown one's places, set the shape and color of the marks you make next |
+| `/toolbox overlay` (`<name>` / `off` / `window` / `new <name>` / `rename <old> = <new>` / `delete <name>` / `places` / `icon <shape>` / `color <name>` / `scenes` / `forget <scene>`) | this scene's map overlays: list them, show one (only one at a time), make, rename, delete, list the shown one's places, set the shape and color of the marks you make next; every scene's overlays and the room they take; delete a scene's overlays (typed twice) |
 | `/toolbox mark` (`<name>` / `remove [name]` / `beacon [name]` / `look [name]`) | mark where you stand in the shown overlay (the first mark makes one, Places); remove a place (no name: the nearest within 15 m); the game's beacon on one; give one the shape and color set for the next marks |
 | `/toolbox menu` (`on\|off` / `vertical\|horizontal` / `size <n>` / `shade <n>` / `combat hide\|show` / `move [x y]`) | show or hide the menu: buttons opening Toolbox's windows with one click (`launcher` works too) |
 | `/toolbox api` | which newer API functions this game client has |

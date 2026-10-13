@@ -8,12 +8,15 @@ ones included).
 ## [Unreleased]
 
 ### Added
-- **Map overlays:** sets of places you mark, shown on your map one set at a time: one for gathering, one for XP
-  farming, one for vendors. Each place is a mark on the region map and minimap in its scene (Lua API 30), in a
-  shape and color of its own; Beacon puts the game's beacon on one. Up to 10 overlays per character, 40 places each
-  in a scene. Everything is in the small Map overlays window: the new pin beside the scene's name on the location
-  strip opens it (or Settings, Map & location, or /toolbox overlay window). In chat, /toolbox mark <name> marks
-  where you stand and /toolbox overlay <name> shows one. The Loot Tracker's run flags stay their own setting and show beside any overlay.
+- **Map overlays:** sets of places you mark in a scene, shown on its map one set at a time: one for loot, one for
+  gathering, one for vendors. Each scene has its own overlays (a place is only good on its own map) and remembers
+  which one it shows. Each place is a mark on the region map and minimap (Lua API 30), in a shape and color of its
+  own; Beacon puts the game's beacon on one. Up to 10 overlays a scene, 40 places each, with room for thousands of
+  places in all: the window shows how full it is, a mark that won't fit is refused by name, and /toolbox overlay
+  scenes lists what each scene takes. Everything is in the small Map overlays window: the new pin beside the scene's
+  name on the location strip opens it (or Settings, Map & location, or /toolbox overlay window). In chat, /toolbox
+  mark <name> marks where you stand and /toolbox overlay <name> shows one. The Loot Tracker's run flags stay their
+  own setting and show beside any overlay.
 
 ### Fixed
 - **Going AFK or flagging for PvP** no longer looks like another character logging in. The game adds those tags
