@@ -661,6 +661,31 @@ ones (`tmp/client-issues.md` 14, 15): the slot getters reach the whole party (sl
 order, so `for slot = 0, count - 1` finds everyone, buffs included), `ShroudGetPartyMemberNamesInScene()`
 returns a plain list of real names, and `for v in list do` over a table walks its values.
 
+**The developers' answer** (2026-10-13, to the owner; nothing rejected):
+- **18** is built as **API 37**, not on the chaos test server yet; it ships with the next build, and the reference updates
+  then (read it before building on it).
+  - `ShroudGetRecipe` gains `station`, `stationKey` and `locations`.
+  - A slot ingredient ("Metal Sheet") gains `group`, `groupKey`, `choosable` and `choices`: each with `name`, `key`,
+    `have`, `carried` and `stats`, at most 30, the total in `choiceCount`.
+  - Ingredients and results gain `key`, `carried` and `stats`. `carried` counts every bag (nested too), locked items and
+    bags kept from crafting; `have` stays the recipe card's count.
+  - Keys are `item:<guid>`, the same whatever the client's language, and `ShroudGetInventoryItems` rows carry them too.
+  - Stats rows are `{ key, value }` plus a translated name; results give base values (material bonuses and exceptional
+    crafts add on top).
+  - `ShroudGetRecipeBook([categoryKey])` gives the whole known book in one call.
+
+  This unblocks the crafting planner, and perhaps prices on other-language clients (the keys).
+- **19 and 21** (the saved "/" and the negative number) are fixed since chaos build 318 (2026-10-12). A file an older
+  build couldn't read is kept beside it as `<file>.unreadable-<date>`: renaming it back restores the values (worth
+  telling players who lost settings). Keep Toolbox's escaping and "%N" numbers: players on older builds still need
+  them (`min_api_version` 25), and the 1.6.0 and earlier saves must still read.
+- **24**: not the server. Picking an item up with the cursor takes it out of the bag, and putting it down counted as a new
+  gain: a fish dragged into a bag right after the catch, and ANY drag between your own bags, reached
+  `ShroudOnItemsGained` twice. Fixed for the next build; the Loot Tracker keeps counting as it is (until then, a drag
+  between bags counts as loot).
+- Not covered by their answer: 16 (the reference not mentioning `SetSweepTimer`'s one-day limit), 17 (a clipped wedge), and
+  the read-only game settings API, never sent as a numbered request.
+
 **Ideas, not agreed** (more in FUTURE.md, the owner's list for later: a farmer's helper): a **Party Toolbelt** (owner, 2026-09-29): a dedicated party strip, separate from the
 player's own Toolbelt, so a healer keeps their Toolbelt for themselves and watches the party on its own
 strip: a row per member (name, health and focus bars sized like the player's, members in another scene
