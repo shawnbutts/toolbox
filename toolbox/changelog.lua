@@ -5,6 +5,7 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "version", "1.7.0 - 2026-10-13" },
   { "section", "Added" },
   { "item", "World events (Lua API 35): a chat line 15 minutes before a Call to Arms or official event starts, from the game's calendar. /toolbox events: what's on now and next." },
   { "item", "Pause skills (a player's request): one click on the new tile at the start of the skill activity strip sets every skill to Off, unlearning ones too, so your pool keeps all you earn while you farm. Another click puts each skill back the way it was (training, maintaining or unlearning); one you changed yourself in the meantime stays as you set it. Under Settings, Skill activity, choose whether a pause sets skills to Off (nothing spent) or to Maintain (only what keeps their levels), or hide the tile (it still shows while paused). Also /toolbox skills pause and /toolbox skills resume. Needs a newer game client (Lua API 27), like the training markers." },

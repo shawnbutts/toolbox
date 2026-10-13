@@ -7,6 +7,8 @@ ones included).
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-13
+
 ### Added
 - **World events** (Lua API 35): a chat line 15 minutes before a Call to Arms or official event starts, from the
   game's calendar. /toolbox events: what's on now and next.
@@ -19,9 +21,9 @@ ones included).
 - **The menu:** a column of gold buttons on a shaded panel at the top left that opens Toolbox's windows with one
   click: XP, XP Detailed, Today, Loot Tracker, Combat Detailed, Notifications (the news now, in the window),
   Location (the location strip), Docs and Settings. A button is bright while its window is open; click again to
-  close it. On at first: move it by its grip. Under Settings, Menu, setups, backup & reset (the page was Setups, backup & reset): make it a row, change
-  its icon size and the shade behind it, hide it during combat, pick its buttons, or switch it off to open windows
-  the old way. Also /toolbox menu.
+  close it. On at first: move it by its grip. Under Settings, Menu, setups, backup & reset (the page was Setups,
+  backup & reset): make it a row, change its icon size and the shade behind it, hide it during combat, pick its
+  buttons, or switch it off to open windows the old way. Also /toolbox menu.
 - **Location strip:** a small HUD strip showing where you are: the scene, your position (as /loc gives it, in
   whole numbers) and which way you face (compass direction and degrees). On Lua API 32 it also names the
   nearest fishable water ("Salt water, 12 m"). Hover it for the whole /loc line. Off by default: switch it on

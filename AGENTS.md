@@ -760,6 +760,10 @@ Rules learned the hard way; keep to them.
 - **Skill level click and save protection** (confirmed 2026-10-10): a click on the skill strip's level number (the
   labels over the icon, markers off) still reaches the icon and opens the Skills window; the saved-value escaping and
   recovery work in game.
+- **1.7.0 work** (confirmed 2026-10-13, the owner's manual test on the live client, API 30-35 present): run flags on
+  the map (across a reload too), World events and `/toolbox events`, fishable water on the location strip, Choose...
+  (the file picker), sound handles across a reload, strips fitted after the window shrinks, Pause / Resume skills,
+  the Map & location page and the menu's Location button, effect sounds, the mail doorbell and a run's Beacon.
 - **Louder sounds** (confirmed 2026-10-07): the +7.5 dB .ogg files, the halved saved volume and the per-sound
   volume sliders work in game.
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
@@ -799,11 +803,8 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - Effect sounds: the clip name the game gives a player's file (assumed its base name without the extension, as for
   the shipped ones; a second file of a name another sound has is refused, review 25), a path with spaces, and dozens
   of extra clips loaded at once.
-- API 30-35 work (built 2026-10-12 from the docs, not yet in game): run markers kept across a `/lua reload` or not
-  (`DD.SyncMarkers` re-reads `ShroudGetMapMarkers` either way) and the flag's look; sound handle ids surviving a reload
-  (`S.Play` reloads on "none"); the file picker's callback after a page switch; `ShroudGetNearestWaterType`'s cost
-  twice a second; HUD `GetPosition` in the same units as `uiWidth` / `uiHeight` (`Hud.FitScreen`); `os.time` being
-  UTC seconds as the calendar's are, and `startsText`'s wording.
+- API 30-35 details the owner's test (2026-10-13) didn't single out: the file picker's callback after a page switch;
+  `os.time` being UTC seconds as the calendar's are (`N.EventsCheck`'s 15-minute lead).
 - Pause skills: `ShroudSetSkillMode`'s list answer keyed by the skill's `key` (a missing one is taken as asked, and
   the resume's check leaves a skill that didn't move alone), skills set to Off decaying meanwhile (the
   setting's tooltip says they may), and the game's per-skill menu matching a list call for mastery skills.
