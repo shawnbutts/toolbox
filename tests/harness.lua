@@ -89,7 +89,7 @@ local function fresh(disk)
     date = "2026-09-27",               -- what os.date("%Y-%m-%d") returns
     serverTime = "2026-09-27 12:00:00",
     files = { ["toolbox/clock.png"] = true },   -- files that exist, relative to the Lua folder
-    clips = {}, pendingClips = {}, played = {},
+    clips = {}, clipPaths = {}, clipState = {}, pendingClips = {}, played = {},
     buffs = {},                        -- { name, remaining, icon, debuff, tooltip } per effect
     -- ShroudGetSocialSummary(); H.setGuild / H.setMotd change it
     social = { inGuild = false, guildName = "", guildRole = "", guildMotd = "",
@@ -613,13 +613,43 @@ local function install_api()
     for i, c in ipairs(S.clips) do out[i] = c end
     return out
   end
+  -- Sound handles (API 34; H.S.noSoundHandles: an older client). The id is the clip's slot, taken at the call and
+  -- listed as "" until loaded; the same path (any case, \ or /) loading or loaded gives the same id; a failed load's
+  -- slot stays empty. S.clipPaths[id] = its path; H.S.failSounds[path] = true: the file is found but won't decode.
+  if not S.noSoundHandles then
+    local function samePath(a, b) return a:gsub("\\", "/"):lower() == b:gsub("\\", "/"):lower() end
+    ShroudLoadSoundHandle = function(path, _)
+      if type(path) ~= "string" or path == "" or path:find("%.%.") or path:find("^/") or path:find("^%a:") then
+        return nil, "badPath"
+      end
+      if not S.files[path] then return nil, "missing" end
+      for id, p in pairs(S.clipPaths) do
+        if samePath(p, path) and S.clipState[id] ~= "failed" then return id end
+      end
+      local id = #S.clips + 1
+      S.clips[id], S.clipPaths[id], S.clipState[id] = "", path, "loading"
+      S.pendingClips[#S.pendingClips + 1] = { id = id, name = path:match("([^/\\]+)%.%w+$"), due = ShroudTime + 0.5,
+        fail = S.failSounds and S.failSounds[path] }
+      return id
+    end
+    ShroudGetSoundState = function(id)
+      return type(id) == "number" and S.clipState[id] or "none"
+    end
+    ShroudListSoundPaths = function()
+      local out = {}
+      for i = 1, #S.clips do out[i] = S.clipPaths[i] or "" end
+      return out
+    end
+  else
+    ShroudLoadSoundHandle, ShroudGetSoundState, ShroudListSoundPaths = nil, nil, nil
+  end
   ShroudListSoundReset = function()
     local had = #S.clips > 0
-    S.clips = {}
+    S.clips, S.clipPaths, S.clipState = {}, {}, {}
     return had
   end
   ShroudPlaySoundChannel = function(id, volume)
-    if type(id) ~= "number" or id < 1 or id > #S.clips or S.channelsBusy then return -1 end
+    if type(id) ~= "number" or id < 1 or id > #S.clips or S.clips[id] == "" or S.channelsBusy then return -1 end
     S.played[#S.played + 1] = { name = S.clips[id], volume = volume }
     S.channel = { name = S.clips[id], untilT = ShroudTime + (S.undecodable and 0 or 1) }
     return 1
@@ -1247,7 +1277,15 @@ function H.advance(seconds, step)
     -- async sound loads finish
     local still = {}
     for _, c in ipairs(S.pendingClips) do
-      if ShroudTime >= c.due then S.clips[#S.clips + 1] = c.name else still[#still + 1] = c end
+      if ShroudTime < c.due then
+        still[#still + 1] = c
+      elseif c.id then                             -- a handle's slot (API 34)
+        if S.clipState[c.id] == "loading" then
+          if c.fail then S.clipState[c.id] = "failed" else S.clips[c.id], S.clipState[c.id] = c.name, "ready" end
+        end
+      else
+        S.clips[#S.clips + 1] = c.name
+      end
     end
     S.pendingClips = still
     -- buffs count down; expired ones drop off and the change callback fires

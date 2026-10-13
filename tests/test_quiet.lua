@@ -4,8 +4,9 @@ local H = require("harness")
 
 return function(t)
   local B = function() return Toolbox.BuffBar end
-  local function bootWithSounds()
+  local function bootWithSounds(older)
     H.boot()
+    H.S.noSoundHandles = older                   -- a client before API 34: clips told apart by name only
     H.S.files["toolbox_buff_expiring.ogg"] = true
     H.S.files["toolbox_debuff_landed.ogg"] = true
     H.reload()
@@ -351,7 +352,7 @@ return function(t)
 
   -- Review 25: the game lists clips by base name only, so two files of one name would play one recording.
   t.test("effect sounds: a second file with a name another sound has is refused: rename it", function()
-    bootWithSounds()
+    bootWithSounds(true)
     H.S.files["a/heal.ogg"] = true
     H.S.files["b/heal.ogg"] = true
     H.S.files["mine/mail.ogg"] = true
@@ -368,7 +369,7 @@ return function(t)
 
   -- Review 26: a file that never loaded holds no clip name, and a clash already saved is told, not silent.
   t.test("effect sounds: a missing file's name is free for its corrected path; a saved clash is told once", function()
-    bootWithSounds()
+    bootWithSounds(true)
     H.S.files["right/heal.ogg"] = true
     t.ok(B().SetEffectSound("Heal", "wrong/heal.ogg", "get"))
     H.advance(1)
@@ -395,6 +396,46 @@ return function(t)
     end
     t.eq(told, 1, table.concat(H.logs(), "\n"))
     t.ok(B().EffectSound("One", "get") and B().EffectSound("Two", "get"), "both kept: the player renames one")
+  end)
+
+  -- API 34: a handle per file, so files of one name each play their own recording.
+  t.test("effect sounds with sound handles: two files of one name each play their own", function()
+    bootWithSounds()
+    H.S.files["a/heal.ogg"], H.S.files["b/heal.ogg"], H.S.files["mine/mail.ogg"] = true, true, true
+    t.ok(B().SetEffectSound("One", "a/heal.ogg", "get"))
+    t.ok(B().SetEffectSound("Two", "b/heal.ogg", "get"), "no clash: the game tells them apart")
+    t.ok(B().SetEffectSound("Three", "mine/mail.ogg", "get"), "nor with Toolbox's own mail sound")
+    H.advance(1)
+    H.S.played = {}
+    t.ok(Toolbox.Sounds.PlayFile("b/heal.ogg", "buff_expiring"))
+    local id = nil
+    for i, p in ipairs(H.S.clipPaths) do if p == "b/heal.ogg" then id = i end end
+    t.ok(id, "b/heal.ogg has its own slot")
+    t.eq(H.S.channel.name, H.S.clips[id])
+    t.ok(Toolbox.Sounds.PlayFile("a/heal.ogg", "buff_expiring"))
+    t.eq(#H.S.played, 2)
+  end)
+
+  t.test("sound handles: a missing file is refused at once; one that fails to load gives way; a cleared list reloads",
+    function()
+    bootWithSounds()
+    t.ok(B().SetEffectSound("Heal", "gone/heal.ogg", "get"))
+    t.eq(Toolbox.Sounds.FileStatus("gone/heal.ogg"), "missing", "the game said so at the call")
+    t.ok(H.logged("Couldn't load your sound 'gone/heal.ogg'"), H.lastLog())
+    H.S.files["bad/heal.ogg"] = true
+    H.S.failSounds = { ["bad/heal.ogg"] = true }
+    t.ok(B().SetEffectSound("Heal", "bad/heal.ogg", "get"))
+    t.eq(Toolbox.Sounds.FileStatus("bad/heal.ogg"), "loading")
+    H.advance(1)
+    t.eq(Toolbox.Sounds.FileStatus("bad/heal.ogg"), "missing", "failed: the usual sound plays")
+    H.S.failSounds = nil
+    t.eq(Toolbox.Sounds.Status("buff_expiring"), "ready")
+    ShroudListSoundReset()                       -- another add-on cleared the list
+    local ok, info = Toolbox.Sounds.Play("buff_expiring")
+    t.no(ok)
+    t.eq(info.reason, "cleared")
+    H.advance(1)
+    t.ok(Toolbox.Sounds.Play("buff_expiring"), "loaded again")
   end)
 
   -- Review 27: the session's file limit counts files holding a clip (or loading), not ones that were never found.

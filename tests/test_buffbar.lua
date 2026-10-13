@@ -951,6 +951,7 @@ return function(t)
 
   t.test("sounds: debug lists every path tried and what the game answered", function()
     H.boot()
+    H.S.noSoundHandles = true                         -- before API 34: true / false for each path
     H.S.files["toolbox_buff_expiring.wav"] = true     -- only a replacement, and only as .wav
     H.reload()
     H.advance(2 * Toolbox.Sounds.LOAD_TIMEOUT + 2)
@@ -961,6 +962,20 @@ return function(t)
     H.chat("/tbx sounds debug")
     t.ok(H.logged("^    tried toolbox_buff_expiring%.ogg %-> false$"), "paths the game refused")
     t.ok(H.logged("^    tried toolbox_buff_expiring%.wav %-> true$"), "and the one it accepted")
+  end)
+
+  t.test("sounds with handles (API 34): debug shows the game's reason or the id for each path", function()
+    H.boot()
+    H.S.files["toolbox_buff_expiring.wav"] = true
+    H.reload()
+    H.advance(1)
+    local status, path = Toolbox.Sounds.Status("buff_expiring")
+    t.eq(status, "ready")
+    t.eq(path, "toolbox_buff_expiring.wav", "the missing .ogg was refused at once: no wait")
+    H.clearLogs()
+    H.chat("/tbx sounds debug")
+    t.ok(H.logged("^    tried toolbox_buff_expiring%.ogg %-> missing$"), table.concat(H.logs(), "\n"))
+    t.ok(H.logged("^    tried toolbox_buff_expiring%.wav %-> id %d+$"))
   end)
 
   t.test("sounds: a replacement beside the package wins over the default in it", function()

@@ -12,12 +12,17 @@
 -- LOAD_TIMEOUT seconds the next candidate is tried. Clip ids are positions in that list
 -- (and ShroudListSoundReset clears it), so the clip's name is remembered and looked up
 -- just before playing.
+--
+-- From API 34 (our request 22) ShroudLoadSoundHandle gives the clip's id at the call, refuses a missing file at once,
+-- and tells two files of one name apart; ShroudGetSoundState says when it is ready or failed. Used when present
+-- (S.Handles()); the name matching above stays for older clients.
 
 local T = Toolbox
 local S = {}
 Toolbox.Sounds = S
 
 S.LOAD_TIMEOUT = 2          -- seconds to wait for a candidate to appear (local files load fast)
+S.HANDLE_TIMEOUT = 20       -- with a handle (API 34) the game says when a load failed: this is only a backstop
 S.VOLUME_DEFAULT = 70
 -- Volumes, format 2 (owner, 2026-10-07: some found 100% too quiet; and a volume per sound). The shipped sounds
 -- were made twice as loud (art/alerts.py: +7.5 dB into a limiter), so a saved volume from before is halved once
@@ -51,6 +56,10 @@ local function listSounds()
   return out
 end
 
+function S.Handles()
+  return type(ShroudLoadSoundHandle) == "function" and type(ShroudGetSoundState) == "function"
+end
+
 local function audioType(path)
   local ext = (path:match("%.(%w+)$") or ""):lower()
   if ext == "wav" then return AudioType.WAV end
@@ -81,21 +90,33 @@ local function candidates(def)
   return list
 end
 
+-- Asks the game to load one candidate; true when it took the request. A handle (API 34) is kept in st.id.
+local function startOne(st, path)
+  st.log = st.log or {}
+  st.id = nil
+  if S.Handles() then
+    local ok, id, reason = pcall(ShroudLoadSoundHandle, path, audioType(path))
+    st.log[#st.log + 1] = path .. " -> " .. (ok and (type(id) == "number" and ("id " .. id) or tostring(reason))
+      or ("error " .. tostring(id)))
+    if ok and type(id) == "number" then st.id = id end
+    return st.id ~= nil
+  end
+  st.before = #listSounds()
+  local ok, accepted = pcall(ShroudLoadSound, path, audioType(path))
+  -- What the game said about each path (docs: true = "the path exists inside the addon folder").
+  st.log[#st.log + 1] = path .. " -> " .. (ok and tostring(accepted) or ("error " .. tostring(accepted)))
+  return ok and accepted == true
+end
+
 -- Starts loading candidate number st.at (or gives up).
 local function tryNext(st)
   while st.at <= #st.candidates do
-    local path = st.candidates[st.at]
-    st.before = #listSounds()
-    local ok, accepted = pcall(ShroudLoadSound, path, audioType(path))
-    -- What the game said about each path (docs: true = "the path exists inside the addon folder").
-    st.log = st.log or {}
-    st.log[#st.log + 1] = path .. " -> " .. (ok and tostring(accepted) or ("error " .. tostring(accepted)))
-    if ok and accepted then
+    if startOne(st, st.candidates[st.at]) then
       st.since = T.Now()
       st.status = "loading"
       return
     end
-    st.at = st.at + 1                    -- refused outright (e.g. escapes the Lua folder)
+    st.at = st.at + 1                    -- refused outright (missing, or escapes the Lua folder)
   end
   st.status, st.path, st.clip = "missing", nil, nil
   local def = st.def
@@ -115,7 +136,17 @@ end
 -- Checks pending loads (from Toolbox.Tick, once a second).
 local function poll(def)
   local st = state[def.key]
-  if st and st.status == "loading" then
+  if st and st.status == "loading" and st.id then           -- a handle (API 34): the game says
+    local ok, now = pcall(ShroudGetSoundState, st.id)
+    if ok and now == "ready" then
+      st.status, st.path = "ready", st.candidates[st.at]
+      st.clip = listSounds()[st.id]
+    elseif not ok or now == "failed" or now == "none" or T.Now() - st.since >= S.HANDLE_TIMEOUT then
+      st.log[#st.log + 1] = "    id " .. st.id .. ": " .. tostring(now)
+      st.at = st.at + 1
+      tryNext(st)
+    end
+  elseif st and st.status == "loading" then
     local list = listSounds()
     local stem = def.file:gsub("%.%w+$", "")
     -- `= nil` matters: in game, a bare `local found` here seemed to keep a table from an earlier
@@ -209,6 +240,7 @@ local function clipName(file) return (file:match("([^/]+)$") or file):gsub("%.%w
 -- two would play one recording (review 25). Returns the other's path or file, or nil. A file that couldn't be
 -- loaded ("missing") has no clip and holds no name: a corrected path for it is fine (review 26).
 local function sameName(path)
+  if S.Handles() then return nil end      -- API 34: a handle tells them apart
   local name = clipName(path)
   for other, def in pairs(files) do
     local st = state[def.key]
@@ -331,14 +363,20 @@ function S.Play(key, levelKey)
   if prefs.volume <= 0 then return false, { reason = "muted" } end
   local volume = S.EffectiveVolume(key, levelKey)
   if volume <= 0 then return false, { reason = "soundMuted" } end
-  local index, name = findClip(st, defFor(key))
+  local index, name = nil, nil
+  if st.id then                           -- a handle (API 34): its id, while the game still has it
+    local ok, now = pcall(ShroudGetSoundState, st.id)
+    if ok and now == "ready" then index, name = st.id, listSounds()[st.id] end
+  else
+    index, name = findClip(st, defFor(key))
+  end
   if not index then
     -- Not in the game's list any more (ShroudListSoundReset, from any add-on, clears it):
     -- load it again for next time.
     startLoading(defFor(key))
     return false, { reason = "cleared" }
   end
-  if type(name) == "string" then st.clip = name end
+  if type(name) == "string" and name ~= "" then st.clip = name end
   local ok, channel = pcall(ShroudPlaySoundChannel, index, volume)
   local info = { clip = name, index = index, volume = volume }
   if ok then info.channel = channel end

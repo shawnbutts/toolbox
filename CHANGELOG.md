@@ -31,7 +31,9 @@ ones included).
   saying its name, say, and you'll know which one it is. Put the file in your Lua folder (Lua/toolbox_sounds is a
   good place; not the toolbox folder, which updates replace), then in Settings, Buffs, pick the effect, choose
   when, paste the file's path and press Set (the Sounds page has a button to get there; or /toolbox buffs sound
-  get Blessing of Atos = toolbox_sounds/atos.ogg). Effects without one keep the usual sound.
+  get Blessing of Atos = toolbox_sounds/atos.ogg). Effects without one keep the usual sound. On a game client
+  with Lua API 34 two files of the same name each play their own sound (older clients refuse the second: rename
+  it).
 - **A sound for mail:** new mail and mail about to expire ring a doorbell of their own when their sound is on, so
   you can tell mail from other notifications (the other sounds are still there to pick). Replace it with
   toolbox_mail.ogg in your Lua folder or any file on the Sounds page.

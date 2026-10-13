@@ -171,7 +171,9 @@ into one if a new file is ever needed).
   `P.OtherLanguage` (`ShroudGetClientInfo().languageCode` not "en*", read once) adds `P.LanguageNote` where
   prices are missing (header, row tooltips, settings, switching on, the test).
 - `sounds.lua`: `Toolbox.Sounds`, six sounds (`S.DEFS`: buff_expiring, debuff_landed, and notify, ping, tap,
-  mail for notifications: each source picks one, `N.SOUNDS` / `soundKey`; mail and expiring default to "mail", the
+  mail for notifications: each source picks one; from API 34 loaded by handle, `S.Handles()`: the id at the call,
+  `ShroudGetSoundState` for ready / failed, no name clash, a missing file refused at once; the name matching stays for
+  older clients, `H.S.noSoundHandles`, and `H.S.failSounds[path]` fails a load; `N.SOUNDS` / `soundKey`; mail and expiring default to "mail", the
   "Doorbell", and a saved "notify" with the sound off reads as the source's default), plus skill_up and skill_down, which
   skills.lua appends. Candidates in
   order: the custom path, `Lua/toolbox_<file>` (.ogg, .wav), the shipped `toolbox/<file>`. A load counts once
