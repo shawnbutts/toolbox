@@ -154,9 +154,10 @@ return function(t)
     t.eq(#H.logs(), 0, "nothing said")
     H.screenChanged{ uiWidth = 1280, uiHeight = 720 }
     -- By its size: the larger of what the game laid out and what Toolbox gave the strip.
-    t.eq(strip().x .. "," .. strip().y, "1100," .. (720 - math.max(60, strip().height)), "pulled in by its size")
+    local x = 1280 - math.max(180, strip().width)
+    t.eq(strip().x .. "," .. strip().y, x .. "," .. (720 - math.max(60, strip().height)), "pulled in by its size")
     t.ok(H.logged("The game window changed: 1 strip moved back on screen."), H.lastLog())
-    t.eq(H.saved("location").x, 1100, "kept")
+    t.eq(H.saved("location").x, x, "kept")
     H.S.noScreen = true
     H.reload()
     t.eq(Toolbox.Hud.FitScreen(), 0, "an older client: nothing to read")

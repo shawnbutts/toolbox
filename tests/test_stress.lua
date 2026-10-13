@@ -103,12 +103,12 @@ return function(t)
     for i = 1, 250 do
       prices[string.format("loot item %03d", i)] = { avg = i * 3, sold = i, last = "2026-09-20", day = DAY }
     end
-    local overlays = {}                -- every overlay full, the shown one's places all in this scene; as saved
-    for o = 1, 10 do                   -- (negative numbers as "%N" text)
+    local overlays = {}                -- every overlay full, the shown one's 40 in this scene (the most a scene) and
+    for o = 1, 10 do                   -- 60 elsewhere; as saved (negative numbers as "%N" text)
       local places = {}
       for i = 1, 100 do
         places[i] = { id = i, name = string.format("A long place name %03d", i),
-                      raw = o == 1 and "Novia" or "Elsewhere", scene = "A scene with a long name",
+                      raw = (o == 1 and i <= 40) and "Novia" or "Elsewhere", scene = "A scene with a long name",
                       x = "%N" .. (-1000.5 - i), y = 12.25, z = 2000 + i }
       end
       overlays[o] = { id = o, name = "Overlay number " .. o, icon = "star", color = "Blue", nextPlace = 101,
@@ -317,7 +317,10 @@ return function(t)
     for _, topic in ipairs(pick.choices) do H.call(function() pick.onChange(pick, topic) end) end
     H.chat("/tbx version")
     H.advance(5)
-    noErrors("settings, the guide and the version window")
+    H.chat("/tbx overlay window")                  -- the 8th window's third user: a full overlay's places here
+    H.change("toolbox_config", "category", "Map & location")
+    H.advance(2)
+    noErrors("settings, the guide, the version and Map overlays windows")
     if os.getenv("STRESS_PRINT") then
       print(string.format("  text: %d characters with everything open, %d at the peak (limit %d); %d elements",
         base, H.S.textPeak, LIMITS.text, H.S.live))

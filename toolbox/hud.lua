@@ -796,9 +796,39 @@ function LOC.Wanted() return locPrefs.show == true end
 function LOC.IsShown() return locPrefs.show == true end
 function LOC.Unbuilt() locEl, locLast = {}, {} end
 
+-- The pin beside the scene's name (owner, 2026-10-13): opens the Map overlays window. The menu's map-pin picture.
+LOC.PIN_GAP = 4
+local locTex = -1
+local function pinSize() return T.Window.LineHeight() end
+local function pinShown() return locPrefs.pin ~= false end
+
 function LOC.ContentSize()
   local lines = 2 + (locPrefs.facing and 1 or 0) + (locWater.shown and 1 or 0)
-  return locWidth() + 2 * Hud.STRIP_PAD, lines * T.Window.LineHeight() + 2 * Hud.STRIP_PAD
+  local pin = pinShown() and (pinSize() + LOC.PIN_GAP) or 0
+  return locWidth() + pin + 2 * Hud.STRIP_PAD, lines * T.Window.LineHeight() + 2 * Hud.STRIP_PAD
+end
+
+local function pinElement()
+  local LN = T.Launcher
+  local frame, count = 1, #LN.BUTTONS
+  for i, b in ipairs(LN.BUTTONS) do
+    if b.key == "location" then frame = i end
+  end
+  if locTex < 0 then
+    local ok, tex = pcall(ShroudLoadTexture, LN.PATH)
+    if ok and type(tex) == "number" and tex >= 0 then locTex = tex end
+  end
+  local s = pinSize()
+  local tip = "Map overlays: mark where you stand, pick the overlay shown (/" .. T.commands[1] .. " overlay window)"
+  local click = function() T.Overlays.ToggleWindow() end
+  local style = { marginLeft = LOC.PIN_GAP, marginRight = 0, marginTop = 0, marginBottom = 0 }
+  if locTex >= 0 then
+    return UI.Image{ id = "loc_pin", width = s, height = s, texture = locTex, uv = { (frame - 1) / count, 0,
+      1 / count, 1 }, tint = LN.COLOR, tooltip = tip, onClick = click, style = style }
+  end
+  style.width, style.height, style.minHeight, style.paddingLeft, style.paddingRight = s, s, s, 0, 0
+  style.fontSize = math.max(9, math.floor(s * 0.6))
+  return UI.Button{ id = "loc_pin", text = "+", tooltip = tip, onClick = click, style = style }
 end
 
 function LOC.BuildContent()
@@ -811,10 +841,15 @@ function LOC.BuildContent()
       style = locStyle() },
     water = UI.Label{ id = "loc_water", text = "", class = "text", visible = false, style = locStyle() },
   }
+  local top = built.scene
+  if pinShown() then
+    top = UI.Row{ style = { alignItems = "center", marginLeft = 0, marginRight = 0 },
+      children = { built.scene, pinElement() } }
+  end
   built.column = UI.Column{ id = "loc_strip", class = "inset", tooltip = "",
     style = { paddingLeft = pad, paddingRight = pad, paddingTop = pad, paddingBottom = pad,
               marginLeft = 0, marginRight = 0, marginTop = 0, marginBottom = 0 },
-    children = { built.scene, built.coords, built.facing, built.water } }
+    children = { top, built.coords, built.facing, built.water } }
   locEl, locLast = built, {}
   locWater.shown, locWater.scene = false, nil
   return built.column
@@ -905,6 +940,14 @@ function LOC.SetFacing(on)
   end
 end
 
+-- The pin opening the Map overlays window (a rebuild: an element more or less).
+function LOC.GetPin() return locPrefs.pin ~= false end
+function LOC.SetPin(on)
+  locPrefs.pin = on == true
+  locSave()
+  if locEl.column then Hud.Rebuild("location") end
+end
+
 -- Follows the text size and line spacing settings (Toolbox.Window.ApplyText).
 function LOC.ApplyText()
   if not locEl.column then return end
@@ -927,11 +970,12 @@ LOC.GetPosition, LOC.MoveTo, LOC.Nudge, LOC.ResetPosition = locMover.Get, locMov
 -- Re-runnable (another character's settings): before Toolbox.Hud.Init builds the strips.
 function LOC.Init()
   local saved = T.ReadSaved("location")
-  locPrefs = { show = false, facing = true, water = true }
+  locPrefs = { show = false, facing = true, water = true, pin = true }
   if type(saved) == "table" then
     locPrefs.show = saved.show == true
     locPrefs.facing = saved.facing ~= false
     locPrefs.water = saved.water ~= false
+    locPrefs.pin = saved.pin ~= false
     if type(saved.x) == "number" and type(saved.y) == "number" then locPrefs.x, locPrefs.y = saved.x, saved.y end
   end
   locEl, locLast = {}, {}
@@ -946,7 +990,7 @@ T.Backup.KEYS[#T.Backup.KEYS + 1] = "location"
 
 -- /toolbox location
 T.AddCommand("location", "the location strip: your scene, position, facing and water nearby (on|off; facing on|off;"
-  .. " water on|off; move [x y])",
+  .. " water on|off; pin on|off: its Map overlays button; move [x y])",
   function(rest)
     local word, args = T.ParseArgs(rest)
     word = word:lower()
@@ -958,11 +1002,13 @@ T.AddCommand("location", "the location strip: your scene, position, facing and w
       LOC.SetFacing(args:lower() == "on")
     elseif word == "water" and (args:lower() == "on" or args:lower() == "off") then
       LOC.SetWater(args:lower() == "on")
+    elseif word == "pin" and (args:lower() == "on" or args:lower() == "off") then
+      LOC.SetPin(args:lower() == "on")
     elseif word == "move" then
       T.MoveCommand(LOC, "location", "The location strip", args)
       return
     else
-      T.Print("Use /" .. T.commands[1] .. " location [on|off], facing on|off, water on|off or move [x y].")
+      T.Print("Use /" .. T.commands[1] .. " location [on|off], facing on|off, water on|off, pin on|off or move [x y].")
       return
     end
     T.Print("Location strip: " .. (locPrefs.show and "on" or "off") .. "; facing "
@@ -1091,6 +1137,7 @@ local function ovSave()
   ovMarks.retryAt = -math.huge
   OV.Sync()
   T.Config.Sync()
+  OV.SyncWindow()
   return ok
 end
 
@@ -1363,8 +1410,8 @@ end
 
 -- /toolbox overlay
 T.AddCommand("overlay", "map overlays, sets of places you mark, one shown at a time: <name> shows one; off; new"
-  .. " <name>; rename <old> = <new>; delete <name>; places; icon <shape>, color <name> (your next marks') (alone: lists"
-  .. " them)",
+  .. " <name>; rename <old> = <new>; delete <name>; places; icon <shape>, color <name> (your next marks'); window"
+  .. " (the Map overlays window) (alone: lists them)",
   function(rest)
     local word, args = T.ParseArgs(rest)
     local c = "/" .. T.commands[1] .. " "
@@ -1376,7 +1423,9 @@ T.AddCommand("overlay", "map overlays, sets of places you mark, one shown at a t
       return
     end
     local ov = OV.Shown()
-    if word == "off" then
+    if word == "window" then
+      OV.ToggleWindow()
+    elseif word == "off" then
       OV.Show(nil)
       T.Print("No overlay shown.")
     elseif word == "new" then
@@ -1469,6 +1518,183 @@ T.AddCommand("mark", "mark where you stand in the shown map overlay: mark [name]
     T.Print("Marked " .. p.name .. " in " .. ov.name .. ": " .. p.scene .. " " .. T.DailyDetail.LocText(p) .. "."
       .. (OV.HasMarkers() and "" or " (Your game client can't show it on the map yet; mark beacon finds it.)"))
   end)
+
+-- The Marks window (owner, 2026-10-13: "i don't like having the whole settings page up while making marks"): the
+-- overlay shown, the next marks' look, Mark here, and THIS scene's places (Beacon, Set look, Remove); making,
+-- renaming and deleting overlays are on the settings page (More...); another scene's places, in chat (overlay
+-- places, mark remove <name>). It shares the 8th window with Docs and the
+-- version window (T.TakeSharedWindow), built when opened; opened from the location strip's pin, /toolbox overlay
+-- window, or the settings page. Only this scene's places: the list's text stays small (the add-on's text budget).
+local MW_ID = "toolbox_marks"
+local mw, mwEl, mwPicks, mwPlaces = nil, {}, {}, {}
+local mwKey = nil                     -- what the lists were filled from (OV.version and the scene)
+OV.MW_NONE = "None (no overlay shown)"
+OV.MW_NO_PLACES = "No places here yet"
+
+local function mwMsg(text) T.SetText(mwEl.msg, text or "") end
+
+local function mwDrop()
+  if mw then pcall(function() mw:Destroy() end) end
+  mw, mwEl, mwKey = nil, {}, nil
+end
+
+-- Fills the window from the overlays, when they or the scene changed (from every change and OV.Tick).
+function OV.SyncWindow()
+  if not (mw and mwEl.pick) then return end
+  local okRaw, raw = pcall(ShroudGetCurrentSceneNameRaw)
+  raw = okRaw and raw or ""
+  local key = OV.version .. ">" .. tostring(raw)
+  if key == mwKey then return end
+  mwKey = key
+  local shown = OV.Shown()
+  local names = { OV.MW_NONE }
+  mwPicks = {}
+  for _, ov in ipairs(OV.List()) do
+    names[#names + 1] = ov.name
+    mwPicks[ov.name] = ov
+  end
+  local places = {}
+  mwPlaces = {}
+  for _, p in ipairs(OV.SortedPlaces(shown)) do
+    if p.raw == raw then
+      places[#places + 1] = p.name
+      mwPlaces[p.name] = p
+    end
+  end
+  local any = #places > 0
+  if not any then places[1] = OV.MW_NO_PLACES end
+  pcall(function()
+    mwEl.pick:SetChoices(names)
+    mwEl.pick:SetValue(shown and shown.name or OV.MW_NONE)
+    local keep = mwEl.places:GetValue()
+    mwEl.places:SetChoices(places)
+    mwEl.places:SetValue(mwPlaces[keep] and keep or places[1])
+    mwEl.icon:SetValue(shown and shown.icon or OV.ICONS[1])
+    mwEl.color:SetValue(shown and shown.color or OV.COLORS[1][1])
+    for _, k in ipairs({ "icon", "color" }) do mwEl[k]:SetEnabled(shown ~= nil) end
+    for _, k in ipairs({ "beacon", "look", "remove" }) do mwEl[k]:SetEnabled(any) end
+  end)
+end
+
+local function mwPicked() return mwEl.places and mwPlaces[mwEl.places:GetValue()] end
+
+local function mwMark(text)
+  local field = mwEl.name
+  local p, ov = OV.Mark(text or (field and field:GetText()) or "")
+  if p and field then field:SetText("") end
+  mwMsg(p and ("Marked " .. p.name .. " in " .. ov.name .. ".") or ("Couldn't mark it: " .. tostring(ov) .. "."))
+end
+
+local function mwBuild()
+  local colors = {}
+  for i, c in ipairs(OV.COLORS) do colors[i] = c[1] end
+  local function row(children, top)
+    return UI.Row{ style = { alignItems = "center", marginTop = top or 4 }, children = children }
+  end
+  mwEl = {
+    pick = UI.Dropdown{ id = "mw_pick", choices = { OV.MW_NONE }, value = OV.MW_NONE,
+      style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The overlay shown on your map (only one at a time)",
+      onChange = function(_, name)
+        OV.Show(mwPicks[name])
+        mwMsg("")
+      end },
+    icon = UI.Dropdown{ id = "mw_icon", choices = OV.ICONS, value = OV.ICONS[1],
+      tooltip = "The shape of the marks you make next (marks made before keep theirs: Set look changes one)",
+      onChange = function(_, v)
+        local ov = OV.Shown()
+        if ov then OV.SetIcon(ov, v) end
+      end },
+    color = UI.Dropdown{ id = "mw_color", choices = colors, value = colors[1], style = { marginLeft = 4 },
+      tooltip = "The color of the marks you make next (Gold is the Loot Tracker runs')",
+      onChange = function(_, v)
+        local ov = OV.Shown()
+        if ov then OV.SetColor(ov, v) end
+      end },
+    name = UI.TextField{ id = "mw_name", text = "", placeholder = "Name this spot: Iron vein, Bank...",
+      maxLength = OV.NAME_MAX, style = { flexGrow = 1, flexShrink = 1 }, tooltip = "Empty: Place 1, Place 2...",
+      onSubmit = function(_, text) mwMark(text) end },
+    places = UI.Dropdown{ id = "mw_places", choices = { OV.MW_NO_PLACES }, value = OV.MW_NO_PLACES,
+      style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The shown overlay's places in this scene",
+      onChange = function() mwMsg("") end },
+    beacon = UI.Button{ id = "mw_beacon", text = "Beacon", style = { marginLeft = 4 },
+      tooltip = "Put the game's beacon on this place, on your compass and map (it replaces any beacon you set)",
+      onClick = function()
+        local p = mwPicked()
+        if p then mwMsg(select(2, OV.Beacon(p))) end
+      end },
+    look = UI.Button{ id = "mw_look", text = "Set look", style = { marginLeft = 2 },
+      tooltip = "Give this place the shape and color above",
+      onClick = function()
+        local p, ov = mwPicked(), OV.Shown()
+        if not (p and ov) then return end
+        OV.SetPlaceLook(ov, p)
+        mwMsg(p.name .. " is now a " .. p.color:lower() .. " " .. p.icon .. ".")
+      end },
+    remove = UI.Button{ id = "mw_remove", text = "Remove", style = { marginLeft = 2 },
+      tooltip = "Take this place out of the overlay",
+      onClick = function()
+        local p, ov = mwPicked(), OV.Shown()
+        if not (p and ov) then return end
+        OV.RemovePlace(ov, p)
+        mwMsg("Removed " .. p.name .. ".")
+      end },
+    msg = UI.Label{ id = "mw_msg", text = "", class = "dim", style = { whiteSpace = "wrap", flexGrow = 1,
+      flexShrink = 1 } },
+  }
+  mw = UI.Window{
+    id = MW_ID, title = "Map overlays", width = 360, height = 200, minWidth = 280, minHeight = 160,
+    x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y, escCloses = true,
+    style = { paddingLeft = 8, paddingRight = 8, paddingTop = 4, paddingBottom = 6 },
+    children = {
+      row({ UI.Label{ text = "Shown", class = "text", style = { marginRight = 6 } }, mwEl.pick }, 0),
+      row({ UI.Label{ text = "New marks", class = "text", style = { flexGrow = 1 } }, mwEl.icon, mwEl.color }),
+      row({ mwEl.name, UI.Button{ id = "mw_mark", text = "Mark here", style = { marginLeft = 4 },
+        tooltip = "Add where you stand to the shown overlay, in the shape and color above (or to a new overlay,"
+          .. " Places, if you have none)", onClick = function() mwMark() end } }),
+      row({ mwEl.places, mwEl.beacon, mwEl.look, mwEl.remove }),
+      row({ mwEl.msg, UI.Button{ id = "mw_more", text = "More...", style = { marginLeft = 4 },
+        tooltip = "Settings, Map & location: make, rename and delete overlays",
+        onClick = function() OV.OpenSettings() end } }),
+    },
+  }
+end
+
+-- The Map & location page at its overlay rows (New, Rename, Delete).
+function OV.OpenSettings()
+  T.Config.Open()
+  T.Config.GoToControl("ov_pick")
+end
+
+function OV.IsWindowShown() return mw ~= nil and mw:IsShown() end
+
+-- Opens the Marks window, or closes it when it's open. Returns true when it shows.
+function OV.ToggleWindow()
+  if OV.IsWindowShown() then
+    mw:Hide()
+    return false
+  end
+  if not mw then
+    T.TakeSharedWindow("marks", mwDrop)
+    local ok, err = pcall(mwBuild)
+    if not ok then
+      mwDrop()
+      T.Print("The Map overlays window can't open right now; try again in a moment. (" .. tostring(err) .. ")")
+      return false
+    end
+  end
+  if not mw:Show() then
+    T.Print("The Map overlays window can't reopen right now; try again in a few seconds.")
+    return false
+  end
+  mwKey = nil
+  OV.SyncWindow()
+  return true
+end
+
+-- Every tick (T.Tick): the window follows a scene change (its list is this scene's places).
+function OV.Tick()
+  if mw then OV.SyncWindow() end
+end
 
 -- ---------------------------------------------------------------------------
 -- The launcher (Toolbox.Launcher, LN; owner, 2026-10-10; "the menu" to players): a strip of buttons opening

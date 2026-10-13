@@ -116,6 +116,14 @@ end
 -- module reads it here (tools/build.py refuses ShroudGetPlayerName anywhere else).
 function T.PlayerName() return T.PlainName(ShroudGetPlayerName()) end
 
+-- The add-on's 8th window (8 per add-on; Toolbox keeps 7 others): Docs, the version window and the Marks window take
+-- turns. Taking it destroys the window that held it (its owner's `drop`); the taker builds its own.
+local sharedOwner, sharedDrop = nil, nil
+function T.TakeSharedWindow(name, drop)
+  if sharedOwner and sharedOwner ~= name and sharedDrop then pcall(sharedDrop) end
+  sharedOwner, sharedDrop = name, drop
+end
+
 -- ---------------------------------------------------------------------------
 -- UI updates: only when something changes
 -- ---------------------------------------------------------------------------
@@ -2305,6 +2313,7 @@ function T.Tick()
   T.DailyDetail.Track()
   T.DailyDetail.SyncMarkers()         -- Loot Tracker runs on the map (API 30), on a change only
   T.Overlays.Sync()                   -- the shown map overlay's places (API 30), on a change only
+  T.Overlays.Tick()                   -- the Map overlays window follows a scene change
   -- Store a changed session once a tick (in memory; copying up to an hour of
   -- samples per XP event would be wasteful), and write it to disk at most
   -- every flushSeconds. A reload re-reads the totals, so it loses no XP.

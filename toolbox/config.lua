@@ -886,6 +886,9 @@ function C.MapSection()
       tooltip = loc.HasWater() and "The nearest water you can fish in, within 30 m, and how far; the"
         .. " scene's kinds in the hover" or "Needs a newer game client (Lua API 32)",
       onChange = function(_, v) loc.SetWater(v) end },
+    UI.Toggle{ id = "loc_pin", text = "Map overlays button", value = loc.GetPin(),
+      tooltip = "A pin beside the scene's name: a click opens the Map overlays window (mark where you stand)",
+      onChange = function(_, v) loc.SetPin(v) end },
     C.PositionRows("location", loc, "Location strip"),
     C.OverlayRows(),
     heading("Loot Tracker runs"),
@@ -898,12 +901,13 @@ function C.MapSection()
   return UI.Column{ children = children }
 end
 
--- Map overlays (Toolbox.Overlays, hud.lua): pick the one shown, make / rename / delete, its look, mark here, and the
--- shown one's places (Beacon, Remove). The dropdowns are filled by syncOverlays (from Sync) when what they'd offer
--- changes. Delete acts on a second click within C.CONFIRM_SECONDS.
+-- Map overlays (Toolbox.Overlays, hud.lua): open the Map overlays window (marking: its look, Mark here, this scene's
+-- places), pick the one shown, make / rename / delete. Every scene's places were listed here too, until the window:
+-- with it open beside this page, that list (60 places elsewhere, their scene names) took the add-on past its text
+-- budget (2026-10-13). The dropdown is filled by syncOverlays (from Sync) when the overlays change. Delete acts on a
+-- second click within C.CONFIRM_SECONDS.
 C.OV_NONE = "None (no overlay shown)"
-C.OV_NO_PLACES = "No places yet"
-local ovPicks, placePicks = {}, {}
+local ovPicks = {}
 local ovArmed = nil                  -- { at, id }: Delete clicked once
 
 local function ovMsg(text) setText("ov_msg", text or "") end
@@ -917,42 +921,22 @@ local function syncOverlays()
     ovArmed = nil
     setText("ov_delete", "Delete")
   end
-  local okRaw, raw = pcall(ShroudGetCurrentSceneNameRaw)
-  local key = OV.version .. ">" .. tostring(okRaw and raw)    -- the lists change only with these (Sync runs often)
-  if key == C.ovKey then return end
-  C.ovKey = key
+  if OV.version == C.ovKey then return end        -- the list changes only with it (Sync runs often)
+  C.ovKey = OV.version
   local names = { C.OV_NONE }
   ovPicks = {}
   for _, ov in ipairs(OV.List()) do
     names[#names + 1] = ov.name
     ovPicks[ov.name] = ov
   end
-  local places = {}
-  placePicks = {}
-  for _, p in ipairs(OV.SortedPlaces(shown)) do
-    local label = OV.PlaceLabel(p, okRaw and raw)
-    places[#places + 1] = label
-    placePicks[label] = p
-  end
-  if #places == 0 then places[1] = C.OV_NO_PLACES end
-  local sig = table.concat(names, "|") .. "#" .. table.concat(places, "|")
+  local sig = table.concat(names, "|")
   if sig ~= C.ovSig then
     C.ovSig = sig
     pick:SetChoices(names)
-    local drop = el.ov_places
-    if drop then
-      local keep = drop:GetValue()
-      drop:SetChoices(places)
-      drop:SetValue(placePicks[keep] and keep or places[1])
-    end
   end
   pick:SetValue(shown and shown.name or C.OV_NONE)
-  setValue("ov_icon", shown and shown.icon or OV.ICONS[1])
-  setValue("ov_color", shown and shown.color or OV.COLORS[1][1])
-  for _, id in ipairs({ "ov_rename", "ov_icon", "ov_color", "ov_delete" }) do setEnabled(id, shown ~= nil) end
-  for _, id in ipairs({ "ov_beacon", "ov_look", "ov_unmark" }) do
-    setEnabled(id, #(shown and shown.places or {}) > 0)
-  end
+  setEnabled("ov_rename", shown ~= nil)
+  setEnabled("ov_delete", shown ~= nil)
 end
 
 local function fieldText(id)
@@ -968,7 +952,7 @@ end
 function C.NewOverlay(text)
   local made, why = T.Overlays.Create(text or fieldText("ov_name"))
   if made then clearField("ov_name") end
-  ovMsg(made and ("Made " .. made.name .. ", shown now. Mark here adds where you stand.")
+  ovMsg(made and ("Made " .. made.name .. ", shown now. The Map overlays window marks where you stand.")
     or ("Couldn't make it: " .. why .. "."))
   C.Sync()
 end
@@ -1000,46 +984,9 @@ function C.DeleteOverlay()
   C.Sync()
 end
 
-function C.MarkHere(text)
-  local p, ov = T.Overlays.Mark(text or fieldText("ov_place_name"))
-  if p then clearField("ov_place_name") end
-  ovMsg(p and ("Marked " .. p.name .. " in " .. ov.name .. ".") or ("Couldn't mark it: " .. tostring(ov) .. "."))
-  C.Sync()
-end
-
-local function pickedPlace()
-  local drop = el.ov_places
-  return drop and placePicks[drop:GetValue()]
-end
-
-function C.PlaceBeacon()
-  local p = pickedPlace()
-  if not p then return end
-  local _, msg = T.Overlays.Beacon(p)
-  ovMsg(msg)
-end
-
-function C.PlaceLook()
-  local p, ov = pickedPlace(), T.Overlays.Shown()
-  if not (p and ov) then return end
-  T.Overlays.SetPlaceLook(ov, p)
-  ovMsg(p.name .. " is now a " .. p.color:lower() .. " " .. p.icon .. ".")
-  C.Sync()
-end
-
-function C.RemovePlace()
-  local p, ov = pickedPlace(), T.Overlays.Shown()
-  if not (p and ov) then return end
-  T.Overlays.RemovePlace(ov, p)
-  ovMsg("Removed " .. p.name .. ".")
-  C.Sync()
-end
-
 function C.OverlayRows()
   local OV = T.Overlays
   C.ovSig, C.ovKey, ovArmed = nil, nil, nil   -- new controls: filled by the next Sync
-  local colors = {}
-  for i, c in ipairs(OV.COLORS) do colors[i] = c[1] end
   local maps = OV.HasMarkers()
   return UI.Column{ children = {
     heading("Map overlays"),
@@ -1047,6 +994,12 @@ function C.OverlayRows()
       .. " farming... Up to " .. OV.MAX .. ", " .. OV.SCENE_MAX .. " places each in a scene."
       .. (maps and "" or " Your game client can't show them on the map yet (Lua API 30): Beacon finds a place."),
       class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
+    UI.Row{ style = { marginTop = 4 }, children = {
+      UI.Button{ id = "ov_window", text = "Open the Map overlays window",
+        tooltip = "Mark where you stand, each mark's shape and color, and this scene's places (also the pin on"
+          .. " the location strip, or /"
+          .. T.commands[1] .. " overlay window)", onClick = function() T.Overlays.ToggleWindow() end },
+    } },
     UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
       UI.Label{ text = "Shown", class = "text", style = { flexGrow = 1 } },
       UI.Dropdown{ id = "ov_pick", choices = { C.OV_NONE }, value = C.OV_NONE,
@@ -1067,41 +1020,6 @@ function C.OverlayRows()
         tooltip = "Give the shown overlay this name", onClick = function() C.RenameOverlay() end },
       UI.Button{ id = "ov_delete", text = "Delete", style = { marginLeft = 2 },
         tooltip = "Delete the shown overlay and its places", onClick = function() C.DeleteOverlay() end },
-    } },
-    UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
-      UI.Label{ text = "New marks", class = "text", style = { flexGrow = 1 } },
-      UI.Dropdown{ id = "ov_icon", choices = OV.ICONS, value = OV.ICONS[1],
-        tooltip = "The shape of the marks you make next (marks made before keep theirs: Set look changes one)",
-        onChange = function(_, v)
-          local ov = T.Overlays.Shown()
-          if ov then T.Overlays.SetIcon(ov, v) end
-        end },
-      UI.Dropdown{ id = "ov_color", choices = colors, value = colors[1], style = { marginLeft = 4 },
-        tooltip = "The color of the marks you make next (Gold is the Loot Tracker runs')",
-        onChange = function(_, v)
-          local ov = T.Overlays.Shown()
-          if ov then T.Overlays.SetColor(ov, v) end
-        end },
-    } },
-    UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
-      UI.TextField{ id = "ov_place_name", text = "", placeholder = "Name this spot: Iron vein, Bank...",
-        maxLength = OV.NAME_MAX, style = { flexGrow = 1, flexShrink = 1 },
-        tooltip = "Empty: Place 1, Place 2...", onSubmit = function(_, text) C.MarkHere(text) end },
-      UI.Button{ id = "ov_mark", text = "Mark here", style = { marginLeft = 4 },
-        tooltip = "Add where you stand to the shown overlay, in the shape and color above (or to a new overlay,"
-          .. " Places, if you have none)", onClick = function() C.MarkHere() end },
-    } },
-    UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
-      UI.Dropdown{ id = "ov_places", choices = { C.OV_NO_PLACES }, value = C.OV_NO_PLACES,
-        style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The shown overlay's places, this scene's first",
-        onChange = function() ovMsg("") end },
-      UI.Button{ id = "ov_beacon", text = "Beacon", style = { marginLeft = 4 },
-        tooltip = "Put the game's beacon on this place, on your compass and map (it replaces any beacon you set;"
-          .. " in its scene)", onClick = function() C.PlaceBeacon() end },
-      UI.Button{ id = "ov_look", text = "Set look", style = { marginLeft = 2 },
-        tooltip = "Give this place the shape and color above", onClick = function() C.PlaceLook() end },
-      UI.Button{ id = "ov_unmark", text = "Remove", style = { marginLeft = 2 },
-        tooltip = "Take this place out of the overlay", onClick = function() C.RemovePlace() end },
     } },
     UI.Label{ id = "ov_msg", text = "", class = "dim", style = { whiteSpace = "wrap", marginTop = 4 } },
   } }
@@ -1627,8 +1545,8 @@ local function category(keyOrLabel)
 end
 
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
-local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "ov_pick", "ov_name", "ov_new", "ov_rename", "ov_icon",
-  "ov_color", "ov_delete", "ov_place_name", "ov_mark", "ov_places", "ov_beacon", "ov_look", "ov_unmark", "ov_msg",
+local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "ov_window", "ov_pick", "ov_name", "ov_new",
+  "ov_rename", "ov_delete", "ov_msg",
   "ln_show", "ln_vertical", "ln_combat", "ln_size", "ln_size_value", "ln_shade", "ln_shade_value",
   "ln_btn_xp", "ln_btn_xpdetail", "ln_btn_today", "ln_btn_loot", "ln_btn_combat", "ln_btn_notify",
   "ln_btn_location", "ln_btn_docs", "ln_btn_settings",
@@ -2438,6 +2356,7 @@ function C.Sync()
   setValue("loc_facing", T.Location.GetFacing())
   setEnabled("loc_facing", T.Location.GetShow())
   setValue("loc_water", T.Location.GetWater())
+  setValue("loc_pin", T.Location.GetPin())
   setEnabled("loc_water", T.Location.GetShow() and T.Location.HasWater())
   if T.SkillBar then T.SkillBar.ConfigSync(C.Helpers) end   -- skills.lua, when present
   C.SyncLive()
