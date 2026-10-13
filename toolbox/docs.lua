@@ -282,9 +282,13 @@ D.SECTIONS = {
       .. "login, after /lua reload, or when something changes, showing everything new at once. "
       .. "Nothing already seen shows again.",
     "Switch each one on or off in settings (Notifications), or with /toolbox notify <name> on|off "
-      .. "(names: motd, mail, expiring, ransoms, rewards, applications, durability, friends, guild). Friends and "
-      .. "guild members coming online arrive as chat lines by default (guild: off). /toolbox notify lists them; "
-      .. "/toolbox notify show shows everything current; /toolbox motd shows the guild message.",
+      .. "(names: motd, mail, expiring, ransoms, rewards, applications, durability, friends, guild, events). "
+      .. "Friends and guild members coming online arrive as chat lines by default (guild: off). /toolbox notify "
+      .. "lists them; /toolbox notify show shows everything current; /toolbox motd shows the guild message.",
+    "World events (a newer game client): from the game's calendar, a chat line 15 minutes before a Call to "
+      .. "Arms or an official event starts, or when one is on as you log in, and for featured community "
+      .. "events; each date once. /toolbox events says what's on now and next and whether the Cabalist "
+      .. "Stronghold is open; the game's /calendar has every date and your reminders.",
     "Each can show in the Notifications window, on the notification HUD or as a chat line, with or "
       .. "without a sound (the dropdown next to it in settings, e.g. HUD + sound; or /toolbox notify <name> "
       .. "via window|hud|chat and /toolbox notify <name> sound on|off, or leave out the name for all). The "
@@ -698,6 +702,120 @@ local function onlineCheck(which, title)
   end
 end
 
+-- World events (API 35, the game's calendar, read only): Calls to Arms and the game masters' official events starting
+-- within N.EVENT_LEAD minutes, or running when you log in, and featured community events; one notice for each date
+-- (its `occurrence`) once. Read at most every N.EVENT_READ s, or when ShroudOnCalendarChanged says it changed (the
+-- game fetches what isn't loaded: we only ask). Times are UTC seconds; T.Clock (os.time) gives now; without a clock
+-- only what's running now is told. The source's `seen` = { [occurrence] = its start as text } for dates still
+-- within the last N.EVENT_KEEP s (plain strings: the notification prefs keep only those).
+N.EVENT_LEAD = 15
+N.EVENT_READ = 30
+N.EVENT_KEEP = 86400
+local events = { rows = nil, now = nil, at = -math.huge, dirty = true }
+
+function N.HasCalendar()
+  return type(ShroudGetCalendarEvents) == "function" and type(ShroudGetCalendarSummary) == "function"
+end
+
+-- From ShroudOnCalendarChanged (core.lua): read again at the next check.
+function N.CalendarChanged()
+  events.dirty = true
+  N.Check()
+end
+
+-- Whether a date is one to tell: a Call to Arms or official event, or a featured community one; not over or off.
+function N.EventWanted(r)
+  local source, state = T.Field(r, "source"), T.Field(r, "state")
+  if state ~= "scheduled" and state ~= "running" then return false end
+  if T.Field(r, "callState") == "cancelled" then return false end
+  return source == "cta" or source == "official" or (source == "community" and T.Field(r, "featured") == true)
+end
+
+-- One line for a date: "Call to Arms: Defend the Keep, Today 20:00, in Ardoris" ("On now: ..." while running).
+function N.EventLine(r)
+  local title = T.Field(r, "title")
+  if type(title) ~= "string" or title == "" then title = "An event" end
+  if T.Field(r, "source") == "cta" then title = "Call to Arms: " .. title end
+  local when = T.Field(r, "startsText")
+  local running = T.Field(r, "state") == "running" or T.Field(r, "callState") == "active"
+  local line = running and ("On now: " .. title) or title
+  if not running and type(when) == "string" and when ~= "" then line = line .. ", " .. when end
+  local place = T.Field(r, "location")
+  if type(place) == "string" and place ~= "" then line = line .. ", in " .. place end
+  return line
+end
+
+-- The dates to look at now: those starting within the lead (with a clock) and those running.
+local function eventRows()
+  local now = T.Clock()
+  if events.rows and not events.dirty and T.Now() - events.at < N.EVENT_READ then return events.rows, events.now end
+  events.dirty, events.at, events.now = false, T.Now(), now
+  local rows = {}
+  local okS, summary = pcall(ShroudGetCalendarSummary)
+  for _, r in ipairs(T.List(okS and T.Field(summary, "happeningNow") or nil)) do rows[#rows + 1] = r end
+  if now then
+    local ok, list = pcall(ShroudGetCalendarEvents, now, now + N.EVENT_LEAD * 60)
+    for _, r in ipairs(ok and T.List(list) or {}) do rows[#rows + 1] = r end
+  end
+  events.rows = rows
+  return rows, now
+end
+
+function N.EventsCheck(seen)
+  if not N.HasCalendar() then return nil end
+  local rows, now = eventRows()
+  local before = type(seen) == "table" and seen or {}
+  local keep, lines, fresh, listed = {}, {}, false, {}
+  for _, r in ipairs(rows) do
+    local occ = T.Field(r, "occurrence")
+    if type(occ) == "string" then listed[occ] = true end
+  end
+  for occ, start in pairs(before) do               -- dates told lately or still listed, kept so they're told once
+    local n = tonumber(start)
+    if listed[occ] or now == nil or (n and now - n < N.EVENT_KEEP) then keep[occ] = start end
+  end
+  for _, r in ipairs(rows) do
+    local occ, start = T.Field(r, "occurrence"), T.Field(r, "startsUnix")
+    if type(occ) == "string" and occ ~= "" and type(start) == "number" and not keep[occ] and N.EventWanted(r) then
+      keep[occ] = tostring(math.floor(start))
+      lines[#lines + 1] = N.EventLine(r)
+      fresh = true
+    end
+  end
+  if not fresh then
+    for occ in pairs(before) do
+      if not keep[occ] then return nil, keep end    -- only pruned: remembered quietly
+    end
+    return nil
+  end
+  return { title = "World events", text = table.concat(lines, "\n"), seen = keep }
+end
+
+-- /toolbox events: what's on now and next, from the calendar as loaded.
+function N.EventsLines()
+  if not N.HasCalendar() then return { "The world calendar needs a newer game client (Lua API 35)." } end
+  local ok, summary = pcall(ShroudGetCalendarSummary)
+  if not ok then return { "The calendar can't be read right now." } end
+  local status = T.Field(summary, "status")
+  if status == "unavailable" then return { "The calendar isn't available right now (offline, or loading in)." } end
+  local lines = {}
+  for _, r in ipairs(T.List(T.Field(summary, "happeningNow"))) do
+    if T.Field(r, "state") ~= "cancelled" then lines[#lines + 1] = N.EventLine(r) end
+  end
+  local nextRow = T.Field(summary, "next")
+  if nextRow ~= nil then lines[#lines + 1] = "Next: " .. N.EventLine(nextRow) end
+  local fort = T.Field(summary, "stronghold")
+  if fort ~= nil then
+    local open = T.Field(fort, "open") == true
+    lines[#lines + 1] = "Cabalist Stronghold: " .. (open and "open now." or "closed.")
+  end
+  if #lines == 0 then
+    lines[1] = status == "loading" and "The calendar is still loading; try again in a moment." or "Nothing on now."
+  end
+  lines[#lines + 1] = "The game's /calendar has every date and sets reminders."
+  return lines
+end
+
 N.SOURCES = {
   { key = "motd", label = "Guild message of the day", default = true,
     tip = "Your guild's message of the day, when it has changed since you last saw it",
@@ -748,7 +866,15 @@ N.SOURCES = {
   { key = "guild", label = "Guild members coming online", default = false, via = "chat", transient = true,
     tip = "When a member of your guild logs in (off by default: a big guild is busy)",
     Check = onlineCheck("guild", "Guild members online") },
+  { key = "events", label = "World events starting", default = true, via = "chat",
+    tip = "Calls to Arms and official events from the game's calendar, " .. N.EVENT_LEAD .. " minutes ahead",
+    Check = function(seen) return N.EventsCheck(seen) end },
 }
+
+-- /toolbox events
+T.AddCommand("events", "what's on in the world now and next (the game's calendar, Lua API 35)", function()
+  for _, line in ipairs(N.EventsLines()) do T.Print(line) end
+end)
 
 local function sourceFor(key)
   for _, src in ipairs(N.SOURCES) do if src.key == key then return src end end

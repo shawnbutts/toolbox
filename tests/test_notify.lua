@@ -166,6 +166,85 @@ return function(t)
     t.ok(H.logged("Friends online: Gus came online%."), "after a reload the numbering starts again")
   end)
 
+  -- API 35: the game's world calendar.
+  local NOW = 1790000000
+  local function calRow(o)
+    return { key = o.key, ordinal = 0, source = o.source or "cta", title = o.title, location = o.location or "",
+             startsUnix = NOW + (o.inMin or 0) * 60, endsUnix = NOW + (o.inMin or 0) * 60 + 3600,
+             startsText = o.text or "Today 20:00", state = o.state or "scheduled", callState = o.callState or "",
+             featured = o.featured or false }
+  end
+
+  t.test("world events: a Call to Arms 15 minutes ahead, one on now at login, featured community ones; once each",
+    function()
+    H.boot()
+    H.S.clock = NOW
+    H.S.calendar = { status = "ready", rows = {
+      calRow{ key = "cta:a", title = "Defend the Keep", location = "Ardoris", inMin = 10, text = "Today 20:10" },
+      calRow{ key = "gm:b", source = "official", title = "Fishing Derby", inMin = 60 },     -- later: not yet
+      calRow{ key = "com:c", source = "community", title = "A guild party", inMin = 5 },   -- not featured
+      calRow{ key = "com:d", source = "community", title = "Big Market", inMin = 5, featured = true,
+              text = "Today 20:05" },
+      calRow{ key = "cta:e", title = "Hold the Pass", inMin = -20, state = "running", callState = "active" },
+      calRow{ key = "gm:f", source = "official", title = "Called off", inMin = 3, state = "cancelled" },
+    } }
+    H.clearLogs()
+    H.callback("ShroudOnCalendarChanged")
+    t.ok(H.logged("World events: On now: Call to Arms: Hold the Pass"), table.concat(H.logs(), "\n"))
+    t.ok(H.logged("Call to Arms: Defend the Keep, Today 20:10, in Ardoris"))
+    t.ok(H.logged("Big Market, Today 20:05"))
+    t.no(H.logged("Fishing Derby"), "an hour away")
+    t.no(H.logged("A guild party"), "community events only when featured")
+    t.no(H.logged("Called off"))
+    H.clearLogs()
+    H.advance(Toolbox.Notify.EVENT_READ + Toolbox.NOTIFY_POLL + 1)
+    t.no(H.logged("Defend the Keep"), "told once")
+    H.S.clock = NOW + 50 * 60                    -- the derby is 10 minutes away now
+    H.advance(Toolbox.Notify.EVENT_READ + Toolbox.NOTIFY_POLL + 1)
+    t.ok(H.logged("World events: Fishing Derby, Today 20:00"), H.lastLog())
+    t.ok(H.saved("notify").sources.events.seen["cta:a.0"], "remembered by date")
+    H.reload()
+    H.clearLogs()
+    H.advance(Toolbox.Notify.EVENT_READ + Toolbox.NOTIFY_POLL + 1)
+    t.no(H.logged("Defend the Keep"), "still told once after a reload")
+    H.S.clock = NOW + 2 * 86400                  -- two days on: the old dates are dropped quietly
+    H.S.calendar.rows[5].state = "running"       -- (one still listed as running is kept: not told again)
+    H.clearLogs()
+    H.advance(Toolbox.Notify.EVENT_READ + Toolbox.NOTIFY_POLL + 1)
+    local left = {}
+    for occ in pairs(H.saved("notify").sources.events.seen) do left[#left + 1] = occ end
+    t.eq(table.concat(left, ","), "cta:e.0")
+    t.no(H.logged("Hold the Pass"))
+  end)
+
+  t.test("world events: off, no clock, an older client; /toolbox events says what's on and next", function()
+    H.boot()
+    H.S.clock = NOW
+    H.S.calendar = { status = "ready", rows = { calRow{ key = "cta:a", title = "Defend the Keep", inMin = 10 },
+      calRow{ key = "cta:e", title = "Hold the Pass", inMin = -20, state = "running", callState = "active" } },
+      stronghold = { lastFellUnix = NOW - 3600, open = true, openedUnix = NOW - 600 } }
+    H.chat("/tbx notify events off")
+    H.clearLogs()
+    H.callback("ShroudOnCalendarChanged")
+    t.no(H.logged("Defend the Keep"), "off")
+    H.chat("/tbx events")
+    t.ok(H.logged("^On now: Call to Arms: Hold the Pass$"), table.concat(H.logs(), "\n"))
+    t.ok(H.logged("^Next: Call to Arms: Defend the Keep, Today 20:00$"))
+    t.ok(H.logged("^Cabalist Stronghold: open now%.$"))
+    H.chat("/tbx notify events on")
+    H.S.noClock = true
+    H.S.calendar.rows[#H.S.calendar.rows + 1] = calRow{ key = "cta:g", title = "Third", inMin = -5, state = "running" }
+    H.clearLogs()
+    H.callback("ShroudOnCalendarChanged")
+    t.ok(H.logged("On now: Call to Arms: Third"), "without a clock: what's on now")
+    H.S.noClock = nil
+    H.S.noCalendar = true
+    H.reload()
+    H.clearLogs()
+    H.chat("/tbx events")
+    t.ok(H.logged("needs a newer game client"), H.lastLog())
+  end)
+
   t.test("a compact Notifications window: switched with what it shows kept; saved", function()
     H.boot()
     H.setGuild("Knights", "Raid at 8")

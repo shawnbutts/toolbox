@@ -87,6 +87,7 @@ with that setting's section at the top and the setting blinking.
 | `/toolbox consumables` (`bar` / `glue` / `add\|remove <name>` / `move`) | list food and potions in effect; the consumables bar's options |
 | `/toolbox gear` (`bar` / `glue` / `repair <%>` / `move` / `debug`) | worn items' durability; the equipment bar's options |
 | `/toolbox notify` (`<name> on\|off` / `via window\|hud\|chat` / `sound on\|off` / `show` / `hud ...`) and `/toolbox motd` | notifications; the guild message of the day |
+| `/toolbox events` | what's on in the world now and next, and the Cabalist Stronghold (the game's calendar, Lua API 35) |
 | `/toolbox buffalert <1-60>` / `on` / `off` | alert this many seconds before a buff runs out (default 10) |
 | `/toolbox debuffalert on` / `off` | alert when a debuff lands |
 | `/toolbox sounds [0-100]` | show which sound files the alerts use; with a number, set the alert volume (each sound also has its own volume in settings) |

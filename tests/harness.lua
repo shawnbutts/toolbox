@@ -277,6 +277,49 @@ local function install_api()
     ShroudSetMapMarker, ShroudRemoveMapMarker, ShroudClearMapMarkers = nil, nil, nil
     ShroudGetMapMarkers, ShroudListMapMarkerIcons = nil, nil
   end
+  -- The world calendar (API 35; H.S.noCalendar: an older client). H.S.calendar = { status, rows = { row tables },
+  -- stronghold }: a row's documented fields (key, ordinal, occurrence, source, title, location, startsUnix, endsUnix,
+  -- startsText, state, callState, featured); S.calendarReads counts the reads of a range.
+  if not S.noCalendar then
+    local function cal() return S.calendar or { status = "ready", rows = {} } end
+    local function copyRow(r)
+      local out = { tags = {}, sceneKey = "", host = "", guild = "", featured = false, contest = false,
+                    reminded = false, reminderLead = -1, callState = "", location = "" }
+      for k, v in pairs(r) do out[k] = v end
+      if out.occurrence == nil and out.key then out.occurrence = out.key .. "." .. tostring(out.ordinal or 0) end
+      return out
+    end
+    ShroudGetCalendarEvents = function(from, to)
+      assert(type(from) == "number" and type(to) == "number", "numbers")
+      if not S.char.present then return {}, "unavailable" end
+      if to <= from then return {}, "bad range" end
+      S.calendarReads = (S.calendarReads or 0) + 1
+      local c, out = cal(), {}
+      for _, r in ipairs(c.rows) do
+        if r.startsUnix >= from and r.startsUnix < to then out[#out + 1] = copyRow(r) end
+      end
+      table.sort(out, function(a, b) return a.startsUnix < b.startsUnix end)
+      return out, c.status or "ready"
+    end
+    ShroudGetCalendarSummary = function()
+      if not S.char.present then return { status = "unavailable", happeningNow = {}, changeKey = "" } end
+      local c = cal()
+      local now, happening, nextRow = os.time(), {}, nil
+      for _, r in ipairs(c.rows) do
+        if r.state == "running" then happening[#happening + 1] = copyRow(r) end
+        if r.state == "scheduled" and now and r.startsUnix >= now
+            and (nextRow == nil or r.startsUnix < nextRow.startsUnix) then nextRow = copyRow(r) end
+      end
+      return { status = c.status or "ready", happeningNow = happening, next = nextRow, stronghold = c.stronghold,
+               changeKey = tostring(#c.rows) }
+    end
+    ShroudGetCalendarEvent = function() return nil end
+    ShroudGetCalendarReminders = function() return {} end
+    ShroudGetCalendarTags = function() return { { key = "pvp", label = "PvP" } } end
+  else
+    ShroudGetCalendarEvents, ShroudGetCalendarSummary, ShroudGetCalendarEvent = nil, nil, nil
+    ShroudGetCalendarReminders, ShroudGetCalendarTags = nil, nil
+  end
   -- The screen (API 31; H.S.noScreen: an older client): H.S.screen's fields; H.screenChanged{...} changes them.
   if not S.noScreen then
     ShroudGetScreenInfo = function()

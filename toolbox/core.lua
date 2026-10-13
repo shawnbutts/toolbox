@@ -3026,6 +3026,11 @@ function ShroudOnDeathChanged(isDead)
 end
 
 -- The target the game's target frame shows changed (a new one, or none).
+-- The world calendar changed (API 35): the World events notification reads it again.
+function ShroudOnCalendarChanged()
+  T.Notify.CalendarChanged()
+end
+
 -- The game window's size, UI scale or mode changed (API 31): strips past an edge come back.
 function ShroudOnScreenChanged()
   T.Hud.FitScreen()

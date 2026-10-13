@@ -294,7 +294,11 @@ into one if a new file is ever needed).
   applications, durability, friends, guild, and skills from skills.lua; a source's `vias` limits where it can
   go: `N.Allows`, `N.Choices(key)`), `N.DELIVERY` ("window", "hud" = `Toolbox.Notify.Hud`, "chat")
   plus a per-source `sound` (the notify chime once per check), and `N.Check` (tick, start, the social /
-  notification / guild / friend events), which marks a notice seen only once delivered. The guild message
+  notification / guild / friend events), which marks a notice seen only once delivered. `events` (API 35, the world
+  calendar, read only): `N.EventsCheck` over `ShroudGetCalendarSummary().happeningNow` and the dates starting within
+  `N.EVENT_LEAD` min (`T.Clock` for now), read at most every `N.EVENT_READ` s or after `ShroudOnCalendarChanged`
+  (`N.CalendarChanged`); `seen` = { [occurrence] = start as text }, dropped after `N.EVENT_KEEP` s unless still listed;
+  `/toolbox events` (`N.EventsLines`). Harness `H.S.calendar = { status, rows, stronghold }`, `H.S.noCalendar`. The guild message
   comes from `ShroudGetGuildMotd` (API 18) when present. friends / guild are `transient` (their `seen` is an
   event number from `N.OnStatus`'s queue, never read back). `N.SETTLE` s after start, counts going down
   aren't remembered. The notification HUD's list and settings are per character: `NH.FollowCharacter` reloads
@@ -477,7 +481,7 @@ character" sentinel.
 | `launcher` | `{ show = bool (default true), vertical = bool (default true), size = 20..64 (default 32), shade = 0..90 (% black behind, default 40), combat = bool (hide during combat), hide = { [button key] = true } (never all), x, y }` (the menu, hud.lua; absent = never started: the chat line) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
 | `skills_paused` | `{ v = 1, how = "off"/"maintain", when = "HH:MM", list = { { key = skill key or name, from = mode, to = mode } } }`: the pause's record (skills.lua; empty list = not paused); kept by a reset, copied for recovery |
-| `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
+| `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`, events' `{ [occurrence] = start (UTC seconds, as text) }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), font = 9..32, spacing = 0..12 (each unset: the XP windows'), x, y }` |
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most 20 (which are new, `fresh`, is kept in memory only) |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last, day, at } } }`, at most `P.MAX_KEEP` |

@@ -123,7 +123,8 @@ sounds.
 ## Notifications
 
 Your guild's message of the day, unread and expiring mail, ransoms, new rewards, guild applications and
-gear needing repair, and friends or guild members coming online, in a Notifications window, a small HUD
+gear needing repair, friends or guild members coming online, and (on a newer game client) Calls to Arms and
+official events from the game's calendar 15 minutes before they start, in a Notifications window, a small HUD
 list or a chat line, each with an optional sound of its own (chime, ping, tap, doorbell, bell or low notes; mail rings the doorbell). Each one
 can be turned off.
 

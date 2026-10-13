@@ -8,6 +8,8 @@ ones included).
 ## [Unreleased]
 
 ### Added
+- **World events** (Lua API 35): a chat line 15 minutes before a Call to Arms or official event starts, from the
+  game's calendar. /toolbox events: what's on now and next.
 - **Pause skills** (a player's request): one click on the new tile at the start of the skill activity strip sets
   every skill to Off, unlearning ones too, so your pool keeps all you earn while you farm. Another click puts
   each skill back the way it was (training, maintaining or unlearning); one you changed yourself in the meantime stays
@@ -21,32 +23,26 @@ ones included).
   its icon size and the shade behind it, hide it during combat, pick its buttons, or switch it off to open windows
   the old way. Also /toolbox menu.
 - **Location strip:** a small HUD strip showing where you are: the scene, your position (as /loc gives it, in
-  whole numbers) and which way you face (compass direction and degrees). On a newer game client (Lua API 32) it
-  also names the nearest water you can fish in and how far ("Salt water, 12 m"), and its hover lists the scene's
-  kinds of water. Hover it for the whole /loc line. Off by default: switch it on under Settings, HUD layout (Show
+  whole numbers) and which way you face (compass direction and degrees). On Lua API 32 it also names the
+  nearest fishable water ("Salt water, 12 m"). Hover it for the whole /loc line. Off by default: switch it on under Settings, HUD layout (Show
   where you are), or type /toolbox location.
 - Loot Tracker runs remember where you played most. Hover a run to see the spot, and press its **Beacon** button
   to mark it on your compass and map with the game's beacon (the one /beacon sets), to find a good farming spot
-  again. It works while you're in that run's scene, and replaces any beacon you set. On a newer game client (Lua
-  API 30) every run also shows as a gold flag on your map and minimap in its scene; hover it for what the run
-  brought in (Settings, XP & Loot, Show runs on the map). Runs from before this version have no spot.
+  again. It works while you're in that run's scene, and replaces any beacon you set. On Lua API 30 each run is
+  also a flag on your map. Runs from before this version have no spot.
 - **Your own sound for any buff or debuff,** when you get it and / or when it's about to run out: record yourself
   saying its name, say, and you'll know which one it is. Put the file in your Lua folder (Lua/toolbox_sounds is a
   good place; not the toolbox folder, which updates replace), then in Settings, Buffs, pick the effect, choose
-  when, then Choose a file... and pick it from the game's list (or paste the file's path and press Set; the Sounds
-  page has a button to get there; or /toolbox buffs sound get Blessing of Atos = toolbox_sounds/atos.ogg). Effects without one keep the usual sound. On a game client
-  with Lua API 34 two files of the same name each play their own sound (older clients refuse the second: rename
-  it).
+  when, paste the file's path and press Set (the Sounds page has a button to get there; or /toolbox buffs sound
+  get Blessing of Atos = toolbox_sounds/atos.ogg). Effects without one keep the usual sound.
 - **A sound for mail:** new mail and mail about to expire ring a doorbell of their own when their sound is on, so
   you can tell mail from other notifications (the other sounds are still there to pick). Replace it with
   toolbox_mail.ogg in your Lua folder or any file on the Sounds page.
 
 ### Changed
-- On a newer game client (Lua API 31), when the game window gets smaller or the UI scale bigger, a HUD strip left
-  past the right or bottom edge moves back on screen (chat says so).
-- **Choose sound files from a list:** on a newer game client (Lua API 33), the Sounds page has a Choose... button by
-  each sound and effect sounds have Choose a file...: the game lists the sound files in your Lua folder (with a row
-  to open the folder, so you can drop one in) and you pick one, instead of typing its path.
+- HUD strips left off screen by a smaller game window or bigger UI scale move back (Lua API 31).
+- **Choose sound files from a list** (Lua API 33) on the Sounds page and for effect sounds, instead of typing a
+  path. On Lua API 34 two effect files of the same name both work.
 - Bigger icons: the Icon size sliders (buff bar, buff block and skill activity) now go up to 64 pixels (was 48).
 
 ### Fixed
