@@ -13,6 +13,11 @@ ones included).
   over and every strip was built again. Setup copies kept under a tagged name ("shawn[PVP]") are folded into the
   character's own, so each character is listed once.
 
+### Changed
+- **The guide's longer topics come in shorter parts:** Buff bar is now Buff bar, Buff alerts and sounds, and Buff
+  block; Commands is in two parts; and a version's long notes in the version window are too. Toolbox keeps more room
+  in the game's limit on add-on text, for everything else on screen.
+
 ## [1.7.0] - 2026-10-13
 
 ### Added

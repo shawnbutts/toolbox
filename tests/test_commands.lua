@@ -106,12 +106,14 @@ return function(t)
       end
       if size > biggest then biggest, biggestTopic = size, topic end
     end
-    -- the guide costs one topic of the add-on's 65,536 characters of on-screen text (with everything else)
-    t.ok(biggest < 6000, "each topic well inside the text budget: " .. biggestTopic .. " " .. biggest)
+    -- the guide costs one topic of the add-on's 65,536 characters of on-screen text (with everything else): the
+    -- longest set the peak (test_stress), so each is held to D.TOPIC_MAX (split a long one into topics)
+    t.ok(biggest <= Toolbox.Docs.TOPIC_MAX, "each topic well inside the text budget: " .. biggestTopic .. " "
+      .. biggest)
     local all = table.concat(texts, "\n")
     for _, heading in ipairs({ "Getting started", "XP", "Today and the Loot Tracker", "Buff bar",
-                               "Health, focus & Vigor bars", "Combat stats", "Moving the HUD strips", "Sounds",
-                               "Commands" }) do
+                               "Buff alerts and sounds", "Buff block", "Health, focus & Vigor bars", "Combat stats",
+                               "Moving the HUD strips", "Sounds", "Commands (1 of 2)", "Commands (2 of 2)" }) do
       t.ok(all:find("\n" .. heading .. "\n", 1, true) or all:find("^" .. heading .. "\n"), "section " .. heading)
     end
     for _, cmd in ipairs(Toolbox.CommandList()) do
@@ -293,6 +295,54 @@ return function(t)
     v = Toolbox.Docs.ChangelogVersions({ { "version", "Unreleased" }, { "version", "1.0.1" }, { "para", "Fix." } })
     t.eq(#v, 1, "an empty Unreleased is left out")
     t.eq(v[1].title, "1.0.1", "the window opens on the installed version")
+  end)
+
+  t.test("a version's long notes come in parts, a section carried on by name; short ones whole", function()
+    H.boot()
+    local D = Toolbox.Docs
+    local long = string.rep("x", math.floor(D.TOPIC_MAX / 4))
+    local rows = { { "version", "2.0.0" }, { "section", "Added" } }
+    for _ = 1, 5 do rows[#rows + 1] = { "item", long } end
+    rows[#rows + 1] = { "section", "Fixed" }
+    rows[#rows + 1] = { "item", "A fix." }
+    rows[#rows + 1] = { "version", "1.9.0" }
+    rows[#rows + 1] = { "para", "Short." }
+    local v = D.ChangelogVersions(rows)
+    t.eq(#v, 3)
+    t.eq(v[1].title, "2.0.0 (1 of 2)")
+    t.eq(v[2].title, "2.0.0 (2 of 2)")
+    t.eq(v[2].entries[1][2], "Added (continued)", "the section carried on")
+    t.eq(v[3].title, "1.9.0", "a short one whole")
+    local items = 0
+    for i = 1, 2 do
+      local size = 0
+      for _, e in ipairs(v[i].entries) do
+        size = size + #e[2]
+        if e[1] == "item" then items = items + 1 end
+      end
+      t.ok(size <= D.TOPIC_MAX, "each part inside the limit: " .. size)
+    end
+    t.eq(items, 6, "nothing lost")
+    for _, version in ipairs(D.ChangelogVersions(Toolbox.CHANGELOG)) do
+      local size = 0
+      for _, e in ipairs(version.entries) do size = size + #e[2] + 2 end
+      t.ok(size <= D.TOPIC_MAX + 600, "the real notes too: " .. version.title .. " " .. size)
+    end
+  end)
+
+  t.test("the commands come in parts of about even size, every command once", function()
+    H.boot()
+    local D = Toolbox.Docs
+    local pages, seen = D.CommandPages(), 0
+    t.ok(#pages >= 2)
+    for _, page in ipairs(pages) do
+      local size = 0
+      for _, line in ipairs(page) do size = size + #line end
+      t.ok(size <= D.TOPIC_MAX, "a part inside the limit: " .. size)
+      seen = seen + #page
+    end
+    t.eq(seen, #D.CommandLines() + 1, "every command, and the /tbx line")
+    t.ok(pages[1][1]:find("do the same thing", 1, true), "the /tbx line first")
   end)
 
   t.test("the baked-in changelog starts with the newest entries", function()

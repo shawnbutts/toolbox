@@ -143,27 +143,8 @@ D.SECTIONS = {
     "/toolbox buffs: your buffs and debuffs (outlined red) as their skill icons, the one that runs out "
       .. "soonest on the left. A darkening "
       .. "sweep shows the time left; it turns red when a buff is about to run out. Hover an icon "
-      .. "for its tooltip; a buff with several effects lists them all, one ending sooner with its time.",
-    "Options: icon size; a sound before a buff runs out (/toolbox buffalert 10 = ten seconds "
-      .. "before); a sound when a debuff lands (/toolbox debuffalert on/off). Effects that come so often "
-      .. "their sound is noise can be muted: settings, Buffs, Muted effects (pick one from your recent "
-      .. "alerts, what's on you or anything you've cast, then Mute), or /toolbox buffs quiet. A muted "
-      .. "effect's icon still flashes. Or let Toolbox quiet them: Don't repeat a sound for the same effect "
-      .. "within (off at first; try 2 minutes) keeps an effect quiet while it keeps coming: each alert starts "
-      .. "the time again, so a debuff that lands all fight sounds once (the expiry and debuff sounds are "
-      .. "counted apart). /toolbox buffs repeat 2 sets it.",
-    "Your own sound for an effect, when you get it and / or when it's about to run out: record yourself saying "
-      .. "its name, say, and you'll know which one it is. Put the file (.ogg, .wav or .mp3) in your Lua folder "
-      .. "or a folder in it, such as Lua/toolbox_sounds (not the toolbox folder: updates replace it). Settings, "
-      .. "Buffs: pick the effect in Muted effects' list, choose when, then Choose a file... and pick it from "
-      .. "the game's list (a newer game client), or paste the file's path "
-      .. "(toolbox_sounds/atos.ogg; a full path is cut to the part after Lua; give each file a name of its "
-      .. "own) and press Set; the list below it has Test and Remove (the Sounds page has a button to get "
-      .. "there). Or /toolbox buffs sound get "
-      .. "Blessing of Atos = toolbox_sounds/atos.ogg (get: when you get it; end: when it's about to run out). "
-      .. "It replaces the usual debuff or expiry sound, at that sound's volume, and plays even with those "
-      .. "alerts off (muting still silences it); a file that can't be opened (chat says so) plays the usual "
-      .. "sound.",
+      .. "for its tooltip; a buff with several effects lists them all, one ending sooner with its time. "
+      .. "Change the icon size in settings, Buffs. Its sounds are in Buff alerts and sounds.",
     "Without relying on colour: debuffs have their own row (the second); a buff about to run out blinks "
       .. "its border (Flash, on by default) and sounds its alert; Show seconds left near the end adds the "
       .. "number; and a sweep's size shows the time left whatever its colour. The same goes for the "
@@ -185,7 +166,29 @@ D.SECTIONS = {
     "Two settings on newer game clients: Replace the game's buff bar hides the game's own bar while "
       .. "this one is showing (it comes back whenever this one is off), and Click a buff to dismiss it "
       .. "works like the game's right-click Dismiss. Chat: /toolbox buffs replace on|off, "
-      .. "/toolbox buffs dismiss on|off.",
+      .. "/toolbox buffs dismiss on|off." },
+  { "Buff alerts and sounds",
+    "A sound before a buff runs out (/toolbox buffalert 10 = ten seconds "
+      .. "before); a sound when a debuff lands (/toolbox debuffalert on/off). Effects that come so often "
+      .. "their sound is noise can be muted: settings, Buffs, Muted effects (pick one from your recent "
+      .. "alerts, what's on you or anything you've cast, then Mute), or /toolbox buffs quiet. A muted "
+      .. "effect's icon still flashes. Or let Toolbox quiet them: Don't repeat a sound for the same effect "
+      .. "within (off at first; try 2 minutes) keeps an effect quiet while it keeps coming: each alert starts "
+      .. "the time again, so a debuff that lands all fight sounds once (the expiry and debuff sounds are "
+      .. "counted apart). /toolbox buffs repeat 2 sets it.",
+    "Your own sound for an effect, when you get it and / or when it's about to run out: record yourself saying "
+      .. "its name, say, and you'll know which one it is. Put the file (.ogg, .wav or .mp3) in your Lua folder "
+      .. "or a folder in it, such as Lua/toolbox_sounds (not the toolbox folder: updates replace it). Settings, "
+      .. "Buffs: pick the effect in Muted effects' list, choose when, then Choose a file... and pick it from "
+      .. "the game's list (a newer game client), or paste the file's path "
+      .. "(toolbox_sounds/atos.ogg; a full path is cut to the part after Lua; give each file a name of its "
+      .. "own) and press Set; the list below it has Test and Remove (the Sounds page has a button to get "
+      .. "there). Or /toolbox buffs sound get "
+      .. "Blessing of Atos = toolbox_sounds/atos.ogg (get: when you get it; end: when it's about to run out). "
+      .. "It replaces the usual debuff or expiry sound, at that sound's volume, and plays even with those "
+      .. "alerts off (muting still silences it); a file that can't be opened (chat says so) plays the usual "
+      .. "sound." },
+  { "Buff block",
     "The buff block (settings, Buffs, Buff block; or /toolbox buffs block on): every buff and debuff on a "
       .. "strip of its own, soonest to run out first, row after row, nothing grouped. Not part of the Toolbelt. "
       .. "Choose how many icons a row (/toolbox buffs block width 12), its icon size and only during combat; "
@@ -356,23 +359,62 @@ end
 -- 2026-09-29, review item 11).
 D.COMMANDS_TOPIC = "Commands"
 
+-- The most text one topic shows (tests/test_commands.lua holds the hand-written ones to it): the topic shown is on
+-- screen with everything else, and the longest one set the add-on's peak (2026-10-13: Commands, 4,790 characters,
+-- 47,712 in all of test_stress's 48,000). The commands, and a long version's notes, are split into parts this size.
+D.TOPIC_MAX = 3500
+
+-- The commands' lines in parts of at most D.TOPIC_MAX characters, as even as the lines allow, the first led by the
+-- /toolbox = /tbx line. Pure.
+function D.CommandPages()
+  local lines = { "/" .. T.commands[1] .. " and /" .. T.commands[2] .. " do the same thing." }
+  local total = 0
+  for _, line in ipairs(D.CommandLines()) do lines[#lines + 1] = line end
+  for _, line in ipairs(lines) do total = total + #line end
+  local room = D.TOPIC_MAX - 40                                   -- (the heading)
+  local each = total / math.ceil(total / room)
+  local pages, size = { {} }, 0
+  for _, line in ipairs(lines) do
+    local page = pages[#pages]
+    if #page > 0 and (size + #line > room or size + #line / 2 > each) then
+      page, size = {}, 0
+      pages[#pages + 1] = page
+    end
+    page[#page + 1] = line
+    size = size + #line
+  end
+  return pages
+end
+
+-- The Commands topics' titles: "Commands", or "Commands (1 of 2)"... when it takes parts.
+local function commandTitles()
+  local pages = D.CommandPages()
+  local titles = {}
+  for i = 1, #pages do
+    titles[i] = #pages == 1 and D.COMMANDS_TOPIC or (D.COMMANDS_TOPIC .. " (" .. i .. " of " .. #pages .. ")")
+  end
+  return titles, pages
+end
+
 -- The topic titles, in dropdown order. Pure.
 function D.Topics()
   local out = {}
   for i, section in ipairs(D.SECTIONS) do out[i] = section[1] end
-  out[#out + 1] = D.COMMANDS_TOPIC
+  for _, title in ipairs((commandTitles())) do out[#out + 1] = title end
   return out
 end
 
 -- The labels for one topic.
 local function topicLabels(title)
   local out = { heading(title) }
-  if title == D.COMMANDS_TOPIC then
-    out[#out + 1] = para("/" .. T.commands[1] .. " and /" .. T.commands[2] .. " do the same thing.")
-    for _, line in ipairs(D.CommandLines()) do
-      out[#out + 1] = para(line)    -- same colour as the rest (dim was hard to read)
+  local titles, pages = commandTitles()
+  for i, t in ipairs(titles) do
+    if t == title then
+      for _, line in ipairs(pages[i]) do
+        out[#out + 1] = para(line)    -- same colour as the rest (dim was hard to read)
+      end
+      return out
     end
-    return out
   end
   for _, section in ipairs(D.SECTIONS) do
     if section[1] == title then
@@ -466,9 +508,41 @@ end
 
 local VERSION_ID = "toolbox_version"
 
+-- One version's notes in parts of at most D.TOPIC_MAX characters, as even as its rows allow: 1.7.0's 4,800 were the
+-- add-on's on-screen text peak but for one guide topic (2026-10-13). A part starting inside a section repeats the
+-- section's name, "(continued)". Each part { title "x (1 of 2)", entries, unreleased }; a short version as it is.
+local function splitVersion(v, out)
+  local total = 0
+  for _, entry in ipairs(v.entries) do total = total + #entry[2] end
+  local n = math.ceil(total / D.TOPIC_MAX)
+  if n <= 1 then
+    out[#out + 1] = v
+    return
+  end
+  local each = total / n
+  local parts, size, section = { {} }, 0, nil
+  for _, entry in ipairs(v.entries) do
+    local part = parts[#parts]
+    if entry[1] ~= "section" and #part > 0
+        and (size + #entry[2] / 2 > each or size + #entry[2] > D.TOPIC_MAX - 200) then   -- (a continued heading)
+      part, size = {}, 0
+      parts[#parts + 1] = part
+      if section then part[1] = { "section", section .. " (continued)" } end
+    end
+    if entry[1] == "section" then section = entry[2] end
+    part[#part + 1] = entry
+    size = size + #entry[2]
+  end
+  for i, part in ipairs(parts) do
+    out[#out + 1] = { title = v.title .. " (" .. i .. " of " .. #parts .. ")", entries = part,
+                      unreleased = v.unreleased }
+  end
+end
+
 -- The changelog ({ kind, text } rows; see changelog.lua) split per version, newest first:
--- { { title, entries = { rows under it } } }. An empty Unreleased (just after a release) is left out, so
--- the window opens on the installed version, not on "No changes listed" (owner, 2026-10-01). Pure.
+-- { { title, entries = { rows under it } } }, a long version in parts (splitVersion). An empty Unreleased (just after
+-- a release) is left out, so the window opens on the installed version, not on "No changes listed" (owner,
+-- 2026-10-01). Pure.
 function D.ChangelogVersions(rows)
   local out = {}
   for _, entry in ipairs(rows or {}) do
@@ -482,7 +556,9 @@ function D.ChangelogVersions(rows)
     end
   end
   if out[1] and out[1].unreleased and #out[1].entries == 0 then table.remove(out, 1) end
-  return out
+  local split = {}
+  for _, v in ipairs(out) do splitVersion(v, split) end
+  return split
 end
 
 -- The labels for one version's rows (sections, items, paragraphs).

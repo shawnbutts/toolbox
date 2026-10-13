@@ -242,7 +242,9 @@ return function(t)
   -- history, then each settings page and every guide topic and the version window in turn. Measured
   -- 2026-10-02: 35,094 characters with everything open, 40,327 at the peak; most of it is the 30 buff and
   -- 8 target tooltips (~400 characters each here: the game cuts a tooltip at 512). STRESS_PRINT=1 prints it.
-  -- The limit leaves room for the game counting more than the harness.
+  -- 2026-10-13: 47,712 at the peak (the guide's Commands topic, 4,790), so guide topics and a version's notes are
+  -- now held to Docs.TOPIC_MAX (3,500): 46,641, the Sounds settings page the biggest addition (Today and the Loot
+  -- Tracker the guide's, 46,307). The limit leaves room for the game counting more than the harness.
   LIMITS.text = 48000
   t.test("on-screen text at its worst stays well inside the game's 65,536 characters", function()
     H.boot(veteranDisk(false))
