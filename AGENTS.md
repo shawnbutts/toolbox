@@ -431,7 +431,7 @@ into one if a new file is ever needed).
   something), tests in `tests/test_config.lua` or the module's suite. A NEW saved-var key goes in
   `Toolbox.Backup.KEYS` (a setting: reset clears it) or the `KEPT` list in `tests/test_backup.lua` (which
   fails for a key in neither). Backups are the player's copies of the saved-variable files: don't keep them
-  in a saved var (each table is capped at 256 KB; owner, 2026-09-30).
+  in a saved var (a whole saved-variable file is capped at 256 KB; owner, 2026-09-30).
 - **A feature:** pure logic over plain data, API calls at the edges, hooked into `ShroudOnStart` /
   `Toolbox.Tick` / core's callbacks; a `Toolbox.Foo` table; tests; a CHANGELOG `[Unreleased]` entry; the
   guide (`D.SECTIONS`) and both READMEs if players see it.
@@ -523,7 +523,9 @@ character" sentinel.
 | `setups` (ACCOUNT scope) | `{ v = 1, list = { { name, character = bool, when = "YYYY-MM-DD" } } }`: the setups' index, at most `B.SETUP_MAX` |
 | `setup:<lower name>` / `setup_character:<lower name>` (ACCOUNT scope; the name in saved form, `%XX`; 1.6.0's plain-name key still read, moved at the next export) | `{ v = 1, name, keys = { [a B.KEYS key] = its saved table } }` (notify without `seen`): a named setup / a character's copy, kept by `B.KeepCopy` from `T.Flush` when a setting changed and `setup_share` is on |
 
-Keys must be <= 128 chars with no `/` or `\`. A table's JSON must stay under 256 KB. Always validate what
+Keys must be <= 128 chars with no `/` or `\`. **A whole FILE's JSON must stay under 256 KB** (every key of the
+character scope together, and every key of the account scope together: confirmed 2026-10-13, below), not just one
+key's. Always validate what
 you read back and fall back to defaults.
 
 ## Releasing
@@ -718,6 +720,11 @@ Iron Ingot -> ore and coal); a gathering session HUD; lock-position / snap prese
 
 Rules learned the hard way; keep to them.
 
+- **Saved-variable size** (confirmed 2026-10-13, `tmp/savelimit.lua`): the 256 KB cap is per FILE (the add-on, the
+  scope and the character: "saved variables for 'savelimit|character|shawn' exceed the size limit; not written"), not
+  per key. Two 150 KB keys: each `ShroudSetSavedVar` returned true, the flush returned false and NOTHING of that file
+  was written (the old file stays on disk). `T.CheckSaved`'s estimate is per key, so it doesn't see this yet; the
+  account file holds the prices (`P.MAX_KEEP`), every setup and every character's recovery copy.
 - **Limits** (per add-on): 8 windows (Toolbox has 7 lasting ones; Docs, version and Map overlays share the 8th: `T.TakeSharedWindow`), HUD
   frames covering <= 35% of the screen (8 by the reference; 25 by the work log of 2026-10-01, unconfirmed in
   game: `Hud.MAX_FRAMES` is 25 and `Hud.FrameCap()` learns the real limit from the game's refusal,
