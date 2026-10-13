@@ -210,6 +210,49 @@ return function(t)
     t.eq(#OV().List(), 0)
   end)
 
+  -- Owner, 2026-10-13: changing the shape and color for a new spot restyled the mark before it.
+  t.test("each place keeps its own look: the shape and color apply to the next marks; Set look changes one", function()
+    H.boot()
+    H.chat("/tbx config")
+    local c = H.config()
+    c:Find("ov_name").text = "Gathering"
+    H.click("toolbox_config", "ov_new")
+    H.change("toolbox_config", "ov_icon", "star")
+    H.change("toolbox_config", "ov_color", "Red")
+    H.submit("toolbox_config", "ov_place_name", "Iron")
+    H.change("toolbox_config", "ov_icon", "circle")
+    H.change("toolbox_config", "ov_color", "Cyan")
+    H.S.pos = { 30, 0, 30 }
+    H.advance(1)
+    H.submit("toolbox_config", "ov_place_name", "Copper")
+    local iron, copper = marks()["ov1-1"], marks()["ov1-2"]
+    t.eq(iron.icon, "star", "the first keeps its shape")
+    t.eq(iron.color, "#e86050", "and its color")
+    t.eq(copper.icon, "circle")
+    t.eq(copper.color, "#50d0d0")
+    H.change("toolbox_config", "ov_places", "Iron")
+    H.click("toolbox_config", "ov_look")
+    t.eq(marks()["ov1-1"].icon, "circle", "Set look gives it the shape above")
+    t.eq(marks()["ov1-1"].color, "#50d0d0")
+    H.chat("/tbx overlay icon square")
+    H.chat("/tbx mark look copper")
+    t.eq(marks()["ov1-2"].icon, "square", "and mark look in chat")
+    H.advance(31)
+    H.restart()
+    H.advance(2)
+    t.eq(marks()["ov1-1"].icon, "circle", "kept")
+    t.eq(marks()["ov1-2"].icon, "square")
+  end)
+
+  t.test("places saved without a look of their own take their overlay's", function()
+    H.boot({ ["character:Tester"] = { map_overlays = { v = 1, shown = 1, nextId = 2, list = {
+      { id = 1, name = "Old", icon = "diamond", color = "Purple", nextPlace = 2,
+        places = { { id = 1, name = "Spot", raw = "Novia", scene = "Novia", x = 5, y = 0, z = 5 } } } } } } })
+    H.advance(2)
+    t.eq(marks()["ov1-1"].icon, "diamond")
+    t.eq(marks()["ov1-1"].color, "#b878e8")
+  end)
+
   t.test("an older client without map markers: places still kept, the beacon finds them", function()
     H.boot()
     H.S.noMarkers = true

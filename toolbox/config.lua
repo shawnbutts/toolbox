@@ -950,8 +950,9 @@ local function syncOverlays()
   setValue("ov_icon", shown and shown.icon or OV.ICONS[1])
   setValue("ov_color", shown and shown.color or OV.COLORS[1][1])
   for _, id in ipairs({ "ov_rename", "ov_icon", "ov_color", "ov_delete" }) do setEnabled(id, shown ~= nil) end
-  setEnabled("ov_beacon", #(shown and shown.places or {}) > 0)
-  setEnabled("ov_unmark", #(shown and shown.places or {}) > 0)
+  for _, id in ipairs({ "ov_beacon", "ov_look", "ov_unmark" }) do
+    setEnabled(id, #(shown and shown.places or {}) > 0)
+  end
 end
 
 local function fieldText(id)
@@ -1018,6 +1019,14 @@ function C.PlaceBeacon()
   ovMsg(msg)
 end
 
+function C.PlaceLook()
+  local p, ov = pickedPlace(), T.Overlays.Shown()
+  if not (p and ov) then return end
+  T.Overlays.SetPlaceLook(ov, p)
+  ovMsg(p.name .. " is now a " .. p.color:lower() .. " " .. p.icon .. ".")
+  C.Sync()
+end
+
 function C.RemovePlace()
   local p, ov = pickedPlace(), T.Overlays.Shown()
   if not (p and ov) then return end
@@ -1056,37 +1065,41 @@ function C.OverlayRows()
         tooltip = "Make an overlay with this name and show it", onClick = function() C.NewOverlay() end },
       UI.Button{ id = "ov_rename", text = "Rename", style = { marginLeft = 2 },
         tooltip = "Give the shown overlay this name", onClick = function() C.RenameOverlay() end },
+      UI.Button{ id = "ov_delete", text = "Delete", style = { marginLeft = 2 },
+        tooltip = "Delete the shown overlay and its places", onClick = function() C.DeleteOverlay() end },
     } },
     UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
-      UI.Label{ text = "Its marks", class = "text", style = { flexGrow = 1 } },
-      UI.Dropdown{ id = "ov_icon", choices = OV.ICONS, value = OV.ICONS[1], tooltip = "The shape of its marks",
+      UI.Label{ text = "New marks", class = "text", style = { flexGrow = 1 } },
+      UI.Dropdown{ id = "ov_icon", choices = OV.ICONS, value = OV.ICONS[1],
+        tooltip = "The shape of the marks you make next (marks made before keep theirs: Set look changes one)",
         onChange = function(_, v)
           local ov = T.Overlays.Shown()
           if ov then T.Overlays.SetIcon(ov, v) end
         end },
       UI.Dropdown{ id = "ov_color", choices = colors, value = colors[1], style = { marginLeft = 4 },
-        tooltip = "The color of its marks (Gold is the Loot Tracker runs')",
+        tooltip = "The color of the marks you make next (Gold is the Loot Tracker runs')",
         onChange = function(_, v)
           local ov = T.Overlays.Shown()
           if ov then T.Overlays.SetColor(ov, v) end
         end },
-      UI.Button{ id = "ov_delete", text = "Delete", style = { marginLeft = 4 },
-        tooltip = "Delete the shown overlay and its places", onClick = function() C.DeleteOverlay() end },
     } },
     UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
       UI.TextField{ id = "ov_place_name", text = "", placeholder = "Name this spot: Iron vein, Bank...",
         maxLength = OV.NAME_MAX, style = { flexGrow = 1, flexShrink = 1 },
         tooltip = "Empty: Place 1, Place 2...", onSubmit = function(_, text) C.MarkHere(text) end },
       UI.Button{ id = "ov_mark", text = "Mark here", style = { marginLeft = 4 },
-        tooltip = "Add where you stand to the shown overlay (or to a new one, Places, if you have none)",
-        onClick = function() C.MarkHere() end },
+        tooltip = "Add where you stand to the shown overlay, in the shape and color above (or to a new overlay,"
+          .. " Places, if you have none)", onClick = function() C.MarkHere() end },
     } },
     UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
       UI.Dropdown{ id = "ov_places", choices = { C.OV_NO_PLACES }, value = C.OV_NO_PLACES,
-        style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The shown overlay's places, this scene's first" },
+        style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The shown overlay's places, this scene's first",
+        onChange = function() ovMsg("") end },
       UI.Button{ id = "ov_beacon", text = "Beacon", style = { marginLeft = 4 },
         tooltip = "Put the game's beacon on this place, on your compass and map (it replaces any beacon you set;"
           .. " in its scene)", onClick = function() C.PlaceBeacon() end },
+      UI.Button{ id = "ov_look", text = "Set look", style = { marginLeft = 2 },
+        tooltip = "Give this place the shape and color above", onClick = function() C.PlaceLook() end },
       UI.Button{ id = "ov_unmark", text = "Remove", style = { marginLeft = 2 },
         tooltip = "Take this place out of the overlay", onClick = function() C.RemovePlace() end },
     } },
@@ -1615,7 +1628,7 @@ end
 
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
 local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "ov_pick", "ov_name", "ov_new", "ov_rename", "ov_icon",
-  "ov_color", "ov_delete", "ov_place_name", "ov_mark", "ov_places", "ov_beacon", "ov_unmark", "ov_msg",
+  "ov_color", "ov_delete", "ov_place_name", "ov_mark", "ov_places", "ov_beacon", "ov_look", "ov_unmark", "ov_msg",
   "ln_show", "ln_vertical", "ln_combat", "ln_size", "ln_size_value", "ln_shade", "ln_shade_value",
   "ln_btn_xp", "ln_btn_xpdetail", "ln_btn_today", "ln_btn_loot", "ln_btn_combat", "ln_btn_notify",
   "ln_btn_location", "ln_btn_docs", "ln_btn_settings",

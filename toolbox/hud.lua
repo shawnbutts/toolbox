@@ -981,9 +981,11 @@ T.AddCommand("location", "the location strip: your scene, position, facing and w
 -- ours no longer wanted ("ov" ids) come down, and one already up as wanted isn't set again (a refusal, "rate" after a
 -- big switch, is retried after OV.RETRY s, and only what's missing is sent). Without markers, the places still list
 -- and Beacon works.
+-- Each place has its own look (owner, 2026-10-13: changing the shape for a new spot restyled the ones before):
+-- an overlay's icon and color are what its next marks get; "Set look" restyles one place.
 -- Saved var "map_overlays" (character; kept by a reset, in the recovery copy): { v = 1, shown = overlay id or 0,
--- nextId, list = { { id, name, icon, color (an OV.COLORS name), nextPlace, places = { { id, name, raw, scene, x, y,
--- z } } } } }.
+-- nextId, list = { { id, name, icon, color (an OV.COLORS name; for its next marks), nextPlace, places = { { id, name,
+-- raw, scene, x, y, z, icon, color (unset: the overlay's, as saved before places had their own) } } } } }.
 -- ---------------------------------------------------------------------------
 local OV = {}
 Toolbox.Overlays = OV
@@ -1031,13 +1033,14 @@ function OV.CleanName(text)
   return name
 end
 
-local function readPlace(p, seen)
+local function readPlace(p, seen, ov)
   if type(p) ~= "table" or type(p.id) ~= "number" or seen[p.id] then return nil end
   local name = OV.CleanName(p.name)
   if not (name and type(p.raw) == "string" and p.raw ~= "" and ovNumber(p.x) and ovNumber(p.z)) then return nil end
   seen[p.id] = true
   return { id = math.floor(p.id), name = name, raw = p.raw, scene = type(p.scene) == "string" and p.scene or p.raw,
-           x = p.x, y = ovNumber(p.y) and p.y or 0, z = p.z }
+           x = p.x, y = ovNumber(p.y) and p.y or 0, z = p.z, icon = ovIcon(p.icon or ov.icon),
+           color = knownColor(p.color) and p.color or ov.color }
 end
 
 -- This character's overlays (read once per character; re-runnable).
@@ -1055,7 +1058,7 @@ function OV.Init()
                      color = knownColor(o.color) and o.color or OV.COLORS[1][1], places = {}, nextPlace = 1 }
         local seen, pnames = {}, {}
         for _, p in ipairs(type(o.places) == "table" and o.places or {}) do
-          local place = readPlace(p, seen)
+          local place = readPlace(p, seen, ov)
           if place and not pnames[place.name:lower()] and #ov.places < OV.PLACES_MAX then
             pnames[place.name:lower()] = true
             ov.places[#ov.places + 1] = place
@@ -1078,7 +1081,8 @@ local function ovSave()
   for i, ov in ipairs(ovData.list) do
     local places = {}
     for k, p in ipairs(ov.places) do
-      places[k] = { id = p.id, name = p.name, raw = p.raw, scene = p.scene, x = p.x, y = p.y, z = p.z }
+      places[k] = { id = p.id, name = p.name, raw = p.raw, scene = p.scene, x = p.x, y = p.y, z = p.z, icon = p.icon,
+                    color = p.color }
     end
     list[i] = { id = ov.id, name = ov.name, icon = ov.icon, color = ov.color, nextPlace = ov.nextPlace,
                 places = places }
@@ -1117,7 +1121,6 @@ function OV.Shown()
   return nil
 end
 
-function OV.ColorOf(ov) return ovColor(ov.color) end
 
 -- Shows `ov` on the map (the only one), or none (nil).
 function OV.Show(ov)
@@ -1160,6 +1163,7 @@ function OV.Delete(ov)
   return ovSave()
 end
 
+-- The look of the overlay's next marks (places made before keep theirs).
 function OV.SetIcon(ov, icon)
   ov.icon = ovIcon(icon)
   return ovSave()
@@ -1167,6 +1171,12 @@ end
 
 function OV.SetColor(ov, name)
   ov.color = knownColor(name) and name or OV.COLORS[1][1]
+  return ovSave()
+end
+
+-- Gives place `p` the overlay's look for next marks (its icon and color now).
+function OV.SetPlaceLook(ov, p)
+  p.icon, p.color = ov.icon, ov.color
   return ovSave()
 end
 
@@ -1219,7 +1229,7 @@ function OV.Mark(text)
     return nil, ov.name .. " has " .. OV.SCENE_MAX .. " places in this scene (the map's limit): remove one first"
   end
   local place = { id = ov.nextPlace, name = name, raw = here.raw, scene = here.scene, x = here.x, y = here.y,
-                  z = here.z }
+                  z = here.z, icon = ov.icon, color = ov.color }
   ov.nextPlace = ov.nextPlace + 1
   ov.places[#ov.places + 1] = place
   if not ovSave() then
@@ -1306,7 +1316,7 @@ function OV.Sync()
     if p.raw == raw and #want < OV.SCENE_MAX then         -- (a file edited past it: the first ones)
       local id = OV.MarkerId(ov, p)
       ids[id] = true
-      want[#want + 1] = { id = id, p = p, o = { label = p.name, icon = ov.icon, color = ovColor(ov.color),
+      want[#want + 1] = { id = id, p = p, o = { label = p.name, icon = p.icon, color = ovColor(p.color),
                                                 note = ov.name } }
     end
   end
@@ -1353,7 +1363,8 @@ end
 
 -- /toolbox overlay
 T.AddCommand("overlay", "map overlays, sets of places you mark, one shown at a time: <name> shows one; off; new"
-  .. " <name>; rename <old> = <new>; delete <name>; places; icon <shape>; color <name> (alone: lists them)",
+  .. " <name>; rename <old> = <new>; delete <name>; places; icon <shape>, color <name> (your next marks') (alone: lists"
+  .. " them)",
   function(rest)
     local word, args = T.ParseArgs(rest)
     local c = "/" .. T.commands[1] .. " "
@@ -1414,7 +1425,7 @@ T.AddCommand("overlay", "map overlays, sets of places you mark, one shown at a t
         return
       end
       if word == "icon" then OV.SetIcon(ov, pick) else OV.SetColor(ov, pick) end
-      T.Print(ov.name .. ": " .. word .. " " .. pick .. ".")
+      T.Print(ov.name .. ": your next marks' " .. word .. " " .. pick .. " (mark look [name] gives a place it).")
     else
       local target = OV.Find(word == "show" and args or rest)
       if not target then
@@ -1429,10 +1440,10 @@ T.AddCommand("overlay", "map overlays, sets of places you mark, one shown at a t
 
 -- /toolbox mark
 T.AddCommand("mark", "mark where you stand in the shown map overlay: mark [name]; mark remove [name] (no name: the"
-  .. " nearest within " .. OV.NEAR .. " m); mark beacon [name]",
+  .. " nearest within " .. OV.NEAR .. " m); mark beacon [name]; mark look [name] (the overlay's shape and color now)",
   function(rest)
     local word, args = T.ParseArgs(rest)
-    if word == "remove" or word == "beacon" then
+    if word == "remove" or word == "beacon" or word == "look" then
       local p, ov, why = OV.PlaceFor(args)
       if not p then
         T.Print("Couldn't find it: " .. why .. ".")
@@ -1441,6 +1452,9 @@ T.AddCommand("mark", "mark where you stand in the shown map overlay: mark [name]
       if word == "remove" then
         OV.RemovePlace(ov, p)
         T.Print("Removed " .. p.name .. " from " .. ov.name .. ".")
+      elseif word == "look" then
+        OV.SetPlaceLook(ov, p)
+        T.Print(p.name .. ": " .. p.icon .. ", " .. p.color .. ".")
       else
         local _, msg = OV.Beacon(p)
         T.Print(msg)
