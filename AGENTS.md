@@ -605,7 +605,10 @@ makes the loader refuse the whole file ("Unexpected token : '-'"), which the nex
 clip's path beside its name in `ShroudListSound`, a handle from `ShroudLoadSound`, or a list per add-on); until then
 an effect file named like another sound's is refused (`S.UseFile`). **23** (submitted 2026-10-08): a file picker
 (`ShroudPickFile(kind, callback)` from a click: an in-game browser of the Lua folder, or the system dialog copying
-into `Lua/<slug>_files/`); until then players paste a path (`S.CleanPath`). **24** (submitted 2026-10-08): one caught
+into `Lua/<slug>_files/`); until then players paste a path (`S.CleanPath`). Landed in API 33: `S.Pick(title, done)` (Choose... on the Sounds page,
+`C.ChooseSound`; Choose a file... for effect sounds, `C.ChooseEffectSound`, the effect and when taken as the list
+opens), built only when `S.CanPick()`; the picked path still goes through `S.CleanPath`. Harness: `H.S.pick`,
+`H.pickFile(path)`, `H.S.noPicker`; `H.click` is a gesture. **24** (submitted 2026-10-08): one caught
 fish arrives as two `ShroudOnItemsGained` calls about 4 s apart, each x1 (`/toolbox loot log`), so the Loot Tracker
 counts fish twice; no workaround (owner, 2026-10-08: wait for the fix). **25** (submitted 2026-10-08): the kind of fishable water at a position
 (`ShroudGetWaterType(x, y, z)`) or a scene's list in `ShroudGetSceneInfo()`, for the location strip; nothing in the API

@@ -643,6 +643,25 @@ local function install_api()
   else
     ShroudLoadSoundHandle, ShroudGetSoundState, ShroudListSoundPaths = nil, nil, nil
   end
+  -- The file picker (API 33; H.S.noPicker: an older client): opens on a gesture, one list at a time; H.pickFile(path)
+  -- answers it (nil = the player closed it). S.pick = { kind, fn, title } while open.
+  if not S.noPicker then
+    ShroudPickFile = function(kind, fn, options)
+      if kind ~= "sound" and kind ~= "image" then return false, "badKind" end
+      if type(fn) ~= "function" then return false, "badCallback" end
+      if options ~= nil then
+        assert(type(options) == "table", "options must be a table")
+        for k in pairs(options) do assert(k == "title", "unknown option " .. tostring(k)) end
+        assert(options.title == nil or (type(options.title) == "string" and #options.title <= 64), "title: 64 at most")
+      end
+      if S.pick then return false, "busy" end
+      if not S.gesture then return false, "needsGesture" end
+      S.pick = { kind = kind, fn = fn, title = options and options.title }
+      return true
+    end
+  else
+    ShroudPickFile = nil
+  end
   ShroudListSoundReset = function()
     local had = #S.clips > 0
     S.clips, S.clipPaths, S.clipState = {}, {}, {}
@@ -1176,7 +1195,10 @@ function H.click(windowId, elementId)
   local b = S.windows[windowId]:Find(elementId)
   assert(b, "no element " .. elementId)
   assert(b.enabled ~= false, elementId .. " is greyed out (disabled): a player can't click it")
-  H.call(function() b.onClick(b) end)
+  S.gesture = true                     -- a click in the add-on's window is a gesture (docs)
+  local ok, err = pcall(H.call, function() b.onClick(b) end)
+  S.gesture, S.gestureUses = false, 0
+  if not ok then error(err, 2) end
 end
 
 -- ---------------------------------------------------------------------------
@@ -1190,6 +1212,15 @@ function H.call(fn, ...)
   S.inCallback = was
   if not r[1] then error(r[2], 2) end
   return select(2, (table.unpack or unpack)(r))
+end
+
+-- The player picks `path` in the open file list (nil: closes it).
+function H.pickFile(path)
+  local pick = assert(S.pick, "no file list open")
+  S.pick = nil
+  local kind = nil
+  if path then kind = path:lower():find("%.wav$") and AudioType.WAV or AudioType.OGGVORBIS end
+  return H.call(pick.fn, path, kind)
 end
 
 function H.callback(name, ...)

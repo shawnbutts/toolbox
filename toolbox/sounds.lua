@@ -233,6 +233,31 @@ function S.CleanPath(text)
   return path
 end
 
+-- The game's file list (API 33, our request 23): the player picks a sound in their Lua folder. A click or command
+-- only (a gesture). `done(path)` gets a path S.CleanPath took, or `done(nil, why)`; nothing when the list is closed.
+-- Returns true when the list opened, else false and why.
+S.PICK_REASONS = {
+  busy = "a file list is already open (close it first)",
+  notNow = "not right now (loading, or not in the world)",
+  needsGesture = "it needs a click",
+  gestureSpent = "too much from one click",
+  tooOften = "too often; wait a few seconds",
+}
+
+function S.CanPick() return type(ShroudPickFile) == "function" end
+
+function S.Pick(title, done)
+  if not S.CanPick() then return false, "this game client can't show a file list (Lua API 33): type the path" end
+  local called, opened, reason = pcall(ShroudPickFile, "sound", function(path)
+    if path == nil then return end                  -- the player closed the list
+    local ok, err = pcall(function() done(S.CleanPath(path)) end)
+    if not ok then T.Print("Couldn't use that file: " .. tostring(err)) end
+  end, { title = title:sub(1, 64) })
+  if not called then return false, "the game raised an error" end
+  if opened ~= true then return false, S.PICK_REASONS[reason] or tostring(reason) end
+  return true
+end
+
 -- The name the game gives a file's clip: its base name without the extension (any case, to be safe).
 local function clipName(file) return (file:match("([^/]+)$") or file):gsub("%.%w+$", ""):lower() end
 

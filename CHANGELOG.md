@@ -30,8 +30,8 @@ ones included).
 - **Your own sound for any buff or debuff,** when you get it and / or when it's about to run out: record yourself
   saying its name, say, and you'll know which one it is. Put the file in your Lua folder (Lua/toolbox_sounds is a
   good place; not the toolbox folder, which updates replace), then in Settings, Buffs, pick the effect, choose
-  when, paste the file's path and press Set (the Sounds page has a button to get there; or /toolbox buffs sound
-  get Blessing of Atos = toolbox_sounds/atos.ogg). Effects without one keep the usual sound. On a game client
+  when, then Choose a file... and pick it from the game's list (or paste the file's path and press Set; the Sounds
+  page has a button to get there; or /toolbox buffs sound get Blessing of Atos = toolbox_sounds/atos.ogg). Effects without one keep the usual sound. On a game client
   with Lua API 34 two files of the same name each play their own sound (older clients refuse the second: rename
   it).
 - **A sound for mail:** new mail and mail about to expire ring a doorbell of their own when their sound is on, so
@@ -39,6 +39,9 @@ ones included).
   toolbox_mail.ogg in your Lua folder or any file on the Sounds page.
 
 ### Changed
+- **Choose sound files from a list:** on a newer game client (Lua API 33), the Sounds page has a Choose... button by
+  each sound and effect sounds have Choose a file...: the game lists the sound files in your Lua folder (with a row
+  to open the folder, so you can drop one in) and you pick one, instead of typing its path.
 - Bigger icons: the Icon size sliders (buff bar, buff block and skill activity) now go up to 64 pixels (was 48).
 
 ### Fixed

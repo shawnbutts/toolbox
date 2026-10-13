@@ -398,6 +398,50 @@ return function(t)
     t.ok(B().EffectSound("One", "get") and B().EffectSound("Two", "get"), "both kept: the player renames one")
   end)
 
+  -- API 33: the game's file list instead of a pasted path.
+  t.test("file picker: Choose on the Sounds page and for an effect; closed, busy, refused, older clients", function()
+    bootWithSounds()
+    H.S.files["toolbox_sounds/beep.ogg"] = true
+    H.S.files["toolbox_sounds/heal.ogg"] = true
+    H.chat("/tbx config")
+    H.click("toolbox_config", "snd_buff_expiring_choose")
+    t.eq(H.S.pick.kind, "sound")
+    t.eq(H.S.pick.title, "Buff expiring")
+    H.click("toolbox_config", "snd_debuff_landed_choose")
+    t.ok(H.logged("Debuff landed: can't choose a file now: a file list is already open"), H.lastLog())
+    H.pickFile("toolbox_sounds/beep.ogg")
+    t.eq(Toolbox.Sounds.GetPath("buff_expiring"), "toolbox_sounds/beep.ogg")
+    t.eq(H.config():Find("snd_buff_expiring_path").text, "toolbox_sounds/beep.ogg")
+    H.advance(1)
+    t.eq(select(2, Toolbox.Sounds.Status("buff_expiring")), "toolbox_sounds/beep.ogg", "loaded")
+    H.click("toolbox_config", "snd_debuff_landed_choose")
+    H.pickFile(nil)                              -- closed: nothing changes
+    t.eq(Toolbox.Sounds.GetPath("debuff_landed"), "")
+    H.click("toolbox_config", "snd_debuff_landed_choose")
+    H.pickFile("toolbox/debuff_landed.ogg")
+    t.ok(H.logged("Debuff landed: Not in the toolbox folder"), H.lastLog())
+    t.eq(Toolbox.Sounds.GetPath("debuff_landed"), "")
+    -- an effect's own sound: the effect and when are the ones picked as the list opened
+    H.addBuffs({ { name = "Heal", remaining = 600, icon = 101 } })
+    H.advance(1)
+    local w = H.config()
+    H.change("toolbox_config", "quiet_pick", "Heal (on you)")
+    H.change("toolbox_config", "fx_when", "When you get it")
+    H.click("toolbox_config", "fx_choose")
+    t.eq(H.S.pick.title, "A sound for Heal")
+    H.change("toolbox_config", "fx_when", "When it's about to run out")
+    H.pickFile("toolbox_sounds/heal.ogg")
+    t.eq(B().EffectSound("Heal", "get"), "toolbox_sounds/heal.ogg", w:Find("fx_msg").text)
+    t.eq(B().EffectSound("Heal", "end"), nil)
+    -- an older client: no Choose buttons, the paths are typed
+    H.S.noPicker = true
+    H.reload()
+    H.chat("/tbx config")
+    t.no(H.config():Find("fx_choose"))
+    t.no(H.config():Find("snd_buff_expiring_choose"))
+    t.ok(H.config():Find("fx_path"))
+  end)
+
   -- API 34: a handle per file, so files of one name each play their own recording.
   t.test("effect sounds with sound handles: two files of one name each play their own", function()
     bootWithSounds()

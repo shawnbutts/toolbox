@@ -89,19 +89,39 @@ C.Helpers = {
   end,
 }
 
+-- A sound's own file, picked from the game's list (API 33): set and shown in its field.
+function C.ChooseSound(key)
+  local S = T.Sounds
+  local ok, why = S.Pick(S.Label(key), function(path, bad)
+    if not path then
+      T.Print(S.Label(key) .. ": " .. tostring(bad))
+      return
+    end
+    S.SetPath(key, path)
+    setText("snd_" .. key .. "_path", path)
+  end)
+  if not ok then T.Print(S.Label(key) .. ": can't choose a file now: " .. why .. ".") end
+end
+
 local function soundRows(def)
   local S = T.Sounds
+  local row = {
+    UI.TextField{ id = "snd_" .. def.key .. "_path", text = S.GetPath(def.key),
+      placeholder = "custom file in your Lua folder", maxLength = 200, style = { flexGrow = 1, flexShrink = 1 },
+      tooltip = "A .ogg/.wav/.mp3 path inside your Lua folder; press Enter to use it, clear it for the default",
+      onSubmit = function(_, text) S.SetPath(def.key, text) end },
+  }
+  if S.CanPick() then
+    row[#row + 1] = UI.Button{ id = "snd_" .. def.key .. "_choose", text = "Choose...", style = { marginLeft = 4 },
+      tooltip = "Pick a sound file from your Lua folder for " .. def.label:lower(),
+      onClick = function() C.ChooseSound(def.key) end }
+  end
+  row[#row + 1] = UI.Button{ id = "snd_" .. def.key .. "_test", text = "Test", style = { marginLeft = 4 },
+    tooltip = "Play " .. def.label:lower(),
+    onClick = function() S.Test(def.key) end }
   return UI.Column{ style = { marginTop = 4 }, children = {
     UI.Label{ id = "snd_" .. def.key .. "_status", text = def.label, class = "dim" },   -- its status, by Sync
-    UI.Row{ style = { alignItems = "center" }, children = {
-      UI.TextField{ id = "snd_" .. def.key .. "_path", text = S.GetPath(def.key),
-        placeholder = "custom file in your Lua folder", maxLength = 200, style = { flexGrow = 1, flexShrink = 1 },
-        tooltip = "A .ogg/.wav/.mp3 path inside your Lua folder; press Enter to use it, clear it for the default",
-        onSubmit = function(_, text) S.SetPath(def.key, text) end },
-      UI.Button{ id = "snd_" .. def.key .. "_test", text = "Test", style = { marginLeft = 4 },
-        tooltip = "Play " .. def.label:lower(),
-        onClick = function() S.Test(def.key) end },
-    } },
+    UI.Row{ style = { alignItems = "center" }, children = row },
     slider("snd_" .. def.key .. "_vol", "Its volume (% of the alert volume)", 0, 100, 5, S.GetLevel(def.key),
       "This sound's own volume, on top of the alert volume; 0 silences just this one",
       function(n) S.SetLevel(def.key, n) end),
@@ -997,6 +1017,7 @@ local function syncEffectSounds()
   local setLabels = {}
   for i, c in ipairs(set) do setLabels[i] = c.label end
   setEnabled("fx_set", next(quietPicks) ~= nil)
+  setEnabled("fx_choose", next(quietPicks) ~= nil)
   local sig = table.concat(setLabels, "|")
   if sig == C.fxSig then return end
   C.fxSig = sig
@@ -1010,19 +1031,45 @@ local function syncEffectSounds()
   setEnabled("fx_remove", #setLabels > 0)
 end
 
-function C.SetEffectSound(text)
-  local drop, field = el.quiet_pick, el.fx_path
+-- The effect and when, as picked on the page now.
+local function effectPicked()
+  local drop, whenDrop = el.quiet_pick, el.fx_when
   local name = drop and quietPicks[drop:GetValue()]
-  local path = text
-  if path == nil and field then path = field:GetText() end
-  local whenDrop = el.fx_when
   local when = nil
   for _, w in ipairs(T.BuffBar.SOUND_WHEN) do
     if whenDrop and whenDrop:GetValue() == w[2] then when = w[1] end
   end
-  local ok, msg = T.BuffBar.SetEffectSound(name, path, when or "end")
+  return name, when or "end"
+end
+
+-- `name` / `when`: as picked when the file list opened (C.ChooseEffectSound), else as picked now.
+function C.SetEffectSound(text, name, when)
+  local field = el.fx_path
+  if name == nil then name, when = effectPicked() end
+  local path = text
+  if path == nil and field then path = field:GetText() end
+  local ok, msg = T.BuffBar.SetEffectSound(name, path, when)
   setText("fx_msg", msg or "")
   if ok and field then field:SetText("") end
+end
+
+-- Picks the file from the game's list (API 33) for the effect and time picked now.
+function C.ChooseEffectSound()
+  local name, when = effectPicked()
+  if not name then
+    setText("fx_msg", "Pick the effect first (the list above).")
+    return
+  end
+  local ok, why = T.Sounds.Pick("A sound for " .. T.BuffBar.ShownName(name), function(path, bad)
+    if not path then
+      setText("fx_msg", tostring(bad))
+      if not el.fx_msg then T.Print(tostring(bad)) end
+      return
+    end
+    C.SetEffectSound(path, name, when)
+    if not el.fx_msg then T.Print("Sound set: " .. path) end
+  end)
+  if not ok then setText("fx_msg", "Can't choose a file now: " .. why .. ".") end
 end
 
 local function pickedSound()
@@ -1051,7 +1098,7 @@ end
 
 function C.EffectSoundRows()
   C.fxSig = nil                        -- new controls: filled by the next Sync
-  return UI.Column{ style = { marginTop = 6 }, children = {
+  local rows = {
     UI.Label{ text = "Or give the effect picked above its own sound (record its name, say), when you get it or when"
       .. " it's about to run out: a file inside your Lua folder, not the toolbox folder.", class = "dim",
       style = { whiteSpace = "wrap" } },
@@ -1079,7 +1126,15 @@ function C.EffectSoundRows()
         tooltip = "It plays the usual sound again", onClick = function() C.RemoveEffectSound() end },
     } },
     UI.Label{ id = "fx_msg", text = "", class = "dim", style = { whiteSpace = "wrap" } },
-  } }
+  }
+  if T.Sounds.CanPick() then             -- API 33: the game's file list, under the path's row
+    table.insert(rows, 4, UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
+      UI.Button{ id = "fx_choose", text = "Choose a file...", style = { flexGrow = 1, flexShrink = 1 },
+        tooltip = "Pick the sound from your Lua folder in the game's file list, for the effect and time picked above",
+        onClick = function() C.ChooseEffectSound() end },
+    } })
+  end
+  return UI.Column{ style = { marginTop = 6 }, children = rows }
 end
 
 -- Setups (Toolbox.Backup): import another character's settings and positions, export yours under a name.
@@ -1361,12 +1416,13 @@ local ALL_IDS = { "loc_show", "loc_facing",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
   "buff_countdown_secs_value", "backup_where", "backup_save", "settings_reset", "backup_pending",
   "backup_cancel", "backup_msg", "quiet_pick", "quiet_mute", "quiet_list", "quiet_unmute", "quiet_msg",
-  "fx_when", "fx_path", "fx_set", "fx_list", "fx_test", "fx_remove", "fx_msg",
+  "fx_when", "fx_path", "fx_set", "fx_choose", "fx_list", "fx_test", "fx_remove", "fx_msg",
   "setup_share", "setup_pick", "setup_import", "setup_delete", "setup_name",
   "setup_export", "setup_msg" }
 for _, def in ipairs(T.Sounds.DEFS) do
   ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_status"
   ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_path"
+  ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_choose"
   ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_vol"
   ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_vol_value"
 end

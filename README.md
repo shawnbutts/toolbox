@@ -272,8 +272,9 @@ bar while this one is showing (the game restores it on reload, so it is applied 
 - **Effect sounds**: your own sound file for a buff or debuff, when you get it and / or when it's about to run
   out (record yourself saying its name, and you'll know which one it is). The file goes in your Lua folder or a
   folder in it, such as `Lua/toolbox_sounds/` (not `Lua/toolbox/`, which updates replace). Settings, Buffs: pick
-  the effect in Muted effects' list, choose when, paste the path (`toolbox_sounds/atos.ogg`; a full path is cut to
-  the part after `Lua`) and press Set; Test and Remove are below it, and the Sounds page has a button to get there.
+  the effect in Muted effects' list, choose when, then **Choose a file...** and pick it from the game's file list
+  (Lua API 33), or paste the path (`toolbox_sounds/atos.ogg`; a full path is cut to the part after `Lua`) and press
+  Set; Test and Remove are below it, and the Sounds page has a button to get there.
   In chat: `/toolbox buffs sound get|end Blessing of Atos = toolbox_sounds/atos.ogg` (without get or end: a
   debuff's when you get it, a buff's when it's about to run out), `/toolbox buffs sound test|remove [get|end]
   <name>`, and `/toolbox buffs sound` to list them. Each replaces the usual debuff or expiry sound and plays even
@@ -289,7 +290,8 @@ bar while this one is showing (the game restores it on reload, so it is applied 
 `skill_down.ogg` for the skill activity strip); to use your own, put a replacement in the folder above it. Each
 alert takes the first that loads of:
 
-1. a custom path you set in `/toolbox config` (any `.ogg`/`.wav`/`.mp3` inside your Lua folder);
+1. a custom path you set in `/toolbox config` (any `.ogg`/`.wav`/`.mp3` inside your Lua folder; typed, or picked
+   with **Choose...** from the game's file list on Lua API 33);
 2. a replacement beside the add-on: `Lua/toolbox_buff_expiring.ogg` / `Lua/toolbox_debuff_landed.ogg` /
    `Lua/toolbox_notify.ogg` (or `.wav`), which store updates don't touch;
 3. the default in the add-on's folder, `Lua/toolbox/<name>.ogg`.
