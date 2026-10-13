@@ -153,7 +153,8 @@ return function(t)
     t.eq(strip().x .. "," .. strip().y, "1700,900", "inside: left alone")
     t.eq(#H.logs(), 0, "nothing said")
     H.screenChanged{ uiWidth = 1280, uiHeight = 720 }
-    t.eq(strip().x .. "," .. strip().y, "1100,660", "pulled in by its size")
+    -- By its size: the larger of what the game laid out and what Toolbox gave the strip.
+    t.eq(strip().x .. "," .. strip().y, "1100," .. (720 - math.max(60, strip().height)), "pulled in by its size")
     t.ok(H.logged("The game window changed: 1 strip moved back on screen."), H.lastLog())
     t.eq(H.saved("location").x, 1100, "kept")
     H.S.noScreen = true
@@ -188,6 +189,23 @@ return function(t)
     t.ok(menu.x < 1280 and menu.y < 720, menu.x .. "," .. menu.y)
     t.eq(H.saved("launcher").x, menu.x, "kept while hidden")
     H.setCombat(false)
+  end)
+
+  -- Review 31: a strip built hidden (never sized) is fitted when it first shows.
+  t.test("the game window shrinks: a strip first shown later at a saved place near the edge comes inside", function()
+    H.boot()
+    H.chat("/tbx notify mail via hud")
+    H.S.screen.uiWidth, H.S.screen.uiHeight = 1280, 720
+    Toolbox.Notify.Hud.SavePosition(1200, 600)
+    H.reload()
+    local f = H.nhud()
+    t.ok(f, "built")
+    t.eq(f.visible, false, "nothing to show yet")
+    H.setNotes{ unreadMail = 2 }
+    f = H.nhud()
+    t.ok(f.visible ~= false, "shown")
+    t.ok(f.x + f.width <= 1280 and f.y + f.height <= 720, f.x .. "," .. f.y .. " " .. f.width .. "x" .. f.height)
+    t.eq(H.saved("notify_hud").x, f.x, "kept")
   end)
 
   t.test("the move command and position buttons", function()

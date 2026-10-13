@@ -41,6 +41,7 @@ local modules = {}                    -- key -> module
 local frames = {}                     -- key -> HudFrame (unglued), or [GLUED_ID] -> the shared one
 local contents = {}                   -- key -> content element
 local sized = {}                      -- frame -> { key = "w,h", w, h }: the size last applied
+local wasShown = {}                   -- frame -> shown at the last Refresh (fitShown)
 local prefs = { glued = false }
 Hud.errors = {}                       -- key -> error text from the last build, for debug
 
@@ -170,7 +171,7 @@ end
 local function destroyAll()
   for _, frame in pairs(frames) do pcall(function() frame:Destroy() end) end
   for key in pairs(contents) do unbuilt(key) end
-  frames, contents, sized = {}, {}, {}
+  frames, contents, sized, wasShown = {}, {}, {}, {}
   dropOverlay(nil)
 end
 
@@ -302,11 +303,22 @@ function Hud.Build(missingOnly)
   end
 end
 
+-- True when the size changed.
 local function setSize(frame, w, h)
   local key = w .. "," .. h
-  if sized[frame] and sized[frame].key == key then return end
+  if sized[frame] and sized[frame].key == key then return false end
   sized[frame] = { key = key, w = w, h = h }
   pcall(function() frame:SetSize(w, h) end)   -- refused past the HUD area limit: keep the old size
+  return true
+end
+
+-- A strip just shown or resized is fitted inside the UI as last read (Hud.screen, from Hud.FitBuilt: no read here):
+-- one built hidden had no size to fit by (review 31, the notification HUD's first notice).
+local fitFrame = nil                   -- (defined with Hud.FitScreen)
+local function fitShown(key, frame, resized)
+  local was = wasShown[frame]
+  wasShown[frame] = true
+  if (resized or not was) and Hud.screen then fitFrame(key, frame, Hud.screen.w, Hud.screen.h) end
 end
 
 -- Rebuilds one module's own strip and leaves the others alone (a setting that changes its elements, such as
@@ -363,8 +375,10 @@ function Hud.Refresh()
     if hideAll then any = false end
     T.SetVisible(frame, any)
     if any then
-      setSize(frame, T.Window.GRIP + w + Hud.PAD, h + Hud.PAD)
+      fitShown(Hud.GLUED_ID, frame, setSize(frame, T.Window.GRIP + w + Hud.PAD, h + Hud.PAD))
       fitOverlay(Hud.GLUED_ID, w, h, T.Window.GRIP)
+    else
+      wasShown[frame] = nil
     end
   end
   for key, own in pairs(frames) do
@@ -373,8 +387,10 @@ function Hud.Refresh()
       T.SetVisible(own, shown)
       if shown then
         local cw, ch = modules[key].ContentSize()
-        setSize(own, T.Window.GRIP + cw + Hud.PAD, ch + Hud.PAD)
+        fitShown(key, own, setSize(own, T.Window.GRIP + cw + Hud.PAD, ch + Hud.PAD))
         fitOverlay(key, cw, ch, 0)
+      else
+        wasShown[own] = nil
       end
     end
   end
@@ -430,21 +446,21 @@ local function screenSize()
 end
 
 -- Moves one built strip inside sw x sh and saves the new place through its owner. True when it moved. A shown strip
--- is measured where it is, by its laid-out size; a hidden one (combat-only, switched on later, not laid out yet) by
--- its saved place and the size last given it, since a hidden strip can report the top-left corner (review 31).
-local function fitFrame(key, frame, sw, sh)
+-- is measured where it is, by the larger of its laid-out size and the size given it; a hidden one (combat-only,
+-- switched on later, not laid out yet) by its saved place and the size last given it, since a hidden strip can report
+-- the top-left corner (review 31). Fitted again as it first shows (fitShown).
+fitFrame = function(key, frame, sw, sh)
   local m = modules[key]
-  local x, y, w, h = nil, nil, nil, nil
+  local x, y, w, h = nil, nil, 0, 0
+  if sized[frame] then w, h = sized[frame].w, sized[frame].h end
   if onScreen(frame) then
     x, y = Hud.Position(frame)
-    local ok, gw, gh = pcall(frame.GetSize, frame)
-    if ok then w, h = gw, gh end
+    local ok, gw, gh = pcall(frame.GetSize, frame)   -- laid out, perhaps larger than asked (or not yet laid out)
+    if ok and type(gw) == "number" and type(gh) == "number" then w, h = math.max(w, gw), math.max(h, gh) end
   else
     if m then x, y = m.GetSavedPosition() else x, y = prefs.x, prefs.y end
-    if sized[frame] then w, h = sized[frame].w, sized[frame].h end
   end
   if type(x) ~= "number" or type(y) ~= "number" then return false end
-  if type(w) ~= "number" or type(h) ~= "number" then w, h = 0, 0 end
   local nx = math.floor(math.max(0, math.min(x, sw - w)))
   local ny = math.floor(math.max(0, math.min(y, sh - h)))
   if nx == math.floor(x) and ny == math.floor(y) then return false end

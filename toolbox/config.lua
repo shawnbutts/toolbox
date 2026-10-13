@@ -897,7 +897,7 @@ function C.MapSection()
   return UI.Column{ children = children }
 end
 
--- The "HUD layout" category: every strip's position, in one place.
+-- The "HUD layout" category: the strips' positions, in one place (but Location's, on Map & location).
 function C.HudSection()
   local children = {
     heading("HUD layout", true),
@@ -1321,8 +1321,9 @@ function C.MenuRows(children)
   local L = T.Launcher
   local function add(e) children[#children + 1] = e end
   add(heading("Menu", true))
-  add(UI.Label{ text = "Buttons that open Toolbox's windows with one click, bright while a window is open. Move it by"
-    .. " its grip (or under HUD layout).", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } })
+  add(UI.Label{ text = "Buttons that open Toolbox's windows (or show the location strip) with one click, bright while"
+    .. " a window is open. Move it by its grip (or under HUD layout).", class = "dim",
+    style = { whiteSpace = "wrap", marginTop = 6 } })
   add(UI.Toggle{ id = "ln_show", text = "Show the menu", value = L.GetShow(),
     tooltip = "Off: open the windows from these settings, as before", onChange = function(_, v) L.SetShow(v) end })
   add(UI.Toggle{ id = "ln_vertical", text = "Vertical", value = L.GetVertical(),

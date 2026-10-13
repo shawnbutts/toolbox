@@ -199,7 +199,8 @@ into one if a new file is ever needed).
   makes the next login, the same character's too, read every module's settings again (`T.FollowCharacter`). `Hud.FitScreen()` (API 31, from
   `ShroudOnScreenChanged`): every built strip past the right or bottom edge of `ShroudGetScreenInfo`'s uiWidth /
   uiHeight is moved inside and saved through its owner (`Hud.FitBuilt`; a shown one measured where it is by its laid-out
-  size, a hidden one by its saved place and last set size); `Hud.Build` fits the strips it builds too (review 31) (harness `H.S.screen`, `H.screenChanged{...}`, `H.S.noScreen`).
+  size, a hidden one by its saved place and last set size); `Hud.Build` fits the strips it builds too, and `Hud.Refresh` one it first shows or resizes, by the cached `Hud.screen`
+  (review 31: built hidden, it had no size yet) (harness `H.S.screen`, `H.screenChanged{...}`, `H.S.noScreen`).
   `Hud.SetOverlay(provider)`:
   one overlay drawn over the Toolbelt (the combat shout). `Hud.Rebuild(key)` rebuilds one
   module's own strip (a setting that changes its elements); a full `Hud.Build()` makes every strip's elements
