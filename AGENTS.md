@@ -229,7 +229,9 @@ into one if a new file is ever needed).
   scene's places only (Beacon, Set look, Remove; every scene's places listed with the page open took the text past
   its budget). `OV.Sync` (T.Tick, after each change) mirrors `DD.SyncMarkers`: ids "ov<overlay>-<place>" (a switch moves
   none), ours unwanted ("ov") come down, one already up as wanted isn't sent again (a "rate" refusal after a big switch
-  retries after `OV.RETRY` s, sending only what's missing). The run flags stay their own toggle (owner); later ideas:
+  retries after `OV.RETRY` s, sending only what's missing; the note, the overlay's name, is compared too, review
+  35). Every change is undone in memory when the game refuses its save (`ovSnapshot` / `ovSave(snap)`, review 34:
+  a refused one stayed live and the next save wrote it), and every command and button says so. The run flags stay their own toggle (owner); later ideas:
   self-filling overlays (gathering spots, a death flag) and sharing one as a text string (no clipboard API; a
   TextField takes 1,024 characters). Harness: `H.S.markerAllow` (n sets, then "rate").
   Then `Toolbox.Launcher` (LN; owner, 2026-10-10; "the menu" to players, `/toolbox menu`, alias `launcher`): one button a window (`LN.BUTTONS`: its

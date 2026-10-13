@@ -1121,7 +1121,37 @@ function OV.Init()
   ovMarks.retryAt = -math.huge
 end
 
-local function ovSave()
+-- What a change can touch, kept by value with the tables it belongs to: a refused save puts it all back (review
+-- 34: a refused Create stayed in the list, and the next save that worked wrote it).
+local function ovSnapshot()
+  local list = {}
+  for i, ov in ipairs(ovData.list) do
+    local places = {}
+    for k, p in ipairs(ov.places) do places[k] = { p = p, icon = p.icon, color = p.color } end
+    list[i] = { ov = ov, name = ov.name, icon = ov.icon, color = ov.color, nextPlace = ov.nextPlace, places = places }
+  end
+  return { shown = ovData.shown, nextId = ovData.nextId, list = list }
+end
+
+local function ovRestore(snap)
+  local list = {}
+  for i, k in ipairs(snap.list) do
+    local ov = k.ov
+    ov.name, ov.icon, ov.color, ov.nextPlace = k.name, k.icon, k.color, k.nextPlace
+    local places = {}
+    for j, kp in ipairs(k.places) do
+      kp.p.icon, kp.p.color = kp.icon, kp.color
+      places[j] = kp.p
+    end
+    ov.places = places
+    list[i] = ov
+  end
+  ovData.list, ovData.shown, ovData.nextId = list, snap.shown, snap.nextId
+end
+
+-- Saves the overlays as changed since `snap` (ovSnapshot() taken before the change), or puts `snap` back when the
+-- game refuses the write. Returns whether it saved.
+local function ovSave(snap)
   OV.version = OV.version + 1
   local list = {}
   for i, ov in ipairs(ovData.list) do
@@ -1134,6 +1164,7 @@ local function ovSave()
                 places = places }
   end
   local ok = T.Save(OV.KEY, { v = 1, shown = ovData.shown, nextId = ovData.nextId, list = list })
+  if not ok then ovRestore(snap) end
   ovMarks.retryAt = -math.huge
   OV.Sync()
   T.Config.Sync()
@@ -1170,9 +1201,14 @@ end
 
 
 -- Shows `ov` on the map (the only one), or none (nil).
+-- Each change below returns true, or false (nil for the ones returning a table) and why.
+OV.REFUSED = "the game refused to save it"
+
 function OV.Show(ov)
+  local snap = ovSnapshot()
   ovData.shown = ov and ov.id or 0
-  return ovSave()
+  if not ovSave(snap) then return false, OV.REFUSED end
+  return true
 end
 
 -- Makes overlay `text` and shows it. Returns it, or nil and why.
@@ -1181,13 +1217,14 @@ function OV.Create(text)
   if not name then return nil, "give it a name" end
   if OV.Find(name) then return nil, "there's already an overlay called " .. name end
   if #OV.List() >= OV.MAX then return nil, "there are already " .. OV.MAX .. " overlays: delete one first" end
+  local snap = ovSnapshot()
   local n = #ovData.list
   local ov = { id = ovData.nextId, name = name, icon = OV.ICONS[1], color = OV.COLORS[n % (#OV.COLORS - 1) + 1][1],
                places = {}, nextPlace = 1 }
   ovData.nextId = ovData.nextId + 1
   ovData.list[#ovData.list + 1] = ov
   ovData.shown = ov.id
-  if not ovSave() then return nil, "the game refused to save it" end
+  if not ovSave(snap) then return nil, OV.REFUSED end
   return ov
 end
 
@@ -1196,35 +1233,45 @@ function OV.Rename(ov, text)
   if not name then return false, "give it a name" end
   local other = OV.Find(name)
   if other and other ~= ov then return false, "there's already an overlay called " .. name end
+  local snap = ovSnapshot()
   ov.name = name
-  return ovSave(), name
+  if not ovSave(snap) then return false, OV.REFUSED end
+  return true, name
 end
 
 function OV.Delete(ov)
+  local snap = ovSnapshot()
   local kept = {}
   for _, o in ipairs(ovData.list) do
     if o ~= ov then kept[#kept + 1] = o end
   end
   ovData.list = kept
   if ovData.shown == ov.id then ovData.shown = 0 end
-  return ovSave()
+  if not ovSave(snap) then return false, OV.REFUSED end
+  return true
 end
 
 -- The look of the overlay's next marks (places made before keep theirs).
 function OV.SetIcon(ov, icon)
+  local snap = ovSnapshot()
   ov.icon = ovIcon(icon)
-  return ovSave()
+  if not ovSave(snap) then return false, OV.REFUSED end
+  return true
 end
 
 function OV.SetColor(ov, name)
+  local snap = ovSnapshot()
   ov.color = knownColor(name) and name or OV.COLORS[1][1]
-  return ovSave()
+  if not ovSave(snap) then return false, OV.REFUSED end
+  return true
 end
 
 -- Gives place `p` the overlay's look for next marks (its icon and color now).
 function OV.SetPlaceLook(ov, p)
+  local snap = ovSnapshot()
   p.icon, p.color = ov.icon, ov.color
-  return ovSave()
+  if not ovSave(snap) then return false, OV.REFUSED end
+  return true
 end
 
 -- Where you stand: { raw, scene, x, y, z }, or nil (loading, no character).
@@ -1275,14 +1322,12 @@ function OV.Mark(text)
   if sceneCount(ov, here.raw) >= OV.SCENE_MAX then
     return nil, ov.name .. " has " .. OV.SCENE_MAX .. " places in this scene (the map's limit): remove one first"
   end
+  local snap = ovSnapshot()
   local place = { id = ov.nextPlace, name = name, raw = here.raw, scene = here.scene, x = here.x, y = here.y,
                   z = here.z, icon = ov.icon, color = ov.color }
   ov.nextPlace = ov.nextPlace + 1
   ov.places[#ov.places + 1] = place
-  if not ovSave() then
-    table.remove(ov.places)
-    return nil, "the game refused to save it"
-  end
+  if not ovSave(snap) then return nil, OV.REFUSED end
   return place, ov
 end
 
@@ -1308,12 +1353,14 @@ function OV.PlaceFor(text)
 end
 
 function OV.RemovePlace(ov, place)
+  local snap = ovSnapshot()
   local kept = {}
   for _, p in ipairs(ov.places) do
     if p ~= place then kept[#kept + 1] = p end
   end
   ov.places = kept
-  return ovSave()
+  if not ovSave(snap) then return false, OV.REFUSED end
+  return true
 end
 
 -- The game's beacon at a place (a click: it replaces the player's own), in its scene only.
@@ -1375,15 +1422,16 @@ function OV.Sync()
       if not ids[id] then
         pcall(ShroudRemoveMapMarker, id)
       else
-        up[id] = { x = T.Field(m, "x"), z = T.Field(m, "z"), label = T.Field(m, "label"), icon = T.Field(m, "icon"),
-                   color = T.Field(m, "color") }
+        up[id] = { x = T.Field(m, "x"), y = T.Field(m, "y"), z = T.Field(m, "z"), label = T.Field(m, "label"),
+                   icon = T.Field(m, "icon"), color = T.Field(m, "color"), note = T.Field(m, "note") }
       end
     end
   end
   local refused = nil
   for _, w in ipairs(want) do
     local u = up[w.id]
-    local same = u and u.x == w.p.x and u.z == w.p.z and u.label == w.o.label and u.icon == w.o.icon
+    local same = u and u.x == w.p.x and u.y == w.p.y and u.z == w.p.z and u.label == w.o.label
+      and u.icon == w.o.icon and u.note == w.o.note           -- the note is the overlay's name (review 35: a rename)
       and type(u.color) == "string" and u.color:lower() == w.o.color:lower()
     if not same then
       local ok, set, reason = pcall(ShroudSetMapMarker, w.id, w.p.x, w.p.y, w.p.z, w.o)
@@ -1426,8 +1474,8 @@ T.AddCommand("overlay", "map overlays, sets of places you mark, one shown at a t
     if word == "window" then
       OV.ToggleWindow()
     elseif word == "off" then
-      OV.Show(nil)
-      T.Print("No overlay shown.")
+      local ok, why = OV.Show(nil)
+      T.Print(ok and "No overlay shown." or ("Couldn't hide it: " .. why .. "."))
     elseif word == "new" then
       local made, why = OV.Create(args)
       T.Print(made and ("Made " .. made.name .. ", shown now. " .. c .. "mark <name> marks where you stand.")
@@ -1447,8 +1495,9 @@ T.AddCommand("overlay", "map overlays, sets of places you mark, one shown at a t
         T.Print("No overlay called '" .. args .. "'.")
         return
       end
-      OV.Delete(target)
-      T.Print("Deleted " .. target.name .. " and its " .. #target.places .. " places.")
+      local ok, why = OV.Delete(target)
+      T.Print(ok and ("Deleted " .. target.name .. " and its " .. #target.places .. " places.")
+        or ("Couldn't delete it: " .. why .. "."))
     elseif word == "places" then
       if not ov then
         T.Print("No overlay is shown.")
@@ -1473,8 +1522,10 @@ T.AddCommand("overlay", "map overlays, sets of places you mark, one shown at a t
         T.Print("Use " .. c .. "overlay " .. word .. " " .. table.concat(names, "|") .. ".")
         return
       end
-      if word == "icon" then OV.SetIcon(ov, pick) else OV.SetColor(ov, pick) end
-      T.Print(ov.name .. ": your next marks' " .. word .. " " .. pick .. " (mark look [name] gives a place it).")
+      local ok, why = nil, nil
+      if word == "icon" then ok, why = OV.SetIcon(ov, pick) else ok, why = OV.SetColor(ov, pick) end
+      T.Print(ok and (ov.name .. ": your next marks' " .. word .. " " .. pick
+        .. " (mark look [name] gives a place it).") or ("Couldn't change it: " .. why .. "."))
     else
       local target = OV.Find(word == "show" and args or rest)
       if not target then
@@ -1482,8 +1533,8 @@ T.AddCommand("overlay", "map overlays, sets of places you mark, one shown at a t
           .. "overlay new <name> makes one.")
         return
       end
-      OV.Show(target)
-      T.Print("Showing " .. ovSummary(target) .. " on your map.")
+      local ok, why = OV.Show(target)
+      T.Print(ok and ("Showing " .. ovSummary(target) .. " on your map.") or ("Couldn't show it: " .. why .. "."))
     end
   end)
 
@@ -1499,11 +1550,13 @@ T.AddCommand("mark", "mark where you stand in the shown map overlay: mark [name]
         return
       end
       if word == "remove" then
-        OV.RemovePlace(ov, p)
-        T.Print("Removed " .. p.name .. " from " .. ov.name .. ".")
+        local ok, refusal = OV.RemovePlace(ov, p)
+        T.Print(ok and ("Removed " .. p.name .. " from " .. ov.name .. ".")
+          or ("Couldn't remove it: " .. refusal .. "."))
       elseif word == "look" then
-        OV.SetPlaceLook(ov, p)
-        T.Print(p.name .. ": " .. p.icon .. ", " .. p.color .. ".")
+        local ok, refusal = OV.SetPlaceLook(ov, p)
+        T.Print(ok and (p.name .. ": " .. p.icon .. ", " .. p.color .. ".")
+          or ("Couldn't change it: " .. refusal .. "."))
       else
         local _, msg = OV.Beacon(p)
         T.Print(msg)
@@ -1624,8 +1677,8 @@ local function mwDelete()
     return
   end
   mwDisarm()
-  OV.Delete(ov)
-  mwMsg("Deleted " .. ov.name .. ".")
+  local ok, why = OV.Delete(ov)
+  mwMsg(ok and ("Deleted " .. ov.name .. ".") or ("Couldn't delete it: " .. why .. "."))
 end
 
 local function mwMark(text)
@@ -1646,8 +1699,8 @@ local function mwBuild()
       style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The overlay shown on your map (only one at a time)",
       onChange = function(_, name)
         mwDisarm()
-        OV.Show(mwPicks[name])
-        mwMsg("")
+        local ok, why = OV.Show(mwPicks[name])
+        mwMsg(ok and "" or ("Couldn't show it: " .. why .. "."))
       end },
     ovname = UI.TextField{ id = "mw_ovname", text = "", placeholder = "An overlay's name: Gathering, XP farming...",
       maxLength = OV.NAME_MAX, style = { flexGrow = 1, flexShrink = 1 },
@@ -1661,13 +1714,17 @@ local function mwBuild()
       tooltip = "The shape of the marks you make next (marks made before keep theirs: Set look changes one)",
       onChange = function(_, v)
         local ov = OV.Shown()
-        if ov then OV.SetIcon(ov, v) end
+        local ok, why = true, nil
+        if ov then ok, why = OV.SetIcon(ov, v) end
+        mwMsg(ok and "" or ("Couldn't change it: " .. why .. "."))
       end },
     color = UI.Dropdown{ id = "mw_color", choices = colors, value = colors[1], style = { marginLeft = 4 },
       tooltip = "The color of the marks you make next (Gold is the Loot Tracker runs')",
       onChange = function(_, v)
         local ov = OV.Shown()
-        if ov then OV.SetColor(ov, v) end
+        local ok, why = true, nil
+        if ov then ok, why = OV.SetColor(ov, v) end
+        mwMsg(ok and "" or ("Couldn't change it: " .. why .. "."))
       end },
     name = UI.TextField{ id = "mw_name", text = "", placeholder = "Name this spot: Iron vein, Bank...",
       maxLength = OV.NAME_MAX, style = { flexGrow = 1, flexShrink = 1 }, tooltip = "Empty: Place 1, Place 2...",
@@ -1686,16 +1743,17 @@ local function mwBuild()
       onClick = function()
         local p, ov = mwPicked(), OV.Shown()
         if not (p and ov) then return end
-        OV.SetPlaceLook(ov, p)
-        mwMsg(p.name .. " is now a " .. p.color:lower() .. " " .. p.icon .. ".")
+        local ok, why = OV.SetPlaceLook(ov, p)
+        mwMsg(ok and (p.name .. " is now a " .. p.color:lower() .. " " .. p.icon .. ".")
+          or ("Couldn't change it: " .. why .. "."))
       end },
     remove = UI.Button{ id = "mw_remove", text = "Remove", style = { marginLeft = 2 },
       tooltip = "Take this place out of the overlay",
       onClick = function()
         local p, ov = mwPicked(), OV.Shown()
         if not (p and ov) then return end
-        OV.RemovePlace(ov, p)
-        mwMsg("Removed " .. p.name .. ".")
+        local ok, why = OV.RemovePlace(ov, p)
+        mwMsg(ok and ("Removed " .. p.name .. ".") or ("Couldn't remove it: " .. why .. "."))
       end },
     msg = UI.Label{ id = "mw_msg", text = "", class = "dim", style = { whiteSpace = "wrap", flexGrow = 1,
       flexShrink = 1 } },
