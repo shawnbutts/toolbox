@@ -226,9 +226,10 @@ into one if a new file is ever needed).
   `OV.SetPlaceLook`, `/toolbox mark look`). Room (owner, 2026-10-13): the game's 256 KB is a whole FILE's, so the
   overlays of all scenes share `OV.BUDGET` (150,000 estimated) of the character file: places are packed into text
   (`packPlaces`: "id|name|x|y|z|shape|color;...", whole metres), a scene's read (`OV.Places`, `unpackPlaces`) only when
-  needed, and a change that wouldn't fit (`ovSave`: `T.SavedSize` of the form, unless it frees room; or the file full,
+  needed, and a change that wouldn't fit (`ovSave`: `T.SavedSize` of the form AS SAVED, `T.ForSaving`'s escapes
+  included (review 37), unless it frees room; or the file full,
   T.Save's "full") is undone and refused by name (owner: a failed mark must say it was the mark: `OV.MarkFailed`,
-  `OV.RoomNote` past `OV.WARN`); `/toolbox overlay scenes` (`OV.Scenes`) and `forget <scene>` (typed twice in
+  `OV.RoomNote` past `OV.WARN`; a first mark makes its "Places" overlay in the same save, review 38); `/toolbox overlay scenes` (`OV.Scenes`) and `forget <scene>` (typed twice in
   `OV.FORGET_CONFIRM` s, `OV.Forget`) make room. Every change is undone in memory when its save fails (`ovSnapshot` /
   `ovSave(snap)`, review 34), and every command and button says so. Marking happens in the Map overlays window (owner:
   not the whole settings page; id `toolbox_marks`, the 8th window's third user, `T.TakeSharedWindow`), opened by the
@@ -524,7 +525,7 @@ character" sentinel.
 | `skills` | `{ show = bool (default false), vertical = bool (default true), slots = 1..12, stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels"/"xp", size = 20..64, number = bool (the level on the icon, default true), marks = bool (the API 27 training controls, default true), soundUp = bool, soundDown = bool (both default true), pause = bool (the Pause skills tile, default true), pauseHow = "off"/"maintain" (default "off"), x, y }` (skills.lua) |
 | `save_mark` | the number of the recovery copy last written (core.lua, `B.KeepRecovery`); a file without it while its copy exists is put back at start (`B.Recover`) |
 | `recovery:<lower name>` (ACCOUNT scope) | `{ v = 1, n, when = "YYYY-MM-DD HH:MM", keys = { [a B.RecoverList() key] = its saved table } }`: settings (`B.KEYS`), `loot_runs`, `skill_levels`, `buff_durations`, written at the flush after one changed |
-| `recovery_index` (ACCOUNT scope) | `{ v = 1, names = { lower name, ... } }`: the characters with a recovery copy, so `B.MeasureFiles` counts every copy (copies from before it are listed when their character next plays) |
+| `recovery_index` (ACCOUNT scope) | `{ v = 1, names = { lower name, ... }, legacy = bool }`: the characters with a recovery copy, written BEFORE the copy (`B.IndexRecovery`), so `B.MeasureFiles` counts every copy; `legacy` = 1.7.0 ran on this install (its copies aren't listed until their character next plays, and the game can't list keys): `B.LEGACY_RESERVE` of the account file stays free for them (`T.ReserveFile`; review 36) |
 | `settings_pending` | `{ kind = "reset" }`: done and deleted at the next start |
 | `setup_share` | `true` = this character's copy is listed for the others (default off; a setting, but never copied into a setup or imported) |
 | `setups` (ACCOUNT scope) | `{ v = 1, list = { { name, character = bool, when = "YYYY-MM-DD" } } }`: the setups' index, at most `B.SETUP_MAX` |

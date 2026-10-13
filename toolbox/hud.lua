@@ -1254,12 +1254,12 @@ function OV.Init()
   local saved = T.ReadSaved(OV.KEY)
   if type(saved) == "table" and saved.v == 2 then
     readV2(saved)
-    ovSize = T.SavedSize(saved)
+    ovSize = T.SavedSize(ShroudGetSavedVar(OV.KEY))      -- as saved: its text escaped (review 37)
   elseif type(saved) == "table" and saved.v == 1 then
     readV1(saved)
-    local form = savedForm()
+    local form = T.ForSaving(savedForm())
     ovSize = T.SavedSize(form)
-    T.Save(OV.KEY, form)
+    T.SetSavedVar(OV.KEY, form)
   else
     ovSize = 0
   end
@@ -1314,13 +1314,13 @@ end
 -- false and why.
 local function ovSave(snap)
   OV.version = OV.version + 1
-  local form = savedForm()
+  local form = T.ForSaving(savedForm())       -- measured as saved: escaped text can be longer (review 37)
   local size = T.SavedSize(form)
   local ok, why = true, nil
   if size > OV.BUDGET and size > ovSize then
     ok, why = false, OV.FULL
   else
-    local saved, _, kind = T.Save(OV.KEY, form)
+    local saved, _, kind = T.SetSavedVar(OV.KEY, form)
     if not saved then
       ok, why = false, kind == "full" and "this character's save file is full" or OV.REFUSED
     end
@@ -1376,15 +1376,8 @@ function OV.Show(ov)
   return ovSave(snap)
 end
 
--- Makes overlay `text` in this scene and shows it. Returns it, or nil and why.
-function OV.Create(text)
-  local name = OV.CleanName(text)
-  if not name then return nil, "give it a name" end
-  local here = OV.Here()
-  if not here then return nil, "the scene you're in can't be read right now" end
-  if OV.Find(name) then return nil, "there's already an overlay called " .. name .. " here" end
-  if #OV.List() >= OV.MAX then return nil, "this scene has " .. OV.MAX .. " overlays: delete one first" end
-  local snap = ovSnapshot()
+-- Adds overlay `name` to the scene at `here` and shows it, unsaved (Create's and an implicit first mark's).
+local function addOverlay(here, name)
   local sc = ovData.scenes[here.raw]
   if not sc then
     sc = { scene = here.scene, shown = 0, list = {} }
@@ -1396,6 +1389,19 @@ function OV.Create(text)
   ovData.nextId = ovData.nextId + 1
   sc.list[#sc.list + 1] = ov
   sc.shown = ov.id
+  return ov
+end
+
+-- Makes overlay `text` in this scene and shows it. Returns it, or nil and why.
+function OV.Create(text)
+  local name = OV.CleanName(text)
+  if not name then return nil, "give it a name" end
+  local here = OV.Here()
+  if not here then return nil, "the scene you're in can't be read right now" end
+  if OV.Find(name) then return nil, "there's already an overlay called " .. name .. " here" end
+  if #OV.List() >= OV.MAX then return nil, "this scene has " .. OV.MAX .. " overlays: delete one first" end
+  local snap = ovSnapshot()
+  local ov = addOverlay(here, name)
   local ok, why = ovSave(snap)
   if not ok then return nil, why end
   return ov
@@ -1473,16 +1479,15 @@ end
 -- names the mark: owner, 2026-10-13).
 function OV.Mark(text)
   local here = OV.Here()
-  if not here then return nil, "your position can't be read right now" end
+  if not here then return nil, "your position can't be read right now", OV.CleanName(text) end
+  local snap = ovSnapshot()                -- the overlay a first mark makes is saved with it, or not at all (review 38)
   local ov = OV.Shown()
   if not ov then
     if #OV.List() > 0 then
       return nil, "show one of this scene's overlays first (/" .. T.commands[1] .. " overlay <name>)",
         OV.CleanName(text)
     end
-    local made, why = OV.Create("Places")
-    if not made then return nil, why end
-    ov = made
+    ov = addOverlay(here, "Places")
   end
   local places = OV.Places(ov)
   local name = OV.CleanName(text)
@@ -1495,7 +1500,6 @@ function OV.Mark(text)
   if #places >= OV.SCENE_MAX then
     return nil, ov.name .. " has " .. OV.SCENE_MAX .. " places (the map's limit in a scene): remove one first", name
   end
-  local snap = ovSnapshot()
   local place = { id = ov.nextPlace, name = name, raw = here.raw, scene = here.scene, x = here.x, y = here.y,
                   z = here.z, icon = ov.icon, color = ov.color }
   ov.nextPlace = ov.nextPlace + 1
@@ -1579,7 +1583,8 @@ function OV.Scenes()
     local places, size = 0, 0
     for _, ov in ipairs(sc.list) do
       places = places + placeCount(ov)
-      size = size + #(ov.places and packPlaces(ov.places) or ov.packed) + #ov.name + 60
+      size = size + T.SavedSize(T.ForSaving(ov.places and packPlaces(ov.places) or ov.packed))
+        + T.SavedSize(T.ForSaving(ov.name)) + 60
     end
     out[#out + 1] = { raw = raw, scene = sc.scene, overlays = #sc.list, places = places, size = size }
   end

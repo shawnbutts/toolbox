@@ -477,7 +477,7 @@ end
 
 -- Each saved-variable file's estimated size: { total, keys = { [key] = its room, the key's name too } }. Measured
 -- at start and for another character (T.MeasureFiles), kept by every write and delete below.
-T.fileUse = { character = { total = 0, keys = {} }, account = { total = 0, keys = {} } }
+T.fileUse = { character = { total = 0, keys = {}, reserve = 0 }, account = { total = 0, keys = {}, reserve = 0 } }
 local function fileOf(scope)
   return T.fileUse[(type(scope) == "string" and scope:lower() == "account") and "account" or "character"]
 end
@@ -488,13 +488,17 @@ local function noteSize(scope, key, size)
 end
 
 -- How full a file is: its estimate and T.FILE_MAX.
-function T.FileUse(scope) return fileOf(scope).total, T.FILE_MAX end
+function T.FileUse(scope) return fileOf(scope).total, T.FILE_MAX - fileOf(scope).reserve end
+
+-- Room kept free in scope's file for keys there that can't be measured (review 36: recovery copies from before
+-- their index).
+function T.ReserveFile(scope, size) fileOf(scope).reserve = size end
 
 -- Whether `size` more (a key's whole room, its name included) would still fit in scope's file in place of `key`.
 function T.FileFits(key, size, scope)
   local f = fileOf(scope)
   local old = f.keys[key] or 0
-  return size <= old or f.total - old + size <= T.FILE_MAX
+  return size <= old or f.total - old + size <= T.FILE_MAX - f.reserve
 end
 
 -- Measures every key in `keys` (scope's) as it is now, for one file (`fresh`: forget the old measure first).
@@ -2792,32 +2796,41 @@ function B.KeepRecovery()
   local _, date = T.Today()
   local clock = T.ClockText()
   local when = (type(date) == "string" and date or "") .. ((clock ~= "" and date) and " " or "") .. clock
+  -- listed first (review 36): a copy no other character's session could find would go unmeasured
+  if not B.IndexRecovery(who) then
+    T.recoveryDirty = T.saveRefused[B.RECOVERIES] == nil
+    return
+  end
   local ok = T.SetSavedVar(recoveryKey(who), { v = 1, n = n, when = when, keys = keys }, ACCOUNT)
   -- a value T.CheckSaved refused won't pass next time either (chat said so once): not retried every flush
   T.recoveryDirty = not ok and T.saveRefused[recoveryKey(who)] == nil
-  if ok then B.IndexRecovery(who) end
 end
 
--- The characters with a recovery copy in the account file (B.RECOVERIES, from 1.8.0: copies written before are
--- listed when their character next plays), so its size can be measured without that character.
-B.RECOVERIES = "recovery_index"      -- account: { v = 1, names = { lower name, ... } }
-local function recoveryNames()
+-- The characters with a recovery copy in the account file (B.RECOVERIES, from 1.8.0), so its size can be measured
+-- without that character. Copies 1.7.0 wrote aren't listed until their character next plays, and the game can't
+-- list keys: an install that ran 1.7.0 (`legacy`, set when the index is first made there) keeps B.LEGACY_RESERVE of
+-- the account file free for them (review 36).
+B.RECOVERIES = "recovery_index"      -- account: { v = 1, names = { lower name, ... }, legacy = bool }
+B.LEGACY_RESERVE = 40000
+local function readRecoveryIndex()
   local saved = T.FromSaved(ShroudGetSavedVar(B.RECOVERIES, ACCOUNT))
   local names = {}
   for _, n in ipairs(type(saved) == "table" and type(saved.names) == "table" and saved.names or {}) do
     if type(n) == "string" and n ~= "" then names[#names + 1] = n end
   end
-  return names
+  return names, type(saved) == "table" and saved.legacy == true, saved
 end
 
+-- Lists `who` as having a copy. Returns whether the index says so.
 function B.IndexRecovery(who)
   local lower = who:lower()
-  local names = recoveryNames()
+  local names, legacy, saved = readRecoveryIndex()
   for _, n in ipairs(names) do
-    if n == lower then return end
+    if n == lower then return true end
   end
   names[#names + 1] = lower
-  T.SetSavedVar(B.RECOVERIES, T.ForSaving({ v = 1, names = names }), ACCOUNT)
+  if saved == nil then legacy = B.legacyInstall == true end
+  return T.SetSavedVar(B.RECOVERIES, T.ForSaving({ v = 1, names = names, legacy = legacy }), ACCOUNT) == true
 end
 
 -- Character keys that aren't settings or recovered (B.KEYS, B.RecoverList()); other files append theirs. Every key
@@ -2837,16 +2850,27 @@ function B.MeasureFiles(characterOnly)
   end
   T.MeasureKeys(keys, SCOPE, true)
   if characterOnly then return end
-  local account = { "prices", "welcomed", B.SETUPS, B.RECOVERIES }
+  local account, inAccount = { "prices", "welcomed", B.SETUPS, B.RECOVERIES }, {}
+  local function count(key)
+    if not inAccount[key] then
+      inAccount[key] = true
+      account[#account + 1] = key
+    end
+  end
   local setups = readSetups()
   for _, e in ipairs(type(setups) == "table" and type(setups.list) == "table" and setups.list or {}) do
     if type(e) == "table" and type(e.name) == "string" then
-      account[#account + 1] = foundSetupKey(e.name, e.character)
+      count(foundSetupKey(e.name, e.character))
+      if e.character then count(recoveryKey(e.name)) end     -- a character known by its shared setup
     end
   end
-  for _, n in ipairs(recoveryNames()) do account[#account + 1] = recoveryKey(n) end
-  if T.settingsFor then account[#account + 1] = recoveryKey(T.settingsFor) end
+  local names, legacy, index = readRecoveryIndex()
+  for _, n in ipairs(names) do count(recoveryKey(n)) end
+  if T.settingsFor then count(recoveryKey(T.settingsFor)) end
   T.MeasureKeys(account, ACCOUNT, true)
+  -- no index yet: 1.7.0 ran here if it left anything in the account file (its copies may be there, unlisted)
+  if index == nil then B.legacyInstall = ShroudGetSavedVar("welcomed", ACCOUNT) ~= nil or setups ~= nil end
+  T.ReserveFile(ACCOUNT, (legacy or (index == nil and B.legacyInstall)) and B.LEGACY_RESERVE or 0)
 end
 
 -- At start and for another character, before anything reads its settings: writes the recovery copy back when the

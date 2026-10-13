@@ -435,4 +435,41 @@ return function(t)
     t.eq(next(Toolbox.saveRefused), nil, "nothing refused")
     t.ok(H.S.memory.account["recovery:tester"], "the recovery copy written")
   end)
+
+  t.test("1.7.0's unlisted recovery copies: room kept for them; a fresh install keeps none (review 36)", function()
+    local alt = { v = 1, n = 3, when = "2026-10-12 20:00", keys = { buff_durations = { v = 2, durations = {} } } }
+    for i = 1, 600 do alt.keys.buff_durations.durations[string.format("A_Long_Rune_Name_%04d", i)] = 3600 + i end
+    H.boot({ account = { welcomed = true, ["recovery:alt"] = alt } })
+    local used, max = Toolbox.FileUse("account")
+    t.eq(max, Toolbox.FILE_MAX - B().LEGACY_RESERVE, "room kept for copies it can't see")
+    t.no(Toolbox.fileUse.account.keys["recovery:alt"], "Alt's copy isn't listed anywhere")
+    local fill = { string.rep("x", max - used + B().LEGACY_RESERVE - 2000) }      -- fits only without Alt's room
+    local ok, _, kind = Toolbox.SetSavedVar("test_fill", fill, "account")
+    t.eq(ok, false, "refused before it reaches the game")
+    t.eq(kind, "full")
+    Toolbox.saveRefused.test_fill = nil
+    t.ok(Toolbox.Flush() ~= false)
+    t.eq(H.S.memory.account.recovery_index.legacy, true, "the index remembers this install ran 1.7.0")
+    H.restart()
+    t.eq(select(2, Toolbox.FileUse("account")), Toolbox.FILE_MAX - B().LEGACY_RESERVE, "kept after a restart")
+    H.firstBoot()
+    H.advance(2)
+    t.eq(select(2, Toolbox.FileUse("account")), Toolbox.FILE_MAX, "a new install keeps no room")
+  end)
+
+  t.test("a recovery copy is listed before it's written: a refused index writes no copy", function()
+    H.boot()
+    H.advance(5)
+    H.S.refuseKeys = { recovery_index = true }
+    H.callback("ShroudOnLogOut")
+    H.S.char.name = "Alt"
+    H.callback("ShroudOnSceneLoaded", "Novia")
+    H.advance(5)
+    t.eq(H.S.memory.account["recovery:alt"], nil, "no copy no one could find")
+    H.S.refuseKeys = nil
+    H.chat("/tbx vitals")                        -- a change: the next flush tries again
+    H.advance(Toolbox.flushSeconds + 1)
+    t.ok(H.S.memory.account["recovery:alt"], "written once the index is")
+    t.eq(H.S.memory.account.recovery_index.names[2], "alt")
+  end)
 end

@@ -515,4 +515,36 @@ return function(t)
     goTo("Owl's Head")
     t.ok(marks("Owl'sHead")["ov2-1"], "read on arriving")
   end)
+
+  t.test("map storage is measured as saved: escaped names count at their saved length (review 37)", function()
+    H.boot()
+    H.chat("/tbx overlay new %%%%%%%%%%%%")
+    for i = 1, 5 do H.chat("/tbx mark %%%%%%%%%%%% " .. i) end
+    local raw = ShroudGetSavedVar("map_overlays")
+    t.near(OV().StorageUse() * OV().BUDGET, Toolbox.SavedSize(raw), 1e-6, "the saved form's size")
+    H.restart(nil, true)
+    H.advance(1)
+    t.near(OV().StorageUse() * OV().BUDGET, Toolbox.SavedSize(ShroudGetSavedVar("map_overlays")), 1e-6,
+      "read back the same")
+  end)
+
+  t.test("a first mark that won't fit saves nothing, not even its overlay, and names the mark (review 38)", function()
+    H.boot()
+    H.chat("/tbx mark Bank")                          -- Novia's, so storage has something
+    goTo("Owl's Head")
+    local budget = OV().BUDGET
+    OV().BUDGET = math.floor(OV().StorageUse() * budget) + 90        -- an empty overlay fits, a place with it not
+    H.chat("/tbx mark Iron vein")
+    t.ok(H.logged("Couldn't mark Iron vein: map storage is full"), H.lastLog())
+    t.eq(#OV().List(), 0, "no Places overlay left behind")
+    t.eq(H.saved("map_overlays").scenes["Owl'sHead"], nil, "nor saved")
+    H.chat("/tbx overlay window")
+    H.submit("toolbox_marks", "mw_name", "Camp")
+    t.ok(mw():Find("mw_msg"):GetText():find("Couldn't mark Camp: map storage is full", 1, true),
+      mw():Find("mw_msg"):GetText())
+    t.eq(#OV().List(), 0)
+    OV().BUDGET = budget
+    H.chat("/tbx mark Iron vein")
+    t.ok(H.logged("Marked Iron vein in Places"), H.lastLog())
+  end)
 end
