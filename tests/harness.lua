@@ -205,7 +205,8 @@ local function install_api()
     return had
   end
   -- Map markers (API 30; H.S.noMarkers: an older client): ours, per scene, for the session. S.markers[raw scene][id] =
-  -- { id, x, y, z, label, icon, color, note, at }; H.S.markerRefuse = a reason refuses every set (e.g. "pvp").
+  -- { id, x, y, z, label, icon, color, note, at }; H.S.markerRefuse = a reason refuses every set (e.g. "pvp");
+  -- H.S.markerAllow = n allows n more sets, then "rate".
   if not S.noMarkers then
     local ICONS = { pin = true, diamond = true, circle = true, square = true, star = true, flag = true }
     local OPTIONS = { label = true, icon = true, color = true, note = true }
@@ -233,6 +234,10 @@ local function install_api()
         if type(o.note) ~= "string" or #o.note > 200 or lines > 4 then return false, "bad_note" end
       end
       if S.markerRefuse then return false, S.markerRefuse end
+      if S.markerAllow then                         -- H.S.markerAllow = n: n more changes, then "rate"
+        if S.markerAllow <= 0 then return false, "rate" end
+        S.markerAllow = S.markerAllow - 1
+      end
       local list = here()
       if not list then return false, "no_scene" end
       local old = list[id]

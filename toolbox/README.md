@@ -155,6 +155,14 @@ which way you face, and on a newer game client the nearest water you can fish in
 for the whole `/loc` line and the scene's kinds of water. Off by default: switch it on with the menu's Location button, under
 **Map & location** in the settings, or type `/toolbox location`.
 
+## Map overlays
+
+Sets of places you mark, shown on your map one set at a time: one for gathering, one for XP farming, one for
+vendors. Each place is a mark on the region map and minimap in its scene (a newer game client), in the overlay's
+shape and color, and Beacon puts the game's beacon on one. Up to 10 overlays per character. Make them under
+**Map & location** in the settings, or type `/toolbox mark <name>` where you stand and `/toolbox overlay <name>`
+to show one.
+
 ## Commands
 
 `/toolbox` and `/tbx` do the same thing; `/toolbox commands` lists them all in chat.
@@ -172,6 +180,8 @@ for the whole `/loc` line and the scene's kinds of water. Off by default: switch
 - `/toolbox combat`: the combat stats HUD
 - `/toolbox notify`: notification settings
 - `/toolbox location`: the location strip (`on|off`, `facing on|off`, `water on|off`)
+- `/toolbox overlay`: map overlays (`<name>`, `off`, `new`, `rename`, `delete`, `places`, `icon`, `color`)
+- `/toolbox mark`: mark where you stand in the shown overlay (`<name>`, `remove [name]`, `beacon [name]`)
 - `/toolbox menu`: the menu (`on|off`, `vertical|horizontal`, `size <n>`, `shade <n>`, `combat hide|show`)
 - `/toolbox settings`: settings files and setups (`save`, `reset`, `cancel`, `setups`, `import`, `export`)
 

@@ -38,6 +38,18 @@ return function(t)
       end
     end
     local made0 = H.S.constructed or 0
+    -- The harness's saved-var writes and flush copy the values (the game does it in C#): not Toolbox's garbage. It
+    -- grew with the saved data (a full set of map overlays, 2026-10-13).
+    local flush, store, hostKb = ShroudFlushSavedVars, ShroudSetSavedVar, 0
+    local function host(fn)
+      return function(...)
+        local b = collectgarbage("count")
+        local r = fn(...)
+        hostKb = hostKb + collectgarbage("count") - b
+        return r
+      end
+    end
+    ShroudFlushSavedVars, ShroudSetSavedVar = host(flush), host(store)
     collectgarbage("collect")
     collectgarbage("stop")
     local before = collectgarbage("count")
@@ -45,8 +57,9 @@ return function(t)
       if each then each(s) end
       H.advance(1)
     end
-    local kb = collectgarbage("count") - before
+    local kb = collectgarbage("count") - before - hostKb
     collectgarbage("restart")
+    ShroudFlushSavedVars, ShroudSetSavedVar = flush, store
     for m, f in pairs(saved) do mt[m] = f end
     return calls / secs, kb / secs, ((H.S.constructed or 0) - made0) / secs
   end
@@ -90,8 +103,20 @@ return function(t)
     for i = 1, 250 do
       prices[string.format("loot item %03d", i)] = { avg = i * 3, sold = i, last = "2026-09-20", day = DAY }
     end
+    local overlays = {}                -- every overlay full, the shown one's places all in this scene; as saved
+    for o = 1, 10 do                   -- (negative numbers as "%N" text)
+      local places = {}
+      for i = 1, 100 do
+        places[i] = { id = i, name = string.format("A long place name %03d", i),
+                      raw = o == 1 and "Novia" or "Elsewhere", scene = "A scene with a long name",
+                      x = "%N" .. (-1000.5 - i), y = 12.25, z = 2000 + i }
+      end
+      overlays[o] = { id = o, name = "Overlay number " .. o, icon = "star", color = "Blue", nextPlace = 101,
+                      places = places }
+    end
     local disk = {
       [CHAR] = {
+        map_overlays = { v = 1, shown = 1, nextId = 11, list = overlays, ["%E"] = 1 },
         daily = { v = 1, key = DAY, gold = 123456, kills = 900, a = 5000000, p = 2000000, items = items, dropped = 3,
                   last = {} },
         daily_detail = { open = false, values = true },

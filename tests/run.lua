@@ -10,7 +10,7 @@ local suites = {
   "test_daily", "test_dailydetail", "test_buffbar", "test_vitals", "test_hud", "test_combat", "test_strips",
   "test_notify", "test_gear", "test_consumables", "test_target", "test_crafting", "test_prices", "test_perf",
   "test_stress", "test_backup", "test_skills", "test_buffblock", "test_shout", "test_characters", "test_setups",
-  "test_quiet", "test_recipe", "test_location", "test_launcher",
+  "test_quiet", "test_recipe", "test_location", "test_launcher", "test_overlays",
 }
 
 local tests = {}

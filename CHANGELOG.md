@@ -7,6 +7,13 @@ ones included).
 
 ## [Unreleased]
 
+### Added
+- **Map overlays:** sets of places you mark, shown on your map one set at a time: one for gathering, one for XP
+  farming, one for vendors. Each place is a mark on the region map and minimap in its scene (Lua API 30), in the
+  overlay's shape and color; Beacon puts the game's beacon on one. Up to 10 overlays per character, 40 places each
+  in a scene. Under Settings, Map & location, or /toolbox mark <name> (where you stand) and /toolbox overlay
+  <name> (show one). The Loot Tracker's run flags stay their own setting and show beside any overlay.
+
 ### Fixed
 - **Going AFK or flagging for PvP** no longer looks like another character logging in. The game adds those tags
   to your name ("[AFK]", "[PVP]"), and Toolbox took the tagged name for a new character: your XP session started

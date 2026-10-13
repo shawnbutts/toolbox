@@ -275,6 +275,22 @@ D.SECTIONS = {
       .. "(Show "
       .. "where you are), where you can also hide the facing and water lines and place it, or type /toolbox "
       .. "location (on, off, facing on|off, water on|off, move <x> <y>). It's off by default." },
+  { "Map overlays",
+    "Sets of places you mark, shown on your map one set at a time: one for gathering, one for XP farming, one "
+      .. "for vendors... Each place is a mark on the region map and minimap in its scene (a newer game client), "
+      .. "in the overlay's shape and color, named as you named it. Up to 10 overlays, each with up to 40 places in "
+      .. "a scene and 100 in all. They're this character's own. The Loot Tracker's run flags stay their own "
+      .. "setting and show beside any overlay.",
+    "Settings, Map & location, Map overlays: type a name and press New (it's shown at once), pick which one is "
+      .. "shown (or None), Rename it, choose its marks' shape and color, or Delete it (click twice). Stand where "
+      .. "you want a place, name it and press Mark here (no name: Place 1, Place 2...). The list below holds the "
+      .. "shown overlay's places, this scene's first: Beacon puts the game's beacon on one (it reaches your "
+      .. "compass, and replaces any beacon you set), Remove takes it out.",
+    "In chat: /toolbox mark Iron vein marks where you stand (your first mark makes an overlay called Places); "
+      .. "/toolbox mark remove takes out the nearest place within 15 m (or one by name) and /toolbox mark beacon "
+      .. "<name> sets the beacon. /toolbox overlay lists your overlays; /toolbox overlay Gathering shows one, "
+      .. "overlay off none, and overlay new, rename <old> = <new>, delete, places (each with its /loc), icon and "
+      .. "color do the rest." },
   { "Moving the HUD strips",
     "The buff bar, health & focus bars, combat stats, the consumables bar and the equipment bar are "
       .. "HUD strips. Drag the grip at a "

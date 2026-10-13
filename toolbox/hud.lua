@@ -970,6 +970,493 @@ T.AddCommand("location", "the location strip: your scene, position, facing and w
   end)
 
 -- ---------------------------------------------------------------------------
+-- Map overlays (Toolbox.Overlays, OV; owner, 2026-10-13): named sets of places the player marks ("Gathering", "XP
+-- farming"), ONE shown on the map at a time (the game allows an add-on 50 markers a scene; with the Loot Tracker's
+-- run flags, at most DD's 10, an overlay's OV.SCENE_MAX fits beside them). Per character. The run flags stay their
+-- own toggle. Later (not built): overlays that fill themselves (gathering spots, a death flag) and sharing one as a
+-- text string; places keep scene ids and plain numbers for that.
+-- Markers (API 30): OV.Sync (from T.Tick and after each change) acts only when the scene, the character, the
+-- overlays (OV.version) or the shown one change: the shown overlay's places in this scene get a marker each, id
+-- "ov<overlay id>-<place id>" (each overlay its own ids, so a switch moves none: a move within 10 s is refused),
+-- ours no longer wanted ("ov" ids) come down, and one already up as wanted isn't set again (a refusal, "rate" after a
+-- big switch, is retried after OV.RETRY s, and only what's missing is sent). Without markers, the places still list
+-- and Beacon works.
+-- Saved var "map_overlays" (character; kept by a reset, in the recovery copy): { v = 1, shown = overlay id or 0,
+-- nextId, list = { { id, name, icon, color (an OV.COLORS name), nextPlace, places = { { id, name, raw, scene, x, y,
+-- z } } } } }.
+-- ---------------------------------------------------------------------------
+local OV = {}
+Toolbox.Overlays = OV
+OV.KEY = "map_overlays"
+OV.MAX = 10                           -- overlays a character (owner: room for more later, if players ask)
+OV.SCENE_MAX = 40                     -- places an overlay in one scene (50 markers, less the run flags)
+OV.PLACES_MAX = 100                   -- places an overlay in all
+OV.NAME_MAX = 24
+OV.NEAR = 15                          -- m: "mark remove" with no name takes the nearest place this close
+OV.RETRY = 30
+OV.ICONS = { "pin", "diamond", "circle", "square", "star", "flag" }
+-- The game takes #rgb only (no theme token). Gold is the run flags'.
+OV.COLORS = {
+  { "Green", "#70c860" }, { "Blue", "#60a0f0" }, { "Purple", "#b878e8" }, { "Red", "#e86050" },
+  { "Orange", "#f09840" }, { "Cyan", "#50d0d0" }, { "White", "#ffffff" }, { "Gold", "#e8c060" },
+}
+OV.version = 0
+local ovData = { list = {}, shown = 0, nextId = 1 }
+local ovFor = nil
+local ovMarks = { raw = nil, who = nil, version = nil, retryAt = -math.huge }
+
+function OV.HasMarkers() return T.DailyDetail.HasMarkers() end
+
+local function knownColor(name)
+  for _, c in ipairs(OV.COLORS) do
+    if c[1] == name then return c[2] end
+  end
+  return nil
+end
+local function ovColor(name) return knownColor(name) or OV.COLORS[1][2] end
+
+local function ovIcon(name)
+  for _, i in ipairs(OV.ICONS) do
+    if i == name then return i end
+  end
+  return OV.ICONS[1]
+end
+
+local function ovNumber(v) return type(v) == "number" and v == v and math.abs(v) <= 100000 end
+
+-- A name as typed, made plain and short (as setups' names): nil when nothing is left.
+function OV.CleanName(text)
+  local name = T.Backup.CleanName(text)
+  if name and #name > OV.NAME_MAX then name = T.Trim(name:sub(1, OV.NAME_MAX)) end
+  return name
+end
+
+local function readPlace(p, seen)
+  if type(p) ~= "table" or type(p.id) ~= "number" or seen[p.id] then return nil end
+  local name = OV.CleanName(p.name)
+  if not (name and type(p.raw) == "string" and p.raw ~= "" and ovNumber(p.x) and ovNumber(p.z)) then return nil end
+  seen[p.id] = true
+  return { id = math.floor(p.id), name = name, raw = p.raw, scene = type(p.scene) == "string" and p.scene or p.raw,
+           x = p.x, y = ovNumber(p.y) and p.y or 0, z = p.z }
+end
+
+-- This character's overlays (read once per character; re-runnable).
+function OV.Init()
+  ovFor = T.CharacterName()
+  ovData = { list = {}, shown = 0, nextId = 1 }
+  local saved = T.ReadSaved(OV.KEY)
+  if type(saved) == "table" and saved.v == 1 and type(saved.list) == "table" then
+    local ids, names = {}, {}
+    for _, o in ipairs(saved.list) do
+      local name = type(o) == "table" and type(o.id) == "number" and OV.CleanName(o.name)
+      if name and not ids[o.id] and not names[name:lower()] and #ovData.list < OV.MAX then
+        ids[o.id], names[name:lower()] = true, true
+        local ov = { id = math.floor(o.id), name = name, icon = ovIcon(o.icon),
+                     color = knownColor(o.color) and o.color or OV.COLORS[1][1], places = {}, nextPlace = 1 }
+        local seen, pnames = {}, {}
+        for _, p in ipairs(type(o.places) == "table" and o.places or {}) do
+          local place = readPlace(p, seen)
+          if place and not pnames[place.name:lower()] and #ov.places < OV.PLACES_MAX then
+            pnames[place.name:lower()] = true
+            ov.places[#ov.places + 1] = place
+            if place.id >= ov.nextPlace then ov.nextPlace = place.id + 1 end
+          end
+        end
+        ovData.list[#ovData.list + 1] = ov
+        if ov.id >= ovData.nextId then ovData.nextId = ov.id + 1 end
+      end
+    end
+    if type(saved.shown) == "number" and ids[saved.shown] then ovData.shown = saved.shown end
+  end
+  OV.version = OV.version + 1
+  ovMarks.retryAt = -math.huge
+end
+
+local function ovSave()
+  OV.version = OV.version + 1
+  local list = {}
+  for i, ov in ipairs(ovData.list) do
+    local places = {}
+    for k, p in ipairs(ov.places) do
+      places[k] = { id = p.id, name = p.name, raw = p.raw, scene = p.scene, x = p.x, y = p.y, z = p.z }
+    end
+    list[i] = { id = ov.id, name = ov.name, icon = ov.icon, color = ov.color, nextPlace = ov.nextPlace,
+                places = places }
+  end
+  local ok = T.Save(OV.KEY, { v = 1, shown = ovData.shown, nextId = ovData.nextId, list = list })
+  ovMarks.retryAt = -math.huge
+  OV.Sync()
+  T.Config.Sync()
+  return ok
+end
+
+local function ovFollow()
+  if ovFor ~= T.CharacterName() then OV.Init() end
+end
+
+-- The overlays, in the order made.
+function OV.List()
+  ovFollow()
+  return ovData.list
+end
+
+function OV.Find(name)
+  local want = OV.CleanName(name)
+  if not want then return nil end
+  for _, ov in ipairs(OV.List()) do
+    if ov.name:lower() == want:lower() then return ov end
+  end
+  return nil
+end
+
+-- The overlay shown on the map, or nil.
+function OV.Shown()
+  for _, ov in ipairs(OV.List()) do
+    if ov.id == ovData.shown then return ov end
+  end
+  return nil
+end
+
+function OV.ColorOf(ov) return ovColor(ov.color) end
+
+-- Shows `ov` on the map (the only one), or none (nil).
+function OV.Show(ov)
+  ovData.shown = ov and ov.id or 0
+  return ovSave()
+end
+
+-- Makes overlay `text` and shows it. Returns it, or nil and why.
+function OV.Create(text)
+  local name = OV.CleanName(text)
+  if not name then return nil, "give it a name" end
+  if OV.Find(name) then return nil, "there's already an overlay called " .. name end
+  if #OV.List() >= OV.MAX then return nil, "there are already " .. OV.MAX .. " overlays: delete one first" end
+  local n = #ovData.list
+  local ov = { id = ovData.nextId, name = name, icon = OV.ICONS[1], color = OV.COLORS[n % (#OV.COLORS - 1) + 1][1],
+               places = {}, nextPlace = 1 }
+  ovData.nextId = ovData.nextId + 1
+  ovData.list[#ovData.list + 1] = ov
+  ovData.shown = ov.id
+  if not ovSave() then return nil, "the game refused to save it" end
+  return ov
+end
+
+function OV.Rename(ov, text)
+  local name = OV.CleanName(text)
+  if not name then return false, "give it a name" end
+  local other = OV.Find(name)
+  if other and other ~= ov then return false, "there's already an overlay called " .. name end
+  ov.name = name
+  return ovSave(), name
+end
+
+function OV.Delete(ov)
+  local kept = {}
+  for _, o in ipairs(ovData.list) do
+    if o ~= ov then kept[#kept + 1] = o end
+  end
+  ovData.list = kept
+  if ovData.shown == ov.id then ovData.shown = 0 end
+  return ovSave()
+end
+
+function OV.SetIcon(ov, icon)
+  ov.icon = ovIcon(icon)
+  return ovSave()
+end
+
+function OV.SetColor(ov, name)
+  ov.color = knownColor(name) and name or OV.COLORS[1][1]
+  return ovSave()
+end
+
+-- Where you stand: { raw, scene, x, y, z }, or nil (loading, no character).
+function OV.Here()
+  local okRaw, raw = pcall(ShroudGetCurrentSceneNameRaw)
+  local scene, x, y, z = LOC.Read()
+  if not (okRaw and type(raw) == "string" and raw ~= "" and x) then return nil end
+  return { raw = raw, scene = scene ~= "" and scene or raw, x = x, y = y, z = z }
+end
+
+local function sceneCount(ov, raw)
+  local n = 0
+  for _, p in ipairs(ov.places) do
+    if p.raw == raw then n = n + 1 end
+  end
+  return n
+end
+
+function OV.FindPlace(ov, name)
+  local want = OV.CleanName(name)
+  if not (ov and want) then return nil end
+  for _, p in ipairs(ov.places) do
+    if p.name:lower() == want:lower() then return p end
+  end
+  return nil
+end
+
+-- Marks where you stand in the shown overlay (made, as "Places", when there's none at all), named `text` or
+-- "Place <n>". Returns the place and the overlay, or nil and why.
+function OV.Mark(text)
+  local ov = OV.Shown()
+  if not ov then
+    if #OV.List() > 0 then return nil, "show an overlay first (/" .. T.commands[1] .. " overlay <name>)" end
+    local made, why = OV.Create("Places")
+    if not made then return nil, why end
+    ov = made
+  end
+  local here = OV.Here()
+  if not here then return nil, "your position can't be read right now" end
+  local name = OV.CleanName(text)
+  if not name then
+    local n = ov.nextPlace
+    while OV.FindPlace(ov, "Place " .. n) do n = n + 1 end
+    name = "Place " .. n
+  end
+  if OV.FindPlace(ov, name) then return nil, ov.name .. " already has a place called " .. name end
+  if #ov.places >= OV.PLACES_MAX then return nil, ov.name .. " has " .. OV.PLACES_MAX .. " places: remove one first" end
+  if sceneCount(ov, here.raw) >= OV.SCENE_MAX then
+    return nil, ov.name .. " has " .. OV.SCENE_MAX .. " places in this scene (the map's limit): remove one first"
+  end
+  local place = { id = ov.nextPlace, name = name, raw = here.raw, scene = here.scene, x = here.x, y = here.y,
+                  z = here.z }
+  ov.nextPlace = ov.nextPlace + 1
+  ov.places[#ov.places + 1] = place
+  if not ovSave() then
+    table.remove(ov.places)
+    return nil, "the game refused to save it"
+  end
+  return place, ov
+end
+
+-- The shown overlay's place called `text`, or with no name the nearest in this scene within OV.NEAR m.
+function OV.PlaceFor(text)
+  local ov = OV.Shown()
+  if not ov then return nil, nil, "no overlay is shown" end
+  if T.Trim(text or "") ~= "" then
+    local p = OV.FindPlace(ov, text)
+    if not p then return nil, ov, ov.name .. " has no place called " .. T.Trim(text) end
+    return p, ov
+  end
+  local here = OV.Here()
+  local best, bestD = nil, OV.NEAR
+  for _, p in ipairs(here and ov.places or {}) do
+    if p.raw == here.raw then
+      local d = math.sqrt((p.x - here.x) ^ 2 + (p.z - here.z) ^ 2)
+      if d <= bestD then best, bestD = p, d end
+    end
+  end
+  if not best then return nil, ov, "no place of " .. ov.name .. " within " .. OV.NEAR .. " m" end
+  return best, ov
+end
+
+function OV.RemovePlace(ov, place)
+  local kept = {}
+  for _, p in ipairs(ov.places) do
+    if p ~= place then kept[#kept + 1] = p end
+  end
+  ov.places = kept
+  return ovSave()
+end
+
+-- The game's beacon at a place (a click: it replaces the player's own), in its scene only.
+function OV.Beacon(place)
+  local okRaw, raw = pcall(ShroudGetCurrentSceneNameRaw)
+  if not (okRaw and raw == place.raw) then
+    return false, place.name .. " is in " .. place.scene .. ". A beacon marks a spot in the scene you're in."
+  end
+  local ok, set = pcall(ShroudSetBeacon, place.x, place.y, place.z, place.name)
+  if not (ok and set) then return false, "the game didn't set the beacon right now; try again in a moment" end
+  return true, "Beacon set at " .. place.name .. " " .. T.DailyDetail.LocText(place) .. ". /beacon clear removes it."
+end
+
+-- A place in the lists: "Bank" in the scene you're in (`raw`), else "Bank (Ardoris)". Names are unique in an overlay.
+function OV.PlaceLabel(p, raw)
+  if p.raw == raw then return p.name end
+  return p.name .. " (" .. p.scene .. ")"
+end
+
+-- The shown overlay's places, this scene's first (then by scene and name).
+function OV.SortedPlaces(ov)
+  local okRaw, raw = pcall(ShroudGetCurrentSceneNameRaw)
+  raw = okRaw and raw or ""
+  local list = {}
+  for i, p in ipairs(ov and ov.places or {}) do list[i] = p end
+  table.sort(list, function(a, b)
+    if (a.raw == raw) ~= (b.raw == raw) then return a.raw == raw end
+    if a.scene ~= b.scene then return a.scene < b.scene end
+    return a.name:lower() < b.name:lower()
+  end)
+  return list
+end
+
+function OV.MarkerId(ov, p) return "ov" .. ov.id .. "-" .. p.id end
+
+function OV.Sync()
+  if not OV.HasMarkers() then return end
+  local okRaw, raw = pcall(ShroudGetCurrentSceneNameRaw)
+  if not okRaw or type(raw) ~= "string" or raw == "" then return end
+  local who = T.CharacterName()
+  if raw == ovMarks.raw and who == ovMarks.who and OV.version == ovMarks.version then return end
+  if T.Now() < ovMarks.retryAt then return end
+  ovMarks.raw, ovMarks.who, ovMarks.version = raw, who, OV.version
+  local ov = OV.Shown()
+  local want, ids = {}, {}
+  for _, p in ipairs(ov and ov.places or {}) do
+    if p.raw == raw and #want < OV.SCENE_MAX then         -- (a file edited past it: the first ones)
+      local id = OV.MarkerId(ov, p)
+      ids[id] = true
+      want[#want + 1] = { id = id, p = p, o = { label = p.name, icon = ov.icon, color = ovColor(ov.color),
+                                                note = ov.name } }
+    end
+  end
+  local okList, have = pcall(ShroudGetMapMarkers)
+  local up = {}
+  for _, m in ipairs(okList and T.List(have) or {}) do
+    local id = T.Field(m, "id")
+    if type(id) == "string" and id:sub(1, 2) == "ov" then
+      if not ids[id] then
+        pcall(ShroudRemoveMapMarker, id)
+      else
+        up[id] = { x = T.Field(m, "x"), z = T.Field(m, "z"), label = T.Field(m, "label"), icon = T.Field(m, "icon"),
+                   color = T.Field(m, "color") }
+      end
+    end
+  end
+  local refused = nil
+  for _, w in ipairs(want) do
+    local u = up[w.id]
+    local same = u and u.x == w.p.x and u.z == w.p.z and u.label == w.o.label and u.icon == w.o.icon
+      and type(u.color) == "string" and u.color:lower() == w.o.color:lower()
+    if not same then
+      local ok, set, reason = pcall(ShroudSetMapMarker, w.id, w.p.x, w.p.y, w.p.z, w.o)
+      if not (ok and set == true) then refused = ok and tostring(reason) or "error" end
+    end
+  end
+  OV.markerFailed = refused
+  if refused then
+    ovMarks.raw, ovMarks.retryAt = nil, T.Now() + OV.RETRY
+  else
+    ovMarks.retryAt = -math.huge
+  end
+end
+
+-- Kept by a reset (the player's own places, like the runs), copied for recovery.
+T.Backup.RECOVER_EXTRA[#T.Backup.RECOVER_EXTRA + 1] = OV.KEY
+
+local function ovSummary(ov)
+  local here = OV.Here()
+  local n = here and sceneCount(ov, here.raw) or 0
+  return ov.name .. " (" .. #ov.places .. " place" .. (#ov.places == 1 and "" or "s")
+    .. (n > 0 and (", " .. n .. " here") or "") .. ")"
+end
+
+-- /toolbox overlay
+T.AddCommand("overlay", "map overlays, sets of places you mark, one shown at a time: <name> shows one; off; new"
+  .. " <name>; rename <old> = <new>; delete <name>; places; icon <shape>; color <name> (alone: lists them)",
+  function(rest)
+    local word, args = T.ParseArgs(rest)
+    local c = "/" .. T.commands[1] .. " "
+    if word == "" then
+      local names = {}
+      for _, ov in ipairs(OV.List()) do names[#names + 1] = ovSummary(ov) .. (ov == OV.Shown() and " shown" or "") end
+      T.Print(#names > 0 and ("Overlays: " .. table.concat(names, "; ") .. ".") or ("No overlays yet: " .. c
+        .. "overlay new <name> makes one, " .. c .. "mark <name> marks where you stand."))
+      return
+    end
+    local ov = OV.Shown()
+    if word == "off" then
+      OV.Show(nil)
+      T.Print("No overlay shown.")
+    elseif word == "new" then
+      local made, why = OV.Create(args)
+      T.Print(made and ("Made " .. made.name .. ", shown now. " .. c .. "mark <name> marks where you stand.")
+        or ("Couldn't make it: " .. why .. "."))
+    elseif word == "rename" then
+      local eq = args:find("=", 1, true)
+      local target = eq and OV.Find(args:sub(1, eq - 1)) or nil
+      if not target then
+        T.Print("Use " .. c .. "overlay rename <old> = <new>.")
+        return
+      end
+      local ok, why = OV.Rename(target, args:sub(eq + 1))
+      T.Print(ok and ("Renamed it " .. why .. ".") or ("Couldn't rename it: " .. tostring(why) .. "."))
+    elseif word == "delete" then
+      local target = OV.Find(args)
+      if not target then
+        T.Print("No overlay called '" .. args .. "'.")
+        return
+      end
+      OV.Delete(target)
+      T.Print("Deleted " .. target.name .. " and its " .. #target.places .. " places.")
+    elseif word == "places" then
+      if not ov then
+        T.Print("No overlay is shown.")
+        return
+      end
+      T.Print(ovSummary(ov) .. ":")
+      for _, p in ipairs(OV.SortedPlaces(ov)) do
+        T.Print("  " .. p.name .. ": " .. p.scene .. " " .. T.DailyDetail.LocText(p))
+      end
+    elseif word == "icon" or word == "color" then
+      if not ov then
+        T.Print("Show an overlay first.")
+        return
+      end
+      local names = {}
+      for i, v in ipairs(word == "icon" and OV.ICONS or OV.COLORS) do names[i] = word == "icon" and v or v[1] end
+      local pick = nil
+      for _, n in ipairs(names) do
+        if n:lower() == args:lower() then pick = n end
+      end
+      if not pick then
+        T.Print("Use " .. c .. "overlay " .. word .. " " .. table.concat(names, "|") .. ".")
+        return
+      end
+      if word == "icon" then OV.SetIcon(ov, pick) else OV.SetColor(ov, pick) end
+      T.Print(ov.name .. ": " .. word .. " " .. pick .. ".")
+    else
+      local target = OV.Find(word == "show" and args or rest)
+      if not target then
+        T.Print("No overlay called '" .. T.Trim(word == "show" and args or rest) .. "'. " .. c
+          .. "overlay new <name> makes one.")
+        return
+      end
+      OV.Show(target)
+      T.Print("Showing " .. ovSummary(target) .. " on your map.")
+    end
+  end)
+
+-- /toolbox mark
+T.AddCommand("mark", "mark where you stand in the shown map overlay: mark [name]; mark remove [name] (no name: the"
+  .. " nearest within " .. OV.NEAR .. " m); mark beacon [name]",
+  function(rest)
+    local word, args = T.ParseArgs(rest)
+    if word == "remove" or word == "beacon" then
+      local p, ov, why = OV.PlaceFor(args)
+      if not p then
+        T.Print("Couldn't find it: " .. why .. ".")
+        return
+      end
+      if word == "remove" then
+        OV.RemovePlace(ov, p)
+        T.Print("Removed " .. p.name .. " from " .. ov.name .. ".")
+      else
+        local _, msg = OV.Beacon(p)
+        T.Print(msg)
+      end
+      return
+    end
+    local p, ov = OV.Mark(rest)
+    if not p then
+      T.Print("Couldn't mark it: " .. ov .. ".")
+      return
+    end
+    T.Print("Marked " .. p.name .. " in " .. ov.name .. ": " .. p.scene .. " " .. T.DailyDetail.LocText(p) .. "."
+      .. (OV.HasMarkers() and "" or " (Your game client can't show it on the map yet; mark beacon finds it.)"))
+  end)
+
+-- ---------------------------------------------------------------------------
 -- The launcher (Toolbox.Launcher, LN; owner, 2026-10-10; "the menu" to players): a strip of buttons opening
 -- Toolbox's windows with one click, where Settings' tick boxes were the only way. Pictures: toolbox/launcher.png
 -- (art/launcher.py: one frame a button, in LN.BUTTONS order), tinted LN.COLOR: lit while its window is open, dimmed

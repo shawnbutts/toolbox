@@ -379,47 +379,57 @@ local function numberOk(n)
 end
 
 function T.CheckSaved(v)
-  local size, inside = 0, {}
-  local function walk(x, path, depth)
+  local size, inside, trail = 0, {}, {}
+  -- Where in `v` (".notify.sources.x"): built only for a refusal (a path for every value was most of the garbage of
+  -- checking a full set of map overlays, 2026-10-13).
+  local function pathTo(depth)
+    local parts = {}
+    for d = 1, depth - 1 do parts[d] = "." .. tostring(trail[d]) end
+    return table.concat(parts)
+  end
+  local function walk(x, depth)
     local kind = type(x)
     if kind == "boolean" then
       size = size + 6
       return true
     elseif kind == "number" then
-      if not numberOk(x) then return false, "the number " .. tostring(x) .. " at " .. path end
+      if not numberOk(x) then return false, "the number " .. tostring(x) .. " at " .. pathTo(depth) end
       size = size + 24
       return true
     elseif kind == "string" then
       local at = x:find(T.SAVED_CHARS)
-      if at then return false, "unsafe text (" .. string.format("%q", x:sub(at, at)) .. ") at " .. path end
+      if at then return false, "unsafe text (" .. string.format("%q", x:sub(at, at)) .. ") at " .. pathTo(depth) end
       size = size + #x + 3
       return true
     elseif kind == "table" then
-      if inside[x] then return false, "a table inside itself at " .. path end
-      if depth > T.SAVE_MAX_DEPTH then return false, "nesting deeper than " .. T.SAVE_MAX_DEPTH .. " at " .. path end
+      if inside[x] then return false, "a table inside itself at " .. pathTo(depth) end
+      if depth > T.SAVE_MAX_DEPTH then
+        return false, "nesting deeper than " .. T.SAVE_MAX_DEPTH .. " at " .. pathTo(depth)
+      end
       inside[x] = true
       size = size + 2
       for k, item in pairs(x) do
         if type(k) == "string" then
-          if k:find(T.SAVED_CHARS) then return false, "an unsafe key at " .. path end
+          if k:find(T.SAVED_CHARS) then return false, "an unsafe key at " .. pathTo(depth) end
           size = size + #k + 4
         elseif type(k) == "number" then
           if k < 1 or k ~= math.floor(k) or k >= T.SAVE_HUGE then
-            return false, "the key " .. tostring(k) .. " at " .. path
+            return false, "the key " .. tostring(k) .. " at " .. pathTo(depth)
           end
         else
-          return false, "a " .. type(k) .. " key at " .. path
+          return false, "a " .. type(k) .. " key at " .. pathTo(depth)
         end
-        local ok, why = walk(item, path .. "." .. tostring(k), depth + 1)
+        trail[depth] = k
+        local ok, why = walk(item, depth + 1)
         if not ok then return false, why end
         if size > T.SAVE_MAX_CHARS then return false, "more than the game's 256 KB a table" end
       end
       inside[x] = nil
       return true
     end
-    return false, "a " .. kind .. " at " .. path
+    return false, "a " .. kind .. " at " .. pathTo(depth)
   end
-  return walk(v, "", 1)
+  return walk(v, 1)
 end
 
 -- Every saved-variable write goes through here. Refuses (false, why) a value that isn't safe to save (chat says so
@@ -2294,6 +2304,7 @@ function T.Tick()
   T.Daily.Track()
   T.DailyDetail.Track()
   T.DailyDetail.SyncMarkers()         -- Loot Tracker runs on the map (API 30), on a change only
+  T.Overlays.Sync()                   -- the shown map overlay's places (API 30), on a change only
   -- Store a changed session once a tick (in memory; copying up to an hour of
   -- samples per XP event would be wasteful), and write it to disk at most
   -- every flushSeconds. A reload re-reads the totals, so it loses no XP.
@@ -2670,7 +2681,11 @@ function B.KeepRecovery()
   local keys = {}
   for _, key in ipairs(B.RecoverList()) do
     local v = ShroudGetSavedVar(key, SCOPE)
-    if v ~= nil then keys[key] = T.Resaved(v) end
+    if type(v) == "table" and v[T.SAVE_FORMAT_KEY] ~= nil then
+      keys[key] = v                    -- already in today's form: as it is (a round trip of a full set of map
+    elseif v ~= nil then               -- overlays was 3 MB of garbage a copy, 2026-10-13)
+      keys[key] = T.Resaved(v)
+    end
   end
   local mark = ShroudGetSavedVar(B.MARK, SCOPE)
   local n = (type(mark) == "number" and mark >= 1 and math.floor(mark) or 0) + 1
@@ -2950,6 +2965,7 @@ local function startModules(places)
   step("the notification HUD", T.Notify.Hud.Init)
   if T.SkillBar then step("the skill activity strip", T.SkillBar.Init) end   -- skills.lua, when present
   step("the location strip", T.Location.Init)
+  step("the map overlays", T.Overlays.Init)
   step("the launcher", T.Launcher.Init)
   step("the HUD strips", function() T.Hud.Init(places) end)  -- builds the HUD strips (glued or not); retries on the cap
   step("the buff bar", T.BuffBar.Tick)
