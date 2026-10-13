@@ -1519,15 +1519,17 @@ T.AddCommand("mark", "mark where you stand in the shown map overlay: mark [name]
       .. (OV.HasMarkers() and "" or " (Your game client can't show it on the map yet; mark beacon finds it.)"))
   end)
 
--- The Marks window (owner, 2026-10-13: "i don't like having the whole settings page up while making marks"): the
--- overlay shown, the next marks' look, Mark here, and THIS scene's places (Beacon, Set look, Remove); making,
--- renaming and deleting overlays are on the settings page (More...); another scene's places, in chat (overlay
--- places, mark remove <name>). It shares the 8th window with Docs and the
--- version window (T.TakeSharedWindow), built when opened; opened from the location strip's pin, /toolbox overlay
--- window, or the settings page. Only this scene's places: the list's text stays small (the add-on's text budget).
+-- The Marks window (owner, 2026-10-13: "i don't like having the whole settings page up while making marks"; then
+-- every overlay control moved here): the overlay shown; New, Rename, Delete (a second click within OV.CONFIRM s);
+-- the next marks' look; Mark here; THIS scene's places (Beacon, Set look, Remove). Another scene's places are in
+-- chat (overlay places, mark remove <name>). It shares the 8th window with Docs and the version window
+-- (T.TakeSharedWindow), built when opened; opened from the location strip's pin, /toolbox overlay window, or the
+-- settings page's button. Only this scene's places: the list's text stays small (the add-on's text budget).
 local MW_ID = "toolbox_marks"
 local mw, mwEl, mwPicks, mwPlaces = nil, {}, {}, {}
 local mwKey = nil                     -- what the lists were filled from (OV.version and the scene)
+local mwArmed = nil                   -- { at, id }: Delete clicked once
+OV.CONFIRM = 5
 OV.MW_NONE = "None (no overlay shown)"
 OV.MW_NO_PLACES = "No places here yet"
 
@@ -1535,7 +1537,14 @@ local function mwMsg(text) T.SetText(mwEl.msg, text or "") end
 
 local function mwDrop()
   if mw then pcall(function() mw:Destroy() end) end
-  mw, mwEl, mwKey = nil, {}, nil
+  mw, mwEl, mwKey, mwArmed = nil, {}, nil, nil
+end
+
+local function mwDisarm()
+  if mwArmed then
+    mwArmed = nil
+    T.SetText(mwEl.delete, "Delete")
+  end
 end
 
 -- Fills the window from the overlays, when they or the scene changed (from every change and OV.Tick).
@@ -1571,12 +1580,53 @@ function OV.SyncWindow()
     mwEl.places:SetValue(mwPlaces[keep] and keep or places[1])
     mwEl.icon:SetValue(shown and shown.icon or OV.ICONS[1])
     mwEl.color:SetValue(shown and shown.color or OV.COLORS[1][1])
-    for _, k in ipairs({ "icon", "color" }) do mwEl[k]:SetEnabled(shown ~= nil) end
+    for _, k in ipairs({ "icon", "color", "rename", "delete" }) do mwEl[k]:SetEnabled(shown ~= nil) end
     for _, k in ipairs({ "beacon", "look", "remove" }) do mwEl[k]:SetEnabled(any) end
   end)
 end
 
 local function mwPicked() return mwEl.places and mwPlaces[mwEl.places:GetValue()] end
+
+local function mwOverlayName()
+  local field = mwEl.ovname
+  return field and field:GetText() or ""
+end
+
+local function mwClearOverlayName()
+  if mwEl.ovname then mwEl.ovname:SetText("") end
+end
+
+local function mwNew(text)
+  mwDisarm()
+  local made, why = OV.Create(text or mwOverlayName())
+  if made then mwClearOverlayName() end
+  mwMsg(made and ("Made " .. made.name .. ", shown now: Mark here adds where you stand.")
+    or ("Couldn't make it: " .. why .. "."))
+end
+
+local function mwRename()
+  mwDisarm()
+  local ov = OV.Shown()
+  if not ov then return end
+  local ok, why = OV.Rename(ov, mwOverlayName())
+  if ok then mwClearOverlayName() end
+  mwMsg(ok and ("Renamed it " .. why .. ".") or ("Couldn't rename it: " .. tostring(why) .. "."))
+end
+
+local function mwDelete()
+  local ov = OV.Shown()
+  if not ov then return end
+  local id = tostring(T.settingsFor) .. ">" .. ov.id
+  if not (mwArmed and mwArmed.id == id and T.Now() - mwArmed.at <= OV.CONFIRM) then
+    mwArmed = { at = T.Now(), id = id }
+    T.SetText(mwEl.delete, "Click again to confirm")
+    mwMsg("Click Delete again to delete " .. ov.name .. " and its " .. #ov.places .. " places.")
+    return
+  end
+  mwDisarm()
+  OV.Delete(ov)
+  mwMsg("Deleted " .. ov.name .. ".")
+end
 
 local function mwMark(text)
   local field = mwEl.name
@@ -1595,9 +1645,18 @@ local function mwBuild()
     pick = UI.Dropdown{ id = "mw_pick", choices = { OV.MW_NONE }, value = OV.MW_NONE,
       style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The overlay shown on your map (only one at a time)",
       onChange = function(_, name)
+        mwDisarm()
         OV.Show(mwPicks[name])
         mwMsg("")
       end },
+    ovname = UI.TextField{ id = "mw_ovname", text = "", placeholder = "An overlay's name: Gathering, XP farming...",
+      maxLength = OV.NAME_MAX, style = { flexGrow = 1, flexShrink = 1 },
+      tooltip = "A name for a new overlay (New), or the shown one's new name (Rename)",
+      onSubmit = function(_, text) mwNew(text) end },
+    rename = UI.Button{ id = "mw_rename", text = "Rename", style = { marginLeft = 2 },
+      tooltip = "Give the shown overlay this name", onClick = function() mwRename() end },
+    delete = UI.Button{ id = "mw_delete", text = "Delete", style = { marginLeft = 2 },
+      tooltip = "Delete the shown overlay and its places (click twice)", onClick = function() mwDelete() end },
     icon = UI.Dropdown{ id = "mw_icon", choices = OV.ICONS, value = OV.ICONS[1],
       tooltip = "The shape of the marks you make next (marks made before keep theirs: Set look changes one)",
       onChange = function(_, v)
@@ -1642,27 +1701,22 @@ local function mwBuild()
       flexShrink = 1 } },
   }
   mw = UI.Window{
-    id = MW_ID, title = "Map overlays", width = 360, height = 200, minWidth = 280, minHeight = 160,
+    id = MW_ID, title = "Map overlays", width = 380, height = 236, minWidth = 300, minHeight = 190,
     x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y, escCloses = true,
     style = { paddingLeft = 8, paddingRight = 8, paddingTop = 4, paddingBottom = 6 },
     children = {
       row({ UI.Label{ text = "Shown", class = "text", style = { marginRight = 6 } }, mwEl.pick }, 0),
+      row({ mwEl.ovname, UI.Button{ id = "mw_new", text = "New", style = { marginLeft = 4 },
+        tooltip = "Make an overlay with this name and show it", onClick = function() mwNew() end },
+        mwEl.rename, mwEl.delete }),
       row({ UI.Label{ text = "New marks", class = "text", style = { flexGrow = 1 } }, mwEl.icon, mwEl.color }),
       row({ mwEl.name, UI.Button{ id = "mw_mark", text = "Mark here", style = { marginLeft = 4 },
         tooltip = "Add where you stand to the shown overlay, in the shape and color above (or to a new overlay,"
           .. " Places, if you have none)", onClick = function() mwMark() end } }),
       row({ mwEl.places, mwEl.beacon, mwEl.look, mwEl.remove }),
-      row({ mwEl.msg, UI.Button{ id = "mw_more", text = "More...", style = { marginLeft = 4 },
-        tooltip = "Settings, Map & location: make, rename and delete overlays",
-        onClick = function() OV.OpenSettings() end } }),
+      row({ mwEl.msg }),
     },
   }
-end
-
--- The Map & location page at its overlay rows (New, Rename, Delete).
-function OV.OpenSettings()
-  T.Config.Open()
-  T.Config.GoToControl("ov_pick")
 end
 
 function OV.IsWindowShown() return mw ~= nil and mw:IsShown() end
@@ -1693,7 +1747,9 @@ end
 
 -- Every tick (T.Tick): the window follows a scene change (its list is this scene's places).
 function OV.Tick()
-  if mw then OV.SyncWindow() end
+  if not mw then return end
+  if mwArmed and T.Now() - mwArmed.at > OV.CONFIRM then mwDisarm() end
+  OV.SyncWindow()
 end
 
 -- ---------------------------------------------------------------------------

@@ -901,127 +901,23 @@ function C.MapSection()
   return UI.Column{ children = children }
 end
 
--- Map overlays (Toolbox.Overlays, hud.lua): open the Map overlays window (marking: its look, Mark here, this scene's
--- places), pick the one shown, make / rename / delete. Every scene's places were listed here too, until the window:
--- with it open beside this page, that list (60 places elsewhere, their scene names) took the add-on past its text
--- budget (2026-10-13). The dropdown is filled by syncOverlays (from Sync) when the overlays change. Delete acts on a
--- second click within C.CONFIRM_SECONDS.
-C.OV_NONE = "None (no overlay shown)"
-local ovPicks = {}
-local ovArmed = nil                  -- { at, id }: Delete clicked once
-
-local function ovMsg(text) setText("ov_msg", text or "") end
-
-local function syncOverlays()
-  local OV = T.Overlays
-  local pick = el.ov_pick
-  if not pick then return end
-  local shown = OV.Shown()
-  if ovArmed and T.Now() - ovArmed.at > C.CONFIRM_SECONDS then
-    ovArmed = nil
-    setText("ov_delete", "Delete")
-  end
-  if OV.version == C.ovKey then return end        -- the list changes only with it (Sync runs often)
-  C.ovKey = OV.version
-  local names = { C.OV_NONE }
-  ovPicks = {}
-  for _, ov in ipairs(OV.List()) do
-    names[#names + 1] = ov.name
-    ovPicks[ov.name] = ov
-  end
-  local sig = table.concat(names, "|")
-  if sig ~= C.ovSig then
-    C.ovSig = sig
-    pick:SetChoices(names)
-  end
-  pick:SetValue(shown and shown.name or C.OV_NONE)
-  setEnabled("ov_rename", shown ~= nil)
-  setEnabled("ov_delete", shown ~= nil)
-end
-
-local function fieldText(id)
-  local field = el[id]
-  return field and field:GetText() or ""
-end
-
-local function clearField(id)
-  local field = el[id]
-  if field then field:SetText("") end
-end
-
-function C.NewOverlay(text)
-  local made, why = T.Overlays.Create(text or fieldText("ov_name"))
-  if made then clearField("ov_name") end
-  ovMsg(made and ("Made " .. made.name .. ", shown now. The Map overlays window marks where you stand.")
-    or ("Couldn't make it: " .. why .. "."))
-  C.Sync()
-end
-
-function C.RenameOverlay()
-  local ov = T.Overlays.Shown()
-  if not ov then return end
-  local ok, why = T.Overlays.Rename(ov, fieldText("ov_name"))
-  if ok then clearField("ov_name") end
-  ovMsg(ok and ("Renamed it " .. why .. ".") or ("Couldn't rename it: " .. tostring(why) .. "."))
-  C.Sync()
-end
-
-function C.DeleteOverlay()
-  local ov = T.Overlays.Shown()
-  if not ov then return end
-  local armed = ovArmed
-  if not (armed and armed.id == tostring(T.settingsFor) .. ">" .. ov.id
-      and T.Now() - armed.at <= C.CONFIRM_SECONDS) then
-    ovArmed = { at = T.Now(), id = tostring(T.settingsFor) .. ">" .. ov.id }
-    setText("ov_delete", "Click again to confirm")
-    ovMsg("Click Delete again to delete " .. ov.name .. " and its " .. #ov.places .. " places.")
-    return
-  end
-  ovArmed = nil
-  setText("ov_delete", "Delete")
-  T.Overlays.Delete(ov)
-  ovMsg("Deleted " .. ov.name .. ".")
-  C.Sync()
-end
-
+-- Map overlays (Toolbox.Overlays, hud.lua): only the button opening the Map overlays window, where every overlay
+-- control is (owner, 2026-10-13: marking without the whole settings page up).
 function C.OverlayRows()
   local OV = T.Overlays
-  C.ovSig, C.ovKey, ovArmed = nil, nil, nil   -- new controls: filled by the next Sync
-  local maps = OV.HasMarkers()
   return UI.Column{ children = {
     heading("Map overlays"),
     UI.Label{ text = "Sets of places you mark, one set on your map at a time: one for gathering, one for XP"
-      .. " farming... Up to " .. OV.MAX .. ", " .. OV.SCENE_MAX .. " places each in a scene."
-      .. (maps and "" or " Your game client can't show them on the map yet (Lua API 30): Beacon finds a place."),
+      .. " farming... Up to " .. OV.MAX .. ", " .. OV.SCENE_MAX .. " places each in a scene. Make them, mark and"
+      .. " pick the one shown in the Map overlays window (also the pin on the location strip)."
+      .. (OV.HasMarkers() and "" or " Your game client can't show them on the map yet (Lua API 30): Beacon finds"
+        .. " a place."),
       class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
     UI.Row{ style = { marginTop = 4 }, children = {
       UI.Button{ id = "ov_window", text = "Open the Map overlays window",
-        tooltip = "Mark where you stand, each mark's shape and color, and this scene's places (also the pin on"
-          .. " the location strip, or /"
+        tooltip = "Make, show, rename and delete overlays, mark where you stand and this scene's places (or /"
           .. T.commands[1] .. " overlay window)", onClick = function() T.Overlays.ToggleWindow() end },
     } },
-    UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
-      UI.Label{ text = "Shown", class = "text", style = { flexGrow = 1 } },
-      UI.Dropdown{ id = "ov_pick", choices = { C.OV_NONE }, value = C.OV_NONE,
-        tooltip = "The overlay shown on your map (only one at a time)",
-        onChange = function(_, name)
-          T.Overlays.Show(ovPicks[name])
-          ovMsg("")
-        end },
-    } },
-    UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
-      UI.TextField{ id = "ov_name", text = "", placeholder = "A name: Gathering, XP farming...",
-        maxLength = OV.NAME_MAX, style = { flexGrow = 1, flexShrink = 1 },
-        tooltip = "A name for a new overlay, or the shown one's new name",
-        onSubmit = function(_, text) C.NewOverlay(text) end },
-      UI.Button{ id = "ov_new", text = "New", style = { marginLeft = 4 },
-        tooltip = "Make an overlay with this name and show it", onClick = function() C.NewOverlay() end },
-      UI.Button{ id = "ov_rename", text = "Rename", style = { marginLeft = 2 },
-        tooltip = "Give the shown overlay this name", onClick = function() C.RenameOverlay() end },
-      UI.Button{ id = "ov_delete", text = "Delete", style = { marginLeft = 2 },
-        tooltip = "Delete the shown overlay and its places", onClick = function() C.DeleteOverlay() end },
-    } },
-    UI.Label{ id = "ov_msg", text = "", class = "dim", style = { whiteSpace = "wrap", marginTop = 4 } },
   } }
 end
 
@@ -1545,8 +1441,7 @@ local function category(keyOrLabel)
 end
 
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
-local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "ov_window", "ov_pick", "ov_name", "ov_new",
-  "ov_rename", "ov_delete", "ov_msg",
+local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "ov_window",
   "ln_show", "ln_vertical", "ln_combat", "ln_size", "ln_size_value", "ln_shade", "ln_shade_value",
   "ln_btn_xp", "ln_btn_xpdetail", "ln_btn_today", "ln_btn_loot", "ln_btn_combat", "ln_btn_notify",
   "ln_btn_location", "ln_btn_docs", "ln_btn_settings",
@@ -2336,7 +2231,6 @@ function C.Sync()
   local p = el.backup_pending
   if p and p:IsVisible() ~= pending then p:SetVisible(pending) end
   syncSetups()
-  syncOverlays()
   syncQuiet()
   syncEffectSounds()
   setValue("setup_share", T.Backup.GetShare())

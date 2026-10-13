@@ -41,8 +41,8 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
   backup & reset).
 - **Map overlays**: sets of places you mark (`/toolbox mark <name>`), one set shown on the region map and minimap
   at a time (Lua API 30): one for gathering, one for XP farming... Each place in its own shape and color, up to 10 per
-  character, with a Beacon button for each place; marked from a small window the location strip's pin opens
-  (`/toolbox overlay window`; settings under Map & location).
+  character, with a Beacon button for each place; all in a small window the location strip's pin opens
+  (`/toolbox overlay window`, or the button under Settings, Map & location).
 
 ## Install
 

@@ -224,9 +224,10 @@ into one if a new file is ever needed).
   overlay's `icon` / `color` being the next marks' ("Set look", `OV.SetPlaceLook`, `/toolbox mark look`).
   Marking happens in the Map overlays window (owner, 2026-10-13: not the whole settings page; id `toolbox_marks`, the
   8th window's third user, `T.TakeSharedWindow`), opened by the location strip's pin (`loc_pin`, launcher.png's
-  map-pin frame; setting `pin`), `/toolbox overlay window` or the page's button: shown overlay, next look, Mark here,
-  THIS scene's places only (Beacon, Set look, Remove), More... to the page, which keeps New / Rename / Delete and the
-  shown one (every scene's places listed there too took the text past its budget with the window open). `OV.Sync` (T.Tick, after each change) mirrors `DD.SyncMarkers`: ids "ov<overlay>-<place>" (a switch moves
+  map-pin frame; setting `pin`), `/toolbox overlay window` or the page's button (all the page keeps; owner: every
+  overlay control in the window): shown overlay, New / Rename / Delete (`OV.CONFIRM`), next look, Mark here, THIS
+  scene's places only (Beacon, Set look, Remove; every scene's places listed with the page open took the text past
+  its budget). `OV.Sync` (T.Tick, after each change) mirrors `DD.SyncMarkers`: ids "ov<overlay>-<place>" (a switch moves
   none), ours unwanted ("ov") come down, one already up as wanted isn't sent again (a "rate" refusal after a big switch
   retries after `OV.RETRY` s, sending only what's missing). The run flags stay their own toggle (owner); later ideas:
   self-filling overlays (gathering spots, a death flag) and sharing one as a text string (no clipboard API; a
