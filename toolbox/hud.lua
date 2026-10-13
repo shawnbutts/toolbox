@@ -1446,8 +1446,9 @@ function OV.Sync()
   end
 end
 
--- Kept by a reset (the player's own places, like the runs), copied for recovery.
-T.Backup.RECOVER_EXTRA[#T.Backup.RECOVER_EXTRA + 1] = OV.KEY
+-- Kept by a reset (the player's own places, like the runs). Not in the recovery copy (owner, 2026-10-13): the account
+-- file's 256 KB is every character's copy together, and a full set of overlays is most of it.
+T.Backup.OTHER_KEYS[#T.Backup.OTHER_KEYS + 1] = OV.KEY
 
 local function ovSummary(ov)
   local here = OV.Here()

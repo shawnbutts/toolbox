@@ -333,6 +333,38 @@ return function(t)
     t.ok(H.S.live <= 1500, "at most 1,500 live elements with everything open: " .. H.S.live)
   end)
 
+  -- The account file holds the prices, every setup and every character's recovery copy: 256 KB in all (the game's
+  -- limit is a whole file's, confirmed 2026-10-13). All at their caps, and nine characters, still fit.
+  t.test("a full account file: 600 prices, 20 setups and nine characters' recovery copies fit in 256 KB", function()
+    local disk = veteranDisk(false)
+    local prices = disk.account.prices.items
+    for i = 251, Toolbox.Prices.MAX_KEEP do
+      prices[string.format("loot item %03d", i)] = { avg = i * 3, sold = i, last = "2026-09-20", day = DAY }
+    end
+    H.boot(disk)
+    H.chat("/tbx settings share on")
+    for i = 1, Toolbox.Backup.SETUP_MAX - 1 do H.chat("/tbx settings export A long setup name " .. i) end
+    t.ok(H.logged("Exported your settings"), H.lastLog())
+    for i = 1, 8 do
+      H.callback("ShroudOnLogOut")
+      H.S.char.name = "Character" .. i
+      H.callback("ShroudOnSceneLoaded", "Novia")
+      H.chat("/tbx buffs")
+      H.chat("/tbx vitals")
+      H.advance(5)
+    end
+    t.ok(Toolbox.Flush() ~= false)
+    local used, max = Toolbox.FileUse("account")
+    if os.getenv("STRESS_PRINT") then
+      print(string.format("  account file: %d of %d estimated, %d as written", used, max,
+        H.JsonSize(H.S.memory.account)))
+    end
+    t.ok(used <= max, "estimate " .. used)
+    t.ok(used >= H.JsonSize(H.S.memory.account), "the estimate is never below what is written")
+    for i = 1, 8 do t.ok(H.S.memory.account["recovery:character" .. i], "Character" .. i .. "'s copy") end
+    t.eq(next(Toolbox.saveRefused), nil, "nothing refused")
+  end)
+
   t.test("maximum saved data with corrupted entries: loads, keeps what is valid, drops the rest", function()
     H.boot(veteranDisk(true))
     H.advance(70)

@@ -327,8 +327,9 @@ def check_entries(report: Report, manifest: dict) -> list[Path]:
 
 
 # Every saved-variable write goes through Toolbox.SetSavedVar (core.lua), the one line allowed to call the game.
-RAW_SAVE_RE = re.compile(r"\bShroudSetSavedVar\s*\(")
-RAW_SAVE_OK = "return ShroudSetSavedVar(key, value, scope) == true"
+# Deletes go through Toolbox.DeleteSaved: both keep each file's size estimate (the game's 256 KB is a whole file's).
+RAW_SAVE_RE = re.compile(r"\bShroud(?:Set|Delete)SavedVar\s*\(")
+RAW_SAVE_OK = ("local stored = ShroudSetSavedVar(key, value, scope) == true", "return ShroudDeleteSavedVar(key, scope)")
 # Every read of the player's name goes through Toolbox.PlayerName (core.lua), which drops the tags the game adds to
 # the display name ("shawn[PVP]": read raw, going AFK looked like another character logging in).
 RAW_NAME_RE = re.compile(r"\bShroudGetPlayerName\s*\(")
@@ -381,9 +382,10 @@ def check_sources(report: Report, manifest: dict) -> None:
             if m:
                 report.error(f"{f}:{lineno}: '{m.group(0)}' - use saved vars, not io/os (only os.date/os.time allowed)")
             if (RAW_SAVE_RE.search(line) and not line.lstrip().startswith("--")
-                    and not (f == "core.lua" and RAW_SAVE_OK in line)):
-                report.error(f"{f}:{lineno}: a direct ShroudSetSavedVar: save with T.Save or T.SetSavedVar, which"
-                             " check the value first (a value the game can't read back loses the whole file)")
+                    and not (f == "core.lua" and any(ok in line for ok in RAW_SAVE_OK))):
+                report.error(f"{f}:{lineno}: a direct ShroudSetSavedVar / ShroudDeleteSavedVar: use T.Save,"
+                             " T.SetSavedVar or T.DeleteSaved, which check the value and the file's size first (a"
+                             " value the game can't read back, or a file past 256 KB, loses the whole file)")
             if (RAW_NAME_RE.search(line) and not line.lstrip().startswith("--")
                     and not (f == "core.lua" and RAW_NAME_OK in line)):
                 report.error(f"{f}:{lineno}: a direct ShroudGetPlayerName: use T.PlayerName, without the tags the"

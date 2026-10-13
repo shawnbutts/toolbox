@@ -12,7 +12,7 @@ return function(t)
   -- Saved keys that a reset leaves alone: state, stats, histories, caches, learned data.
   local KEPT = { session = true, daily = true, buff_timers = true, buff_durations = true, skill_levels = true,
     notify_history = true, prices = true, welcomed = true, guild_motd = true, settings_pending = true,
-    loot_runs = true, skills_paused = true, map_overlays = true }
+    loot_runs = true, skills_paused = true, map_overlays = true, recovery_index = true }
 
   t.test("every saved key is a setting (reset clears it) or listed as kept", function()
     H.boot()
@@ -360,5 +360,79 @@ return function(t)
     H.advance(2)
     t.eq(Toolbox.Location.GetShow(), false, "Alt's own")
     t.ok(H.S.memory.account["recovery:alt"], "Alt's copy")
+  end)
+
+  -- Each file's estimate against what the harness would write: every key counted, never below the real size.
+  local function measuredWhole(label)
+    for scope, keys in pairs(H.S.memory) do
+      local mine = Toolbox.fileUse[scope == "account" and "account" or "character"]
+      if scope == "account" or scope == "character:" .. H.S.char.name then
+        for key in pairs(keys) do t.ok(mine.keys[key], label .. ": " .. scope .. " '" .. key .. "' measured") end
+        t.ok(mine.total >= H.JsonSize(keys), label .. ": " .. scope .. " estimate " .. mine.total .. " below "
+          .. H.JsonSize(keys))
+      end
+    end
+  end
+
+  t.test("each saved file is measured whole at start and kept measured by every write", function()
+    H.boot()
+    H.chat("/tbx buffs")
+    H.chat("/tbx mark Bank")
+    H.chat("/tbx settings export Raid")
+    t.ok(H.logged("Exported your settings"), H.lastLog())
+    H.advance(5)
+    measuredWhole("after a session")
+    reloadForReal()
+    measuredWhole("after a reload")
+  end)
+
+  t.test("a write that would take a file past 256 KB is refused and named; the rest of the file still saves", function()
+    H.boot()
+    local big = { string.rep("a", 150000) }
+    t.ok(Toolbox.SetSavedVar("test_big_a", big, "account"))
+    local ok, _, kind = Toolbox.SetSavedVar("test_big_b", big, "account")
+    t.eq(ok, false, "the second one doesn't fit")
+    t.eq(kind, "full")
+    t.ok(H.logged("Toolbox didn't save 'test_big_b': the account file is full"), H.lastLog())
+    t.eq(H.S.memory.account.test_big_b, nil, "never handed to the game")
+    t.ok(Toolbox.Flush() ~= false, "the file is still written (the harness raises past 256 KB)")
+    t.ok(Toolbox.SetSavedVar("test_big_a", { "smaller" }, "account"), "a write that shrinks it is taken")
+    t.ok(Toolbox.SetSavedVar("test_big_b", big, "account"), "and now the other fits")
+    Toolbox.DeleteSaved("test_big_b", "account")
+    Toolbox.DeleteSaved("test_big_a", "account")
+    t.ok(Toolbox.FileUse("account") < 50000, "deletes are counted: " .. Toolbox.FileUse("account"))
+    Toolbox.saveRefused.test_big_b = nil
+  end)
+
+  t.test("other characters' recovery copies count toward the account file; overlays aren't copied", function()
+    H.boot()
+    H.chat("/tbx mark Bank")
+    H.advance(5)
+    H.callback("ShroudOnLogOut")
+    H.S.char.name = "Alt"
+    H.callback("ShroudOnSceneLoaded", "Novia")
+    H.advance(5)
+    t.ok(H.S.memory.account["recovery:alt"], "Alt's copy")
+    t.eq(H.S.memory.account["recovery:tester"].keys.map_overlays, nil, "Tester's overlays not in the copy")
+    H.callback("ShroudOnLogOut")
+    H.S.char.name = "Tester"
+    H.restart()
+    t.ok(Toolbox.fileUse.account.keys["recovery:alt"], "Alt's copy measured with Alt not playing")
+    measuredWhole("Tester again")
+  end)
+
+  t.test("an older account file with 2,000 prices is cut to 600 at start; the other account writes then fit", function()
+    local items = {}
+    for i = 1, 2000 do
+      items[string.format("an item with a long name %04d", i)] = { avg = i + 0.37, sold = i, last = "2026-09-20",
+        day = string.format("2026-09-%02d", 1 + i % 28), at = 1234.5 }
+    end
+    H.boot({ account = { prices = { v = 1, items = items } } })
+    local n = 0
+    for _ in pairs(H.S.memory.account.prices.items) do n = n + 1 end
+    t.eq(n, Toolbox.Prices.MAX_KEEP)
+    H.advance(5)
+    t.eq(next(Toolbox.saveRefused), nil, "nothing refused")
+    t.ok(H.S.memory.account["recovery:tester"], "the recovery copy written")
   end)
 end

@@ -982,7 +982,7 @@ P.URL_MAX = 1900      -- characters: under the client's 2048 limit
 P.GAP = 12            -- seconds between requests
 P.RETRY = 60          -- seconds after a failed or refused request
 P.TIMEOUT = 40        -- seconds before a request with no answer is given up (a reload drops it)
-P.MAX_KEEP = 2000     -- prices kept (saved-var size)
+P.MAX_KEEP = 600      -- prices kept: about 70 KB of the account file's 256 KB (2,000 were most of it)
 P.MAX_AGE = 86400     -- seconds a price is used before it is looked up again
 
 -- A connection test's steps go to chat and to the settings window's line under its button
@@ -1060,6 +1060,15 @@ local function writeCache()
     for i = P.MAX_KEEP + 1, #keys do cache[keys[i]] = nil end
   end
   T.SetSavedVar("prices", T.ForSaving({ v = 1, items = cache }), "account")
+end
+
+-- At start: a cache kept by 1.7.0 or before (2,000 prices, most of the account file's 256 KB) cut to P.MAX_KEEP at
+-- once, before other account writes find the file full.
+function P.KeepSize()
+  readCache()
+  local n = 0
+  for _ in pairs(cache) do n = n + 1 end
+  if n > P.MAX_KEEP then writeCache() end
 end
 
 -- The 90-day average price per unit, or nil (not looked up yet, or no recent sales).

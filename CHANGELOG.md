@@ -20,6 +20,10 @@ ones included).
   to your name ("[AFK]", "[PVP]"), and Toolbox took the tagged name for a new character: your XP session started
   over and every strip was built again. Setup copies kept under a tagged name ("shawn[PVP]") are folded into the
   character's own, so each character is listed once.
+- **Settings that stopped saving without a word.** The game keeps at most 256 KB in each of an add-on's saved files,
+  and when a file grows past that it saves none of it. Toolbox now checks every file's whole size before it saves:
+  a change that wouldn't fit isn't saved, and chat names it, so the rest of the file keeps saving. The estimated
+  prices remembered drop from 2,000 items to 600, which were most of the shared account file.
 
 ### Changed
 - **The guide's longer topics come in shorter parts:** Buff bar is now Buff bar, Buff alerts and sounds, and Buff

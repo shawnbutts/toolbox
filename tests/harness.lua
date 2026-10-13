@@ -21,6 +21,18 @@ local CALLBACKS = {
   "ShroudOnSkillsChanged", "ShroudOnDeathChanged", "ShroudOnFriendStatusChanged", "ShroudOnGuildMemberStatusChanged",
 }
 
+-- About the JSON the game writes for `v` (its text is escaped ASCII: no escapes in the JSON).
+function H.JsonSize(v)
+  local kind = type(v)
+  if kind == "string" then return #v + 2 end
+  if kind == "number" then return #tostring(v) end
+  if kind == "boolean" then return v and 4 or 5 end
+  if kind ~= "table" then return 4 end
+  local n = 2
+  for k, x in pairs(v) do n = n + #tostring(k) + 4 + H.JsonSize(x) end
+  return n
+end
+
 local function copy(v)
   if type(v) ~= "table" then return v end
   local out = {}
@@ -728,6 +740,15 @@ local function install_api()
   end
   ShroudFlushSavedVars = function()
     if S.flushFails then return false end     -- H.S.flushFails: the game refuses the write
+    -- The game's 256 KB is a whole file's (an add-on's scope; confirmed 2026-10-13): past it, nothing of that file is
+    -- written. Raised here, so a test can't pass with a file the game would drop (Toolbox refuses the write first).
+    for scope, keys in pairs(S.memory) do
+      local size = H.JsonSize(keys)
+      if size > 256 * 1024 then
+        error("saved file '" .. tostring(scope) .. "' is " .. size .. " bytes: past the game's 256 KB a file, it"
+          .. " wouldn't be written at all", 2)
+      end
+    end
     S.disk = copy(S.memory)
     S.flushes = S.flushes + 1
     S.dirty = false

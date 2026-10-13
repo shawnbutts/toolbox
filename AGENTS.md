@@ -56,7 +56,8 @@ This file holds current facts and rules; the history behind them is in git (`git
   vars are read with `T.ReadSaved`. And no `_G` or `_ENV` at all, not even `rawget(_G, "os")` or in a
   comment: the grant was still refused after the renames, with only those left (read a global plainly:
   `os`, `ToolboxCopies`; nil when absent).
-- **Save only through `T.Save` / `T.ReadSaved`, or `T.SetSavedVar`** (owner, 2026-10-07 and 2026-10-08: twice a value
+- **Save only through `T.Save` / `T.ReadSaved`, or `T.SetSavedVar`, and delete through `T.DeleteSaved`** (each
+  file's 256 KB, below; `tools/build.py` refuses a direct `ShroudDeleteSavedVar` too) (owner, 2026-10-07 and 2026-10-08: twice a value
   the game's loader refused lost a character's WHOLE file: the game starts the add-on with defaults and the next save
   overwrites it). The loader looks like MoonSharp's JSON reader on the Lua lexer: it refused "\/" (the saver's "/",
   "invalid escape sequence near '\/'") and a negative number ("Unexpected token : '-'"). So (core.lua):
@@ -507,17 +508,18 @@ character" sentinel.
 | `loot_runs` | `{ v = 1, list = { { at = "HH:MM", date = "YYYY-MM-DD", scene, played = s, gold, kills, items, kinds, nodes, value = estimated gold or nil, spot = { scene, raw, x, y, z } or nil } } }`, newest first, at most `D.RUNS_KEEP` (10); stats: a reset keeps it |
 | `location` | `{ show = bool (default false), facing = bool (default true), water = bool (default true; API 32), pin = bool (the Map overlays pin, default true), x, y }` (the location strip, hud.lua) |
 | `launcher` | `{ show = bool (default true), vertical = bool (default true), size = 20..64 (default 32), shade = 0..90 (% black behind, default 40), combat = bool (hide during combat), hide = { [button key] = true } (never all), x, y }` (the menu, hud.lua; absent = never started: the chat line) |
-| `map_overlays` | `{ v = 1, shown = overlay id or 0, nextId, list = { { id, name (<= 24, unique), icon = an OV.ICONS shape, color = an OV.COLORS name, nextPlace, places = { { id, name (unique in it), raw (scene id), scene, x, y, z, icon, color (unset: the overlay's) } } } } }` (the overlay's icon / color: its next marks') (hud.lua; at most OV.MAX, OV.PLACES_MAX places each); kept by a reset, copied for recovery |
+| `map_overlays` | `{ v = 1, shown = overlay id or 0, nextId, list = { { id, name (<= 24, unique), icon = an OV.ICONS shape, color = an OV.COLORS name, nextPlace, places = { { id, name (unique in it), raw (scene id), scene, x, y, z, icon, color (unset: the overlay's) } } } } }` (the overlay's icon / color: its next marks') (hud.lua; at most OV.MAX, OV.PLACES_MAX places each); kept by a reset; NOT in the recovery copy (`B.OTHER_KEYS`: the account file's 256 KB) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
 | `skills_paused` | `{ v = 1, how = "off"/"maintain", when = "HH:MM", list = { { key = skill key or name, from = mode, to = mode } } }`: the pause's record (skills.lua; empty list = not paused); kept by a reset, copied for recovery |
 | `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`, events' `{ [occurrence] = start (UTC seconds, as text) }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), font = 9..32, spacing = 0..12 (each unset: the XP windows'), x, y }` |
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most 20 (which are new, `fresh`, is kept in memory only) |
-| `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last, day, at } } }`, at most `P.MAX_KEEP` |
+| `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last, day, at } } }`, at most `P.MAX_KEEP` (600, about 70 KB; 2,000 before 1.8.0, cut at start by `P.KeepSize`) |
 | `welcomed` (ACCOUNT scope) | set after the first-run welcome |
 | `skills` | `{ show = bool (default false), vertical = bool (default true), slots = 1..12, stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels"/"xp", size = 20..64, number = bool (the level on the icon, default true), marks = bool (the API 27 training controls, default true), soundUp = bool, soundDown = bool (both default true), pause = bool (the Pause skills tile, default true), pauseHow = "off"/"maintain" (default "off"), x, y }` (skills.lua) |
 | `save_mark` | the number of the recovery copy last written (core.lua, `B.KeepRecovery`); a file without it while its copy exists is put back at start (`B.Recover`) |
 | `recovery:<lower name>` (ACCOUNT scope) | `{ v = 1, n, when = "YYYY-MM-DD HH:MM", keys = { [a B.RecoverList() key] = its saved table } }`: settings (`B.KEYS`), `loot_runs`, `skill_levels`, `buff_durations`, written at the flush after one changed |
+| `recovery_index` (ACCOUNT scope) | `{ v = 1, names = { lower name, ... } }`: the characters with a recovery copy, so `B.MeasureFiles` counts every copy (copies from before it are listed when their character next plays) |
 | `settings_pending` | `{ kind = "reset" }`: done and deleted at the next start |
 | `setup_share` | `true` = this character's copy is listed for the others (default off; a setting, but never copied into a setup or imported) |
 | `setups` (ACCOUNT scope) | `{ v = 1, list = { { name, character = bool, when = "YYYY-MM-DD" } } }`: the setups' index, at most `B.SETUP_MAX` |
@@ -723,8 +725,13 @@ Rules learned the hard way; keep to them.
 - **Saved-variable size** (confirmed 2026-10-13, `tmp/savelimit.lua`): the 256 KB cap is per FILE (the add-on, the
   scope and the character: "saved variables for 'savelimit|character|shawn' exceed the size limit; not written"), not
   per key. Two 150 KB keys: each `ShroudSetSavedVar` returned true, the flush returned false and NOTHING of that file
-  was written (the old file stays on disk). `T.CheckSaved`'s estimate is per key, so it doesn't see this yet; the
-  account file holds the prices (`P.MAX_KEEP`), every setup and every character's recovery copy.
+  was written (the old file stays on disk). So `T.SetSavedVar` keeps each file's estimate (`T.fileUse`, measured whole
+  at start and for another character by `B.MeasureFiles`: `B.RecoverList()`, `B.OTHER_KEYS` (a module's own keys
+  appended), the account's prices, setups and recovery copies; kept by every write and `T.DeleteSaved`) and refuses a
+  write that would take its file past `T.FILE_MAX` (third result "full", chat names the key once); one that shrinks
+  it is always taken. The account file holds the prices, every setup and every character's recovery copy; a full one
+  (600 prices, 20 setups, nine characters) measures about 98 KB estimated (`test_stress.lua`). The harness raises at a
+  flush for a file past 256 KB (`H.JsonSize`).
 - **Limits** (per add-on): 8 windows (Toolbox has 7 lasting ones; Docs, version and Map overlays share the 8th: `T.TakeSharedWindow`), HUD
   frames covering <= 35% of the screen (8 by the reference; 25 by the work log of 2026-10-01, unconfirmed in
   game: `Hud.MAX_FRAMES` is 25 and `Hud.FrameCap()` learns the real limit from the game's refusal,

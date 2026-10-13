@@ -291,6 +291,10 @@ T.SAFE_CHARS = "[^ !#$&'()*+,%-%.0-9:;<=>?@A-Z%[%]^_`a-z{|}\126]"   -- (the comp
 T.SAVED_CHARS = "[^ !#$%%&'()*+,%-%.0-9:;<=>?@A-Z%[%]^_`a-z{|}\126]"  -- what saved text may hold: those and the "%"
 T.SAVE_TINY, T.SAVE_HUGE = 1e-4, 1e15
 T.SAVE_MAX_CHARS = 240000            -- an estimate of a table's JSON size, under the game's 256 KB
+-- The game's 256 KB is a whole FILE's (every key of a scope together; confirmed 2026-10-13, tmp/savelimit.lua: two
+-- 150 KB keys were each taken, then the flush wrote nothing of that file). T.SetSavedVar keeps each file's estimate
+-- (T.fileUse) and refuses a write that would take it past this.
+T.FILE_MAX = 240000
 T.SAVE_MAX_DEPTH = 24
 T.SAVE_FORMAT_KEY = "%E"
 T.SAVE_LIST_KEY = "%L"
@@ -386,6 +390,34 @@ local function numberOk(n)
   return n == n and n >= 0 and not (n == 0 and 1 / n < 0) and (n == 0 or (n >= T.SAVE_TINY and n < T.SAVE_HUGE))
 end
 
+-- A number's room in the file: a whole one its digits (and a comma), any other 24 (the saver may write 17 digits).
+function T.NumberSize(x)
+  if x ~= math.floor(x) or x >= T.SAVE_HUGE then return 24 end
+  local digits = 2
+  while x >= 10 do
+    x = x / 10
+    digits = digits + 1
+  end
+  return digits
+end
+
+-- A saved value's estimated room in its file, as T.CheckSaved counts it, without its checks (a value already there,
+-- perhaps saved before them).
+function T.SavedSize(v, depth)
+  local kind = type(v)
+  if kind == "string" then return #v + 3 end
+  if kind == "number" then return T.NumberSize(v) end
+  if kind == "boolean" then return 6 end
+  if kind ~= "table" or (depth or 1) > T.SAVE_MAX_DEPTH then return 6 end
+  local size = 2
+  for k, item in pairs(v) do
+    size = size + (type(k) == "string" and #k + 4 or (type(k) == "number" and T.NumberSize(k) + 3 or 0))
+      + T.SavedSize(item, (depth or 1) + 1)
+  end
+  return size
+end
+
+-- Returns true and the value's estimated size, or false and why.
 function T.CheckSaved(v)
   local size, inside, trail = 0, {}, {}
   -- Where in `v` (".notify.sources.x"): built only for a refusal (a path for every value was most of the garbage of
@@ -402,7 +434,7 @@ function T.CheckSaved(v)
       return true
     elseif kind == "number" then
       if not numberOk(x) then return false, "the number " .. tostring(x) .. " at " .. pathTo(depth) end
-      size = size + 24
+      size = size + T.NumberSize(x)
       return true
     elseif kind == "string" then
       local at = x:find(T.SAVED_CHARS)
@@ -424,6 +456,7 @@ function T.CheckSaved(v)
           if k < 1 or k ~= math.floor(k) or k >= T.SAVE_HUGE then
             return false, "the key " .. tostring(k) .. " at " .. pathTo(depth)
           end
+          size = size + T.NumberSize(k) + 3          -- (counted as if written "12": a list's place, generously)
         else
           return false, "a " .. type(k) .. " key at " .. pathTo(depth)
         end
@@ -437,7 +470,49 @@ function T.CheckSaved(v)
     end
     return false, "a " .. kind .. " at " .. pathTo(depth)
   end
-  return walk(v, 1)
+  local ok, why = walk(v, 1)
+  if not ok then return false, why end
+  return true, size
+end
+
+-- Each saved-variable file's estimated size: { total, keys = { [key] = its room, the key's name too } }. Measured
+-- at start and for another character (T.MeasureFiles), kept by every write and delete below.
+T.fileUse = { character = { total = 0, keys = {} }, account = { total = 0, keys = {} } }
+local function fileOf(scope)
+  return T.fileUse[(type(scope) == "string" and scope:lower() == "account") and "account" or "character"]
+end
+local function noteSize(scope, key, size)
+  local f = fileOf(scope)
+  f.total = f.total - (f.keys[key] or 0) + size
+  f.keys[key] = size > 0 and size or nil
+end
+
+-- How full a file is: its estimate and T.FILE_MAX.
+function T.FileUse(scope) return fileOf(scope).total, T.FILE_MAX end
+
+-- Whether `size` more (a key's whole room, its name included) would still fit in scope's file in place of `key`.
+function T.FileFits(key, size, scope)
+  local f = fileOf(scope)
+  local old = f.keys[key] or 0
+  return size <= old or f.total - old + size <= T.FILE_MAX
+end
+
+-- Measures every key in `keys` (scope's) as it is now, for one file (`fresh`: forget the old measure first).
+function T.MeasureKeys(keys, scope, fresh)
+  if fresh then
+    local f = fileOf(scope)
+    f.total, f.keys = 0, {}
+  end
+  for _, key in ipairs(keys) do
+    local v = ShroudGetSavedVar(key, scope)
+    noteSize(scope, key, v == nil and 0 or T.SavedSize(v) + #key + 4)
+  end
+end
+
+-- Deletes a saved var (the file's measure follows).
+function T.DeleteSaved(key, scope)
+  noteSize(scope, key, 0)
+  return ShroudDeleteSavedVar(key, scope)
 end
 
 -- Every saved-variable write goes through here. Refuses (false, why) a value that isn't safe to save (chat says so
@@ -449,6 +524,18 @@ function T.SetSavedVar(key, value, scope)
     return false, "a bad key"
   end
   local ok, why = T.CheckSaved(value)
+  local size = ok and (why + #key + 4) or 0
+  if ok and value == nil then size = 0 end
+  if ok and not T.FileFits(key, size, scope) then
+    ok, why = false, "its file would pass the game's 256 KB a file: then the game would save nothing of it"
+    if not T.saveRefused[key] then
+      T.Print("Toolbox didn't save '" .. key .. "': " .. (fileOf(scope) == T.fileUse.account and "the account file"
+        or "this character's file") .. " is full (the game keeps at most 256 KB a file, and one past it isn't saved"
+        .. " at all). Your other settings are safe.")
+    end
+    T.saveRefused[key] = why
+    return false, why, "full"
+  end
   if not ok then
     if not T.saveRefused[key] then
       T.Print("Toolbox didn't save '" .. key .. "' (" .. why .. "): the game couldn't have read its file back."
@@ -458,7 +545,9 @@ function T.SetSavedVar(key, value, scope)
     return false, why
   end
   if scope ~= "account" and T.Backup and T.Backup.Recovers(key) then T.recoveryDirty = true end
-  return ShroudSetSavedVar(key, value, scope) == true
+  local stored = ShroudSetSavedVar(key, value, scope) == true
+  if stored then noteSize(scope, key, size) end
+  return stored
 end
 
 function T.ReadSaved(key)
@@ -1732,11 +1821,11 @@ end)
 
 add("welcome", "show the first-run welcome again (reset: show it at the next /lua reload)", function(rest)
   if rest:lower() == "reset" then
-    ShroudDeleteSavedVar("welcomed", "account")
+    T.DeleteSaved("welcomed", "account")
     T.Print("The welcome will show again at the next /lua reload or login.")
     return
   end
-  ShroudDeleteSavedVar("welcomed", "account")
+  T.DeleteSaved("welcomed", "account")
   T.Welcome()
 end)
 
@@ -2457,7 +2546,7 @@ end
 -- couldn't write the change to disk.
 function B.Cancel()
   local had = B.Pending() ~= nil
-  ShroudDeleteSavedVar(B.PENDING, SCOPE)
+  T.DeleteSaved(B.PENDING, SCOPE)
   return had, T.Flush() ~= false
 end
 
@@ -2612,11 +2701,11 @@ local function store(name, character)
   local entry = { name = name, character = character, when = type(when) == "string" and when or "" }
   if at then list[at] = entry else list[#list + 1] = entry end
   if not writeSetups(list) then
-    if before == nil then ShroudDeleteSavedVar(key, ACCOUNT) else T.SetSavedVar(key, T.Resaved(before), ACCOUNT) end
+    if before == nil then T.DeleteSaved(key, ACCOUNT) else T.SetSavedVar(key, T.Resaved(before), ACCOUNT) end
     return false, "the game refused to store the list of setups", true
   end
   local old = (character and "setup_character:" or "setup:") .. name:lower()
-  if old ~= key then ShroudDeleteSavedVar(old, ACCOUNT) end   -- 1.6.0's copy under the plain name
+  if old ~= key then T.DeleteSaved(old, ACCOUNT) end   -- 1.6.0's copy under the plain name
   return true
 end
 
@@ -2705,6 +2794,58 @@ function B.KeepRecovery()
   local ok = T.SetSavedVar(recoveryKey(who), { v = 1, n = n, when = when, keys = keys }, ACCOUNT)
   -- a value T.CheckSaved refused won't pass next time either (chat said so once): not retried every flush
   T.recoveryDirty = not ok and T.saveRefused[recoveryKey(who)] == nil
+  if ok then B.IndexRecovery(who) end
+end
+
+-- The characters with a recovery copy in the account file (B.RECOVERIES, from 1.8.0: copies written before are
+-- listed when their character next plays), so its size can be measured without that character.
+B.RECOVERIES = "recovery_index"      -- account: { v = 1, names = { lower name, ... } }
+local function recoveryNames()
+  local saved = T.FromSaved(ShroudGetSavedVar(B.RECOVERIES, ACCOUNT))
+  local names = {}
+  for _, n in ipairs(type(saved) == "table" and type(saved.names) == "table" and saved.names or {}) do
+    if type(n) == "string" and n ~= "" then names[#names + 1] = n end
+  end
+  return names
+end
+
+function B.IndexRecovery(who)
+  local lower = who:lower()
+  local names = recoveryNames()
+  for _, n in ipairs(names) do
+    if n == lower then return end
+  end
+  names[#names + 1] = lower
+  T.SetSavedVar(B.RECOVERIES, T.ForSaving({ v = 1, names = names }), ACCOUNT)
+end
+
+-- Character keys that aren't settings or recovered (B.KEYS, B.RecoverList()); other files append theirs. Every key
+-- Toolbox saves is in one of them (tests/test_backup.lua), so each file's size is measured whole.
+B.OTHER_KEYS = { "session", "daily", "buff_timers", "notify_history", "guild_motd", B.MARK, B.PENDING }
+
+-- Measures the files as they are (at start: both; for another character: its file).
+function B.MeasureFiles(characterOnly)
+  local keys, listed = {}, {}
+  for _, list in ipairs({ B.RecoverList(), B.OTHER_KEYS }) do
+    for _, k in ipairs(list) do
+      if not listed[k] then
+        listed[k] = true
+        keys[#keys + 1] = k
+      end
+    end
+  end
+  T.MeasureKeys(keys, SCOPE, true)
+  if characterOnly then return end
+  local account = { "prices", "welcomed", B.SETUPS, B.RECOVERIES }
+  local setups = readSetups()
+  for _, e in ipairs(type(setups) == "table" and type(setups.list) == "table" and setups.list or {}) do
+    if type(e) == "table" and type(e.name) == "string" then
+      account[#account + 1] = foundSetupKey(e.name, e.character)
+    end
+  end
+  for _, n in ipairs(recoveryNames()) do account[#account + 1] = recoveryKey(n) end
+  if T.settingsFor then account[#account + 1] = recoveryKey(T.settingsFor) end
+  T.MeasureKeys(account, ACCOUNT, true)
 end
 
 -- At start and for another character, before anything reads its settings: writes the recovery copy back when the
@@ -2754,7 +2895,7 @@ function B.TidyTagged()
       if rename and type(value) == "table" then value.name = T.ForSaving(rename) end
       if not T.SetSavedVar(to, value, ACCOUNT) then return false end
     end
-    ShroudDeleteSavedVar(from, ACCOUNT)
+    T.DeleteSaved(from, ACCOUNT)
     return true
   end
   for _, e in ipairs(list) do
@@ -2842,7 +2983,7 @@ function B.Import(s)
     if values[key] ~= nil then
       if not T.SetSavedVar(key, T.ForSaving(values[key]), SCOPE) then
         for _, k in ipairs(written) do
-          if old[k] == nil then ShroudDeleteSavedVar(k, SCOPE) else T.SetSavedVar(k, old[k], SCOPE) end
+          if old[k] == nil then T.DeleteSaved(k, SCOPE) else T.SetSavedVar(k, old[k], SCOPE) end
         end
         return false, "the game refused to store it, so nothing changed"
       end
@@ -2850,7 +2991,7 @@ function B.Import(s)
     end
   end
   for _, key in ipairs(B.KEYS) do
-    if values[key] == nil and key ~= B.SHARE and old[key] ~= nil then ShroudDeleteSavedVar(key, SCOPE) end
+    if values[key] == nil and key ~= B.SHARE and old[key] ~= nil then T.DeleteSaved(key, SCOPE) end
   end
   T.Restart()
   T.setupDirty = true                    -- this character's copy now holds the imported setup
@@ -2871,7 +3012,7 @@ function B.DeleteSetup(s)
   if #kept < #list and not writeSetups(kept) then
     return false, "the game refused to change the list of setups"
   end
-  ShroudDeleteSavedVar(key, ACCOUNT)
+  T.DeleteSaved(key, ACCOUNT)
   if T.Flush() == false then return false, "the game couldn't write it to disk yet" end
   return true
 end
@@ -2934,12 +3075,12 @@ end
 -- From ShroudOnStart, before any module reads its settings: carries out a waiting reset.
 function B.ApplyPending()
   if not B.Pending() then return end
-  ShroudDeleteSavedVar(B.PENDING, SCOPE)     -- first: a failure below doesn't repeat at every start
+  T.DeleteSaved(B.PENDING, SCOPE)     -- first: a failure below doesn't repeat at every start
   local unlisted, why = unlistMine()         -- sharing goes back to off: its copy goes too (review, 2026-10-04)
   if not unlisted then T.Print("Couldn't take this character's setup off the shared list: " .. why .. ".") end
   shareFor = nil
   local notify = T.ReadSaved("notify")
-  for _, key in ipairs(B.KEYS) do ShroudDeleteSavedVar(key, SCOPE) end   -- false only for a key never set
+  for _, key in ipairs(B.KEYS) do T.DeleteSaved(key, SCOPE) end   -- false only for a key never set
   local saved = T.Save("notify", seenOnly(notify))
   if T.Flush() == false or not saved then
     T.Print("Toolbox's settings are back to their defaults for now, but the game couldn't write them to disk:"
@@ -3022,6 +3163,7 @@ function T.FollowCharacter()
   end
   if name == T.settingsFor then return false end
   T.settingsFor = name                 -- (false: started with no character, so read no settings yet)
+  step("the saved files' size", function() B.MeasureFiles(true) end)
   local places = T.Hud.Places()        -- before the strips go: kept where this character has none
   step("the recovery check", T.Backup.Recover)        -- a file the game couldn't read: put back first
   step("the settings restore", T.Backup.ApplyPending)
@@ -3045,6 +3187,8 @@ function ShroudOnStart()
   T.RegisterCommands()
   T.RegisterKeybind()
   T.settingsFor = characterName() or false
+  step("the saved files' size", T.Backup.MeasureFiles)  -- before any write: each file's 256 KB
+  step("the price cache's size", T.Prices.KeepSize)     -- first: an older, bigger cache must not fill the file
   step("the setup names", T.Backup.TidyTagged)          -- copies kept under a tagged name, before the check
   step("the recovery check", T.Backup.Recover)          -- a file the game couldn't read: put back first
   step("the settings restore", T.Backup.ApplyPending)   -- before anything reads its settings
