@@ -161,7 +161,11 @@ into one if a new file is ever needed).
   sum; at most `D.SPOTS_MAX`, a new square replacing the least-played and starting from its time), filed as the
   run's `spot` (`D.MainSpot`: the middle of the most-played square in its scene); a run row's Beacon button
   (`DD.MarkRun`, a click only: it replaces the player's beacon) calls `ShroudSetBeacon` there when you're in that
-  scene (the beacon marks the scene you're in); `DD.LocText` writes it with `ShroudFormatLocation` (API 29). The "Runs" view (`fillRuns`) reuses the item rows (`addRow(key, text)`), under a bar chart (`fillRunsChart`:
+  scene (the beacon marks the scene you're in); `DD.LocText` writes it with `ShroudFormatLocation` (API 29). Run markers (API 30, `DD.SyncMarkers` from `T.Tick`, acting only when the scene,
+  character, `D.runsVersion` or the `markers` setting change; a refusal retried after `DD.MARKER_RETRY` s): a flag per
+  run whose spot is in this scene, id from its date and time (`DD.MarkerId`: filing a run moves none), note
+  `DD.MarkerNote`; ours no longer wanted ("run-" ids) are removed. Harness: `H.S.markers[raw][id]`,
+  `H.S.markerRefuse`, `H.S.noMarkers`, `H.S.markerSets`. The "Runs" view (`fillRuns`) reuses the item rows (`addRow(key, text)`), under a bar chart (`fillRunsChart`:
   one Column per run, made the first time the view shows, `ensureRunCols`: built with the window, its elements
   pushed a character switch's rebuild past the creation rate). Rows are appended,
   never rebuilt on a timer (element cap; no reorder API); a sorted rebuild at most every `RESORT_SECONDS`
@@ -448,7 +452,7 @@ character" sentinel.
 | `compact` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, compact = bool, hx, hy }` (hx/hy: the HUD strip; compact: an API 19 compact window) |
 | `daily` | see the header comment of `daily.lua` (format `v = 1`) |
 | `daily_window` | `{ open = bool, x = number, y = number, hover = bool, hud = bool, compact = bool, hx, hy }` |
-| `daily_detail` | `{ open = bool, x = number, y = number, values = bool, each = bool (the price each in the count: "40 x 5g"; default true), view = "looted"/"crafted"/"gathered", include = bool }` |
+| `daily_detail` | `{ open = bool, x = number, y = number, values = bool, each = bool (the price each in the count: "40 x 5g"; default true), view = "looted"/"crafted"/"gathered", include = bool, markers = bool (runs on the map, API 30; default true) }` |
 | `buffblock` | `{ show = bool (default false), width = 1..30 (icons a row, default 10), size = 20..64, combatOnly = bool, x, y }` |
 | `buffbar` | `{ show, size = 20..64, expire, expireSeconds = 1..60, debuff, flash, groupAfter = seconds (a GROUP_AFTER_CHOICES value, 0 = off), groupCats = { [category] = true }, countdown = bool, countdownSecs = 5..120, group = { name parts }, quiet = { exact effect names, <= BB.QUIET_MAX } (muted: no expiry / debuff sound), quietNames = { [muted rune name] = its shown name } (for the lists when it isn't on you), effectSounds = { [rune name] = { shown, get = path, ["end"] = path } } (paths in the Lua folder, `S.CleanPath`;
 <= BB.SOUNDS_MAX: the effect's own sounds, `BB.PlayAlert`), repeatQuiet = a BB.REPEAT_CHOICES value (seconds, 0 = off: an alert within that long of the same effect's last one, counted per alert kind, is quiet: `BB.Repeats`), replaceStock, clickDismiss, combatOnly, x, y }` |

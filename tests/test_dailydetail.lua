@@ -451,6 +451,76 @@ return function(t)
     t.ok(H.lastLog():find("didn't set the beacon"), H.lastLog())
   end)
 
+  -- API 30: each run's spot as a marker of ours on the map, in its scene.
+  local function markersHere()
+    local out = {}
+    for _, m in ipairs(ShroudGetMapMarkers()) do out[#out + 1] = m end
+    return out
+  end
+
+  t.test("runs on the map: a flag per run in the scene you're in, set again on arrival; off removes them", function()
+    H.boot()
+    H.chat("/tbx loot reset")
+    H.S.scene = "Northern Lowlands"
+    H.S.pos = { 2000, 30, 3000 }
+    H.advance(300)
+    H.chat("/tbx loot reset")                            -- the first run filed, in Northern Lowlands
+    H.advance(1)
+    local m = markersHere()
+    t.eq(#m, 1, "its marker, in the scene you're in")
+    t.ok(m[1].id:find("^run%-2026%-09%-27%-%d%d%d%d$"), m[1].id)
+    t.ok(m[1].label:find("^Loot run %d%d:%d%d$"), m[1].label)
+    t.eq(m[1].icon, "flag")
+    t.eq(math.floor(m[1].x) .. "," .. math.floor(m[1].z), "2000,3000")
+    t.ok(m[1].note:find("^Started %d%d:%d%d on 2026%-09%-27, %dm\nGold 0 %(0/h%), kills 0\n0 items$"), m[1].note)
+    local tip = Toolbox.DailyDetail.RunTooltip(Toolbox.Daily.Runs()[1])
+    t.ok(tip:find("A flag marks it on your map there; Beacon puts it on your compass."), tip)
+    -- another scene: none of its own; back again, the flag is set again (the game's are per scene)
+    H.S.scene = "Highvale"
+    H.S.pos = { 5, 1, 5 }
+    H.advance(300)
+    H.chat("/tbx loot reset")                            -- a second run, in Highvale
+    H.advance(1)
+    t.eq(#markersHere(), 1, "Highvale's run")
+    H.S.markers = {}                                     -- a new session: the game kept none
+    H.S.scene = "Northern Lowlands"
+    H.advance(1)
+    t.eq(#markersHere(), 1, "set again on arrival")
+    local sets = H.S.markerSets
+    H.advance(10)
+    t.eq(H.S.markerSets, sets, "nothing set again while nothing changes")
+    H.chat("/tbx config")
+    H.change("toolbox_config", "dd_markers", false)
+    t.eq(#markersHere(), 0, "switched off: taken down")
+    t.eq(Toolbox.ReadSaved("daily_detail").markers, false)
+    H.change("toolbox_config", "dd_markers", true)
+    t.eq(#markersHere(), 1)
+  end)
+
+  t.test("runs on the map: a refusal is tried again later; an older client keeps the Beacon only", function()
+    H.boot()
+    H.chat("/tbx loot reset")
+    H.S.pos = { 10, 0, 10 }
+    H.advance(300)
+    H.S.markerRefuse = "pvp"
+    H.chat("/tbx loot reset")
+    H.advance(1)
+    t.eq(#markersHere(), 0)
+    t.eq(Toolbox.DailyDetail.markerFailed, "pvp")
+    H.S.markerRefuse = nil
+    H.advance(5)
+    t.eq(#markersHere(), 0, "not at once")
+    H.advance(Toolbox.DailyDetail.MARKER_RETRY)
+    t.eq(#markersHere(), 1, "tried again")
+    H.S.noMarkers = true
+    H.reload()
+    H.advance(1)
+    local tip = Toolbox.DailyDetail.RunTooltip(Toolbox.Daily.Runs()[1])
+    t.ok(tip:find("%. Beacon marks it%.$"), tip)
+    H.chat("/tbx config")
+    t.eq(H.config():Find("dd_markers").enabled, false, "greyed out: needs a newer client")
+  end)
+
   t.test("runs: a run's ground squares are capped; the busiest stays", function()
     H.boot()
     H.chat("/tbx loot reset")
@@ -509,7 +579,7 @@ return function(t)
     local rows = H.detail():Find("list").children
     for i = 1, 3 do
       local tip = rows[i].children[1].tooltip
-      t.ok(tip:find("Played most around %(1, 2, 3%)%. Beacon"), tip)
+      t.ok(tip:find("Played most around %(1, 2, 3%)%. A flag marks it"), tip)
       t.ok(rows[i].children[4].visible ~= false, "Beacon shown")
       H.call(function() rows[i].children[4].onClick(rows[i].children[4]) end)
       t.ok(H.lastLog():find("Beacon set where your %d%d:%d%d run was played most: another scene %(1, 2, 3%)"),

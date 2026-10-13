@@ -75,7 +75,9 @@ D.SECTIONS = {
       .. "long, and gold and loot value per hour, to compare farming spots, under a bar chart of them (the best "
       .. "bar green); hover a run or a bar for its numbers. A run also keeps where you played most in it: "
       .. "its Beacon button marks that spot on your compass and map with the game's beacon (the one /beacon "
-      .. "sets, so it replaces yours) when you're in that run's scene.",
+      .. "sets, so it replaces yours) when you're in that run's scene. On a newer game client each run also "
+      .. "shows as a gold flag on your map and minimap in its scene (hover it for what the run brought in); "
+      .. "switch that off with Show runs on the map in settings.",
     "Loot Tracker's Show dropdown: Looted (what you picked up; what you crafted or gathered is left "
       .. "out unless you tick Include crafted and gathered items in settings, or /toolbox dd include on), "
       .. "Crafted (/toolbox crafted: the items you took off crafting stations, your crafts per recipe with "

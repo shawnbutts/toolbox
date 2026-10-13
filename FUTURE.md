@@ -52,6 +52,9 @@ A watering schedule and other help for small and large farms. Not for 1.7.0; may
 
 ## Run markers on the map (owner, 2026-10-10)
 
+Built 2026-10-12 on API 30 (`DD.SyncMarkers`): a flag per run in its scene; the Beacon stays (markers never reach
+the compass). Still to check in game: the scene match across visits. The notes below are the plan as it was.
+
 Waiting on dev request 20 (add-on markers on the region map and minimap), expected in the next client with new API
 docs. Build it only once the real API is in hand: its limits, scene scoping and hover note decide the design.
 

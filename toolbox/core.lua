@@ -2270,6 +2270,7 @@ function T.Tick()
   T.Compact.Track()
   T.Daily.Track()
   T.DailyDetail.Track()
+  T.DailyDetail.SyncMarkers()         -- Loot Tracker runs on the map (API 30), on a change only
   -- Store a changed session once a tick (in memory; copying up to an hour of
   -- samples per XP event would be wasteful), and write it to disk at most
   -- every flushSeconds. A reload re-reads the totals, so it loses no XP.

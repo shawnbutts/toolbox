@@ -191,6 +191,96 @@ function DD.MarkRun(i)
   return true
 end
 
+-- Run markers (API 30, our request 20; the owner's plan of 2026-10-10): each filed run whose spot is in the scene
+-- you're in gets a marker of Toolbox's own on the region map and minimap (a flag), labelled with its time, the note
+-- what it brought in. The game keeps an add-on's markers per scene for the session, so they're set on arrival:
+-- DD.SyncMarkers (from T.Tick) acts only when the scene, the character, the runs or the setting change, and a
+-- refusal (PvP, loading) is tried again after DD.MARKER_RETRY s. Ids come from the run's date and time, so filing a
+-- new run moves none (a move within 10 s is refused). The Beacon button stays: markers never reach the compass.
+DD.MARKER_ICON = "flag"
+DD.MARKER_COLOR = "#e8c060"             -- the game takes #rgb only (no theme token): close to @gold
+DD.MARKER_RETRY = 30
+local markers = { raw = nil, who = nil, version = nil, on = nil, retryAt = -math.huge }
+
+function DD.HasMarkers()
+  return type(ShroudSetMapMarker) == "function" and type(ShroudGetMapMarkers) == "function"
+    and type(ShroudRemoveMapMarker) == "function"
+end
+
+-- A run's marker id ("run-2026-10-12-1432"; [A-Za-z0-9_.-], at most 32), or "run-<n>" for one without a time.
+function DD.MarkerId(r, i)
+  local id = "run-" .. tostring(r.date or "") .. "-" .. tostring(r.at or ""):gsub(":", "")
+  if not id:find("^run%-%d+%-%d+%-%d+%-%d+$") then id = "run-" .. i end
+  return id
+end
+
+function DD.MarkerNote(r)
+  local F = T.FormatNumber
+  local lines = {
+    "Started " .. (r.at ~= "" and r.at or "?") .. (r.date ~= "" and (" on " .. r.date) or "") .. ", "
+      .. T.Daily.Duration(r.played),
+    "Gold " .. F(r.gold) .. " (" .. perHour(r.gold, r.played) .. "/h), kills " .. F(r.kills),
+    F(r.items) .. " items" .. ((r.nodes or 0) > 0 and (", " .. F(r.nodes) .. " nodes") or ""),
+  }
+  if type(r.value) == "number" then lines[#lines + 1] = "Loot value about " .. P.Format(r.value) end
+  local note = table.concat(lines, "\n")
+  if #note > 200 then note = note:sub(1, 200) end
+  return note
+end
+
+local function markerOptions(r)
+  return { label = "Loot run " .. (r.at ~= "" and r.at or ""), icon = DD.MARKER_ICON, color = DD.MARKER_COLOR,
+           note = DD.MarkerNote(r) }
+end
+
+function DD.SyncMarkers()
+  if not DD.HasMarkers() then return end
+  local okRaw, raw = pcall(ShroudGetCurrentSceneNameRaw)
+  if not okRaw or type(raw) ~= "string" or raw == "" then return end
+  local who, version, on = T.CharacterName(), T.Daily.runsVersion, DD.GetMarkers()
+  if raw == markers.raw and who == markers.who and version == markers.version and on == markers.on then return end
+  if T.Now() < markers.retryAt then return end
+  markers.raw, markers.who, markers.version, markers.on = raw, who, version, on
+  local want, ids = {}, {}
+  if on then
+    for i, r in ipairs(T.Daily.Runs()) do
+      local p = DD.RunSpot(r)
+      if p and p.raw == raw then
+        local id = DD.MarkerId(r, i)
+        if ids[id] then id = "run-" .. i end           -- two runs filed in one minute
+        ids[id] = true
+        want[#want + 1] = { id = id, p = p, r = r }
+      end
+    end
+  end
+  local okList, have = pcall(ShroudGetMapMarkers)
+  for _, m in ipairs(okList and T.List(have) or {}) do        -- ours no longer wanted (a run dropped, switched off)
+    local id = T.Field(m, "id")
+    if type(id) == "string" and id:sub(1, 4) == "run-" and not ids[id] then pcall(ShroudRemoveMapMarker, id) end
+  end
+  local failed = nil
+  for _, w in ipairs(want) do
+    local ok, set, reason = pcall(ShroudSetMapMarker, w.id, w.p.x, w.p.y, w.p.z, markerOptions(w.r))
+    if not (ok and set == true) then failed = ok and tostring(reason) or "error" end
+  end
+  DD.markerFailed = failed
+  if failed then
+    markers.raw, markers.retryAt = nil, T.Now() + DD.MARKER_RETRY
+  else
+    markers.retryAt = -math.huge
+  end
+end
+
+function DD.GetMarkers() return prefs.markers ~= false end
+
+function DD.SetMarkers(on)
+  prefs.markers = on == true
+  DD.SavePrefs()
+  markers.retryAt = -math.huge
+  DD.SyncMarkers()
+  T.Config.Sync()
+end
+
 function DD.RunTooltip(r)
   local F = T.FormatNumber
   local where = r.scene ~= "" and (" in " .. r.scene) or ""
@@ -205,7 +295,8 @@ function DD.RunTooltip(r)
   local p = DD.RunSpot(r)
   if p then
     lines[#lines + 1] = "Played most around " .. DD.LocText(p) .. (p.scene ~= "" and (" in " .. p.scene) or "")
-      .. ". Beacon marks it."
+      .. (DD.HasMarkers() and DD.GetMarkers() and ". A flag marks it on your map there; Beacon puts it on your"
+        .. " compass." or ". Beacon marks it.")
   end
   if type(r.value) == "number" then
     lines[#lines + 1] = "Estimated loot value " .. P.Format(r.value) .. " (" .. P.Format(T.Daily.PerHour(r.value,
@@ -484,6 +575,7 @@ function DD.Init()
     prefs.values = saved.values == true
     prefs.each = saved.each ~= false
     prefs.include = saved.include == true
+    prefs.markers = saved.markers ~= false
     for _, v in ipairs(DD.VIEWS) do
       if saved.view == v[1] then prefs.view = v[1] end
     end

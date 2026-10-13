@@ -89,7 +89,7 @@ local function fresh(disk)
     date = "2026-09-27",               -- what os.date("%Y-%m-%d") returns
     serverTime = "2026-09-27 12:00:00",
     files = { ["toolbox/clock.png"] = true },   -- files that exist, relative to the Lua folder
-    clips = {}, clipPaths = {}, clipState = {}, pendingClips = {}, played = {},
+    clips = {}, clipPaths = {}, clipState = {}, pendingClips = {}, played = {}, markers = {},
     buffs = {},                        -- { name, remaining, icon, debuff, tooltip } per effect
     -- ShroudGetSocialSummary(); H.setGuild / H.setMotd change it
     social = { inGuild = false, guildName = "", guildRole = "", guildMotd = "",
@@ -201,6 +201,79 @@ local function install_api()
     local had = S.beacon ~= nil
     S.beacon = nil
     return had
+  end
+  -- Map markers (API 30; H.S.noMarkers: an older client): ours, per scene, for the session. S.markers[raw scene][id] =
+  -- { id, x, y, z, label, icon, color, note, at }; H.S.markerRefuse = a reason refuses every set (e.g. "pvp").
+  if not S.noMarkers then
+    local ICONS = { pin = true, diamond = true, circle = true, square = true, star = true, flag = true }
+    local OPTIONS = { label = true, icon = true, color = true, note = true }
+    local function here()
+      local raw = ShroudGetCurrentSceneNameRaw()
+      if raw == "" then return nil end
+      S.markers[raw] = S.markers[raw] or {}
+      return S.markers[raw]
+    end
+    ShroudSetMapMarker = function(id, x, y, z, o)
+      assert(S.inCallback, "ShroudSetMapMarker at file top level")
+      assert(type(o) == "table", "options must be a table")
+      for k in pairs(o) do assert(OPTIONS[k], "unknown option field " .. tostring(k)) end
+      if type(id) ~= "string" or not id:find("^[%w_%.%-]+$") or #id > 32 then return false, "bad_id" end
+      local function coord(v) return type(v) == "number" and v == v and math.abs(v) <= 100000 end
+      if not (coord(x) and coord(z) and (y == nil or coord(y))) then return false, "bad_position" end
+      if type(o.label) ~= "string" or o.label == "" or #o.label > 40 or o.label:find("\n") then
+        return false, "bad_label"
+      end
+      if o.icon ~= nil and not ICONS[o.icon] then return false, "bad_icon" end
+      if o.color ~= nil and not (type(o.color) == "string" and (o.color:find("^#%x%x%x$")
+        or o.color:find("^#%x%x%x%x%x%x$"))) then return false, "bad_color" end
+      if o.note ~= nil then
+        local lines = select(2, tostring(o.note):gsub("\n", "")) + 1
+        if type(o.note) ~= "string" or #o.note > 200 or lines > 4 then return false, "bad_note" end
+      end
+      if S.markerRefuse then return false, S.markerRefuse end
+      local list = here()
+      if not list then return false, "no_scene" end
+      local old = list[id]
+      local m = { id = id, x = x, y = y, z = z, label = o.label, icon = o.icon or "pin", color = o.color or "#ffffff",
+                  note = o.note or "", at = ShroudTime }
+      if old and old.x == x and old.y == y and old.z == z and old.label == m.label and old.icon == m.icon
+          and old.color == m.color and old.note == m.note then return true end      -- the same again: free
+      if old and (old.x ~= x or old.y ~= y or old.z ~= z) and ShroudTime - old.at < 10 then return false, "too_soon" end
+      if not old then
+        local n = 0
+        for _ in pairs(list) do n = n + 1 end
+        if n >= 50 then return false, "too_many" end
+      end
+      S.markerSets = (S.markerSets or 0) + 1
+      list[id] = m
+      return true
+    end
+    ShroudRemoveMapMarker = function(id)
+      local list = here()
+      if not (list and list[id]) then return false end
+      list[id] = nil
+      return true
+    end
+    ShroudClearMapMarkers = function()
+      local list, n = here(), 0
+      for id in pairs(list or {}) do list[id], n = nil, n + 1 end
+      return n
+    end
+    ShroudGetMapMarkers = function()
+      local out, ids = {}, {}
+      for id in pairs(here() or {}) do ids[#ids + 1] = id end
+      table.sort(ids)
+      for i, id in ipairs(ids) do
+        local m = S.markers[ShroudGetCurrentSceneNameRaw()][id]
+        out[i] = { id = m.id, x = m.x, y = m.y, z = m.z, icon = m.icon, color = m.color, label = m.label,
+                   note = m.note }
+      end
+      return out
+    end
+    ShroudListMapMarkerIcons = function() return { "pin", "diamond", "circle", "square", "star", "flag" } end
+  else
+    ShroudSetMapMarker, ShroudRemoveMapMarker, ShroudClearMapMarkers = nil, nil, nil
+    ShroudGetMapMarkers, ShroudListMapMarkerIcons = nil, nil
   end
   -- API 29 (H.S.noApi29 = true: an older client): /loc's line, and a position as /loc writes it.
   if not S.noApi29 then

@@ -266,6 +266,11 @@ function C.XPSection()
       tooltip = T.Daily.HasResults() and "Off: Loot Tracker's Looted list leaves out what you crafted or"
         .. " gathered (they have their own views)" or "Needs a newer game client (Lua API 18)",
       onChange = function(_, value) T.DailyDetail.SetInclude(value) end },
+    UI.Toggle{ id = "dd_markers", text = "Show runs on the map", value = T.DailyDetail.GetMarkers(),
+      style = { marginLeft = 16 }, enabled = T.DailyDetail.HasMarkers(),
+      tooltip = T.DailyDetail.HasMarkers() and "A flag on your map and minimap where each Loot Tracker run was played"
+        .. " most, in its scene; hover it for what the run brought in" or "Needs a newer game client (Lua API 30)",
+      onChange = function(_, value) T.DailyDetail.SetMarkers(value) end },
     heading("Text in these windows"),
     slider("font", "Text size", W.FONT_MIN, W.FONT_MAX, 1, W.GetFont(),
       "Text size of the XP and Today windows (" .. W.FONT_MIN .. "-" .. W.FONT_MAX .. ")",
@@ -1393,7 +1398,8 @@ local ALL_IDS = { "loc_show", "loc_facing",
   "ln_btn_xp", "ln_btn_xpdetail", "ln_btn_today", "ln_btn_loot", "ln_btn_combat", "ln_btn_notify", "ln_btn_docs",
   "ln_btn_settings",
   "font", "font_value", "spacing", "spacing_value", "xp_net", "xp_mode", "daily_mode", "show_xp",
-  "show_daily_detail", "dd_values", "dd_each", "dd_values_msg", "dd_include", "hover_popup", "hover_daily",
+  "show_daily_detail", "dd_values", "dd_each", "dd_values_msg", "dd_include", "dd_markers", "hover_popup",
+  "hover_daily",
   "show_buffs", "buffs_combat_only", "buff_replace", "buff_dismiss", "buff_size", "buff_size_value",
   "show_buffblock", "buffblock_combat", "buffblock_width", "buffblock_width_value", "buffblock_size",
   "buffblock_size_value",
@@ -2028,6 +2034,7 @@ function C.Sync()
   setEnabled("dd_each", T.DailyDetail.GetValues())
   setText("dd_values_msg", T.Prices.testStatus)
   setValue("dd_include", T.DailyDetail.GetInclude())
+  setValue("dd_markers", T.DailyDetail.GetMarkers())
   setValue("hover_popup", T.Compact.GetHover())
   setValue("hover_daily", T.Daily.GetHover())
   setEnabled("hover_popup", T.Compact.IsShown())

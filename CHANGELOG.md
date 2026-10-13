@@ -25,8 +25,9 @@ ones included).
   by default: switch it on under Settings, HUD layout (Show where you are), or type /toolbox location.
 - Loot Tracker runs remember where you played most. Hover a run to see the spot, and press its **Beacon** button
   to mark it on your compass and map with the game's beacon (the one /beacon sets), to find a good farming spot
-  again. It works while you're in that run's scene, and replaces any beacon you set. Runs from before this
-  version have no spot.
+  again. It works while you're in that run's scene, and replaces any beacon you set. On a newer game client (Lua
+  API 30) every run also shows as a gold flag on your map and minimap in its scene; hover it for what the run
+  brought in (Settings, XP & Loot, Show runs on the map). Runs from before this version have no spot.
 - **Your own sound for any buff or debuff,** when you get it and / or when it's about to run out: record yourself
   saying its name, say, and you'll know which one it is. Put the file in your Lua folder (Lua/toolbox_sounds is a
   good place; not the toolbox folder, which updates replace), then in Settings, Buffs, pick the effect, choose
