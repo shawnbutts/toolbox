@@ -611,7 +611,11 @@ end
 -- HUD compass's heading, API 10). Read every LOC.TICK s while it shows; a label is set only when its text
 -- changes. Hovering shows /loc's whole line (API 29; else the scene and the position to two decimals). Its width
 -- follows the scene's name (the strip is refitted when the scene changes), so the numbers don't make it jump.
--- Saved var "location": { show = bool (default false), facing = bool (default true), x, y }.
+-- Fishable water (API 32, our request 25; setting `water`): a line for the nearest within 30 m ("Salt water, 12 m"),
+-- hidden when there is none (the strip refits), and the scene's kinds in the hover (read again every
+-- LOC.WATER_EVERY s while the game is still reading the scene: an empty list).
+-- Saved var "location": { show = bool (default false), facing = bool (default true), water = bool (default true),
+-- x, y }.
 -- ---------------------------------------------------------------------------
 local LOC = { FRAME_ID = "toolbox_location", HOME = { 600, 40 }, PAGE = "Location" }
 Toolbox.Location = LOC
@@ -619,11 +623,41 @@ LOC.TICK = 0.5
 LOC.POINTS = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" }
 LOC.CHAR_W = 0.6                      -- a character's width, as a share of the text size
 LOC.MIN_CHARS = 19                    -- "-12345, 123, -12345"
+LOC.WATER_EVERY = 5                   -- s between reads of the scene's water kinds while it has none
+LOC.WATER_NAMES = { fresh = "Fresh water", fetid = "Fetid water", salt = "Salt water", lava = "Lava" }
 local LOC_PERIODIC = "toolbox_location"
-local locPrefs = { show = false, facing = true }
+local locPrefs = { show = false, facing = true, water = true }
 local locEl = {}                      -- column, scene, coords, facing (empty until built)
 local locScene = ""                   -- the scene the width is fitted to
 local locLast = {}                    -- the last rounded reading: x, y, z, heading
+local locWater = { scene = nil, kinds = "", at = -math.huge, shown = false }   -- the scene's kinds; the line shown
+
+function LOC.HasWater()
+  return type(ShroudGetNearestWaterType) == "function" and type(ShroudGetSceneWaterTypes) == "function"
+end
+
+-- A kind as players say it ("Salt water"; an unknown one as the game names it).
+function LOC.WaterName(kind)
+  return LOC.WATER_NAMES[kind] or (tostring(kind):gsub("^%l", string.upper) .. " water")
+end
+
+-- The nearest water's line ("Salt water, 12 m"; "In salt water" when you're in it), or nil when there's none.
+function LOC.WaterText(kind, metres)
+  if type(kind) ~= "string" or kind == "" or type(metres) ~= "number" or metres ~= metres then return nil end
+  local m = math.floor(metres + 0.5)
+  if m <= 0 then return "In " .. LOC.WaterName(kind):lower() end
+  return LOC.WaterName(kind) .. ", " .. m .. " m"
+end
+
+-- The scene's fishable water as a hover line ("Fishable water here: salt, fresh"), "" when none (or still reading).
+function LOC.SceneWaterLine(list)
+  local names = {}
+  for _, k in ipairs(T.List(list)) do
+    if type(k) == "string" and k ~= "" then names[#names + 1] = LOC.WaterName(k):lower() end
+  end
+  if #names == 0 then return "" end
+  return "\nFishable water in this scene: " .. table.concat(names, ", ") .. "."
+end
 
 local function locSave()
   T.Save("location", locPrefs)
@@ -683,7 +717,8 @@ function LOC.IsShown() return locPrefs.show == true end
 function LOC.Unbuilt() locEl, locLast = {}, {} end
 
 function LOC.ContentSize()
-  return locWidth() + 2 * Hud.STRIP_PAD, (locPrefs.facing and 3 or 2) * T.Window.LineHeight() + 2 * Hud.STRIP_PAD
+  local lines = 2 + (locPrefs.facing and 1 or 0) + (locWater.shown and 1 or 0)
+  return locWidth() + 2 * Hud.STRIP_PAD, lines * T.Window.LineHeight() + 2 * Hud.STRIP_PAD
 end
 
 function LOC.BuildContent()
@@ -694,12 +729,14 @@ function LOC.BuildContent()
     coords = UI.Label{ id = "loc_coords", text = "", class = "text", style = locStyle() },
     facing = UI.Label{ id = "loc_facing", text = "", class = "text", visible = locPrefs.facing == true,
       style = locStyle() },
+    water = UI.Label{ id = "loc_water", text = "", class = "text", visible = false, style = locStyle() },
   }
   built.column = UI.Column{ id = "loc_strip", class = "inset", tooltip = "",
     style = { paddingLeft = pad, paddingRight = pad, paddingTop = pad, paddingBottom = pad,
               marginLeft = 0, marginRight = 0, marginTop = 0, marginBottom = 0 },
-    children = { built.scene, built.coords, built.facing } }
+    children = { built.scene, built.coords, built.facing, built.water } }
   locEl, locLast = built, {}
+  locWater.shown, locWater.scene = false, nil
   return built.column
 end
 
@@ -709,10 +746,11 @@ function LOC.Update()
   local scene, x, y, z, heading = LOC.Read()
   if scene ~= locScene then
     locScene = scene
-    for _, key in ipairs({ "scene", "coords", "facing" }) do T.SetStyle(locEl[key], locStyle()) end
+    for _, key in ipairs({ "scene", "coords", "facing", "water" }) do T.SetStyle(locEl[key], locStyle()) end
     Hud.Refresh()                      -- the strip's width follows the name
     locLast = {}
   end
+  local waterChanged = LOC.UpdateWater(scene)
   T.SetText(locEl.scene, scene ~= "" and scene or "--")
   local rx, ry, rz = nil, nil, nil
   if x then rx, ry, rz = math.floor(x + 0.5), math.floor(y + 0.5), math.floor(z + 0.5) end
@@ -721,16 +759,48 @@ function LOC.Update()
     T.SetText(locEl.coords, LOC.CoordsText(x, y, z))
   end
   -- The hover has /loc's decimals: it follows any move, not just a whole unit (review 21).
-  if x ~= locLast.px or y ~= locLast.py or z ~= locLast.pz or locLast.px == nil then
+  if x ~= locLast.px or y ~= locLast.py or z ~= locLast.pz or locLast.px == nil or waterChanged then
     locLast.px, locLast.py, locLast.pz = x, y, z
     T.SetTooltip(locEl.column, LOC.LocLine(scene, x, y, z) .. "\nWhere you are: the scene and your position (x,"
-      .. " height, z). Type /loc for a line to paste in chat.")
+      .. " height, z). Type /loc for a line to paste in chat." .. locWater.kinds)
   end
   local rh = heading and (math.floor(heading + 0.5) % 360) or nil
   if locPrefs.facing and (rh ~= locLast.h or locLast.hSet == nil) then
     locLast.h, locLast.hSet = rh, true
     T.SetText(locEl.facing, LOC.FacingText(heading))
   end
+end
+
+-- The water line and the scene's kinds (API 32, with `water` on). True when the kinds changed (the hover follows).
+function LOC.UpdateWater(scene)
+  local text, kinds = nil, ""
+  if LOC.HasWater() and locPrefs.water ~= false then
+    local ok, kind, metres = pcall(ShroudGetNearestWaterType)
+    if ok then text = LOC.WaterText(kind, metres) end
+    kinds = locWater.kinds
+    if scene ~= locWater.scene or (kinds == "" and T.Now() - locWater.at >= LOC.WATER_EVERY) then
+      local okL, list = pcall(ShroudGetSceneWaterTypes)
+      kinds = okL and LOC.SceneWaterLine(list) or ""
+      locWater.scene, locWater.at = scene, T.Now()
+    end
+  end
+  local shown = text ~= nil
+  if shown then T.SetText(locEl.water, text) end
+  if shown ~= locWater.shown then
+    locWater.shown = shown
+    T.SetVisible(locEl.water, shown)
+    Hud.Refresh()                      -- the strip's height follows the line
+  end
+  local changed = kinds ~= locWater.kinds
+  locWater.kinds = kinds
+  return changed
+end
+
+function LOC.GetWater() return locPrefs.water ~= false end
+function LOC.SetWater(on)
+  locPrefs.water = on == true
+  locSave()
+  if locEl.column then LOC.Update() end
 end
 
 function LOC.GetShow() return locPrefs.show == true end
@@ -757,7 +827,7 @@ end
 -- Follows the text size and line spacing settings (Toolbox.Window.ApplyText).
 function LOC.ApplyText()
   if not locEl.column then return end
-  for _, key in ipairs({ "scene", "coords", "facing" }) do T.SetStyle(locEl[key], locStyle()) end
+  for _, key in ipairs({ "scene", "coords", "facing", "water" }) do T.SetStyle(locEl[key], locStyle()) end
   Hud.Refresh()
 end
 
@@ -776,10 +846,11 @@ LOC.GetPosition, LOC.MoveTo, LOC.Nudge, LOC.ResetPosition = locMover.Get, locMov
 -- Re-runnable (another character's settings): before Toolbox.Hud.Init builds the strips.
 function LOC.Init()
   local saved = T.ReadSaved("location")
-  locPrefs = { show = false, facing = true }
+  locPrefs = { show = false, facing = true, water = true }
   if type(saved) == "table" then
     locPrefs.show = saved.show == true
     locPrefs.facing = saved.facing ~= false
+    locPrefs.water = saved.water ~= false
     if type(saved.x) == "number" and type(saved.y) == "number" then locPrefs.x, locPrefs.y = saved.x, saved.y end
   end
   locEl, locLast = {}, {}
@@ -793,7 +864,8 @@ Hud.NAMES.location = "location"
 T.Backup.KEYS[#T.Backup.KEYS + 1] = "location"
 
 -- /toolbox location
-T.AddCommand("location", "the location strip: your scene, position and facing (on|off; facing on|off; move [x y])",
+T.AddCommand("location", "the location strip: your scene, position, facing and water nearby (on|off; facing on|off;"
+  .. " water on|off; move [x y])",
   function(rest)
     local word, args = T.ParseArgs(rest)
     word = word:lower()
@@ -803,11 +875,13 @@ T.AddCommand("location", "the location strip: your scene, position and facing (o
       LOC.SetShow(word == "on")
     elseif word == "facing" and (args:lower() == "on" or args:lower() == "off") then
       LOC.SetFacing(args:lower() == "on")
+    elseif word == "water" and (args:lower() == "on" or args:lower() == "off") then
+      LOC.SetWater(args:lower() == "on")
     elseif word == "move" then
       T.MoveCommand(LOC, "location", "The location strip", args)
       return
     else
-      T.Print("Use /" .. T.commands[1] .. " location [on|off], facing on|off or move [x y].")
+      T.Print("Use /" .. T.commands[1] .. " location [on|off], facing on|off, water on|off or move [x y].")
       return
     end
     T.Print("Location strip: " .. (locPrefs.show and "on" or "off") .. "; facing "

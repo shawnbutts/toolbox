@@ -202,7 +202,9 @@ into one if a new file is ever needed).
   again at once, past the creation cap with a big strip (the buff block's 40 slots). At the end of the file,
   `Toolbox.Location` (LOC; owner, 2026-10-08): the location strip (scene, position rounded, compass heading from
   `ShroudGetPlayerCompassHeading`; hover = `ShroudGetLocationText`), its own `LOC.TICK` periodic setting text only
-  on change, its width from the scene name's length (refit on a scene change); controls on the HUD layout page.
+  on change, its width from the scene name's length (refit on a scene change); fishable water (API 32, `water`: the nearest within
+  30 m on a line hidden when none, `LOC.UpdateWater`; the scene's kinds in the hover, re-read every `LOC.WATER_EVERY` s
+  while empty; harness `H.S.water`, `H.S.sceneWater`, `H.S.noWater`); controls on the HUD layout page.
   Then `Toolbox.Launcher` (LN; owner, 2026-10-10; "the menu" to players, `/toolbox menu`, alias `launcher`): one button a window (`LN.BUTTONS`: its
   `open()` and `toggle()`; the pop-up windows count as open when pinned; Notifications = `N.ToggleWindow`, the news
   now in the window), pictures from `toolbox/launcher.png` (`art/launcher.py`, frames in `LN.BUTTONS` order) tinted
@@ -468,7 +470,7 @@ character" sentinel.
 | `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` |
 | `target` | `{ show = bool (default false), glue = bool (default true), place = "top" (default) / "bottom", mirror = bool, effects = "all"/"debuffs"/"none", icons = 1..8 (unset: 8, or 5 mirrored), bars = bool (default true), numbers = bool (default false), bg = "None"/"Dark"/"Light", flash = bool (default false), flashBelow = 1..95, x, y }` (a saved place "left", from beta 7, reads as mirror; bars and numbers both off = just the effect icons, refused with effects "none" too; hidePet = bool (default true): your pet as the target reads as no target, `TG.IsPet`) |
 | `loot_runs` | `{ v = 1, list = { { at = "HH:MM", date = "YYYY-MM-DD", scene, played = s, gold, kills, items, kinds, nodes, value = estimated gold or nil, spot = { scene, raw, x, y, z } or nil } } }`, newest first, at most `D.RUNS_KEEP` (10); stats: a reset keeps it |
-| `location` | `{ show = bool (default false), facing = bool (default true), x, y }` (the location strip, hud.lua) |
+| `location` | `{ show = bool (default false), facing = bool (default true), water = bool (default true; API 32), x, y }` (the location strip, hud.lua) |
 | `launcher` | `{ show = bool (default true), vertical = bool (default true), size = 20..64 (default 32), shade = 0..90 (% black behind, default 40), combat = bool (hide during combat), hide = { [button key] = true } (never all), x, y }` (the menu, hud.lua; absent = never started: the chat line) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
 | `skills_paused` | `{ v = 1, how = "off"/"maintain", when = "HH:MM", list = { { key = skill key or name, from = mode, to = mode } } }`: the pause's record (skills.lua; empty list = not paused); kept by a reset, copied for recovery |
@@ -616,7 +618,7 @@ opens), built only when `S.CanPick()`; the picked path still goes through `S.Cle
 fish arrives as two `ShroudOnItemsGained` calls about 4 s apart, each x1 (`/toolbox loot log`), so the Loot Tracker
 counts fish twice; no workaround (owner, 2026-10-08: wait for the fix). **25** (submitted 2026-10-08): the kind of fishable water at a position
 (`ShroudGetWaterType(x, y, z)`) or a scene's list in `ShroudGetSceneInfo()`, for the location strip; nothing in the API
-describes water today (a caught fish's name, "(Saltwater Fish)", is the only hint); no stopgap (owner: wait for the API). Everything reported is fixed: the API 25 client issues, and
+describes water today (a caught fish's name, "(Saltwater Fish)", is the only hint); no stopgap (owner: wait for the API); landed in API 32, used by the location strip. Everything reported is fixed: the API 25 client issues, and
 (work log 2026-09-30, `ac63e8c01b`, **API 26**, in the next client build, not yet in the owner's) the party
 ones (`tmp/client-issues.md` 14, 15): the slot getters reach the whole party (slot 0 = you, then party-frame
 order, so `for slot = 0, count - 1` finds everyone, buffs included), `ShroudGetPartyMemberNamesInScene()`

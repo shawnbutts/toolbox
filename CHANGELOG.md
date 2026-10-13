@@ -21,8 +21,10 @@ ones included).
   its icon size and the shade behind it, hide it during combat, pick its buttons, or switch it off to open windows
   the old way. Also /toolbox menu.
 - **Location strip:** a small HUD strip showing where you are: the scene, your position (as /loc gives it, in
-  whole numbers) and which way you face (compass direction and degrees). Hover it for the whole /loc line. Off
-  by default: switch it on under Settings, HUD layout (Show where you are), or type /toolbox location.
+  whole numbers) and which way you face (compass direction and degrees). On a newer game client (Lua API 32) it
+  also names the nearest water you can fish in and how far ("Salt water, 12 m"), and its hover lists the scene's
+  kinds of water. Hover it for the whole /loc line. Off by default: switch it on under Settings, HUD layout (Show
+  where you are), or type /toolbox location.
 - Loot Tracker runs remember where you played most. Hover a run to see the spot, and press its **Beacon** button
   to mark it on your compass and map with the game's beacon (the one /beacon sets), to find a good farming spot
   again. It works while you're in that run's scene, and replaces any beacon you set. On a newer game client (Lua

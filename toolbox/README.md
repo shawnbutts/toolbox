@@ -150,7 +150,8 @@ off to open windows from the settings as before (`/toolbox menu`).
 ## Location
 
 A small strip showing where you are: the scene, your position (as `/loc` gives it, in whole numbers) and
-which way you face. Hover it for the whole `/loc` line. Off by default: switch it on under **HUD layout**, or
+which way you face, and on a newer game client the nearest water you can fish in ("Salt water, 12 m"). Hover it
+for the whole `/loc` line and the scene's kinds of water. Off by default: switch it on under **HUD layout**, or
 type `/toolbox location`.
 
 ## Commands
@@ -169,7 +170,7 @@ type `/toolbox location`.
 - `/toolbox daily` / `dailydetailed`: the Today windows
 - `/toolbox combat`: the combat stats HUD
 - `/toolbox notify`: notification settings
-- `/toolbox location`: the location strip (`on|off`, `facing on|off`)
+- `/toolbox location`: the location strip (`on|off`, `facing on|off`, `water on|off`)
 - `/toolbox menu`: the menu (`on|off`, `vertical|horizontal`, `size <n>`, `shade <n>`, `combat hide|show`)
 - `/toolbox settings`: settings files and setups (`save`, `reset`, `cancel`, `setups`, `import`, `export`)
 

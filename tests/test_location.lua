@@ -90,6 +90,41 @@ return function(t)
     t.ok(strip():Find("loc_strip").tooltip:find("^Novia %(1%.23, 2%.00, 3%.00%)"), strip():Find("loc_strip").tooltip)
   end)
 
+  t.test("fishable water (API 32): the nearest within 30 m, its line hidden without; the scene's kinds", function()
+    H.boot()
+    H.S.sceneWater = {}                          -- the game is still reading the scene
+    H.chat("/tbx location on")
+    H.advance(1)
+    local _, h0 = Toolbox.Location.ContentSize()
+    t.eq(strip():Find("loc_water").visible, false, "no water near")
+    H.S.water = { "salt", 12.4 }
+    H.advance(1)
+    t.eq(text("loc_water"), "Salt water, 12 m")
+    t.ok(strip():Find("loc_water").visible ~= false)
+    local _, h1 = Toolbox.Location.ContentSize()
+    t.ok(h1 > h0, "the strip takes the line")
+    H.S.water = { "fresh", 0 }
+    H.advance(1)
+    t.eq(text("loc_water"), "In fresh water")
+    t.eq(Toolbox.Location.WaterText("lava", 3), "Lava, 3 m")
+    t.no(strip():Find("loc_strip").tooltip:find("Fishable water"), "the scene's list isn't read yet")
+    H.S.sceneWater = { "salt", "fresh" }
+    H.advance(Toolbox.Location.WATER_EVERY + 1)
+    local tip = strip():Find("loc_strip").tooltip
+    t.ok(tip:find("Fishable water in this scene: salt water, fresh water%.$"), tip)
+    H.chat("/tbx location water off")
+    t.eq(strip():Find("loc_water").visible, false, "switched off")
+    t.eq(H.saved("location").water, false)
+    t.no(strip():Find("loc_strip").tooltip:find("Fishable water"))
+    H.S.water = nil
+    H.chat("/tbx location water on")
+    t.eq(strip():Find("loc_water").visible, false, "none near")
+    H.S.noWater = true
+    H.reload()
+    H.chat("/tbx config")
+    t.eq(H.config():Find("loc_water").enabled, false, "an older client: greyed out")
+  end)
+
   t.test("the move command and position buttons", function()
     H.boot()
     H.chat("/tbx location on")

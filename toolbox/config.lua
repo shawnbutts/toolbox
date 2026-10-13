@@ -886,6 +886,11 @@ function C.HudSection()
     UI.Toggle{ id = "loc_facing", text = "Which way you face", value = T.Location.GetFacing(),
       tooltip = "The compass direction and degrees (0 north, 90 east)",
       onChange = function(_, v) T.Location.SetFacing(v) end },
+    UI.Toggle{ id = "loc_water", text = "Fishable water nearby", value = T.Location.GetWater(),
+      enabled = T.Location.HasWater(),
+      tooltip = T.Location.HasWater() and "The nearest water you can fish in, within 30 m, and how far; the"
+        .. " scene's kinds in the hover" or "Needs a newer game client (Lua API 32)",
+      onChange = function(_, v) T.Location.SetWater(v) end },
   }
   for _, p in ipairs(POSITIONED) do children[#children + 1] = C.PositionRows(p[1], p[2], p[3]) end
   return UI.Column{ children = children }
@@ -1393,7 +1398,7 @@ local function category(keyOrLabel)
 end
 
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
-local ALL_IDS = { "loc_show", "loc_facing",
+local ALL_IDS = { "loc_show", "loc_facing", "loc_water",
   "ln_show", "ln_vertical", "ln_combat", "ln_size", "ln_size_value", "ln_shade", "ln_shade_value",
   "ln_btn_xp", "ln_btn_xpdetail", "ln_btn_today", "ln_btn_loot", "ln_btn_combat", "ln_btn_notify", "ln_btn_docs",
   "ln_btn_settings",
@@ -2201,6 +2206,8 @@ function C.Sync()
   setValue("loc_show", T.Location.GetShow())
   setValue("loc_facing", T.Location.GetFacing())
   setEnabled("loc_facing", T.Location.GetShow())
+  setValue("loc_water", T.Location.GetWater())
+  setEnabled("loc_water", T.Location.GetShow() and T.Location.HasWater())
   if T.SkillBar then T.SkillBar.ConfigSync(C.Helpers) end   -- skills.lua, when present
   C.SyncLive()
 end

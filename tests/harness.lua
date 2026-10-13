@@ -275,6 +275,21 @@ local function install_api()
     ShroudSetMapMarker, ShroudRemoveMapMarker, ShroudClearMapMarkers = nil, nil, nil
     ShroudGetMapMarkers, ShroudListMapMarkerIcons = nil, nil
   end
+  -- Fishable water (API 32; H.S.noWater: an older client): H.S.water = { kind, metres } (nil: none within 30 m),
+  -- H.S.sceneWater = the scene's kinds ({} while reading).
+  if not S.noWater then
+    ShroudGetNearestWaterType = function()
+      if not (S.char.present and S.water) then return nil end
+      return S.water[1], S.water[2]
+    end
+    ShroudGetSceneWaterTypes = function()
+      local out = {}
+      for i, k in ipairs(S.char.present and S.sceneWater or {}) do out[i] = k end
+      return out
+    end
+  else
+    ShroudGetNearestWaterType, ShroudGetSceneWaterTypes = nil, nil
+  end
   -- API 29 (H.S.noApi29 = true: an older client): /loc's line, and a position as /loc writes it.
   if not S.noApi29 then
     ShroudFormatLocation = function(x, y, z)
