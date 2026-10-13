@@ -17,15 +17,16 @@ ones included).
   Maintain (only what keeps their levels), or hide the tile (it still shows while paused). Also /toolbox skills
   pause and /toolbox skills resume. Needs a newer game client (Lua API 27), like the training markers.
 - **The menu:** a column of gold buttons on a shaded panel at the top left that opens Toolbox's windows with one
-  click: XP, XP Detailed, Today, Loot Tracker, Combat Detailed, Notifications (the news now, in the window), Docs
-  and Settings. A button is bright while its window is open; click again to close it. On at first: move it by its
-  grip. Under Settings, Menu, setups, backup & reset (the page was Setups, backup & reset): make it a row, change
+  click: XP, XP Detailed, Today, Loot Tracker, Combat Detailed, Notifications (the news now, in the window),
+  Location (the location strip), Docs and Settings. A button is bright while its window is open; click again to
+  close it. On at first: move it by its grip. Under Settings, Menu, setups, backup & reset (the page was Setups, backup & reset): make it a row, change
   its icon size and the shade behind it, hide it during combat, pick its buttons, or switch it off to open windows
   the old way. Also /toolbox menu.
 - **Location strip:** a small HUD strip showing where you are: the scene, your position (as /loc gives it, in
   whole numbers) and which way you face (compass direction and degrees). On Lua API 32 it also names the
-  nearest fishable water ("Salt water, 12 m"). Hover it for the whole /loc line. Off by default: switch it on under Settings, HUD layout (Show
-  where you are), or type /toolbox location.
+  nearest fishable water ("Salt water, 12 m"). Hover it for the whole /loc line. Off by default: switch it on
+  with the menu's Location button, under Settings, Map & location (a new page, with Show runs on the map), or
+  with /toolbox location.
 - Loot Tracker runs remember where you played most. Hover a run to see the spot, and press its **Beacon** button
   to mark it on your compass and map with the game's beacon (the one /beacon sets), to find a good farming spot
   again. It works while you're in that run's scene, and replaces any beacon you set. On Lua API 30 each run is

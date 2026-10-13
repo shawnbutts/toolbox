@@ -208,10 +208,12 @@ into one if a new file is ever needed).
   `ShroudGetPlayerCompassHeading`; hover = `ShroudGetLocationText`), its own `LOC.TICK` periodic setting text only
   on change, its width from the scene name's length (refit on a scene change); fishable water (API 32, `water`: the nearest within
   30 m on a line hidden when none, `LOC.UpdateWater`; the scene's kinds in the hover, re-read every `LOC.WATER_EVERY` s
-  (a town's water decoration changes them, review 32); harness `H.S.water`, `H.S.sceneWater`, `H.S.noWater`); controls on the HUD layout page.
+  (a town's water decoration changes them, review 32); harness `H.S.water`, `H.S.sceneWater`, `H.S.noWater`); controls (and its Position rows: `POSITIONED`'s
+  page field) on the "Map & location" page (`C.MapSection`, key "map", with the run markers' toggle; owner, 2026-10-13:
+  the home for map features to come).
   Then `Toolbox.Launcher` (LN; owner, 2026-10-10; "the menu" to players, `/toolbox menu`, alias `launcher`): one button a window (`LN.BUTTONS`: its
   `open()` and `toggle()`; the pop-up windows count as open when pinned; Notifications = `N.ToggleWindow`, the news
-  now in the window), pictures from `toolbox/launcher.png` (`art/launcher.py`, frames in `LN.BUTTONS` order) tinted
+  now in the window; Location shows or hides the location strip, `strip = true`: "show or hide" in its tooltip), pictures from `toolbox/launcher.png` (`art/launcher.py`, frames in `LN.BUTTONS` order) tinted
   `LN.COLOR` (@gold), `LN.LIT` / `LN.DIM` opacity as its window is open or not (its own `LN.TICK` periodic), text
   buttons without the picture. On by default, vertical, `HOME` = 0, 0; the first start without a saved
   `launcher` says so in chat once (per character). Settings last, Docs above it; a black shade behind (`shade` %,
@@ -374,7 +376,7 @@ into one if a new file is ever needed).
   arpeggio into a ringing chord, and skill_down, sinking "wah wah" notes, and skill_train / skill_maintain /
   skill_unlearn, two quick notes up, even and down, belong to skills.lua; block, parry and
   dodge, a thud, a clash and a whoosh, to combat.lua's shout), `launcher.py` (-> `toolbox/launcher.png`: the
-  menu's eight button pictures (in `LN.BUTTONS` order), white line art with a dark edge, tinted in game). Re-encoding changes the bytes even when the audio is the same:
+  menu's nine button pictures (in `LN.BUTTONS` order), white line art with a dark edge, tinted in game). Re-encoding changes the bytes even when the audio is the same:
   `git checkout` an .ogg you didn't mean to change. A player's own `Lua/toolbox_<name>` sounds win.
   Effect sounds (owner, 2026-10-08): a player's file per buff / debuff, for when you get it ("get": a debuff's
   landing, or a buff appearing outside the settling, `timers` empty) and / or when it's about to run out ("end": the

@@ -64,6 +64,13 @@ return function(t)
     H.chat("/tbx config")
     local cfg = H.config()
     t.eq(cfg:Find("loc_show").value, true)
+    -- Its own page, with its place and the runs on the map (owner, 2026-10-13).
+    local C = Toolbox.Config
+    for _, id in ipairs({ "loc_show", "loc_facing", "loc_water", "location_pos", "dd_markers" }) do
+      t.eq(C.PageOf(id), "map", id)
+    end
+    t.eq(C.PageOf("launcher_pos"), "hud", "the other strips stay under HUD layout")
+    t.ok(H.configRaw():Find("location_pos").text:find("^%d+, %d+$"), "its position shown")
     H.change("toolbox_config", "loc_show", false)
     t.eq(Toolbox.Location.GetShow(), false)
     H.chat("/tbx config")                                -- (closes settings: strips show while they're open)

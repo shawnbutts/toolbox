@@ -990,6 +990,9 @@ LN.BUTTONS = {
     open = function() return T.Combat.Detail.IsOpen() end, toggle = function() T.Combat.Detail.Toggle() end },
   { key = "notify", name = "Notifications", short = "News", cmd = " notify show",
     open = function() return T.Notify.IsShown() end, toggle = function() T.Notify.ToggleWindow() end },
+  -- A strip, not a window: lit while it shows (owner, 2026-10-13: the map features' place in the menu).
+  { key = "location", name = "Location", short = "Loc", cmd = " location", strip = true,
+    open = function() return LOC.GetShow() end, toggle = function() LOC.SetShow(not LOC.GetShow()) end },
   { key = "docs", name = "Docs", short = "Doc", cmd = " help",
     open = function() return T.Docs.IsShown() end, toggle = function() T.Docs.Toggle() end },
   { key = "settings", name = "Settings", short = "Set", cmd = "",
@@ -1040,7 +1043,8 @@ function LN.ShadeColor(pct)
 end
 
 local function lnTooltip(b)
-  return b.name .. "\nClick to open or close it (/" .. T.commands[1] .. b.cmd .. ")"
+  return b.name .. (b.strip and "\nClick to show or hide the strip (/" or "\nClick to open or close it (/")
+    .. T.commands[1] .. b.cmd .. ")"
 end
 
 function LN.BuildContent()

@@ -36,8 +36,9 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
   (Lua API 27), plus a Pause skills tile that sets every skill to Off (or Maintain) in one click and puts them
   back in another (`/toolbox skills pause` / `resume`); skill level changes (up or down) can go to the
   notification HUD too.
-- **Menu**: a column (or row) of gold buttons on a shaded panel, top left at first, opening Toolbox's windows with
-  one click, bright while a window is open (`/toolbox menu`; settings under Menu, setups, backup & reset).
+- **Menu**: a column (or row) of gold buttons on a shaded panel, top left at first, opening Toolbox's windows (and
+  the location strip) with one click, bright while a window is open (`/toolbox menu`; settings under Menu, setups,
+  backup & reset).
 
 ## Install
 
@@ -236,7 +237,7 @@ the day's gold and kills and a list of every item gained today with its count, h
   the tooltip shows it as `/loc` writes it): its **Beacon** button sets the game's beacon there (the `/beacon`
   marker on the compass and map; it replaces yours, so only on a click), while you're in that run's scene. On Lua
   API 30 each run is also a gold flag on the region map and minimap in its scene, its note what the run brought in
-  (Settings, **Show runs on the map**; on by default). The flags don't reach the compass: Beacon does.
+  (Settings, Map & location, **Show runs on the map**; on by default). The flags don't reach the compass: Beacon does.
 
 ## Buff bar
 

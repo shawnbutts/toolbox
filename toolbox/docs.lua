@@ -34,7 +34,8 @@ D.SECTIONS = {
     "Type /toolbox (or /tbx) to open the settings window and tick what you want on screen. Its Settings "
       .. "dropdown picks a category: Toolbelt (first, and the quickest start: your buffs, health bars, "
       .. "consumables and gear in one strip), XP & Loot, Buffs, Consumables & gear, Health bars, Combat, "
-      .. "Skill activity, Notifications, Sounds, HUD layout (every strip's position) and Menu, setups, backup & reset. "
+      .. "Skill activity, Map & location, Notifications, Sounds, HUD layout (every strip's position) and Menu, "
+      .. "setups, backup & reset. "
       .. "Can't find a setting? Type in the Search box under it (sound, size, target...) and pick a result: "
       .. "its page opens with that part at the top (Show the whole page brings back the rest) and the setting "
       .. "blinks. Options "
@@ -77,7 +78,7 @@ D.SECTIONS = {
       .. "its Beacon button marks that spot on your compass and map with the game's beacon (the one /beacon "
       .. "sets, so it replaces yours) when you're in that run's scene. On a newer game client each run also "
       .. "shows as a gold flag on your map and minimap in its scene (hover it for what the run brought in); "
-      .. "switch that off with Show runs on the map in settings.",
+      .. "switch that off with Show runs on the map (Settings, Map & location).",
     "Loot Tracker's Show dropdown: Looted (what you picked up; what you crafted or gathered is left "
       .. "out unless you tick Include crafted and gathered items in settings, or /toolbox dd include on), "
       .. "Crafted (/toolbox crafted: the items you took off crafting stations, your crafts per recipe with "
@@ -252,9 +253,9 @@ D.SECTIONS = {
   { "Menu",
     "A column of gold buttons, at the top left at first, that opens Toolbox's windows with one click: XP, "
       .. "XP Detailed, Today, Loot Tracker, Combat Detailed, Notifications (the news now, whatever each usually "
-      .. "shows in), Docs and Settings. A button is bright while its window is open; click it again to close "
-      .. "it. Hover one for its name and its chat command. Move it by its grip, or with the Position buttons "
-      .. "under HUD layout.",
+      .. "shows in), Location (shows or hides the location strip), Docs and Settings. A button is bright "
+      .. "while its window is open; click it again to close it. Hover one for its name and its chat command. "
+      .. "Move it by its grip, or with the Position buttons under HUD layout.",
     "Settings, Menu, setups, backup & reset: Show the menu (off: open the windows from the settings, as "
       .. "before), Vertical (off: a row), Hide during combat (it comes back a few seconds after a fight, and "
       .. "shows while the settings are open so you can place it), Icon size, Background shade (how dark the "
@@ -266,7 +267,8 @@ D.SECTIONS = {
       .. "gives them) and which way you face (the compass direction and degrees, 0 north, 90 east). It follows "
       .. "you as you move. Hover it for the whole /loc line. On a newer game client it also names the nearest "
       .. "water you can fish in, within 30 m, and how far (Salt water, 12 m), and the hover lists the scene's "
-      .. "kinds of water. Switch it on under Settings, HUD layout (Show "
+      .. "kinds of water. Switch it on with the menu's Location button or under Settings, Map & location "
+      .. "(Show "
       .. "where you are), where you can also hide the facing and water lines and place it, or type /toolbox "
       .. "location (on, off, facing on|off, water on|off, move <x> <y>). It's off by default." },
   { "Moving the HUD strips",

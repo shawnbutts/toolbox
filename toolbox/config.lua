@@ -266,11 +266,6 @@ function C.XPSection()
       tooltip = T.Daily.HasResults() and "Off: Loot Tracker's Looted list leaves out what you crafted or"
         .. " gathered (they have their own views)" or "Needs a newer game client (Lua API 18)",
       onChange = function(_, value) T.DailyDetail.SetInclude(value) end },
-    UI.Toggle{ id = "dd_markers", text = "Show runs on the map", value = T.DailyDetail.GetMarkers(),
-      style = { marginLeft = 16 }, enabled = T.DailyDetail.HasMarkers(),
-      tooltip = T.DailyDetail.HasMarkers() and "A flag on your map and minimap where each Loot Tracker run was played"
-        .. " most, in its scene; hover it for what the run brought in" or "Needs a newer game client (Lua API 30)",
-      onChange = function(_, value) T.DailyDetail.SetMarkers(value) end },
     heading("Text in these windows"),
     slider("font", "Text size", W.FONT_MIN, W.FONT_MAX, 1, W.GetFont(),
       "Text size of the XP and Today windows (" .. W.FONT_MIN .. "-" .. W.FONT_MAX .. ")",
@@ -738,13 +733,14 @@ function C.SoundsSection()
 end
 
 -- The HUD strips with Position rows, in the order the HUD layout category lists them:
--- { id prefix, module, label }. Built once (config.lua loads last, so every module exists here).
+-- { id prefix, module, label, the page holding them when not HUD layout }. Built once (config.lua loads last, so
+-- every module exists here).
 local POSITIONED = {
   { "buff", T.BuffBar, "Buff bar" }, { "vitals", T.Vitals, "Health bars" },
   { "consumables", T.Consumables, "Consumables bar" }, { "gear", T.Gear, "Equipment bar" },
   { "combat", T.Combat, "Combat stats" }, { "nhud", T.Notify.Hud, "Notification HUD" },
   { "target", T.Target, "Target HUD" }, { "buffblock", T.BuffBlock, "Buff block" },
-  { "location", T.Location, "Location strip" }, { "launcher", T.Launcher, "Menu" },
+  { "location", T.Location, "Location strip", "map" }, { "launcher", T.Launcher, "Menu" },
 }
 if T.SkillBar then POSITIONED[#POSITIONED + 1] = { "skills", T.SkillBar, T.SkillBar.PAGE } end
 
@@ -871,6 +867,36 @@ function C.ToolbeltSection()
   return UI.Column{ children = children }
 end
 
+-- The "Map & location" category (owner, 2026-10-13: map features to come get their own page): the location strip, with
+-- its place, and the Loot Tracker's runs on the map.
+function C.MapSection()
+  local loc = T.Location
+  local children = {
+    heading("Map & location", true),
+    heading("Location strip"),
+    UI.Toggle{ id = "loc_show", text = "Show where you are", value = loc.GetShow(),
+      tooltip = "A strip with the scene you're in, your position (x, height, z, as /loc gives it) and which way"
+        .. " you face. Hover it for the whole /loc line",
+      onChange = function(_, v) loc.SetShow(v) end },
+    UI.Toggle{ id = "loc_facing", text = "Which way you face", value = loc.GetFacing(),
+      tooltip = "The compass direction and degrees (0 north, 90 east)",
+      onChange = function(_, v) loc.SetFacing(v) end },
+    UI.Toggle{ id = "loc_water", text = "Fishable water nearby", value = loc.GetWater(),
+      enabled = loc.HasWater(),
+      tooltip = loc.HasWater() and "The nearest water you can fish in, within 30 m, and how far; the"
+        .. " scene's kinds in the hover" or "Needs a newer game client (Lua API 32)",
+      onChange = function(_, v) loc.SetWater(v) end },
+    C.PositionRows("location", loc, "Location strip"),
+    heading("Loot Tracker runs"),
+    UI.Toggle{ id = "dd_markers", text = "Show runs on the map", value = T.DailyDetail.GetMarkers(),
+      enabled = T.DailyDetail.HasMarkers(),
+      tooltip = T.DailyDetail.HasMarkers() and "A flag on your map and minimap where each Loot Tracker run was played"
+        .. " most, in its scene; hover it for what the run brought in" or "Needs a newer game client (Lua API 30)",
+      onChange = function(_, value) T.DailyDetail.SetMarkers(value) end },
+  }
+  return UI.Column{ children = children }
+end
+
 -- The "HUD layout" category: every strip's position, in one place.
 function C.HudSection()
   local children = {
@@ -878,21 +904,12 @@ function C.HudSection()
     UI.Label{ text = "Strips show while this window is open, so you can place them. Drag a strip's grip"
       .. " (untick Options > Interface > Nameplates & Chat Bubbles > Lock Status Movement to see it) or"
       .. " use the buttons.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
-    heading("Location strip"),
-    UI.Toggle{ id = "loc_show", text = "Show where you are", value = T.Location.GetShow(),
-      tooltip = "A strip with the scene you're in, your position (x, height, z, as /loc gives it) and which way"
-        .. " you face. Hover it for the whole /loc line",
-      onChange = function(_, v) T.Location.SetShow(v) end },
-    UI.Toggle{ id = "loc_facing", text = "Which way you face", value = T.Location.GetFacing(),
-      tooltip = "The compass direction and degrees (0 north, 90 east)",
-      onChange = function(_, v) T.Location.SetFacing(v) end },
-    UI.Toggle{ id = "loc_water", text = "Fishable water nearby", value = T.Location.GetWater(),
-      enabled = T.Location.HasWater(),
-      tooltip = T.Location.HasWater() and "The nearest water you can fish in, within 30 m, and how far; the"
-        .. " scene's kinds in the hover" or "Needs a newer game client (Lua API 32)",
-      onChange = function(_, v) T.Location.SetWater(v) end },
+    UI.Label{ text = "The location strip is placed on the Map & location page.", class = "dim",
+      style = { whiteSpace = "wrap", marginTop = 4 } },
   }
-  for _, p in ipairs(POSITIONED) do children[#children + 1] = C.PositionRows(p[1], p[2], p[3]) end
+  for _, p in ipairs(POSITIONED) do
+    if not p[4] then children[#children + 1] = C.PositionRows(p[1], p[2], p[3]) end
+  end
   return UI.Column{ children = children }
 end
 
@@ -1379,6 +1396,7 @@ C.CATEGORIES = {
   { key = "gear", label = "Consumables & gear", build = function() return C.ConsumablesGearSection() end },
   { key = "vitals", label = "Health bars", build = function() return C.VitalsSection() end },
   { key = "combat", label = "Combat", build = function() return C.CombatSection() end },
+  { key = "map", label = "Map & location", build = function() return C.MapSection() end },
   { key = "notify", label = "Notifications", build = function() return C.NotifySection() end },
   { key = "sounds", label = "Sounds", build = function() return C.SoundsSection() end },
   { key = "hud", label = "HUD layout", build = function() return C.HudSection() end },
@@ -1400,8 +1418,8 @@ end
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
 local ALL_IDS = { "loc_show", "loc_facing", "loc_water",
   "ln_show", "ln_vertical", "ln_combat", "ln_size", "ln_size_value", "ln_shade", "ln_shade_value",
-  "ln_btn_xp", "ln_btn_xpdetail", "ln_btn_today", "ln_btn_loot", "ln_btn_combat", "ln_btn_notify", "ln_btn_docs",
-  "ln_btn_settings",
+  "ln_btn_xp", "ln_btn_xpdetail", "ln_btn_today", "ln_btn_loot", "ln_btn_combat", "ln_btn_notify",
+  "ln_btn_location", "ln_btn_docs", "ln_btn_settings",
   "font", "font_value", "spacing", "spacing_value", "xp_net", "xp_mode", "daily_mode", "show_xp",
   "show_daily_detail", "dd_values", "dd_each", "dd_values_msg", "dd_include", "dd_markers", "hover_popup",
   "hover_daily",
