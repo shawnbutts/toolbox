@@ -573,6 +573,7 @@ function T.Flush()
   if T.setupDirty then T.Backup.KeepCopy() end
   if T.recoveryDirty then T.Backup.KeepRecovery() end
   local ok = ShroudFlushSavedVars()
+  if ok == false and T.Backup.FlushFailed() then ok = true end   -- the size was why: room made, written
   if ok == false then
     T.flushFailures = (T.flushFailures or 0) + 1
     if not T.flushWarnedAt or T.Now() - T.flushWarnedAt >= T.FLUSH_WARN_EVERY then
@@ -2810,8 +2811,9 @@ end
 -- without that character. Copies 1.7.0 wrote aren't listed until their character next plays, and the game can't
 -- list keys: an install that ran 1.7.0 (`legacy`, set when the index is first made there) keeps B.LEGACY_RESERVE of
 -- the account file free for them (review 36).
-B.RECOVERIES = "recovery_index"      -- account: { v = 1, names = { lower name, ... }, legacy = bool }
-B.LEGACY_RESERVE = 40000
+B.RECOVERIES = "recovery_index"      -- account: { v = 1, names = { lower name, ... }, legacy = bool, ceiling = n }
+B.LEGACY_RESERVE = 40000             -- a first guess: a 1.7.0 copy's learned buff durations have no cap (review 36)
+B.CEILING_MARGIN = 8000
 local function readRecoveryIndex()
   local saved = T.FromSaved(ShroudGetSavedVar(B.RECOVERIES, ACCOUNT))
   local names = {}
@@ -2819,6 +2821,53 @@ local function readRecoveryIndex()
     if type(n) == "string" and n ~= "" then names[#names + 1] = n end
   end
   return names, type(saved) == "table" and saved.legacy == true, saved
+end
+
+local function writeRecoveryIndex(names, legacy, ceiling)
+  return T.SetSavedVar(B.RECOVERIES, T.ForSaving({ v = 1, names = names, legacy = legacy, ceiling = ceiling }),
+    ACCOUNT) == true
+end
+
+-- The ceiling learned for this install's account file (B.FlushFailed), or nil.
+local function learnedCeiling(saved)
+  local c = type(saved) == "table" and saved.ceiling
+  return type(c) == "number" and c > 0 and c or nil
+end
+
+-- The game refused a flush. Where the account file may hold copies Toolbox can't measure (a reserve is kept), it may
+-- have passed 256 KB with them (review 36: no guessed reserve bounds them): the price cache, which is looked up again,
+-- is freed (once a session) and the flush tried again; if that works, the size was why, and this install's ceiling is
+-- learned below what was measured (kept in the index, so later growth stops short of it). A flush still refused
+-- (a disk error, say) teaches nothing. The file on disk stays as it was until a flush works: nothing else is lost.
+-- Returns true when the flush went through.
+function B.FlushFailed()
+  local f = T.fileUse.account
+  local who = T.settingsFor
+  if f.reserve == 0 or B.freedForRoom then return false end
+  B.freedForRoom = true
+  local before = f.total
+  local written = false
+  if T.Prices.Count() > 0 then                -- first the prices, then this character's copy (made again later)
+    T.Prices.Forget()
+    written = ShroudFlushSavedVars() ~= false
+  end
+  if not written and who and ShroudGetSavedVar(recoveryKey(who), ACCOUNT) ~= nil then
+    T.DeleteSaved(recoveryKey(who), ACCOUNT)
+    written = ShroudFlushSavedVars() ~= false
+  end
+  if not written then return false end
+  local names, legacy, saved = readRecoveryIndex()
+  local ceiling = math.max(0, before - B.CEILING_MARGIN)
+  local old = learnedCeiling(saved)
+  if old and old <= ceiling then ceiling = old end
+  writeRecoveryIndex(names, legacy, ceiling)
+  T.ReserveFile(ACCOUNT, math.max(f.reserve, T.FILE_MAX - ceiling))
+  T.Print("The game couldn't save Toolbox's shared account file: with copies of your other characters' settings"
+    .. " that Toolbox 1.7.0 kept there, it passed the game's 256 KB a file. Toolbox made room (its remembered prices"
+    .. " are looked up again) and keeps the file smaller from now on. Logging in each of your other characters once"
+    .. " makes their copies smaller too.")
+  ShroudFlushSavedVars()
+  return true
 end
 
 -- Lists `who` as having a copy. Returns whether the index says so.
@@ -2830,7 +2879,7 @@ function B.IndexRecovery(who)
   end
   names[#names + 1] = lower
   if saved == nil then legacy = B.legacyInstall == true end
-  return T.SetSavedVar(B.RECOVERIES, T.ForSaving({ v = 1, names = names, legacy = legacy }), ACCOUNT) == true
+  return writeRecoveryIndex(names, legacy, learnedCeiling(saved))
 end
 
 -- Character keys that aren't settings or recovered (B.KEYS, B.RecoverList()); other files append theirs. Every key
@@ -2870,7 +2919,10 @@ function B.MeasureFiles(characterOnly)
   T.MeasureKeys(account, ACCOUNT, true)
   -- no index yet: 1.7.0 ran here if it left anything in the account file (its copies may be there, unlisted)
   if index == nil then B.legacyInstall = ShroudGetSavedVar("welcomed", ACCOUNT) ~= nil or setups ~= nil end
-  T.ReserveFile(ACCOUNT, (legacy or (index == nil and B.legacyInstall)) and B.LEGACY_RESERVE or 0)
+  local reserve = (legacy or (index == nil and B.legacyInstall)) and B.LEGACY_RESERVE or 0
+  local ceiling = learnedCeiling(index)
+  if ceiling then reserve = math.max(reserve, T.FILE_MAX - ceiling) end
+  T.ReserveFile(ACCOUNT, reserve)
 end
 
 -- At start and for another character, before anything reads its settings: writes the recovery copy back when the

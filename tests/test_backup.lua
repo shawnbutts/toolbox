@@ -472,4 +472,53 @@ return function(t)
     t.ok(H.S.memory.account["recovery:alt"], "written once the index is")
     t.eq(H.S.memory.account.recovery_index.names[2], "alt")
   end)
+
+  -- A 1.8.0 development copy with full overlays (review 36's case, 135 KB for ten; thirteen here), unlisted.
+  local function bigLegacyCopy()
+    local overlays = {}
+    for o = 1, 13 do
+      local places = {}
+      for i = 1, 100 do
+        places[i] = { id = i, name = string.format("A long place name %03d", i), raw = "Elsewhere",
+                      scene = "A scene with a long name", x = "%N" .. (-1000.5 - i), y = 12.25, z = 2000 + i,
+                      icon = "diamond", color = "Purple" }
+      end
+      overlays[o] = { id = o, name = "Overlay number " .. o, icon = "star", color = "Blue", nextPlace = 101,
+                      places = places }
+    end
+    return { v = 1, n = 9, when = "2026-10-13 12:00", keys = {
+      map_overlays = { v = 1, shown = 1, nextId = 11, list = overlays, ["%E"] = 1 } } }
+  end
+
+  t.test("an unlisted copy past the room kept: the failed flush teaches the file's ceiling (review 36)", function()
+    local prices = {}
+    for i = 1, 470 do                              -- with the copy, just under 256 KB at the start
+      prices[string.format("loot item %03d", i)] = { avg = i * 3, sold = i, last = "2026-09-20", day = "2026-10-13" }
+    end
+    H.boot({ account = { ["recovery:alt"] = bigLegacyCopy(), prices = { v = 1, items = prices } } })
+    H.S.fileLimitAsGame = true                     -- the game's answer: that file not written, the flush false
+    H.chat("/tbx settings share on")
+    local i = 0
+    repeat                                         -- setups, one at a time, as a player makes them
+      i = i + 1
+      H.chat("/tbx settings export A long setup name " .. i)
+      Toolbox.Flush()
+    until H.logged("couldn't save Toolbox's shared account file") or i >= Toolbox.Backup.SETUP_MAX - 1
+    t.ok(H.logged("Toolbox made room %(its remembered prices are looked up again%)"), H.lastLog())
+    t.eq(Toolbox.Prices.Count(), 0)
+    t.ok(H.JsonSize(H.S.disk.account) <= 256 * 1024, "written, under 256 KB")
+    t.ok(H.S.disk.account["setup:a long setup name " .. i], "the setup that tipped it over, saved")
+    local ceiling = H.S.memory.account.recovery_index.ceiling
+    t.ok(ceiling and ceiling > 0, "the ceiling learned")
+    local used, max = Toolbox.FileUse("account")
+    t.ok(max <= ceiling, "growth stops short of it: " .. max)
+    H.chat("/tbx settings export One more " .. string.rep("x", 10))
+    for k = 1, 20 do H.chat("/tbx settings export Yet another " .. k) end
+    t.ok(Toolbox.Flush() ~= false, "every later flush works")
+    t.ok(select(1, Toolbox.FileUse("account")) <= max, "kept under: " .. used)
+    Toolbox.saveRefused = {}
+    H.restart()
+    t.eq(select(2, Toolbox.FileUse("account")), max, "the ceiling kept after a restart")
+    H.S.fileLimitAsGame = nil
+  end)
 end

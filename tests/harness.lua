@@ -742,12 +742,25 @@ local function install_api()
     if S.flushFails then return false end     -- H.S.flushFails: the game refuses the write
     -- The game's 256 KB is a whole file's (an add-on's scope; confirmed 2026-10-13): past it, nothing of that file is
     -- written. Raised here, so a test can't pass with a file the game would drop (Toolbox refuses the write first).
+    -- H.S.fileLimitAsGame: as the game, that file is left as it was on disk and the flush answers false.
+    local over = nil
     for scope, keys in pairs(S.memory) do
       local size = H.JsonSize(keys)
       if size > 256 * 1024 then
-        error("saved file '" .. tostring(scope) .. "' is " .. size .. " bytes: past the game's 256 KB a file, it"
-          .. " wouldn't be written at all", 2)
+        if not S.fileLimitAsGame then
+          error("saved file '" .. tostring(scope) .. "' is " .. size .. " bytes: past the game's 256 KB a file, it"
+            .. " wouldn't be written at all", 2)
+        end
+        over = over or {}
+        over[scope] = true
       end
+    end
+    if over then
+      for scope, keys in pairs(S.memory) do
+        if not over[scope] then S.disk[scope] = copy(keys) end
+      end
+      S.flushes = S.flushes + 1
+      return false
     end
     S.disk = copy(S.memory)
     S.flushes = S.flushes + 1

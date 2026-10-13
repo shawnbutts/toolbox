@@ -1233,6 +1233,14 @@ function P.Apply(names, data)
   writeCache()
 end
 
+-- How many prices are kept.
+function P.Count()
+  readCache()
+  local n = 0
+  for _ in pairs(cache) do n = n + 1 end
+  return n
+end
+
 -- /toolbox dd values refresh: forgets every cached price; what's on screen is looked up again.
 function P.Forget()
   readCache()
