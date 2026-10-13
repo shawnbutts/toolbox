@@ -159,9 +159,9 @@ for the whole `/loc` line and the scene's kinds of water. Off by default: switch
 
 Sets of places you mark, shown on your map one set at a time: one for gathering, one for XP farming, one for
 vendors. Each place is a mark on the region map and minimap in its scene (a newer game client), in a shape and
-color of its own, and Beacon puts the game's beacon on one. Up to 10 overlays per character. Make them under
-**Map & location** in the settings, or type `/toolbox mark <name>` where you stand and `/toolbox overlay <name>`
-to show one.
+color of its own, and Beacon puts the game's beacon on one. Up to 10 overlays per character. Mark as you go in the
+small **Map overlays** window: the pin on the location strip opens it (or `/toolbox overlay window`). Make, rename
+and delete overlays under **Map & location** in the settings; `/toolbox mark <name>` marks where you stand.
 
 ## Commands
 

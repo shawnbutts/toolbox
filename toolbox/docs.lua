@@ -275,19 +275,21 @@ D.SECTIONS = {
       .. "kinds of water. Switch it on with the menu's Location button or under Settings, Map & location "
       .. "(Show "
       .. "where you are), where you can also hide the facing and water lines and place it, or type /toolbox "
-      .. "location (on, off, facing on|off, water on|off, move <x> <y>). It's off by default." },
+      .. "location (on, off, facing on|off, water on|off, pin on|off, move <x> <y>). It's off by default. The "
+      .. "pin beside the scene's name opens the Map overlays window (Map overlays button in settings)." },
   { "Map overlays",
     "Sets of places you mark, shown on your map one set at a time: one for gathering, one for XP farming, one "
       .. "for vendors... Each place is a mark on the region map and minimap in its scene (a newer game client), "
       .. "in the shape and color you picked for it, named as you named it. Up to 10 overlays, each with up to 40 "
       .. "places in a scene and 100 in all. They're this character's own. The Loot Tracker's run flags stay their own "
       .. "setting and show beside any overlay.",
-    "Settings, Map & location, Map overlays: type a name and press New (it's shown at once), pick which one is "
-      .. "shown (or None), Rename it or Delete it (click twice). Pick a shape and color under New marks, stand "
-      .. "where you want a place, name it and press Mark here (no name: Place 1, Place 2...); marks made before "
-      .. "keep their look. The list below holds the shown overlay's places, this scene's first: Beacon puts the "
-      .. "game's beacon on one (it reaches your compass, and replaces any beacon you set), Set look gives it the "
-      .. "shape and color above, Remove takes it out.",
+    "The Map overlays window (the pin on the location strip, /toolbox overlay window, or the button in "
+      .. "settings): pick the overlay shown, a shape and color under New marks, then stand where you want a "
+      .. "place, name it and press Mark here (no name: Place 1, Place 2...); marks made before keep their look. "
+      .. "The list holds the shown overlay's places in this scene: Beacon puts the game's beacon on one (it "
+      .. "reaches your compass, and replaces any beacon you set), Set look gives it the shape and color above, "
+      .. "Remove takes it out. More... opens Settings, Map & location, where you make (type a name, New), "
+      .. "Rename and Delete (click twice) overlays.",
     "In chat: /toolbox mark Iron vein marks where you stand (your first mark makes an overlay called Places); "
       .. "/toolbox mark remove takes out the nearest place within 15 m (or one by name) and /toolbox mark beacon "
       .. "<name> sets the beacon. /toolbox overlay lists your overlays; /toolbox overlay Gathering shows one, "

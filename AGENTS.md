@@ -221,7 +221,12 @@ into one if a new file is ever needed).
   overlay`, the "Map overlays" rows on Map & location, `C.OverlayRows`), STRICTLY ONE shown at a time (the 50 markers a
   scene; `OV.SCENE_MAX` 40 beside the run flags' 10), `OV.MAX` 10 a character (owner: more later if players ask), per
   character; each place its own icon and color (owner, 2026-10-13: the overlay's look restyled every mark), the
-  overlay's `icon` / `color` being the next marks' ("Set look", `OV.SetPlaceLook`, `/toolbox mark look`). `OV.Sync` (T.Tick, after each change) mirrors `DD.SyncMarkers`: ids "ov<overlay>-<place>" (a switch moves
+  overlay's `icon` / `color` being the next marks' ("Set look", `OV.SetPlaceLook`, `/toolbox mark look`).
+  Marking happens in the Map overlays window (owner, 2026-10-13: not the whole settings page; id `toolbox_marks`, the
+  8th window's third user, `T.TakeSharedWindow`), opened by the location strip's pin (`loc_pin`, launcher.png's
+  map-pin frame; setting `pin`), `/toolbox overlay window` or the page's button: shown overlay, next look, Mark here,
+  THIS scene's places only (Beacon, Set look, Remove), More... to the page, which keeps New / Rename / Delete and the
+  shown one (every scene's places listed there too took the text past its budget with the window open). `OV.Sync` (T.Tick, after each change) mirrors `DD.SyncMarkers`: ids "ov<overlay>-<place>" (a switch moves
   none), ours unwanted ("ov") come down, one already up as wanted isn't sent again (a "rate" refusal after a big switch
   retries after `OV.RETRY` s, sending only what's missing). The run flags stay their own toggle (owner); later ideas:
   self-filling overlays (gathering spots, a death flag) and sharing one as a text string (no clipboard API; a
@@ -497,7 +502,7 @@ character" sentinel.
 | `gear` | `{ show = bool, threshold = 5/10/15/20/25/30/50 (percent), glue = bool, x, y }` |
 | `target` | `{ show = bool (default false), glue = bool (default true), place = "top" (default) / "bottom", mirror = bool, effects = "all"/"debuffs"/"none", icons = 1..8 (unset: 8, or 5 mirrored), bars = bool (default true), numbers = bool (default false), bg = "None"/"Dark"/"Light", flash = bool (default false), flashBelow = 1..95, x, y }` (a saved place "left", from beta 7, reads as mirror; bars and numbers both off = just the effect icons, refused with effects "none" too; hidePet = bool (default true): your pet as the target reads as no target, `TG.IsPet`) |
 | `loot_runs` | `{ v = 1, list = { { at = "HH:MM", date = "YYYY-MM-DD", scene, played = s, gold, kills, items, kinds, nodes, value = estimated gold or nil, spot = { scene, raw, x, y, z } or nil } } }`, newest first, at most `D.RUNS_KEEP` (10); stats: a reset keeps it |
-| `location` | `{ show = bool (default false), facing = bool (default true), water = bool (default true; API 32), x, y }` (the location strip, hud.lua) |
+| `location` | `{ show = bool (default false), facing = bool (default true), water = bool (default true; API 32), pin = bool (the Map overlays pin, default true), x, y }` (the location strip, hud.lua) |
 | `launcher` | `{ show = bool (default true), vertical = bool (default true), size = 20..64 (default 32), shade = 0..90 (% black behind, default 40), combat = bool (hide during combat), hide = { [button key] = true } (never all), x, y }` (the menu, hud.lua; absent = never started: the chat line) |
 | `map_overlays` | `{ v = 1, shown = overlay id or 0, nextId, list = { { id, name (<= 24, unique), icon = an OV.ICONS shape, color = an OV.COLORS name, nextPlace, places = { { id, name (unique in it), raw (scene id), scene, x, y, z, icon, color (unset: the overlay's) } } } } }` (the overlay's icon / color: its next marks') (hud.lua; at most OV.MAX, OV.PLACES_MAX places each); kept by a reset, copied for recovery |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
@@ -685,7 +690,7 @@ Iron Ingot -> ore and coal); a gathering session HUD; lock-position / snap prese
 
 Rules learned the hard way; keep to them.
 
-- **Limits** (per add-on): 8 windows (Toolbox has 7 lasting ones; Docs and version share the 8th), HUD
+- **Limits** (per add-on): 8 windows (Toolbox has 7 lasting ones; Docs, version and Map overlays share the 8th: `T.TakeSharedWindow`), HUD
   frames covering <= 35% of the screen (8 by the reference; 25 by the work log of 2026-10-01, unconfirmed in
   game: `Hud.MAX_FRAMES` is 25 and `Hud.FrameCap()` learns the real limit from the game's refusal,
   `Hud.OutOfRoom`), 2,000 elements, 65,536 characters of text in all (one element's text is cut at 4,096, a
