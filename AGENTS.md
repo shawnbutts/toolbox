@@ -609,6 +609,7 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   `ShroudGetCalendarEvents/Event/Summary/Reminders/Tags`, `ShroudOnCalendarChanged`; at most one fetch of each kind
   per 10 s, all add-ons together), spoken expiry warnings (36: `ShroudPlayWarningSound`; not used, owner 2026-10-12:
   the game's own Announce Expiring Buffs option covers it). Requests 18, 19, 21 and 24 are not in it.
+  The owner's live client has all of them (`/toolbox api`, 2026-10-13: every group present through API 35).
 
 **Waiting on the developers:** a read-only game settings API (first use: the game's "stack buffs lasting
 longer than" option feeding `BB.GroupAfter()`). Submitted 2026-10-07 (`tmp/client-issues.md`): **18**, for the
