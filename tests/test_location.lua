@@ -112,6 +112,16 @@ return function(t)
     H.advance(Toolbox.Location.WATER_EVERY + 1)
     local tip = strip():Find("loc_strip").tooltip
     t.ok(tip:find("Fishable water in this scene: salt water, fresh water%.$"), tip)
+    -- A town's water decoration changes the scene's list: it's read again (review 32).
+    H.S.sceneWater = { "fetid" }
+    H.advance(Toolbox.Location.WATER_EVERY + 1)
+    tip = strip():Find("loc_strip").tooltip
+    t.ok(tip:find("Fishable water in this scene: fetid water%.$"), tip)
+    H.S.sceneWater = {}
+    H.advance(Toolbox.Location.WATER_EVERY + 1)
+    t.no(strip():Find("loc_strip").tooltip:find("Fishable water"), "none left")
+    H.S.sceneWater = { "salt", "fresh" }
+    H.advance(Toolbox.Location.WATER_EVERY + 1)
     H.chat("/tbx location water off")
     t.eq(strip():Find("loc_water").visible, false, "switched off")
     t.eq(H.saved("location").water, false)
@@ -142,6 +152,35 @@ return function(t)
     H.S.noScreen = true
     H.reload()
     t.eq(Toolbox.Hud.FitScreen(), 0, "an older client: nothing to read")
+  end)
+
+  -- Review 31: a strip off or hidden while the window shrinks comes back inside when it's built or shown again.
+  t.test("the game window shrinks: a strip switched off or hidden then comes back on screen too", function()
+    H.boot()
+    H.chat("/tbx location on")
+    H.chat("/tbx location move 1700 900")
+    H.advance(1)
+    H.chat("/tbx location off")
+    H.clearLogs()
+    t.eq(H.screenChanged{ uiWidth = 1280, uiHeight = 720 }, nil)
+    t.eq(H.saved("location").x, 1700, "no strip: nothing to move yet")
+    H.chat("/tbx location on")
+    t.ok(strip().x < 1280 and strip().y < 720, strip().x .. "," .. strip().y)
+    t.eq(H.saved("location").x, strip().x, "kept")
+    -- The menu hidden in combat while the window shrinks.
+    H.screenChanged{ uiWidth = 1920, uiHeight = 1080 }
+    H.chat("/tbx menu move 1800 1000")
+    H.advance(1)
+    t.eq(H.saved("launcher").x, 1800)
+    H.chat("/tbx menu combat hide")
+    H.setCombat(true)
+    H.advance(1)
+    local menu = H.S.frames[Toolbox.Launcher.FRAME_ID]
+    t.eq(menu.visible, false, "hidden in combat")
+    H.screenChanged{ uiWidth = 1280, uiHeight = 720 }
+    t.ok(menu.x < 1280 and menu.y < 720, menu.x .. "," .. menu.y)
+    t.eq(H.saved("launcher").x, menu.x, "kept while hidden")
+    H.setCombat(false)
   end)
 
   t.test("the move command and position buttons", function()

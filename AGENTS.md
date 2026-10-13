@@ -197,8 +197,9 @@ into one if a new file is ever needed).
   while it is on screen (`IsVisible`) and a character is in the world (`T.CharacterName`): a hidden or never-shown
   strip, or one at the login screen, can report the top-left corner (owner, 2026-10-05). A logout (`T.loggedOut`)
   makes the next login, the same character's too, read every module's settings again (`T.FollowCharacter`). `Hud.FitScreen()` (API 31, from
-  `ShroudOnScreenChanged`): a shown strip past the right or bottom edge of `ShroudGetScreenInfo`'s uiWidth / uiHeight
-  is moved inside by its laid-out size and saved (harness `H.S.screen`, `H.screenChanged{...}`, `H.S.noScreen`).
+  `ShroudOnScreenChanged`): every built strip past the right or bottom edge of `ShroudGetScreenInfo`'s uiWidth /
+  uiHeight is moved inside and saved through its owner (`Hud.FitBuilt`; a shown one measured where it is by its laid-out
+  size, a hidden one by its saved place and last set size); `Hud.Build` fits the strips it builds too (review 31) (harness `H.S.screen`, `H.screenChanged{...}`, `H.S.noScreen`).
   `Hud.SetOverlay(provider)`:
   one overlay drawn over the Toolbelt (the combat shout). `Hud.Rebuild(key)` rebuilds one
   module's own strip (a setting that changes its elements); a full `Hud.Build()` makes every strip's elements
@@ -207,7 +208,7 @@ into one if a new file is ever needed).
   `ShroudGetPlayerCompassHeading`; hover = `ShroudGetLocationText`), its own `LOC.TICK` periodic setting text only
   on change, its width from the scene name's length (refit on a scene change); fishable water (API 32, `water`: the nearest within
   30 m on a line hidden when none, `LOC.UpdateWater`; the scene's kinds in the hover, re-read every `LOC.WATER_EVERY` s
-  while empty; harness `H.S.water`, `H.S.sceneWater`, `H.S.noWater`); controls on the HUD layout page.
+  (a town's water decoration changes them, review 32); harness `H.S.water`, `H.S.sceneWater`, `H.S.noWater`); controls on the HUD layout page.
   Then `Toolbox.Launcher` (LN; owner, 2026-10-10; "the menu" to players, `/toolbox menu`, alias `launcher`): one button a window (`LN.BUTTONS`: its
   `open()` and `toggle()`; the pop-up windows count as open when pinned; Notifications = `N.ToggleWindow`, the news
   now in the window), pictures from `toolbox/launcher.png` (`art/launcher.py`, frames in `LN.BUTTONS` order) tinted

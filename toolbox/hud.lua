@@ -40,7 +40,7 @@ local UI = Shroud.UI
 local modules = {}                    -- key -> module
 local frames = {}                     -- key -> HudFrame (unglued), or [GLUED_ID] -> the shared one
 local contents = {}                   -- key -> content element
-local sized = {}                      -- frame id -> "w,h" last applied
+local sized = {}                      -- frame -> { key = "w,h", w, h }: the size last applied
 local prefs = { glued = false }
 Hud.errors = {}                       -- key -> error text from the last build, for debug
 
@@ -293,6 +293,7 @@ function Hud.Build(missingOnly)
     end
   end
   Hud.Refresh()
+  Hud.FitBuilt()                       -- a strip built after the window shrank (review 31)
   if retryWanted then
     retries = retries + 1
     ShroudRegisterPeriodic("toolbox_hud_retry", function() Hud.Build(true) end, Hud.RETRY_DELAY, false)
@@ -303,8 +304,8 @@ end
 
 local function setSize(frame, w, h)
   local key = w .. "," .. h
-  if sized[frame] == key then return end
-  sized[frame] = key
+  if sized[frame] and sized[frame].key == key then return end
+  sized[frame] = { key = key, w = w, h = h }
   pcall(function() frame:SetSize(w, h) end)   -- refused past the HUD area limit: keep the old size
 end
 
@@ -418,28 +419,63 @@ function Hud.Tick()
   end
 end
 
--- The game window changed (API 31, ShroudOnScreenChanged; it also fires once after loading): a strip now past the
--- right or bottom edge (a smaller window or a bigger UI scale) is moved back inside, and its place saved. Its size is
--- the strip's as laid out. Returns how many moved.
-function Hud.FitScreen()
-  if type(ShroudGetScreenInfo) ~= "function" then return 0 end
+-- The UI's size (API 31's uiWidth / uiHeight), or nil on an older client or a bad reading.
+local function screenSize()
+  if type(ShroudGetScreenInfo) ~= "function" then return nil end
   local ok, info = pcall(ShroudGetScreenInfo)
-  if not ok then return 0 end
+  if not ok then return nil end
   local sw, sh = T.Field(info, "uiWidth"), T.Field(info, "uiHeight")
-  if type(sw) ~= "number" or type(sh) ~= "number" or sw <= 0 or sh <= 0 then return 0 end
+  if type(sw) ~= "number" or type(sh) ~= "number" or sw <= 0 or sh <= 0 then return nil end
+  return sw, sh
+end
+
+-- Moves one built strip inside sw x sh and saves the new place through its owner. True when it moved. A shown strip
+-- is measured where it is, by its laid-out size; a hidden one (combat-only, switched on later, not laid out yet) by
+-- its saved place and the size last given it, since a hidden strip can report the top-left corner (review 31).
+local function fitFrame(key, frame, sw, sh)
+  local m = modules[key]
+  local x, y, w, h = nil, nil, nil, nil
+  if onScreen(frame) then
+    x, y = Hud.Position(frame)
+    local ok, gw, gh = pcall(frame.GetSize, frame)
+    if ok then w, h = gw, gh end
+  else
+    if m then x, y = m.GetSavedPosition() else x, y = prefs.x, prefs.y end
+    if sized[frame] then w, h = sized[frame].w, sized[frame].h end
+  end
+  if type(x) ~= "number" or type(y) ~= "number" then return false end
+  if type(w) ~= "number" or type(h) ~= "number" then w, h = 0, 0 end
+  local nx = math.floor(math.max(0, math.min(x, sw - w)))
+  local ny = math.floor(math.max(0, math.min(y, sh - h)))
+  if nx == math.floor(x) and ny == math.floor(y) then return false end
+  if not pcall(frame.SetPosition, frame, nx, ny) then return false end
+  if m then
+    m.SavePosition(nx, ny)
+  elseif key == Hud.GLUED_ID then
+    prefs.x, prefs.y = nx, ny
+    T.Save("hud", prefs)
+  end
+  return true
+end
+
+-- Every built strip, shown or hidden, moved inside the UI. Returns how many moved.
+function Hud.FitBuilt()
+  local sw, sh = screenSize()
+  if not sw then return 0 end
   Hud.screen = { w = sw, h = sh }
   local moved = 0
-  for _, frame in pairs(frames) do
-    local x, y = Hud.Position(frame)
-    local okS, w, h = pcall(frame.GetSize, frame)
-    if x and onScreen(frame) and okS and type(w) == "number" and type(h) == "number" then
-      local nx = math.max(0, math.min(x, math.floor(sw - w)))
-      local ny = math.max(0, math.min(y, math.floor(sh - h)))
-      if (nx ~= x or ny ~= y) and pcall(frame.SetPosition, frame, nx, ny) then moved = moved + 1 end
-    end
+  for key, frame in pairs(frames) do
+    if fitFrame(key, frame, sw, sh) then moved = moved + 1 end
   end
+  return moved
+end
+
+-- The game window changed (API 31, ShroudOnScreenChanged; it also fires once after loading): a strip now past the
+-- right or bottom edge (a smaller window or a bigger UI scale) is moved back inside, and its place saved. A strip
+-- built later is fitted as it is built (Hud.Build). Returns how many moved.
+function Hud.FitScreen()
+  local moved = Hud.FitBuilt()
   if moved > 0 then
-    Hud.Tick()                         -- keep the new places
     T.Print("The game window changed: " .. moved .. (moved == 1 and " strip" or " strips")
       .. " moved back on screen.")
   end
@@ -641,7 +677,7 @@ end
 -- follows the scene's name (the strip is refitted when the scene changes), so the numbers don't make it jump.
 -- Fishable water (API 32, our request 25; setting `water`): a line for the nearest within 30 m ("Salt water, 12 m"),
 -- hidden when there is none (the strip refits), and the scene's kinds in the hover (read again every
--- LOC.WATER_EVERY s while the game is still reading the scene: an empty list).
+-- LOC.WATER_EVERY s: the game may still be reading the scene, and a town's water decoration changes it).
 -- Saved var "location": { show = bool (default false), facing = bool (default true), water = bool (default true),
 -- x, y }.
 -- ---------------------------------------------------------------------------
@@ -651,7 +687,7 @@ LOC.TICK = 0.5
 LOC.POINTS = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" }
 LOC.CHAR_W = 0.6                      -- a character's width, as a share of the text size
 LOC.MIN_CHARS = 19                    -- "-12345, 123, -12345"
-LOC.WATER_EVERY = 5                   -- s between reads of the scene's water kinds while it has none
+LOC.WATER_EVERY = 5                   -- s between reads of the scene's water kinds
 LOC.WATER_NAMES = { fresh = "Fresh water", fetid = "Fetid water", salt = "Salt water", lava = "Lava" }
 local LOC_PERIODIC = "toolbox_location"
 local locPrefs = { show = false, facing = true, water = true }
@@ -806,7 +842,8 @@ function LOC.UpdateWater(scene)
     local ok, kind, metres = pcall(ShroudGetNearestWaterType)
     if ok then text = LOC.WaterText(kind, metres) end
     kinds = locWater.kinds
-    if scene ~= locWater.scene or (kinds == "" and T.Now() - locWater.at >= LOC.WATER_EVERY) then
+    -- Re-read every few seconds, not only while empty: a player town's water decoration changes the list (review 32).
+    if scene ~= locWater.scene or T.Now() - locWater.at >= LOC.WATER_EVERY then
       local okL, list = pcall(ShroudGetSceneWaterTypes)
       kinds = okL and LOC.SceneWaterLine(list) or ""
       locWater.scene, locWater.at = scene, T.Now()

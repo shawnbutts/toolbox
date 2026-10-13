@@ -190,7 +190,7 @@ return function(t)
   t.test("negative, tiny and huge numbers are saved as text and read back as the numbers", function()
     H.boot()
     local T = Toolbox
-    T.Save("location", { show = true, x = -40, y = 12.5, tiny = 0.00002, huge = 2e15, zero = -0.0,
+    T.Save("location", { show = false, x = -40, y = 12.5, tiny = 0.00002, huge = 2e15, zero = -0.0,
                          nan = 0 / 0, list = { -1, 2, -3.25 }, text = "%N-5" })
     local raw = H.S.memory["character:Tester"].location
     t.eq(raw.x, "%N-40")
