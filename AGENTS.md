@@ -196,7 +196,10 @@ into one if a new file is ever needed).
   `Hud.RETRY_DELAY`. `Hud.TextStrip` is the HUD form of the XP and Today windows. `Hud.Tick` saves a strip's position only
   while it is on screen (`IsVisible`) and a character is in the world (`T.CharacterName`): a hidden or never-shown
   strip, or one at the login screen, can report the top-left corner (owner, 2026-10-05). A logout (`T.loggedOut`)
-  makes the next login, the same character's too, read every module's settings again (`T.FollowCharacter`). `Hud.SetOverlay(provider)`:
+  makes the next login, the same character's too, read every module's settings again (`T.FollowCharacter`). `Hud.FitScreen()` (API 31, from
+  `ShroudOnScreenChanged`): a shown strip past the right or bottom edge of `ShroudGetScreenInfo`'s uiWidth / uiHeight
+  is moved inside by its laid-out size and saved (harness `H.S.screen`, `H.screenChanged{...}`, `H.S.noScreen`).
+  `Hud.SetOverlay(provider)`:
   one overlay drawn over the Toolbelt (the combat shout). `Hud.Rebuild(key)` rebuilds one
   module's own strip (a setting that changes its elements); a full `Hud.Build()` makes every strip's elements
   again at once, past the creation cap with a big strip (the buff block's 40 slots). At the end of the file,

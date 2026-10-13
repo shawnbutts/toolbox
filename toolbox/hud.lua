@@ -418,6 +418,34 @@ function Hud.Tick()
   end
 end
 
+-- The game window changed (API 31, ShroudOnScreenChanged; it also fires once after loading): a strip now past the
+-- right or bottom edge (a smaller window or a bigger UI scale) is moved back inside, and its place saved. Its size is
+-- the strip's as laid out. Returns how many moved.
+function Hud.FitScreen()
+  if type(ShroudGetScreenInfo) ~= "function" then return 0 end
+  local ok, info = pcall(ShroudGetScreenInfo)
+  if not ok then return 0 end
+  local sw, sh = T.Field(info, "uiWidth"), T.Field(info, "uiHeight")
+  if type(sw) ~= "number" or type(sh) ~= "number" or sw <= 0 or sh <= 0 then return 0 end
+  Hud.screen = { w = sw, h = sh }
+  local moved = 0
+  for _, frame in pairs(frames) do
+    local x, y = Hud.Position(frame)
+    local okS, w, h = pcall(frame.GetSize, frame)
+    if x and onScreen(frame) and okS and type(w) == "number" and type(h) == "number" then
+      local nx = math.max(0, math.min(x, math.floor(sw - w)))
+      local ny = math.max(0, math.min(y, math.floor(sh - h)))
+      if (nx ~= x or ny ~= y) and pcall(frame.SetPosition, frame, nx, ny) then moved = moved + 1 end
+    end
+  end
+  if moved > 0 then
+    Hud.Tick()                         -- keep the new places
+    T.Print("The game window changed: " .. moved .. (moved == 1 and " strip" or " strips")
+      .. " moved back on screen.")
+  end
+  return moved
+end
+
 function Hud.Position(frame)
   if not frame then return nil end
   local ok, x, y = pcall(frame.GetPosition, frame)

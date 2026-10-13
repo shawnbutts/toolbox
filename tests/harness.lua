@@ -90,6 +90,8 @@ local function fresh(disk)
     serverTime = "2026-09-27 12:00:00",
     files = { ["toolbox/clock.png"] = true },   -- files that exist, relative to the Lua folder
     clips = {}, clipPaths = {}, clipState = {}, pendingClips = {}, played = {}, markers = {},
+    screen = { width = 1920, height = 1080, uiWidth = 1920, uiHeight = 1080, uiScale = 1, displayWidth = 1920,
+               displayHeight = 1080, fullScreen = true, mode = "fullscreen" },
     buffs = {},                        -- { name, remaining, icon, debuff, tooltip } per effect
     -- ShroudGetSocialSummary(); H.setGuild / H.setMotd change it
     social = { inGuild = false, guildName = "", guildRole = "", guildMotd = "",
@@ -274,6 +276,16 @@ local function install_api()
   else
     ShroudSetMapMarker, ShroudRemoveMapMarker, ShroudClearMapMarkers = nil, nil, nil
     ShroudGetMapMarkers, ShroudListMapMarkerIcons = nil, nil
+  end
+  -- The screen (API 31; H.S.noScreen: an older client): H.S.screen's fields; H.screenChanged{...} changes them.
+  if not S.noScreen then
+    ShroudGetScreenInfo = function()
+      local out = {}
+      for k, v in pairs(S.screen) do out[k] = v end
+      return out
+    end
+  else
+    ShroudGetScreenInfo = nil
   end
   -- Fishable water (API 32; H.S.noWater: an older client): H.S.water = { kind, metres } (nil: none within 30 m),
   -- H.S.sceneWater = the scene's kinds ({} while reading).
@@ -1300,6 +1312,12 @@ function H.call(fn, ...)
   S.inCallback = was
   if not r[1] then error(r[2], 2) end
   return select(2, (table.unpack or unpack)(r))
+end
+
+-- The game window changes (API 31): `fields` replace H.S.screen's, then ShroudOnScreenChanged fires.
+function H.screenChanged(fields)
+  for k, v in pairs(fields) do S.screen[k] = v end
+  return H.callback("ShroudOnScreenChanged")
 end
 
 -- The player picks `path` in the open file list (nil: closes it).

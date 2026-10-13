@@ -3026,6 +3026,11 @@ function ShroudOnDeathChanged(isDead)
 end
 
 -- The target the game's target frame shows changed (a new one, or none).
+-- The game window's size, UI scale or mode changed (API 31): strips past an edge come back.
+function ShroudOnScreenChanged()
+  T.Hud.FitScreen()
+end
+
 function ShroudOnTargetChanged()
   T.Target.OnTargetChanged()
 end

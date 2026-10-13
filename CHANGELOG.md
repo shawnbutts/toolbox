@@ -42,6 +42,8 @@ ones included).
   toolbox_mail.ogg in your Lua folder or any file on the Sounds page.
 
 ### Changed
+- On a newer game client (Lua API 31), when the game window gets smaller or the UI scale bigger, a HUD strip left
+  past the right or bottom edge moves back on screen (chat says so).
 - **Choose sound files from a list:** on a newer game client (Lua API 33), the Sounds page has a Choose... button by
   each sound and effect sounds have Choose a file...: the game lists the sound files in your Lua folder (with a row
   to open the folder, so you can drop one in) and you pick one, instead of typing its path.

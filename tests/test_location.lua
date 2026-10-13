@@ -125,6 +125,25 @@ return function(t)
     t.eq(H.config():Find("loc_water").enabled, false, "an older client: greyed out")
   end)
 
+  -- API 31: a smaller game window (or a bigger UI scale) can leave a strip past the edge.
+  t.test("the game window shrinks: a strip past the edge comes back on screen, and its place is kept", function()
+    H.boot()
+    H.chat("/tbx location on")
+    H.chat("/tbx location move 1700 900")
+    strip().laidOut = { 180, 60 }
+    H.clearLogs()
+    t.eq(H.screenChanged{ uiWidth = 1920, uiHeight = 1080 }, nil)
+    t.eq(strip().x .. "," .. strip().y, "1700,900", "inside: left alone")
+    t.eq(#H.logs(), 0, "nothing said")
+    H.screenChanged{ uiWidth = 1280, uiHeight = 720 }
+    t.eq(strip().x .. "," .. strip().y, "1100,660", "pulled in by its size")
+    t.ok(H.logged("The game window changed: 1 strip moved back on screen."), H.lastLog())
+    t.eq(H.saved("location").x, 1100, "kept")
+    H.S.noScreen = true
+    H.reload()
+    t.eq(Toolbox.Hud.FitScreen(), 0, "an older client: nothing to read")
+  end)
+
   t.test("the move command and position buttons", function()
     H.boot()
     H.chat("/tbx location on")
