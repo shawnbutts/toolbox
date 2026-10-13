@@ -794,6 +794,11 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - Effect sounds: the clip name the game gives a player's file (assumed its base name without the extension, as for
   the shipped ones; a second file of a name another sound has is refused, review 25), a path with spaces, and dozens
   of extra clips loaded at once.
+- API 30-35 work (built 2026-10-12 from the docs, not yet in game): run markers kept across a `/lua reload` or not
+  (`DD.SyncMarkers` re-reads `ShroudGetMapMarkers` either way) and the flag's look; sound handle ids surviving a reload
+  (`S.Play` reloads on "none"); the file picker's callback after a page switch; `ShroudGetNearestWaterType`'s cost
+  twice a second; HUD `GetPosition` in the same units as `uiWidth` / `uiHeight` (`Hud.FitScreen`); `os.time` being
+  UTC seconds as the calendar's are, and `startsText`'s wording.
 - Pause skills: `ShroudSetSkillMode`'s list answer keyed by the skill's `key` (a missing one is taken as asked, and
   the resume's check leaves a skill that didn't move alone), skills set to Off decaying meanwhile (the
   setting's tooltip says they may), and the game's per-skill menu matching a list call for mastery skills.
