@@ -726,7 +726,7 @@ end
 local function readNow(now)
   local ok, list = pcall(ShroudGetSkills)
   if not ok or list == nil then return end
-  local who = ShroudGetPlayerName()
+  local who = T.PlayerName()
   if who ~= readFor then                            -- another character: a new baseline AND a new sequence:
     readFor, state = who, SK.NewState()             -- the notification's memory is per character too
     SK.Fill()
@@ -1232,7 +1232,7 @@ T.Notify.SOURCES[#T.Notify.SOURCES + 1] = {
   tip = "When your skills gain or lose a level, on the notification HUD (never a window)",
   Check = function(seen)
     -- only this character's changes (a switch is noticed at the next reading, maybe after this check)
-    if not state or readFor == nil or readFor ~= ShroudGetPlayerName() then return nil end
+    if not state or readFor == nil or readFor ~= T.PlayerName() then return nil end
     local text, n, allDown = SK.ChangesText(state.changes, seen)
     if not text then return nil end
     local notice = { title = "Skill level changes", text = text, seen = n }

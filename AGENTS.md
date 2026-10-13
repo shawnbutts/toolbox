@@ -37,6 +37,11 @@ This file holds current facts and rules; the history behind them is in git (`git
   `ShroudGetPartyMemberNamesInScene()`: only `for x in list do` walks it).
 - **The price site is "SotANET" or "shroudoftheavatar.net", never "SOTA.net"** (a different domain).
   `tools/build.py` refuses "sota.net" in package files.
+- **Read the player's name with `T.PlayerName()`**, never `ShroudGetPlayerName()` (`tools/build.py` refuses it
+  outside core.lua): the game's display name carries tags ("shawn[PVP]", "shawn[404040][AFK][-]", seen 2026-10-07/08)
+  and Toolbox took each for another character (a new XP session and every strip rebuilt on going AFK; setup copies
+  per tag). `T.PlainName` drops every `[...]`; `B.TidyTagged` folds 1.7.0's tagged setup / recovery copies into the
+  plain name once a run, at start (harness: `H.S.char.tags`).
 - **Avoid `a and b or c` when `b` can be false/nil.**
 - **Don't guess at API behaviour.** If the docs are unclear, pick the conservative option, write down the
   assumption, and add it to "Unconfirmed" below.
@@ -446,7 +451,7 @@ wedge (`SetSweep`, `SetSweepTimer`, refused as in game for a lone duration) read
   `H.S.httpRefuse`, `H.S.saveRefused` / `H.S.refuseKeys` (every saved-var write, or those keys), `H.S.language = { "German", "de" }` / `H.S.noLanguage`
   (the client's language; read at load: set it, then `H.reload()`), `H.S.pos = { x, y, z }` (where you stand,
   `ShroudPlayerX/Y/Z`), `H.S.sceneRaw`, `H.S.beacon` (`ShroudSetBeacon`'s), `H.S.noMap` (the beacon refused),
-  `H.S.noApi29`, `H.S.heading` (the compass heading), `H.S.recipes`, `H.S.showRefused`; `element.laidOut = { w, h }` sets what GetSize reports.
+  `H.S.noApi29`, `H.S.heading` (the compass heading), `H.S.char.tags` (added to the display name, same file), `H.S.recipes`, `H.S.showRefused`; `element.laidOut = { w, h }` sets what GetSize reports.
 - Reading: `H.logged(pattern)`, `H.logs()`, `H.lastLog()`, `H.saved(key, scope)`, `H.frame()` (buff strip),
   `H.hud()` (glued strip), `H.vitals()`, `H.config()` (all categories built) / `H.configRaw()`, `H.detail()`,
   `H.detailRows()`, `H.daily()`, `H.dailyText(id)`, `H.notify()`, `H.notice(key)`, `H.nhud()`,

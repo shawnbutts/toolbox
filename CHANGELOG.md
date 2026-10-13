@@ -7,6 +7,12 @@ ones included).
 
 ## [Unreleased]
 
+### Fixed
+- **Going AFK or flagging for PvP** no longer looks like another character logging in. The game adds those tags
+  to your name ("[AFK]", "[PVP]"), and Toolbox took the tagged name for a new character: your XP session started
+  over and every strip was built again. Setup copies kept under a tagged name ("shawn[PVP]") are folded into the
+  character's own, so each character is listed once.
+
 ## [1.7.0] - 2026-10-13
 
 ### Added

@@ -94,6 +94,28 @@ function T.Trim(s, set)
   return s:sub(i, j)
 end
 
+-- A player name without the tags the game adds to the display name: "shawn[PVP]" and "shawn[404040][AFK][-]" (a
+-- color and its end) were seen in game (2026-10-07, 2026-10-08), and Toolbox took each for another character: a new
+-- XP session and every strip rebuilt on going AFK. Character names have no brackets, so every [...] goes. Plain
+-- find/sub (no lazy pattern). Not a string: given back as it is.
+function T.PlainName(name)
+  if type(name) ~= "string" or not name:find("[", 1, true) then return name end
+  local parts, at = {}, 1
+  while true do
+    local open = name:find("[", at, true)
+    local close = open and name:find("]", open + 1, true)
+    if not close then break end
+    parts[#parts + 1] = name:sub(at, open - 1)
+    at = close + 1
+  end
+  parts[#parts + 1] = name:sub(at)
+  return T.Trim(table.concat(parts))
+end
+
+-- The player's name, without tags (T.PlainName); the game's sentinels ("none", "INVALID") as they are. Every
+-- module reads it here (tools/build.py refuses ShroudGetPlayerName anywhere else).
+function T.PlayerName() return T.PlainName(ShroudGetPlayerName()) end
+
 -- ---------------------------------------------------------------------------
 -- UI updates: only when something changes
 -- ---------------------------------------------------------------------------
@@ -2202,7 +2224,7 @@ end
 function T.StartSession(why)
   local adv, prod = T.ReadTotals()
   if not adv then return false end
-  T.session = T.XP.NewSession(T.Now(), adv, prod, ShroudGetPlayerName())
+  T.session = T.XP.NewSession(T.Now(), adv, prod, T.PlayerName())
   T.session.reason = why
   if why ~= "reset" then T.Daily.OnLogin(adv, prod) end
   T.SaveSession(true)
@@ -2219,7 +2241,8 @@ function T.ResumeOrStart()
   if T.XP.IsValid(saved)
       and not saved.ended
       and saved.clock <= now                       -- clock went backwards: client restarted
-      and saved.player == ShroudGetPlayerName() then
+      and T.PlainName(saved.player) == T.PlayerName() then   -- (1.7.0 or before saved the tags)
+    saved.player = T.PlainName(saved.player)
     T.session = saved
     return "resumed"
   end
@@ -2260,7 +2283,7 @@ function T.Tick()
     T.ResumeOrStart()                -- no character yet when the add-on started
   elseif s.ended then
     T.StartSession("login")          -- logged out and back in without a restart
-  elseif s.player ~= ShroudGetPlayerName() and adv then
+  elseif s.player ~= T.PlayerName() and adv then
     T.StartSession("character")
   else
     T.Sample(adv, prod)
@@ -2377,7 +2400,7 @@ B.FILE_PREFIX = "toolbox"
 
 -- This character's file name ("toolbox.<name>.character.json"; "<character>" when there is no name yet).
 function B.CharacterFile()
-  local name = ShroudGetPlayerName()
+  local name = T.PlayerName()
   if type(name) ~= "string" or name == "" or name == "INVALID" or name == "None" then name = "<character>" end
   return B.FILE_PREFIX .. "." .. name .. ".character.json"
 end
@@ -2582,7 +2605,7 @@ end
 -- flush (T.setupDirty stays set).
 function B.KeepCopy()
   local who = T.settingsFor
-  if not who or ShroudGetPlayerName() ~= who then return end
+  if not who or T.PlayerName() ~= who then return end
   local name = B.CleanName(who)
   if not (name and B.GetShare()) then
     T.setupDirty = false
@@ -2643,7 +2666,7 @@ end
 -- first: a copy refused afterwards leaves an older copy, never a file without a number.
 function B.KeepRecovery()
   local who = T.settingsFor
-  if not who or ShroudGetPlayerName() ~= who then return end
+  if not who or T.PlayerName() ~= who then return end
   local keys = {}
   for _, key in ipairs(B.RecoverList()) do
     local v = ShroudGetSavedVar(key, SCOPE)
@@ -2664,7 +2687,7 @@ end
 -- character's file came back without its number (above). Returns true when it did.
 function B.Recover()
   local who = T.settingsFor
-  if not who or ShroudGetPlayerName() ~= who then return false end
+  if not who or T.PlayerName() ~= who then return false end
   if ShroudGetSavedVar(B.MARK, SCOPE) ~= nil then return false end
   local copy = B.RecoveryCopy(who)
   if not copy then return false end
@@ -2684,6 +2707,53 @@ function B.Recover()
     .. " session) can't be." .. (flushed and "" or " The game couldn't write them to disk yet."))
   T.recoveryDirty = false
   return restored > 0
+end
+
+-- Character copies saved under a tagged name (T.PlainName: 1.7.0 and before kept "shawn[PVP]" apart from "shawn"):
+-- each goes to its plain name, its recovery copy too, unless that name has one already (then it's dropped). Once a
+-- run, at start, before the recovery check. Account keys can't be listed, so a tagged recovery copy of a character
+-- that never listed its setup stays (unused). Returns how many copies it tidied.
+local tidied = false
+function B.TidyTagged()
+  if tidied then return 0 end
+  tidied = true
+  local list, kept, moved = allSetups(), {}, 0
+  local plainHas = {}
+  for _, e in ipairs(list) do
+    if e.character == true and T.PlainName(e.name) == e.name then plainHas[e.name:lower()] = true end
+  end
+  local function move(from, to, rename)
+    local v = ShroudGetSavedVar(from, ACCOUNT)
+    if v == nil then return true end
+    if ShroudGetSavedVar(to, ACCOUNT) == nil then
+      local value = T.Resaved(v)
+      if rename and type(value) == "table" then value.name = T.ForSaving(rename) end
+      if not T.SetSavedVar(to, value, ACCOUNT) then return false end
+    end
+    ShroudDeleteSavedVar(from, ACCOUNT)
+    return true
+  end
+  for _, e in ipairs(list) do
+    local plain = e.character == true and B.CleanName(T.PlainName(e.name)) or nil
+    if plain and plain ~= e.name then
+      local lower = plain:lower()
+      local ok = move(foundSetupKey(e.name, true), setupKey(plain, true), plain)
+        and move(recoveryKey(e.name), recoveryKey(plain))
+      if not ok then
+        kept[#kept + 1] = e                    -- refused: tried again next run
+      else
+        moved = moved + 1
+        if not plainHas[lower] then
+          plainHas[lower] = true
+          kept[#kept + 1] = { name = plain, character = true, when = e.when }
+        end
+      end
+    else
+      kept[#kept + 1] = e
+    end
+  end
+  if moved > 0 then writeSetups(kept) end
+  return moved
 end
 
 -- The setup a player means by `text`: a named one first, then a character's copy. Nil when none matches.
@@ -2894,7 +2964,7 @@ end
 local function followSession()
   local s = T.session
   if T.ReadTotals() then
-    if s and (s.ended or s.player ~= ShroudGetPlayerName()) then T.StartSession(s.ended and "login" or "character") end
+    if s and (s.ended or s.player ~= T.PlayerName()) then T.StartSession(s.ended and "login" or "character") end
     if not s then T.ResumeOrStart() end
   else
     T.session = nil
@@ -2906,7 +2976,7 @@ end
 T.settingsFor = false
 
 local function characterName()
-  local name = ShroudGetPlayerName()
+  local name = T.PlayerName()
   if type(name) ~= "string" or name == "" or name == "INVALID" or name == "None" or name == "none" then return nil end
   return name
 end
@@ -2950,6 +3020,7 @@ function ShroudOnStart()
   T.RegisterCommands()
   T.RegisterKeybind()
   T.settingsFor = characterName() or false
+  step("the setup names", T.Backup.TidyTagged)          -- copies kept under a tagged name, before the check
   step("the recovery check", T.Backup.Recover)          -- a file the game couldn't read: put back first
   step("the settings restore", T.Backup.ApplyPending)   -- before anything reads its settings
   T.recoveryDirty = true               -- this character's recovery copy, at the next flush

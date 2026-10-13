@@ -485,7 +485,7 @@ end
 
 -- This character's filed runs, newest first (read once per character).
 function D.Runs()
-  local who = ShroudGetPlayerName()
+  local who = T.PlayerName()
   if runs and runsFor == who then return runs end
   runs, runsFor = {}, who
   local saved = T.ReadSaved("loot_runs")
@@ -640,7 +640,7 @@ local function today()
 end
 
 function D.ReadDay()
-  D.dayFor = ShroudGetPlayerName()     -- whose day D.day is
+  D.dayFor = T.PlayerName()     -- whose day D.day is
   local saved = T.ReadSaved("daily")
   local key = today()
   if D.IsValid(saved) then
@@ -779,7 +779,7 @@ end
 -- load its day and start counting from now.
 function D.OnLogin(adv, prod)
   -- Already this character's (loaded at its scene, before its totals came): keep what it counted since.
-  if D.day and D.dayFor == ShroudGetPlayerName() then
+  if D.day and D.dayFor == T.PlayerName() then
     if D.RollDay(today()) then D.unsaved = true end
   else
     D.ReadDay()

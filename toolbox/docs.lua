@@ -1186,7 +1186,7 @@ end
 -- Loads the HUD's settings and history for the character playing now (character-scope saved vars).
 local hudFor = nil        -- the character they were loaded for
 local function loadHud()
-  hudFor = ShroudGetPlayerName()
+  hudFor = T.PlayerName()
   local saved = T.ReadSaved("notify_hud")
   hprefs = { hideAfter = NH.HIDE_DEFAULT }
   if type(saved) == "table" then
@@ -1220,7 +1220,7 @@ end
 -- preferences do (review, 2026-10-03: the previous character's rows showed and were saved into the new one's
 -- history). Applied in place: the rows refilled, the text restyled, the strip moved to its saved place.
 function NH.FollowCharacter()
-  local who = ShroudGetPlayerName()
+  local who = T.PlayerName()
   if who == hudFor or type(who) ~= "string" or who == "" or who == "none" or who == "INVALID" then return end
   loadHud()
   ownerChanged = true
@@ -1312,7 +1312,7 @@ local function save()
 end
 
 local function prefsNow()
-  local name = ShroudGetPlayerName()
+  local name = T.PlayerName()
   if nprefs ~= nil and nprefsFor == name then return nprefs end
   if nprefs ~= nil then ownerChanged = true end   -- another character (not the first load)
   nprefsFor = name

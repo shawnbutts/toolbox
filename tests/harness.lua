@@ -369,7 +369,7 @@ local function install_api()
   end
   ShroudGetPlayerName = function()
     if not S.char.present then return "INVALID" end
-    return S.char.name
+    return S.char.name .. (S.char.tags or "")    -- the display name: "[PVP]", "[404040][AFK][-]" (same file)
   end
   -- API 28 player frame bars (H.S.noApi28 = true: an older client). Released on reload, like the buff bar's.
   if S.noApi28 then

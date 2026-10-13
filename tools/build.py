@@ -329,6 +329,10 @@ def check_entries(report: Report, manifest: dict) -> list[Path]:
 # Every saved-variable write goes through Toolbox.SetSavedVar (core.lua), the one line allowed to call the game.
 RAW_SAVE_RE = re.compile(r"\bShroudSetSavedVar\s*\(")
 RAW_SAVE_OK = "return ShroudSetSavedVar(key, value, scope) == true"
+# Every read of the player's name goes through Toolbox.PlayerName (core.lua), which drops the tags the game adds to
+# the display name ("shawn[PVP]": read raw, going AFK looked like another character logging in).
+RAW_NAME_RE = re.compile(r"\bShroudGetPlayerName\s*\(")
+RAW_NAME_OK = "function T.PlayerName() return T.PlainName(ShroudGetPlayerName()) end"
 
 
 def check_sources(report: Report, manifest: dict) -> None:
@@ -380,6 +384,10 @@ def check_sources(report: Report, manifest: dict) -> None:
                     and not (f == "core.lua" and RAW_SAVE_OK in line)):
                 report.error(f"{f}:{lineno}: a direct ShroudSetSavedVar: save with T.Save or T.SetSavedVar, which"
                              " check the value first (a value the game can't read back loses the whole file)")
+            if (RAW_NAME_RE.search(line) and not line.lstrip().startswith("--")
+                    and not (f == "core.lua" and RAW_NAME_OK in line)):
+                report.error(f"{f}:{lineno}: a direct ShroudGetPlayerName: use T.PlayerName, without the tags the"
+                             " game adds to the name ([PVP], [AFK])")
 
 
 def check_changelog(report: Report, manifest: dict) -> None:

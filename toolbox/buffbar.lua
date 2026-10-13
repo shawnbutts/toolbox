@@ -1293,7 +1293,7 @@ function BB.Tick()
     lastShown = shown
     T.Hud.Refresh()
   end
-  local who = ShroudGetPlayerName()
+  local who = T.PlayerName()
   if who ~= lastPlayer then
     lastPlayer = who
     sceneQuietUntil = math.max(sceneQuietUntil, T.Now() + BB.SETTLE)   -- logged in, or another character
@@ -1743,7 +1743,7 @@ function BB.Init()
   for name, v in pairs(durations) do
     if type(name) == "string" and type(v) == "number" and v > 0 then learned[name] = v end
   end
-  preexisting, sceneQuietUntil, lastPlayer = {}, T.Now() + BB.SETTLE, ShroudGetPlayerName()
+  preexisting, sceneQuietUntil, lastPlayer = {}, T.Now() + BB.SETTLE, T.PlayerName()
   for _, e in ipairs(readEffects()) do preexisting[e.name] = true end
   lastSeen = {}
   for name in pairs(preexisting) do lastSeen[name] = true end

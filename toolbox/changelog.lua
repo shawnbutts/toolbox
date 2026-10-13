@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Fixed" },
+  { "item", "Going AFK or flagging for PvP no longer looks like another character logging in. The game adds those tags to your name (\"[AFK]\", \"[PVP]\"), and Toolbox took the tagged name for a new character: your XP session started over and every strip was built again. Setup copies kept under a tagged name (\"shawn[PVP]\") are folded into the character's own, so each character is listed once." },
   { "version", "1.7.0 - 2026-10-13" },
   { "section", "Added" },
   { "item", "World events (Lua API 35): a chat line 15 minutes before a Call to Arms or official event starts, from the game's calendar. /toolbox events: what's on now and next." },
