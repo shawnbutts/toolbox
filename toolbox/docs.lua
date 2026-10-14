@@ -21,11 +21,13 @@ local vwin = nil         -- the version window (below)
 
 -- The Docs and version windows share one of the add-on's 8 windows with the Marks window (T.TakeSharedWindow):
 -- opening one removes the other.
+local wwin = nil         -- the warning window (D.Warn)
 local function drop(which)
-  local w = which == "docs" and win or vwin
+  local w = nil
+  if which == "docs" then w = win elseif which == "warning" then w = wwin else w = vwin end
   if not w then return end
   pcall(function() w:Destroy() end)
-  if which == "docs" then win = nil else vwin = nil end
+  if which == "docs" then win = nil elseif which == "warning" then wwin = nil else vwin = nil end
 end
 local function take(which) T.TakeSharedWindow(which, function() drop(which) end) end
 
@@ -678,6 +680,37 @@ end
 
 function D.IsVersionShown()
   return vwin ~= nil and vwin:IsShown()
+end
+
+-- A warning the player must see (owner, 2026-10-14: a window, not only a chat line): its text in chat too, in case
+-- the window can't be made now (the shared window, T.TakeSharedWindow; built from a callback). Returns whether the
+-- window showed.
+local WARN_ID = "toolbox_warning"
+function D.Warn(title, text)
+  T.Print(text)
+  drop("warning")
+  take("warning")
+  local ok = pcall(function()
+    wwin = UI.Window{
+      id = WARN_ID, title = title, width = 440, height = 240, minWidth = 300, minHeight = 160,
+      x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y,
+      escCloses = true,
+      style = { paddingTop = 6, paddingBottom = 6, paddingLeft = GUTTER, paddingRight = GUTTER },
+      children = {
+        UI.Scroll{ style = { flexGrow = 1 }, children = {
+          UI.Label{ id = "warning_text", text = text, class = "text", style = { whiteSpace = "wrap" } },
+        } },
+        UI.Row{ style = { justifyContent = "flex-end", marginTop = 6 }, children = {
+          UI.Button{ id = "warning_ok", text = "OK", onClick = function() drop("warning") end },
+        } },
+      },
+    }
+  end)
+  if not ok or not wwin then
+    wwin = nil
+    return false
+  end
+  return wwin:IsShown() or wwin:Show() == true
 end
 
 -- ---------------------------------------------------------------------------

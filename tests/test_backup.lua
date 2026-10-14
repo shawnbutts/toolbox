@@ -698,6 +698,34 @@ return function(t)
       return function() ShroudFlushSavedVars = real end
     end)
 
+  t.test("the bound kept in memory only: a warning window says so (review 43, an accepted risk)", function()
+    bigUnlisted()
+    H.S.refuseKeys = { recovery_index = true, ceiling_due = true }
+    H.chat("/tbx vitals")
+    H.advance(Toolbox.flushSeconds + 1)            -- the periodic flush (a callback: windows can be made)
+    H.S.refuseKeys = nil
+    local w = H.S.windows.toolbox_warning
+    t.ok(w and w:IsShown(), "the warning window")
+    t.ok(w:Find("warning_text"):GetText():find("log in each of your characters once", 1, true))
+    t.ok(H.logged("couldn't keep a note of how full"), "in chat too")
+    H.click("toolbox_warning", "warning_ok")
+    t.no(H.S.windows.toolbox_warning, "OK closes it")
+    t.ok(Toolbox.Flush() ~= false)
+    t.ok(H.S.disk.account.recovery_index.ceiling, "written at the next flush")
+    Toolbox.saveRefused = {}
+    H.S.fileLimitAsGame = nil
+  end)
+
+  t.test("a note refused but the index written: no warning", function()
+    bigUnlisted()
+    H.S.refuseKeys = { ceiling_due = true }
+    Toolbox.Flush()
+    H.S.refuseKeys = nil
+    t.no(H.S.windows.toolbox_warning)
+    Toolbox.saveRefused = {}
+    H.S.fileLimitAsGame = nil
+  end)
+
   local function withPrices()
     local prices = {}
     for i = 1, 50 do prices["item " .. i] = { avg = i, sold = 1, last = "2026-10-01", day = "2026-10-13" } end

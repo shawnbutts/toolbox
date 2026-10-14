@@ -2982,8 +2982,14 @@ function B.FlushFailed()
   local ceiling = math.max(1, f.total - math.min(B.CEILING_MARGIN, math.floor(f.total / 10)))
   B.pendingCeiling = { ceiling = ceiling }
   if who then B.pendingCeiling.by = who:lower() end
-  T.SetSavedVar(B.CEILING_DUE, T.ForSaving({ v = 1, ceiling = ceiling, by = B.pendingCeiling.by or "" }), SCOPE)
+  local noted = T.SetSavedVar(B.CEILING_DUE, T.ForSaving({ v = 1, ceiling = ceiling, by = B.pendingCeiling.by or "" }),
+    SCOPE) == true
   local kept = B.KeepCeiling()
+  if not noted and not kept then             -- the bound lives in memory only (review 43: accepted risk; said so)
+    T.Docs.Warn("Toolbox: settings file", "Toolbox couldn't keep a note of how full its shared account file can"
+      .. " get: the game refused to save it. Until it can, please don't quit the game for a minute, and log in"
+      .. " each of your characters once soon (that makes their old copies smaller, so the file has room again).")
+  end
   local shown = {}
   for i = 1, math.min(#undone, B.UNDONE_SHOWN) do shown[i] = "'" .. undone[i] .. "'" end
   if #undone > B.UNDONE_SHOWN then shown[#shown + 1] = (#undone - B.UNDONE_SHOWN) .. " more" end
