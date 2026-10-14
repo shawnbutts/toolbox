@@ -713,7 +713,11 @@ local locPrefs = { show = false, facing = true, water = true }
 local locEl = {}                      -- column, scene, coords, facing (empty until built)
 local locScene = ""                   -- the scene the width is fitted to
 local locLast = {}                    -- the last rounded reading: x, y, z, heading
-local locWater = { scene = nil, kinds = "", at = -math.huge, shown = false }   -- the scene's kinds; the line shown
+local locWater = { scene = nil, kinds = "", at = -math.huge, shown = false,   -- the scene's kinds; the line shown
+                   near = nil, nearAt = -math.huge, nx = nil, nz = nil }   -- the nearest water as last read, and where
+-- The nearest water is asked again only past LOC.WATER_MOVE m from where it was last asked, or LOC.WATER_NEAR_EVERY s
+-- (the owner's perf runs, 2026-10-14: location near 10 hitches a minute standing at a station, asking twice a second).
+LOC.WATER_MOVE, LOC.WATER_NEAR_EVERY = 1, 5
 
 function LOC.HasWater()
   return type(ShroudGetNearestWaterType) == "function" and type(ShroudGetSceneWaterTypes) == "function"
@@ -893,8 +897,15 @@ end
 function LOC.UpdateWater(scene)
   local text, kinds = nil, ""
   if LOC.HasWater() and locPrefs.water ~= false then
-    local ok, kind, metres = pcall(ShroudGetNearestWaterType)
-    if ok then text = LOC.WaterText(kind, metres) end
+    local x, z = ShroudPlayerX, ShroudPlayerZ
+    local moved = type(x) ~= "number" or type(z) ~= "number" or locWater.nx == nil
+      or (x - locWater.nx) ^ 2 + (z - locWater.nz) ^ 2 >= LOC.WATER_MOVE * LOC.WATER_MOVE
+    if moved or scene ~= locWater.scene or T.Now() - locWater.nearAt >= LOC.WATER_NEAR_EVERY then
+      local ok, kind, metres = pcall(ShroudGetNearestWaterType)
+      locWater.near = ok and LOC.WaterText(kind, metres) or nil
+      locWater.nearAt, locWater.nx, locWater.nz = T.Now(), x, z
+    end
+    text = locWater.near
     kinds = locWater.kinds
     -- Re-read every few seconds, not only while empty: a player town's water decoration changes the list (review 32).
     if scene ~= locWater.scene or T.Now() - locWater.at >= LOC.WATER_EVERY then
@@ -918,6 +929,7 @@ end
 function LOC.GetWater() return locPrefs.water ~= false end
 function LOC.SetWater(on)
   locPrefs.water = on == true
+  locWater.nx = nil                    -- asked again at once
   locSave()
   if locEl.column then LOC.Update() end
 end

@@ -2614,6 +2614,12 @@ function T.Tick()
     T.lastFlush = T.Now()
     T.unflushed = false
   end
+end
+
+-- The polls, in a periodic of their own (toolbox_poll; the owner's fourth perf run still put the tick near 13
+-- hitches a minute): sounds loading, prices, worn gear, notifications.
+function T.PollTick()
+  T.FollowCharacter()
   T.Sounds.Poll()
   T.Prices.Tick()                    -- estimated values: the next SotANET lookup, when due
   T.Gear.Tick()                      -- worn gear's durability, every Gear.POLL seconds
@@ -3672,6 +3678,7 @@ function ShroudOnStart()
   step("skill levels", function() T.Daily.OnSkills(true) end)
   T.RegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
   T.RegisterPeriodic("toolbox_track", T.TrackTick, T.tickSeconds, true)
+  T.RegisterPeriodic("toolbox_poll", T.PollTick, T.tickSeconds, true)
   T.RegisterPeriodic("toolbox_views", T.ViewsTick, T.tickSeconds, true)
   T.setupDirty = true                  -- this character's copy in the account file, at the next flush
   T.WhatsNew(T.Welcome())            -- first run only: a chat line and the settings window; else what's new

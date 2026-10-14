@@ -105,14 +105,24 @@ return function(t)
     local _, h0 = Toolbox.Location.ContentSize()
     t.eq(strip():Find("loc_water").visible, false, "no water near")
     H.S.water = { "salt", 12.4 }
+    H.S.pos = { 5, 0, 0 }                        -- walked up to it
     H.advance(1)
     t.eq(text("loc_water"), "Salt water, 12 m")
     t.ok(strip():Find("loc_water").visible ~= false)
     local _, h1 = Toolbox.Location.ContentSize()
     t.ok(h1 > h0, "the strip takes the line")
     H.S.water = { "fresh", 0 }
+    H.S.pos = { 17, 0, 0 }
     H.advance(1)
     t.eq(text("loc_water"), "In fresh water")
+    local asks, ask = 0, ShroudGetNearestWaterType          -- standing still: asked every few seconds, not each tick
+    ShroudGetNearestWaterType = function(...)
+      asks = asks + 1
+      return ask(...)
+    end
+    H.advance(10)
+    ShroudGetNearestWaterType = ask
+    t.ok(asks <= 10 / Toolbox.Location.WATER_NEAR_EVERY + 1, asks .. " asks in 10 s standing still")
     t.eq(Toolbox.Location.WaterText("lava", 3), "Lava, 3 m")
     t.no(strip():Find("loc_strip").tooltip:find("Fishable water"), "the scene's list isn't read yet")
     H.S.sceneWater = { "salt", "fresh" }

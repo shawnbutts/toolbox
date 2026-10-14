@@ -98,8 +98,8 @@ This file holds current facts and rules; the history behind them is in git (`git
   the one registered before it (a one-shot of its name, then the repeating one), so the half-second ones don't all
   land in one frame (the owner's first perf run, 2026-10-14: Toolbox near 24 of 28 hitches, each naming them all),
   and each stays `T.PHASE_EDGE` off the tick's whole seconds (the second run: three in each slow frame). The tick's
-  once-a-second work is in three periodics: `T.Tick` (XP, the day, flush, sounds, prices, gear, notifications),
-  `T.TrackTick` (`toolbox_track`: window and strip positions) and `T.ViewsTick` (`toolbox_views`: map markers, the
+  once-a-second work is in four periodics: `T.Tick` (XP, the day, flush), `T.PollTick` (`toolbox_poll`: sounds,
+  prices, gear, notifications), `T.TrackTick` (`toolbox_track`: window and strip positions) and `T.ViewsTick` (`toolbox_views`: map markers, the
   settings page, the windows' text, the notification HUD), each calling `T.FollowCharacter` first.
 - Constructors (`Shroud.UI.*`, `Shroud.Command`) raise at file top level: call them from `ShroudOnStart`
   or later. Reading `Shroud.UI` at top level is fine.
@@ -229,7 +229,8 @@ into one if a new file is ever needed).
   `Toolbox.Location` (LOC; owner, 2026-10-08): the location strip (scene, position rounded, compass heading from
   `ShroudGetPlayerCompassHeading`; hover = `ShroudGetLocationText`), its own `LOC.TICK` periodic setting text only
   on change, its width from the scene name's length (refit on a scene change); fishable water (API 32, `water`: the nearest within
-  30 m on a line hidden when none, `LOC.UpdateWater`; the scene's kinds in the hover, re-read every `LOC.WATER_EVERY` s (30; 5 before the 1.8.0 perf runs)
+  30 m on a line hidden when none, `LOC.UpdateWater`; the scene's kinds in the hover, re-read every `LOC.WATER_EVERY` s (30; 5 before the 1.8.0 perf runs); the nearest asked again only past `LOC.WATER_MOVE` m or
+  `LOC.WATER_NEAR_EVERY` s
   (a town's water decoration changes them, review 32); harness `H.S.water`, `H.S.sceneWater`, `H.S.noWater`); controls (and its Position rows: `POSITIONED`'s
   page field) on the "Map & location" page (`C.MapSection`, key "map", with the run markers' toggle; owner, 2026-10-13:
   the home for map features to come).
