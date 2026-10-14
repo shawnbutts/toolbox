@@ -1564,7 +1564,8 @@ function OV.Beacon(place)
   end
   local ok, set = pcall(ShroudSetBeacon, place.x, place.y, place.z, place.name)
   if not (ok and set) then return false, "the game didn't set the beacon right now; try again in a moment" end
-  return true, "Beacon set at " .. place.name .. " " .. T.DailyDetail.LocText(place) .. ". /beacon clear removes it."
+  return true, "Your compass points at " .. place.name .. " " .. T.DailyDetail.LocText(place)
+    .. " (the game's beacon: /beacon clear removes it)."
 end
 
 -- An overlay's places by name.
@@ -1792,11 +1793,12 @@ T.AddCommand("overlay", "map overlays, sets of places you mark in a scene, one s
 
 -- /toolbox mark
 T.AddCommand("mark", "mark where you stand in this scene's shown map overlay: mark [name]; mark remove [name] (no"
-  .. " name: the nearest within " .. OV.NEAR .. " m); mark beacon [name]; mark look [name] (the overlay's shape and"
-  .. " color now)",
+  .. " name: the nearest within " .. OV.NEAR .. " m); mark compass [name] (the game's beacon); mark look [name] (the"
+  .. " overlay's shape and color now)",
   function(rest)
     local word, args = T.ParseArgs(rest)
-    if word == "remove" or word == "beacon" or word == "look" then
+    if word == "beacon" then word = "compass" end   -- its name before 1.8.0
+    if word == "remove" or word == "compass" or word == "look" then
       local p, ov, why = OV.PlaceFor(args)
       if not p then
         T.Print("Couldn't find it: " .. why .. ".")
@@ -1822,13 +1824,13 @@ T.AddCommand("mark", "mark where you stand in this scene's shown map overlay: ma
       return
     end
     T.Print("Marked " .. p.name .. " in " .. ov.name .. ": " .. p.scene .. " " .. T.DailyDetail.LocText(p) .. "."
-      .. (OV.HasMarkers() and "" or " (Your game client can't show it on the map yet; mark beacon finds it.)")
+      .. (OV.HasMarkers() and "" or " (Your game client can't show it on the map yet; mark compass points you to it.)")
       .. OV.RoomNote())
   end)
 
 -- The Marks window (owner, 2026-10-13: "i don't like having the whole settings page up while making marks"; then
 -- every overlay control moved here): the overlay shown; New, Rename, Delete (a second click within OV.CONFIRM s);
--- the next marks' look; Mark here; the shown overlay's places (Beacon, Set look, Remove); how full the map storage
+-- the next marks' look; Mark here; the shown overlay's places (Compass, Set look, Remove); how full the map storage
 -- is. Only this scene's overlays (an overlay belongs to its scene). It shares the 8th window with Docs and the
 -- version window (T.TakeSharedWindow), built when opened; opened from the location strip's pin, /toolbox overlay
 -- window, or the settings page's button.
@@ -1991,11 +1993,14 @@ local function mwBuild()
     places = UI.Dropdown{ id = "mw_places", choices = { OV.MW_NO_PLACES }, value = OV.MW_NO_PLACES,
       style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The shown overlay's places in this scene",
       onChange = function() mwMsg("") end },
-    beacon = UI.Button{ id = "mw_beacon", text = "Beacon", style = { marginLeft = 4 },
-      tooltip = "Put the game's beacon on this place, on your compass and map (it replaces any beacon you set)",
+    beacon = UI.Button{ id = "mw_beacon", text = "Compass", style = { marginLeft = 4 },
+      tooltip = "Point the game's compass at this place (it's the game's beacon: it replaces your own /beacon)",
       onClick = function()
         local p = mwPicked()
-        if p then mwMsg(select(2, OV.Beacon(p))) end
+        if not p then return end
+        local _, said = OV.Beacon(p)
+        mwMsg(said)
+        T.Print(said)                    -- in chat too: the window's last line can be cut off
       end },
     look = UI.Button{ id = "mw_look", text = "Set look", style = { marginLeft = 2 },
       tooltip = "Give this place the shape and color above",

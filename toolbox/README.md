@@ -159,7 +159,7 @@ for the whole `/loc` line and the scene's kinds of water. Off by default: switch
 
 Sets of places you mark in a scene, shown on its map one set at a time: one for loot, one for gathering, one for
 vendors. Each scene has its own overlays and remembers which one it shows. Each place is a mark on the region map and
-minimap (a newer game client), in a shape and color of its own, and Beacon puts the game's beacon on one. Up to 10
+minimap (a newer game client), in a shape and color of its own, and Compass points the game's compass at one. Up to 10
 overlays a scene, with room for thousands of places in all. Mark as you go in the
 small **Map overlays** window, where you also make, rename and delete them: the pin on the location strip opens it
 (or **Map & location** in the settings, or `/toolbox overlay window`); `/toolbox mark <name>` marks where you stand.
@@ -182,7 +182,7 @@ small **Map overlays** window, where you also make, rename and delete them: the 
 - `/toolbox notify`: notification settings
 - `/toolbox location`: the location strip (`on|off`, `facing on|off`, `water on|off`)
 - `/toolbox overlay`: this scene's map overlays (`<name>`, `off`, `new`, `rename`, `delete`, `places`, `icon`, `color`, `scenes`, `forget`)
-- `/toolbox mark`: mark where you stand in the shown overlay (`<name>`, `remove`, `beacon`, `look`)
+- `/toolbox mark`: mark where you stand in the shown overlay (`<name>`, `remove`, `compass`, `look`)
 - `/toolbox menu`: the menu (`on|off`, `vertical|horizontal`, `size <n>`, `shade <n>`, `combat hide|show`)
 - `/toolbox settings`: settings files and setups (`save`, `reset`, `cancel`, `setups`, `import`, `export`)
 

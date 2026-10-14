@@ -910,8 +910,8 @@ function C.OverlayRows()
     UI.Label{ text = "Sets of places you mark in a scene, one set on its map at a time: one for loot, one for"
       .. " gathering... Each scene has its own: up to " .. OV.MAX .. ", " .. OV.SCENE_MAX .. " places each. Make"
       .. " them, mark and pick the one shown in the Map overlays window (also the pin on the location strip)."
-      .. (OV.HasMarkers() and "" or " Your game client can't show them on the map yet (Lua API 30): Beacon finds"
-        .. " a place."),
+      .. (OV.HasMarkers() and "" or " Your game client can't show them on the map yet (Lua API 30): Compass points"
+        .. " you to a place."),
       class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
     UI.Row{ style = { marginTop = 4 }, children = {
       UI.Button{ id = "ov_window", text = "Open the Map overlays window",
