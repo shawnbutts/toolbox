@@ -910,6 +910,12 @@ Rules learned the hard way; keep to them.
   the Map & location page and the menu's Location button, effect sounds, the mail doorbell and a run's Beacon.
 - **Last death** (confirmed 2026-10-14, the owner in game): the magenta diamond on the map and its clearing (back at
   the spot after going away, or old in another scene).
+- **`/lua reload` keeps what's only in memory** (confirmed 2026-10-14, the owner): items looted just before a reload
+  were still in the Loot Tracker after it, with the day stored only at the flush and in `ShroudOnDisableScript`, so a
+  reload runs the shutdown save.
+- **1.8.0 work** (confirmed 2026-10-14, the owner in game): map overlays and the Map overlays window, the auto map
+  ("working great") and its ignore list, your last death (look and clearing), and the performance pass measured by
+  `/toolbox perf`: crafting at a station, 25-32 hitches a minute before, 2 after (quiet: 0 with Toolbox's timers paused).
 - **Louder sounds** (confirmed 2026-10-07): the +7.5 dB .ogg files, the halved saved volume and the per-sound
   volume sliders work in game.
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
@@ -922,9 +928,8 @@ Rules learned the hard way; keep to them.
 
 Things the docs don't settle and the game hasn't shown yet. Check before depending on them more:
 
-- Whether `/lua reload` calls `ShroudOnDisableScript` or re-reads saved vars (we save each tick and re-read
-  totals at start, so either way nothing is lost); when `ShroudOnStart` runs relative to login (we wait for
-  `ShroudGetLevelProgress()`); which scope `ShroudSetSavedVar` writes to inside `ShroudOnLogOut`.
+- When `ShroudOnStart` runs relative to login (we wait for `ShroudGetLevelProgress()`); which scope
+  `ShroudSetSavedVar` writes to inside `ShroudOnLogOut`.
 - `ShroudTime` continuing across `/lua reload` and relogs (assumed), restarting on relaunch.
 - `Window{ x, y }` versus the host's own position memory (we pass x/y, never call `SetPosition`); whether a
   window's width/height apply once the host remembers a size (assumed not); `GetPosition` returning numbers.

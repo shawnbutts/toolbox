@@ -7,6 +7,8 @@ ones included).
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-14
+
 ### Added
 - **Map overlays:** sets of places you mark in a scene, shown on its map one set at a time: one for loot, one for
   gathering, one for vendors. Each scene has its own overlays (a place is only good on its own map) and remembers
