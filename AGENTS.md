@@ -245,7 +245,7 @@ into one if a new file is ever needed).
   auto`), each node finished is marked where you stand in its kind's overlay (`OV.NodeKind`: the node's name as sent)
   and in "Gathering" (`OV.AUTO_ALL`, every kind in its kind's look), unless one of its kind is within `OV.AUTO_NEAR` m
   there; `OV.AUTO_MAX` automatic overlays a scene (one kept for Gathering), counted apart from the player's `OV.MAX`
-  (`OV.OwnCount`); a kind named like one of the player's gets " (auto)". Ignore list (owner, 2026-10-14: dozens of kinds a scene):
+  (`OV.OwnCount`); a kind named like one of the player's gets " (auto)", then " (auto 2)"... (review 44). Ignore list (owner, 2026-10-14: dozens of kinds a scene):
   `ignore`, name parts matched as whole words (`OV.IgnoredBy`), for every scene, at most `OV.IGNORE_MAX`; `OV.Ignore`
   also drops this scene's matching kind overlays and Gathering places (`OV.PlaceKind`: "Iron Ore 3" -> "Iron Ore");
   window button `mw_ignore` (two clicks: the shown kind, or Gathering's picked place's), `/toolbox overlay auto ignore

@@ -1706,9 +1706,13 @@ local function autoOverlay(sc, here, key)
   end
   if n >= OV.AUTO_MAX or (key ~= OV.AUTO_ALL and kinds >= OV.AUTO_MAX - 1) then return nil end
   local base = key == OV.AUTO_ALL and OV.GATHERING or key
-  local name = base
-  for _, ov in ipairs(sc.list) do                -- one of the player's own already has the name
-    if ov.name:lower() == name:lower() then name = T.Trim(base:sub(1, OV.NAME_MAX - 7)) .. " (auto)" end
+  local taken = {}
+  for _, ov in ipairs(sc.list) do taken[ov.name:lower()] = true end
+  local name, tries = base, 1                    -- one of the player's own has it: "(auto)", "(auto 2)"... (review 44)
+  while taken[name:lower()] do
+    local suffix = tries == 1 and " (auto)" or (" (auto " .. tries .. ")")
+    name = T.Trim(base:sub(1, OV.NAME_MAX - #suffix)) .. suffix
+    tries = tries + 1
   end
   local icon, color = OV.ICONS[1], OV.COLORS[1][1]
   if key ~= OV.AUTO_ALL then                     -- each kind the next look in turn (Gold is the run flags')

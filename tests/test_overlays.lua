@@ -191,6 +191,35 @@ return function(t)
     t.no(w:Find("mw_ignore"):IsEnabled(), "not for your own")
   end)
 
+  t.test("auto map: a second clash gets (auto 2), every name unique, and it survives a restart (review 44)", function()
+    H.boot()
+    H.advance(1)
+    H.chat("/tbx overlay new Iron Ore")
+    H.chat("/tbx overlay new Iron Ore (auto)")
+    H.chat("/tbx overlay auto on")
+    gather("Iron Ore", { 10, 0, 10 })
+    local ov = byName("Iron Ore (auto 2)")
+    t.ok(ov, "a name of its own")
+    t.eq(ov.auto, "Iron Ore")
+    local names = {}
+    for _, o in ipairs(OV().List()) do
+      t.no(names[o.name:lower()], "unique: " .. o.name)
+      names[o.name:lower()] = true
+    end
+    H.advance(31)
+    H.restart()
+    H.advance(2)
+    ov = byName("Iron Ore (auto 2)")
+    t.ok(ov, "kept")
+    t.eq(#OV().Places(ov), 1, "with its place")
+    local long = string.rep("y", OV().KIND_MAX)        -- a long kind is cut to fit its suffix
+    H.chat("/tbx overlay new " .. long)
+    H.chat("/tbx overlay new " .. string.rep("y", OV().NAME_MAX - 7) .. " (auto)")
+    gather(long, { 90, 0, 10 })
+    local made = byName(string.rep("y", OV().NAME_MAX - 9) .. " (auto 2)")
+    t.ok(made, "cut to " .. OV().NAME_MAX)
+  end)
+
   t.test("a mark the window can't make says so in chat too (its last line can be cut off)", function()
     H.boot()
     H.advance(1)
