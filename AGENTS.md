@@ -96,7 +96,8 @@ This file holds current facts and rules; the history behind them is in git (`git
   client refused a 0.01 s periodic (owner, 2026-10-14; the docs give 0.01 as the minimum): `T.PERF_PERIODS` tries
   longer ones in turn (harness `H.S.periodMin`). `perf quiet` removes every repeating Toolbox periodic
   listed (`periodicRuns`, kept by `T.RegisterPeriodic`) for the measurement and registers them again at the report:
-  the A/B for "is it Toolbox?". Phases: a repeating periodic under a second starts `T.PHASE_STEP` after
+  the A/B for "is it Toolbox?" (the owner's run, 2026-10-14: 0 hitches paused against 25-32 a minute running, so
+  they ARE Toolbox's timers); `perf only <name parts>` keeps those running, to find which. Phases: a repeating periodic under a second starts `T.PHASE_STEP` after
   the one registered before it (a one-shot of its name, then the repeating one), so the half-second ones don't all
   land in one frame (the owner's first perf run, 2026-10-14: Toolbox near 24 of 28 hitches, each naming them all),
   and each stays `T.PHASE_EDGE` off the tick's whole seconds (the second run: three in each slow frame). The tick's

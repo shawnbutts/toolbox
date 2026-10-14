@@ -2343,7 +2343,10 @@ local function perfReport()
     T.FormatNumber(p.frames), math.floor(p.frames / secs + 0.5), math.floor(1 / p.period + 0.5), p.slow,
     p.slow == 1 and "frame took" or "frames took",
     math.floor(T.PERF_SLOW * 1000), p.bad, math.floor(T.PERF_BAD * 1000), math.floor(p.worst * 1000 + 0.5)))
-  if p.paused then
+  if p.paused and #(p.kept or {}) > 0 then
+    T.Print("Only " .. table.concat(p.kept, ", ") .. " ran (Toolbox's other " .. #p.paused .. " timers were paused;"
+      .. " they run again now): compare the count with /" .. T.commands[1] .. " perf quiet and a normal perf.")
+  elseif p.paused then
     T.Print("Toolbox's " .. #p.paused .. " timers were paused while it measured (they run again now): hitches"
       .. " counted then weren't Toolbox's timers. Compare the count with a normal /" .. T.commands[1] .. " perf.")
   end
@@ -2394,6 +2397,7 @@ end
 -- Starts measuring for `secs` seconds (T.PERF_MIN..T.PERF_MAX); false when the game refused the periodic. `quiet`:
 -- Toolbox's repeating timers are paused meanwhile (the owner's perf runs, 2026-10-14: the hitch count stayed about
 -- 25 a minute however Toolbox's work was spread, so the A/B: is it there with Toolbox idle?).
+-- `quiet` = true pauses them all, or a list of name parts ({ "tick" }) pauses all but those (/toolbox perf only).
 function T.PerfStart(secs, quiet)
   perf = { from = ShroudTime, secs = secs, last = ShroudTime, frames = 0, ours = 0, slow = 0, bad = 0, slowOurs = 0,
            worst = 0, whats = {}, named = {} }
@@ -2402,10 +2406,19 @@ function T.PerfStart(secs, quiet)
       perf.period = period
       if quiet then
         local paused = {}
+        local kept = {}
         for _, name in ipairs(T.PeriodicNames()) do
-          if name ~= T.PERF_ID and periodicRuns[name] and ShroudRemovePeriodic(name) then paused[#paused + 1] = name end
+          local keep = false
+          for _, part in ipairs(type(quiet) == "table" and quiet or {}) do
+            if name:find(part, 1, true) then keep = true end
+          end
+          if keep then
+            kept[#kept + 1] = name
+          elseif name ~= T.PERF_ID and periodicRuns[name] and ShroudRemovePeriodic(name) then
+            paused[#paused + 1] = name
+          end
         end
-        perf.paused = paused
+        perf.paused, perf.kept = paused, kept
       end
       return true
     end
@@ -2421,6 +2434,19 @@ add("perf", "measure hitches for a minute (perf <seconds>; perf stop): slow fram
   local word = rest:lower()
   local quiet = (" " .. word .. " "):find(" quiet ", 1, true) ~= nil      -- "quiet", "quiet 30", "30 quiet"
   if quiet then word = T.Trim((word:gsub("quiet", ""))) end
+  local first, more = T.ParseArgs(word)                                     -- "only tick location [30]"
+  if first == "only" then
+    local parts, secsWord = {}, ""
+    for w in more:gmatch("%S+") do
+      if tonumber(w) then secsWord = w else parts[#parts + 1] = w end
+    end
+    if #parts == 0 then
+      T.Print("Which timers? /" .. T.commands[1] .. " perf only tick (or location, target, buffbar, vitals...): the"
+        .. " others are paused.")
+      return
+    end
+    quiet, word = parts, secsWord
+  end
   if word == "stop" then
     if not perf then
       T.Print("Not measuring.")
@@ -2453,9 +2479,16 @@ add("perf", "measure hitches for a minute (perf <seconds>; perf stop): slow fram
       .. "). Please report it with /" .. T.commands[1] .. " version.")
     return
   end
-  T.Print("Measuring hitches for " .. secs .. " s" .. (quiet and (" with Toolbox's timers paused (its strips and"
-    .. " windows stand still until then)") or "") .. ": play as usual (or stand where it hitches). /" .. T.commands[1]
-    .. " perf stop ends it early.")
+  local kept = perf.kept or {}
+  local onlyText = type(quiet) == "table" and #kept > 0 and (" with only " .. table.concat(kept, ", ") .. " running"
+    .. " (Toolbox's other strips and windows stand still until then)") or nil
+  if type(quiet) == "table" and not onlyText then
+    T.Print("No timer matches " .. table.concat(quiet, ", ") .. ": all of Toolbox's are paused, as perf quiet.")
+  end
+  local how = onlyText or (quiet and " with Toolbox's timers paused (its strips and windows stand still until then)")
+    or ""
+  T.Print("Measuring hitches for " .. secs .. " s" .. how .. ": play as usual (or stand where it hitches). /"
+    .. T.commands[1] .. " perf stop ends it early.")
 end)
 
 add("api", "list which newer game functions this client has (to check it against the docs)", function()
