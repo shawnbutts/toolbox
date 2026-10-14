@@ -2257,18 +2257,23 @@ end
 -- hitches, each naming every half-second periodic. Its first run comes after its phase, by a one-shot of the same
 -- name that then registers the repeating one (so removing the name stops either).
 T.PHASE_STEP = 0.06
+T.PHASE_EDGE = 0.05
 local phases, phaseNext = {}, 0
 function T.RegisterPeriodic(name, fn, period, repeating)
   local function run()
     T.Ran(name)
     return fn()
   end
-  if not repeating or period >= 1 then return ShroudRegisterPeriodic(name, run, period, repeating) end
+  if not repeating or period > 1 or period < 0.2 or name == PERIODIC then         -- (a short one: every few frames)
+    return ShroudRegisterPeriodic(name, run, period, repeating)
+  end
   if not phases[name] then
     phaseNext = phaseNext + 1
     phases[name] = phaseNext
   end
-  local phase = (phases[name] * T.PHASE_STEP) % period
+  -- kept T.PHASE_EDGE off the whole seconds (the tick's beat): with the half-second ones at 0.48 and 0.24, the
+  -- second perf run put three periodics in each slow frame
+  local phase = T.PHASE_EDGE + (phases[name] * T.PHASE_STEP) % (period - 2 * T.PHASE_EDGE)
   if phase < 0.01 then return ShroudRegisterPeriodic(name, run, period, true) end
   return ShroudRegisterPeriodic(name, function()
     ShroudRegisterPeriodic(name, run, period, true)
@@ -2599,14 +2604,6 @@ function T.Tick()
     T.Sample(adv, prod)
   end
   T.Daily.Tick(adv ~= nil)
-  T.Window.Track()
-  T.Compact.Track()
-  T.Daily.Track()
-  T.DailyDetail.Track()
-  T.DailyDetail.SyncMarkers()         -- Loot Tracker runs on the map (API 30), on a change only
-  T.Overlays.DeathTick()              -- your last death clears itself (back there, or old and elsewhere)
-  T.Overlays.Sync()                   -- the shown map overlay's places (API 30), on a change only
-  T.Overlays.Tick()                   -- the Map overlays window follows a scene change
   -- A changed session is stored only as it goes to disk, at most every flushSeconds (and at shutdown / logout):
   -- each store copies and checks up to an hour of samples, about 160 KB of garbage an hour into a session (the
   -- 1.8.0 performance pass; it was every tick with XP, the bulk of Toolbox's garbage in a long fight). A reload
@@ -2619,10 +2616,7 @@ function T.Tick()
   end
   T.Sounds.Poll()
   T.Prices.Tick()                    -- estimated values: the next SotANET lookup, when due
-  T.Hud.Tick()                       -- remember where the HUD strips are
   T.Gear.Tick()                      -- worn gear's durability, every Gear.POLL seconds
-  T.Config.SyncLive()
-  T.RefreshViews()
   -- Notifications: the game's change callbacks catch changes; this is the fallback for data that
   -- loads after login without one: every second for the first T.NOTIFY_EARLY seconds after start,
   -- then every T.NOTIFY_POLL seconds.
@@ -2631,7 +2625,30 @@ function T.Tick()
     T.lastNotifyPoll = T.Now()
     T.Notify.Check()
   end
-  T.Notify.Hud.Tick()                -- the notification HUD's auto-hide: every tick
+end
+
+-- The rest of the once-a-second work, in two periodics of their own (each at its own phase, T.RegisterPeriodic): the
+-- owner's /toolbox perf (2026-10-14) found 10 of the tick's 60 runs a minute in a hitch when it did all of it.
+-- Where the windows and strips are (positions read from the UI, which may lay it out).
+function T.TrackTick()
+  T.FollowCharacter()                -- first, as in T.Tick: never save one character's places into another's
+  T.Window.Track()
+  T.Compact.Track()
+  T.Daily.Track()
+  T.DailyDetail.Track()
+  T.Hud.Tick()                       -- remember where the HUD strips are
+end
+
+-- What the windows, the settings page and the map show.
+function T.ViewsTick()
+  T.FollowCharacter()
+  T.DailyDetail.SyncMarkers()         -- Loot Tracker runs on the map (API 30), on a change only
+  T.Overlays.DeathTick()              -- your last death clears itself (back there, or old and elsewhere)
+  T.Overlays.Sync()                   -- the shown map overlay's places (API 30), on a change only
+  T.Overlays.Tick()                   -- the Map overlays window follows a scene change
+  T.Config.SyncLive()
+  T.RefreshViews()
+  T.Notify.Hud.Tick()                -- the notification HUD's auto-hide
 end
 
 -- ---------------------------------------------------------------------------
@@ -3654,6 +3671,8 @@ function ShroudOnStart()
   startModules()
   step("skill levels", function() T.Daily.OnSkills(true) end)
   T.RegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
+  T.RegisterPeriodic("toolbox_track", T.TrackTick, T.tickSeconds, true)
+  T.RegisterPeriodic("toolbox_views", T.ViewsTick, T.tickSeconds, true)
   T.setupDirty = true                  -- this character's copy in the account file, at the next flush
   T.WhatsNew(T.Welcome())            -- first run only: a chat line and the settings window; else what's new
   step("notifications", T.Notify.Check)   -- anything new: the guild message, mail, ...

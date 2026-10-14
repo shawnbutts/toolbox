@@ -134,7 +134,7 @@ return function(t)
     t.ok(H.logged("Usage: /toolbox perf"))
   end)
 
-  t.test("the half-second periodics each run in their own frame, not all in one", function()
+  t.test("the half-second periodics each run in their own frame, off the tick's; the tick's work in three", function()
     H.boot()
     H.advance(2, 0.01)
     local beats, seen = {}, 0
@@ -142,11 +142,17 @@ return function(t)
       if p.repeating and p.period == 0.5 then
         local beat = math.floor((p.due % 0.5) * 100 + 0.5) % 50
         t.no(beats[beat], name .. " shares a frame with " .. tostring(beats[beat]))
+        t.ok(beat >= 5 and beat <= 45, name .. " is off the tick's beat: " .. beat)
         beats[beat] = name
         seen = seen + 1
       end
     end
     t.ok(seen >= 5, seen .. " half-second periodics")
+    local tick = H.S.periodics.toolbox_tick.due % 1
+    for _, name in ipairs({ "toolbox_track", "toolbox_views" }) do       -- the tick's work, in three frames
+      local off = math.abs(H.S.periodics[name].due % 1 - tick)
+      t.ok(off >= 0.04 and off <= 0.96, name .. " runs apart from the tick")
+    end
   end)
 
   t.test("perf: a client refusing the 0.01 s timer gets a longer one; refusing every one is said", function()
