@@ -96,8 +96,8 @@ crafts per recipe, exceptional and failed, and materials used) or **Gathered** (
 Its **Reset** button counts from now, for one hunt or run, with gold, kills and loot value per hour of play
 ("Since 14:32 (47m)"); the Today window keeps the whole day, and **Show all of today** brings it back. Finished
 runs are kept: the **Runs** view lists your last 10 with where, how long and gold and loot value per hour, to
-compare farming spots. A run's **Beacon** button marks where you played most on your compass and map, and on a newer game client each
-run shows as a flag on your map.
+compare farming spots. A run's **Compass** button points your compass at where you played most, and on a newer game client
+each run shows as a flag on your map.
 
 **Estimated values (optional, uses the internet):** turn on **Estimated values (SotANET)** in the
 settings and the Loot Tracker adds each item's value (its count times its 90-day average sale price at

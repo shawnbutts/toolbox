@@ -79,7 +79,7 @@ D.SECTIONS = {
       .. "ends (Reset again, Show all of today, or midnight): Show, Runs lists your last 10 with where, how "
       .. "long, and gold and loot value per hour, to compare farming spots, under a bar chart of them (the best "
       .. "bar green); hover a run or a bar for its numbers. A run also keeps where you played most in it: "
-      .. "its Beacon button marks that spot on your compass and map with the game's beacon (the one /beacon "
+      .. "its Compass button points your compass at that spot (it's the game's beacon, the one /beacon "
       .. "sets, so it replaces yours) when you're in that run's scene. On a newer game client each run also "
       .. "shows as a gold flag on your map and minimap in its scene (hover it for what the run brought in); "
       .. "switch that off with Show runs on the map (Settings, Map & location).",

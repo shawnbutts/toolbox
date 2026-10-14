@@ -165,8 +165,8 @@ into one if a new file is ever needed).
   `DD.RunValue` (prices at that moment). Where (owner, 2026-10-08): `since.spots` = play seconds per
   `D.SPOT_CELL` square (keyed by `ShroudGetCurrentSceneNameRaw` and the square, with the time-weighted position
   sum; at most `D.SPOTS_MAX`, a new square replacing the least-played and starting from its time), filed as the
-  run's `spot` (`D.MainSpot`: the middle of the most-played square in its scene); a run row's Beacon button
-  (`DD.MarkRun`, a click only: it replaces the player's beacon) calls `ShroudSetBeacon` there when you're in that
+  run's `spot` (`D.MainSpot`: the middle of the most-played square in its scene); a run row's Compass button
+  (Beacon before 1.8.0; `DD.MarkRun`, a click only: it replaces the player's beacon) calls `ShroudSetBeacon` there when you're in that
   scene (the beacon marks the scene you're in); `DD.LocText` writes it with `ShroudFormatLocation` (API 29). Run markers (API 30, `DD.SyncMarkers` from `T.Tick`, acting only when the scene,
   character, `D.runsVersion` or the `markers` setting change; a refusal retried after `DD.MARKER_RETRY` s): a flag per
   run whose spot is in this scene, id from its date and time (`DD.MarkerId`: filing a run moves none), note
@@ -235,7 +235,7 @@ into one if a new file is ever needed).
   not the whole settings page; id `toolbox_marks`, the 8th window's third user, `T.TakeSharedWindow`), opened by the
   location strip's pin (`loc_pin`, launcher.png's map-pin frame; setting `pin`), `/toolbox overlay window` or the
   Map & location page's button (all the page keeps): shown overlay, New / Rename / Delete (`OV.CONFIRM`), next look,
-  Mark here, the shown overlay's places (Beacon, Set look, Remove), "Map storage: N% used" (`OV.StorageText`). `OV.Sync`
+  Mark here, the shown overlay's places (Compass, Set look, Remove), "Map storage: N% used" (`OV.StorageText`). `OV.Sync`
   (T.Tick, after each change) mirrors `DD.SyncMarkers`: ids "ov<overlay>-<place>" (a switch moves none), ours unwanted
   ("ov") come down, one already up as wanted isn't sent again (its note, the overlay's name, compared too, review 35; a
   "rate" refusal after a big switch retries after `OV.RETRY` s, sending only what's missing). The run flags stay their

@@ -409,7 +409,7 @@ return function(t)
     t.eq(#Toolbox.Daily.Runs(), 0, "Alt's own history")
   end)
 
-  t.test("runs: where a run was played most is kept; Beacon marks it, only in that scene", function()
+  t.test("runs: where a run was played most is kept; Compass points to it, only in that scene", function()
     H.boot()
     H.chat("/tbx loot")
     H.chat("/tbx loot reset")
@@ -436,7 +436,7 @@ return function(t)
     t.ok(row.children[1].tooltip:find("Played most around %(201%d[%.%d]*, 30, 301%d[%.%d]*%) in Northern Lowlands"),
       row.children[1].tooltip)
     local mark = row.children[4]
-    t.eq(mark.text, "Beacon")
+    t.eq(mark.text, "Compass")
     t.ok(mark.visible ~= false, "shown for a run with a spot")
     H.call(function() mark.onClick(mark) end)
     t.eq(H.S.beacon, nil, "not from another scene")
@@ -445,7 +445,8 @@ return function(t)
     H.call(function() mark.onClick(mark) end)
     t.ok(H.S.beacon and math.abs(H.S.beacon[1] - spot.x) < 1e-6 and H.S.beacon[3] == spot.z, "set at the spot")
     t.ok(H.S.beacon[4]:find("^Loot run %d%d:%d%d$"), H.S.beacon[4])
-    t.ok(H.lastLog():find("Beacon set where your %d%d:%d%d run was played most: Northern Lowlands %("), H.lastLog())
+    t.ok(H.lastLog():find("Your compass points where your %d%d:%d%d run was played most: Northern Lowlands %("),
+      H.lastLog())
     H.S.noMap = true
     H.call(function() mark.onClick(mark) end)
     t.ok(H.lastLog():find("didn't set the beacon"), H.lastLog())
@@ -474,7 +475,7 @@ return function(t)
     t.eq(math.floor(m[1].x) .. "," .. math.floor(m[1].z), "2000,3000")
     t.ok(m[1].note:find("^Started %d%d:%d%d on 2026%-09%-27, %dm\nGold 0 %(0/h%), kills 0\n0 items$"), m[1].note)
     local tip = Toolbox.DailyDetail.RunTooltip(Toolbox.Daily.Runs()[1])
-    t.ok(tip:find("A flag marks it on your map there; Beacon puts it on your compass."), tip)
+    t.ok(tip:find("A flag marks it on your map there; Compass points you to it."), tip)
     -- another scene: none of its own; back again, the flag is set again (the game's are per scene)
     H.S.scene = "Highvale"
     H.S.pos = { 5, 1, 5 }
@@ -497,7 +498,7 @@ return function(t)
     t.eq(#markersHere(), 1)
   end)
 
-  t.test("runs on the map: a refusal is tried again later; an older client keeps the Beacon only", function()
+  t.test("runs on the map: a refusal is tried again later; an older client keeps the Compass only", function()
     H.boot()
     H.chat("/tbx loot reset")
     H.S.pos = { 10, 0, 10 }
@@ -516,7 +517,7 @@ return function(t)
     H.reload()
     H.advance(1)
     local tip = Toolbox.DailyDetail.RunTooltip(Toolbox.Daily.Runs()[1])
-    t.ok(tip:find("%. Beacon marks it%.$"), tip)
+    t.ok(tip:find("%. Compass points you to it%.$"), tip)
     H.chat("/tbx config")
     t.eq(H.config():Find("dd_markers").enabled, false, "greyed out: needs a newer client")
   end)
@@ -539,7 +540,7 @@ return function(t)
     t.eq(spot.z, 400)
   end)
 
-  t.test("runs: older runs without a spot, and a damaged one, get no Beacon", function()
+  t.test("runs: older runs without a spot, and a damaged one, get no Compass", function()
     H.boot()
     H.chat("/tbx loot reset")
     H.advance(120)
@@ -580,9 +581,9 @@ return function(t)
     for i = 1, 3 do
       local tip = rows[i].children[1].tooltip
       t.ok(tip:find("Played most around %(1, 2, 3%)%. A flag marks it"), tip)
-      t.ok(rows[i].children[4].visible ~= false, "Beacon shown")
+      t.ok(rows[i].children[4].visible ~= false, "Compass shown")
       H.call(function() rows[i].children[4].onClick(rows[i].children[4]) end)
-      t.ok(H.lastLog():find("Beacon set where your %d%d:%d%d run was played most: another scene %(1, 2, 3%)"),
+      t.ok(H.lastLog():find("Your compass points where your %d%d:%d%d run was played most: another scene %(1, 2, 3%)"),
         H.lastLog())
     end
   end)

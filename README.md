@@ -244,10 +244,10 @@ the day's gold and kills and a list of every item gained today with its count, h
   prices when the run ended). Hover one for kills, items and nodes gathered. A bar chart above the list shows
   the runs side by side, oldest on the left, each bar as tall as its loot value (or gold) per hour, the best one
   green. A run also keeps where you played most (the middle of its most-played 40-unit square in that scene;
-  the tooltip shows it as `/loc` writes it): its **Beacon** button sets the game's beacon there (the `/beacon`
-  marker on the compass and map; it replaces yours, so only on a click), while you're in that run's scene. On Lua
+  the tooltip shows it as `/loc` writes it): its **Compass** button points your compass there (the game's beacon,
+  the `/beacon` marker; it replaces yours, so only on a click), while you're in that run's scene. On Lua
   API 30 each run is also a gold flag on the region map and minimap in its scene, its note what the run brought in
-  (Settings, Map & location, **Show runs on the map**; on by default). The flags don't reach the compass: Beacon does.
+  (Settings, Map & location, **Show runs on the map**; on by default). The flags don't reach the compass: Compass does.
 
 ## Buff bar
 

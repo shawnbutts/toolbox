@@ -35,6 +35,8 @@ ones included).
   prices remembered drop from 2,000 items to 600, which were most of the shared account file.
 
 ### Changed
+- **The Loot Tracker's Beacon button is now Compass,** like the map overlays' (it points your compass at where a run
+  was played most; on the map, the run's own flag marks it).
 - **World events** that start or end show at once on a game client with Lua API 38 (the game now says when),
   instead of up to half a minute later.
 - **/toolbox recipe** shows what a game client with Lua API 37 adds to a recipe: the station and where it can be

@@ -74,7 +74,7 @@ local function addRow(name, shownName, run)
   local children = { nameLabel, countLabel, valueLabel }
   local mark = nil
   if run then
-    mark = UI.Button{ text = "Beacon", visible = false, style = { marginLeft = 6, flexShrink = 0 },
+    mark = UI.Button{ text = "Compass", visible = false, style = { marginLeft = 6, flexShrink = 0 },
       tooltip = DD.MARK_TIP, onClick = function() DD.MarkRun(run) end }
     children[4] = mark
   end
@@ -164,8 +164,8 @@ end
 -- The Beacon button (owner, 2026-10-08): marks a run's spot on the compass and map with the game's beacon, the
 -- one /beacon sets. Only on a click (it replaces the player's own beacon), and only in that run's scene: the
 -- beacon marks a spot in the scene you're in.
-DD.MARK_TIP = "Mark where this run was played most, with the game's beacon on your compass and map (it replaces"
-  .. " any beacon you set). Works in that run's scene."
+DD.MARK_TIP = "Point your compass at where this run was played most (it's the game's beacon, so it replaces any"
+  .. " beacon you set). Works in that run's scene."
 
 function DD.MarkRun(i)
   local r = T.Daily.Runs()[i]
@@ -177,8 +177,8 @@ function DD.MarkRun(i)
   local where = p.scene ~= "" and p.scene or "another scene"
   local okRaw, raw = pcall(ShroudGetCurrentSceneNameRaw)
   if not (okRaw and raw == p.raw) then
-    T.Print("That run was in " .. where .. ". A beacon marks a spot in the scene you're in: go there and click"
-      .. " Beacon again.")
+    T.Print("That run was in " .. where .. ". The compass points at a spot in the scene you're in: go"
+      .. " there and click Compass again.")
     return false
   end
   local ok, set = pcall(ShroudSetBeacon, p.x, p.y, p.z, "Loot run " .. (r.at ~= "" and r.at or ""))
@@ -186,8 +186,8 @@ function DD.MarkRun(i)
     T.Print("The game didn't set the beacon right now; try again in a moment.")
     return false
   end
-  T.Print("Beacon set where your " .. (r.at ~= "" and (r.at .. " ") or "") .. "run was played most: "
-    .. where .. " " .. DD.LocText(p) .. ". /beacon clear removes it.")
+  T.Print("Your compass points where your " .. (r.at ~= "" and (r.at .. " ") or "") .. "run was played most: "
+    .. where .. " " .. DD.LocText(p) .. " (the game's beacon: /beacon clear removes it).")
   return true
 end
 
@@ -295,8 +295,8 @@ function DD.RunTooltip(r)
   local p = DD.RunSpot(r)
   if p then
     lines[#lines + 1] = "Played most around " .. DD.LocText(p) .. (p.scene ~= "" and (" in " .. p.scene) or "")
-      .. (DD.HasMarkers() and DD.GetMarkers() and ". A flag marks it on your map there; Beacon puts it on your"
-        .. " compass." or ". Beacon marks it.")
+      .. (DD.HasMarkers() and DD.GetMarkers() and ". A flag marks it on your map there; Compass points you to it."
+        or ". Compass points you to it.")
   end
   if type(r.value) == "number" then
     lines[#lines + 1] = "Estimated loot value " .. P.Format(r.value) .. " (" .. P.Format(T.Daily.PerHour(r.value,
