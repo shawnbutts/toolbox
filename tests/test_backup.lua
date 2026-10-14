@@ -584,6 +584,33 @@ return function(t)
     H.S.fileLimitAsGame = nil
   end)
 
+  t.test("an undo keeps this character's copy listed: the index is never rolled back past it (review 40)", function()
+    H.boot({ account = { ["recovery:alt"] = bigLegacyCopy() } })
+    H.callback("ShroudOnLogOut")
+    H.S.char.name = "Third"                        -- a character listed for the first time...
+    H.callback("ShroudOnSceneLoaded", "Novia")
+    local index = H.S.memory.account.recovery_index
+    local before = { v = 1, legacy = index.legacy, names = {} }
+    for _, n in ipairs(index.names) do
+      if n ~= "third" then before.names[#before.names + 1] = n end
+    end
+    Toolbox.accountUndo.recovery_index = { old = before }   -- as if listed since the last flush that worked
+    H.S.fileLimitAsGame = true
+    t.ok(Toolbox.SetSavedVar("test_fill", { string.rep("x", 130 * 1024) }, "account"))
+    H.chat("/tbx vitals")                          -- ...in the flush that's refused
+    local ok, why = Toolbox.Flush()
+    t.eq(ok, false)
+    t.eq(why, "full")
+    local disk = H.S.disk.account
+    t.ok(disk["recovery:third"], "the copy kept")
+    local listed = false
+    for _, n in ipairs(disk.recovery_index.names) do listed = listed or n == "third" end
+    t.ok(listed, "and listed")
+    t.no(disk.test_fill, "the big value undone")
+    Toolbox.saveRefused = {}
+    H.S.fileLimitAsGame = nil
+  end)
+
   local function withPrices()
     local prices = {}
     for i = 1, 50 do prices["item " .. i] = { avg = i, sold = 1, last = "2026-10-01", day = "2026-10-13" } end

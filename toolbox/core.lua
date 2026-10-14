@@ -2899,7 +2899,8 @@ function B.FlushFailed()
     function()
       local keys = {}
       for key in pairs(T.accountUndo) do
-        if key ~= "prices" and key ~= copyKey then keys[#keys + 1] = key end
+        -- not the index (review 40): it only gains names, and a copy kept must stay listed
+        if key ~= "prices" and key ~= copyKey and key ~= B.RECOVERIES then keys[#keys + 1] = key end
       end
       table.sort(keys)
       for _, key in ipairs(keys) do
@@ -2950,11 +2951,16 @@ function B.FlushFailed()
     if key:find("^setup_character:") then T.setupDirty = true end
   end
   local names, legacy, saved = readRecoveryIndex()
+  if copyKey and ShroudGetSavedVar(copyKey, ACCOUNT) ~= nil then     -- the copy kept, listed (review 40)
+    local listed = false
+    for _, n in ipairs(names) do listed = listed or n == who:lower() end
+    if not listed then names[#names + 1] = who:lower() end
+  end
   -- below what was just written (review 36), by a margin for the estimate's own error (a tenth of a small file)
   local ceiling = math.max(1, f.total - math.min(B.CEILING_MARGIN, math.floor(f.total / 10)))
   local old = learnedCeiling(saved)
   if old and old <= ceiling then ceiling = old end
-  writeRecoveryIndex(names, legacy, ceiling, who and who:lower() or nil)
+  if not writeRecoveryIndex(names, legacy, ceiling, who and who:lower() or nil) then T.recoveryDirty = true end
   keepRoom(legacy, ceiling)
   local shown = {}
   for i = 1, math.min(#undone, B.UNDONE_SHOWN) do shown[i] = "'" .. undone[i] .. "'" end
