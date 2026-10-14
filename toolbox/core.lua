@@ -2233,6 +2233,9 @@ T.PERF_ID = "toolbox_perf"
 T.PERF_SLOW = 0.05                    -- s: a frame this long is a hitch you notice (three at 60 a second)
 T.PERF_BAD = 0.1
 T.PERF_DEFAULT, T.PERF_MIN, T.PERF_MAX = 60, 10, 600
+-- The sampler's period: the documented shortest first; the live client refused 0.01 (owner, 2026-10-14: "The game
+-- refused the measuring timer"), perhaps as a single-precision 0.01 just under its limit, so a little longer next.
+T.PERF_PERIODS = { 0.01, 0.0125, 0.02, 0.05 }
 T.PERF_RING = 32                      -- marks kept: more than a frame holds (every periodic and a few callbacks)
 local ring, ringAt = {}, 0
 for i = 1, T.PERF_RING do ring[i] = { at = -math.huge, what = nil } end
@@ -2263,10 +2266,10 @@ local function perfReport()
   if not p then return end
   local secs = math.max(ShroudTime - p.from, 0.001)
   local function share(n, of) return of > 0 and math.floor(n * 100 / of + 0.5) or 0 end
-  T.Print(string.format("Toolbox perf, %d s: %s samples (%d a second, about one a frame below 100 frames a second);"
+  T.Print(string.format("Toolbox perf, %d s: %s samples (%d a second, about one a frame below %d frames a second);"
     .. " %d frames took over %d ms (%d over %d ms), the longest %d ms.", math.floor(secs + 0.5),
-    T.FormatNumber(p.frames), math.floor(p.frames / secs + 0.5), p.slow, math.floor(T.PERF_SLOW * 1000), p.bad,
-    math.floor(T.PERF_BAD * 1000), math.floor(p.worst * 1000 + 0.5)))
+    T.FormatNumber(p.frames), math.floor(p.frames / secs + 0.5), math.floor(1 / p.period + 0.5), p.slow,
+    math.floor(T.PERF_SLOW * 1000), p.bad, math.floor(T.PERF_BAD * 1000), math.floor(p.worst * 1000 + 0.5)))
   if p.slow == 0 then
     T.Print("No hitches while it measured.")
     return
@@ -2315,11 +2318,14 @@ end
 function T.PerfStart(secs)
   perf = { from = ShroudTime, secs = secs, last = ShroudTime, frames = 0, ours = 0, slow = 0, bad = 0, slowOurs = 0,
            worst = 0, whats = {}, named = {} }
-  if not ShroudRegisterPeriodic(T.PERF_ID, perfSample, 0.01, true) then
-    perf = nil
-    return false
+  for _, period in ipairs(T.PERF_PERIODS) do
+    if ShroudRegisterPeriodic(T.PERF_ID, perfSample, period, true) then
+      perf.period = period
+      return true
+    end
   end
-  return true
+  perf = nil
+  return false
 end
 
 function T.PerfRunning() return perf ~= nil end
@@ -2347,7 +2353,11 @@ add("perf", "measure hitches for a minute (perf <seconds>; perf stop): slow fram
     return
   end
   if not T.PerfStart(secs) then
-    T.Print("The game refused the measuring timer; try again in a moment.")
+    local ok, list = pcall(ShroudListPeriodics)
+    local n = ok and #T.List(list) or nil
+    T.Print("The game refused the measuring timer (every period from " .. T.PERF_PERIODS[1] .. " to "
+      .. T.PERF_PERIODS[#T.PERF_PERIODS] .. " s" .. (n and (", with " .. n .. " of Toolbox's timers running") or "")
+      .. "). Please report it with /" .. T.commands[1] .. " version.")
     return
   end
   T.Print("Measuring hitches for " .. secs .. " s: play as usual (or stand where it hitches). /" .. T.commands[1]

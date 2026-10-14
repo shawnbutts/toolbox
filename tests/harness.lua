@@ -774,9 +774,16 @@ local function install_api()
   end
 
   ShroudRegisterPeriodic = function(name, fn, period, repeating)
-    if type(fn) ~= "function" or period < 0.01 then return false end
+    -- H.S.periodMin: a client refusing shorter periods than the documented 0.01 (as the live one did, 2026-10-14)
+    if type(fn) ~= "function" or period < (S.periodMin or 0.01) then return false end
     S.periodics[name] = { fn = fn, period = period, repeating = repeating, due = ShroudTime + period }
     return true
+  end
+  ShroudListPeriodics = function()
+    local out = {}
+    for name in pairs(S.periodics) do out[#out + 1] = name end
+    table.sort(out)
+    return out
   end
   ShroudRemovePeriodic = function(name)
     local had = S.periodics[name] ~= nil

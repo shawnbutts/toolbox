@@ -131,6 +131,22 @@ return function(t)
     t.ok(H.logged("Usage: /toolbox perf"))
   end)
 
+  t.test("perf: a client refusing the 0.01 s timer gets a longer one; refusing every one is said", function()
+    H.boot()
+    H.S.periodMin = 0.011
+    H.chat("/tbx perf 10")
+    t.ok(H.logged("Measuring hitches for 10 s"), H.lastLog())
+    t.eq(H.S.periodics.toolbox_perf.period, Toolbox.PERF_PERIODS[2])
+    H.advance(11, 0.05)
+    t.ok(H.logged("about one a frame below 80 frames a second"), H.logs()[#H.logs() - 1])
+    H.S.periodMin = 1
+    H.clearLogs()
+    H.chat("/tbx perf 10")
+    t.ok(H.logged("^The game refused the measuring timer %(every period from 0%.01 to 0%.05 s, with %d+ of "
+      .. "Toolbox's timers running%)"), H.lastLog())
+    t.no(Toolbox.PerfRunning())
+  end)
+
   t.test("perf: work in a frame the sampler skipped (200 frames a second) and a price answer count (review 46)",
     function()
     H.boot()
