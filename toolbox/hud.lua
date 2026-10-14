@@ -1043,7 +1043,7 @@ T.AddCommand("location", "the location strip: your scene, position, facing and w
 local OV = {}
 Toolbox.Overlays = OV
 OV.KEY = "map_overlays"
-OV.MAX = 10                           -- overlays a scene (owner: a short list to pick from)
+OV.MAX = 10                           -- overlays a scene (owner: a short list to pick from), the auto map's apart
 OV.SCENE_MAX = 40                     -- places an overlay (50 markers a scene, less the run flags)
 OV.BUDGET = 150000                    -- the saved overlays' estimated size: their share of the character file
 OV.WARN = 0.9                         -- past this share of OV.BUDGET a mark says how full it is
@@ -1212,19 +1212,24 @@ local function readV2(saved)
   for raw, s in pairs(type(saved.scenes) == "table" and saved.scenes or {}) do
     if type(raw) == "string" and raw ~= "" and type(s) == "table" then
       local sc = { scene = type(s.scene) == "string" and s.scene ~= "" and s.scene or raw, shown = 0, list = {} }
-      local names = {}
+      if s.auto == true then sc.auto = true end
+      local names, own, auto = {}, 0, 0
       for _, o in ipairs(type(s.list) == "table" and s.list or {}) do
         local name = type(o) == "table" and type(o.id) == "number" and OV.CleanName(o.name)
-        if name and not ids[o.id] and not names[name:lower()] and #sc.list < OV.MAX then
+        local key = name and type(o.auto) == "string" and o.auto ~= "" and o.auto or nil
+        local room = key and auto < OV.AUTO_MAX or (not key and own < OV.MAX)
+        if name and not ids[o.id] and not names[name:lower()] and room then
           ids[o.id], names[name:lower()] = true, true
+          if key then auto = auto + 1 else own = own + 1 end
           local ov = newOverlay(raw, math.floor(o.id), name, o.icon, o.color, o.nextPlace)
+          if key then ov.auto = key end
           ov.packed = type(o.places) == "string" and o.places or ""
           sc.list[#sc.list + 1] = ov
           if ov.id >= ovData.nextId then ovData.nextId = ov.id + 1 end
           if o.id == s.shown then sc.shown = ov.id end
         end
       end
-      if #sc.list > 0 then ovData.scenes[raw] = sc end
+      if #sc.list > 0 or sc.auto then ovData.scenes[raw] = sc end
     end
   end
   if type(saved.nextId) == "number" and saved.nextId > ovData.nextId then ovData.nextId = math.floor(saved.nextId) end
@@ -1234,14 +1239,14 @@ end
 local function savedForm()
   local scenes = {}
   for raw, sc in pairs(ovData.scenes) do
-    if #sc.list > 0 then
+    if #sc.list > 0 or sc.auto then
       local list = {}
       for i, ov in ipairs(sc.list) do
         if ov.places then ov.packed = packPlaces(ov.places) end
         list[i] = { id = ov.id, name = ov.name, icon = ov.icon, color = ov.color, nextPlace = ov.nextPlace,
-                    places = ov.packed }
+                    places = ov.packed, auto = ov.auto }
       end
-      scenes[raw] = { scene = sc.scene, shown = sc.shown, list = list }
+      scenes[raw] = { scene = sc.scene, shown = sc.shown, list = list, auto = sc.auto }
     end
   end
   return { v = 2, nextId = ovData.nextId, scenes = scenes }
@@ -1281,7 +1286,7 @@ local function ovSnapshot()
       end
       list[i] = { ov = ov, name = ov.name, icon = ov.icon, color = ov.color, nextPlace = ov.nextPlace, places = places }
     end
-    scenes[raw] = { sc = sc, shown = sc.shown, list = list }
+    scenes[raw] = { sc = sc, shown = sc.shown, auto = sc.auto, list = list }
   end
   return { nextId = ovData.nextId, scenes = scenes }
 end
@@ -1303,7 +1308,7 @@ local function ovRestore(snap)
       end
       list[i] = ov
     end
-    k.sc.shown, k.sc.list = k.shown, list
+    k.sc.shown, k.sc.list, k.sc.auto = k.shown, list, k.auto
     scenes[raw] = k.sc
   end
   ovData.scenes, ovData.nextId = scenes, snap.nextId
@@ -1392,6 +1397,15 @@ local function addOverlay(here, name)
   return ov
 end
 
+-- How many of this scene's overlays are the player's own (the auto map's have their own OV.AUTO_MAX).
+function OV.OwnCount(raw)
+  local n = 0
+  for _, ov in ipairs(OV.List(raw)) do
+    if not ov.auto then n = n + 1 end
+  end
+  return n
+end
+
 -- Makes overlay `text` in this scene and shows it. Returns it, or nil and why.
 function OV.Create(text)
   local name = OV.CleanName(text)
@@ -1399,7 +1413,7 @@ function OV.Create(text)
   local here = OV.Here()
   if not here then return nil, "the scene you're in can't be read right now" end
   if OV.Find(name) then return nil, "there's already an overlay called " .. name .. " here" end
-  if #OV.List() >= OV.MAX then return nil, "this scene has " .. OV.MAX .. " overlays: delete one first" end
+  if OV.OwnCount() >= OV.MAX then return nil, "this scene has " .. OV.MAX .. " overlays: delete one first" end
   local snap = ovSnapshot()
   local ov = addOverlay(here, name)
   local ok, why = ovSave(snap)
@@ -1432,7 +1446,7 @@ function OV.Delete(ov)
   end
   sc.list = kept
   if sc.shown == ov.id then sc.shown = 0 end
-  if #kept == 0 then ovData.scenes[ov.raw] = nil end
+  if #kept == 0 and not sc.auto then ovData.scenes[ov.raw] = nil end
   return ovSave(snap)
 end
 
@@ -1507,6 +1521,165 @@ function OV.Mark(text)
   local ok, why = ovSave(snap)
   if not ok then return nil, why, name end
   return place, ov
+end
+
+-- ---------------------------------------------------------------------------
+-- Auto map (owner, 2026-10-14): resource nodes don't move (though not all are up at once), so while it's on in a
+-- scene, each node you finish (ShroudOnGatherResults: its name) is marked where you stand: in an overlay of its
+-- kind ("Iron Ore", made the first time, the next look in turn) and in the scene's "Gathering" overlay (every kind,
+-- each in its kind's look, so the map shows them all), unless one of its kind is within OV.AUTO_NEAR m there (the
+-- same node, gathered from another side). At most OV.AUTO_MAX automatic overlays a scene, Gathering among them,
+-- apart from the player's own OV.MAX. One chat line a node; no room is told once a kind a session.
+-- ---------------------------------------------------------------------------
+OV.AUTO_MAX = 10
+OV.AUTO_NEAR = 6                      -- m: a node gathered again from its other side
+OV.KIND_MAX = OV.NAME_MAX - 4         -- a kind's name, room for " 12" after it
+OV.GATHERING = "Gathering"
+OV.AUTO_ALL = "*"                     -- the Gathering overlay's `auto`; a kind's overlay has its kind
+local autoTold = {}                   -- "raw>kind" -> true: no room told this session
+
+-- The kind a node's name names ("Iron Ore"), or nil.
+function OV.NodeKind(node)
+  if type(node) ~= "string" then return nil end
+  local kind = OV.CleanName(node)
+  if kind and #kind > OV.KIND_MAX then kind = T.Trim(kind:sub(1, OV.KIND_MAX)) end
+  return kind
+end
+
+-- Whether the auto map is on in the scene you're in (`raw`: another).
+function OV.AutoOn(raw)
+  ovFollow()
+  local sc = ovData.scenes[raw or hereRaw() or ""]
+  return sc ~= nil and sc.auto == true
+end
+
+-- Turns the auto map on or off in the scene you're in. Returns true, or false and why.
+function OV.SetAuto(on)
+  ovFollow()
+  local here = OV.Here()
+  if not here then return false, "the scene you're in can't be read right now" end
+  local sc = ovData.scenes[here.raw]
+  if not sc and not on then return true end
+  local snap = ovSnapshot()
+  if not sc then
+    sc = { scene = here.scene, shown = 0, list = {} }
+    ovData.scenes[here.raw] = sc
+  end
+  if on then sc.auto = true else sc.auto = nil end
+  if not on and #sc.list == 0 then ovData.scenes[here.raw] = nil end
+  return ovSave(snap)
+end
+
+local function autoFind(sc, key)
+  for _, ov in ipairs(sc.list) do
+    if ov.auto == key then return ov end
+  end
+  return nil
+end
+
+-- Whether `ov` has a place within OV.AUTO_NEAR m of `here` (of `kind` only, when given: "Iron Ore 3").
+local function autoNear(ov, kind, here)
+  local prefix = kind and (kind .. " ")
+  for _, p in ipairs(OV.Places(ov)) do
+    if not prefix or p.name:sub(1, #prefix) == prefix then
+      local dx, dy, dz = p.x - here.x, p.y - here.y, p.z - here.z
+      if dx * dx + dy * dy + dz * dz <= OV.AUTO_NEAR * OV.AUTO_NEAR then return true end
+    end
+  end
+  return false
+end
+
+-- The scene's automatic overlay `key` (a kind, or OV.AUTO_ALL), made when missing and there's room (one kept for
+-- Gathering); nil when there isn't. Unsaved.
+local function autoOverlay(sc, here, key)
+  local found = autoFind(sc, key)
+  if found then return found end
+  local n, kinds = 0, 0
+  for _, ov in ipairs(sc.list) do
+    if ov.auto then n = n + 1 end
+    if ov.auto and ov.auto ~= OV.AUTO_ALL then kinds = kinds + 1 end
+  end
+  if n >= OV.AUTO_MAX or (key ~= OV.AUTO_ALL and kinds >= OV.AUTO_MAX - 1) then return nil end
+  local base = key == OV.AUTO_ALL and OV.GATHERING or key
+  local name = base
+  for _, ov in ipairs(sc.list) do                -- one of the player's own already has the name
+    if ov.name:lower() == name:lower() then name = T.Trim(base:sub(1, OV.NAME_MAX - 7)) .. " (auto)" end
+  end
+  local icon, color = OV.ICONS[1], OV.COLORS[1][1]
+  if key ~= OV.AUTO_ALL then                     -- each kind the next look in turn (Gold is the run flags')
+    icon = OV.ICONS[kinds % #OV.ICONS + 1]
+    color = OV.COLORS[kinds % (#OV.COLORS - 1) + 1][1]
+  end
+  local ov = newOverlay(here.raw, ovData.nextId, name, icon, color, 1)
+  ov.places, ov.auto = {}, key
+  ovData.nextId = ovData.nextId + 1
+  sc.list[#sc.list + 1] = ov
+  if sc.shown == 0 and key == OV.AUTO_ALL then sc.shown = ov.id end
+  return ov
+end
+
+-- Adds "<kind> <n>" where you stand to `ov` (the name `want` when free), in the given look; nil when it's full.
+local function autoPlace(ov, kind, here, icon, color, want)
+  local places = OV.Places(ov)
+  if #places >= OV.SCENE_MAX then return nil end
+  local name = want
+  if not name or OV.FindPlace(ov, name) then
+    local n = 1
+    while OV.FindPlace(ov, kind .. " " .. n) do n = n + 1 end
+    name = kind .. " " .. n
+  end
+  local p = { id = ov.nextPlace, name = name, raw = here.raw, scene = here.scene, x = here.x, y = here.y, z = here.z,
+              icon = icon, color = color }
+  ov.nextPlace = ov.nextPlace + 1
+  places[#places + 1] = p
+  return p
+end
+
+-- Marks a node of `kind` where you stand (the auto map is on in `sc`). Returns the place's name, or nil.
+function OV.AutoMark(sc, here, kind)
+  local mine, all = autoFind(sc, kind), autoFind(sc, OV.AUTO_ALL)
+  if (mine and autoNear(mine, nil, here)) or (all and autoNear(all, kind, here)) then return nil end   -- known
+  local snap = ovSnapshot()
+  all = all or autoOverlay(sc, here, OV.AUTO_ALL)
+  mine = mine or autoOverlay(sc, here, kind)
+  local icon = mine and mine.icon or OV.ICONS[1]
+  local color = mine and mine.color or OV.COLORS[1][1]
+  local p = mine and autoPlace(mine, kind, here, icon, color)
+  local q = all and autoPlace(all, kind, here, icon, color, p and p.name)
+  local name = (p or q) and (p or q).name
+  if not name then
+    ovRestore(snap)
+  else
+    local ok, why = ovSave(snap)
+    if not ok then
+      T.Print("Auto map couldn't mark " .. kind .. ": " .. why .. ".")
+      return nil
+    end
+    T.Print("Auto map: " .. name .. " marked" .. ((p and q) and "" or (" in " .. (p and mine.name or all.name)
+      .. " only")) .. ".")
+  end
+  if p and q then return name end
+  local told = here.raw .. ">" .. kind
+  if not autoTold[told] then
+    autoTold[told] = true
+    T.Print("Auto map: no room for " .. kind .. (mine == nil and (" in an overlay of its own (" .. OV.AUTO_MAX
+      .. " automatic overlays a scene)") or "") .. ((mine ~= nil and p == nil) and (" in " .. mine.name .. " ("
+      .. OV.SCENE_MAX .. " places)") or "") .. ((all ~= nil and q == nil) and (" in " .. all.name .. " ("
+      .. OV.SCENE_MAX .. " places)") or "") .. ".")
+  end
+  return name
+end
+
+-- From ShroudOnGatherResults (core.lua): each node finished, while the auto map is on here.
+function OV.OnGathered(results)
+  if not OV.AutoOn() then return end
+  local here = OV.Here()
+  local sc = here and ovData.scenes[here.raw]
+  if not sc then return end
+  for _, r in ipairs(T.List(results)) do
+    local kind = OV.NodeKind(T.Field(r, "node"))
+    if kind then OV.AutoMark(sc, here, kind) end
+  end
 end
 
 -- After a mark: a word on the room left, past OV.WARN (or "").
@@ -1685,8 +1858,8 @@ end
 -- /toolbox overlay
 T.AddCommand("overlay", "map overlays, sets of places you mark in a scene, one shown at a time: <name> shows one;"
   .. " off; new <name>; rename <old> = <new>; delete <name>; places; icon <shape>, color <name> (your next marks');"
-  .. " window (the Map overlays window); scenes (every scene's, and the room they take); forget <scene> (alone: this"
-  .. " scene's)",
+  .. " window (the Map overlays window); auto [on|off] (mark the nodes you gather here); scenes (every scene's, and"
+  .. " the room they take); forget <scene> (alone: this scene's)",
   function(rest)
     local word, args = T.ParseArgs(rest)
     local c = "/" .. T.commands[1] .. " "
@@ -1701,6 +1874,17 @@ T.AddCommand("overlay", "map overlays, sets of places you mark in a scene, one s
     local ov = OV.Shown()
     if word == "window" then
       OV.ToggleWindow()
+    elseif word == "auto" then
+      local want = args:lower()
+      if want ~= "on" and want ~= "off" then
+        T.Print("Auto map is " .. (OV.AutoOn() and "on" or "off") .. " in this scene: " .. c .. "overlay auto on"
+          .. " marks each resource node you gather here, by kind, and in " .. OV.GATHERING .. ".")
+        return
+      end
+      local ok, why = OV.SetAuto(want == "on")
+      T.Print(ok and ("Auto map " .. want .. " in this scene." .. (want == "on" and (" Each node you gather is"
+        .. " marked in an overlay of its kind and in " .. OV.GATHERING .. ".") or ""))
+        or ("Couldn't change it: " .. why .. "."))
     elseif word == "off" then
       local ok, why = OV.Show(nil)
       T.Print(ok and "No overlay shown." or ("Couldn't hide it: " .. why .. "."))
@@ -1888,6 +2072,7 @@ function OV.SyncWindow()
     mwEl.places:SetValue(mwPlaces[keep] and keep or places[1])
     mwEl.icon:SetValue(shown and shown.icon or OV.ICONS[1])
     mwEl.color:SetValue(shown and shown.color or OV.COLORS[1][1])
+    mwEl.auto:SetValue(OV.AutoOn())
     for _, k in ipairs({ "icon", "color", "rename", "delete" }) do mwEl[k]:SetEnabled(shown ~= nil) end
     for _, k in ipairs({ "beacon", "look", "remove" }) do mwEl[k]:SetEnabled(any) end
   end)
@@ -2019,6 +2204,14 @@ local function mwBuild()
         local ok, why = OV.RemovePlace(ov, p)
         mwMsg(ok and ("Removed " .. p.name .. ".") or ("Couldn't remove it: " .. why .. "."))
       end },
+    auto = UI.Toggle{ id = "mw_auto", text = "Auto map this scene", value = false,
+      tooltip = "Mark each resource node you gather here, in an overlay of its kind and in " .. OV.GATHERING
+        .. " (all kinds); a node already marked within " .. OV.AUTO_NEAR .. " m isn't marked again",
+      onChange = function(_, on)
+        local ok, why = OV.SetAuto(on == true)
+        mwMsg(ok and (on and ("Auto map on: gather here and each node is marked.") or "Auto map off.")
+          or ("Couldn't change it: " .. why .. "."))
+      end },
     msg = UI.Label{ id = "mw_msg", text = "", class = "dim", style = { whiteSpace = "wrap", flexGrow = 1,
       flexShrink = 1 } },
     storage = UI.Label{ id = "mw_storage", text = "", class = "dim", style = { marginLeft = 6 },
@@ -2026,7 +2219,7 @@ local function mwBuild()
         .. " /" .. T.commands[1] .. " overlay scenes shows what each scene takes" },
   }
   mw = UI.Window{
-    id = MW_ID, title = "Map overlays", width = 380, height = 280, minWidth = 300, minHeight = 240,
+    id = MW_ID, title = "Map overlays", width = 380, height = 310, minWidth = 300, minHeight = 270,
     x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y, escCloses = true,
     style = { paddingLeft = 8, paddingRight = 8, paddingTop = 4, paddingBottom = 6 },
     children = {
@@ -2039,6 +2232,7 @@ local function mwBuild()
         tooltip = "Add where you stand to the shown overlay, in the shape and color above (or to a new overlay,"
           .. " Places, if you have none)", onClick = function() mwMark() end } }),
       row({ mwEl.places, mwEl.beacon, mwEl.look, mwEl.remove }),
+      row({ mwEl.auto }),
       row({ mwEl.msg, mwEl.storage }),
     },
   }

@@ -304,6 +304,16 @@ D.SECTIONS = {
       .. "overlay off none, and overlay new, rename <old> = <new>, delete and places (each with its /loc) do the "
       .. "rest; overlay icon star and overlay color Red set the next marks' look, mark look <name> gives it to a "
       .. "place." },
+  { "Auto map",
+    "Resource nodes don't move, though not all are up at once. Turn on Auto map this scene in the Map overlays "
+      .. "window (or /toolbox overlay auto on) and each node you gather there is marked where you stand: in an "
+      .. "overlay of its kind (Iron Ore, made the first time, each kind in a look of its own) and in Gathering, "
+      .. "which holds every kind so the map shows them all. A node already marked within 6 m (the same node, "
+      .. "gathered from another side) isn't marked again. One chat line says what was marked.",
+    "It stays on in that scene until you turn it off, and only there: turn it on the first time you visit a "
+      .. "scene, gather, and the scene is mapped. Up to 10 automatic overlays a scene (Gathering and 9 kinds), "
+      .. "apart from your own 10; past that, a new kind is marked in Gathering only, and chat says so once. "
+      .. "They're ordinary overlays: show, rename, restyle or delete them like your own." },
   { "Moving the HUD strips",
     "The buff bar, health & focus bars, combat stats, the consumables bar and the equipment bar are "
       .. "HUD strips. Drag the grip at a "

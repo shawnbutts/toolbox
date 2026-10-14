@@ -17,6 +17,10 @@ ones included).
   name on the location strip opens it (or Settings, Map & location, or /toolbox overlay window). In chat, /toolbox
   mark <name> marks where you stand and /toolbox overlay <name> shows one. The Loot Tracker's run flags stay their
   own setting and show beside any overlay.
+- **Auto map:** turn it on in a scene (Map overlays window, or /toolbox overlay auto on) and every resource node
+  you gather there is marked where you stand: in an overlay of its kind (Iron Ore, Oak Tree...) and in Gathering,
+  which shows every kind at once, each in its own look. A node already marked isn't marked again. Nodes don't move,
+  so the first visit maps a scene. Up to 10 automatic overlays a scene, apart from your own.
 
 ### Fixed
 - **Going AFK or flagging for PvP** no longer looks like another character logging in. The game adds those tags

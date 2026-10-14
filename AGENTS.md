@@ -239,8 +239,13 @@ into one if a new file is ever needed).
   (T.Tick, after each change) mirrors `DD.SyncMarkers`: ids "ov<overlay>-<place>" (a switch moves none), ours unwanted
   ("ov") come down, one already up as wanted isn't sent again (its note, the overlay's name, compared too, review 35; a
   "rate" refusal after a big switch retries after `OV.RETRY` s, sending only what's missing). The run flags stay their
-  own toggle (owner); later ideas: self-filling overlays (gathering spots, a death flag) and sharing one as a text
-  string (no clipboard API; a TextField takes 1,024 characters). Harness: `H.S.markerAllow` (n sets, then "rate").
+  own toggle (owner); later ideas: a death flag and sharing one as a text
+  string (no clipboard API; a TextField takes 1,024 characters). The auto map (owner, 2026-10-14; `OV.OnGathered` from
+  core's `ShroudOnGatherResults`, `OV.AutoMark`): on per scene (`sc.auto`; window toggle `mw_auto`, `/toolbox overlay
+  auto`), each node finished is marked where you stand in its kind's overlay (`OV.NodeKind`: the node's name as sent)
+  and in "Gathering" (`OV.AUTO_ALL`, every kind in its kind's look), unless one of its kind is within `OV.AUTO_NEAR` m
+  there; `OV.AUTO_MAX` automatic overlays a scene (one kept for Gathering), counted apart from the player's `OV.MAX`
+  (`OV.OwnCount`); a kind named like one of the player's gets " (auto)". Harness: `H.S.markerAllow` (n sets, then "rate").
   Then `Toolbox.Launcher` (LN; owner, 2026-10-10; "the menu" to players, `/toolbox menu`, alias `launcher`): one button a window (`LN.BUTTONS`: its
   `open()` and `toggle()`; the pop-up windows count as open when pinned; Notifications = `N.ToggleWindow`, the news
   now in the window; Location shows or hides the location strip, `strip = true`: "show or hide" in its tooltip), pictures from `toolbox/launcher.png` (`art/launcher.py`, frames in `LN.BUTTONS` order) tinted
@@ -514,7 +519,7 @@ character" sentinel.
 | `loot_runs` | `{ v = 1, list = { { at = "HH:MM", date = "YYYY-MM-DD", scene, played = s, gold, kills, items, kinds, nodes, value = estimated gold or nil, spot = { scene, raw, x, y, z } or nil } } }`, newest first, at most `D.RUNS_KEEP` (10); stats: a reset keeps it |
 | `location` | `{ show = bool (default false), facing = bool (default true), water = bool (default true; API 32), pin = bool (the Map overlays pin, default true), x, y }` (the location strip, hud.lua) |
 | `launcher` | `{ show = bool (default true), vertical = bool (default true), size = 20..64 (default 32), shade = 0..90 (% black behind, default 40), combat = bool (hide during combat), hide = { [button key] = true } (never all), x, y }` (the menu, hud.lua; absent = never started: the chat line) |
-| `map_overlays` | `{ v = 2, nextId, scenes = { [scene id] = { scene = its name, shown = overlay id or 0, list = { { id, name (<= 24, unique in the scene), icon = an OV.ICONS shape, color = an OV.COLORS name (the next marks'), nextPlace, places = "id|name|x|y|z|shape n|color n;..." } } } } }` (hud.lua; at most OV.MAX a scene, OV.SCENE_MAX places each, OV.BUDGET in all); v = 1 (one list, places with raw / scene; development only) converted at the first read; kept by a reset; NOT in the recovery copy (`B.OTHER_KEYS`: the account file's 256 KB) |
+| `map_overlays` | `{ v = 2, nextId, scenes = { [scene id] = { scene = its name, shown = overlay id or 0, auto = true (the auto map on there), list = { { id, name (<= 24, unique in the scene), icon = an OV.ICONS shape, color = an OV.COLORS name (the next marks'), nextPlace, places = "id|name|x|y|z|shape n|color n;...", auto = a node kind, or "*" for Gathering (made by the auto map) } } } } }` (hud.lua; at most OV.MAX a scene, OV.SCENE_MAX places each, OV.BUDGET in all); v = 1 (one list, places with raw / scene; development only) converted at the first read; kept by a reset; NOT in the recovery copy (`B.OTHER_KEYS`: the account file's 256 KB) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
 | `skills_paused` | `{ v = 1, how = "off"/"maintain", when = "HH:MM", list = { { key = skill key or name, from = mode, to = mode } } }`: the pause's record (skills.lua; empty list = not paused); kept by a reset, copied for recovery |
 | `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`, events' `{ [occurrence] = start (UTC seconds, as text) }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |

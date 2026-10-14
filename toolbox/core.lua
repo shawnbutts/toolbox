@@ -3579,6 +3579,7 @@ end
 
 function ShroudOnGatherResults(results, dropped)
   T.Daily.OnGatherResults(results, dropped)
+  T.Overlays.OnGathered(results)
   T.ProbeEvent("gather", results, dropped)
 end
 
