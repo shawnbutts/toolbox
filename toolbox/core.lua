@@ -588,7 +588,7 @@ function T.Flush()
   local ok = ShroudFlushSavedVars()
   local made = ok == false and T.Backup.FlushFailed()
   if made == true then ok = true end                          -- written after all
-  if ok ~= false and ceilingKept then T.Backup.pendingCeiling = nil end
+  if ok ~= false and ceilingKept then T.Backup.CeilingWritten() end
   if ok ~= false or made == "undone" then T.accountUndo = {} end
   if made == "undone" then return false, "full" end
   if ok == false then
@@ -2853,6 +2853,32 @@ local function learnedCeiling(saved)
   return nil, nil
 end
 
+-- A learned ceiling not yet in the account file is also kept in this character's file (review 42: that file is
+-- written on its own, so a restart before the account file takes it doesn't lose the bound), and read back at
+-- start: { v = 1, ceiling, by }.
+B.CEILING_DUE = "ceiling_due"
+local function readCeilingDue()
+  local due = T.FromSaved(ShroudGetSavedVar(B.CEILING_DUE, SCOPE))
+  if type(due) ~= "table" or type(due.ceiling) ~= "number" or due.ceiling <= 0 then return nil end
+  local out = { ceiling = due.ceiling }
+  if type(due.by) == "string" then out.by = due.by end
+  return out
+end
+
+-- The ceiling due is on disk in the account file: nothing pending, the character file's note dropped.
+local function ceilingWritten()
+  B.pendingCeiling = nil
+  if ShroudGetSavedVar(B.CEILING_DUE, SCOPE) ~= nil then T.DeleteSaved(B.CEILING_DUE, SCOPE) end
+end
+
+-- At start and for another character: a ceiling due from this character's file joins the one pending (the lower).
+local function takeCeilingDue()
+  local due = readCeilingDue()
+  if not due then return nil end
+  if not B.pendingCeiling or due.ceiling < B.pendingCeiling.ceiling then B.pendingCeiling = due end
+  return B.pendingCeiling.ceiling
+end
+
 -- The account file's room for what Toolbox can measure: all of it but what 1.7.0's unlisted copies may hold.
 local function keepRoom(legacy, ceiling)
   local reserve = legacy and B.LEGACY_RESERVE or 0
@@ -2956,6 +2982,7 @@ function B.FlushFailed()
   local ceiling = math.max(1, f.total - math.min(B.CEILING_MARGIN, math.floor(f.total / 10)))
   B.pendingCeiling = { ceiling = ceiling }
   if who then B.pendingCeiling.by = who:lower() end
+  T.SetSavedVar(B.CEILING_DUE, T.ForSaving({ v = 1, ceiling = ceiling, by = B.pendingCeiling.by or "" }), SCOPE)
   local kept = B.KeepCeiling()
   local shown = {}
   for i = 1, math.min(#undone, B.UNDONE_SHOWN) do shown[i] = "'" .. undone[i] .. "'" end
@@ -2969,7 +2996,7 @@ function B.FlushFailed()
     .. ". It keeps the file smaller from now on; logging in each of your other characters once makes their copies"
     .. " smaller and gives the room back.")
   if ShroudFlushSavedVars() == false then return false end   -- the ceiling stays due, the undo list kept (review 41)
-  if kept then B.pendingCeiling = nil end
+  if kept then ceilingWritten() end              -- its note goes at the next flush (kept until then: harmless)
   return #undone > 0 and "undone" or true
 end
 
@@ -2977,6 +3004,7 @@ end
 -- one works with it (T.Flush), whether or not this character's copy changes. A copy of this character's in the
 -- account file is listed with it (review 40). Returns whether the index took it.
 B.pendingCeiling = nil
+function B.CeilingWritten() ceilingWritten() end
 function B.KeepCeiling()
   local due = B.pendingCeiling
   if not due then return false end
@@ -3021,7 +3049,7 @@ end
 
 -- Character keys that aren't settings or recovered (B.KEYS, B.RecoverList()); other files append theirs. Every key
 -- Toolbox saves is in one of them (tests/test_backup.lua), so each file's size is measured whole.
-B.OTHER_KEYS = { "session", "daily", "buff_timers", "notify_history", "guild_motd", B.MARK, B.PENDING }
+B.OTHER_KEYS = { "session", "daily", "buff_timers", "notify_history", "guild_motd", B.MARK, B.PENDING, B.CEILING_DUE }
 
 -- Measures the files as they are (at start: both; for another character: its file).
 function B.MeasureFiles(characterOnly)
@@ -3035,7 +3063,14 @@ function B.MeasureFiles(characterOnly)
     end
   end
   T.MeasureKeys(keys, SCOPE, true)
-  if characterOnly then return end
+  local due = takeCeilingDue()
+  if characterOnly then
+    if due then
+      local _, legacy, index = readRecoveryIndex()
+      keepRoom(legacy, math.min(due, learnedCeiling(index) or due))
+    end
+    return
+  end
   local account, inAccount = { "prices", "welcomed", B.SETUPS, B.RECOVERIES }, {}
   local function count(key)
     if not inAccount[key] then
@@ -3056,7 +3091,9 @@ function B.MeasureFiles(characterOnly)
   T.MeasureKeys(account, ACCOUNT, true)
   -- no index yet: 1.7.0 ran here if it left anything in the account file (its copies may be there, unlisted)
   if index == nil then B.legacyInstall = ShroudGetSavedVar("welcomed", ACCOUNT) ~= nil or setups ~= nil end
-  keepRoom(legacy or (index == nil and B.legacyInstall), (learnedCeiling(index)))
+  local ceiling = learnedCeiling(index)
+  if due then ceiling = math.min(due, ceiling or due) end
+  keepRoom(legacy or (index == nil and B.legacyInstall), ceiling)
 end
 
 -- At start and for another character, before anything reads its settings: writes the recovery copy back when the

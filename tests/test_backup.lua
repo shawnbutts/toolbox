@@ -12,7 +12,7 @@ return function(t)
   -- Saved keys that a reset leaves alone: state, stats, histories, caches, learned data.
   local KEPT = { session = true, daily = true, buff_timers = true, buff_durations = true, skill_levels = true,
     notify_history = true, prices = true, welcomed = true, guild_motd = true, settings_pending = true,
-    loot_runs = true, skills_paused = true, map_overlays = true, recovery_index = true }
+    loot_runs = true, skills_paused = true, map_overlays = true, recovery_index = true, ceiling_due = true }
 
   t.test("every saved key is a setting (reset clears it) or listed as kept", function()
     H.boot()
@@ -646,6 +646,51 @@ return function(t)
         local index = H.S.memory.account.recovery_index
         if not failed and index and index.ceiling then
           failed = true
+          return false
+        end
+        return real()
+      end
+      return function() ShroudFlushSavedVars = real end
+    end)
+
+  local function ceilingKeptAcrossRestart(name, fail)
+    t.test(name, function()
+      bigUnlisted()
+      local undo = fail()
+      t.eq(Toolbox.Flush(), false)
+      undo()
+      local _, max = Toolbox.FileUse("account")
+      t.eq(H.S.disk.account.recovery_index.ceiling, nil, "not in the account file")
+      t.ok(H.S.disk["character:" .. H.S.char.name].ceiling_due, "noted in the character file")
+      Toolbox.saveRefused = {}
+      H.restart()                                  -- the game closed before another flush
+      t.eq(select(2, Toolbox.FileUse("account")), max, "the bound holds after the restart")
+      t.eq(Toolbox.SetSavedVar("test_fill", { "small" }, "account") == true, false, "growth still refused")
+      Toolbox.saveRefused = {}
+      t.ok(Toolbox.Flush() ~= false)
+      t.eq(H.S.disk.account.recovery_index.ceiling, max, "written into the account file now")
+      t.ok(Toolbox.Flush() ~= false)
+      t.eq(H.S.disk["character:" .. H.S.char.name].ceiling_due, nil, "the note dropped once it's there")
+      H.restart()
+      t.eq(select(2, Toolbox.FileUse("account")), max)
+      Toolbox.saveRefused = {}
+      H.S.fileLimitAsGame = nil
+    end)
+  end
+  ceilingKeptAcrossRestart("a refused ceiling write survives a restart before the retry (review 42)", function()
+    H.S.refuseKeys = { recovery_index = true }
+    return function() H.S.refuseKeys = nil end
+  end)
+  ceilingKeptAcrossRestart("a refused flush after the ceiling survives a restart before the retry (review 42)",
+    function()
+      local real, failed = ShroudFlushSavedVars, false
+      ShroudFlushSavedVars = function()
+        local index = H.S.memory.account.recovery_index
+        if not failed and index and index.ceiling then
+          failed = true
+          local account = H.S.disk.account
+          real()                                   -- as the game: the character file written, not the account
+          H.S.disk.account = account
           return false
         end
         return real()
