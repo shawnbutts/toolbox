@@ -118,6 +118,32 @@ return function(t)
     end
   end)
 
+  t.test("the flush's work is spread: no tick stores both the session and the day; the write still comes", function()
+    H.boot()
+    local at, set, flushes, flush = {}, ShroudSetSavedVar, 0, ShroudFlushSavedVars
+    ShroudSetSavedVar = function(k, ...)
+      if k == "session" or k == "daily" then
+        at[ShroudTime] = at[ShroudTime] or {}
+        at[ShroudTime][k] = true
+      end
+      return set(k, ...)
+    end
+    ShroudFlushSavedVars = function(...)
+      flushes = flushes + 1
+      return flush(...)
+    end
+    for sec = 1, 90 do
+      H.gain(100, 0)
+      if sec % 3 == 0 then H.items({ { "Wyvern Meat", 2 } }) end
+      H.advance(1)
+    end
+    ShroudSetSavedVar, ShroudFlushSavedVars = set, flush
+    local both = 0
+    for _, keys in pairs(at) do if keys.session and keys.daily then both = both + 1 end end
+    t.eq(both, 0, "the session and the day in different ticks")
+    t.ok(flushes >= 2, flushes .. " flushes in 90 s")
+  end)
+
   t.test("combat with every window open stays within its budget", function()
     everythingOpen()
     H.setCombat(true)

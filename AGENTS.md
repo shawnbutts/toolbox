@@ -82,6 +82,8 @@ This file holds current facts and rules; the history behind them is in git (`git
   about 23 ms in game (saving the day: copy and check), and the game's `ShroudGetNearestWaterType` up to 28 ms. Keep big
   walks (`T.ForSaving`, `T.CheckSaved`) out of frequent paths: the session and the day are stored only with the
   flush (`D.SaveIfChanged`, also at a scene unload, logout and shutdown), the buff timers every `BB.TIMER_SAVE` (30) s.
+  The flush's work is spread over `T.FLUSH_STEPS` ticks (`T.flushStep`: session, day, setup copy, recovery copy, then
+  the game's write, flushSeconds after the last; in one tick it took up to 44 ms).
 - **No `io.*` / `os.*`**, except feature-detected `os.date`/`os.time` for the local clock (`Toolbox.Today`,
   `Toolbox.Clock`), and feature-detected `os.clock` for `/toolbox perf`'s timing only (owner, 2026-10-14: `T.PerfT`
   / `T.PerfAdd`, nil and free unless perf is measuring). Persist with `ShroudSetSavedVar`/`ShroudGetSavedVar`, character scope.

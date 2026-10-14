@@ -11,6 +11,7 @@ Toolbox = {
   commands = { "toolbox", "tbx" },
   tickSeconds = 1.0,     -- periodic refresh; nothing runs per frame
   flushSeconds = 30,     -- how often a changed session is flushed to disk
+  FLUSH_STEPS = 5,       -- ticks the flush's work is spread over (T.Tick)
 }
 
 local T = Toolbox
@@ -2801,12 +2802,28 @@ function T.Tick()
   -- each store copies and checks up to an hour of samples, about 160 KB of garbage an hour into a session (the
   -- 1.8.0 performance pass; it was every tick with XP, the bulk of Toolbox's garbage in a long fight). A reload
   -- re-reads the totals, so it loses no XP, at most the chart's last samples.
-  if (T.unsaved or T.unflushed or T.setupDirty) and T.Now() - T.lastFlush >= T.flushSeconds then
-    if T.unsaved then T.SaveSession(false) end
-    T.Daily.SaveIfChanged()
-    T.Flush()
-    T.lastFlush = T.Now()
-    T.unflushed = false
+  -- The flush's work is spread over T.FLUSH_STEPS ticks ending flushSeconds after the last (the owner's timed perf,
+  -- 2026-10-14: all of it in one tick took up to 44 ms): the session, the day, the setup copy, the recovery copy,
+  -- then the game's write.
+  local due = (T.unsaved or T.unflushed or T.setupDirty)
+    and T.Now() - T.lastFlush >= T.flushSeconds - (T.FLUSH_STEPS - 1) * T.tickSeconds
+  if T.flushStep or due then
+    T.flushStep = (T.flushStep or 0) + 1
+    local step = T.flushStep
+    if step == 1 then
+      if T.unsaved then T.SaveSession(false) end
+    elseif step == 2 then
+      T.Daily.SaveIfChanged()
+    elseif step == 3 then
+      if T.setupDirty then T.Backup.KeepCopy() end
+    elseif step == 4 then
+      if T.recoveryDirty then T.Backup.KeepRecovery() end
+    else                                                    -- (what changed meanwhile goes with the next one)
+      T.Flush()
+      T.lastFlush = T.Now()
+      T.unflushed = false
+      T.flushStep = nil
+    end
   end
   T.PerfAdd("tick:flush", t0)
 end
