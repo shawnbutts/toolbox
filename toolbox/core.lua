@@ -2479,6 +2479,20 @@ function T.Welcome()
   return true
 end
 
+-- What's new (owner, 2026-10-14): the first start of a new version on this install (account scope, `version_seen`)
+-- opens the version window, a moment later as the welcome's settings window. A new install (the welcome) only
+-- notes the version. Returns true when it showed.
+T.VERSION_SEEN = "version_seen"
+function T.WhatsNew(welcomed)
+  if ShroudGetSavedVar(T.VERSION_SEEN, "account") == T.version then return false end
+  T.SetSavedVar(T.VERSION_SEEN, T.version, "account")
+  if welcomed then return false end
+  T.Print("Toolbox is now " .. T.version .. ": the version window shows what's new (/" .. T.commands[1]
+    .. " version).")
+  ShroudRegisterPeriodic("toolbox_whatsnew", function() T.Docs.OpenVersion() end, T.WELCOME_DELAY, false)
+  return true
+end
+
 -- ---------------------------------------------------------------------------
 -- Settings files and reset (/toolbox settings, settings window: Backup & reset)
 -- ---------------------------------------------------------------------------
@@ -3082,7 +3096,7 @@ function B.MeasureFiles(characterOnly)
     end
     return
   end
-  local account, inAccount = { "prices", "welcomed", B.SETUPS, B.RECOVERIES }, {}
+  local account, inAccount = { "prices", "welcomed", T.VERSION_SEEN, B.SETUPS, B.RECOVERIES }, {}
   local function count(key)
     if not inAccount[key] then
       inAccount[key] = true
@@ -3463,7 +3477,7 @@ function ShroudOnStart()
   step("skill levels", function() T.Daily.OnSkills(true) end)
   ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
   T.setupDirty = true                  -- this character's copy in the account file, at the next flush
-  T.Welcome()                        -- first run only: a chat line and the settings window
+  T.WhatsNew(T.Welcome())            -- first run only: a chat line and the settings window; else what's new
   step("notifications", T.Notify.Check)   -- anything new: the guild message, mail, ...
 end
 

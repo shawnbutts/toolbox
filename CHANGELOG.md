@@ -27,6 +27,8 @@ ones included).
   diamond (a color no place can have) beside any overlay. /toolbox death compass, or Last death in the Map overlays
   window, points your compass back to it; the next death moves it, and it clears itself when you come back to the
   spot or once it's an hour old and you're in another scene. Settings, Map & location: Show your last death on the map.
+- **What's new:** the first time Toolbox starts after an update, the version window opens with that version's
+  changes (once per install; a new install gets the welcome instead). /toolbox version shows it any time.
 
 ### Fixed
 - **Going AFK or flagging for PvP** no longer looks like another character logging in. The game adds those tags

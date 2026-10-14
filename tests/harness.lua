@@ -1421,6 +1421,13 @@ function H.callback(name, ...)
   if fn then return H.call(fn, ...) end
 end
 
+-- The package's version (manifest.json): a returning player's `version_seen`, so a boot shows no "what's new".
+do
+  local f = assert(io.open(H.PACKAGE .. "/manifest.json", "r"))
+  H.VERSION = assert(f:read("*a"):match('"version"%s*:%s*"([^"]+)"'))
+  f:close()
+end
+
 local function manifest_files()
   local f = assert(io.open(H.PACKAGE .. "/manifest.json", "r"))
   local text = f:read("*a")
@@ -1450,6 +1457,7 @@ function H.boot(disk, time, firstRun)
   if not firstRun then
     disk.account = disk.account or {}
     if disk.account.welcomed == nil then disk.account.welcomed = true end
+    if disk.account.version_seen == nil then disk.account.version_seen = H.VERSION end
   end
   fresh(disk)
   S.time = time or 100

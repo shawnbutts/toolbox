@@ -539,6 +539,7 @@ character" sentinel.
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most 20 (which are new, `fresh`, is kept in memory only) |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last, day, at } } }`, at most `P.MAX_KEEP` (600, about 70 KB; 2,000 before 1.8.0, cut at start by `P.KeepSize`) |
 | `welcomed` (ACCOUNT scope) | set after the first-run welcome |
+| `version_seen` (ACCOUNT scope) | the last `T.version` started on this install: another one opens the version window once (`T.WhatsNew`, after the welcome's delay; a new install only notes it; absent = 1.7.0 or before) |
 | `skills` | `{ show = bool (default false), vertical = bool (default true), slots = 1..12, stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels"/"xp", size = 20..64, number = bool (the level on the icon, default true), marks = bool (the API 27 training controls, default true), soundUp = bool, soundDown = bool (both default true), pause = bool (the Pause skills tile, default true), pauseHow = "off"/"maintain" (default "off"), x, y }` (skills.lua) |
 | `ceiling_due` | `{ v = 1, ceiling, by }`: a learned account ceiling (`recovery_index`) not yet in the account file (core.lua, review 42); dropped once it is |
 | `save_mark` | the number of the recovery copy last written (core.lua, `B.KeepRecovery`); a file without it while its copy exists is put back at start (`B.Recover`) |
