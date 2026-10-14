@@ -1289,9 +1289,37 @@ end
 D.PROBE_DEPTH = 8
 D.PROBE_LINES = 80
 D.PROBE_MATCHES = 15
-local INGREDIENT_FIELDS = { name = true, quantity = true, have = true, optional = true, tool = true }
+local INGREDIENT_FIELDS = { name = true, quantity = true, have = true, optional = true, tool = true,
+                            -- API 37 (shown on their own lines below)
+                            key = true, carried = true, stats = true, group = true, groupKey = true,
+                            chosenKey = true, choosable = true, choices = true, choiceCount = true }
 local RECIPE_FIELDS = { id = true, name = true, category = true, categoryKey = true, requiredLevel = true,
-                        refine = true, ingredients = true, results = true, result = true }
+                        refine = true, ingredients = true, results = true, result = true,
+                        station = true, stationKey = true, locations = true, favorite = true }   -- API 37
+local RESULT_FIELDS = { name = true, quantity = true, key = true, carried = true, stats = true }
+D.PROBE_CHOICES = 6                    -- a group slot's material choices shown (the game gives up to 30)
+
+-- API 37 stats rows ({ key, value[, name] }) as "+0.6 Armor Damage Resistance, weight 2".
+local function statsText(stats)
+  local parts = {}
+  for _, stat in ipairs(T.List(stats)) do
+    local v = T.Field(stat, "value")
+    local label = T.Field(stat, "name")
+    if type(label) ~= "string" or label == "" then label = tostring(T.Field(stat, "key")) end
+    parts[#parts + 1] = label .. " " .. (type(v) == "number" and string.format("%g", v) or tostring(v))
+  end
+  return table.concat(parts, ", ")
+end
+
+-- API 37 item fields: " carried N, key item:..., stats: ..." (each only when the game gave it).
+local function itemText(t)
+  local out = ""
+  local carried, key, stats = T.Field(t, "carried"), T.Field(t, "key"), T.Field(t, "stats")
+  if carried ~= nil then out = out .. " carried " .. tostring(carried) .. "," end
+  if key ~= nil then out = out .. " key " .. tostring(key) .. "," end
+  if stats ~= nil then out = out .. " stats: " .. (statsText(stats) ~= "" and statsText(stats) or "none") .. "," end
+  return (out:gsub(",$", ""))
+end
 
 -- "k=v, k=v" for a table's fields outside `known` (sorted), or "" (a game object can't be walked: says so).
 local function extraFields(t, known)
@@ -1365,14 +1393,22 @@ function D.RecipeLines(text)
   say("Recipe '" .. tostring(T.Field(rec, "name")) .. "' (id " .. tostring(id) .. ", "
     .. tostring(T.Field(rec, "category")) .. " / " .. tostring(T.Field(rec, "categoryKey")) .. ", level "
     .. tostring(T.Field(rec, "requiredLevel")) .. ", refine " .. tostring(T.Field(rec, "refine")) .. ")")
+  local station = T.Field(rec, "station")
+  if station ~= nil then                 -- API 37
+    local places = {}
+    for _, l in ipairs(T.List(T.Field(rec, "locations"))) do places[#places + 1] = tostring(l) end
+    say("  Made at: " .. tostring(station) .. " (" .. tostring(T.Field(rec, "stationKey")) .. "), where: "
+      .. (#places > 0 and table.concat(places, ", ") or "not given") .. (T.Field(rec, "favorite") == true
+        and ", a favorite" or ""))
+  end
   local extra = extraFields(rec, RECIPE_FIELDS)
   if extra ~= "" then say("  other fields: " .. extra) end
   local results = T.List(T.Field(rec, "results"))
   if #results == 0 then say("  Makes: no fixed yield (a rolled result)") end
   for _, res in ipairs(results) do
-    local more = extraFields(res, { name = true, quantity = true })
+    local more = extraFields(res, RESULT_FIELDS)
     say("  Makes " .. tostring(T.Field(res, "quantity")) .. " x " .. tostring(T.Field(res, "name"))
-      .. (more ~= "" and ("  {" .. more .. "}") or ""))
+      .. itemText(res) .. (more ~= "" and ("  {" .. more .. "}") or ""))
   end
   say("Ingredients, as the game gives them:")
   for _, ing in ipairs(T.List(T.Field(rec, "ingredients"))) do
@@ -1380,9 +1416,24 @@ function D.RecipeLines(text)
     if T.Field(ing, "optional") == true then flags[#flags + 1] = "optional" end
     if T.Field(ing, "tool") == true then flags[#flags + 1] = "tool" end
     local more = extraFields(ing, INGREDIENT_FIELDS)
+    if T.Field(ing, "group") == true then flags[#flags + 1] = "group" end
     say("  " .. tostring(T.Field(ing, "quantity")) .. " x " .. tostring(T.Field(ing, "name")) .. " (have "
       .. tostring(T.Field(ing, "have")) .. ")" .. (#flags > 0 and (" [" .. table.concat(flags, ", ") .. "]") or "")
-      .. (more ~= "" and ("  {" .. more .. "}") or ""))
+      .. itemText(ing) .. (more ~= "" and ("  {" .. more .. "}") or ""))
+    if T.Field(ing, "group") == true then  -- API 37: the slot's material choices
+      local choices = T.List(T.Field(ing, "choices"))
+      local chosen = T.Field(ing, "chosenKey")
+      say("    " .. tostring(T.Field(ing, "groupKey")) .. ", " .. tostring(T.Field(ing, "choiceCount") or #choices)
+        .. " choices" .. (T.Field(ing, "choosable") == true and " (picked in the crafting window)" or "")
+        .. (chosen ~= nil and (", picked " .. tostring(chosen)) or ""))
+      for i = 1, math.min(#choices, D.PROBE_CHOICES) do
+        local c = choices[i]
+        local have = T.Field(c, "have")
+        say("    - " .. tostring(T.Field(c, "name")) .. (have ~= nil and (" (have " .. tostring(have) .. ")") or "")
+          .. itemText(c))
+      end
+      if #choices > D.PROBE_CHOICES then say("    ... and " .. (#choices - D.PROBE_CHOICES) .. " more") end
+    end
   end
 
   -- from scratch: through the first known recipe that makes each ingredient

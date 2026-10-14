@@ -9,7 +9,7 @@ return function(t)
     H.S.recipes = {
       [1] = { id = 1, name = "Iron Plate Chest", category = "Blacksmithy",
               ingredients = { { name = "Iron Plate", quantity = 6, have = 0 },
-                              { name = "Leather Strap", quantity = 2, have = 1, choices = { "A", "B" } },
+                              { name = "Leather Strap", quantity = 2, have = 1, secret = { "A", "B" } },
                               { name = "Hammer", quantity = 1, have = 1, tool = true },
                               { name = "Polish", quantity = 1, have = 0, optional = true } },
               results = { { name = "Iron Plate Chest", quantity = 1 } } },
@@ -34,7 +34,7 @@ return function(t)
     H.advance(2)
     local out = all()
     t.ok(out:find("Recipe 'Iron Plate Chest' %(id 1, Blacksmithy"), out)
-    t.ok(out:find("2 x Leather Strap %(have 1%)  {choices=<table of 2>}"), "an undocumented field shows: " .. out)
+    t.ok(out:find("2 x Leather Strap %(have 1%)  {secret=<table of 2>}"), "an undocumented field shows: " .. out)
     t.ok(out:find("1 x Hammer %(have 1%) %[tool%]"))
     t.ok(out:find("6 x Iron Plate  <%- 2 x Iron Plate %(Blacksmithy, makes 4%)"), "6 plates: 2 crafts of 4")
     t.ok(out:find("4 x Iron Ingot  <%- 4 x Iron Ingot"), "2 crafts x 2 ingots")
@@ -42,6 +42,36 @@ return function(t)
     local at = out:find("Raw materials in all", 1, true)
     t.ok(at and out:sub(at):find("\n  8 x Iron Ore\n  2 x Leather Strap", 1, true), out)
     t.no(out:find("x Hammer\n  ") or out:find("x Polish\n"), "tools and optional ones aren't raw materials")
+  end)
+
+  t.test("API 37: the station, carried counts, item keys, stats and a group slot's choices", function()
+    H.boot()
+    book()
+    local r = H.S.recipes[1]
+    r.station, r.stationKey = "Blacksmithing Station", "Crafting_Blacksmithing"
+    r.locations, r.favorite = { "any" }, true
+    r.ingredients[1] = { name = "Metal Sheet", quantity = 6, have = 4, group = true, groupKey = "group:12",
+      choosable = true, chosenKey = "item:" .. string.rep("b", 32), carried = 9, choiceCount = 8, choices = {} }
+    for i = 1, 8 do
+      r.ingredients[1].choices[i] = { name = "Sheet " .. i, key = "item:" .. string.rep(tostring(i), 32), have = i,
+        carried = i + 1, stats = { { key = "weight", value = 0.5 },
+                                   { key = "stat:Armor", value = 0.6, name = "Armor Damage Resistance" } } }
+    end
+    r.results[1].key, r.results[1].carried = "item:" .. string.rep("c", 32), 0
+    r.results[1].stats = { { key = "durability", value = 100 } }
+    H.clearLogs()
+    H.chat("/tbx recipe iron plate chest")
+    H.advance(2)
+    local out = all()
+    t.ok(out:find("Made at: Blacksmithing Station (Crafting_Blacksmithing), where: any, a favorite", 1, true), out)
+    t.ok(out:find("Makes 1 x Iron Plate Chest carried 0, key item:" .. string.rep("c", 32) .. ", stats: durability 100",
+      1, true), out)
+    t.ok(out:find("6 x Metal Sheet (have 4) [group] carried 9", 1, true), out)
+    t.ok(out:find("group:12, 8 choices (picked in the crafting window), picked item:", 1, true), out)
+    t.ok(out:find("- Sheet 1 (have 1) carried 2, key item:1111", 1, true), out)
+    t.ok(out:find("stats: weight 0.5, Armor Damage Resistance 0.6", 1, true), out)
+    t.ok(out:find("... and 2 more", 1, true), "six of eight shown")
+    t.no(out:find("other fields"), "every API 37 field has its own line")
   end)
 
   t.test("several matches are listed; none, or no recipe book, says so", function()

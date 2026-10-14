@@ -100,6 +100,7 @@ local api_probed = {
   "ShroudLoadSoundHandle", "ShroudListSoundPaths", "ShroudGetSoundState",                          -- API 34
   "ShroudGetCalendarEvents", "ShroudGetCalendarEvent", "ShroudGetCalendarSummary",
   "ShroudGetCalendarReminders", "ShroudGetCalendarTags",                                           -- API 35
+  "ShroudGetRecipeBook",                                                                           -- API 37
 }
 
 -- Callbacks an add-on may define. Listed as writable globals.
@@ -117,6 +118,7 @@ local api_callbacks = {
   "ShroudOnGuildMotdChanged", "ShroudOnFriendStatusChanged", "ShroudOnGuildMemberStatusChanged",   -- API 18
   "ShroudOnScreenChanged",                                  -- API 31
   "ShroudOnCalendarChanged",                                -- API 35
+  "ShroudOnCalendarNowChanged",                             -- API 38
 }
 
 -- The early global `Shroud` (read-only userdata) and its documented fields.

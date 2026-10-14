@@ -646,6 +646,21 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   per 10 s, all add-ons together), spoken expiry warnings (36: `ShroudPlayWarningSound`; not used, owner 2026-10-12:
   the game's own Announce Expiring Buffs option covers it). Requests 18, 19, 21 and 24 are not in it.
   The owner's live client has all of them (`/toolbox api`, 2026-10-13: every group present through API 35).
+- **API 37-38** (docs 2026-10-14; `T.DOCS_API` = 38, `min_api_version` stays 25; not yet on the owner's client when
+  checked): 37 is our request 18 as the developers described it (below): `ShroudGetRecipe` gains `station`,
+  `stationKey`, `locations`, `favorite`; ingredients `group`, `carried` (every bag, nested, worn, locked: `have` stays
+  the card's count), `key`, `stats`; a group slot `groupKey`, `chosenKey`, `choosable`, `choices` (<= 30: `name`, `key`,
+  `have` when choosable, `carried`, `stats`), `choiceCount`; results `key`, `carried`, `stats`; keys "item:" + 32 hex,
+  the same in every language, on `ShroudGetInventoryItems` / `ShroudGetEquipmentItems` rows too; stats rows `{ key,
+  value[, name] }`; `ShroudGetRecipeBook([categoryKey])` = the known book in one call (the planner's read; until it's
+  built `/toolbox recipe` prints the fields, `D.RecipeLines`). 38: `ShroudOnCalendarNowChanged()` (a date started /
+  ended or the UTC day rolled; not on the first frame: core.lua -> `N.CalendarChanged`), Window `OnShow` / `OnHide`
+  (and spec `onShow` / `onHide`; unused: the menu's open check is cheap), Image / IconButton `FollowHeading(on |
+  { offset, reverse })` (the game turns it with the compass heading; unused: an idea for a needle on the location
+  strip). `ShroudOnItemsGained` now documents dev report 24's fix: own-bag drags and pick-ups net zero, and the call
+  waits while a bag item is on the cursor. `/toolbox api`: a "Recipe book (API 37)" group and an API 38 line told by
+  `ShroudLuaApiVersion` (callbacks and element methods can't be probed). The guide's new "Keeping an add-on light"
+  matches the house rules.
 
 **Waiting on the developers:** a read-only game settings API (first use: the game's "stack buffs lasting
 longer than" option feeding `BB.GroupAfter()`). Submitted 2026-10-07 (`tmp/client-issues.md`): **18**, for the
@@ -673,8 +688,8 @@ order, so `for slot = 0, count - 1` finds everyone, buffs included), `ShroudGetP
 returns a plain list of real names, and `for v in list do` over a table walks its values.
 
 **The developers' answer** (2026-10-13, to the owner; nothing rejected):
-- **18** is built as **API 37**, not on the chaos test server yet; it ships with the next build, and the reference updates
-  then (read it before building on it).
+- **18** is built as **API 37** (in the reference since 2026-10-14, above; not yet on the owner's client then); it
+  ships with the next build.
   - `ShroudGetRecipe` gains `station`, `stationKey` and `locations`.
   - A slot ingredient ("Metal Sheet") gains `group`, `groupKey`, `choosable` and `choices`: each with `name`, `key`,
     `have`, `carried` and `stats`, at most 30, the total in `choiceCount`.
@@ -692,7 +707,7 @@ returns a plain list of real names, and `for v in list do` over a table walks it
   them (`min_api_version` 25), and the 1.6.0 and earlier saves must still read.
 - **24**: not the server. Picking an item up with the cursor takes it out of the bag, and putting it down counted as a new
   gain: a fish dragged into a bag right after the catch, and ANY drag between your own bags, reached
-  `ShroudOnItemsGained` twice. Fixed for the next build; the Loot Tracker keeps counting as it is (until then, a drag
+  `ShroudOnItemsGained` twice. Fixed for the next build (the API 38 reference documents it); the Loot Tracker keeps counting as it is (until then, a drag
   between bags counts as loot).
 - Not covered by their answer: 16 (the reference not mentioning `SetSweepTimer`'s one-day limit), 17 (a clipped wedge), and
   the read-only game settings API, never sent as a numbered request.

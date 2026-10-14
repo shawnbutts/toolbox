@@ -11,6 +11,8 @@ Toolbox.CHANGELOG = {
   { "item", "Going AFK or flagging for PvP no longer looks like another character logging in. The game adds those tags to your name (\"[AFK]\", \"[PVP]\"), and Toolbox took the tagged name for a new character: your XP session started over and every strip was built again. Setup copies kept under a tagged name (\"shawn[PVP]\") are folded into the character's own, so each character is listed once." },
   { "item", "Settings that stopped saving without a word. The game keeps at most 256 KB in each of an add-on's saved files, and when a file grows past that it saves none of it. Toolbox now checks every file's whole size before it saves: a change that wouldn't fit isn't saved, and chat names it, so the rest of the file keeps saving. The estimated prices remembered drop from 2,000 items to 600, which were most of the shared account file." },
   { "section", "Changed" },
+  { "item", "World events that start or end show at once on a game client with Lua API 38 (the game now says when), instead of up to half a minute later." },
+  { "item", "/toolbox recipe shows what a game client with Lua API 37 adds to a recipe: the station and where it can be made, how many of each ingredient you carry in all your bags, the materials a slot like \"Metal Sheet\" takes and what each adds, and item keys. A first look for the crafting planner to come." },
   { "item", "The guide's longer topics come in shorter parts: Buff bar is now Buff bar, Buff alerts and sounds, and Buff block; Commands is in two parts; and a version's long notes in the version window are too. Toolbox keeps more room in the game's limit on add-on text, for everything else on screen." },
   { "version", "1.7.0 - 2026-10-13" },
   { "section", "Added" },

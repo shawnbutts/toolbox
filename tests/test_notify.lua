@@ -217,6 +217,17 @@ return function(t)
     t.no(H.logged("Hold the Pass"))
   end)
 
+  t.test("world events: a date starting (API 38's now-changed call) is read at once, not at the next poll", function()
+    H.boot()
+    H.S.clock = NOW
+    H.S.calendar = { status = "ready", rows = {} }
+    H.callback("ShroudOnCalendarChanged")
+    H.S.calendar.rows[1] = calRow{ key = "cta:n", title = "Just Begun", inMin = -1, state = "running" }
+    H.clearLogs()
+    H.callback("ShroudOnCalendarNowChanged")
+    t.ok(H.logged("On now: Call to Arms: Just Begun"), table.concat(H.logs(), "\n"))
+  end)
+
   t.test("world events: off, no clock, an older client; /toolbox events says what's on and next", function()
     H.boot()
     H.S.clock = NOW

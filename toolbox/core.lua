@@ -1987,7 +1987,7 @@ end)
 -- 2026-09-27) lag the client (API 20), and a documented crafting/social group was withdrawn,
 -- so ask the game. Names are referenced directly: no lookup by a built name.
 -- The Lua API version the official docs described when this build was made (update with each docs check).
-T.DOCS_API = 36
+T.DOCS_API = 38
 
 function T.ApiLines()
   local function has(f) return type(f) == "function" end
@@ -2041,6 +2041,10 @@ function T.ApiLines()
       { "ShroudGetCalendarSummary", has(ShroudGetCalendarSummary) },
       { "ShroudGetCalendarReminders", has(ShroudGetCalendarReminders) },
       { "ShroudGetCalendarTags", has(ShroudGetCalendarTags) } } },
+    { "Recipe book (API 37)", { { "ShroudGetRecipeBook", has(ShroudGetRecipeBook) } } },
+    -- API 38 adds callbacks and element methods, which can't be looked up without one: told by the version
+    { "Window show / hide, FollowHeading, calendar now (API 38)", {
+      { "API 38", type(ShroudLuaApiVersion) == "number" and ShroudLuaApiVersion >= 38 } } },
   }
   local lines = { "Lua API " .. tostring(ShroudLuaApiVersion) .. " (the docs described " .. T.DOCS_API
     .. " when this build was made)." }
@@ -3525,6 +3529,11 @@ end
 -- The target the game's target frame shows changed (a new one, or none).
 -- The world calendar changed (API 35): the World events notification reads it again.
 function ShroudOnCalendarChanged()
+  T.Notify.CalendarChanged()
+end
+
+-- A calendar date started or ended, or the UTC day rolled (API 38): what's on now moved; read it again at once.
+function ShroudOnCalendarNowChanged()
   T.Notify.CalendarChanged()
 end
 

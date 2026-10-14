@@ -842,7 +842,8 @@ end
 
 -- World events (API 35, the game's calendar, read only): Calls to Arms and the game masters' official events starting
 -- within N.EVENT_LEAD minutes, or running when you log in, and featured community events; one notice for each date
--- (its `occurrence`) once. Read at most every N.EVENT_READ s, or when ShroudOnCalendarChanged says it changed (the
+-- (its `occurrence`) once. Read at most every N.EVENT_READ s, or when ShroudOnCalendarChanged (or, from API 38,
+-- ShroudOnCalendarNowChanged: a date started or ended) says it changed (the
 -- game fetches what isn't loaded: we only ask). Times are UTC seconds; T.Clock (os.time) gives now; without a clock
 -- only what's running now is told. The source's `seen` = { [occurrence] = its start as text } for dates still
 -- within the last N.EVENT_KEEP s (plain strings: the notification prefs keep only those).
