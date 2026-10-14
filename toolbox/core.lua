@@ -2354,6 +2354,7 @@ function T.RegisterPeriodic(name, fn, period, repeating)
     T.PerfAdd(name, t0)
   end
   if repeating then periodicRuns[name] = { run = run, period = period } end
+  if repeating and T.PerfHolds(name) then return true end   -- a quiet / only run: started at its report (review 47)
   if not repeating or period > 1 or period < 0.2 or name == PERIODIC then         -- (a short one: every few frames)
     return ShroudRegisterPeriodic(name, run, period, repeating)
   end
@@ -2396,6 +2397,23 @@ function T.PerfTimingLines(parts)
   addLine("Timed (os.clock), timers: ", timers)
   addLine("Their parts: ", inner)
   return lines
+end
+
+-- Whether a quiet / only run keeps this timer from running now (one registered meanwhile too: a character switch
+-- rebuilds every module, review 47); it is noted to be started at the report.
+function T.PerfHolds(name)
+  local p = perf
+  if not (p and p.filter) or name == T.PERF_ID then return false end
+  if type(p.filter) == "table" then
+    for _, part in ipairs(p.filter) do
+      if name:find(part, 1, true) then return false end
+    end
+  end
+  for _, n in ipairs(p.paused) do
+    if n == name then return true end
+  end
+  p.paused[#p.paused + 1] = name
+  return true
 end
 
 local function perfReport()
@@ -2498,7 +2516,7 @@ function T.PerfStart(secs, quiet)
             paused[#paused + 1] = name
           end
         end
-        perf.paused, perf.kept = paused, kept
+        perf.paused, perf.kept, perf.filter = paused, kept, quiet
       end
       return true
     end

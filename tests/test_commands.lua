@@ -219,6 +219,32 @@ return function(t)
     t.ok(H.logged("Which timers?"), H.lastLog())
   end)
 
+  t.test("perf quiet / only hold timers registered meanwhile (a character switch rebuilds them), till the report",
+    function()
+    H.boot()
+    H.advance(3, 0.05)
+    H.chat("/tbx perf quiet 10")
+    H.S.char.name = "Alt"                              -- another character: every module starts again
+    H.callback("ShroudOnSceneLoaded", H.S.scene)
+    for name, p in pairs(H.S.periodics) do
+      t.ok(name == "toolbox_perf" or not p.repeating, name .. " stays paused (review 47)")
+    end
+    H.clearLogs()
+    H.advance(11, 0.05)
+    t.ok(H.S.periodics.toolbox_vitals and H.S.periodics.toolbox_tick, "the rebuilt timers run after the report")
+    H.gain(500, 0)
+    H.advance(2)
+    t.eq(Toolbox.XP.Current(Toolbox.session).a, H.S.char.adv, "Alt's tick works")
+
+    H.chat("/tbx perf only vitals 10")
+    H.S.char.name = "Tester"
+    H.callback("ShroudOnSceneLoaded", H.S.scene)
+    t.ok(H.S.periodics.toolbox_vitals, "the one kept runs")
+    t.no(H.S.periodics.toolbox_location or H.S.periodics.toolbox_buffbar, "the rest stay paused")
+    H.advance(11, 0.05)
+    t.ok(H.S.periodics.toolbox_location and H.S.periodics.toolbox_buffbar, "back after the report")
+  end)
+
   t.test("perf: a client refusing the 0.01 s timer gets a longer one; refusing every one is said", function()
     H.boot()
     H.S.periodMin = 0.011
