@@ -1938,7 +1938,13 @@ local function mwMark(text)
   local field = mwEl.name
   local p, ov, name = OV.Mark(text or (field and field:GetText()) or "")
   if p and field then field:SetText("") end
-  mwMsg(p and ("Marked " .. p.name .. " in " .. ov.name .. "." .. OV.RoomNote()) or OV.MarkFailed(name, ov))
+  if p then
+    mwMsg("Marked " .. p.name .. " in " .. ov.name .. "." .. OV.RoomNote())
+    return
+  end
+  local refused = OV.MarkFailed(name, ov)
+  mwMsg(refused)
+  T.Print(refused)                      -- in chat too: the window's last line can be cut off (owner, 2026-10-14)
 end
 
 local function mwBuild()
@@ -2015,7 +2021,7 @@ local function mwBuild()
         .. " /" .. T.commands[1] .. " overlay scenes shows what each scene takes" },
   }
   mw = UI.Window{
-    id = MW_ID, title = "Map overlays", width = 380, height = 236, minWidth = 300, minHeight = 190,
+    id = MW_ID, title = "Map overlays", width = 380, height = 280, minWidth = 300, minHeight = 240,
     x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y, escCloses = true,
     style = { paddingLeft = 8, paddingRight = 8, paddingTop = 4, paddingBottom = 6 },
     children = {
