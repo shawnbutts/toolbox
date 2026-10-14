@@ -94,7 +94,9 @@ This file holds current facts and rules; the history behind them is in git (`git
   above 100 a second, and counts a slow frame's sample as Toolbox's when a mark (`T.PERF_RING`) falls in its
   interval: "near", a correlation (review 46); harness `H.S.nextDelta`, or a long `H.advance` step). The live
   client refused a 0.01 s periodic (owner, 2026-10-14; the docs give 0.01 as the minimum): `T.PERF_PERIODS` tries
-  longer ones in turn (harness `H.S.periodMin`).
+  longer ones in turn (harness `H.S.periodMin`). Phases: a repeating periodic under a second starts `T.PHASE_STEP` after
+  the one registered before it (a one-shot of its name, then the repeating one), so the half-second ones don't all
+  land in one frame (the owner's first perf run, 2026-10-14: Toolbox near 24 of 28 hitches, each naming them all).
 - Constructors (`Shroud.UI.*`, `Shroud.Command`) raise at file top level: call them from `ShroudOnStart`
   or later. Reading `Shroud.UI` at top level is fine.
 

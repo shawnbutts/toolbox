@@ -47,7 +47,7 @@ ones included).
 - **Lighter on the game:** Toolbox makes much less garbage for the game to clean up (the clean-ups can hitch).
   Saving the XP session was the most of it, and grew with the session (an hour into a fight, about 160 KB at each
   XP gain): it's now saved every 30 seconds. Game reads, the health bars and the buff bar's group tooltip make
-  less too.
+  less too. Toolbox's half-second updates no longer all run in the same frame.
 - **The Loot Tracker's Beacon button is now Compass,** like the map overlays' (it points your compass at where a run
   was played most; on the map, the run's own flag marks it).
 - **World events** that start or end show at once on a game client with Lua API 38 (the game now says when),

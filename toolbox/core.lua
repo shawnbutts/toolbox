@@ -2251,12 +2251,29 @@ function T.Ran(what)
   e.at, e.what = now, what
 end
 
--- ShroudRegisterPeriodic for a Toolbox periodic, marked for /toolbox perf.
+-- ShroudRegisterPeriodic for a Toolbox periodic, marked for /toolbox perf. A repeating one under a second gets its
+-- own phase (T.PHASE_STEP apart, in the order first registered): the half-second ones all ran in the same frame,
+-- and the owner's first /toolbox perf (2026-10-14, crafting at about 29 frames a second) found Toolbox near 24 of 28
+-- hitches, each naming every half-second periodic. Its first run comes after its phase, by a one-shot of the same
+-- name that then registers the repeating one (so removing the name stops either).
+T.PHASE_STEP = 0.06
+local phases, phaseNext = {}, 0
 function T.RegisterPeriodic(name, fn, period, repeating)
-  return ShroudRegisterPeriodic(name, function()
+  local function run()
     T.Ran(name)
     return fn()
-  end, period, repeating)
+  end
+  if not repeating or period >= 1 then return ShroudRegisterPeriodic(name, run, period, repeating) end
+  if not phases[name] then
+    phaseNext = phaseNext + 1
+    phases[name] = phaseNext
+  end
+  local phase = (phases[name] * T.PHASE_STEP) % period
+  if phase < 0.01 then return ShroudRegisterPeriodic(name, run, period, true) end
+  return ShroudRegisterPeriodic(name, function()
+    ShroudRegisterPeriodic(name, run, period, true)
+    return run()
+  end, phase, false)
 end
 
 local function perfReport()

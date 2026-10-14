@@ -105,11 +105,14 @@ return function(t)
     t.ok(Toolbox.PerfRunning())
     H.S.nextDelta = 0.2                                -- the frame at 103.0 (Toolbox's tick) took 200 ms
     H.advance(0.05, 0.05)
+    local timers = H.S.periodics                       -- a few frames with nothing of Toolbox's
+    H.S.periodics = { toolbox_perf = timers.toolbox_perf }
     H.advance(0.05, 0.05)
-    H.S.nextDelta = 0.3                                -- the frame at 103.05 (nothing of Toolbox's) took 300 ms
+    H.S.nextDelta = 0.3                                -- one took 300 ms
     H.advance(0.05, 0.05)
     H.S.nextDelta = 0.06
     H.advance(0.05, 0.05)
+    H.S.periodics = timers
     H.clearLogs()
     H.advance(10, 0.05)
     t.no(Toolbox.PerfRunning(), "done after 10 s")
@@ -129,6 +132,21 @@ return function(t)
     t.ok(H.logged("Not measuring"))
     H.chat("/tbx perf soon")
     t.ok(H.logged("Usage: /toolbox perf"))
+  end)
+
+  t.test("the half-second periodics each run in their own frame, not all in one", function()
+    H.boot()
+    H.advance(2, 0.01)
+    local beats, seen = {}, 0
+    for name, p in pairs(H.S.periodics) do
+      if p.repeating and p.period == 0.5 then
+        local beat = math.floor((p.due % 0.5) * 100 + 0.5) % 50
+        t.no(beats[beat], name .. " shares a frame with " .. tostring(beats[beat]))
+        beats[beat] = name
+        seen = seen + 1
+      end
+    end
+    t.ok(seen >= 5, seen .. " half-second periodics")
   end)
 
   t.test("perf: a client refusing the 0.01 s timer gets a longer one; refusing every one is said", function()
