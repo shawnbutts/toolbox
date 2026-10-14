@@ -193,6 +193,7 @@ end
 -- that were built, remove the ones no longer wanted, and build only the missing ones, so it costs what
 -- changed, not everything again.
 function Hud.Build(missingOnly)
+  T.Ran("HUD build")
   if not missingOnly then destroyAll() end
   for key, frame in pairs(frames) do
     if modules[key] and not present(key) then     -- a HUD frame slot is freed (8 per add-on)
@@ -297,7 +298,7 @@ function Hud.Build(missingOnly)
   Hud.FitBuilt()                       -- a strip built after the window shrank (review 31)
   if retryWanted then
     retries = retries + 1
-    ShroudRegisterPeriodic("toolbox_hud_retry", function() Hud.Build(true) end, Hud.RETRY_DELAY, false)
+    T.RegisterPeriodic("toolbox_hud_retry", function() Hud.Build(true) end, Hud.RETRY_DELAY, false)
   else
     retries = 0
   end

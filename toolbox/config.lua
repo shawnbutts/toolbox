@@ -1527,6 +1527,7 @@ end
 -- `focusId` (the settings search): build the page with that control's part at the top (built again even if
 -- shown: the UI can't scroll to it).
 function C.ShowCategory(which, focusId)
+  T.Ran("settings page")
   local cat = category(which)
   if not cat or not win then return false end
   for key in pairs(built) do
@@ -1872,7 +1873,7 @@ function C.SearchGo(label)
     blink.gen = blink.gen + 1
     blink.el, blink.left = hit, 2 * C.SEARCH_BLINKS
     local gen = blink.gen
-    ShroudRegisterPeriodic(BLINK, function()
+    T.RegisterPeriodic(BLINK, function()
       if gen ~= blink.gen or not blink.el then return end
       blink.left = blink.left - 1
       if blink.left <= 0 then

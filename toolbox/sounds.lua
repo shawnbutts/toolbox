@@ -443,7 +443,7 @@ function S.Test(key)
   end
   T.Print(string.format("%s: playing '%s' (clip %d) on channel %d at volume %d.",
     label, info.clip, info.index, info.channel, info.volume))
-  ShroudRegisterPeriodic("toolbox_soundcheck_" .. key, function()
+  T.RegisterPeriodic("toolbox_soundcheck_" .. key, function()
     local now = ShroudIsChannelPlaying(info.channel)
     if type(now) == "string" and now ~= "" then
       T.Print(label .. ": channel " .. info.channel .. " is playing '" .. now .. "'. If you hear nothing,"

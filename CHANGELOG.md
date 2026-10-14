@@ -30,7 +30,8 @@ ones included).
 - **What's new:** the first time Toolbox starts after an update, the version window opens with that version's
   changes (once per install; a new install gets the welcome instead). /toolbox version shows it any time.
 - **/toolbox perf** measures hitches for a minute (or perf <seconds>): how many frames took over 50 ms and the
-  longest, and in how many of those Toolbox was working, so you can tell whether a hitch is Toolbox's or the game's.
+  longest, and how many of those Toolbox was working near: hitches with no Toolbox work near them point to the game
+  or another add-on.
 
 ### Fixed
 - **Going AFK or flagging for PvP** no longer looks like another character logging in. The game adds those tags

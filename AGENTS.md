@@ -88,9 +88,11 @@ This file holds current facts and rules; the history behind them is in git (`git
   inputs change. `tests/test_perf.lua` and `tests/test_stress.lua` hold the budgets. Garbage is what hitches
   (the 1.8.0 pass, owner 2026-10-14): no closure per call on a hot path (`pcall(fn, args)` with a shared function,
   not `pcall(function() ... end)`), and nothing big stored per event (the XP session is stored only as it is
-  flushed, at once only for XP lost, a death or a skill level). Register a repeating periodic with
-  `T.RegisterPeriodic` (marks it for `/toolbox perf`: `T.Ran`, also in core's busy callbacks; the sampler reads
-  `ShroudRealDeltaTime` each frame and counts slow frames Toolbox worked in; harness `H.S.nextDelta`).
+  flushed, at once only for XP lost, a death or a skill level). Register every periodic with
+  `T.RegisterPeriodic` (marks it for `/toolbox perf`: `T.Ran`, also in every core callback, the command dispatcher,
+  `Hud.Build` and a settings page; the sampler reads `ShroudRealDeltaTime` at most every 0.01 s, so not every frame
+  above 100 a second, and counts a slow frame's sample as Toolbox's when a mark (`T.PERF_RING`) falls in its
+  interval: "near", a correlation (review 46); harness `H.S.nextDelta`, or a long `H.advance` step).
 - Constructors (`Shroud.UI.*`, `Shroud.Command`) raise at file top level: call them from `ShroudOnStart`
   or later. Reading `Shroud.UI` at top level is fine.
 

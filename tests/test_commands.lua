@@ -97,7 +97,7 @@ return function(t)
     t.ok(H.S.windows.toolbox_version:IsShown(), "an upgrade from 1.7.0 too")
   end)
 
-  t.test("perf: slow frames counted, and whether Toolbox worked in them; stop ends it early", function()
+  t.test("perf: slow frames counted, and whether Toolbox worked near them; stop ends it early", function()
     H.boot()
     H.advance(3, 0.05)                                 -- whole seconds: the tick and more ran in that frame
     H.chat("/tbx perf 10")
@@ -113,9 +113,10 @@ return function(t)
     H.clearLogs()
     H.advance(10, 0.05)
     t.no(Toolbox.PerfRunning(), "done after 10 s")
-    t.ok(H.logged("^Toolbox perf, 10 s: 2[0-9][0-9] frames %(20 a second%); 3 took over 50 ms %(2 over 100 ms%), "
-      .. "the longest 300 ms%.$"), H.logs()[1])
-    t.ok(H.logged("Toolbox worked in %d+%% of all frames, and in 1 of the 3 slow ones %(toolbox_"), H.lastLog())
+    t.ok(H.logged("^Toolbox perf, 10 s: 2[0-9][0-9] samples %(20 a second, about one a frame below 100 frames a "
+      .. "second%); 3 frames took over 50 ms %(2 over 100 ms%), the longest 300 ms%.$"), H.logs()[1])
+    t.ok(H.logged("Toolbox was working near %d+%% of all samples, and near 1 of the 3 hitches %(.*toolbox_tick"),
+      H.lastLog())
     t.no(H.S.periodics.toolbox_perf, "its timer is gone")
 
     H.chat("/tbx perf 60")
@@ -128,6 +129,24 @@ return function(t)
     t.ok(H.logged("Not measuring"))
     H.chat("/tbx perf soon")
     t.ok(H.logged("Usage: /toolbox perf"))
+  end)
+
+  t.test("perf: work in a frame the sampler skipped (200 frames a second) and a price answer count (review 46)",
+    function()
+    H.boot()
+    H.advance(3, 0.005)                                -- 200 frames a second: the 0.01 s sampler skips every other
+    H.chat("/tbx perf 10")
+    H.advance(0.115, 0.005)                            -- off every periodic's beat
+    H.gain(10, 0)                                      -- Toolbox's XP callback in this frame...
+    H.advance(0.2, 0.2)                                -- ...which took 200 ms
+    H.advance(0.5, 0.005)
+    H.callback("ShroudOnHttpResponse", 99, true, 200, "{}", nil)
+    H.advance(0.3, 0.3)
+    H.advance(0.5, 0.005)
+    H.clearLogs()
+    H.chat("/tbx perf stop")
+    t.ok(H.logged("2 frames took over 50 ms %(2 over 100 ms%)"), H.logs()[1])
+    t.ok(H.logged("near 2 of the 2 hitches %(.*prices.*xp"), H.lastLog())
   end)
 
   t.test("the settings window's Docs button opens the Docs window", function()

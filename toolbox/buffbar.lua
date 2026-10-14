@@ -1567,7 +1567,7 @@ BB.TRACE_EFFECTS = 6            -- effects listed per buff in a trace line
 function BB.Trace(filter)
   filter = (filter or ""):lower()
   local n = 0
-  ShroudRegisterPeriodic("toolbox_bufftrace", function()
+  T.RegisterPeriodic("toolbox_bufftrace", function()
     n = n + 1
     local byName = {}
     for _, rune in ipairs(playerRunes()) do byName[rune.RuneName] = rune end

@@ -1233,7 +1233,7 @@ function CD.Init()
   cdWin, cdPopup = nil, false
   if cdPrefs.open then
     -- Pinned: reopen a few seconds after start-up, once the rest has been built (the creation cap).
-    ShroudRegisterPeriodic("toolbox_combat_detail_open", function()
+    T.RegisterPeriodic("toolbox_combat_detail_open", function()
       if not cdWin and not tryBuild() then return end
       if not cdWin:Show() then T.Print("Combat Detailed could not reopen yet; use /toolbox combat detail.") end
       CD.Refresh(true)
@@ -1355,7 +1355,7 @@ function CS.Shout(kind, force)
     end
     T.SetVisible(box, true)
     pcall(ShroudRemovePeriodic, HIDE)
-    ShroudRegisterPeriodic(HIDE, hide, CS.SHOW_SECONDS, false)
+    T.RegisterPeriodic(HIDE, hide, CS.SHOW_SECONDS, false)
   end
 end
 

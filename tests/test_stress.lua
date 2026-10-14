@@ -13,6 +13,8 @@ return function(t)
   --                  16 calls/s and 8 made/s replacing sweep pictures); 1.1 calls/s, 9.0 / 22.9 KB/s with the
   --                  buff block showing every effect too (2026-10-03)
   --   heavy combat  67 calls/s, 61 / 75 KB/s (incl. the test's own 50 event tables a second), 0 made/s
+  -- The 1.8.0 performance pass (2026-10-14, Lua 5.5): veteran idle 4.0 calls/s, 4.2 KB/s; full bars 1.1 calls/s,
+  -- 6.7 KB/s (the buff block too); heavy combat 66.6 calls/s, 60.5 KB/s; 0 made/s.
   -- STRESS_PRINT=1 lua tests/run.lua stress prints them. Limits leave headroom.
   local LIMITS = {
     veteran = { calls = 10, kb = 12, made = 1 },

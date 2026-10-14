@@ -55,13 +55,13 @@ function Controller:Update()
     -- Registering the same name again restarts it, so start it only once per hover.
     if o.enabled() and self:Any("t:") and not o.popup.IsShown() and not self.pending then
       self.pending = true
-      ShroudRegisterPeriodic(self.showTimer, function() self:OnShowTimer() end, Hover.SHOW_DELAY, false)
+      Toolbox.RegisterPeriodic(self.showTimer, function() self:OnShowTimer() end, Hover.SHOW_DELAY, false)
     end
   else
     ShroudRemovePeriodic(self.showTimer)
     self.pending = false
     if o.popup.IsPopup() then
-      ShroudRegisterPeriodic(self.hideTimer, function() self:OnHideTimer() end, Hover.HIDE_DELAY, false)
+      Toolbox.RegisterPeriodic(self.hideTimer, function() self:OnHideTimer() end, Hover.HIDE_DELAY, false)
     end
   end
 end

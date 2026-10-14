@@ -994,6 +994,7 @@ end)
 
 -- You learned a recipe (or marked a favorite): /toolbox recipe reads the book again.
 function ShroudOnRecipesChanged()
+  T.Ran("recipes")
   T.Daily.ForgetRecipes()
 end
 
@@ -2221,26 +2222,33 @@ end
 
 -- ---------------------------------------------------------------------------
 -- /toolbox perf (the 1.8.0 performance pass; owner, 2026-10-14: players report hitching, "not clear if it's the lua
--- engine or toolbox itself"). For a while, a periodic at the game's shortest period reads every frame's real
--- length (ShroudRealDeltaTime: the frame before, unclamped) and whether Toolbox worked in that frame: its
--- repeating periodics (T.RegisterPeriodic) and busy callbacks call T.Ran(what), noting the frame's ShroudTime. Slow
--- frames Toolbox didn't work in are the game's or another add-on's. Memory only; nothing saved.
+-- engine or toolbox itself"). For a while, a periodic at the game's shortest period (0.01 s: about every frame below
+-- 100 a second, not every frame above) reads ShroudRealDeltaTime, the real length of the frame before it, and looks
+-- for Toolbox's work since the sample before: every Toolbox periodic (T.RegisterPeriodic) and core's callbacks call
+-- T.Ran(what), kept in a small ring (T.PERF_RING, reused tables) of { at = ShroudTime, what }. So it tells
+-- "Toolbox worked near this hitch", a correlation, not proof (review 46): a slow sample with no Toolbox work in its
+-- interval points to the game or another add-on. Memory only; nothing saved.
 -- ---------------------------------------------------------------------------
 T.PERF_ID = "toolbox_perf"
 T.PERF_SLOW = 0.05                    -- s: a frame this long is a hitch you notice (three at 60 a second)
 T.PERF_BAD = 0.1
 T.PERF_DEFAULT, T.PERF_MIN, T.PERF_MAX = 60, 10, 600
-local ran = { at = nil, what = nil, prevAt = nil, prevWhat = nil }
+T.PERF_RING = 32                      -- marks kept: more than a frame holds (every periodic and a few callbacks)
+local ring, ringAt = {}, 0
+for i = 1, T.PERF_RING do ring[i] = { at = -math.huge, what = nil } end
 local perf = nil
 
--- Toolbox is working now (one frame's mark; the one before it is kept for the sampler).
+-- Toolbox is working now: noted for /toolbox perf (the same work twice in a frame once).
 function T.Ran(what)
   local now = ShroudTime
-  if ran.at ~= now then ran.prevAt, ran.prevWhat = ran.at, ran.what end
-  ran.at, ran.what = now, what
+  local last = ring[ringAt]
+  if last and last.at == now and last.what == what then return end
+  ringAt = ringAt % T.PERF_RING + 1
+  local e = ring[ringAt]
+  e.at, e.what = now, what
 end
 
--- ShroudRegisterPeriodic for a repeating Toolbox periodic, marked for /toolbox perf.
+-- ShroudRegisterPeriodic for a Toolbox periodic, marked for /toolbox perf.
 function T.RegisterPeriodic(name, fn, period, repeating)
   return ShroudRegisterPeriodic(name, function()
     T.Ran(name)
@@ -2255,9 +2263,10 @@ local function perfReport()
   if not p then return end
   local secs = math.max(ShroudTime - p.from, 0.001)
   local function share(n, of) return of > 0 and math.floor(n * 100 / of + 0.5) or 0 end
-  T.Print(string.format("Toolbox perf, %d s: %s frames (%d a second); %d took over %d ms (%d over %d ms), the longest"
-    .. " %d ms.", math.floor(secs + 0.5), T.FormatNumber(p.frames), math.floor(p.frames / secs + 0.5), p.slow,
-    math.floor(T.PERF_SLOW * 1000), p.bad, math.floor(T.PERF_BAD * 1000), math.floor(p.worst * 1000 + 0.5)))
+  T.Print(string.format("Toolbox perf, %d s: %s samples (%d a second, about one a frame below 100 frames a second);"
+    .. " %d frames took over %d ms (%d over %d ms), the longest %d ms.", math.floor(secs + 0.5),
+    T.FormatNumber(p.frames), math.floor(p.frames / secs + 0.5), p.slow, math.floor(T.PERF_SLOW * 1000), p.bad,
+    math.floor(T.PERF_BAD * 1000), math.floor(p.worst * 1000 + 0.5)))
   if p.slow == 0 then
     T.Print("No hitches while it measured.")
     return
@@ -2265,9 +2274,9 @@ local function perfReport()
   local names = {}
   for what, n in pairs(p.whats) do names[#names + 1] = what .. (n > 1 and (" x" .. n) or "") end
   table.sort(names)
-  T.Print(string.format("Toolbox worked in %d%% of all frames, and in %d of the %d slow ones%s. Slow frames without "
-    .. "Toolbox are the game's or another add-on's: if most are, Toolbox isn't the cause.", share(p.ours, p.frames),
-    p.slowOurs, p.slow, #names > 0 and (" (" .. table.concat(names, ", ") .. ")") or ""))
+  T.Print(string.format("Toolbox was working near %d%% of all samples, and near %d of the %d hitches%s. Hitches with"
+    .. " no Toolbox work near them point to the game or another add-on.", share(p.ours, p.frames), p.slowOurs, p.slow,
+    #names > 0 and (" (" .. table.concat(names, ", ") .. ")") or ""))
 end
 
 local function perfSample()
@@ -2275,21 +2284,29 @@ local function perfSample()
   if not p then return end
   local now, dt = ShroudTime, ShroudRealDeltaTime
   if type(now) ~= "number" or now == p.last then return end
-  local frame = p.last                                  -- dt is that frame's length
+  local from = p.last                                   -- dt is the last frame of [from, now)
   p.last = now
-  if not frame or type(dt) ~= "number" then return end
+  if type(dt) ~= "number" then return end
   p.frames = p.frames + 1
-  local what = nil
-  if ran.at == frame then what = ran.what elseif ran.prevAt == frame then what = ran.prevWhat end
-  if what then p.ours = p.ours + 1 end
+  local slow = dt > T.PERF_SLOW
+  local near = false
+  for i = 1, T.PERF_RING do
+    local e = ring[i]
+    if e.at >= from and e.at < now then
+      near = true
+      if not slow then break end
+      if p.named[e.what] ~= p.frames then               -- once a sample
+        p.named[e.what] = p.frames
+        p.whats[e.what] = (p.whats[e.what] or 0) + 1
+      end
+    end
+  end
+  if near then p.ours = p.ours + 1 end
   if dt > p.worst then p.worst = dt end
-  if dt > T.PERF_SLOW then
+  if slow then
     p.slow = p.slow + 1
     if dt > T.PERF_BAD then p.bad = p.bad + 1 end
-    if what then
-      p.slowOurs = p.slowOurs + 1
-      p.whats[what] = (p.whats[what] or 0) + 1
-    end
+    if near then p.slowOurs = p.slowOurs + 1 end
   end
   if now - p.from >= p.secs then perfReport() end
 end
@@ -2297,7 +2314,7 @@ end
 -- Starts measuring for `secs` seconds (T.PERF_MIN..T.PERF_MAX); false when the game refused the periodic.
 function T.PerfStart(secs)
   perf = { from = ShroudTime, secs = secs, last = ShroudTime, frames = 0, ours = 0, slow = 0, bad = 0, slowOurs = 0,
-           worst = 0, whats = {} }
+           worst = 0, whats = {}, named = {} }
   if not ShroudRegisterPeriodic(T.PERF_ID, perfSample, 0.01, true) then
     perf = nil
     return false
@@ -2416,6 +2433,7 @@ function T.ParseArgs(args)
 end
 
 function T.Dispatch(args)
+  T.Ran("command")
   local word, rest = T.ParseArgs(args)
   if word == "" then word = "config" end       -- /toolbox alone opens the settings window
   local fn = handlers[word]
@@ -2607,7 +2625,7 @@ function T.Welcome()
   T.SetSavedVar("welcomed", true, "account")
   -- A moment later: start-up has just built every window and HUD strip, and the settings window's
   -- ~180 elements on top could pass the game's element-creation cap (2026-09-28).
-  ShroudRegisterPeriodic("toolbox_welcome", function() T.Config.Open() end, T.WELCOME_DELAY, false)
+  T.RegisterPeriodic("toolbox_welcome", function() T.Config.Open() end, T.WELCOME_DELAY, false)
   return true
 end
 
@@ -2621,7 +2639,7 @@ function T.WhatsNew(welcomed)
   if welcomed then return false end
   T.Print("Toolbox is now " .. T.version .. ": the version window shows what's new (/" .. T.commands[1]
     .. " version).")
-  ShroudRegisterPeriodic("toolbox_whatsnew", function() T.Docs.OpenVersion() end, T.WELCOME_DELAY, false)
+  T.RegisterPeriodic("toolbox_whatsnew", function() T.Docs.OpenVersion() end, T.WELCOME_DELAY, false)
   return true
 end
 
@@ -3591,6 +3609,7 @@ function T.Restart()
 end
 
 function ShroudOnStart()
+  T.Ran("start")
   T.startedAt = T.Now()
   T.RegisterCommands()
   T.RegisterKeybind()
@@ -3630,6 +3649,7 @@ end
 
 -- Fight start / end for the combat HUD.
 function ShroudOnCombatModeChanged(inCombat)
+  T.Ran("combat mode")
   T.Combat.OnCombatMode(inCombat)
   T.BuffBar.OnCombatMode(inCombat)     -- "only during combat"
 end
@@ -3642,11 +3662,13 @@ end
 
 -- Vigor moved, appeared or went away (API 20; never fires on older clients).
 function ShroudOnVigorChanged(vigor)
+  T.Ran("vigor")
   T.Vitals.OnVigorChanged(vigor)
 end
 
 -- A scene change rebuilds the buff list: don't alert for debuffs that were already there.
 function ShroudOnSceneUnloaded()
+  T.Ran("scene")
   T.BuffBar.SceneChange()
 end
 
@@ -3659,10 +3681,12 @@ end
 -- Guild or friends changed (twice a second at most): maybe a new guild message of the day.
 -- Friends / guild members came online or went offline (API 18).
 function ShroudOnFriendStatusChanged(changes, dropped)
+  T.Ran("friends")
   T.Notify.OnStatus("friends", changes, dropped)
 end
 
 function ShroudOnGuildMemberStatusChanged(changes, dropped)
+  T.Ran("guild")
   T.Notify.OnStatus("guild", changes, dropped)
 end
 
@@ -3675,6 +3699,7 @@ end
 
 -- You died (true) or are alive again (false).
 function ShroudOnDeathChanged(isDead)
+  T.Ran("death")
   T.Daily.OnDeath(isDead)
   T.Overlays.OnDeath(isDead)
 end
@@ -3682,16 +3707,19 @@ end
 -- The target the game's target frame shows changed (a new one, or none).
 -- The world calendar changed (API 35): the World events notification reads it again.
 function ShroudOnCalendarChanged()
+  T.Ran("calendar")
   T.Notify.CalendarChanged()
 end
 
 -- A calendar date started or ended, or the UTC day rolled (API 38): what's on now moved; read it again at once.
 function ShroudOnCalendarNowChanged()
+  T.Ran("calendar")
   T.Notify.CalendarChanged()
 end
 
 -- The game window's size, UI scale or mode changed (API 31): strips past an edge come back.
 function ShroudOnScreenChanged()
+  T.Ran("screen")
   T.Hud.FitScreen()
 end
 
@@ -3701,21 +3729,25 @@ function ShroudOnTargetChanged()
 end
 
 function ShroudOnSocialChanged()
+  T.Ran("social")
   T.Notify.Check()
 end
 
 -- The guild message of the day changed (API 18; the game checks twice a second).
 function ShroudOnGuildMotdChanged()
+  T.Ran("guild message")
   T.Notify.Check()
 end
 
 -- A notification count or flag changed (mail, ransoms, rewards, guild applications).
 function ShroudOnNotificationsChanged()
+  T.Ran("notifications")
   T.Notify.Check()
 end
 
 -- Web answers (only the SotANET price lookups ask for any).
 function ShroudOnHttpResponse(requestId, ok, status, body, err)
+  T.Ran("prices")
   T.Prices.OnResponse(requestId, ok, status, body, err)
 end
 
@@ -3741,11 +3773,13 @@ function ShroudOnGatherResults(results, dropped)
 end
 
 function ShroudOnCraftingStateChanged(state)
+  T.Ran("crafting")
   T.Daily.OnCraftingState(state)
   T.ProbeEvent("state", state)
 end
 
 function ShroudOnLogOut()
+  T.Ran("logout")
   T.loggedOut = true                   -- the next login reads its settings again, even the same character's
   if T.session then
     T.Sample()
@@ -3759,6 +3793,7 @@ function ShroudOnLogOut()
 end
 
 function ShroudOnDisableScript()
+  T.Ran("shutdown")
   -- Not marked ended: it is not documented whether /lua reload goes through here.
   if T.session then T.SaveSession(false) end
   T.Daily.Save()

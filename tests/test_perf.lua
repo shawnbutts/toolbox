@@ -2,12 +2,14 @@
 -- Counts UI calls (each one crosses into the game's UI) and garbage (collected on the heap every
 -- add-on shares) over a minute with every window and strip open, idle and in combat. Measured
 -- 2026-09-28 after the performance pass: idle ~4 UI calls/s and ~6 KB/s, combat ~28 and ~31 KB/s
--- (they were ~100 / 39 KB and ~127 / 74 KB). The limits leave headroom; a feature that trips one
--- should update only what changed and reuse its tables (see Toolbox.SetText etc. in core.lua).
+-- (they were ~100 / 39 KB and ~127 / 74 KB); 2026-10-14, the 1.8.0 pass (Lua 5.5): idle 4.0 and 3.6 KB/s, combat
+-- 27.5 and 22.6 KB/s, an hour into a fight 14.1 KB/s (63 before: the XP session stored with every gain). The
+-- limits leave headroom; a feature that trips one should update only what changed and reuse its tables (see
+-- Toolbox.SetText etc. in core.lua).
 local H = require("harness")
 
 return function(t)
-  local LIMITS = { idle = { calls = 20, kb = 15 }, combat = { calls = 60, kb = 60 } }
+  local LIMITS = { idle = { calls = 20, kb = 15 }, combat = { calls = 60, kb = 60 }, long = { kb = 30 } }
 
   local function everythingOpen()
     H.boot()
@@ -80,6 +82,40 @@ return function(t)
     H.advance(10)
     ShroudGetTotalAdventurerExperience = get
     t.ok(reads <= 10, reads .. " reads in 10 s")
+  end)
+
+  t.test("an hour into a fight, XP gains store the session only at the flush; garbage stays flat", function()
+    H.boot()
+    local function fight(sec)
+      if sec % 3 == 0 then
+        H.gain(700, 50)
+        H.combat({ { kind = "death", fromYou = true, target = "Bear", time = ShroudTime } })
+      end
+    end
+    for sec = 1, 3600 do                         -- an hour of samples in the session
+      fight(sec)
+      H.advance(1)
+    end
+    local stores, set = 0, ShroudSetSavedVar
+    ShroudSetSavedVar = function(k, ...)
+      if k == "session" then stores = stores + 1 end
+      return set(k, ...)
+    end
+    collectgarbage("collect")
+    collectgarbage("stop")
+    local before = collectgarbage("count")
+    for sec = 1, 60 do
+      fight(sec)
+      H.advance(1)
+    end
+    local kb = (collectgarbage("count") - before) / 60
+    collectgarbage("restart")
+    ShroudSetSavedVar = set
+    t.ok(stores <= 2, stores .. " stores of the session in a minute (one a flush)")
+    if not rawget(_G, "jit") then       -- standard Lua only (see the idle test)
+      t.ok(kb <= LIMITS.long.kb, string.format("%.1f KB/s of garbage an hour in (limit %d; 63 before 1.8.0)", kb,
+        LIMITS.long.kb))
+    end
   end)
 
   t.test("combat with every window open stays within its budget", function()
