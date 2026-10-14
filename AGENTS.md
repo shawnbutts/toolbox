@@ -659,7 +659,13 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   { offset, reverse })` (the game turns it with the compass heading; unused: an idea for a needle on the location
   strip). `ShroudOnItemsGained` now documents dev report 24's fix: own-bag drags and pick-ups net zero, and the call
   waits while a bag item is on the cursor. `/toolbox api`: a "Recipe book (API 37)" group and an API 38 line told by
-  `ShroudLuaApiVersion` (callbacks and element methods can't be probed). The guide's new "Keeping an add-on light"
+  `ShroudLuaApiVersion` (callbacks and element methods can't be probed). Seen in game 2026-10-14 (`/toolbox recipe
+  plate chest armor`): every field as documented; the result's stats are base values ("weight 10, durability 220,
+  resistance 9, avoidance 7, Magic Fizzle Chance 32": the fixed keys unnamed, a `stat:` row named); "Metal Sheet" is
+  group:33 with 6 choices (Copper ... White Iron Sheet), each with a key and stats ("Iron Sheet: weight 2, Armor
+  Damage Resistance 0.2"); no `chosenKey` until one is picked. Unclear: a sheet's stats list Base Weapon Damage on a
+  chest armor recipe (the material's bonuses whether or not this item uses them?), and whether a value is per piece or
+  for the recipe's quantity (the reference says the quantity's). The guide's new "Keeping an add-on light"
   matches the house rules.
 
 **Waiting on the developers:** a read-only game settings API (first use: the game's "stack buffs lasting
