@@ -716,8 +716,9 @@ local locLast = {}                    -- the last rounded reading: x, y, z, head
 local locWater = { scene = nil, kinds = "", at = -math.huge, shown = false,   -- the scene's kinds; the line shown
                    near = nil, nearAt = -math.huge, nx = nil, nz = nil }   -- the nearest water as last read, and where
 -- The nearest water is asked again only past LOC.WATER_MOVE m from where it was last asked, or LOC.WATER_NEAR_EVERY s
--- (the owner's perf runs, 2026-10-14: location near 10 hitches a minute standing at a station, asking twice a second).
-LOC.WATER_MOVE, LOC.WATER_NEAR_EVERY = 1, 5
+-- (the owner's perf runs, 2026-10-14: location near 10 hitches a minute standing at a station, asking twice a second;
+-- timed, the game's answer took up to 28 ms).
+LOC.WATER_MOVE, LOC.WATER_NEAR_EVERY = 5, 60
 
 function LOC.HasWater()
   return type(ShroudGetNearestWaterType) == "function" and type(ShroudGetSceneWaterTypes) == "function"

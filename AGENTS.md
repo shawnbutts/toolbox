@@ -78,6 +78,10 @@ This file holds current facts and rules; the history behind them is in git (`git
     `ShroudSetSavedVar` (dev reports 19, 21);
   - recovery (`B.Recover` / `B.KeepRecovery`): a copy of each character's `B.RecoverList()` keys in the account
     file, numbered (`save_mark` in the character's file); a file back without its number is put back at start.
+- **MoonSharp is slow** (the owner's timed `/toolbox perf`, 2026-10-14): Lua work measured at 0.3 ms in the harness took
+  about 23 ms in game (saving the day: copy and check), and the game's `ShroudGetNearestWaterType` up to 28 ms. Keep big
+  walks (`T.ForSaving`, `T.CheckSaved`) out of frequent paths: the session and the day are stored only with the
+  flush (`D.SaveIfChanged`, also at a scene unload, logout and shutdown), the buff timers every `BB.TIMER_SAVE` (30) s.
 - **No `io.*` / `os.*`**, except feature-detected `os.date`/`os.time` for the local clock (`Toolbox.Today`,
   `Toolbox.Clock`), and feature-detected `os.clock` for `/toolbox perf`'s timing only (owner, 2026-10-14: `T.PerfT`
   / `T.PerfAdd`, nil and free unless perf is measuring). Persist with `ShroudSetSavedVar`/`ShroudGetSavedVar`, character scope.

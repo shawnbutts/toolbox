@@ -67,7 +67,7 @@ return function(t)
     Toolbox.BuffBar.SetSize(24)
     H.chat("/tbx vitals size 200")
     H.goldChange(250)
-    H.advance(2)
+    H.advance(Toolbox.flushSeconds)                  -- the day is stored with the flush
     local gold = H.saved("daily").gold
     t.ok(gold > 0)
     H.S.memory["character:Tester"].buff_durations = { v = 2, durations = { Light = 1200 } }
@@ -178,7 +178,7 @@ return function(t)
     Toolbox.Sounds.SetPath("buff_expiring", "my sounds/ding 100%.ogg")
     Toolbox.BuffBar.Mute("Ward/Shield")
     H.items({ { "Half/Half Ale", 2 }, { "100% Cotton", 1 } })
-    H.advance(2)
+    H.advance(Toolbox.flushSeconds)                  -- the day is stored with the flush
     t.ok(H.S.memory["character:Tester"].sounds.paths.buff_expiring:find("%2F", 1, true), "stored encoded")
     H.restart(nil, true)
     t.eq(Toolbox.Sounds.GetPath("buff_expiring"), "my sounds/ding 100%.ogg")

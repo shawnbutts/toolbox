@@ -123,7 +123,7 @@ return function(t)
   t.test("a reload at a station reads the crafting window's state", function()
     H.boot()
     H.craftResults({ craft("Iron Ingot", 5) })
-    H.advance(1)                                             -- saved with the next tick
+    H.advance(Toolbox.flushSeconds)                          -- saved with the flush
     H.S.craftingState = { open = true, station = "Smelter", busy = false }
     H.reload()
     H.items({ { "Iron Ingot", 5 } })
@@ -281,7 +281,7 @@ return function(t)
     H.gatherResults({ { node = "Tree", failed = false, experience = 5, items = {} } }, 2)
     t.eq(day().craft.dropped, 3)
     t.eq(day().gather.dropped, 2)
-    H.advance(1)
+    H.advance(Toolbox.flushSeconds)                  -- the day is stored with the flush
     H.reload()
     t.eq(day().craft.dropped, 3, "saved")
     H.chat("/tbx crafted")
@@ -387,6 +387,7 @@ return function(t)
 
   t.test("the day's crafting survives a reload", function()
     busyDay()
+    H.advance(Toolbox.flushSeconds)                  -- the day is stored with the flush
     H.reload()
     t.eq(day().recipes["Crimson Pine Board"].n, 1)
     t.eq(day().crafted["Crimson Pine Board"], 2)

@@ -119,6 +119,7 @@ return function(t)
     H.goldChange(60)
     H.combat({ { kind = "death", fromYou = true } })
     H.advance(1)
+    H.advance(Toolbox.flushSeconds)                  -- the day is stored with the flush
     H.reload()
     H.advance(1)
     t.eq(day().a, 900)
@@ -166,6 +167,7 @@ return function(t)
     H.boot()
     H.gain(900, 0)
     H.advance(1)
+    H.callback("ShroudOnLogOut")                     -- another character: the game logs this one out first
     H.S.char.name = "Alt"
     H.advance(1)
     t.eq(day().a, 0, "Alt starts at 0")
@@ -276,6 +278,7 @@ return function(t)
     H.chat("/tbx xpd")
     H.advance(1)
     t.eq(H.S.windows.toolbox_xp:Find("session_extra").text, "Skill levels +2, deaths 2")
+    H.advance(Toolbox.flushSeconds)                  -- the day is stored with the flush
     H.reload()
     H.advance(1)
     t.eq(H.dailyText("skills"), "3", "saved with the day, and the start's reading counted Heal's rise")

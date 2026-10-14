@@ -2803,6 +2803,7 @@ function T.Tick()
   -- re-reads the totals, so it loses no XP, at most the chart's last samples.
   if (T.unsaved or T.unflushed or T.setupDirty) and T.Now() - T.lastFlush >= T.flushSeconds then
     if T.unsaved then T.SaveSession(false) end
+    T.Daily.SaveIfChanged()
     T.Flush()
     T.lastFlush = T.Now()
     T.unflushed = false
@@ -3921,6 +3922,7 @@ end
 function ShroudOnSceneUnloaded()
   T.Ran("scene")
   T.SceneChanged()
+  T.Daily.SaveIfChanged()              -- the day is otherwise stored with the flush
   T.BuffBar.SceneChange()
 end
 

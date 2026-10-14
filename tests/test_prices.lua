@@ -183,6 +183,7 @@ return function(t)
     H.advance(2)
     H.httpRespond(1, true, 200, ANSWER)
     t.eq(H.saved("prices", "account").items["iron ore"].avg, 5)
+    H.advance(Toolbox.flushSeconds)                  -- the day is stored with the flush
     H.reload()                               -- Loot Tracker reopens (it was open)
     H.advance(3)
     t.eq(#H.S.requests, 1, "no new lookup")

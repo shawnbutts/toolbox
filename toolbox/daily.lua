@@ -772,6 +772,14 @@ function D.Tick(hasCharacter)
     local gold = ShroudPlayerGold
     if type(gold) == "number" and gold >= 0 and D.ObserveGold(D.day, gold) then D.unsaved = true end
   end
+  -- A changed day is stored with the next flush (T.Tick: D.SaveIfChanged), not each tick: each store copied and
+  -- checked the whole day, about 23 ms in game, every 2 s while crafting (the owner's timed /toolbox perf,
+  -- 2026-10-14: 20 of the tick's 21 slow runs).
+  if D.unsaved then T.unflushed = true end
+end
+
+-- Stores the day if it changed since it was last stored (before a flush).
+function D.SaveIfChanged()
   if D.unsaved then D.Save() end
 end
 

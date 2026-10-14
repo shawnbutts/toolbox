@@ -372,7 +372,8 @@ local combatUntil = 0     -- "only during combat": still shown until this T.Now(
 local lastShown = nil     -- BB.IsShown() at the last tick, to refresh the HUD when it changes
 BB.GRACE = 10             -- seconds a vanished buff keeps its timer (scene loads)
 local lastTimerSave = -math.huge
-BB.TIMER_SAVE = 5         -- seconds between saves of the running timers (for a reload)
+BB.TIMER_SAVE = 30        -- seconds between saves of the running timers (for a reload; 5 before the owner's timed
+                          -- /toolbox perf, 2026-10-14: up to 23 ms each in game)
 local debuffs = {}        -- debuff names seen at the last change (set)
 local timers = {}         -- rune name -> BB.Track state
 local quietUntil = 0      -- no debuff alerts before this T.Now()
