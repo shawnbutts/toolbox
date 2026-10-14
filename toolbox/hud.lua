@@ -753,7 +753,7 @@ end
 
 -- The scene's name ("" while loading), the position (nil when unknown) and the compass heading (nil without).
 function LOC.Read()
-  local okS, scene = pcall(ShroudGetCurrentSceneName)
+  local okS, scene = pcall(T.SceneName)
   if not okS or type(scene) ~= "string" then scene = "" end
   local x, y, z = ShroudPlayerX, ShroudPlayerY, ShroudPlayerZ
   if type(x) ~= "number" or type(y) ~= "number" or type(z) ~= "number" or x ~= x or y ~= y or z ~= z then
@@ -1132,7 +1132,7 @@ end
 
 -- The scene you're in (its id), or nil while loading.
 local function hereRaw()
-  local ok, raw = pcall(ShroudGetCurrentSceneNameRaw)
+  local ok, raw = pcall(T.SceneRaw)
   if ok and type(raw) == "string" and raw ~= "" then return raw end
   return nil
 end
@@ -2390,7 +2390,7 @@ end
 -- Fills the window from the overlays, when they or the scene changed (from every change and OV.Tick).
 function OV.SyncWindow()
   if not (mw and mwEl.pick) then return end
-  local okRaw, raw = pcall(ShroudGetCurrentSceneNameRaw)
+  local okRaw, raw = pcall(T.SceneRaw)
   raw = okRaw and raw or ""
   local key = OV.version .. ">" .. tostring(raw) .. ">" .. tostring(T.CharacterName())
   if key == mwKey then return end

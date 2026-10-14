@@ -100,7 +100,9 @@ This file holds current facts and rules; the history behind them is in git (`git
   and each stays `T.PHASE_EDGE` off the tick's whole seconds (the second run: three in each slow frame). The tick's
   once-a-second work is in four periodics: `T.Tick` (XP, the day, flush), `T.PollTick` (`toolbox_poll`: sounds,
   prices, gear, notifications), `T.TrackTick` (`toolbox_track`: window and strip positions) and `T.ViewsTick` (`toolbox_views`: map markers, the
-  settings page, the windows' text, the notification HUD), each calling `T.FollowCharacter` first.
+  settings page, the windows' text, the notification HUD), each calling `T.FollowCharacter` first. The scene's name and
+  id come from `T.SceneName` / `T.SceneRaw` (kept `T.SCENE_EVERY` s, dropped on `ShroudOnSceneLoaded` / `Unloaded`:
+  tests that change `H.S.scene` fire `ShroudOnSceneLoaded`, as the game does).
 - Constructors (`Shroud.UI.*`, `Shroud.Command`) raise at file top level: call them from `ShroudOnStart`
   or later. Reading `Shroud.UI` at top level is fine.
 

@@ -175,7 +175,7 @@ function DD.MarkRun(i)
     return false
   end
   local where = p.scene ~= "" and p.scene or "another scene"
-  local okRaw, raw = pcall(ShroudGetCurrentSceneNameRaw)
+  local okRaw, raw = pcall(T.SceneRaw)
   if not (okRaw and raw == p.raw) then
     T.Print("That run was in " .. where .. ". The compass points at a spot in the scene you're in: go"
       .. " there and click Compass again.")
@@ -235,7 +235,7 @@ end
 
 function DD.SyncMarkers()
   if not DD.HasMarkers() then return end
-  local okRaw, raw = pcall(ShroudGetCurrentSceneNameRaw)
+  local okRaw, raw = pcall(T.SceneRaw)
   if not okRaw or type(raw) ~= "string" or raw == "" then return end
   local who, version, on = T.CharacterName(), T.Daily.runsVersion, DD.GetMarkers()
   if raw == markers.raw and who == markers.who and version == markers.version and on == markers.on then return end

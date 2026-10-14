@@ -219,6 +219,28 @@ function T.Field(obj, k)
   return nil
 end
 
+-- The scene you're in, its display name and its id (ShroudGetCurrentSceneName / ...Raw), kept T.SCENE_EVERY s and
+-- dropped whenever the scene changes (T.SceneChanged): the location strip and the day's play time asked for it
+-- several times a second, and they were near most of Toolbox's hitches in the owner's perf runs (2026-10-14). An
+-- empty answer (loading) isn't kept. Call through pcall as the game's functions.
+T.SCENE_EVERY = 5
+local sceneKept = { name = nil, nameAt = -math.huge, raw = nil, rawAt = -math.huge }
+function T.SceneChanged() sceneKept.nameAt, sceneKept.rawAt = -math.huge, -math.huge end
+function T.SceneName()
+  local now = T.Now()
+  if now - sceneKept.nameAt < T.SCENE_EVERY then return sceneKept.name end
+  local name = ShroudGetCurrentSceneName()
+  if type(name) == "string" and name ~= "" then sceneKept.name, sceneKept.nameAt = name, now end
+  return name
+end
+function T.SceneRaw()
+  local now = T.Now()
+  if now - sceneKept.rawAt < T.SCENE_EVERY then return sceneKept.raw end
+  local raw = ShroudGetCurrentSceneNameRaw()
+  if type(raw) == "string" and raw ~= "" then sceneKept.raw, sceneKept.rawAt = raw, now end
+  return raw
+end
+
 -- A list from the game as a Lua list: a table (1-based), or a game-side list (userdata) with
 -- Count, indexed from 0 (C#) or else from 1.
 function T.List(list)
@@ -3722,11 +3744,13 @@ end
 -- A scene change rebuilds the buff list: don't alert for debuffs that were already there.
 function ShroudOnSceneUnloaded()
   T.Ran("scene")
+  T.SceneChanged()
   T.BuffBar.SceneChange()
 end
 
 function ShroudOnSceneLoaded(_)
   T.Ran("scene")
+  T.SceneChanged()
   T.FollowCharacter()
   T.BuffBar.SceneChange()
 end

@@ -9,6 +9,7 @@ return function(t)
     H.boot()
     t.eq(strip(), nil, "no strip until it's switched on")
     H.S.scene = "Northern Lowlands"
+    H.callback("ShroudOnSceneLoaded", H.S.scene)   -- a scene change: the game says so
     H.S.pos = { 2014.4, 30.2, -3015.6 }
     H.S.heading = 47
     H.chat("/tbx location")
@@ -33,6 +34,7 @@ return function(t)
     t.eq(text("loc_coords"), "-5, 0, 12")
     t.eq(text("loc_facing"), "Facing S (181)")
     H.S.scene = "The Northern Vertaxis Lowlands Of Some Length"
+    H.callback("ShroudOnSceneLoaded", H.S.scene)   -- a scene change: the game says so
     H.advance(1)
     t.eq(text("loc_scene"), "The Northern Vertaxis Lowlands Of Some Length")
     t.ok(Toolbox.Location.ContentSize() > w1, "wider for a long name")

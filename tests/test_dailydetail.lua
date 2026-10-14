@@ -360,11 +360,13 @@ return function(t)
     H.chat("/tbx loot")
     H.chat("/tbx loot reset")
     H.S.scene = "Northern Lowlands"
+    H.callback("ShroudOnSceneLoaded", H.S.scene)   -- a scene change: the game says so
     H.goldChange(600)
     H.items({ { "Iron Ore", 10 } })
     H.advance(30 * 60 + 2)                               -- half an hour
     H.chat("/tbx loot reset")                            -- files it, starts the next
     H.S.scene = "Highvale"
+    H.callback("ShroudOnSceneLoaded", H.S.scene)   -- a scene change: the game says so
     H.goldChange(100)
     H.advance(10 * 60 + 2)
     H.chat("/tbx loot reset")
@@ -414,6 +416,7 @@ return function(t)
     H.chat("/tbx loot")
     H.chat("/tbx loot reset")
     H.S.scene = "Northern Lowlands"
+    H.callback("ShroudOnSceneLoaded", H.S.scene)   -- a scene change: the game says so
     H.S.pos = { 1000, 20, -500 }                         -- the way there: a short stop
     H.advance(60)
     for i = 1, 30 do                                     -- the farming spot, moving about within it
@@ -421,6 +424,7 @@ return function(t)
       H.advance(10)
     end
     H.S.scene = "Highvale"                               -- back to town for a bit
+    H.callback("ShroudOnSceneLoaded", H.S.scene)   -- a scene change: the game says so
     H.S.pos = { 5, 1, 5 }
     H.advance(30)
     H.chat("/tbx loot reset")
@@ -442,6 +446,7 @@ return function(t)
     t.eq(H.S.beacon, nil, "not from another scene")
     t.ok(H.lastLog():find("That run was in Northern Lowlands"), H.lastLog())
     H.S.scene = "Northern Lowlands"
+    H.callback("ShroudOnSceneLoaded", H.S.scene)   -- a scene change: the game says so
     H.call(function() mark.onClick(mark) end)
     t.ok(H.S.beacon and math.abs(H.S.beacon[1] - spot.x) < 1e-6 and H.S.beacon[3] == spot.z, "set at the spot")
     t.ok(H.S.beacon[4]:find("^Loot run %d%d:%d%d$"), H.S.beacon[4])
@@ -463,6 +468,7 @@ return function(t)
     H.boot()
     H.chat("/tbx loot reset")
     H.S.scene = "Northern Lowlands"
+    H.callback("ShroudOnSceneLoaded", H.S.scene)   -- a scene change: the game says so
     H.S.pos = { 2000, 30, 3000 }
     H.advance(300)
     H.chat("/tbx loot reset")                            -- the first run filed, in Northern Lowlands
@@ -478,6 +484,7 @@ return function(t)
     t.ok(tip:find("A flag marks it on your map there; Compass points you to it."), tip)
     -- another scene: none of its own; back again, the flag is set again (the game's are per scene)
     H.S.scene = "Highvale"
+    H.callback("ShroudOnSceneLoaded", H.S.scene)   -- a scene change: the game says so
     H.S.pos = { 5, 1, 5 }
     H.advance(300)
     H.chat("/tbx loot reset")                            -- a second run, in Highvale
@@ -485,6 +492,7 @@ return function(t)
     t.eq(#markersHere(), 1, "Highvale's run")
     H.S.markers = {}                                     -- a new session: the game kept none
     H.S.scene = "Northern Lowlands"
+    H.callback("ShroudOnSceneLoaded", H.S.scene)   -- a scene change: the game says so
     H.advance(1)
     t.eq(#markersHere(), 1, "set again on arrival")
     local sets = H.S.markerSets

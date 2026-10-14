@@ -693,7 +693,7 @@ local function playerPos()
 end
 
 local function countSpot(s, scene, dt)
-  local okRaw, raw = pcall(ShroudGetCurrentSceneNameRaw)
+  local okRaw, raw = pcall(T.SceneRaw)
   local x, y, z = playerPos()
   if not (okRaw and type(raw) == "string" and raw ~= "" and x) then return end
   if type(s.spots) ~= "table" then s.spots = {} end
@@ -750,7 +750,7 @@ local function countPlay(hasCharacter)
       local before = math.floor((s.played or 0) / D.PLAY_SAVE)
       s.played = (s.played or 0) + dt
       if math.floor(s.played / D.PLAY_SAVE) ~= before then D.unsaved = true end
-      local okScene, scene = pcall(ShroudGetCurrentSceneName)
+      local okScene, scene = pcall(T.SceneName)
       if okScene and type(scene) == "string" and scene ~= "" then
         if type(s.scenes) ~= "table" then s.scenes = {} end
         local n = 0
