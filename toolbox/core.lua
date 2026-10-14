@@ -2408,6 +2408,12 @@ add("perf", "measure hitches for a minute (perf <seconds>; perf stop): slow fram
     end
     return
   end
+  if perf then                                          -- one at a time: a second start replaced the first unreported
+    T.Print("Already measuring (" .. math.max(0, math.ceil(perf.secs - (ShroudTime - perf.from))) .. " s left)"
+      .. (perf.paused and ", with Toolbox's timers paused" or "") .. ": wait for its report, or /" .. T.commands[1]
+      .. " perf stop.")
+    return
+  end
   local secs = tonumber(word) or (word == "" and T.PERF_DEFAULT) or nil
   if not secs then
     T.Print("Usage: /" .. T.commands[1] .. " perf [seconds] (" .. T.PERF_MIN .. " to " .. T.PERF_MAX .. "), or perf"
