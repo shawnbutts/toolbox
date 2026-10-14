@@ -877,6 +877,8 @@ Rules learned the hard way; keep to them.
   the map (across a reload too), World events and `/toolbox events`, fishable water on the location strip, Choose...
   (the file picker), sound handles across a reload, strips fitted after the window shrinks, Pause / Resume skills,
   the Map & location page and the menu's Location button, effect sounds, the mail doorbell and a run's Beacon.
+- **Last death** (confirmed 2026-10-14, the owner in game): the magenta diamond on the map and its clearing (back at
+  the spot after going away, or old in another scene).
 - **Louder sounds** (confirmed 2026-10-07): the +7.5 dB .ogg files, the halved saved volume and the per-sound
   volume sliders work in game.
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
