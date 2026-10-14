@@ -1758,7 +1758,7 @@ function BB.Init()
   BB.Quiet()
   BB.OnBuffsChanged("start")           -- the change callback only fires on changes
   MB.Init()                            -- the buff block, filled by the same tick
-  ShroudRegisterPeriodic(PERIODIC, BB.Tick, BB.TICK, true)
+  T.RegisterPeriodic(PERIODIC, BB.Tick, BB.TICK, true)
 end
 
 -- ---------------------------------------------------------------------------

@@ -1501,6 +1501,9 @@ function H.advance(seconds, step)
   local target = ShroudTime + seconds
   while ShroudTime < target - 1e-9 do
     ShroudTime = math.min(target, ShroudTime + step)
+    -- the frame before's real length (H.S.nextDelta: the next step reports that, once: a hitch)
+    ShroudRealDeltaTime = S.nextDelta or step
+    S.nextDelta = nil
     ShroudPlayerGold = S.char.present and S.char.gold or 0   -- per-frame globals
     local pos = S.pos or { 0, 0, 0 }
     ShroudPlayerX, ShroudPlayerY, ShroudPlayerZ = pos[1], pos[2], pos[3]

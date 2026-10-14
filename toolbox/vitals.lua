@@ -461,7 +461,7 @@ function V.Init()
   vigorShow[1], vigorShow[2], vigorShow[3] = V.FormatVigor(nil)
   readVigorNow()                     -- the callback fires only on a change: read the start here
   T.Hud.Register("vitals", V)
-  ShroudRegisterPeriodic(PERIODIC, V.Tick, V.TICK, true)
+  T.RegisterPeriodic(PERIODIC, V.Tick, V.TICK, true)
 end
 
 -- ---------------------------------------------------------------------------
@@ -1460,7 +1460,7 @@ function TG.Init()
   end
   tList, tRaw, tInfoBy = {}, {}, {}
   T.Hud.Register("target", TG)
-  ShroudRegisterPeriodic(TPERIODIC, function()
+  T.RegisterPeriodic(TPERIODIC, function()
     TG.Poll(false)
   end, TG.POLL, true)
 end

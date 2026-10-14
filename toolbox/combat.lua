@@ -682,7 +682,7 @@ function C.Init()
   T.Hud.Register("combat", C)
   C.Detail.Init()
   C.Shout.Init()                        -- before Toolbox.Hud builds the Toolbelt (its overlay)
-  ShroudRegisterPeriodic(PERIODIC, C.Tick, C.TICK, true)
+  T.RegisterPeriodic(PERIODIC, C.Tick, C.TICK, true)
 end
 
 -- ---------------------------------------------------------------------------

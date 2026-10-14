@@ -29,6 +29,8 @@ ones included).
   spot or once it's an hour old and you're in another scene. Settings, Map & location: Show your last death on the map.
 - **What's new:** the first time Toolbox starts after an update, the version window opens with that version's
   changes (once per install; a new install gets the welcome instead). /toolbox version shows it any time.
+- **/toolbox perf** measures hitches for a minute (or perf <seconds>): how many frames took over 50 ms and the
+  longest, and in how many of those Toolbox was working, so you can tell whether a hitch is Toolbox's or the game's.
 
 ### Fixed
 - **Going AFK or flagging for PvP** no longer looks like another character logging in. The game adds those tags
@@ -41,6 +43,10 @@ ones included).
   prices remembered drop from 2,000 items to 600, which were most of the shared account file.
 
 ### Changed
+- **Lighter on the game:** Toolbox makes much less garbage for the game to clean up (the clean-ups can hitch).
+  Saving the XP session was the most of it, and grew with the session (an hour into a fight, about 160 KB at each
+  XP gain): it's now saved every 30 seconds. Game reads, the health bars and the buff bar's group tooltip make
+  less too.
 - **The Loot Tracker's Beacon button is now Compass,** like the map overlays' (it points your compass at where a run
   was played most; on the map, the run's own flag marks it).
 - **World events** that start or end show at once on a game client with Lua API 38 (the game now says when),

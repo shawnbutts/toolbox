@@ -666,7 +666,7 @@ function SK.Fill()
   -- a quick periodic only while an icon flashes (the strip's own runs every SK.TICK)
   if flashing and not SK.flashing then
     SK.flashing = true
-    ShroudRegisterPeriodic(FLASH, SK.Fill, SK.FLASH_HALF, true)
+    T.RegisterPeriodic(FLASH, SK.Fill, SK.FLASH_HALF, true)
   elseif not flashing and SK.flashing then
     SK.flashing = false
     pcall(ShroudRemovePeriodic, FLASH)
@@ -1080,7 +1080,7 @@ function SK.Init()
   state, readFor, wasInUse = SK.NewState(), nil, false
   needRead, xpDirty, lastRead = true, false, -math.huge
   T.Hud.Register("skills", SK)
-  ShroudRegisterPeriodic(PERIODIC, SK.Tick, SK.TICK, true)
+  T.RegisterPeriodic(PERIODIC, SK.Tick, SK.TICK, true)
 end
 
 -- /toolbox skills debug

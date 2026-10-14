@@ -85,7 +85,12 @@ This file holds current facts and rules; the history behind them is in git (`git
 - **Be cheap per tick.** Set UI through `Toolbox.SetText` / `SetTooltip` / `SetVisible` / `SetValue` /
   `SetStyle` (they skip calls that change nothing; don't mix them with direct calls for the same element and
   property), reuse tables, keep comparators and closures out of loops, rebuild derived data only when its
-  inputs change. `tests/test_perf.lua` and `tests/test_stress.lua` hold the budgets.
+  inputs change. `tests/test_perf.lua` and `tests/test_stress.lua` hold the budgets. Garbage is what hitches
+  (the 1.8.0 pass, owner 2026-10-14): no closure per call on a hot path (`pcall(fn, args)` with a shared function,
+  not `pcall(function() ... end)`), and nothing big stored per event (the XP session is stored only as it is
+  flushed, at once only for XP lost, a death or a skill level). Register a repeating periodic with
+  `T.RegisterPeriodic` (marks it for `/toolbox perf`: `T.Ran`, also in core's busy callbacks; the sampler reads
+  `ShroudRealDeltaTime` each frame and counts slow frames Toolbox worked in; harness `H.S.nextDelta`).
 - Constructors (`Shroud.UI.*`, `Shroud.Command`) raise at file top level: call them from `ShroudOnStart`
   or later. Reading `Shroud.UI` at top level is fine.
 

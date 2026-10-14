@@ -98,8 +98,12 @@ end
 -- color and its end) were seen in game (2026-10-07, 2026-10-08), and Toolbox took each for another character: a new
 -- XP session and every strip rebuilt on going AFK. Character names have no brackets, so every [...] goes. Plain
 -- find/sub (no lazy pattern). Not a string: given back as it is.
+-- The last tagged name's plain form is kept: the player's ("shawn[AFK]") was taken apart several times a second.
+local plainOf, plainIs = nil, nil
 function T.PlainName(name)
   if type(name) ~= "string" or not name:find("[", 1, true) then return name end
+  if name == plainOf then return plainIs end
+  plainOf, plainIs = name, nil
   local parts, at = {}, 1
   while true do
     local open = name:find("[", at, true)
@@ -109,7 +113,8 @@ function T.PlainName(name)
     at = close + 1
   end
   parts[#parts + 1] = name:sub(at)
-  return T.Trim(table.concat(parts))
+  plainIs = T.Trim(table.concat(parts))
+  return plainIs
 end
 
 -- The player's name, without tags (T.PlainName); the game's sentinels ("none", "INVALID") as they are. Every
@@ -2214,6 +2219,124 @@ function T.ProbeLines()
   return lines
 end
 
+-- ---------------------------------------------------------------------------
+-- /toolbox perf (the 1.8.0 performance pass; owner, 2026-10-14: players report hitching, "not clear if it's the lua
+-- engine or toolbox itself"). For a while, a periodic at the game's shortest period reads every frame's real
+-- length (ShroudRealDeltaTime: the frame before, unclamped) and whether Toolbox worked in that frame: its
+-- repeating periodics (T.RegisterPeriodic) and busy callbacks call T.Ran(what), noting the frame's ShroudTime. Slow
+-- frames Toolbox didn't work in are the game's or another add-on's. Memory only; nothing saved.
+-- ---------------------------------------------------------------------------
+T.PERF_ID = "toolbox_perf"
+T.PERF_SLOW = 0.05                    -- s: a frame this long is a hitch you notice (three at 60 a second)
+T.PERF_BAD = 0.1
+T.PERF_DEFAULT, T.PERF_MIN, T.PERF_MAX = 60, 10, 600
+local ran = { at = nil, what = nil, prevAt = nil, prevWhat = nil }
+local perf = nil
+
+-- Toolbox is working now (one frame's mark; the one before it is kept for the sampler).
+function T.Ran(what)
+  local now = ShroudTime
+  if ran.at ~= now then ran.prevAt, ran.prevWhat = ran.at, ran.what end
+  ran.at, ran.what = now, what
+end
+
+-- ShroudRegisterPeriodic for a repeating Toolbox periodic, marked for /toolbox perf.
+function T.RegisterPeriodic(name, fn, period, repeating)
+  return ShroudRegisterPeriodic(name, function()
+    T.Ran(name)
+    return fn()
+  end, period, repeating)
+end
+
+local function perfReport()
+  local p = perf
+  perf = nil
+  pcall(ShroudRemovePeriodic, T.PERF_ID)
+  if not p then return end
+  local secs = math.max(ShroudTime - p.from, 0.001)
+  local function share(n, of) return of > 0 and math.floor(n * 100 / of + 0.5) or 0 end
+  T.Print(string.format("Toolbox perf, %d s: %s frames (%d a second); %d took over %d ms (%d over %d ms), the longest"
+    .. " %d ms.", math.floor(secs + 0.5), T.FormatNumber(p.frames), math.floor(p.frames / secs + 0.5), p.slow,
+    math.floor(T.PERF_SLOW * 1000), p.bad, math.floor(T.PERF_BAD * 1000), math.floor(p.worst * 1000 + 0.5)))
+  if p.slow == 0 then
+    T.Print("No hitches while it measured.")
+    return
+  end
+  local names = {}
+  for what, n in pairs(p.whats) do names[#names + 1] = what .. (n > 1 and (" x" .. n) or "") end
+  table.sort(names)
+  T.Print(string.format("Toolbox worked in %d%% of all frames, and in %d of the %d slow ones%s. Slow frames without "
+    .. "Toolbox are the game's or another add-on's: if most are, Toolbox isn't the cause.", share(p.ours, p.frames),
+    p.slowOurs, p.slow, #names > 0 and (" (" .. table.concat(names, ", ") .. ")") or ""))
+end
+
+local function perfSample()
+  local p = perf
+  if not p then return end
+  local now, dt = ShroudTime, ShroudRealDeltaTime
+  if type(now) ~= "number" or now == p.last then return end
+  local frame = p.last                                  -- dt is that frame's length
+  p.last = now
+  if not frame or type(dt) ~= "number" then return end
+  p.frames = p.frames + 1
+  local what = nil
+  if ran.at == frame then what = ran.what elseif ran.prevAt == frame then what = ran.prevWhat end
+  if what then p.ours = p.ours + 1 end
+  if dt > p.worst then p.worst = dt end
+  if dt > T.PERF_SLOW then
+    p.slow = p.slow + 1
+    if dt > T.PERF_BAD then p.bad = p.bad + 1 end
+    if what then
+      p.slowOurs = p.slowOurs + 1
+      p.whats[what] = (p.whats[what] or 0) + 1
+    end
+  end
+  if now - p.from >= p.secs then perfReport() end
+end
+
+-- Starts measuring for `secs` seconds (T.PERF_MIN..T.PERF_MAX); false when the game refused the periodic.
+function T.PerfStart(secs)
+  perf = { from = ShroudTime, secs = secs, last = ShroudTime, frames = 0, ours = 0, slow = 0, bad = 0, slowOurs = 0,
+           worst = 0, whats = {} }
+  if not ShroudRegisterPeriodic(T.PERF_ID, perfSample, 0.01, true) then
+    perf = nil
+    return false
+  end
+  return true
+end
+
+function T.PerfRunning() return perf ~= nil end
+
+add("perf", "measure hitches for a minute (perf <seconds>; perf stop): slow frames, and whether Toolbox worked in"
+  .. " them", function(rest)
+  local word = rest:lower()
+  if word == "stop" then
+    if not perf then
+      T.Print("Not measuring.")
+    else
+      perfReport()
+    end
+    return
+  end
+  local secs = tonumber(word) or (word == "" and T.PERF_DEFAULT) or nil
+  if not secs then
+    T.Print("Usage: /" .. T.commands[1] .. " perf [seconds] (" .. T.PERF_MIN .. " to " .. T.PERF_MAX .. "), or perf"
+      .. " stop.")
+    return
+  end
+  secs = math.floor(math.max(T.PERF_MIN, math.min(T.PERF_MAX, secs)))
+  if type(ShroudRealDeltaTime) ~= "number" then
+    T.Print("This game client doesn't give add-ons the frame time (ShroudRealDeltaTime).")
+    return
+  end
+  if not T.PerfStart(secs) then
+    T.Print("The game refused the measuring timer; try again in a moment.")
+    return
+  end
+  T.Print("Measuring hitches for " .. secs .. " s: play as usual (or stand where it hitches). /" .. T.commands[1]
+    .. " perf stop ends it early.")
+end)
+
 add("api", "list which newer game functions this client has (to check it against the docs)", function()
   for _, line in ipairs(T.ApiLines()) do T.Print(line) end
 end)
@@ -3484,7 +3607,7 @@ function ShroudOnStart()
   T.Sample()                         -- XP gained since the last save (e.g. across a reload)
   startModules()
   step("skill levels", function() T.Daily.OnSkills(true) end)
-  ShroudRegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
+  T.RegisterPeriodic(PERIODIC, T.Tick, T.tickSeconds, true)
   T.setupDirty = true                  -- this character's copy in the account file, at the next flush
   T.WhatsNew(T.Welcome())            -- first run only: a chat line and the settings window; else what's new
   step("notifications", T.Notify.Check)   -- anything new: the guild message, mail, ...
@@ -3493,11 +3616,13 @@ end
 -- Only a trigger: the amount's relation to pooled vs total XP is not documented,
 -- so the totals are re-read instead of summing `amount`.
 function ShroudOnExperienceGain(_, _)
+  T.Ran("xp")
   T.Sample()
 end
 
 -- Kills for the daily stats (combat chat lines about you, your party or your pet).
 function ShroudOnCombatEvents(events, dropped)
+  T.Ran("combat events")
   local list = T.ReadEvents(events)  -- plain tables, whatever the game hands over
   T.Daily.OnCombat(list)
   T.Combat.OnEvents(list, dropped)
@@ -3511,6 +3636,7 @@ end
 
 -- Buff bar and the debuff alert.
 function ShroudOnBuffsChanged()
+  T.Ran("buffs")
   T.BuffBar.OnBuffsChanged("event")
 end
 
@@ -3525,6 +3651,7 @@ function ShroudOnSceneUnloaded()
 end
 
 function ShroudOnSceneLoaded(_)
+  T.Ran("scene")
   T.FollowCharacter()
   T.BuffBar.SceneChange()
 end
@@ -3541,6 +3668,7 @@ end
 
 -- A skill was learned, gained or lost a level (levelsChanged), or only gained experience.
 function ShroudOnSkillsChanged(levelsChanged)
+  T.Ran("skills")
   T.Daily.OnSkills(levelsChanged)
   if T.SkillBar then T.SkillBar.OnSkillsChanged(levelsChanged) end   -- skills.lua, when present
 end
@@ -3568,6 +3696,7 @@ function ShroudOnScreenChanged()
 end
 
 function ShroudOnTargetChanged()
+  T.Ran("target")
   T.Target.OnTargetChanged()
 end
 
@@ -3592,17 +3721,20 @@ end
 
 -- Items for the daily stats (anything that arrives in your bags).
 function ShroudOnItemsGained(items, dropped)
+  T.Ran("items")
   T.Daily.OnItems(items, dropped)
   T.ProbeItems(items)
 end
 
 -- API 18 result events: today's crafting and gathering (Toolbox.Daily), and the /toolbox api probe.
 function ShroudOnCraftResults(results, dropped)
+  T.Ran("crafting")
   T.Daily.OnCraftResults(results, dropped)
   T.ProbeEvent("craft", results, dropped)
 end
 
 function ShroudOnGatherResults(results, dropped)
+  T.Ran("gathering")
   T.Daily.OnGatherResults(results, dropped)
   T.Overlays.OnGathered(results)
   T.ProbeEvent("gather", results, dropped)

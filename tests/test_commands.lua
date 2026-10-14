@@ -97,6 +97,39 @@ return function(t)
     t.ok(H.S.windows.toolbox_version:IsShown(), "an upgrade from 1.7.0 too")
   end)
 
+  t.test("perf: slow frames counted, and whether Toolbox worked in them; stop ends it early", function()
+    H.boot()
+    H.advance(3, 0.05)                                 -- whole seconds: the tick and more ran in that frame
+    H.chat("/tbx perf 10")
+    t.ok(H.logged("Measuring hitches for 10 s"), H.lastLog())
+    t.ok(Toolbox.PerfRunning())
+    H.S.nextDelta = 0.2                                -- the frame at 103.0 (Toolbox's tick) took 200 ms
+    H.advance(0.05, 0.05)
+    H.advance(0.05, 0.05)
+    H.S.nextDelta = 0.3                                -- the frame at 103.05 (nothing of Toolbox's) took 300 ms
+    H.advance(0.05, 0.05)
+    H.S.nextDelta = 0.06
+    H.advance(0.05, 0.05)
+    H.clearLogs()
+    H.advance(10, 0.05)
+    t.no(Toolbox.PerfRunning(), "done after 10 s")
+    t.ok(H.logged("^Toolbox perf, 10 s: 2[0-9][0-9] frames %(20 a second%); 3 took over 50 ms %(2 over 100 ms%), "
+      .. "the longest 300 ms%.$"), H.logs()[1])
+    t.ok(H.logged("Toolbox worked in %d+%% of all frames, and in 1 of the 3 slow ones %(toolbox_"), H.lastLog())
+    t.no(H.S.periodics.toolbox_perf, "its timer is gone")
+
+    H.chat("/tbx perf 60")
+    H.advance(1, 0.05)
+    H.clearLogs()
+    H.chat("/tbx perf stop")
+    t.ok(H.logged("^Toolbox perf, 1 s: "), H.lastLog())
+    t.ok(H.logged("No hitches while it measured"))
+    H.chat("/tbx perf stop")
+    t.ok(H.logged("Not measuring"))
+    H.chat("/tbx perf soon")
+    t.ok(H.logged("Usage: /toolbox perf"))
+  end)
+
   t.test("the settings window's Docs button opens the Docs window", function()
     H.boot()
     t.eq(H.S.windows.toolbox_docs, nil, "not built until first opened")

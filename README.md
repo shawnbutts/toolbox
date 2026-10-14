@@ -110,6 +110,7 @@ with that setting's section at the top and the setting blinking.
 | `/toolbox mark` (`<name>` / `remove [name]` / `compass [name]` / `look [name]`) | mark where you stand in the shown overlay (the first mark makes one, Places); remove a place (no name: the nearest within 15 m); point your compass at one (the game's beacon); give one the shape and color set for the next marks |
 | `/toolbox menu` (`on\|off` / `vertical\|horizontal` / `size <n>` / `shade <n>` / `combat hide\|show` / `move [x y]`) | show or hide the menu: buttons opening Toolbox's windows with one click (`launcher` works too) |
 | `/toolbox api` | which newer API functions this game client has |
+| `/toolbox perf [seconds]` | measure hitches (default a minute): slow frames, and whether Toolbox was working in them |
 | `/toolbox welcome` (`reset`) | show the first-run welcome again: the line and the settings window (`reset`: at the next reload, as on a first run) |
 | `/toolbox version` | the installed version and build (git commit), and whether more than one copy is loaded |
 | `/toolbox stats [word]` | list character stats whose name contains the word (for finding stat names) |

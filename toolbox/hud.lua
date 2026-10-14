@@ -989,7 +989,7 @@ function LOC.Init()
   end
   locEl, locLast = {}, {}
   Hud.Register("location", LOC)
-  ShroudRegisterPeriodic(LOC_PERIODIC, LOC.Update, LOC.TICK, true)
+  T.RegisterPeriodic(LOC_PERIODIC, LOC.Update, LOC.TICK, true)
 end
 
 -- The strip goes before the target (built last); a reset clears its settings.
@@ -2908,7 +2908,7 @@ function LN.Init()
   end
   lnEl, lnLit, lnBox, lnShown = {}, {}, nil, nil
   Hud.Register("launcher", LN)
-  ShroudRegisterPeriodic(LN_PERIODIC, LN.Update, LN.TICK, true)
+  T.RegisterPeriodic(LN_PERIODIC, LN.Update, LN.TICK, true)
 end
 
 -- The strip goes before the target (built last); a reset clears its settings.

@@ -1283,7 +1283,7 @@ function D.ReadRecipeBook(done)
   local list = ok and T.List(book) or {}
   if #list == 0 then return nil end
   reading = { list = list, at = 1, recipes = {}, byResult = {}, waiting = { done } }
-  ShroudRegisterPeriodic(BOOK_TIMER, readSome, D.BOOK_PERIOD, true)
+  T.RegisterPeriodic(BOOK_TIMER, readSome, D.BOOK_PERIOD, true)
   return #list
 end
 D.PROBE_DEPTH = 8
