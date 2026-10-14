@@ -920,7 +920,7 @@ function C.OverlayRows()
     } },
     UI.Toggle{ id = "ov_death", text = "Show your last death on the map", value = T.Location.GetDeath(),
       enabled = OV.HasMarkers(), style = { marginTop = 4 },
-      tooltip = OV.HasMarkers() and ("A red diamond where you last died, in its scene, beside any overlay (/"
+      tooltip = OV.HasMarkers() and ("A magenta diamond where you last died, in its scene, beside any overlay (/"
         .. T.commands[1] .. " death compass points you back)") or "Needs a newer game client (Lua API 30)",
       onChange = function(_, v) T.Location.SetDeath(v) end },
   } }

@@ -47,7 +47,8 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
   (`/toolbox overlay window`, or the button under Settings, Map & location). **Auto map** (`/toolbox overlay auto on`,
   per scene): each resource node you gather is marked in an overlay of its kind and in Gathering (every kind);
   kinds you don't want go on an ignore list (`/toolbox overlay auto ignore <kind or word>`, or Ignore kind).
-  **Your last death** shows on the map in its scene, beside any overlay; `/toolbox death compass` points you back.
+  **Your last death** shows on the map in its scene, beside any overlay; `/toolbox death compass` points you back. It clears
+  itself once you're back there, or after an hour in another scene.
 
 ## Install
 

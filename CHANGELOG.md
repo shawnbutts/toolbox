@@ -23,9 +23,10 @@ ones included).
   so the first visit maps a scene. Up to 10 automatic overlays a scene, apart from your own. Kinds you don't want
   (corpses, say) go on an ignore list, for every scene: the window's Ignore kind button, or /toolbox overlay auto
   ignore <kind or word> (a word, such as Corpse, skips every kind with it).
-- **Your last death on the map:** where you last died shows on the map and minimap in its scene (Lua API 30), a red
-  diamond beside any overlay. /toolbox death compass, or Last death in the Map overlays window, points your
-  compass back to it; the next death moves it. Settings, Map & location: Show your last death on the map.
+- **Your last death on the map:** where you last died shows on the map and minimap in its scene (Lua API 30), a magenta
+  diamond (a color no place can have) beside any overlay. /toolbox death compass, or Last death in the Map overlays
+  window, points your compass back to it; the next death moves it, and it clears itself when you come back to the
+  spot or once it's an hour old and you're in another scene. Settings, Map & location: Show your last death on the map.
 
 ### Fixed
 - **Going AFK or flagging for PvP** no longer looks like another character logging in. The game adds those tags

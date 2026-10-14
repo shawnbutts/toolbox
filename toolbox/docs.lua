@@ -307,9 +307,11 @@ D.SECTIONS = {
       .. "place." },
   { "Last death",
     "When you die, Toolbox keeps where you stood, and on a newer game client your last death shows on the map "
-      .. "and minimap in its scene: a red diamond named Last death (hover it for when), beside any overlay. Only "
-      .. "the last one: the next death moves it. /toolbox death says where it is; /toolbox death compass, or Last "
-      .. "death in the Map overlays window, points your compass back to it (the game's beacon, so it replaces "
+      .. "and minimap in its scene: a magenta diamond named Last death (hover it for when), beside any overlay. "
+      .. "Only the last one: the next death moves it. It clears itself when you come back to the spot (once "
+      .. "you've been 30 m away), or once it's an hour old and you're in another scene. /toolbox death says "
+      .. "where it is; /toolbox death compass, or Last death in the Map overlays window, "
+      .. "points your compass back to it (the game's beacon, so it replaces "
       .. "yours); /toolbox death clear takes it off. Switch it off under Settings, Map & location: Show your last "
       .. "death on the map." },
   { "Auto map",

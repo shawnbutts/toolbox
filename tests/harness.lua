@@ -238,7 +238,9 @@ local function install_api()
       if type(o.label) ~= "string" or o.label == "" or #o.label > 40 or o.label:find("\n") then
         return false, "bad_label"
       end
-      if o.icon ~= nil and not ICONS[o.icon] then return false, "bad_icon" end
+      local extra = false
+      for _, name in ipairs(S.markerIcons or {}) do extra = extra or name == o.icon end
+      if o.icon ~= nil and not ICONS[o.icon] and not extra then return false, "bad_icon" end
       if o.color ~= nil and not (type(o.color) == "string" and (o.color:find("^#%x%x%x$")
         or o.color:find("^#%x%x%x%x%x%x$"))) then return false, "bad_color" end
       if o.note ~= nil then
@@ -289,7 +291,10 @@ local function install_api()
       end
       return out
     end
-    ShroudListMapMarkerIcons = function() return { "pin", "diamond", "circle", "square", "star", "flag" } end
+    -- H.S.markerIcons: the shapes a newer client offers (set, then H.reload()).
+    ShroudListMapMarkerIcons = function()
+      return S.markerIcons or { "pin", "diamond", "circle", "square", "star", "flag" }
+    end
   else
     ShroudSetMapMarker, ShroudRemoveMapMarker, ShroudClearMapMarkers = nil, nil, nil
     ShroudGetMapMarkers, ShroudListMapMarkerIcons = nil, nil

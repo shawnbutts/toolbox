@@ -1248,6 +1248,8 @@ local function readV2(saved)
     ovData.death = { raw = d.raw, scene = type(d.scene) == "string" and d.scene ~= "" and d.scene or d.raw,
                      x = d.x, y = d.y, z = d.z, at = type(d.at) == "string" and d.at or "",
                      date = type(d.date) == "string" and d.date or "" }
+    if type(d.clock) == "number" then ovData.death.clock = d.clock end
+    if d.away == true then ovData.death.away = true end
   end
   local seen = {}
   for _, part in ipairs(type(saved.ignore) == "table" and saved.ignore or {}) do
@@ -1814,10 +1816,40 @@ end
 -- OV.DEATH_ID, an "ov" id so OV.Sync keeps it), while the location setting `death` is on; mark/compass from the
 -- Map overlays window's Last death and /toolbox death.
 -- ---------------------------------------------------------------------------
+-- It clears itself (owner, 2026-10-14): back within OV.DEATH_NEAR m of it once you've been OV.DEATH_AWAY m off (or out
+-- of the scene; `away`, saved), or OV.DEATH_KEEP s old (`clock`, T.Clock; without one, another day) while you're in
+-- another scene. Its look: the game has six shapes, none body-like (a shape asked of the developers: picked up from
+-- ShroudListMapMarkerIcons when it comes, OV.DEATH_SHAPES), so a diamond in a color no place can have.
 OV.DEATH_ID = "ovdeath"
 OV.DEATH_LABEL = "Last death"
+OV.DEATH_SHAPES = { "skull", "grave", "tombstone", "corpse", "body", "death" }
 OV.DEATH_ICON = "diamond"
-OV.DEATH_COLOR = "Red"
+OV.DEATH_HEX = "#ff30d0"              -- magenta: not one of OV.COLORS
+OV.DEATH_NEAR = 8
+OV.DEATH_AWAY = 30
+OV.DEATH_KEEP = 3600
+OV.DEATH_EVERY = 2
+local deathShape = nil
+local deathCheckAt = -math.huge
+
+-- The death marker's shape: a death-like one the game offers, else OV.DEATH_ICON (read once).
+function OV.DeathIcon()
+  if deathShape then return deathShape end
+  deathShape = OV.DEATH_ICON
+  local ok, list = false, nil
+  if type(ShroudListMapMarkerIcons) == "function" then ok, list = pcall(ShroudListMapMarkerIcons) end
+  local offered = {}
+  for _, name in ipairs(ok and T.List(list) or {}) do
+    if type(name) == "string" then offered[name:lower()] = name end
+  end
+  for _, want in ipairs(OV.DEATH_SHAPES) do
+    if offered[want] then
+      deathShape = offered[want]
+      break
+    end
+  end
+  return deathShape
+end
 
 -- Your last death as a place ({ raw, scene, x, y, z, at, date, name }), or nil.
 function OV.LastDeath()
@@ -1851,7 +1883,7 @@ function OV.OnDeath(isDead)
   local _, date = T.Today()
   ovData.death = { raw = here.raw, scene = here.scene, x = math.floor(here.x * 10 + 0.5) / 10,
                    y = math.floor(here.y * 10 + 0.5) / 10, z = math.floor(here.z * 10 + 0.5) / 10,
-                   at = T.ClockText(), date = type(date) == "string" and date or "" }
+                   at = T.ClockText(), date = type(date) == "string" and date or "", clock = T.Clock() }
   local ok, why = ovSave(snap)
   if not ok then
     T.Print("Couldn't keep where you died: " .. why .. ".")
@@ -1870,6 +1902,50 @@ function OV.ClearDeath()
   local snap = ovSnapshot()
   ovData.death = nil
   return ovSave(snap)
+end
+
+-- Whether a death has had its time (OV.DEATH_KEEP s; without a clock, from another day).
+local function deathOld(d)
+  local now = T.Clock()
+  if type(d.clock) == "number" and now then return now - d.clock >= OV.DEATH_KEEP end
+  local _, today = T.Today()
+  return d.date ~= "" and type(today) == "string" and today ~= d.date
+end
+
+-- From T.Tick, every OV.DEATH_EVERY s: your last death clears itself (above). Returns why when it did, or nil.
+function OV.DeathTick()
+  if T.Now() - deathCheckAt < OV.DEATH_EVERY then return nil end
+  deathCheckAt = T.Now()
+  ovFollow()
+  local d = ovData.death
+  if not d then return nil end
+  local here = OV.Here()
+  if not here then return nil end
+  local why = nil
+  if here.raw ~= d.raw then
+    if deathOld(d) then why = "old" end
+  else
+    local dx, dz = here.x - d.x, here.z - d.z
+    local far = dx * dx + dz * dz
+    if d.away and far <= OV.DEATH_NEAR * OV.DEATH_NEAR then why = "back" end
+    if far < OV.DEATH_AWAY * OV.DEATH_AWAY and not d.away then return nil end
+  end
+  if not why then
+    if d.away then return nil end
+    local snap, moved = ovSnapshot(), {}
+    for k, v in pairs(d) do moved[k] = v end
+    moved.away = true
+    ovData.death = moved
+    ovSave(snap)
+    return nil
+  end
+  if not OV.ClearDeath() then return nil end
+  if why == "back" then
+    T.Print("You're back where you died: " .. OV.DEATH_LABEL .. " is off the map.")
+  else
+    T.Print(OV.DEATH_LABEL .. " in " .. d.scene .. " is off the map (an hour old).")
+  end
+  return why
 end
 
 -- After a mark: a word on the room left, past OV.WARN (or "").
@@ -1990,8 +2066,8 @@ function OV.Sync()
   local death = ovData.death
   if death and death.raw == raw and LOC.GetDeath() then
     ids[OV.DEATH_ID] = true
-    want[#want + 1] = { id = OV.DEATH_ID, p = death, o = { label = OV.DEATH_LABEL, icon = OV.DEATH_ICON,
-      color = ovColor(OV.DEATH_COLOR), note = OV.DeathNote(death) } }
+    want[#want + 1] = { id = OV.DEATH_ID, p = death, o = { label = OV.DEATH_LABEL, icon = OV.DeathIcon(),
+      color = OV.DEATH_HEX, note = OV.DeathNote(death) } }
   end
   local okList, have = pcall(ShroudGetMapMarkers)
   local up = {}

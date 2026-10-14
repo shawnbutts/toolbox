@@ -265,6 +265,55 @@ return function(t)
     t.ok(H.logged("No death recorded"), H.lastLog())
   end)
 
+  t.test("your last death: its own look; cleared back at the spot after going away, or old in another scene", function()
+    H.boot()
+    H.S.clock = 1000000
+    H.S.pos = { 10, 0, 10 }
+    H.advance(1)
+    H.setDead(true)
+    H.setDead(false)
+    local m = marks()[OV().DEATH_ID]
+    t.eq(m.icon, "diamond")
+    t.eq(m.color, OV().DEATH_HEX)
+    for _, c in ipairs(OV().COLORS) do t.ok(c[2] ~= OV().DEATH_HEX, "no place has its color") end
+    H.advance(5)
+    t.ok(marks()[OV().DEATH_ID], "standing where you died keeps it")
+    H.S.pos = { 10, 0, 60 }
+    H.advance(3)
+    t.ok(marks()[OV().DEATH_ID], "away: still there")
+    H.S.pos = { 12, 0, 13 }
+    H.advance(3)
+    t.ok(H.logged("You're back where you died"), H.lastLog())
+    t.no(marks()[OV().DEATH_ID], "back at it: cleared")
+    t.no(OV().LastDeath())
+
+    H.setDead(true)                                    -- old, but only cleared from another scene
+    H.S.clock = H.S.clock + OV().DEATH_KEEP + 1
+    H.advance(3)
+    t.ok(marks()[OV().DEATH_ID], "in its scene: kept")
+    goTo("Elsewhere", { 5, 0, 5 })
+    H.advance(3)
+    t.ok(H.logged("Last death in Novia is off the map"), H.lastLog())
+    t.no(OV().LastDeath())
+
+    H.setDead(true)                                    -- away is kept across a relaunch
+    H.S.pos = { 5, 0, 60 }
+    H.advance(3)
+    H.advance(31)
+    H.restart()
+    goTo("Elsewhere", { 6, 0, 6 })
+    H.advance(3)
+    t.no(OV().LastDeath(), "back at it after the relaunch")
+
+    H.S.markerIcons = { "pin", "diamond", "Skull" }
+    H.reload()
+    H.advance(1)
+    H.setDead(true)
+    H.advance(1)
+    t.eq(marks("Elsewhere")[OV().DEATH_ID].icon, "Skull", "a death shape when the game has one")
+    H.S.markerIcons = nil
+  end)
+
   t.test("your last death: the setting hides it; the window's Last death points the compass, in its scene", function()
     H.boot()
     H.advance(1)
