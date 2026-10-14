@@ -155,6 +155,28 @@ return function(t)
     end
   end)
 
+  t.test("perf quiet: Toolbox's timers paused while it measures, and back after", function()
+    H.boot()
+    H.advance(3, 0.05)
+    local before = {}
+    for name, p in pairs(H.S.periodics) do if p.repeating then before[#before + 1] = name end end
+    t.ok(#before >= 8, #before .. " repeating timers")
+    H.chat("/tbx perf quiet 10")
+    t.ok(H.logged("Measuring hitches for 10 s with Toolbox's timers paused"), H.lastLog())
+    for _, name in ipairs(before) do t.no(H.S.periodics[name], name .. " paused") end
+    t.ok(H.S.periodics.toolbox_perf, "the sampler runs")
+    H.S.nextDelta = 0.2
+    H.advance(0.1, 0.05)
+    H.clearLogs()
+    H.advance(10, 0.05)
+    t.ok(H.logged("^Toolbox's %d+ timers were paused while it measured"), H.logs()[2])
+    t.ok(H.logged("1 frame took over 50 ms"), H.logs()[1])
+    for _, name in ipairs(before) do t.ok(H.S.periodics[name], name .. " runs again") end
+    H.gain(1000, 0)
+    H.advance(2)
+    t.eq(Toolbox.XP.Current(Toolbox.session).a, H.S.char.adv, "the tick works again")
+  end)
+
   t.test("perf: a client refusing the 0.01 s timer gets a longer one; refusing every one is said", function()
     H.boot()
     H.S.periodMin = 0.011

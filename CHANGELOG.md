@@ -31,7 +31,7 @@ ones included).
   changes (once per install; a new install gets the welcome instead). /toolbox version shows it any time.
 - **/toolbox perf** measures hitches for a minute (or perf <seconds>): how many frames took over 50 ms and the
   longest, and how many of those Toolbox was working near: hitches with no Toolbox work near them point to the game
-  or another add-on.
+  or another add-on. /toolbox perf quiet measures with Toolbox's timers paused, to compare.
 
 ### Fixed
 - **Going AFK or flagging for PvP** no longer looks like another character logging in. The game adds those tags
