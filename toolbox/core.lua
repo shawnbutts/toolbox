@@ -566,7 +566,9 @@ function T.SetSavedVar(key, value, scope)
   if type(key) ~= "string" or key == "" or #key > 128 or key:find("[/\\%c]") then
     return false, "a bad key"
   end
+  local t0 = T.PerfT()
   local ok, why = T.CheckSaved(value)
+  T.PerfAdd("save " .. key .. ":check", t0)
   local size = ok and (why + #key + 4) or 0
   if ok and value == nil then size = 0 end
   if ok and not T.FileFits(key, size, scope) then
@@ -589,7 +591,9 @@ function T.SetSavedVar(key, value, scope)
   end
   if scope ~= "account" and T.Backup and T.Backup.Recovers(key) then T.recoveryDirty = true end
   noteUndo(key, scope)
+  t0 = T.PerfT()
   local stored = ShroudSetSavedVar(key, value, scope) == true
+  T.PerfAdd("save " .. key .. ":the game's store", t0)
   if stored then noteSize(scope, key, size) end
   return stored
 end
@@ -600,7 +604,10 @@ end
 
 -- Returns T.SetSavedVar's answer: true, or false, why and (a file past 256 KB) "full".
 function T.Save(key, value)
-  local ok, why, kind = T.SetSavedVar(key, T.ForSaving(value), SCOPE)
+  local t0 = T.PerfT()
+  local saving = T.ForSaving(value)
+  T.PerfAdd("save " .. key .. ":copy", t0)
+  local ok, why, kind = T.SetSavedVar(key, saving, SCOPE)
   if not ok then T.Print("Could not save '" .. key .. "'.") end
   if T.Backup.IsSetting(key) then T.setupDirty = true end    -- this character's setup copy is behind
   return ok, why, kind
@@ -614,7 +621,9 @@ function T.Flush()
   if T.setupDirty then T.Backup.KeepCopy() end
   if T.recoveryDirty then T.Backup.KeepRecovery() end
   local ceilingKept = T.Backup.KeepCeiling()
+  local t0 = T.PerfT()
   local ok = ShroudFlushSavedVars()
+  T.PerfAdd("flush:the game's write", t0)
   local made = ok == false and T.Backup.FlushFailed()
   if made == true then ok = true end                          -- written after all
   if ok ~= false and ceilingKept then T.Backup.CeilingWritten() end
@@ -2263,6 +2272,38 @@ local ring, ringAt = {}, 0
 for i = 1, T.PERF_RING do ring[i] = { at = -math.huge, what = nil } end
 local perf = nil
 
+-- Timing (owner, 2026-10-14: "Allow os.clock", for /toolbox perf only): while perf measures and the sandbox has
+-- os.clock (feature-detected, read plainly like os.date), every Toolbox periodic and the parts marked with
+-- T.PerfT / T.PerfAdd are timed: runs, total, the longest and how many took over T.PERF_PART_SLOW. Nothing is timed
+-- otherwise (T.PerfT returns nil).
+T.PERF_PART_SLOW = 0.016                -- s: a 60-a-second frame's worth
+local timing = nil
+local function clockFn()
+  local osTable = os
+  local clock = type(osTable) == "table" and osTable.clock
+  if type(clock) ~= "function" then return nil end
+  return clock
+end
+function T.PerfT()
+  if not timing then return nil end
+  local ok, now = pcall(timing.clock)
+  return ok and type(now) == "number" and now or nil
+end
+function T.PerfAdd(label, t0)
+  if not (timing and t0) then return end
+  local ok, now = pcall(timing.clock)
+  if not ok or type(now) ~= "number" then return end
+  local d = now - t0
+  local e = timing.parts[label]
+  if not e then
+    e = { n = 0, sum = 0, max = 0, over = 0 }
+    timing.parts[label] = e
+  end
+  e.n, e.sum = e.n + 1, e.sum + d
+  if d > e.max then e.max = d end
+  if d > T.PERF_PART_SLOW then e.over = e.over + 1 end
+end
+
 -- Toolbox is working now: noted for /toolbox perf (the same work twice in a frame once).
 function T.Ran(what)
   local now = ShroudTime
@@ -2307,7 +2348,9 @@ end
 function T.RegisterPeriodic(name, fn, period, repeating)
   local function run()
     T.Ran(name)
-    return fn()
+    local t0 = T.PerfT()
+    fn()
+    T.PerfAdd(name, t0)
   end
   if repeating then periodicRuns[name] = { run = run, period = period } end
   if not repeating or period > 1 or period < 0.2 or name == PERIODIC then         -- (a short one: every few frames)
@@ -2327,11 +2370,45 @@ function T.RegisterPeriodic(name, fn, period, repeating)
   end, phase, false)
 end
 
+-- The timing's lines: the timers, then the parts, the longest first (at most T.PERF_LINES of each).
+T.PERF_LINES = 6
+function T.PerfTimingLines(parts)
+  local timers, inner = {}, {}
+  for label, e in pairs(parts) do
+    local row = { label = label, e = e }
+    if label:find(":", 1, true) then inner[#inner + 1] = row else timers[#timers + 1] = row end
+  end
+  local function byMax(a, b) return a.e.max > b.e.max end
+  table.sort(timers, byMax)
+  table.sort(inner, byMax)
+  local function ms(s) return string.format("%.1f", s * 1000) end
+  local lines = {}
+  local function addLine(title, rows)
+    local bits = {}
+    for i = 1, math.min(T.PERF_LINES, #rows) do
+      local e = rows[i].e
+      bits[#bits + 1] = string.format("%s %s ms at most, %s on average, %d over %d ms in %d", rows[i].label, ms(e.max),
+        ms(e.sum / math.max(e.n, 1)), e.over, math.floor(T.PERF_PART_SLOW * 1000 + 0.5), e.n)
+    end
+    if #bits > 0 then lines[#lines + 1] = title .. table.concat(bits, "; ") .. "." end
+  end
+  addLine("Timed (os.clock), timers: ", timers)
+  addLine("Their parts: ", inner)
+  return lines
+end
+
 local function perfReport()
   local p = perf
   perf = nil
   pcall(ShroudRemovePeriodic, T.PERF_ID)
+  local timed = timing
+  timing = nil
   if not p then return end
+  if timed then
+    for _, line in ipairs(T.PerfTimingLines(timed.parts)) do T.Print(line) end
+  else
+    T.Print("(This client's Lua has no os.clock, so the timers couldn't be timed.)")
+  end
   for _, name in ipairs(p.paused or {}) do               -- quiet: Toolbox's timers back
     local r = periodicRuns[name]
     if r then pcall(ShroudRegisterPeriodic, name, r.run, r.period, true) end
@@ -2404,6 +2481,8 @@ function T.PerfStart(secs, quiet)
   for _, period in ipairs(T.PERF_PERIODS) do
     if ShroudRegisterPeriodic(T.PERF_ID, perfSample, period, true) then
       perf.period = period
+      local clock = clockFn()
+      timing = clock and { clock = clock, parts = {} } or nil
       if quiet then
         local paused = {}
         local kept = {}
@@ -2696,9 +2775,14 @@ function T.RefreshViews()
 end
 
 function T.Tick()
+  local t0 = T.PerfT()
   T.FollowCharacter()                -- first: nothing may save the last character's settings into this one
+  T.PerfAdd("tick:character", t0)
+  t0 = T.PerfT()
   local s = T.session
   local adv, prod = T.ReadTotals()   -- once a tick (it was read twice: review, 2026-09-29)
+  T.PerfAdd("tick:XP totals", t0)
+  t0 = T.PerfT()
   if not s then
     T.ResumeOrStart()                -- no character yet when the add-on started
   elseif s.ended then
@@ -2708,7 +2792,11 @@ function T.Tick()
   else
     T.Sample(adv, prod)
   end
+  T.PerfAdd("tick:session", t0)
+  t0 = T.PerfT()
   T.Daily.Tick(adv ~= nil)
+  T.PerfAdd("tick:day", t0)
+  t0 = T.PerfT()
   -- A changed session is stored only as it goes to disk, at most every flushSeconds (and at shutdown / logout):
   -- each store copies and checks up to an hour of samples, about 160 KB of garbage an hour into a session (the
   -- 1.8.0 performance pass; it was every tick with XP, the bulk of Toolbox's garbage in a long fight). A reload
@@ -2719,6 +2807,7 @@ function T.Tick()
     T.lastFlush = T.Now()
     T.unflushed = false
   end
+  T.PerfAdd("tick:flush", t0)
 end
 
 -- The polls, in a periodic of their own (toolbox_poll; the owner's fourth perf run still put the tick near 13
@@ -3794,15 +3883,19 @@ end
 -- so the totals are re-read instead of summing `amount`.
 function ShroudOnExperienceGain(_, _)
   T.Ran("xp")
+  local t0 = T.PerfT()
   T.Sample()
+  T.PerfAdd("callback:xp", t0)
 end
 
 -- Kills for the daily stats (combat chat lines about you, your party or your pet).
 function ShroudOnCombatEvents(events, dropped)
   T.Ran("combat events")
+  local t0 = T.PerfT()
   local list = T.ReadEvents(events)  -- plain tables, whatever the game hands over
   T.Daily.OnCombat(list)
   T.Combat.OnEvents(list, dropped)
+  T.PerfAdd("callback:combat events", t0)
 end
 
 -- Fight start / end for the combat HUD.
@@ -3914,15 +4007,19 @@ end
 -- Items for the daily stats (anything that arrives in your bags).
 function ShroudOnItemsGained(items, dropped)
   T.Ran("items")
+  local t0 = T.PerfT()
   T.Daily.OnItems(items, dropped)
   T.ProbeItems(items)
+  T.PerfAdd("callback:items", t0)
 end
 
 -- API 18 result events: today's crafting and gathering (Toolbox.Daily), and the /toolbox api probe.
 function ShroudOnCraftResults(results, dropped)
   T.Ran("crafting")
+  local t0 = T.PerfT()
   T.Daily.OnCraftResults(results, dropped)
   T.ProbeEvent("craft", results, dropped)
+  T.PerfAdd("callback:crafting", t0)
 end
 
 function ShroudOnGatherResults(results, dropped)

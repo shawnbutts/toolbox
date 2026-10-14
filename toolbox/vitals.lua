@@ -1190,7 +1190,9 @@ end
 -- Reads the target and updates the row. `force`: re-read the grouped list too.
 function TG.Poll(force)
   if not tContent then return end
+  local t0 = T.PerfT()
   local has = tprefs.show == true and ShroudHasTarget() == true and not targetIsPet()
+  T.PerfAdd("target:has a target", t0)
   local s = iconSize()
   if has then
     local id = ShroudGetTargetId()

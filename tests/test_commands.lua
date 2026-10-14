@@ -180,6 +180,30 @@ return function(t)
     t.eq(Toolbox.XP.Current(Toolbox.session).a, H.S.char.adv, "the tick works again")
   end)
 
+  t.test("perf times every timer and its marked parts with os.clock (owner: allowed), and says when there's none",
+    function()
+    H.boot()
+    H.advance(3, 0.05)
+    H.chat("/tbx perf 10")
+    H.gain(100, 0)
+    H.items({ { name = "Wyvern Meat", count = 2 } })
+    H.clearLogs()
+    H.advance(11, 0.05)
+    local all = table.concat(H.logs(), "\n")
+    t.ok(all:find("Timed %(os%.clock%), timers: toolbox_[%w_]+ [%d.]+ ms at most, [%d.]+ on average, %d+ over 16 "
+      .. "ms in %d+"), all)
+    t.ok(all:find("Their parts: "), all)
+    t.ok(all:find("tick:XP totals") or all:find("tick:day") or all:find("tick:session"), all)
+    t.no(Toolbox.PerfT(), "nothing timed after")
+    local clock = os.clock
+    os.clock = nil                                     -- luacheck: ignore (a sandbox without it)
+    H.chat("/tbx perf 10")
+    H.clearLogs()
+    H.advance(11, 0.05)
+    os.clock = clock                                   -- luacheck: ignore
+    t.ok(H.logged("has no os%.clock"), table.concat(H.logs(), "\n"))
+  end)
+
   t.test("perf only: every timer but the ones named is paused", function()
     H.boot()
     H.advance(3, 0.05)

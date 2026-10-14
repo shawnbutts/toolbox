@@ -753,15 +753,19 @@ end
 
 -- The scene's name ("" while loading), the position (nil when unknown) and the compass heading (nil without).
 function LOC.Read()
+  local t0 = T.PerfT()
   local okS, scene = pcall(T.SceneName)
   if not okS or type(scene) ~= "string" then scene = "" end
+  T.PerfAdd("location:scene name", t0)
   local x, y, z = ShroudPlayerX, ShroudPlayerY, ShroudPlayerZ
   if type(x) ~= "number" or type(y) ~= "number" or type(z) ~= "number" or x ~= x or y ~= y or z ~= z then
     x, y, z = nil, nil, nil
   end
   local heading = nil
   if type(ShroudGetPlayerCompassHeading) == "function" then
+    t0 = T.PerfT()
     local okH, h = pcall(ShroudGetPlayerCompassHeading)
+    T.PerfAdd("location:compass", t0)
     if okH and type(h) == "number" and h == h then heading = h end
   end
   return scene, x, y, z, heading
@@ -865,7 +869,10 @@ end
 -- Every LOC.TICK s: the labels, set only when what they show changed.
 function LOC.Update()
   if not (locPrefs.show and locEl.column) then return end
+  local t0 = T.PerfT()
   local scene, x, y, z, heading = LOC.Read()
+  T.PerfAdd("location:read", t0)
+  t0 = T.PerfT()
   if scene ~= locScene then
     locScene = scene
     for _, key in ipairs({ "scene", "coords", "facing", "water" }) do T.SetStyle(locEl[key], locStyle()) end
@@ -873,6 +880,8 @@ function LOC.Update()
     locLast = {}
   end
   local waterChanged = LOC.UpdateWater(scene)
+  T.PerfAdd("location:water", t0)
+  t0 = T.PerfT()
   T.SetText(locEl.scene, scene ~= "" and scene or "--")
   local rx, ry, rz = nil, nil, nil
   if x then rx, ry, rz = math.floor(x + 0.5), math.floor(y + 0.5), math.floor(z + 0.5) end
@@ -891,6 +900,7 @@ function LOC.Update()
     locLast.h, locLast.hSet = rh, true
     T.SetText(locEl.facing, LOC.FacingText(heading))
   end
+  T.PerfAdd("location:show", t0)
 end
 
 -- The water line and the scene's kinds (API 32, with `water` on). True when the kinds changed (the hover follows).

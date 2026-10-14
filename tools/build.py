@@ -89,7 +89,8 @@ SPEC_NIL_RE = re.compile(r"\b\w*(spec|style|Spec|Style)\.\w+(\s*,\s*[\w.]+)*\s*=
 BARE_LOCAL_RE = re.compile(r"^\s*local\s+[A-Za-z_]\w*(\s*,\s*[A-Za-z_]\w*)*\s*(--.*)?$")
 
 # Project rule: persistence goes through saved vars only; no file or OS access. The one
-# exception is reading the local clock (os.date / os.time) for the daily reset.
+# exception is reading the local clock (os.date / os.time) for the daily reset, and os.clock for /toolbox perf's
+# timing (owner, 2026-10-14).
 # A field read straight off an element (win:Find("x").text): UI elements are game objects in game, whose
 # fields can't be read ("cannot access field text of userdata<Shroud.UI.Label>", 2026-09-30); use GetText,
 # GetValue, IsVisible and the other getters.
@@ -99,7 +100,7 @@ ELEMENT_FIELD_RE = re.compile(r":Find\([^)]*\)\s*\.\s*[A-Za-z_]\w*\b(?!\s*\()")
 # appear in anything players read (owner, 2026-09-29).
 WRONG_SITE_RE = re.compile(r"sota\.net", re.I)
 
-FORBIDDEN_LIB_RE = re.compile(r"\bio\s*\.|\bos\s*\.(?!(date|time)\b)")
+FORBIDDEN_LIB_RE = re.compile(r"\bio\s*\.|\bos\s*\.(?!(date|time|clock)\b)")
 
 
 class Report:
@@ -380,7 +381,7 @@ def check_sources(report: Report, manifest: dict) -> None:
                 report.error(f"{f}:{lineno}: '{m.group(0)}' is another domain: write SotANET or shroudoftheavatar.net")
             m = FORBIDDEN_LIB_RE.search(line)
             if m:
-                report.error(f"{f}:{lineno}: '{m.group(0)}' - use saved vars, not io/os (only os.date/os.time allowed)")
+                report.error(f"{f}:{lineno}: '{m.group(0)}' - use saved vars, not io/os (only os.date/os.time, and os.clock for perf, allowed)")
             if (RAW_SAVE_RE.search(line) and not line.lstrip().startswith("--")
                     and not (f == "core.lua" and any(ok in line for ok in RAW_SAVE_OK))):
                 report.error(f"{f}:{lineno}: a direct ShroudSetSavedVar / ShroudDeleteSavedVar: use T.Save,"

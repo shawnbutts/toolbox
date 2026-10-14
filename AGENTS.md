@@ -79,7 +79,8 @@ This file holds current facts and rules; the history behind them is in git (`git
   - recovery (`B.Recover` / `B.KeepRecovery`): a copy of each character's `B.RecoverList()` keys in the account
     file, numbered (`save_mark` in the character's file); a file back without its number is put back at start.
 - **No `io.*` / `os.*`**, except feature-detected `os.date`/`os.time` for the local clock (`Toolbox.Today`,
-  `Toolbox.Clock`). Persist with `ShroudSetSavedVar`/`ShroudGetSavedVar`, character scope.
+  `Toolbox.Clock`), and feature-detected `os.clock` for `/toolbox perf`'s timing only (owner, 2026-10-14: `T.PerfT`
+  / `T.PerfAdd`, nil and free unless perf is measuring). Persist with `ShroudSetSavedVar`/`ShroudGetSavedVar`, character scope.
 - **UI is `Shroud.UI` only.** No retained widgets (`ShroudUI*`), no immediate-mode GUI (`ShroudOnGUI`).
 - **No per-frame work.** Don't define `ShroudOnUpdate`. Use events and periodics.
 - **Be cheap per tick.** Set UI through `Toolbox.SetText` / `SetTooltip` / `SetVisible` / `SetValue` /
