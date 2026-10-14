@@ -513,8 +513,18 @@ function T.MeasureKeys(keys, scope, fresh)
   end
 end
 
+-- The account file's values as the last flush that worked left them, for each key changed since (key -> { old }):
+-- B.FlushFailed can put them back when the file passed 256 KB with copies Toolbox can't measure (review 36).
+T.accountUndo = {}
+local function noteUndo(key, scope)
+  if fileOf(scope) == T.fileUse.account and T.accountUndo[key] == nil then
+    T.accountUndo[key] = { old = ShroudGetSavedVar(key, scope) }
+  end
+end
+
 -- Deletes a saved var (the file's measure follows).
 function T.DeleteSaved(key, scope)
+  noteUndo(key, scope)
   noteSize(scope, key, 0)
   return ShroudDeleteSavedVar(key, scope)
 end
@@ -549,6 +559,7 @@ function T.SetSavedVar(key, value, scope)
     return false, why
   end
   if scope ~= "account" and T.Backup and T.Backup.Recovers(key) then T.recoveryDirty = true end
+  noteUndo(key, scope)
   local stored = ShroudSetSavedVar(key, value, scope) == true
   if stored then noteSize(scope, key, size) end
   return stored
@@ -566,14 +577,18 @@ function T.Save(key, value)
   return ok, why, kind
 end
 
--- Writes the saved vars to disk. The game answers false when a write failed or a table passed 256 KB;
--- say so in chat (at most every T.FLUSH_WARN_EVERY seconds) rather than lose settings silently.
+-- Writes the saved vars to disk. The game answers false when a write failed or a file passed 256 KB;
+-- say so in chat (at most every T.FLUSH_WARN_EVERY seconds) rather than lose settings silently. Returns false and
+-- "full" when the account file was written without its latest changes (B.FlushFailed said why in chat).
 T.FLUSH_WARN_EVERY = 300
 function T.Flush()
   if T.setupDirty then T.Backup.KeepCopy() end
   if T.recoveryDirty then T.Backup.KeepRecovery() end
   local ok = ShroudFlushSavedVars()
-  if ok == false and T.Backup.FlushFailed() then ok = true end   -- the size was why: room made, written
+  local made = ok == false and T.Backup.FlushFailed()
+  if made == true then ok = true end                          -- written after all
+  if ok ~= false or made == "undone" then T.accountUndo = {} end
+  if made == "undone" then return false, "full" end
   if ok == false then
     T.flushFailures = (T.flushFailures or 0) + 1
     if not T.flushWarnedAt or T.Now() - T.flushWarnedAt >= T.FLUSH_WARN_EVERY then
@@ -2811,7 +2826,7 @@ end
 -- without that character. Copies 1.7.0 wrote aren't listed until their character next plays, and the game can't
 -- list keys: an install that ran 1.7.0 (`legacy`, set when the index is first made there) keeps B.LEGACY_RESERVE of
 -- the account file free for them (review 36).
-B.RECOVERIES = "recovery_index"      -- account: { v = 1, names = { lower name, ... }, legacy = bool, ceiling = n }
+B.RECOVERIES = "recovery_index"      -- account: { v = 1, names = { lower name, ... }, legacy, ceiling, by }
 B.LEGACY_RESERVE = 40000             -- a first guess: a 1.7.0 copy's learned buff durations have no cap (review 36)
 B.CEILING_MARGIN = 8000
 local function readRecoveryIndex()
@@ -2823,54 +2838,142 @@ local function readRecoveryIndex()
   return names, type(saved) == "table" and saved.legacy == true, saved
 end
 
-local function writeRecoveryIndex(names, legacy, ceiling)
-  return T.SetSavedVar(B.RECOVERIES, T.ForSaving({ v = 1, names = names, legacy = legacy, ceiling = ceiling }),
-    ACCOUNT) == true
+local function writeRecoveryIndex(names, legacy, ceiling, by)
+  return T.SetSavedVar(B.RECOVERIES, T.ForSaving({ v = 1, names = names, legacy = legacy, ceiling = ceiling,
+    by = by }), ACCOUNT) == true
 end
 
--- The ceiling learned for this install's account file (B.FlushFailed), or nil.
+-- The ceiling learned for this install's account file (B.FlushFailed), or nil; and whose session learned it.
 local function learnedCeiling(saved)
   local c = type(saved) == "table" and saved.ceiling
-  return type(c) == "number" and c > 0 and c or nil
+  local by = type(saved) == "table" and type(saved.by) == "string" and saved.by or nil
+  if type(c) == "number" and c > 0 then return c, by end
+  return nil, nil
 end
 
--- The game refused a flush. Where the account file may hold copies Toolbox can't measure (a reserve is kept), it may
--- have passed 256 KB with them (review 36: no guessed reserve bounds them): the price cache, which is looked up again,
--- is freed (once a session) and the flush tried again; if that works, the size was why, and this install's ceiling is
--- learned below what was measured (kept in the index, so later growth stops short of it). A flush still refused
--- (a disk error, say) teaches nothing. The file on disk stays as it was until a flush works: nothing else is lost.
--- Returns true when the flush went through.
+-- The account file's room for what Toolbox can measure: all of it but what 1.7.0's unlisted copies may hold.
+local function keepRoom(legacy, ceiling)
+  local reserve = legacy and B.LEGACY_RESERVE or 0
+  if ceiling then reserve = math.max(reserve, T.FILE_MAX - ceiling) end
+  T.ReserveFile(ACCOUNT, reserve)
+end
+
+-- The game refused a flush, and gives no reason. Where the account file may hold copies Toolbox can't measure (a
+-- reserve is kept), it may have passed 256 KB with them (review 36: no guessed reserve bounds them). Once a session:
+-- 1. the same flush again: a refusal that passes teaches nothing and changes nothing (review 39);
+-- 2. room made a step at a time, flushing after each: the price cache (looked up again), this character's recovery
+--    copy (made again from its file), then the account file's changes since the last flush that worked;
+-- 3. if a step works, everything is put back and flushed: if THAT works too the refusal had passed (nothing lost);
+--    if it's refused, the size was why: the steps are taken again, and what's measured then, less a margin, is the
+--    ceiling for the measured part (kept in the index, so later growth stops short of it).
+-- Nothing is lost while it tries: the file on disk stays as it was until a flush works, and every value is put back
+-- unless the size was shown to be why. Returns true when written, "undone" when written without the account file's
+-- latest changes (chat names them), false when nothing worked (not the size: Toolbox's own part was smaller).
+B.UNDONE_SHOWN = 4
 function B.FlushFailed()
   local f = T.fileUse.account
-  local who = T.settingsFor
   if f.reserve == 0 or B.freedForRoom then return false end
+  if ShroudFlushSavedVars() ~= false then return true end
   B.freedForRoom = true
-  local before = f.total
+  local who = T.settingsFor
+  local copyKey = who and recoveryKey(who)
+  local reserve = f.reserve
+  T.ReserveFile(ACCOUNT, 0)                    -- putting values back is never refused
+  local taken, undone = {}, {}
+  local function take(key, value)              -- leaves `value` (nil: none) in key, remembering what was there
+    local now = ShroudGetSavedVar(key, ACCOUNT)
+    if now == value then return end
+    taken[#taken + 1] = { key = key, now = now }
+    if value == nil then T.DeleteSaved(key, ACCOUNT) else T.SetSavedVar(key, value, ACCOUNT) end
+  end
+  local function giveBack()
+    for i = #taken, 1, -1 do
+      local e = taken[i]
+      if e.now == nil then T.DeleteSaved(e.key, ACCOUNT) else T.SetSavedVar(e.key, e.now, ACCOUNT) end
+    end
+    taken = {}
+  end
+  local steps = {
+    function() take("prices", nil) end,
+    function() if copyKey then take(copyKey, nil) end end,
+    function()
+      local keys = {}
+      for key in pairs(T.accountUndo) do
+        if key ~= "prices" and key ~= copyKey then keys[#keys + 1] = key end
+      end
+      table.sort(keys)
+      for _, key in ipairs(keys) do
+        local before = #taken
+        take(key, T.accountUndo[key].old)
+        if #taken > before then undone[#undone + 1] = key end
+      end
+    end,
+  }
+  local needed = 0
+  for i, step in ipairs(steps) do
+    step()
+    if ShroudFlushSavedVars() ~= false then
+      needed = i
+      break
+    end
+  end
+  giveBack()
+  if needed == 0 or ShroudFlushSavedVars() ~= false then      -- not the size, or a refusal that passed
+    T.ReserveFile(ACCOUNT, reserve)
+    return needed > 0
+  end
+  undone = {}
   local written = false
-  if T.Prices.Count() > 0 then                -- first the prices, then this character's copy (made again later)
-    T.Prices.Forget()
+  if needed == 3 then                          -- the latest changes undone may be room enough: the copy stays
+    steps[1]()
+    steps[3]()
+    written = ShroudFlushSavedVars() ~= false
+    if not written then
+      giveBack()
+      undone = {}
+    end
+  end
+  if not written then
+    for i = 1, needed do steps[i]() end
     written = ShroudFlushSavedVars() ~= false
   end
-  if not written and who and ShroudGetSavedVar(recoveryKey(who), ACCOUNT) ~= nil then
-    T.DeleteSaved(recoveryKey(who), ACCOUNT)
-    written = ShroudFlushSavedVars() ~= false
+  if not written then
+    giveBack()
+    T.ReserveFile(ACCOUNT, reserve)
+    return false
   end
-  if not written then return false end
+  local hadPrices = ShroudGetSavedVar("prices", ACCOUNT) == nil and T.Prices.Count() > 0
+  if hadPrices then T.Prices.Forget() end       -- the cache in memory follows (its empty form is tiny)
+  local copyGone = copyKey ~= nil and needed >= 2 and ShroudGetSavedVar(copyKey, ACCOUNT) == nil
+  if copyGone then T.recoveryDirty = true end
+  for _, key in ipairs(undone) do
+    if key:find("^setup_character:") then T.setupDirty = true end
+  end
   local names, legacy, saved = readRecoveryIndex()
-  local ceiling = math.max(0, before - B.CEILING_MARGIN)
+  -- below what was just written (review 36), by a margin for the estimate's own error (a tenth of a small file)
+  local ceiling = math.max(1, f.total - math.min(B.CEILING_MARGIN, math.floor(f.total / 10)))
   local old = learnedCeiling(saved)
   if old and old <= ceiling then ceiling = old end
-  writeRecoveryIndex(names, legacy, ceiling)
-  T.ReserveFile(ACCOUNT, math.max(f.reserve, T.FILE_MAX - ceiling))
+  writeRecoveryIndex(names, legacy, ceiling, who and who:lower() or nil)
+  keepRoom(legacy, ceiling)
+  local shown = {}
+  for i = 1, math.min(#undone, B.UNDONE_SHOWN) do shown[i] = "'" .. undone[i] .. "'" end
+  if #undone > B.UNDONE_SHOWN then shown[#shown + 1] = (#undone - B.UNDONE_SHOWN) .. " more" end
   T.Print("The game couldn't save Toolbox's shared account file: with copies of your other characters' settings"
-    .. " that Toolbox 1.7.0 kept there, it passed the game's 256 KB a file. Toolbox made room (its remembered prices"
-    .. " are looked up again) and keeps the file smaller from now on. Logging in each of your other characters once"
-    .. " makes their copies smaller too.")
+    .. " that Toolbox 1.7.0 kept there, it passed the game's 256 KB a file. To make room Toolbox"
+    .. (hadPrices and " cleared its remembered prices (they're looked up again)" or "")
+    .. (copyGone and ((hadPrices and "," or "") .. " set aside this character's recovery copy") or "")
+    .. (#undone > 0 and (((hadPrices or copyGone) and " and" or "") .. " undid its latest changes to that file,"
+      .. " which weren't saved: " .. table.concat(shown, ", ")) or "")
+    .. ". It keeps the file smaller from now on; logging in each of your other characters once makes their copies"
+    .. " smaller and gives the room back.")
   ShroudFlushSavedVars()
-  return true
+  return #undone > 0 and "undone" or true
 end
 
--- Lists `who` as having a copy. Returns whether the index says so.
+-- Lists `who` as having a copy. Returns whether the index says so. A copy listed only now was unmeasured when a
+-- ceiling was learned in another character's session: its room is in the ceiling's margin, so the ceiling rises
+-- by it (it's measured from now on), and the room comes back as characters log in.
 function B.IndexRecovery(who)
   local lower = who:lower()
   local names, legacy, saved = readRecoveryIndex()
@@ -2879,7 +2982,17 @@ function B.IndexRecovery(who)
   end
   names[#names + 1] = lower
   if saved == nil then legacy = B.legacyInstall == true end
-  return writeRecoveryIndex(names, legacy, learnedCeiling(saved))
+  local ceiling, by = learnedCeiling(saved)
+  local key = recoveryKey(who)
+  local unseen = ceiling and by and by ~= lower and ShroudGetSavedVar(key, ACCOUNT)
+  local reserve = T.fileUse.account.reserve
+  if type(unseen) == "table" then
+    ceiling = math.min(T.FILE_MAX, ceiling + T.SavedSize(unseen) + #key + 4)
+    keepRoom(legacy, ceiling)                  -- first: the index itself may need the room
+  end
+  if writeRecoveryIndex(names, legacy, ceiling, by) then return true end
+  T.ReserveFile(ACCOUNT, reserve)
+  return false
 end
 
 -- Character keys that aren't settings or recovered (B.KEYS, B.RecoverList()); other files append theirs. Every key
@@ -2919,10 +3032,7 @@ function B.MeasureFiles(characterOnly)
   T.MeasureKeys(account, ACCOUNT, true)
   -- no index yet: 1.7.0 ran here if it left anything in the account file (its copies may be there, unlisted)
   if index == nil then B.legacyInstall = ShroudGetSavedVar("welcomed", ACCOUNT) ~= nil or setups ~= nil end
-  local reserve = (legacy or (index == nil and B.legacyInstall)) and B.LEGACY_RESERVE or 0
-  local ceiling = learnedCeiling(index)
-  if ceiling then reserve = math.max(reserve, T.FILE_MAX - ceiling) end
-  T.ReserveFile(ACCOUNT, reserve)
+  keepRoom(legacy or (index == nil and B.legacyInstall), (learnedCeiling(index)))
 end
 
 -- At start and for another character, before anything reads its settings: writes the recovery copy back when the
@@ -3016,7 +3126,10 @@ function B.Export(text)
   T.SavePrefs()                          -- where the windows and strips are now
   local ok, why = store(name, false)
   if not ok then return false, why end
-  if T.Flush() == false then return false, "the game couldn't write it to disk" end
+  local flushed, full = T.Flush()
+  if flushed == false then
+    return false, full and "the shared account file is full (above)" or "the game couldn't write it to disk"
+  end
   return true, name
 end
 

@@ -504,21 +504,143 @@ return function(t)
       H.chat("/tbx settings export A long setup name " .. i)
       Toolbox.Flush()
     until H.logged("couldn't save Toolbox's shared account file") or i >= Toolbox.Backup.SETUP_MAX - 1
-    t.ok(H.logged("Toolbox made room %(its remembered prices are looked up again%)"), H.lastLog())
+    t.ok(H.logged("Toolbox cleared its remembered prices %(they're looked up again%)"), H.lastLog())
+    t.no(H.logged("set aside this character's recovery copy"), "prices were room enough")
     t.eq(Toolbox.Prices.Count(), 0)
     t.ok(H.JsonSize(H.S.disk.account) <= 256 * 1024, "written, under 256 KB")
     t.ok(H.S.disk.account["setup:a long setup name " .. i], "the setup that tipped it over, saved")
     local ceiling = H.S.memory.account.recovery_index.ceiling
-    t.ok(ceiling and ceiling > 0, "the ceiling learned")
     local used, max = Toolbox.FileUse("account")
+    t.ok(ceiling and ceiling > 0 and ceiling < used,
+      "the ceiling learned below what was written (review 36): " .. tostring(ceiling) .. " / " .. used)
     t.ok(max <= ceiling, "growth stops short of it: " .. max)
-    H.chat("/tbx settings export One more " .. string.rep("x", 10))
     for k = 1, 20 do H.chat("/tbx settings export Yet another " .. k) end
     t.ok(Toolbox.Flush() ~= false, "every later flush works")
-    t.ok(select(1, Toolbox.FileUse("account")) <= max, "kept under: " .. used)
+    t.ok(select(1, Toolbox.FileUse("account")) <= used, "no growth past it")
+    t.ok(H.JsonSize(H.S.disk.account) <= 256 * 1024)
     Toolbox.saveRefused = {}
     H.restart()
     t.eq(select(2, Toolbox.FileUse("account")), max, "the ceiling kept after a restart")
+    Toolbox.saveRefused = {}                       -- growth refused until the other characters log in
     H.S.fileLimitAsGame = nil
+  end)
+
+  -- Review 36's case with nothing disposable: the unlisted copy and a 130 KB value accepted beside it.
+  local function bigUnlisted()
+    H.boot({ account = { ["recovery:alt"] = bigLegacyCopy() } })
+    H.S.fileLimitAsGame = true
+    H.advance(Toolbox.flushSeconds + 1)            -- this character's copy written and listed
+    local fill = { string.rep("x", 130 * 1024) }
+    t.ok(Toolbox.SetSavedVar("test_fill", fill, "account"), "accepted: Alt's copy can't be measured")
+  end
+
+  t.test("no prices to clear: the account file's latest changes are undone and named, the rest written", function()
+    bigUnlisted()
+    local before = H.S.disk.account
+    local ok, why = Toolbox.Flush()
+    t.eq(ok, false, "not everything was saved")
+    t.eq(why, "full")
+    t.ok(H.logged("undid its latest changes to that file, which weren't saved: 'test_fill'"), H.lastLog())
+    t.eq(H.S.memory.account.test_fill, nil, "undone")
+    t.ok(H.S.disk.account ~= before and H.JsonSize(H.S.disk.account) <= 256 * 1024, "the rest written")
+    t.ok(H.S.disk.account["recovery:alt"], "Alt's copy untouched")
+    t.ok(H.S.disk.account["recovery:tester"], "this character's copy kept: the undo was room enough")
+    t.no(H.logged("set aside"))
+    local used, max = Toolbox.FileUse("account")
+    t.ok(max < used, "the ceiling below what's there now")
+    t.eq(Toolbox.SetSavedVar("test_fill", { "small" }, "account") == true, false, "growth refused")
+    Toolbox.saveRefused = {}
+    t.ok(Toolbox.Flush() ~= false, "later flushes work")
+    H.S.fileLimitAsGame = nil
+  end)
+
+  t.test("an export the full account file undid says so", function()
+    bigUnlisted()
+    H.chat("/tbx settings export Last one")
+    t.ok(H.logged("shared account file is full"), H.lastLog())
+    t.eq(H.S.memory.account["setup:last one"], nil)
+    t.eq(H.S.memory.account.test_fill, nil)
+    Toolbox.saveRefused = {}
+    H.S.fileLimitAsGame = nil
+  end)
+
+  t.test("a ceiling learned rises again as an unmeasured copy's character logs in", function()
+    bigUnlisted()
+    Toolbox.Flush()
+    Toolbox.saveRefused = {}
+    local _, max = Toolbox.FileUse("account")
+    local ceiling = H.S.memory.account.recovery_index.ceiling
+    H.callback("ShroudOnLogOut")
+    H.S.char.name = "Alt"
+    H.callback("ShroudOnSceneLoaded", "Novia")
+    H.advance(Toolbox.flushSeconds + 1)
+    local now = H.S.memory.account.recovery_index.ceiling
+    t.ok(now > ceiling + 100000, "Alt's old copy's room given back: " .. ceiling .. " -> " .. now)
+    t.ok(select(2, Toolbox.FileUse("account")) > max)
+    t.ok(H.S.memory.account["recovery:alt"].keys.map_overlays == nil, "Alt's copy rewritten, small")
+    t.ok(Toolbox.Flush() ~= false)
+    t.ok(H.JsonSize(H.S.disk.account) <= 256 * 1024)
+    Toolbox.saveRefused = {}                       -- Tester's copy, refused at its logout while the room was short
+    H.S.fileLimitAsGame = nil
+  end)
+
+  local function withPrices()
+    local prices = {}
+    for i = 1, 50 do prices["item " .. i] = { avg = i, sold = 1, last = "2026-10-01", day = "2026-10-13" } end
+    H.boot({ account = { welcomed = true, prices = { v = 1, items = prices } } })
+    H.advance(Toolbox.flushSeconds + 1)
+    t.ok(H.S.memory.account["recovery:tester"], "this character's copy")
+    t.ok(Toolbox.fileUse.account.reserve > 0, "an upgraded install: room kept")
+  end
+
+  t.test("a refusal that passes changes nothing: no prices or copy lost, no ceiling (review 39)", function()
+    withPrices()
+    local real, refusals = ShroudFlushSavedVars, 1
+    ShroudFlushSavedVars = function()
+      if refusals > 0 then
+        refusals = refusals - 1
+        return false
+      end
+      return real()
+    end
+    H.chat("/tbx vitals")
+    t.ok(Toolbox.Flush() ~= false, "written at the retry")
+    ShroudFlushSavedVars = real
+    t.eq(Toolbox.Prices.Count(), 50, "prices kept")
+    t.ok(H.S.disk.account["recovery:tester"], "the copy kept")
+    t.eq(H.S.memory.account.recovery_index.ceiling, nil, "no ceiling")
+    t.no(H.logged("256 KB a file"))
+  end)
+
+  t.test("a refusal that passes after room was made: everything put back, nothing learned (review 39)", function()
+    withPrices()
+    local real, refusals = ShroudFlushSavedVars, 2   -- the first try and the retry; then it passes
+    ShroudFlushSavedVars = function()
+      if refusals > 0 then
+        refusals = refusals - 1
+        return false
+      end
+      return real()
+    end
+    t.ok(Toolbox.Flush() ~= false)
+    ShroudFlushSavedVars = real
+    t.eq(Toolbox.Prices.Count(), 50, "prices put back")
+    t.ok(H.S.disk.account.prices and H.S.disk.account["recovery:tester"], "both on disk")
+    t.eq(H.S.memory.account.recovery_index.ceiling, nil, "no ceiling")
+    t.no(H.logged("256 KB a file"))
+  end)
+
+  t.test("a refusal that keeps on (a disk error) loses nothing and learns nothing (review 39)", function()
+    withPrices()
+    local copy = H.S.memory.account["recovery:tester"]
+    H.S.flushFails = true
+    t.eq(Toolbox.Flush(), false)
+    H.S.flushFails = nil
+    t.eq(Toolbox.Prices.Count(), 50, "prices kept")
+    t.eq(H.S.memory.account["recovery:tester"].n, copy.n, "the copy kept")
+    t.eq(H.S.memory.account.recovery_index.ceiling, nil, "no ceiling")
+    t.ok(H.logged("Couldn't write Toolbox's saved settings to disk"), "the usual warning")
+    t.no(H.logged("256 KB a file"))
+    t.ok(Toolbox.Flush() ~= false)
   end)
 end
