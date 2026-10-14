@@ -33,7 +33,9 @@ ones included).
   instead of up to half a minute later.
 - **/toolbox recipe** shows what a game client with Lua API 37 adds to a recipe: the station and where it can be
   made, how many of each ingredient you carry in all your bags, the materials a slot like "Metal Sheet" takes and
-  what each adds, and item keys. A first look for the crafting planner to come.
+  what each adds, and item keys; "from scratch" follows a slot like that through the material you picked for it in
+  the crafting window (or the game's first choice) down to its raw materials. A first look for the crafting planner
+  to come.
 - **The guide's longer topics come in shorter parts:** Buff bar is now Buff bar, Buff alerts and sounds, and Buff
   block; Commands is in two parts; and a version's long notes in the version window are too. Toolbox keeps more room
   in the game's limit on add-on text, for everything else on screen.

@@ -1439,11 +1439,28 @@ function D.RecipeLines(text)
   -- from scratch: through the first known recipe that makes each ingredient
   say("From scratch, through the recipes you know:")
   local raw = {}
-  local function expand(name, qty, depth, seen)
+  -- The item a slot stands for: its own name, or for a group slot (API 37: "Metal Sheet") the material picked for it
+  -- in the crafting window, else the game's first choice (the ones you can craft with now come first). Returns the
+  -- name and a note for the line ("" for a plain slot).
+  local function slotItem(ing)
+    local iname = T.Field(ing, "name")
+    if T.Field(ing, "group") ~= true then return iname, "" end
+    local choices = T.List(T.Field(ing, "choices"))
+    local chosen = T.Field(ing, "chosenKey")
+    for _, c in ipairs(choices) do
+      if chosen ~= nil and T.Field(c, "key") == chosen and type(T.Field(c, "name")) == "string" then
+        return T.Field(c, "name"), "  (for " .. tostring(iname) .. ": picked)"
+      end
+    end
+    local first = choices[1] and T.Field(choices[1], "name")
+    if type(first) ~= "string" then return iname, "" end
+    return first, "  (for " .. tostring(iname) .. ": the first choice; pick one in the crafting window)"
+  end
+  local function expand(name, qty, depth, seen, note)
     local pad = string.rep("  ", depth)
     local makers = byResult[name]
     if not makers or depth >= D.PROBE_DEPTH or seen[name] then
-      say(pad .. qty .. " x " .. name .. (seen[name] and "  (made from itself: stops here)" or ""))
+      say(pad .. qty .. " x " .. name .. note .. (seen[name] and "  (made from itself: stops here)" or ""))
       raw[name] = (raw[name] or 0) + qty
       return
     end
@@ -1458,27 +1475,30 @@ function D.RecipeLines(text)
     end
     local mrec = recipes[m.id]
     if m.yield <= 0 then
-      say(pad .. qty .. " x " .. name .. "  <- " .. tostring(T.Field(mrec, "name")) .. " (no fixed yield: stops here)")
+      say(pad .. qty .. " x " .. name .. "  <- " .. tostring(T.Field(mrec, "name")) .. " (no fixed yield: stops here)"
+        .. note)
       raw[name] = (raw[name] or 0) + qty
       return
     end
     local crafts = math.floor((qty + m.yield - 1) / m.yield)
     say(pad .. qty .. " x " .. name .. "  <- " .. crafts .. " x " .. tostring(T.Field(mrec, "name")) .. " ("
-      .. tostring(T.Field(mrec, "category")) .. ", makes " .. m.yield .. ")"
+      .. tostring(T.Field(mrec, "category")) .. ", makes " .. m.yield .. ")" .. note
       .. (#also > 0 and ("  [also made by: " .. table.concat(also, "; ") .. "]") or ""))
     seen[name] = true
     for _, ing in ipairs(T.List(T.Field(mrec, "ingredients"))) do
-      local iname, iqty = T.Field(ing, "name"), number(T.Field(ing, "quantity")) or 0
+      local iname, inote = slotItem(ing)
+      local iqty = number(T.Field(ing, "quantity")) or 0
       if type(iname) == "string" and T.Field(ing, "tool") ~= true and T.Field(ing, "optional") ~= true then
-        expand(iname, iqty * crafts, depth + 1, seen)
+        expand(iname, iqty * crafts, depth + 1, seen, inote)
       end
     end
     seen[name] = nil
   end
   for _, ing in ipairs(T.List(T.Field(rec, "ingredients"))) do
-    local iname, iqty = T.Field(ing, "name"), number(T.Field(ing, "quantity")) or 0
+    local iname, inote = slotItem(ing)
+    local iqty = number(T.Field(ing, "quantity")) or 0
     if type(iname) == "string" and T.Field(ing, "tool") ~= true and T.Field(ing, "optional") ~= true then
-      expand(iname, iqty, 1, {})
+      expand(iname, iqty, 1, {}, inote)
     end
   end
   local names = {}

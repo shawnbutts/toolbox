@@ -74,6 +74,27 @@ return function(t)
     t.no(out:find("other fields"), "every API 37 field has its own line")
   end)
 
+  t.test("from scratch through a group slot: the picked material, else the game's first choice", function()
+    H.boot()
+    book()
+    local sheet = function(name, key) return { name = name, key = key, carried = 0, stats = {} } end
+    H.S.recipes[1].ingredients[1] = { name = "Metal Sheet", quantity = 6, have = 0, group = true, groupKey = "group:33",
+      choosable = true, choiceCount = 2, choices = { sheet("Copper Plate", "item:c"), sheet("Iron Plate", "item:i") } }
+    H.clearLogs()
+    H.chat("/tbx recipe iron plate chest")
+    H.advance(2)
+    local out = all()
+    t.ok(out:find("6 x Copper Plate  (for Metal Sheet: the first choice; pick one in the crafting window)", 1, true),
+      out)
+    H.S.recipes[1].ingredients[1].chosenKey = "item:i"
+    H.clearLogs()
+    H.chat("/tbx recipe iron plate chest")
+    H.advance(2)
+    out = all()
+    t.ok(out:find("6 x Iron Plate  <- 2 x Iron Plate (Blacksmithy, makes 4)  (for Metal Sheet: picked)", 1, true), out)
+    t.ok(out:find("8 x Iron Ore\n"), "down to the ore: " .. out)
+  end)
+
   t.test("several matches are listed; none, or no recipe book, says so", function()
     H.boot()
     book()
