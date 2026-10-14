@@ -293,7 +293,8 @@ D.SECTIONS = {
     "The Map overlays window (the pin on the location strip, /toolbox overlay window, or the button in "
       .. "Settings, Map & location) holds it all. Pick the overlay shown (or None); type a name and press New "
       .. "(shown at once), or Rename or Delete (click twice) the shown one. Pick a shape and color under New "
-      .. "marks, then stand where you want a place, name it and press Mark here (no name: Place 1, Place 2...); "
+      .. "marks, then stand where you want a place, name it and press Mark here "
+      .. "(no name: Place 1, Place 2...; a name used: Wolf 2); "
       .. "marks made before keep their look. The list holds the shown overlay's places: Compass "
       .. "points the game's compass at one (it's the game's beacon, so it replaces any you set), Set look gives it "
       .. "the shape and color above, Remove takes it out.",

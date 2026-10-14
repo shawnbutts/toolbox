@@ -1522,7 +1522,18 @@ function OV.Mark(text)
     while OV.FindPlace(ov, "Place " .. n) do n = n + 1 end
     name = "Place " .. n
   end
-  if OV.FindPlace(ov, name) then return nil, ov.name .. " already has a place called " .. name, name end
+  if OV.FindPlace(ov, name) then                -- a name taken: "Wolf 2", "Wolf 3"... (owner, 2026-10-14)
+    local n = 2
+    while true do
+      local suffix = " " .. n
+      local numbered = T.Trim(name:sub(1, OV.NAME_MAX - #suffix)) .. suffix
+      if not OV.FindPlace(ov, numbered) then
+        name = numbered
+        break
+      end
+      n = n + 1
+    end
+  end
   if #places >= OV.SCENE_MAX then
     return nil, ov.name .. " has " .. OV.SCENE_MAX .. " places (the map's limit in a scene): remove one first", name
   end
@@ -2322,7 +2333,8 @@ local function mwBuild()
         mwMsg(ok and "" or ("Couldn't change it: " .. why .. "."))
       end },
     name = UI.TextField{ id = "mw_name", text = "", placeholder = "Name this spot: Iron vein, Bank...",
-      maxLength = OV.NAME_MAX, style = { flexGrow = 1, flexShrink = 1 }, tooltip = "Empty: Place 1, Place 2...",
+      maxLength = OV.NAME_MAX, style = { flexGrow = 1, flexShrink = 1 },
+      tooltip = "Empty: Place 1, Place 2... (a name used: Wolf 2)",
       onSubmit = function(_, text) mwMark(text) end },
     places = UI.Dropdown{ id = "mw_places", choices = { OV.MW_NO_PLACES }, value = OV.MW_NO_PLACES,
       style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The shown overlay's places in this scene",
