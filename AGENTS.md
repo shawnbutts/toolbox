@@ -646,8 +646,8 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   per 10 s, all add-ons together), spoken expiry warnings (36: `ShroudPlayWarningSound`; not used, owner 2026-10-12:
   the game's own Announce Expiring Buffs option covers it). Requests 18, 19, 21 and 24 are not in it.
   The owner's live client has all of them (`/toolbox api`, 2026-10-13: every group present through API 35).
-- **API 37-38** (docs 2026-10-14; `T.DOCS_API` = 38, `min_api_version` stays 25; not yet on the owner's client when
-  checked): 37 is our request 18 as the developers described it (below): `ShroudGetRecipe` gains `station`,
+- **API 37-38** (docs 2026-10-14; `T.DOCS_API` = 38, `min_api_version` stays 25; the owner's live client reports API 38
+  with every group present, `/toolbox api` 2026-10-14, and 1,764 known recipes): 37 is our request 18 as the developers described it (below): `ShroudGetRecipe` gains `station`,
   `stationKey`, `locations`, `favorite`; ingredients `group`, `carried` (every bag, nested, worn, locked: `have` stays
   the card's count), `key`, `stats`; a group slot `groupKey`, `chosenKey`, `choosable`, `choices` (<= 30: `name`, `key`,
   `have` when choosable, `carried`, `stats`), `choiceCount`; results `key`, `carried`, `stats`; keys "item:" + 32 hex,
@@ -688,8 +688,7 @@ order, so `for slot = 0, count - 1` finds everyone, buffs included), `ShroudGetP
 returns a plain list of real names, and `for v in list do` over a table walks its values.
 
 **The developers' answer** (2026-10-13, to the owner; nothing rejected):
-- **18** is built as **API 37** (in the reference since 2026-10-14, above; not yet on the owner's client then); it
-  ships with the next build.
+- **18** is built as **API 37** (in the reference and on the owner's live client since 2026-10-14, above).
   - `ShroudGetRecipe` gains `station`, `stationKey` and `locations`.
   - A slot ingredient ("Metal Sheet") gains `group`, `groupKey`, `choosable` and `choices`: each with `name`, `key`,
     `have`, `carried` and `stats`, at most 30, the total in `choiceCount`.
