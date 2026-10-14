@@ -665,8 +665,10 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   group:33 with 6 choices (Copper ... White Iron Sheet), each with a key and stats ("Iron Sheet: weight 2, Armor
   Damage Resistance 0.2"); no `chosenKey` until one is picked. A choice's values are for the recipe's quantity, as the
   reference says (Copper Sheet's Base Weapon Damage 0.05 for 10 sheets, 0.035 for the Augmented chest's 7; a binding's
-  Focus 5 for 1, 10 for 2). At a station, `have` can exceed `carried` (7 Copper Sheets "have" with 0 carried: the
-  card counts what the station can reach) and the choices come in the game's order, the ones you have first.
+  Focus 5 for 1, 10 for 2). At a station, `have` can exceed `carried` (7 Copper Sheets "have" with 0 carried):
+  `have` counts what the craft can reach, the lot's trunks set "use this container for crafting" and the table
+  (double-clicking a recipe moves its materials from those trunks onto the table: the game's "Took 7 Copper Sheet
+  from Trunk" / "added to inventory" lines), while `carried` is only your bags, so it stays 0 for those and the choices come in the game's order, the ones you have first.
   Unclear: a sheet's stats list Base Weapon Damage on a chest armor recipe (the material's bonuses whether or not
   this item uses them?); `chosenKey` not seen yet (selecting a recipe isn't picking a slot's material). The guide's new "Keeping an add-on light"
   matches the house rules.
