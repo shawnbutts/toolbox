@@ -2398,7 +2398,13 @@ function T.Sample(adv, prod)
     low.count, low.at, low.a, low.p, low.ca, low.cp = low.count + 1, T.Now(), adv, prod, cur.a, cur.p
     T.xpLow = low
   end
+  local offset = T.session.offset
+  local la, lp = offset and offset.a or 0, offset and offset.p or 0
   if T.XP.Record(T.session, T.Now(), adv, prod) then T.unsaved = true end
+  offset = T.session.offset
+  if (offset and offset.a or 0) ~= la or (offset and offset.p or 0) ~= lp then
+    T.SaveSession(false)               -- XP lost (a death): stored now, so a reload keeps it apart from gains
+  end
 end
 
 -- Every window that shows session data.
@@ -2431,11 +2437,12 @@ function T.Tick()
   T.Overlays.DeathTick()              -- your last death clears itself (back there, or old and elsewhere)
   T.Overlays.Sync()                   -- the shown map overlay's places (API 30), on a change only
   T.Overlays.Tick()                   -- the Map overlays window follows a scene change
-  -- Store a changed session once a tick (in memory; copying up to an hour of
-  -- samples per XP event would be wasteful), and write it to disk at most
-  -- every flushSeconds. A reload re-reads the totals, so it loses no XP.
-  if T.unsaved then T.SaveSession(false) end
-  if (T.unflushed or T.setupDirty) and T.Now() - T.lastFlush >= T.flushSeconds then
+  -- A changed session is stored only as it goes to disk, at most every flushSeconds (and at shutdown / logout):
+  -- each store copies and checks up to an hour of samples, about 160 KB of garbage an hour into a session (the
+  -- 1.8.0 performance pass; it was every tick with XP, the bulk of Toolbox's garbage in a long fight). A reload
+  -- re-reads the totals, so it loses no XP, at most the chart's last samples.
+  if (T.unsaved or T.unflushed or T.setupDirty) and T.Now() - T.lastFlush >= T.flushSeconds then
+    if T.unsaved then T.SaveSession(false) end
     T.Flush()
     T.lastFlush = T.Now()
     T.unflushed = false

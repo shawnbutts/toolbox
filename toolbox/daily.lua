@@ -869,7 +869,7 @@ function D.OnSkills(levelsChanged)
     end
     if T.session then
       T.session.skills = (T.session.skills or 0) + gained
-      T.unsaved = true
+      T.SaveSession(false)             -- rare: stored now (else at the next flush)
     end
   end
   if gained > 0 or first then T.Save("skill_levels", { v = 1, high = D.skillHigh }) end
@@ -884,7 +884,7 @@ function D.OnDeath(isDead)
   end
   if T.session then
     T.session.deaths = (T.session.deaths or 0) + 1
-    T.unsaved = true
+    T.SaveSession(false)             -- rare: stored now (else at the next flush)
   end
 end
 
