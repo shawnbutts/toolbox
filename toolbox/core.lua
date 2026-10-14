@@ -584,9 +584,11 @@ T.FLUSH_WARN_EVERY = 300
 function T.Flush()
   if T.setupDirty then T.Backup.KeepCopy() end
   if T.recoveryDirty then T.Backup.KeepRecovery() end
+  local ceilingKept = T.Backup.KeepCeiling()
   local ok = ShroudFlushSavedVars()
   local made = ok == false and T.Backup.FlushFailed()
   if made == true then ok = true end                          -- written after all
+  if ok ~= false and ceilingKept then T.Backup.pendingCeiling = nil end
   if ok ~= false or made == "undone" then T.accountUndo = {} end
   if made == "undone" then return false, "full" end
   if ok == false then
@@ -2950,18 +2952,11 @@ function B.FlushFailed()
   for _, key in ipairs(undone) do
     if key:find("^setup_character:") then T.setupDirty = true end
   end
-  local names, legacy, saved = readRecoveryIndex()
-  if copyKey and ShroudGetSavedVar(copyKey, ACCOUNT) ~= nil then     -- the copy kept, listed (review 40)
-    local listed = false
-    for _, n in ipairs(names) do listed = listed or n == who:lower() end
-    if not listed then names[#names + 1] = who:lower() end
-  end
   -- below what was just written (review 36), by a margin for the estimate's own error (a tenth of a small file)
   local ceiling = math.max(1, f.total - math.min(B.CEILING_MARGIN, math.floor(f.total / 10)))
-  local old = learnedCeiling(saved)
-  if old and old <= ceiling then ceiling = old end
-  if not writeRecoveryIndex(names, legacy, ceiling, who and who:lower() or nil) then T.recoveryDirty = true end
-  keepRoom(legacy, ceiling)
+  B.pendingCeiling = { ceiling = ceiling }
+  if who then B.pendingCeiling.by = who:lower() end
+  local kept = B.KeepCeiling()
   local shown = {}
   for i = 1, math.min(#undone, B.UNDONE_SHOWN) do shown[i] = "'" .. undone[i] .. "'" end
   if #undone > B.UNDONE_SHOWN then shown[#shown + 1] = (#undone - B.UNDONE_SHOWN) .. " more" end
@@ -2973,8 +2968,31 @@ function B.FlushFailed()
       .. " which weren't saved: " .. table.concat(shown, ", ")) or "")
     .. ". It keeps the file smaller from now on; logging in each of your other characters once makes their copies"
     .. " smaller and gives the room back.")
-  ShroudFlushSavedVars()
+  if ShroudFlushSavedVars() == false then return false end   -- the ceiling stays due, the undo list kept (review 41)
+  if kept then B.pendingCeiling = nil end
   return #undone > 0 and "undone" or true
+end
+
+-- A learned ceiling not on disk yet (review 41): { ceiling, by }, written into the index before every flush until
+-- one works with it (T.Flush), whether or not this character's copy changes. A copy of this character's in the
+-- account file is listed with it (review 40). Returns whether the index took it.
+B.pendingCeiling = nil
+function B.KeepCeiling()
+  local due = B.pendingCeiling
+  if not due then return false end
+  local names, legacy, saved = readRecoveryIndex()
+  local who = T.settingsFor
+  if who and ShroudGetSavedVar(recoveryKey(who), ACCOUNT) ~= nil then
+    local listed = false
+    for _, n in ipairs(names) do listed = listed or n == who:lower() end
+    if not listed then names[#names + 1] = who:lower() end
+  end
+  local old = learnedCeiling(saved)
+  if old and old < due.ceiling then due.ceiling = old end
+  T.ReserveFile(ACCOUNT, 0)                    -- the bound itself is always written (a few bytes)
+  local ok = writeRecoveryIndex(names, legacy, due.ceiling, due.by)
+  keepRoom(legacy, due.ceiling)
+  return ok
 end
 
 -- Lists `who` as having a copy. Returns whether the index says so. A copy listed only now was unmeasured when a

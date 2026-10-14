@@ -611,6 +611,48 @@ return function(t)
     H.S.fileLimitAsGame = nil
   end)
 
+  local function ceilingKeptThrough(name, fail)
+    t.test(name, function()
+      bigUnlisted()
+      local undo = fail()
+      local ok, why = Toolbox.Flush()
+      undo()
+      t.eq(ok, false, tostring(why))
+      t.eq(H.S.disk.account.recovery_index.ceiling, nil, "not on disk yet")
+      local _, max = Toolbox.FileUse("account")
+      t.ok(max < Toolbox.FILE_MAX - Toolbox.Backup.LEGACY_RESERVE, "kept in memory meanwhile")
+      t.ok(Toolbox.Flush() ~= false, "the next flush")
+      local ceiling = H.S.disk.account.recovery_index.ceiling
+      t.ok(ceiling and ceiling > 0, "written then")
+      t.eq(Toolbox.Backup.pendingCeiling, nil)
+      Toolbox.saveRefused = {}
+      H.restart()
+      t.eq(H.S.disk.account.recovery_index.ceiling, ceiling, "the same ceiling after a restart")
+      t.eq(select(2, Toolbox.FileUse("account")), ceiling, "and it rules")
+      t.ok(select(2, Toolbox.FileUse("account")) <= max)
+      Toolbox.saveRefused = {}
+      H.S.fileLimitAsGame = nil
+    end)
+  end
+  ceilingKeptThrough("a refused ceiling write is tried again at every flush until it's on disk (review 41)",
+    function()
+      H.S.refuseKeys = { recovery_index = true }
+      return function() H.S.refuseKeys = nil end
+    end)
+  ceilingKeptThrough("a refused flush after the ceiling: it stays due, written by the next one (review 41)",
+    function()
+      local real, failed = ShroudFlushSavedVars, false
+      ShroudFlushSavedVars = function()
+        local index = H.S.memory.account.recovery_index
+        if not failed and index and index.ceiling then
+          failed = true
+          return false
+        end
+        return real()
+      end
+      return function() ShroudFlushSavedVars = real end
+    end)
+
   local function withPrices()
     local prices = {}
     for i = 1, 50 do prices["item " .. i] = { avg = i, sold = 1, last = "2026-10-01", day = "2026-10-13" } end
