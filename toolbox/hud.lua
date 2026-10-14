@@ -940,6 +940,14 @@ function LOC.SetFacing(on)
   end
 end
 
+-- Your last death on the map (Toolbox.Overlays draws it).
+function LOC.GetDeath() return locPrefs.death ~= false end
+function LOC.SetDeath(on)
+  locPrefs.death = on == true
+  locSave()
+  if Toolbox.Overlays then Toolbox.Overlays.Changed() end
+end
+
 -- The pin opening the Map overlays window (a rebuild: an element more or less).
 function LOC.GetPin() return locPrefs.pin ~= false end
 function LOC.SetPin(on)
@@ -970,8 +978,9 @@ LOC.GetPosition, LOC.MoveTo, LOC.Nudge, LOC.ResetPosition = locMover.Get, locMov
 -- Re-runnable (another character's settings): before Toolbox.Hud.Init builds the strips.
 function LOC.Init()
   local saved = T.ReadSaved("location")
-  locPrefs = { show = false, facing = true, water = true, pin = true }
+  locPrefs = { show = false, facing = true, water = true, pin = true, death = true }
   if type(saved) == "table" then
+    locPrefs.death = saved.death ~= false
     locPrefs.show = saved.show == true
     locPrefs.facing = saved.facing ~= false
     locPrefs.water = saved.water ~= false
@@ -1019,9 +1028,9 @@ T.AddCommand("location", "the location strip: your scene, position, facing and w
 -- Map overlays (Toolbox.Overlays, OV; owner, 2026-10-13): named sets of places the player marks ("Loot", "Gathering"),
 -- each belonging to ONE scene (a place is only good on its own map): a scene's overlays are listed only there, it
 -- shows ONE at a time (the game allows an add-on 50 markers a scene; with the Loot Tracker's run flags, at most DD's
--- 10, an overlay's OV.SCENE_MAX fits beside them), and each scene remembers its own shown one. Per character. The run
--- flags stay their own toggle. Later (not built): overlays that fill themselves (gathering spots, a death flag) and
--- sharing one as a text string.
+-- 10, and your last death, an overlay's OV.SCENE_MAX fits beside them), and each scene remembers its own shown one. Per
+-- character. The run flags stay their own toggle. The auto map and the last death fill themselves (below). Later (not
+-- built): sharing an overlay as a text string.
 -- Room (owner, 2026-10-13): the game keeps 256 KB a FILE (core.lua's T.FILE_MAX), so the overlays have OV.BUDGET of
 -- the character file, all scenes together: a place is packed into a few characters of text (packPlaces: its id, name,
 -- position to the metre, shape and color numbers), and a scene's places are read (unpacked) only when the player is
@@ -1044,7 +1053,7 @@ local OV = {}
 Toolbox.Overlays = OV
 OV.KEY = "map_overlays"
 OV.MAX = 10                           -- overlays a scene (owner: a short list to pick from), the auto map's apart
-OV.SCENE_MAX = 40                     -- places an overlay (50 markers a scene, less the run flags)
+OV.SCENE_MAX = 39                     -- places an overlay (50 markers a scene, less 10 run flags and the last death)
 OV.BUDGET = 150000                    -- the saved overlays' estimated size: their share of the character file
 OV.WARN = 0.9                         -- past this share of OV.BUDGET a mark says how full it is
 OV.NAME_MAX = 24
@@ -1233,6 +1242,13 @@ local function readV2(saved)
     end
   end
   if type(saved.nextId) == "number" and saved.nextId > ovData.nextId then ovData.nextId = math.floor(saved.nextId) end
+  local d = saved.death
+  if type(d) == "table" and type(d.raw) == "string" and d.raw ~= "" and type(d.x) == "number"
+    and type(d.y) == "number" and type(d.z) == "number" then
+    ovData.death = { raw = d.raw, scene = type(d.scene) == "string" and d.scene ~= "" and d.scene or d.raw,
+                     x = d.x, y = d.y, z = d.z, at = type(d.at) == "string" and d.at or "",
+                     date = type(d.date) == "string" and d.date or "" }
+  end
   local seen = {}
   for _, part in ipairs(type(saved.ignore) == "table" and saved.ignore or {}) do
     local name = OV.CleanName(part)
@@ -1259,7 +1275,7 @@ local function savedForm()
   end
   local ignore = {}
   for i, part in ipairs(ovData.ignore) do ignore[i] = part end
-  return { v = 2, nextId = ovData.nextId, scenes = scenes, ignore = ignore }
+  return { v = 2, nextId = ovData.nextId, scenes = scenes, ignore = ignore, death = ovData.death }
 end
 
 -- This character's overlays (read once per character; re-runnable). A scene's places are read when needed.
@@ -1300,7 +1316,7 @@ local function ovSnapshot()
   end
   local ignore = {}
   for i, part in ipairs(ovData.ignore) do ignore[i] = part end
-  return { nextId = ovData.nextId, scenes = scenes, ignore = ignore }
+  return { nextId = ovData.nextId, scenes = scenes, ignore = ignore, death = ovData.death }
 end
 
 local function ovRestore(snap)
@@ -1323,7 +1339,7 @@ local function ovRestore(snap)
     k.sc.shown, k.sc.list, k.sc.auto = k.shown, list, k.auto
     scenes[raw] = k.sc
   end
-  ovData.scenes, ovData.nextId, ovData.ignore = scenes, snap.nextId, snap.ignore
+  ovData.scenes, ovData.nextId, ovData.ignore, ovData.death = scenes, snap.nextId, snap.ignore, snap.death
 end
 
 -- Saves the overlays as changed since `snap` (ovSnapshot() taken before the change), or puts `snap` back when it
@@ -1792,6 +1808,70 @@ function OV.OnGathered(results)
   end
 end
 
+-- ---------------------------------------------------------------------------
+-- Your last death (owner, 2026-10-14: "just show the last death"): where you stood when you died
+-- (ShroudOnDeathChanged(true)), one for the character, its own marker in its scene beside any overlay (id
+-- OV.DEATH_ID, an "ov" id so OV.Sync keeps it), while the location setting `death` is on; mark/compass from the
+-- Map overlays window's Last death and /toolbox death.
+-- ---------------------------------------------------------------------------
+OV.DEATH_ID = "ovdeath"
+OV.DEATH_LABEL = "Last death"
+OV.DEATH_ICON = "diamond"
+OV.DEATH_COLOR = "Red"
+
+-- Your last death as a place ({ raw, scene, x, y, z, at, date, name }), or nil.
+function OV.LastDeath()
+  ovFollow()
+  local d = ovData.death
+  if d then d.name = "your last death" end
+  return d
+end
+
+-- The marker's hover note: "You died here at 14:32 on 2026-10-14".
+function OV.DeathNote(d)
+  local when = (d.at ~= "" and (" at " .. d.at) or "") .. (d.date ~= "" and (" on " .. d.date) or "")
+  return "You died here" .. when
+end
+
+-- Anything the markers and the window show changed outside a save (a setting).
+function OV.Changed()
+  OV.version = OV.version + 1
+  ovMarks.retryAt = -math.huge
+  OV.Sync()
+  OV.SyncWindow()
+end
+
+-- From ShroudOnDeathChanged (core.lua): you died (true) where you stand. Returns the death, or nil.
+function OV.OnDeath(isDead)
+  if isDead ~= true then return nil end
+  ovFollow()
+  local here = OV.Here()
+  if not here then return nil end
+  local snap = ovSnapshot()
+  local _, date = T.Today()
+  ovData.death = { raw = here.raw, scene = here.scene, x = math.floor(here.x * 10 + 0.5) / 10,
+                   y = math.floor(here.y * 10 + 0.5) / 10, z = math.floor(here.z * 10 + 0.5) / 10,
+                   at = T.ClockText(), date = type(date) == "string" and date or "" }
+  local ok, why = ovSave(snap)
+  if not ok then
+    T.Print("Couldn't keep where you died: " .. why .. ".")
+    return nil
+  end
+  if LOC.GetDeath() and OV.HasMarkers() then
+    T.Print("Your death is marked on the map (" .. OV.DEATH_LABEL .. "): /" .. T.commands[1]
+      .. " death compass points you back.")
+  end
+  return ovData.death
+end
+
+function OV.ClearDeath()
+  ovFollow()
+  if not ovData.death then return true end
+  local snap = ovSnapshot()
+  ovData.death = nil
+  return ovSave(snap)
+end
+
 -- After a mark: a word on the room left, past OV.WARN (or "").
 function OV.RoomNote()
   local use = OV.StorageUse()
@@ -1906,6 +1986,12 @@ function OV.Sync()
       want[#want + 1] = { id = id, p = p, o = { label = p.name, icon = p.icon, color = ovColor(p.color),
                                                 note = ov.name } }
     end
+  end
+  local death = ovData.death
+  if death and death.raw == raw and LOC.GetDeath() then
+    ids[OV.DEATH_ID] = true
+    want[#want + 1] = { id = OV.DEATH_ID, p = death, o = { label = OV.DEATH_LABEL, icon = OV.DEATH_ICON,
+      color = ovColor(OV.DEATH_COLOR), note = OV.DeathNote(death) } }
   end
   local okList, have = pcall(ShroudGetMapMarkers)
   local up = {}
@@ -2109,6 +2195,30 @@ T.AddCommand("overlay", "map overlays, sets of places you mark in a scene, one s
     end
   end)
 
+-- /toolbox death
+T.AddCommand("death", "your last death: where it was; death compass (point your compass back to it); death clear",
+  function(rest)
+    local word = T.ParseArgs(rest)
+    local d = OV.LastDeath()
+    if word == "clear" then
+      local ok, why = OV.ClearDeath()
+      T.Print(ok and "Your last death is cleared from the map." or ("Couldn't clear it: " .. why .. "."))
+      return
+    end
+    if not d then
+      T.Print("No death recorded for this character" .. (word == "compass" and "." or " (since 1.8.0)."))
+      return
+    end
+    if word == "compass" then
+      local _, said = OV.Beacon(d)
+      T.Print(said)
+      return
+    end
+    T.Print("Your last death: " .. d.scene .. " " .. T.DailyDetail.LocText(d) .. (d.at ~= "" and (" at " .. d.at)
+      or "") .. (d.date ~= "" and (" on " .. d.date) or "") .. ". /" .. T.commands[1] .. " death compass points you"
+      .. " back; death clear takes it off the map.")
+  end)
+
 -- /toolbox mark
 T.AddCommand("mark", "mark where you stand in this scene's shown map overlay: mark [name]; mark remove [name] (no"
   .. " name: the nearest within " .. OV.NEAR .. " m); mark compass [name] (the game's beacon); mark look [name] (the"
@@ -2222,6 +2332,8 @@ function OV.SyncWindow()
     for _, k in ipairs({ "icon", "color", "rename", "delete" }) do mwEl[k]:SetEnabled(shown ~= nil) end
     for _, k in ipairs({ "beacon", "look", "remove" }) do mwEl[k]:SetEnabled(any) end
     mwEl.ignore:SetEnabled(mwKind() ~= nil)
+    local d = OV.LastDeath()
+    mwEl.death:SetEnabled(d ~= nil and d.raw == raw)
   end)
 end
 
@@ -2385,6 +2497,16 @@ local function mwBuild()
       tooltip = "Stop auto mapping this kind, in every scene (the shown automatic overlay's, or in " .. OV.GATHERING
         .. " the picked place's), and take its places here out (click twice)",
       onClick = function() mwIgnore() end },
+    death = UI.Button{ id = "mw_death", text = "Last death", style = { marginLeft = 2 },
+      tooltip = "Point your compass at where you last died, in this scene (the game's beacon: it replaces your own"
+        .. " /beacon)",
+      onClick = function()
+        local d = OV.LastDeath()
+        if not d then return end
+        local _, said = OV.Beacon(d)
+        mwMsg(said)
+        T.Print(said)
+      end },
     msg = UI.Label{ id = "mw_msg", text = "", class = "dim", style = { whiteSpace = "wrap", flexGrow = 1,
       flexShrink = 1 } },
     storage = UI.Label{ id = "mw_storage", text = "", class = "dim", style = { marginLeft = 6 },
@@ -2392,7 +2514,7 @@ local function mwBuild()
         .. " /" .. T.commands[1] .. " overlay scenes shows what each scene takes" },
   }
   mw = UI.Window{
-    id = MW_ID, title = "Map overlays", width = 380, height = 310, minWidth = 300, minHeight = 270,
+    id = MW_ID, title = "Map overlays", width = 420, height = 310, minWidth = 340, minHeight = 270,
     x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y, escCloses = true,
     style = { paddingLeft = 8, paddingRight = 8, paddingTop = 4, paddingBottom = 6 },
     children = {
@@ -2405,7 +2527,7 @@ local function mwBuild()
         tooltip = "Add where you stand to the shown overlay, in the shape and color above (or to a new overlay,"
           .. " Places, if you have none)", onClick = function() mwMark() end } }),
       row({ mwEl.places, mwEl.beacon, mwEl.look, mwEl.remove }),
-      row({ mwEl.auto, UI.Label{ text = "", style = { flexGrow = 1 } }, mwEl.ignore }),
+      row({ mwEl.auto, UI.Label{ text = "", style = { flexGrow = 1 } }, mwEl.ignore, mwEl.death }),
       row({ mwEl.msg, mwEl.storage }),
     },
   }

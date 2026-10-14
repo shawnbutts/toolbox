@@ -165,7 +165,8 @@ small **Map overlays** window, where you also make, rename and delete them: the 
 (or **Map & location** in the settings, or `/toolbox overlay window`); `/toolbox mark <name>` marks where you stand.
 Auto map, turned on in a scene, marks every resource node you gather there: in an overlay of its kind and in
 Gathering, which shows them all. Nodes don't move, so one visit maps a scene. Kinds you don't want go on an
-ignore list: `/toolbox overlay auto ignore <kind or word>`, or Ignore kind in the window.
+ignore list: `/toolbox overlay auto ignore <kind or word>`, or Ignore kind in the window. Your last death shows on
+the map too, beside any overlay, and `/toolbox death compass` points you back to it.
 
 ## Commands
 

@@ -3524,6 +3524,7 @@ end
 -- You died (true) or are alive again (false).
 function ShroudOnDeathChanged(isDead)
   T.Daily.OnDeath(isDead)
+  T.Overlays.OnDeath(isDead)
 end
 
 -- The target the game's target frame shows changed (a new one, or none).

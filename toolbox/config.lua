@@ -918,6 +918,11 @@ function C.OverlayRows()
         tooltip = "Make, show, rename and delete overlays, mark where you stand and this scene's places (or /"
           .. T.commands[1] .. " overlay window)", onClick = function() T.Overlays.ToggleWindow() end },
     } },
+    UI.Toggle{ id = "ov_death", text = "Show your last death on the map", value = T.Location.GetDeath(),
+      enabled = OV.HasMarkers(), style = { marginTop = 4 },
+      tooltip = OV.HasMarkers() and ("A red diamond where you last died, in its scene, beside any overlay (/"
+        .. T.commands[1] .. " death compass points you back)") or "Needs a newer game client (Lua API 30)",
+      onChange = function(_, v) T.Location.SetDeath(v) end },
   } }
 end
 
@@ -1441,7 +1446,7 @@ local function category(keyOrLabel)
 end
 
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
-local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "ov_window",
+local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "ov_window", "ov_death",
   "ln_show", "ln_vertical", "ln_combat", "ln_size", "ln_size_value", "ln_shade", "ln_shade_value",
   "ln_btn_xp", "ln_btn_xpdetail", "ln_btn_today", "ln_btn_loot", "ln_btn_combat", "ln_btn_notify",
   "ln_btn_location", "ln_btn_docs", "ln_btn_settings",
@@ -2251,6 +2256,7 @@ function C.Sync()
   setEnabled("loc_facing", T.Location.GetShow())
   setValue("loc_water", T.Location.GetWater())
   setValue("loc_pin", T.Location.GetPin())
+  setValue("ov_death", T.Location.GetDeath())
   setEnabled("loc_water", T.Location.GetShow() and T.Location.HasWater())
   if T.SkillBar then T.SkillBar.ConfigSync(C.Helpers) end   -- skills.lua, when present
   C.SyncLive()

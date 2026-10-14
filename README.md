@@ -40,13 +40,14 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
   the location strip) with one click, bright while a window is open (`/toolbox menu`; settings under Menu, setups,
   backup & reset).
 - **Map overlays**: sets of places you mark in a scene (`/toolbox mark <name>`), one set shown on its region map and
-  minimap at a time (Lua API 30): one for loot, one for gathering... Each scene has its own (up to 10, 40 places each)
+  minimap at a time (Lua API 30): one for loot, one for gathering... Each scene has its own (up to 10, 39 places each)
   and remembers the one it shows; each place in its own shape and color, with a Compass button; the window shows how
   full the map storage is (all scenes share part of the character's saved file); all in a small window the location
   strip's pin opens
   (`/toolbox overlay window`, or the button under Settings, Map & location). **Auto map** (`/toolbox overlay auto on`,
   per scene): each resource node you gather is marked in an overlay of its kind and in Gathering (every kind);
   kinds you don't want go on an ignore list (`/toolbox overlay auto ignore <kind or word>`, or Ignore kind).
+  **Your last death** shows on the map in its scene, beside any overlay; `/toolbox death compass` points you back.
 
 ## Install
 
@@ -104,6 +105,7 @@ with that setting's section at the top and the setting blinking.
 | `/toolbox combat` (`reset` / `size <n>` / `bg dark\|light\|none [%]` / `pet on\|off` / `stat add\|remove <Name>` / `stats` / `detail` / `events [n]` / `move [x y]`) | show or hide the combat stats HUD, Combat Detailed, and its options |
 | `/toolbox location` (`on\|off` / `facing on\|off` / `water on\|off` / `move [x y]`) | show or hide the location strip: the scene, your position (x, height, z, whole numbers), which way you face and the nearest fishable water (Lua API 32); hover it for `/loc`'s whole line and the scene's kinds of water |
 | `/toolbox overlay` (`<name>` / `off` / `window` / `new <name>` / `rename <old> = <new>` / `delete <name>` / `places` / `icon <shape>` / `color <name>` / `auto [on|off]` / `scenes` / `forget <scene>`) | this scene's map overlays: list them, show one (only one at a time), make, rename, delete, list the shown one's places, set the shape and color of the marks you make next; auto map this scene (each node you gather marked); every scene's overlays and the room they take; delete a scene's overlays (typed twice) |
+| `/toolbox death` (`compass` / `clear`) | where you last died; point your compass back to it; take it off the map |
 | `/toolbox mark` (`<name>` / `remove [name]` / `compass [name]` / `look [name]`) | mark where you stand in the shown overlay (the first mark makes one, Places); remove a place (no name: the nearest within 15 m); point your compass at one (the game's beacon); give one the shape and color set for the next marks |
 | `/toolbox menu` (`on\|off` / `vertical\|horizontal` / `size <n>` / `shade <n>` / `combat hide\|show` / `move [x y]`) | show or hide the menu: buttons opening Toolbox's windows with one click (`launcher` works too) |
 | `/toolbox api` | which newer API functions this game client has |

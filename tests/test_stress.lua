@@ -103,7 +103,7 @@ return function(t)
     for i = 1, 250 do
       prices[string.format("loot item %03d", i)] = { avg = i * 3, sold = i, last = "2026-09-20", day = DAY }
     end
-    -- Map overlays at their room (OV.BUDGET, the character file's share): Novia's 10 full (the shown one's 40 places
+    -- Map overlays at their room (OV.BUDGET, the character file's share): Novia's 10 full (the shown one's 39 places
     -- on the map), and 90 other scenes with two overlays of 12 places each; as saved (packed places; marked "%E").
     local function packed(n)
       local each = {}
@@ -122,7 +122,7 @@ return function(t)
       end
       scenes[raw] = { scene = "A scene with a long name " .. raw, shown = list[1].id, list = list }
     end
-    addScene("Novia", 10, 40)
+    addScene("Novia", 10, 39)
     for i = 1, 90 do addScene(string.format("Scene_%03d_R4_Long_Raw_Name", i), 2, 12) end
     local disk = {
       [CHAR] = {
@@ -177,7 +177,7 @@ return function(t)
     t.eq(#(H.S.requests or {}), 0, "cached prices: no lookups")
     local use = Toolbox.Overlays.StorageUse()
     t.ok(use > 0.85 and use <= 1, "the overlays fill their room: " .. use)
-    t.eq(#Toolbox.Overlays.Places(Toolbox.Overlays.Shown()), 40, "Novia's shown overlay read")
+    t.eq(#Toolbox.Overlays.Places(Toolbox.Overlays.Shown()), 39, "Novia's shown overlay read")
     t.eq(rawget(Toolbox.Overlays.List("Scene_001_R4_Long_Raw_Name")[1], "places"), nil, "other scenes' places not read")
     within("veteran idle", LIMITS.veteran, measure(60))
   end)

@@ -284,7 +284,7 @@ D.SECTIONS = {
       .. "one for vendors... Each scene has its own overlays (a place is only good on its own map), and remembers "
       .. "which one it shows: a Loot overlay in every scene you farm, say. Each place is a mark on the region map "
       .. "and minimap (a newer game client), in the shape and color you picked for it, named as you named it. Up "
-      .. "to 10 overlays a scene, 40 places each. They're this character's own. The Loot Tracker's run flags stay "
+      .. "to 10 overlays a scene, 39 places each. They're this character's own. The Loot Tracker's run flags stay "
       .. "their own setting and show beside any overlay.",
     "Room: the game keeps at most 256 KB in each of an add-on's saved files, so the overlays of all your scenes "
       .. "share a part of this character's file (thousands of places). The window shows how full it is. A mark "
@@ -305,6 +305,13 @@ D.SECTIONS = {
       .. "overlay off none, and overlay new, rename <old> = <new>, delete and places (each with its /loc) do the "
       .. "rest; overlay icon star and overlay color Red set the next marks' look, mark look <name> gives it to a "
       .. "place." },
+  { "Last death",
+    "When you die, Toolbox keeps where you stood, and on a newer game client your last death shows on the map "
+      .. "and minimap in its scene: a red diamond named Last death (hover it for when), beside any overlay. Only "
+      .. "the last one: the next death moves it. /toolbox death says where it is; /toolbox death compass, or Last "
+      .. "death in the Map overlays window, points your compass back to it (the game's beacon, so it replaces "
+      .. "yours); /toolbox death clear takes it off. Switch it off under Settings, Map & location: Show your last "
+      .. "death on the map." },
   { "Auto map",
     "Resource nodes don't move, though not all are up at once. Turn on Auto map this scene in the Map overlays "
       .. "window (or /toolbox overlay auto on) and each node you gather there is marked where you stand: in an "
