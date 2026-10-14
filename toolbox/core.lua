@@ -2282,6 +2282,28 @@ T.PHASE_STEP = 0.06
 T.PHASE_EDGE = 0.05
 local phases, phaseNext = {}, 0
 local periodicRuns = {}               -- name -> { run, period }: the repeating ones, for /toolbox perf quiet
+
+-- Toolbox's active timers' names. ShroudListPeriodics gives a MoonSharp enumerator that only a generic for walks (the
+-- docs; T.List read it as empty in game, so perf quiet paused nothing, 2026-10-14); a plain list is taken too.
+local function walkNames(list, out)
+  for name in list do
+    if type(name) == "string" then out[#out + 1] = name end
+  end
+end
+function T.PeriodicNames()
+  local out = {}
+  if type(ShroudListPeriodics) ~= "function" then return out end
+  local ok, list = pcall(ShroudListPeriodics)
+  if not ok or list == nil then return out end
+  if type(list) == "table" then
+    for _, name in ipairs(list) do
+      if type(name) == "string" then out[#out + 1] = name end
+    end
+  else
+    pcall(walkNames, list, out)
+  end
+  return out
+end
 function T.RegisterPeriodic(name, fn, period, repeating)
   local function run()
     T.Ran(name)
@@ -2380,8 +2402,7 @@ function T.PerfStart(secs, quiet)
       perf.period = period
       if quiet then
         local paused = {}
-        local ok, list = pcall(ShroudListPeriodics)
-        for _, name in ipairs(ok and T.List(list) or {}) do
+        for _, name in ipairs(T.PeriodicNames()) do
           if name ~= T.PERF_ID and periodicRuns[name] and ShroudRemovePeriodic(name) then paused[#paused + 1] = name end
         end
         perf.paused = paused
@@ -2426,8 +2447,7 @@ add("perf", "measure hitches for a minute (perf <seconds>; perf stop): slow fram
     return
   end
   if not T.PerfStart(secs, quiet) then
-    local ok, list = pcall(ShroudListPeriodics)
-    local n = ok and #T.List(list) or nil
+    local n = #T.PeriodicNames()
     T.Print("The game refused the measuring timer (every period from " .. T.PERF_PERIODS[1] .. " to "
       .. T.PERF_PERIODS[#T.PERF_PERIODS] .. " s" .. (n and (", with " .. n .. " of Toolbox's timers running") or "")
       .. "). Please report it with /" .. T.commands[1] .. " version.")

@@ -779,11 +779,16 @@ local function install_api()
     S.periodics[name] = { fn = fn, period = period, repeating = repeating, due = ShroudTime + period }
     return true
   end
+  -- An enumerator, as in game: only `for name in list do` walks it (a function here).
   ShroudListPeriodics = function()
     local out = {}
     for name in pairs(S.periodics) do out[#out + 1] = name end
     table.sort(out)
-    return out
+    local i = 0
+    return function()
+      i = i + 1
+      return out[i]
+    end
   end
   ShroudRemovePeriodic = function(name)
     local had = S.periodics[name] ~= nil
