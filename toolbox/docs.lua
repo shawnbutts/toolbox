@@ -313,7 +313,11 @@ D.SECTIONS = {
     "It stays on in that scene until you turn it off, and only there: turn it on the first time you visit a "
       .. "scene, gather, and the scene is mapped. Up to 10 automatic overlays a scene (Gathering and 9 kinds), "
       .. "apart from your own 10; past that, a new kind is marked in Gathering only, and chat says so once. "
-      .. "They're ordinary overlays: show, rename, restyle or delete them like your own." },
+      .. "They're ordinary overlays: show, rename, restyle or delete them like your own.",
+    "Too many kinds? Ignore the ones you don't want, in every scene: show a kind's overlay (or pick one of its "
+      .. "places in Gathering) and click Ignore kind twice, or type /toolbox overlay auto ignore and a kind or a "
+      .. "word of one (Corpse skips Wolf Corpse, Bear Corpse...). Its overlay and its places in this scene go, and "
+      .. "it isn't marked again. /toolbox overlay auto ignore lists them; auto unignore <name> takes one off." },
   { "Moving the HUD strips",
     "The buff bar, health & focus bars, combat stats, the consumables bar and the equipment bar are "
       .. "HUD strips. Drag the grip at a "

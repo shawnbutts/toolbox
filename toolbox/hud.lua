@@ -1059,7 +1059,7 @@ OV.COLORS = {
 OV.FULL = "map storage is full"
 OV.REFUSED = "the game refused to save it"
 OV.version = 0
-local ovData = { scenes = {}, nextId = 1 }
+local ovData = { scenes = {}, nextId = 1, ignore = {} }
 local ovFor = nil
 local ovSize = 0                      -- the saved form's estimated size (at the last read or save)
 local ovMarks = { raw = nil, who = nil, version = nil, retryAt = -math.huge }
@@ -1233,6 +1233,14 @@ local function readV2(saved)
     end
   end
   if type(saved.nextId) == "number" and saved.nextId > ovData.nextId then ovData.nextId = math.floor(saved.nextId) end
+  local seen = {}
+  for _, part in ipairs(type(saved.ignore) == "table" and saved.ignore or {}) do
+    local name = OV.CleanName(part)
+    if name and not seen[name:lower()] and #ovData.ignore < OV.IGNORE_MAX then
+      seen[name:lower()] = true
+      ovData.ignore[#ovData.ignore + 1] = name
+    end
+  end
 end
 
 -- The saved form (each overlay read this session packed again; the others as they were read).
@@ -1249,13 +1257,15 @@ local function savedForm()
       scenes[raw] = { scene = sc.scene, shown = sc.shown, list = list, auto = sc.auto }
     end
   end
-  return { v = 2, nextId = ovData.nextId, scenes = scenes }
+  local ignore = {}
+  for i, part in ipairs(ovData.ignore) do ignore[i] = part end
+  return { v = 2, nextId = ovData.nextId, scenes = scenes, ignore = ignore }
 end
 
 -- This character's overlays (read once per character; re-runnable). A scene's places are read when needed.
 function OV.Init()
   ovFor = T.CharacterName()
-  ovData = { scenes = {}, nextId = 1 }
+  ovData = { scenes = {}, nextId = 1, ignore = {} }
   local saved = T.ReadSaved(OV.KEY)
   if type(saved) == "table" and saved.v == 2 then
     readV2(saved)
@@ -1288,7 +1298,9 @@ local function ovSnapshot()
     end
     scenes[raw] = { sc = sc, shown = sc.shown, auto = sc.auto, list = list }
   end
-  return { nextId = ovData.nextId, scenes = scenes }
+  local ignore = {}
+  for i, part in ipairs(ovData.ignore) do ignore[i] = part end
+  return { nextId = ovData.nextId, scenes = scenes, ignore = ignore }
 end
 
 local function ovRestore(snap)
@@ -1311,7 +1323,7 @@ local function ovRestore(snap)
     k.sc.shown, k.sc.list, k.sc.auto = k.shown, list, k.auto
     scenes[raw] = k.sc
   end
-  ovData.scenes, ovData.nextId = scenes, snap.nextId
+  ovData.scenes, ovData.nextId, ovData.ignore = scenes, snap.nextId, snap.ignore
 end
 
 -- Saves the overlays as changed since `snap` (ovSnapshot() taken before the change), or puts `snap` back when it
@@ -1536,6 +1548,7 @@ OV.AUTO_NEAR = 6                      -- m: a node gathered again from its other
 OV.KIND_MAX = OV.NAME_MAX - 4         -- a kind's name, room for " 12" after it
 OV.GATHERING = "Gathering"
 OV.AUTO_ALL = "*"                     -- the Gathering overlay's `auto`; a kind's overlay has its kind
+OV.IGNORE_MAX = 40                    -- name parts the auto map skips (owner, 2026-10-14: dozens of kinds a scene)
 local autoTold = {}                   -- "raw>kind" -> true: no room told this session
 
 -- The kind a node's name names ("Iron Ore"), or nil.
@@ -1544,6 +1557,87 @@ function OV.NodeKind(node)
   local kind = OV.CleanName(node)
   if kind and #kind > OV.KIND_MAX then kind = T.Trim(kind:sub(1, OV.KIND_MAX)) end
   return kind
+end
+
+-- The kind an automatic place's name names ("Iron Ore 3" -> "Iron Ore"), or nil (one the player renamed).
+function OV.PlaceKind(name)
+  return type(name) == "string" and name:match("^(.*) %d+$") or nil
+end
+
+-- The ignore list's entry that `kind` matches, or nil: an entry is whole words of the kind ("Corpse" matches "Wolf
+-- Corpse", "Ore" doesn't match "Forest Mushroom"), any case.
+function OV.IgnoredBy(kind)
+  ovFollow()
+  if type(kind) ~= "string" then return nil end
+  local words = " " .. kind:lower() .. " "
+  for _, part in ipairs(ovData.ignore) do
+    if words:find(" " .. part:lower() .. " ", 1, true) then return part end
+  end
+  return nil
+end
+
+-- The kinds the auto map skips, in every scene (this character's), in the order added.
+function OV.IgnoreList()
+  ovFollow()
+  return ovData.ignore
+end
+
+-- Adds `text` (a kind or whole words of one) to the ignore list, and drops what the auto map made of it in the
+-- scene you're in (its overlay, its places in Gathering; other scenes keep theirs). Returns true, overlays and
+-- places dropped, or false and why.
+function OV.Ignore(text)
+  ovFollow()
+  local part = OV.CleanName(text)
+  if not part then return false, "name a kind, or a word of one" end
+  for _, p in ipairs(ovData.ignore) do
+    if p:lower() == part:lower() then return false, p .. " is already ignored" end
+  end
+  if #ovData.ignore >= OV.IGNORE_MAX then
+    return false, "the list holds " .. OV.IGNORE_MAX .. ": take one off first"
+  end
+  local snap = ovSnapshot()
+  ovData.ignore[#ovData.ignore + 1] = part
+  local overlays, places = 0, 0
+  local raw = hereRaw()
+  local sc = raw and ovData.scenes[raw]
+  if sc then
+    local kept = {}
+    for _, ov in ipairs(sc.list) do
+      if ov.auto and ov.auto ~= OV.AUTO_ALL and OV.IgnoredBy(ov.auto) then
+        overlays = overlays + 1
+        if sc.shown == ov.id then sc.shown = 0 end
+      else
+        kept[#kept + 1] = ov
+        if ov.auto == OV.AUTO_ALL then
+          local left = {}
+          for _, p in ipairs(OV.Places(ov)) do
+            if OV.IgnoredBy(OV.PlaceKind(p.name)) then places = places + 1 else left[#left + 1] = p end
+          end
+          ov.places = left
+        end
+      end
+    end
+    sc.list = kept
+  end
+  local ok, why = ovSave(snap)
+  if not ok then return false, why end
+  return true, overlays, places
+end
+
+-- Takes `text` off the ignore list. Returns true, or false and why.
+function OV.Unignore(text)
+  ovFollow()
+  local part = OV.CleanName(text)
+  local snap = ovSnapshot()
+  local kept, found = {}, nil
+  for _, p in ipairs(ovData.ignore) do
+    if part and p:lower() == part:lower() then found = p else kept[#kept + 1] = p end
+  end
+  if not found then return false, "'" .. tostring(part or "") .. "' isn't on the list" end
+  ovData.ignore = kept
+  local ok, why = ovSave(snap)
+  if not ok then return false, why end
+  return true, found
 end
 
 -- Whether the auto map is on in the scene you're in (`raw`: another).
@@ -1665,7 +1759,8 @@ function OV.AutoMark(sc, here, kind)
     T.Print("Auto map: no room for " .. kind .. (mine == nil and (" in an overlay of its own (" .. OV.AUTO_MAX
       .. " automatic overlays a scene)") or "") .. ((mine ~= nil and p == nil) and (" in " .. mine.name .. " ("
       .. OV.SCENE_MAX .. " places)") or "") .. ((all ~= nil and q == nil) and (" in " .. all.name .. " ("
-      .. OV.SCENE_MAX .. " places)") or "") .. ".")
+      .. OV.SCENE_MAX .. " places)") or "") .. ". /" .. T.commands[1] .. " overlay auto ignore " .. kind
+      .. " stops marking it.")
   end
   return name
 end
@@ -1678,7 +1773,7 @@ function OV.OnGathered(results)
   if not sc then return end
   for _, r in ipairs(T.List(results)) do
     local kind = OV.NodeKind(T.Field(r, "node"))
-    if kind then OV.AutoMark(sc, here, kind) end
+    if kind and not OV.IgnoredBy(kind) then OV.AutoMark(sc, here, kind) end
   end
 end
 
@@ -1858,8 +1953,9 @@ end
 -- /toolbox overlay
 T.AddCommand("overlay", "map overlays, sets of places you mark in a scene, one shown at a time: <name> shows one;"
   .. " off; new <name>; rename <old> = <new>; delete <name>; places; icon <shape>, color <name> (your next marks');"
-  .. " window (the Map overlays window); auto [on|off] (mark the nodes you gather here); scenes (every scene's, and"
-  .. " the room they take); forget <scene> (alone: this scene's)",
+  .. " window (the Map overlays window); auto [on|off] (mark the nodes you gather here); auto ignore [kind],"
+  .. " auto unignore <kind> (kinds it skips); scenes (every scene's, and the room they take);"
+  .. " forget <scene> (alone: this scene's)",
   function(rest)
     local word, args = T.ParseArgs(rest)
     local c = "/" .. T.commands[1] .. " "
@@ -1875,6 +1971,29 @@ T.AddCommand("overlay", "map overlays, sets of places you mark in a scene, one s
     if word == "window" then
       OV.ToggleWindow()
     elseif word == "auto" then
+      local sub, what = T.ParseArgs(args)
+      if sub == "ignore" and what == "" then
+        local list = OV.IgnoreList()
+        T.Print(#list > 0 and ("The auto map skips: " .. table.concat(list, ", ") .. " (" .. c
+          .. "overlay auto unignore <name> takes one off).")
+          or ("The auto map skips nothing: " .. c .. "overlay auto ignore <kind or word> adds one (a word, such as"
+            .. " Corpse, skips every kind with it)."))
+        return
+      elseif sub == "ignore" then
+        local ok, overlays, places = OV.Ignore(what)
+        if not ok then
+          T.Print("Couldn't add it: " .. overlays .. ".")
+          return
+        end
+        T.Print("The auto map skips " .. OV.CleanName(what) .. " now, in every scene." .. ((overlays + places > 0)
+          and (" Here it took out " .. overlays .. " overlay" .. (overlays == 1 and "" or "s") .. " and " .. places
+            .. " place" .. (places == 1 and "" or "s") .. " in " .. OV.GATHERING .. ".") or ""))
+        return
+      elseif sub == "unignore" then
+        local ok, why = OV.Unignore(what)
+        T.Print(ok and ("The auto map marks " .. why .. " again.") or ("Couldn't take it off: " .. why .. "."))
+        return
+      end
       local want = args:lower()
       if want ~= "on" and want ~= "off" then
         T.Print("Auto map is " .. (OV.AutoOn() and "on" or "off") .. " in this scene: " .. c .. "overlay auto on"
@@ -2037,7 +2156,19 @@ local function mwDisarm()
   if mwArmed then
     mwArmed = nil
     T.SetText(mwEl.delete, "Delete")
+    T.SetText(mwEl.ignore, "Ignore kind")
   end
+end
+
+local function mwPicked() return mwEl.places and mwPlaces[mwEl.places:GetValue()] end
+
+-- The kind Ignore kind would skip: the shown automatic overlay's, or in Gathering the picked place's; or nil.
+local function mwKind()
+  local ov = OV.Shown()
+  if not (ov and ov.auto) then return nil end
+  if ov.auto ~= OV.AUTO_ALL then return ov.auto end
+  local p = mwPicked()
+  return p and OV.PlaceKind(p.name)
 end
 
 -- Fills the window from the overlays, when they or the scene changed (from every change and OV.Tick).
@@ -2075,10 +2206,28 @@ function OV.SyncWindow()
     mwEl.auto:SetValue(OV.AutoOn())
     for _, k in ipairs({ "icon", "color", "rename", "delete" }) do mwEl[k]:SetEnabled(shown ~= nil) end
     for _, k in ipairs({ "beacon", "look", "remove" }) do mwEl[k]:SetEnabled(any) end
+    mwEl.ignore:SetEnabled(mwKind() ~= nil)
   end)
 end
 
-local function mwPicked() return mwEl.places and mwPlaces[mwEl.places:GetValue()] end
+local function mwIgnore()
+  local kind = mwKind()
+  if not kind then return end
+  local id = "ignore>" .. tostring(T.settingsFor) .. ">" .. kind
+  if not (mwArmed and mwArmed.id == id and T.Now() - mwArmed.at <= OV.CONFIRM) then
+    mwDisarm()
+    mwArmed = { at = T.Now(), id = id }
+    T.SetText(mwEl.ignore, "Click again to confirm")
+    mwMsg("Click again: the auto map stops marking " .. kind .. " in every scene, and its places here go.")
+    return
+  end
+  mwDisarm()
+  local ok, why = OV.Ignore(kind)
+  local said = ok and ("The auto map skips " .. kind .. " now (/" .. T.commands[1] .. " overlay auto unignore "
+    .. kind .. " undoes it).") or ("Couldn't ignore it: " .. why .. ".")
+  mwMsg(said)
+  T.Print(said)
+end
 
 local function mwOverlayName()
   local field = mwEl.ovname
@@ -2177,7 +2326,11 @@ local function mwBuild()
       onSubmit = function(_, text) mwMark(text) end },
     places = UI.Dropdown{ id = "mw_places", choices = { OV.MW_NO_PLACES }, value = OV.MW_NO_PLACES,
       style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The shown overlay's places in this scene",
-      onChange = function() mwMsg("") end },
+      onChange = function()
+        mwMsg("")
+        mwDisarm()
+        pcall(function() mwEl.ignore:SetEnabled(mwKind() ~= nil) end)
+      end },
     beacon = UI.Button{ id = "mw_beacon", text = "Compass", style = { marginLeft = 4 },
       tooltip = "Point the game's compass at this place (it's the game's beacon: it replaces your own /beacon)",
       onClick = function()
@@ -2212,6 +2365,10 @@ local function mwBuild()
         mwMsg(ok and (on and ("Auto map on: gather here and each node is marked.") or "Auto map off.")
           or ("Couldn't change it: " .. why .. "."))
       end },
+    ignore = UI.Button{ id = "mw_ignore", text = "Ignore kind", style = { marginLeft = 4 },
+      tooltip = "Stop auto mapping this kind, in every scene (the shown automatic overlay's, or in " .. OV.GATHERING
+        .. " the picked place's), and take its places here out (click twice)",
+      onClick = function() mwIgnore() end },
     msg = UI.Label{ id = "mw_msg", text = "", class = "dim", style = { whiteSpace = "wrap", flexGrow = 1,
       flexShrink = 1 } },
     storage = UI.Label{ id = "mw_storage", text = "", class = "dim", style = { marginLeft = 6 },
@@ -2232,7 +2389,7 @@ local function mwBuild()
         tooltip = "Add where you stand to the shown overlay, in the shape and color above (or to a new overlay,"
           .. " Places, if you have none)", onClick = function() mwMark() end } }),
       row({ mwEl.places, mwEl.beacon, mwEl.look, mwEl.remove }),
-      row({ mwEl.auto }),
+      row({ mwEl.auto, UI.Label{ text = "", style = { flexGrow = 1 } }, mwEl.ignore }),
       row({ mwEl.msg, mwEl.storage }),
     },
   }

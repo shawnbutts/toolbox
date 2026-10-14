@@ -45,7 +45,8 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
   full the map storage is (all scenes share part of the character's saved file); all in a small window the location
   strip's pin opens
   (`/toolbox overlay window`, or the button under Settings, Map & location). **Auto map** (`/toolbox overlay auto on`,
-  per scene): each resource node you gather is marked in an overlay of its kind and in Gathering (every kind).
+  per scene): each resource node you gather is marked in an overlay of its kind and in Gathering (every kind);
+  kinds you don't want go on an ignore list (`/toolbox overlay auto ignore <kind or word>`, or Ignore kind).
 
 ## Install
 

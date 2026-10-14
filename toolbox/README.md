@@ -164,7 +164,8 @@ overlays a scene, with room for thousands of places in all. Mark as you go in th
 small **Map overlays** window, where you also make, rename and delete them: the pin on the location strip opens it
 (or **Map & location** in the settings, or `/toolbox overlay window`); `/toolbox mark <name>` marks where you stand.
 Auto map, turned on in a scene, marks every resource node you gather there: in an overlay of its kind and in
-Gathering, which shows them all. Nodes don't move, so one visit maps a scene.
+Gathering, which shows them all. Nodes don't move, so one visit maps a scene. Kinds you don't want go on an
+ignore list: `/toolbox overlay auto ignore <kind or word>`, or Ignore kind in the window.
 
 ## Commands
 

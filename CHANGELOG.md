@@ -20,7 +20,9 @@ ones included).
 - **Auto map:** turn it on in a scene (Map overlays window, or /toolbox overlay auto on) and every resource node
   you gather there is marked where you stand: in an overlay of its kind (Iron Ore, Oak Tree...) and in Gathering,
   which shows every kind at once, each in its own look. A node already marked isn't marked again. Nodes don't move,
-  so the first visit maps a scene. Up to 10 automatic overlays a scene, apart from your own.
+  so the first visit maps a scene. Up to 10 automatic overlays a scene, apart from your own. Kinds you don't want
+  (corpses, say) go on an ignore list, for every scene: the window's Ignore kind button, or /toolbox overlay auto
+  ignore <kind or word> (a word, such as Corpse, skips every kind with it).
 
 ### Fixed
 - **Going AFK or flagging for PvP** no longer looks like another character logging in. The game adds those tags
