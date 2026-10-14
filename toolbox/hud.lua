@@ -704,7 +704,9 @@ LOC.TICK = 0.5
 LOC.POINTS = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" }
 LOC.CHAR_W = 0.6                      -- a character's width, as a share of the text size
 LOC.MIN_CHARS = 19                    -- "-12345, 123, -12345"
-LOC.WATER_EVERY = 5                   -- s between reads of the scene's water kinds
+-- s between reads of the scene's water kinds (5 before the owner's /toolbox perf found location near 9 hitches a
+-- minute, 2026-10-14); a scene change reads them at once
+LOC.WATER_EVERY = 30
 LOC.WATER_NAMES = { fresh = "Fresh water", fetid = "Fetid water", salt = "Salt water", lava = "Lava" }
 local LOC_PERIODIC = "toolbox_location"
 local locPrefs = { show = false, facing = true, water = true }

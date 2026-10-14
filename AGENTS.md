@@ -229,7 +229,7 @@ into one if a new file is ever needed).
   `Toolbox.Location` (LOC; owner, 2026-10-08): the location strip (scene, position rounded, compass heading from
   `ShroudGetPlayerCompassHeading`; hover = `ShroudGetLocationText`), its own `LOC.TICK` periodic setting text only
   on change, its width from the scene name's length (refit on a scene change); fishable water (API 32, `water`: the nearest within
-  30 m on a line hidden when none, `LOC.UpdateWater`; the scene's kinds in the hover, re-read every `LOC.WATER_EVERY` s
+  30 m on a line hidden when none, `LOC.UpdateWater`; the scene's kinds in the hover, re-read every `LOC.WATER_EVERY` s (30; 5 before the 1.8.0 perf runs)
   (a town's water decoration changes them, review 32); harness `H.S.water`, `H.S.sceneWater`, `H.S.noWater`); controls (and its Position rows: `POSITIONED`'s
   page field) on the "Map & location" page (`C.MapSection`, key "map", with the run markers' toggle; owner, 2026-10-13:
   the home for map features to come).
@@ -364,7 +364,9 @@ into one if a new file is ever needed).
   notification / guild / friend events), which marks a notice seen only once delivered. `events` (API 35, the world
   calendar, read only): `N.EventsCheck` over `ShroudGetCalendarSummary().happeningNow` and the dates starting within
   `N.EVENT_LEAD` min (`T.Clock` for now), read at most every `N.EVENT_READ` s or after `ShroudOnCalendarChanged`
-  (`N.CalendarChanged`); `seen` = { [occurrence] = start as text }, dropped after `N.EVENT_KEEP` s unless still listed;
+  (`N.CalendarChanged`). The social summary, guild message and notification counts are kept (`context`) and read
+  again on a change callback (`N.Check(true)`), in the first minute's polling, or after `N.CONTEXT_EVERY` s (the 1.8.0
+  perf runs: the 5-second poll was near 12 hitches a minute); `seen` = { [occurrence] = start as text }, dropped after `N.EVENT_KEEP` s unless still listed;
   `/toolbox events` (`N.EventsLines`). Harness `H.S.calendar = { status, rows, stronghold }`, `H.S.noCalendar`. The guild message
   comes from `ShroudGetGuildMotd` (API 18) when present. friends / guild are `transient` (their `seen` is an
   event number from `N.OnStatus`'s queue, never read back). `N.SETTLE` s after start, counts going down

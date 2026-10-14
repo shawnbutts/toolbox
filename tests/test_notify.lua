@@ -29,6 +29,24 @@ return function(t)
     t.eq(N({ inGuild = true, guildMotd = "Raid at 9" }, "Raid at 8"), "Raid at 9")
   end)
 
+  t.test("after the first minute the poll reuses the game's readings; a change callback reads them again", function()
+    H.boot()
+    H.advance(Toolbox.NOTIFY_EARLY + 5)
+    local reads, get = 0, ShroudGetSocialSummary
+    ShroudGetSocialSummary = function(...)
+      reads = reads + 1
+      return get(...)
+    end
+    H.advance(30)                                      -- six polls
+    t.ok(reads <= 1, reads .. " reads in 30 s")
+    reads = 0
+    H.callback("ShroudOnSocialChanged")
+    t.eq(reads, 1, "the callback reads it at once")
+    H.advance(Toolbox.Notify.CONTEXT_EVERY + Toolbox.NOTIFY_POLL + 1)
+    t.ok(reads >= 2, "and the poll again after a minute")
+    ShroudGetSocialSummary = get
+  end)
+
   t.test("nothing new: no window", function()
     H.boot()
     H.advance(3)

@@ -2623,7 +2623,7 @@ function T.Tick()
   local early = T.Now() - (T.startedAt or 0) < T.NOTIFY_EARLY
   if early or T.Now() - (T.lastNotifyPoll or -math.huge) >= T.NOTIFY_POLL then
     T.lastNotifyPoll = T.Now()
-    T.Notify.Check()
+    T.Notify.Check(early)              -- after the first minute, on the game's readings as last read (N.CONTEXT_EVERY)
   end
 end
 
@@ -3675,7 +3675,7 @@ function ShroudOnStart()
   T.RegisterPeriodic("toolbox_views", T.ViewsTick, T.tickSeconds, true)
   T.setupDirty = true                  -- this character's copy in the account file, at the next flush
   T.WhatsNew(T.Welcome())            -- first run only: a chat line and the settings window; else what's new
-  step("notifications", T.Notify.Check)   -- anything new: the guild message, mail, ...
+  step("notifications", function() T.Notify.Check(true) end)   -- anything new: the guild message, mail, ...
 end
 
 -- Only a trigger: the amount's relation to pooled vs total XP is not documented,
@@ -3776,19 +3776,19 @@ end
 
 function ShroudOnSocialChanged()
   T.Ran("social")
-  T.Notify.Check()
+  T.Notify.Check(true)
 end
 
 -- The guild message of the day changed (API 18; the game checks twice a second).
 function ShroudOnGuildMotdChanged()
   T.Ran("guild message")
-  T.Notify.Check()
+  T.Notify.Check(true)
 end
 
 -- A notification count or flag changed (mail, ransoms, rewards, guild applications).
 function ShroudOnNotificationsChanged()
   T.Ran("notifications")
-  T.Notify.Check()
+  T.Notify.Check(true)
 end
 
 -- Web answers (only the SotANET price lookups ask for any).

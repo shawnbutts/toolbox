@@ -1518,9 +1518,16 @@ end
 
 -- What the sources read this check, once. The guild message comes from its own getter when the client
 -- has it (API 18: "" outside a guild), else from the social summary; `guildSocial` is reused (every tick).
+-- The readings are kept (owner's /toolbox perf, 2026-10-14: the tick's 5-second notification poll was near 12
+-- hitches a minute): read again when `fresh` (the game's change callbacks, start, the first minute's polling) or
+-- after N.CONTEXT_EVERY s; the time-based sources (expiring buffs, events) still check every poll.
+N.CONTEXT_EVERY = 60
 local guildSocial = {}
-local function context()
+local ctxKept, ctxAt = nil, -math.huge
+local function context(fresh)
+  if ctxKept and not fresh and T.Now() - ctxAt < N.CONTEXT_EVERY then return ctxKept end
   local ctx = {}
+  ctxKept, ctxAt = ctx, T.Now()
   local ok, social = pcall(ShroudGetSocialSummary)
   if ok and type(social) == "table" then ctx.social = social end
   if type(ShroudGetGuildMotd) == "function" then
@@ -1564,9 +1571,10 @@ local function deliver(byVia, withSound)
   return any
 end
 
-function N.Check()
+-- `fresh`: read the game's social summary, guild message and notification counts again now (a change callback).
+function N.Check(fresh)
   local p = prefsNow()
-  local ctx = context()
+  local ctx = context(fresh or ownerChanged)
   local settling = T.Now() < settleUntil
   local byVia, changed = {}, false
   for _, src in ipairs(N.SOURCES) do
