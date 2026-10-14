@@ -37,6 +37,7 @@ local FRAME_ID = "toolbox_buffs"
 local PERIODIC = "toolbox_buffbar"
 
 BB.TICK = 0.5                 -- seconds between updates (sweep + alerts)
+BB.GROUP_TIP_EVERY = 3        -- seconds between remakes of a group slot's tooltip (unless its count changes)
 -- The sweep on buff, consumable and target icons is the game's own cooldown wedge, run by the game
 -- (SetSweepTimer, API 25): set once per cast and again only when the start moves by more than
 -- BB.TIMER_SLACK seconds, the length changes or it turns red. BB.WARN_COLOR is the red of the expiry alert.
@@ -496,11 +497,12 @@ end
 -- `type(x) == "table"` check here skipped: no debuff flag, icon or Effects was ever read (so no
 -- debuff sound, and no full durations). BB.ReadRunes copies the documented fields into tables.
 
--- Field `k` of a table or game object, or nil when it can't be read.
+-- Field `k` of a table or game object, or nil when it can't be read (one shared reader: no closure per call).
+local function readField(obj, k) return obj[k] end
 local function field(obj, k)
   local ty = type(obj)
   if ty ~= "table" and ty ~= "userdata" then return nil end
-  local ok, v = pcall(function() return obj[k] end)
+  local ok, v = pcall(readField, obj, k)
   if ok then return v end
   return nil
 end
@@ -1229,10 +1231,16 @@ local function fillGroup(slot, list)
     slot.tex = tex
     if type(tex) == "number" and tex >= 0 then slot.icon:SetTexture(tex) end
   end
-  if #list ~= slot.n then
+  local changed = #list ~= slot.n
+  if changed then
     slot.n = #list
     for _, c in ipairs(slot.counts) do c:SetText(tostring(#list)) end
   end
+  -- Its tooltip (each buff's time left to the second) is remade when the count changes, else at most every
+  -- BB.GROUP_TIP_EVERY s: it sorted and rebuilt every line twice a second (the 1.8.0 performance pass).
+  local now = T.Now()
+  if not changed and slot.tip and now - (slot.tipAt or -math.huge) < BB.GROUP_TIP_EVERY then return end
+  slot.tipAt = now
   local tip = BB.GroupTooltip(list)
   if tip ~= slot.tip then
     slot.tip = tip

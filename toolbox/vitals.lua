@@ -399,20 +399,23 @@ function V.Tick()
   end
   if content and prefs.show then
     for _, bar in ipairs(V.BARS) do
-      local current, value, text, tip = nil, nil, nil, nil
-      if bar.vigor then
-        value, text, tip = vigorShow[1], vigorShow[2], vigorShow[3]
-      else
-        local max = nil
-        current, max = V.Read(bar)
-        value, text = V.Format(current, max)
-      end
-      local flashing = not bar.vigor and (V.IsLow(current, value) or now < previewUntil) and phase
+      local current, max, value, text, tip = nil, nil, nil, nil, nil
       local last = shown[bar.key]
       if not last then
         last = {}
         shown[bar.key] = last
       end
+      if bar.vigor then
+        value, text, tip = vigorShow[1], vigorShow[2], vigorShow[3]
+      else
+        current, max = V.Read(bar)
+        if current ~= nil and current == last.current and max == last.max then   -- unchanged: no new text
+          value, text = last.value, last.text
+        else
+          value, text = V.Format(current, max)
+        end
+      end
+      local flashing = not bar.vigor and (V.IsLow(current, value) or now < previewUntil) and phase
       local els = barEls[bar.key]
       if value ~= last.value then els.bar:SetValue(value) end
       if text ~= last.text then els.text:SetText(text) end
@@ -425,7 +428,7 @@ function V.Tick()
         els.bar:SetColor(barColor)
         els.text:SetStyle{ color = textColor }
       end
-      last.value, last.text, last.flashing = value, text, flashing
+      last.value, last.text, last.flashing, last.current, last.max = value, text, flashing, current, max
     end
   end
 end

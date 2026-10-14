@@ -203,11 +203,13 @@ end
 -- did (2026-09-28), and every `type(x) == "table"` check skipped it. Read fields by name through
 -- T.Field and copy what's needed into plain tables.
 
--- Field `k` of a table or game object, or nil when it can't be read.
+-- Field `k` of a table or game object, or nil when it can't be read. One shared reader for pcall: a closure per
+-- call was most of the vitals tick's garbage (the 1.8.0 performance pass).
+local function readField(obj, k) return obj[k] end
 function T.Field(obj, k)
   local ty = type(obj)
   if ty ~= "table" and ty ~= "userdata" then return nil end
-  local ok, v = pcall(function() return obj[k] end)
+  local ok, v = pcall(readField, obj, k)
   if ok then return v end
   return nil
 end
