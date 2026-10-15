@@ -1241,25 +1241,43 @@ local BOOK_TIMER = "toolbox_recipe_book"
 -- game, and the planner and the book read both need it, owner's perf 2026-10-15): { { id, name, lower, categoryKey } },
 -- and by the first word of the lower-case name. Dropped with the book (D.ForgetRecipes).
 local knownList, knownByWord = nil, nil
+-- A lower-case name's first word (up to its first space), for the index below; plain find: patterns are slow here.
+function D.FirstWord(lower)
+  local sp = lower:find(" ", 1, true)
+  if sp then return lower:sub(1, sp - 1) end
+  return lower
+end
+
 function D.KnownRecipes()
   if knownList then return knownList, knownByWord end
   knownList, knownByWord = {}, {}
   if type(ShroudGetKnownRecipes) ~= "function" then return knownList, knownByWord end
   local t0 = T.PerfT()
   local ok, book = pcall(ShroudGetKnownRecipes)
+  T.PerfAdd("known recipes:the game's list", t0)
+  t0 = T.PerfT()
+  -- The reference: a list of plain tables, so their fields are read straight (5,000 pcalls through T.Field took
+  -- most of 38 ms in game, 2026-10-15); anything else (a game object) through T.Field.
   for _, r in ipairs(ok and T.List(book) or {}) do
-    local name, id = T.Field(r, "name"), T.Field(r, "id")
+    local name, id, cat = nil, nil, nil
+    if type(r) == "table" then
+      name, id, cat = r.name, r.id, r.categoryKey
+    else
+      name, id, cat = T.Field(r, "name"), T.Field(r, "id"), T.Field(r, "categoryKey")
+    end
     if type(name) == "string" and type(id) == "number" then
-      local k = { id = id, name = name, lower = name:lower(), categoryKey = T.Field(r, "categoryKey") }
+      local k = { id = id, name = name, lower = name:lower(), categoryKey = cat }
       knownList[#knownList + 1] = k
-      local word = k.lower:match("^%S+")
-      if word then
-        knownByWord[word] = knownByWord[word] or {}
-        table.insert(knownByWord[word], k)
+      local word = D.FirstWord(k.lower)
+      local list = knownByWord[word]
+      if not list then
+        list = {}
+        knownByWord[word] = list
       end
+      list[#list + 1] = k
     end
   end
-  T.PerfAdd("knownList recipes", t0)
+  T.PerfAdd("known recipes:indexing", t0)
   return knownList, knownByWord
 end
 
@@ -1942,7 +1960,7 @@ local function plQuickMakers(key, name)
   local t0 = T.PerfT()
   local want, out = name:lower(), {}
   local _, byWord = D.KnownRecipes()
-  for _, k in ipairs(byWord[want:match("^%S+") or ""] or {}) do
+  for _, k in ipairs(byWord[D.FirstWord(want)] or {}) do
     if k.lower == want or k.lower:sub(1, #want + 1) == want .. " " then
       local rec = plRecipe(k.id)
       for _, res in ipairs(rec and T.List(T.Field(rec, "results")) or {}) do
