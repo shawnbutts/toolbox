@@ -243,6 +243,20 @@ return function(t)
     local before = find("pl_bar").value
     H.advance(2)
     t.ok(find("pl_bar").value > before, "the bar moves")
+    local held = H.S.periodics.toolbox_views
+    t.ok(held, "the views tick")
+    H.S.periodics.toolbox_views = nil        -- paused (/toolbox perf only): the reader moves the bar
+    H.S.recipes[16] = nil
+    for i = 20, 80 do
+      H.S.recipes[i] = { id = i, name = "Filler " .. i, ingredients = {}, results = {} }
+    end
+    H.callback("ShroudOnRecipesChanged")
+    H.advance(1)
+    before = find("pl_bar").value
+    H.advance(2, 0.05)
+    t.ok(find("pl_bar").value > before, "the bar moves without the views tick: " .. find("pl_bar").value)
+    H.S.periodics.toolbox_views = held
+    H.advance(8, 0.05)
     H.advance(6)
     t.eq(find("pl_progress").visible, false, "gone once read")
     t.eq(#find("pl_via_2").choices, 3, "then every recipe making them")

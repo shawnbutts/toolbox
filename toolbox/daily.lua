@@ -1232,6 +1232,7 @@ end
 -- in game: owner, 2026-10-15): the whole book takes about a minute and a half, in the background.
 -- ---------------------------------------------------------------------------
 D.BOOK_STEP, D.BOOK_PERIOD = 1, 0.05
+D.BOOK_SHOW_EVERY = 20                    -- steps between moves of the planner's bar (about a second)
 D.recipeIndex = nil                       -- { recipes = { [id] = recipe }, byResult = { [item] = { { id, yield } } } }
 local reading = nil                       -- the book being read: { list, at, recipes, byResult, waiting }
 local BOOK_TIMER = "toolbox_recipe_book"
@@ -1306,6 +1307,8 @@ local function readSome()
   end
   r.at = stop + 1
   T.PerfAdd("recipe book", t0)
+  -- the planner's bar moves from here, not only on the views tick (/toolbox perf only pauses that one)
+  if r.at % D.BOOK_SHOW_EVERY == 0 and T.Planner and T.Planner.IsShown() then T.Planner.ShowProgress() end
   if r.at > #r.list then
     pcall(ShroudRemovePeriodic, BOOK_TIMER)
     reading = nil
