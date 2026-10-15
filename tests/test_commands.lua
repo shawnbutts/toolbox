@@ -637,6 +637,8 @@ return function(t)
     t.ok(H.logged("Crafting %(API 18%): all 2 present"))
     t.ok(H.logged("Recipe book %(API 37%): all 1 present"))
     t.ok(H.logged("calendar now %(API 38%): none present"), "told by the version")
+    t.ok(H.logged("Saved%-file backups %(API 39%): none present"))
+    t.ok(H.logged("Map title %(API 40%): none present"))
     ShroudSetBuffBarVisible, ShroudGetBuffBarRect, ShroudGetGuildMotd = nil, nil, nil
     ShroudLuaApiVersion = 38
     H.clearLogs()

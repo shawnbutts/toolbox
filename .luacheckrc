@@ -101,6 +101,8 @@ local api_probed = {
   "ShroudGetCalendarEvents", "ShroudGetCalendarEvent", "ShroudGetCalendarSummary",
   "ShroudGetCalendarReminders", "ShroudGetCalendarTags",                                           -- API 35
   "ShroudGetRecipeBook",                                                                           -- API 37
+  "ShroudBackupSavedVars", "ShroudListSavedVarBackups", "ShroudRestoreSavedVarBackup",            -- API 39
+  "ShroudSetMapTitle", "ShroudGetMapTitle",                                                        -- API 40
 }
 
 -- Callbacks an add-on may define. Listed as writable globals.

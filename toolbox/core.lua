@@ -2068,7 +2068,7 @@ end)
 -- 2026-09-27) lag the client (API 20), and a documented crafting/social group was withdrawn,
 -- so ask the game. Names are referenced directly: no lookup by a built name.
 -- The Lua API version the official docs described when this build was made (update with each docs check).
-T.DOCS_API = 38
+T.DOCS_API = 40
 
 function T.ApiLines()
   local function has(f) return type(f) == "function" end
@@ -2126,6 +2126,13 @@ function T.ApiLines()
     -- API 38 adds callbacks and element methods, which can't be looked up without one: told by the version
     { "Window show / hide, FollowHeading, calendar now (API 38)", {
       { "API 38", type(ShroudLuaApiVersion) == "number" and ShroudLuaApiVersion >= 38 } } },
+    { "Saved-file backups (API 39)", {
+      { "ShroudBackupSavedVars", has(ShroudBackupSavedVars) },
+      { "ShroudListSavedVarBackups", has(ShroudListSavedVarBackups) },
+      { "ShroudRestoreSavedVarBackup", has(ShroudRestoreSavedVarBackup) } } },
+    { "Map title (API 40)", {
+      { "ShroudSetMapTitle", has(ShroudSetMapTitle) },
+      { "ShroudGetMapTitle", has(ShroudGetMapTitle) } } },
   }
   local lines = { "Lua API " .. tostring(ShroudLuaApiVersion) .. " (the docs described " .. T.DOCS_API
     .. " when this build was made)." }

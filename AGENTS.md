@@ -752,6 +752,18 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   Unclear: a sheet's stats list Base Weapon Damage on a chest armor recipe (the material's bonuses whether or not
   this item uses them?); `chosenKey` not seen yet (selecting a recipe isn't picking a slot's material). The guide's new "Keeping an add-on light"
   matches the house rules.
+- **API 39-40** (docs 2026-10-15, with a new live client; `T.DOCS_API` = 40, `min_api_version` stays 25; `/toolbox api`
+  probes both groups): 39, saved-file backups: `ShroudBackupSavedVars(scope)` copies the file AS ON DISK (flush first
+  for the current values) to `<file>.<yyyyMMdd-HHmmss>` beside it (newest 5 kept, one a minute a file, an unchanged
+  file returns the newest's name; noAddon / noFile / rateLimited / diskError), `ShroudListSavedVarBackups(scope)`
+  ({ name, time = os.time seconds, size }, newest first), `ShroudRestoreSavedVarBackup(scope, name)` (keeps the
+  replaced file as a backup, drops the cached values: read again; unflushed changes lost; badName / notFound / tooBig /
+  unreadable / rateLimited / diskError). 40, the map title (requested by the owner, #13082): `ShroudSetMapTitle(text |
+  nil)` puts one line per add-on per scene in the full map's top-left corner, as "Toolbox: text" (<= 60 characters,
+  cleaned like a marker label; at most three add-ons; rate 10 then 20 a minute, the same text free; nil / "" takes it
+  down; bad_title / rate / pvp / no_scene; session-only like markers, so set again on a scene load), and
+  `ShroudGetMapTitle()`. Neither used yet. Neither page mentions `ShroudGetNearestWaterType`'s cost: whether this client
+  is the fixed one (`LOC.WATER_FAST_API` 39) is still the owner's `/toolbox perf` to tell.
 
 **Waiting on the developers:** more windows per add-on, 12 instead of 8 (the owner asked, 2026-10-15): then the
 shared 8th window's users (Docs, version, Map overlays, the crafting planner) could have their own. A read-only game settings API (first use: the game's "stack buffs lasting
