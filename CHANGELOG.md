@@ -28,6 +28,8 @@ ones included).
 ### Fixed
 - `/toolbox perf only <name>`: a timer that starts during the measurement (the planner's recipe book) is said to run,
   and named in the report, instead of "all of Toolbox's are paused".
+- `/toolbox perf quiet` / `only`: a short-lived timer that stopped during the measurement (a recipe book read dropped
+  by switching characters) is no longer started again by the report.
 
 ## [1.8.0] - 2026-10-14
 

@@ -102,7 +102,8 @@ This file holds current facts and rules; the history behind them is in git (`git
   (the 1.8.0 pass, owner 2026-10-14): no closure per call on a hot path (`pcall(fn, args)` with a shared function,
   not `pcall(function() ... end)`), and nothing big stored per event (the XP session is stored only as it is
   flushed, at once only for XP lost, a death or a skill level). Register every periodic with
-  `T.RegisterPeriodic` (marks it for `/toolbox perf`: `T.Ran`, also in every core callback, the command dispatcher,
+  `T.RegisterPeriodic` and stop a repeating one with `T.RemovePeriodic` (so a perf report doesn't start it again,
+  review 48) (marks it for `/toolbox perf`: `T.Ran`, also in every core callback, the command dispatcher,
   `Hud.Build` and a settings page; the sampler reads `ShroudRealDeltaTime` at most every 0.01 s, so not every frame
   above 100 a second, and counts a slow frame's sample as Toolbox's when a mark (`T.PERF_RING`) falls in its
   interval: "near", a correlation (review 46); harness `H.S.nextDelta`, or a long `H.advance` step). The live
@@ -193,7 +194,8 @@ into one if a new file is ever needed).
   makers would take a large share of a 256 KB file. At the end, `Toolbox.Planner` (PL; owner, 2026-10-15,
   the 1.9.0 feature; header comment): the crafting planner, `/toolbox plan [recipe]`, the shared 8th window's fourth
   user (`T.TakeSharedWindow("planner")`). Pure model: `PL.Expand(rootId, crafts, ctx)` (rows, shopping list, build
-  order; your bags shared across the plan; no recipe inside itself), `PL.PickChoice` (the player's pick, else the first you
+  order; your bags shared across the plan, a tool not used up and a craft's surplus left for the next rows, reviews
+  49-50; no recipe inside itself), `PL.PickChoice` (the player's pick, else the first you
   have enough of; the "Use what I have" / "Stats I care about" modes and watched stats were dropped the same day,
   owner: the counts and the "Adds ..." line under each slot, `PL.AddsText`, show it; `PL.Reset` clears the plan, not
   the book), `PL.PickMaker`, `PL.Preview` (base + the

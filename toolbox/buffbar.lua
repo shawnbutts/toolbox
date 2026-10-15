@@ -1607,7 +1607,7 @@ function BB.Trace(filter)
     if shown == 0 then
       T.Print("+" .. n .. "s: no buffs" .. (filter ~= "" and (" matching '" .. filter .. "'") or ""))
     end
-    if n >= BB.TRACE_SECONDS then ShroudRemovePeriodic("toolbox_bufftrace") end
+    if n >= BB.TRACE_SECONDS then T.RemovePeriodic("toolbox_bufftrace") end
   end, 1, true)
   local what = filter ~= "" and ("buffs matching '" .. filter .. "'") or ("up to " .. BB.TRACE_MAX .. " buffs")
   T.Print("Tracing " .. what .. " for " .. BB.TRACE_SECONDS .. " s...")

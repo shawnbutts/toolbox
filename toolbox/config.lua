@@ -1806,7 +1806,7 @@ local function stopBlink()
     pcall(function() e:SetStyle{ opacity = 1 } end)       -- gone already if the page was switched
   end
   blink.el, blink.left = nil, 0
-  pcall(ShroudRemovePeriodic, BLINK)
+  T.RemovePeriodic(BLINK)
 end
 
 -- A page built from its recording (C.SearchIndex's way), with the part holding control `id` at the top:

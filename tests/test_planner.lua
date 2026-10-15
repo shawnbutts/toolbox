@@ -336,6 +336,43 @@ return function(t)
     t.eq(plan.shop[2].n, 2)
   end)
 
+  -- Review 49-50: one hammer was counted as used up by the first recipe, and a craft's extra Part was thrown away.
+  t.test("a tool serves every recipe in the plan; what a craft makes past its row is there for the next", function()
+    local P = Toolbox.Planner
+    H.boot()
+    local hammers = 1
+    local function recipes(id)
+      if id == 1 then
+        return { name = "Gadget", ingredients = { { name = "Part", key = "part", quantity = 3, have = 0 },
+                                                  { name = "Hammer", key = "hammer", quantity = 1, have = hammers,
+                                                    tool = true },
+                                                  { name = "Part", key = "part", quantity = 1, have = 0 } } }
+      end
+      return { name = "Part", station = "Bench", ingredients = {
+        { name = "Hammer", key = "hammer", quantity = 1, have = hammers, tool = true },
+        { name = "Metal", key = "metal", quantity = 1, have = 0 } } }
+    end
+    local function plan()
+      return P.Expand(1, 1, {
+        recipe = recipes,
+        makers = function(k) if k == "part" then return { { id = 2, yield = 2 } } end return {} end,
+        scratch = true, makes = { ["p.1"] = true, ["p.3"] = true }, pick = function() return nil end,
+        maker = function() return nil end })
+    end
+    local p = plan()
+    local parts = nil
+    for _, b in ipairs(p.build) do if b.name == "Part" then parts = b end end
+    t.eq(parts.crafts, 2, "4 Parts from 2 crafts: the extra one covers the last row")
+    t.eq(#p.shop, 1, "only the metal")
+    t.eq(p.shop[1].name, "Metal")
+    t.eq(p.shop[1].n, 2)
+    hammers = 0
+    p = plan()
+    local hammer = nil
+    for _, s in ipairs(p.shop) do if s.name == "Hammer" then hammer = s end end
+    t.eq(hammer.n, 1, "one hammer to buy, not one a recipe")
+  end)
+
   t.test("Enter searches: through OnSubmit too (the live client ignored the spec's onSubmit), once a press",
       function()
     H.boot()

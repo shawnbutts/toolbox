@@ -583,7 +583,7 @@ function SK.Unbuilt()
   pauseTile, shownPause = nil, nil
   if SK.flashing then
     SK.flashing = false
-    pcall(ShroudRemovePeriodic, FLASH)
+    T.RemovePeriodic(FLASH)
   end
 end
 
@@ -669,7 +669,7 @@ function SK.Fill()
     T.RegisterPeriodic(FLASH, SK.Fill, SK.FLASH_HALF, true)
   elseif not flashing and SK.flashing then
     SK.flashing = false
-    pcall(ShroudRemovePeriodic, FLASH)
+    T.RemovePeriodic(FLASH)
   end
 end
 

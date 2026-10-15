@@ -1296,7 +1296,7 @@ local function knownSome(all)
   b.at = stop + 1
   T.PerfAdd("known recipes:indexing", t0)
   if b.at > #b.src then
-    pcall(ShroudRemovePeriodic, KNOWN_TIMER)
+    T.RemovePeriodic(KNOWN_TIMER)
     knownList, knownByWord, knownBuild = b.list, b.byWord, nil
     local waiting = knownWaiting
     knownWaiting = {}
@@ -1333,11 +1333,11 @@ function D.ForgetRecipes()
   D.recipeIndex = nil
   knownList, knownByWord, knownSrc = nil, nil, nil
   if knownBuild then
-    pcall(ShroudRemovePeriodic, KNOWN_TIMER)
+    T.RemovePeriodic(KNOWN_TIMER)
     knownBuild = nil
   end
   if reading then
-    pcall(ShroudRemovePeriodic, BOOK_TIMER)
+    T.RemovePeriodic(BOOK_TIMER)
     local waiting = reading.waiting
     reading = nil
     for _, done in ipairs(waiting) do done(false) end
@@ -1380,7 +1380,7 @@ local function readSome()
   -- the planner's bar moves from here, not only on the views tick (/toolbox perf only pauses that one)
   if r.at % D.BOOK_SHOW_EVERY == 0 and T.Planner and T.Planner.IsShown() then T.Planner.ShowProgress() end
   if r.at > #r.list then
-    pcall(ShroudRemovePeriodic, BOOK_TIMER)
+    T.RemovePeriodic(BOOK_TIMER)
     reading = nil
     D.recipeIndex = { recipes = r.recipes, byResult = r.byResult, byKey = r.byKey }
     for _, done in ipairs(r.waiting) do done(true) end
@@ -1763,7 +1763,8 @@ end
 -- Works a plan out: `crafts` crafts of recipe `rootId`. `ctx`: recipe(id) -> the recipe's table; makers(key, name) ->
 -- { { id, yield } } (yield > 0); scratch, makes (set of row paths), pick(id,
 -- slot) -> an item key or nil, maker(key) -> a recipe id or nil. Your bags are shared across the plan (an item used
--- in one branch isn't counted again in another). Returns { rows, shop (list of { key, name, n, tool }), build (list
+-- in one branch isn't counted again in another; a tool isn't used up, review 49; what a craft makes past its row's
+-- need is there for the next rows, review 50). Returns { rows, shop (list of { key, name, n, tool }), build (list
 -- of { id, name, station, crafts, depth }, deepest first, then by station), cut (rows past PL.ROWS_MAX) }.
 function PL.Expand(rootId, crafts, ctx)
   local out = { rows = {}, shop = {}, build = {}, cut = false }
@@ -1773,11 +1774,11 @@ function PL.Expand(rootId, crafts, ctx)
     if pool[key] == nil then return PL.HaveOf(item) end
     return pool[key]
   end
-  local function take(item, need)
+  local function take(item, need, keep)
     local key = PL.KeyOf(item)
     if pool[key] == nil then pool[key] = PL.HaveOf(item) end
     local use = math.min(pool[key], need)
-    pool[key] = pool[key] - use
+    if not keep then pool[key] = pool[key] - use end
     return need - use, use
   end
   local function addShop(r)
@@ -1787,7 +1788,7 @@ function PL.Expand(rootId, crafts, ctx)
       shopBy[r.key] = s
       out.shop[#out.shop + 1] = s
     end
-    s.n = s.n + r.short
+    if r.tool then s.n = math.max(s.n, r.short) else s.n = s.n + r.short end   -- one tool serves every recipe
   end
   local function walk(id, n, depth, path, seen)
     local rec = ctx.recipe(id)
@@ -1820,7 +1821,7 @@ function PL.Expand(rootId, crafts, ctx)
       r.item, r.name, r.key = item, tostring(T.Field(item, "name")), PL.KeyOf(item)
       if #out.rows < PL.ROWS_MAX then out.rows[#out.rows + 1] = r else out.cut = true end
       if not r.optional then
-        r.short, r.have = take(item, r.need)
+        r.short, r.have = take(item, r.need, r.tool)
         local makers = {}
         for _, m in ipairs(ctx.makers(r.key, r.name)) do
           if not seen[m.id] and m.yield > 0 then makers[#makers + 1] = m end
@@ -1835,6 +1836,7 @@ function PL.Expand(rootId, crafts, ctx)
           r.maker = m.id
           r.crafts = math.floor((r.short + m.yield - 1) / m.yield)
           walk(m.id, r.crafts, depth + 1, r.path, seen)
+          pool[r.key] = (pool[r.key] or 0) + r.crafts * m.yield - r.short   -- the surplus, for the next rows
         elseif r.short > 0 then
           addShop(r)
         end

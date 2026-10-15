@@ -2413,6 +2413,19 @@ function T.RegisterPeriodic(name, fn, period, repeating)
   end, phase, false)
 end
 
+-- Stops a repeating timer for good: a quiet / only run doesn't start it again at its report (review 48: a
+-- character switch dropped the recipe book's read while perf held its timer, and the report restored it).
+function T.RemovePeriodic(name)
+  periodicRuns[name] = nil
+  local p = perf
+  if p and p.paused then
+    for i = #p.paused, 1, -1 do
+      if p.paused[i] == name then table.remove(p.paused, i) end
+    end
+  end
+  return pcall(ShroudRemovePeriodic, name)
+end
+
 -- The timing's lines: the timers, then the parts, the longest first (at most T.PERF_LINES of each).
 T.PERF_LINES = 6
 function T.PerfTimingLines(parts)

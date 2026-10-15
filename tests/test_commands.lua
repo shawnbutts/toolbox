@@ -245,6 +245,27 @@ return function(t)
     t.ok(H.S.periodics.toolbox_location and H.S.periodics.toolbox_buffbar, "back after the report")
   end)
 
+  t.test("perf quiet: a timer stopped for good meanwhile (the book's read, dropped by a switch) isn't started again",
+    function()
+    H.boot()
+    H.S.recipes = {}
+    for i = 1, 400 do
+      H.S.recipes[i] = { id = i, name = "Filler " .. i, ingredients = {}, results = { { name = "Filler " .. i,
+        quantity = 1 } } }
+    end
+    H.advance(3, 0.05)
+    Toolbox.Daily.ReadRecipeBook(function() end)
+    t.ok(H.S.periodics.toolbox_recipe_book and Toolbox.Daily.ReadingRecipes(), "reading")
+    H.chat("/tbx perf quiet 10")
+    t.no(H.S.periodics.toolbox_recipe_book, "paused")
+    H.S.char.name = "Alt"                              -- the planner's Init drops the read
+    H.callback("ShroudOnSceneLoaded", H.S.scene)
+    t.no(Toolbox.Daily.ReadingRecipes(), "dropped")
+    H.advance(11, 0.05)
+    t.ok(H.S.periodics.toolbox_vitals, "the module timers are back")
+    t.no(H.S.periodics.toolbox_recipe_book, "the dropped read stays stopped (review 48)")
+  end)
+
   t.test("perf only <a timer not started yet>: it runs once it starts (the planner's recipe book)", function()
     H.boot()
     H.S.recipes = { [1] = { id = 1, name = "Iron Ingot", ingredients = {}, results = { { name = "Iron Ingot",
