@@ -234,6 +234,8 @@ return function(t)
     H.callback("ShroudOnRecipesChanged")         -- learned
     H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
     H.change(W, "pl_scratch", true)
+    t.no(find("pl_make_1"), "the known recipes are indexed first, in the background")
+    H.advance(0.05, 0.05)                        -- one step: six recipes indexed, one of them read
     t.ok(find("pl_progress").visible ~= false, "the bar shows while the book is read")
     t.ok(text("pl_bar_text"):find("^Reading recipes: %d of 6"), text("pl_bar_text"))
     t.ok(text("pl_bar_note"):find("once a login", 1, true), text("pl_bar_note"))
@@ -288,6 +290,23 @@ return function(t)
     H.submit(W, "pl_find", "iron")
     t.eq(calls, 2, "again after learning a recipe")
     ShroudGetKnownRecipes = get
+  end)
+
+  t.test("a big book is indexed a part at a time from the planner opening; a search finishes it at once", function()
+    H.boot()
+    book()
+    for i = 100, 1299 do
+      H.S.recipes[i] = { id = i, name = "Filler " .. i, ingredients = {}, results = {} }
+    end
+    H.chat("/tbx plan")
+    t.eq(Toolbox.Daily.KnownRecipes(), nil, "not all in the opening frame")
+    H.advance(0.05, 0.05)
+    t.eq(Toolbox.Daily.KnownRecipes(), nil, Toolbox.Daily.KNOWN_STEP .. " a step")
+    H.advance(1, 0.05)
+    t.eq(#Toolbox.Daily.KnownRecipes(), 1205, "under a second")
+    H.callback("ShroudOnRecipesChanged")
+    H.submit(W, "pl_find", "filler 1234")
+    t.eq(find("pl_recipe").value, "Filler 1234", "a search can't wait: indexed at once")
   end)
 
   t.test("your bags are shared across the plan, and a recipe is never planned inside itself", function()

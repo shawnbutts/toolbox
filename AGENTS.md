@@ -193,7 +193,9 @@ into one if a new file is ever needed).
   the book), `PL.PickMaker`, `PL.Preview` (base + the
   root's picks, weight left out). Refreshed on `ShroudOnInventoryChanged` / craft results / the crafting state at most
   every `PL.REFRESH_GAP` s while shown (`PL.Tick` from `T.ViewsTick`), the plan's recipes read fresh; before the
-  book is read, the makers are the known recipes named like the item (`plQuickMakers`, a few calls); the shortfall's
+  book is read, the makers are the known recipes named like the item (`plQuickMakers`, a few calls, over
+  `D.KnownRecipes`: the game's list once a session, 4.5 ms, indexed by first word `D.KNOWN_STEP` a step from the
+  planner opening, `D.PrepareKnown`, since one frame took 24 ms; a search finishes it at once); the shortfall's
   control is an "I'll craft" Toggle (owner: "Make it" read as if it would craft); the Shopping list is the first and
   default view (owner); the Plan view's
   rows are rebuilt only when their structure changes (`plRowSig`), counts and choices set in place. Text budget (the

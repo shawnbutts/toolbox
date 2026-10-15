@@ -1237,10 +1237,17 @@ D.recipeIndex = nil                       -- { recipes = { [id] = recipe }, byRe
 local reading = nil                       -- the book being read: { list, at, recipes, byResult, waiting }
 local BOOK_TIMER = "toolbox_recipe_book"
 
--- The known recipes, read once a session (ShroudGetKnownRecipes gives every one as a table: about 20 ms for 1,764 in
--- game, and the planner and the book read both need it, owner's perf 2026-10-15): { { id, name, lower, categoryKey } },
--- and by the first word of the lower-case name. Dropped with the book (D.ForgetRecipes).
+-- The known recipes, read once a session and shared (the planner's search and its makers by name, the book read):
+-- { { id, name, lower, categoryKey } }, and by the first word of the lower-case name. The game's list is one call
+-- (4.5 ms for 1,764 in game); indexing it took 24 ms in one frame (owner's perf, 2026-10-15), so it's indexed
+-- D.KNOWN_STEP recipes a D.BOOK_PERIOD step from D.PrepareKnown (the planner opening), under a second; a search
+-- before then finishes it at once (D.KnownRecipes(true)). Dropped with the book (D.ForgetRecipes).
+D.KNOWN_STEP = 150
+local KNOWN_TIMER = "toolbox_known_recipes"
 local knownList, knownByWord = nil, nil
+local knownSrc, knownBuild = nil, nil  -- the game's list (once a session); the index being built
+local knownWaiting = {}
+
 -- A lower-case name's first word (up to its first space), for the index below; plain find: patterns are slow here.
 function D.FirstWord(lower)
   local sp = lower:find(" ", 1, true)
@@ -1248,17 +1255,26 @@ function D.FirstWord(lower)
   return lower
 end
 
-function D.KnownRecipes()
-  if knownList then return knownList, knownByWord end
-  knownList, knownByWord = {}, {}
-  if type(ShroudGetKnownRecipes) ~= "function" then return knownList, knownByWord end
+-- The game's list of known recipes (one call a session).
+function D.KnownSource()
+  if knownSrc then return knownSrc end
+  if type(ShroudGetKnownRecipes) ~= "function" then return {} end
   local t0 = T.PerfT()
   local ok, book = pcall(ShroudGetKnownRecipes)
   T.PerfAdd("known recipes:the game's list", t0)
-  t0 = T.PerfT()
-  -- The reference: a list of plain tables, so their fields are read straight (5,000 pcalls through T.Field took
-  -- most of 38 ms in game, 2026-10-15); anything else (a game object) through T.Field.
-  for _, r in ipairs(ok and T.List(book) or {}) do
+  knownSrc = ok and T.List(book) or {}
+  return knownSrc
+end
+
+-- Indexes the next recipes (all that are left when `all`). The reference: a list of plain tables, so their fields
+-- are read straight (5,000 pcalls through T.Field took most of 38 ms in game); anything else through T.Field.
+local function knownSome(all)
+  local b = knownBuild
+  if not b then return end
+  local t0 = T.PerfT()
+  local stop = all and #b.src or math.min(#b.src, b.at + D.KNOWN_STEP - 1)
+  for i = b.at, stop do
+    local r = b.src[i]
     local name, id, cat = nil, nil, nil
     if type(r) == "table" then
       name, id, cat = r.name, r.id, r.categoryKey
@@ -1267,23 +1283,59 @@ function D.KnownRecipes()
     end
     if type(name) == "string" and type(id) == "number" then
       local k = { id = id, name = name, lower = name:lower(), categoryKey = cat }
-      knownList[#knownList + 1] = k
+      b.list[#b.list + 1] = k
       local word = D.FirstWord(k.lower)
-      local list = knownByWord[word]
+      local list = b.byWord[word]
       if not list then
         list = {}
-        knownByWord[word] = list
+        b.byWord[word] = list
       end
       list[#list + 1] = k
     end
   end
+  b.at = stop + 1
   T.PerfAdd("known recipes:indexing", t0)
+  if b.at > #b.src then
+    pcall(ShroudRemovePeriodic, KNOWN_TIMER)
+    knownList, knownByWord, knownBuild = b.list, b.byWord, nil
+    local waiting = knownWaiting
+    knownWaiting = {}
+    for _, done in ipairs(waiting) do done() end
+  end
+end
+
+-- Starts indexing the known recipes in the background; `done()` once they are (at once if they are).
+function D.PrepareKnown(done)
+  if knownList then
+    if done then done() end
+    return
+  end
+  if done then knownWaiting[#knownWaiting + 1] = done end
+  if knownBuild then return end
+  knownBuild = { src = D.KnownSource(), at = 1, list = {}, byWord = {} }
+  if #knownBuild.src == 0 then
+    knownSome(true)
+    return
+  end
+  T.RegisterPeriodic(KNOWN_TIMER, function() knownSome(false) end, D.BOOK_PERIOD, true)
+end
+
+-- The index, or nil while it's being built; `now`: finish it first (a search can't wait).
+function D.KnownRecipes(now)
+  if not knownList and now then
+    D.PrepareKnown()
+    knownSome(true)
+  end
   return knownList, knownByWord
 end
 
 function D.ForgetRecipes()
   D.recipeIndex = nil
-  knownList, knownByWord = nil, nil
+  knownList, knownByWord, knownSrc = nil, nil, nil
+  if knownBuild then
+    pcall(ShroudRemovePeriodic, KNOWN_TIMER)
+    knownBuild = nil
+  end
   if reading then
     pcall(ShroudRemovePeriodic, BOOK_TIMER)
     local waiting = reading.waiting
@@ -1347,7 +1399,7 @@ function D.ReadRecipeBook(done)
     return #reading.list
   end
   if type(ShroudGetKnownRecipes) ~= "function" or type(ShroudGetRecipe) ~= "function" then return nil end
-  local list = D.KnownRecipes()
+  local list = D.KnownSource()             -- only ids are read, a recipe a step: no need for the index
   if #list == 0 then return nil end
   reading = { list = list, at = 1, recipes = {}, byResult = {}, byKey = {}, waiting = { done } }
   T.RegisterPeriodic(BOOK_TIMER, readSome, D.BOOK_PERIOD, true)
@@ -1644,6 +1696,7 @@ local plBody, plCol = nil, nil
 local plBuilt = {}                    -- recipe id -> { name, station, depth }: every craft the plan has asked for
 local plMade = {}                     -- recipe id -> crafts made since the plan was set (ShroudOnCraftResults)
 local plQuick = {}                    -- item key -> the recipes named like it that make it ({ { id, yield } })
+local plWaitKnown = false             -- a refresh is due once the known recipes are indexed
 
 local function plNum(v) if type(v) == "number" and v == v then return v end return nil end
 
@@ -1935,7 +1988,7 @@ function PL.Find(text)
   local want = T.Trim(text or ""):lower()
   local found, n = {}, 0
   if want == "" then return found, 0 end
-  for _, k in ipairs((D.KnownRecipes())) do
+  for _, k in ipairs(D.KnownRecipes(true) or {}) do
     if k.lower:find(want, 1, true) then
       if k.lower == want then return { { id = k.id, name = k.name } }, 1 end
       n = n + 1
@@ -1957,9 +2010,19 @@ end
 -- Scraps"), each read to check it makes it (by key, or by name on an older client).
 local function plQuickMakers(key, name)
   if plQuick[key] then return plQuick[key] end
+  local _, byWord = D.KnownRecipes()
+  if not byWord then                   -- still being indexed: the plan is worked out again once it is
+    if not plWaitKnown then
+      plWaitKnown = true
+      D.PrepareKnown(function()
+        plWaitKnown = false
+        PL.Refresh(true)
+      end)
+    end
+    return {}
+  end
   local t0 = T.PerfT()
   local want, out = name:lower(), {}
-  local _, byWord = D.KnownRecipes()
   for _, k in ipairs(byWord[D.FirstWord(want)] or {}) do
     if k.lower == want or k.lower:sub(1, #want + 1) == want .. " " then
       local rec = plRecipe(k.id)
@@ -2405,6 +2468,7 @@ function PL.Open(text)
   end
   if not plWin then
     T.TakeSharedWindow("planner", plDrop)
+    D.PrepareKnown()                    -- the known recipes, indexed in the background (under a second)
     local ok, err = pcall(plBuild)
     if not ok then
       plDrop()
@@ -2475,7 +2539,7 @@ function PL.Init()
   local saved = T.ReadSaved(PL.KEY)
   plPrefs = type(saved) == "table" and saved or {}
   plPrefs.v, plPrefs.mode, plPrefs.watch = 1, nil, nil
-  plFresh, plBuilt, plMade, plPlan, plQuick = {}, {}, {}, nil, {}
+  plFresh, plBuilt, plMade, plPlan, plQuick, plWaitKnown = {}, {}, {}, nil, {}, false
 end
 
 T.Backup.OTHER_KEYS[#T.Backup.OTHER_KEYS + 1] = PL.KEY
