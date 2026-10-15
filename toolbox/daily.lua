@@ -1227,9 +1227,11 @@ end
 -- some known recipe makes (by its `results` name) is broken down into that recipe's ingredients, the rest are
 -- raw. Read-only. Reading every known recipe at once ran past the game's time limit for one call ("Lua addon
 -- exceeded its execution time budget", owner, 2026-10-05): the book is read D.BOOK_STEP recipes a
--- D.BOOK_PERIOD (D.ReadRecipeBook), kept for the session, and read again after ShroudOnRecipesChanged.
+-- D.BOOK_PERIOD (D.ReadRecipeBook), kept for the session, and read again after ShroudOnRecipesChanged. One recipe a
+-- step (8 before API 37's bigger recipes; API 37's ShroudGetRecipeBook, a station's recipes in one call, hitched
+-- in game: owner, 2026-10-15): the whole book takes about a minute and a half, in the background.
 -- ---------------------------------------------------------------------------
-D.BOOK_STEP, D.BOOK_PERIOD = 8, 0.1
+D.BOOK_STEP, D.BOOK_PERIOD = 1, 0.05
 D.recipeIndex = nil                       -- { recipes = { [id] = recipe }, byResult = { [item] = { { id, yield } } } }
 local reading = nil                       -- the book being read: { list, at, recipes, byResult, waiting }
 local BOOK_TIMER = "toolbox_recipe_book"
@@ -1262,34 +1264,22 @@ local function indexRecipe(r, id, rec)
   end
 end
 
--- One step: D.BOOK_STEP recipes by id, or (API 37, ShroudGetRecipeBook) one station's recipes in one call, the game
--- counting your bags once for them (the reference: "build it once, keep it").
+-- One step: D.BOOK_STEP recipes, by id.
 local function readSome()
   local r = reading
   if not r then return end
   local t0 = T.PerfT()
-  if r.cats then
-    local ok, list = pcall(ShroudGetRecipeBook, r.cats[r.at])
-    for _, rec in ipairs(ok and T.List(list) or {}) do
-      local id = T.Field(rec, "id")
-      if type(id) == "number" then indexRecipe(r, id, rec) end
+  local stop = math.min(#r.list, r.at + D.BOOK_STEP - 1)
+  for i = r.at, stop do
+    local id = type(T.Field(r.list[i], "id")) == "number" and T.Field(r.list[i], "id") or nil
+    if id then
+      local ok, rec = pcall(ShroudGetRecipe, id)
+      if ok and rec then indexRecipe(r, id, rec) end
     end
-    r.at = r.at + 1
-    r.done = r.at > #r.cats
-  else
-    local stop = math.min(#r.list, r.at + D.BOOK_STEP - 1)
-    for i = r.at, stop do
-      local id = type(T.Field(r.list[i], "id")) == "number" and T.Field(r.list[i], "id") or nil
-      if id then
-        local ok, rec = pcall(ShroudGetRecipe, id)
-        if ok and rec then indexRecipe(r, id, rec) end
-      end
-    end
-    r.at = stop + 1
-    r.done = r.at > #r.list
   end
+  r.at = stop + 1
   T.PerfAdd("recipe book", t0)
-  if r.done then
+  if r.at > #r.list then
     pcall(ShroudRemovePeriodic, BOOK_TIMER)
     reading = nil
     D.recipeIndex = { recipes = r.recipes, byResult = r.byResult, byKey = r.byKey }
@@ -1297,8 +1287,8 @@ local function readSome()
   end
 end
 
--- Reads the recipe book a few recipes (or one station) at a time, then calls done(true) (done(false) if it was
--- dropped). Returns how many recipes it reads, or nil when there's nothing to read (no book: done isn't called).
+-- Reads the recipe book a few recipes at a time, then calls done(true) (done(false) if it was dropped).
+-- Returns how many recipes it reads, or nil when there's nothing to read (no book: done isn't called).
 function D.ReadRecipeBook(done)
   if D.recipeIndex then
     done(true)
@@ -1312,26 +1302,20 @@ function D.ReadRecipeBook(done)
   local ok, book = pcall(ShroudGetKnownRecipes)
   local list = ok and T.List(book) or {}
   if #list == 0 then return nil end
-  local cats = nil
-  if type(ShroudGetRecipeBook) == "function" then
-    local seen = {}
-    cats = {}
-    for _, known in ipairs(list) do
-      local cat = T.Field(known, "categoryKey")
-      if type(cat) == "string" and cat ~= "" and not seen[cat] then
-        seen[cat] = true
-        cats[#cats + 1] = cat
-      end
-    end
-    if #cats == 0 then cats = nil end
-  end
-  reading = { list = list, cats = cats, at = 1, recipes = {}, byResult = {}, byKey = {}, waiting = { done } }
+  reading = { list = list, at = 1, recipes = {}, byResult = {}, byKey = {}, waiting = { done } }
   T.RegisterPeriodic(BOOK_TIMER, readSome, D.BOOK_PERIOD, true)
   return #list
 end
 
 -- Whether the book is being read now.
 function D.ReadingRecipes() return reading ~= nil end
+
+-- While the book is read: how many recipes are read, of how many, and about how many seconds are left. Else nil.
+function D.BookProgress()
+  if not reading then return nil end
+  local done, total = reading.at - 1, #reading.list
+  return done, total, (total - done) / D.BOOK_STEP * D.BOOK_PERIOD
+end
 D.PROBE_DEPTH = 8
 D.PROBE_LINES = 80
 D.PROBE_MATCHES = 15
@@ -1562,8 +1546,9 @@ end
 -- (the first choice you have enough of, in the game's order, which puts the ones you can craft with first) or
 -- "Stats I care about" (the stats you watch, per recipe kind, shown on every choice, the best for the first one
 -- picked; a lower weight or charge time is better). A slot you pick yourself keeps your pick (`picks`, per recipe).
--- With From scratch on, an ingredient you're short of and a known recipe makes gets Make it: the shortfall is
--- crafted, that recipe's ingredients planned below it (`makes`, by the row's path; a recipe never inside itself;
+-- With From scratch on, an ingredient you're short of and a known recipe makes gets an "I'll craft" tick (a tick, not
+-- a button: owner, 2026-10-15, "Make it" read as if it would craft): the shortfall is to be crafted, that recipe's
+-- ingredients planned below it (`makes`, by the row's path; a recipe never inside itself;
 -- several recipes making one item: the one named like it, or the one picked). The plan's views: Plan (the slots),
 -- Shopping list (what to buy or gather) and Build order (the crafts by station, deepest first, ticked off as their
 -- count reaches 0: the game's `have` counts what's on the crafting table, so a craft made counts at once). The
@@ -1571,6 +1556,9 @@ end
 -- material's bonus on lists only its weight, which isn't added). Its window is the shared 8th one
 -- (T.TakeSharedWindow), built when opened. The plan is worked out again on a change: inventory, a craft, a
 -- learned recipe (at most every PL.REFRESH_GAP s while shown), with the plan's recipes read fresh (`have`).
+-- Which recipes make an item: the recipes named like it ("Iron Ingot", "Iron Ingot from ..."), read at once (a few
+-- calls: `plQuickMakers`), then every one, once the whole book is read in the background (D.ReadRecipeBook, about
+-- a minute and a half; the window's bar shows how far, D.BookProgress).
 -- Saved var "planner" (character scope; a reset keeps it): { v = 1, mode = "have"/"stats", scratch = bool,
 -- crafts = n, recipe = id, view = a PL.VIEWS name, makes = { [path] = true }, makers = { [item key] = recipe id },
 -- picks = { ["r" .. recipe id] = { at = n, ["s" .. slot] = item key } } (at most PL.PICKS_MAX recipes, the oldest
@@ -1580,7 +1568,7 @@ local PL = {}
 Toolbox.Planner = PL
 PL.KEY = "planner"
 PL.WINDOW_ID = "toolbox_planner"
-PL.DEPTH = 8                          -- levels of Make it below the recipe
+PL.DEPTH = 8                          -- levels of I'll craft below the recipe
 PL.MATCHES = 15                       -- recipes a search lists
 PL.CHOICES_SHOWN = 10                 -- a slot's choices in its dropdown (the game gives up to 30): the text budget
 PL.ROWS_MAX = 60
@@ -1591,7 +1579,7 @@ PL.REFRESH_GAP = 2
 PL.INDENT = 14
 PL.CRAFTS = { 1, 2, 3, 4, 5, 10, 20, 50, 100 }
 PL.MODES = { { "have", "Use what I have" }, { "stats", "Stats I care about" } }
-PL.VIEWS = { "Plan", "Shopping list", "Build order" }
+PL.VIEWS = { "Shopping list", "Plan", "Build order" }   -- the shopping list first, and by default (owner)
 PL.NO_RECIPE = "Find a recipe first"
 PL.NO_STATS = "No stats to watch"
 PL.STAT_NAMES = { weight = "Weight", durability = "Durability", damageMin = "Min damage", damageMax = "Max damage",
@@ -1611,6 +1599,8 @@ local plBody, plCol = nil, nil
 local plBuilt = {}                    -- recipe id -> { name, station, depth }: every craft the plan has asked for
 local plMade = {}                     -- recipe id -> crafts made since the plan was set (ShroudOnCraftResults)
 local plStatChoices = {}              -- the stat dropdown's names -> stat keys
+local plKnown = nil                   -- this session's known recipes: { { id, lower = its name in lower case } }
+local plQuick = {}                    -- item key -> the recipes named like it that make it ({ { id, yield } })
 
 local function plNum(v) if type(v) == "number" and v == v then return v end return nil end
 
@@ -1956,9 +1946,9 @@ function PL.SetView(view)
   plSave()
   PL.Refresh(true)
 end
-function PL.GetView() return plPrefs.view or PL.VIEWS[1] end
+function PL.GetView() return plPrefs.view or PL.VIEWS[1] end   -- the shopping list unless picked
 
--- Plans a recipe (by id): a new plan, so the Make it choices and the crafts made start over.
+-- Plans a recipe (by id): a new plan, so the I'll craft ticks and the crafts made start over.
 function PL.SetRecipe(id)
   plPrefs.recipe, plPrefs.makes = id, {}
   plBuilt, plMade = {}, {}
@@ -1984,7 +1974,7 @@ function PL.Find(text)
   return found, n
 end
 
--- The recipe book (for Make it), read once a session in the background (D.ReadRecipeBook).
+-- The recipe book (for I'll craft), read once a session in the background (D.ReadRecipeBook).
 function PL.NeedBook()
   if D.recipeIndex or D.ReadingRecipes() then return end
   D.ReadRecipeBook(function(ok)
@@ -1992,9 +1982,41 @@ function PL.NeedBook()
   end)
 end
 
+local function plKnownList()
+  if plKnown then return plKnown end
+  plKnown = {}
+  local ok, book = pcall(ShroudGetKnownRecipes)
+  for _, r in ipairs(ok and T.List(book) or {}) do
+    local name, id = T.Field(r, "name"), plNum(T.Field(r, "id"))
+    if type(name) == "string" and id then plKnown[#plKnown + 1] = { id = id, lower = name:lower() } end
+  end
+  return plKnown
+end
+
+-- Before the whole book is read: the known recipes named like the item ("Iron Ingot", "Iron Ingot from Metal
+-- Scraps"), each read to check it makes it (by key, or by name on an older client).
+local function plQuickMakers(key, name)
+  if plQuick[key] then return plQuick[key] end
+  local want, out = name:lower(), {}
+  for _, k in ipairs(plKnownList()) do
+    if k.lower == want or k.lower:sub(1, #want + 1) == want .. " " then
+      local rec = plRecipe(k.id)
+      for _, res in ipairs(rec and T.List(T.Field(rec, "results")) or {}) do
+        local rkey = T.Field(res, "key")
+        if (type(rkey) == "string" and rkey == key) or (rkey == nil and T.Field(res, "name") == name) then
+          out[#out + 1] = { id = k.id, yield = plNum(T.Field(res, "quantity")) or 0 }
+          break
+        end
+      end
+    end
+  end
+  plQuick[key] = out
+  return out
+end
+
 local function plMakers(key, name)
   local index = D.recipeIndex
-  if not index then return {} end
+  if not index then return plQuickMakers(key, name) end
   if index.byKey and key and index.byKey[key] then return index.byKey[key] end
   return index.byResult[name] or {}
 end
@@ -2101,7 +2123,7 @@ end
 -- counts change in place.
 local function plRowSig(r)
   return table.concat({ r.path, tostring(r.group), tostring(r.canMake), tostring(r.making),
-    tostring(r.makers and #r.makers > 1 and r.making) }, "|")
+    tostring(r.making and r.makers and #r.makers) }, "|")
 end
 
 local function plPlanRows(plan, watch)
@@ -2129,11 +2151,11 @@ local function plPlanRows(plan, watch)
       parts[#parts + 1] = e.status
     end
     if r.canMake then
-      e.make = UI.Button{ id = "pl_make_" .. i, text = r.making and "Buy instead" or "Make it",
+      e.make = UI.Toggle{ id = "pl_make_" .. i, text = "I'll craft", value = r.making == true,
         style = { marginLeft = 4 },
-        tooltip = r.making and "Get the shortfall instead of crafting it"
-          or "Craft the shortfall from its recipe (planned below it)",
-        onClick = function() PL.SetMaking(r.path, not r.making) end }
+        tooltip = "Ticked: you'll craft the " .. T.FormatNumber(r.short) .. " you're short of, and the plan lists"
+          .. " what that takes below it. Unticked: they're on the shopping list. (Toolbox never crafts anything.)",
+        onChange = function(_, on) PL.SetMaking(r.path, on == true) end }
       parts[#parts + 1] = e.make
     end
     children[#children + 1] = UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = parts }
@@ -2308,8 +2330,7 @@ function PL.Refresh(now)
   T.SetText(plEl.title, tostring(T.Field(rec, "name")) .. " at " .. tostring(T.Field(rec, "station")
     or T.Field(rec, "category")) .. (yield > 0 and (": makes " .. T.FormatNumber(yield * PL.GetCrafts())) or ""))
   T.SetText(plEl.result, PL.PreviewText(PL.Preview(rec, plan.rows, PL.GetMode() == "stats" and watch or nil)))
-  local readingBook = PL.GetScratch() and not D.recipeIndex
-  if readingBook then PL.NeedBook() end
+  if PL.GetScratch() and not D.recipeIndex then PL.NeedBook() end
   local sigParts = { view, tostring(id), tostring(PL.GetMode()), table.concat(watch, ",") }
   if view == "Plan" then
     for _, r in ipairs(plan.rows) do sigParts[#sigParts + 1] = plRowSig(r) end
@@ -2337,7 +2358,7 @@ function PL.Refresh(now)
       plDirty = true                    -- the creation cap: tried again at the next tick
     end
   end
-  plMsg(readingBook and "Reading your recipe book for Make it: a few seconds." or nil)
+  PL.ShowProgress()
   T.PerfAdd("planner", t0)
 end
 
@@ -2397,7 +2418,7 @@ local function plBuild()
         .. " watch (a slot you pick yourself keeps your pick)",
       onChange = function(_, v) PL.SetMode(v == PL.MODES[2][2] and "stats" or "have") end },
     scratch = UI.Toggle{ id = "pl_scratch", text = "From scratch", value = PL.GetScratch(),
-      tooltip = "Offer Make it for what you're short of and one of your recipes makes",
+      tooltip = "Offer I'll craft for what you're short of and one of your recipes makes",
       onChange = function(_, on) PL.SetScratch(on == true) end },
     stat = UI.Dropdown{ id = "pl_stat", choices = { PL.NO_STATS }, value = PL.NO_STATS,
       style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The stats this recipe and its materials give",
@@ -2409,7 +2430,13 @@ local function plBuild()
     result = UI.Label{ id = "pl_result", text = "", class = "text", style = { whiteSpace = "wrap" },
       tooltip = "The result's base stats, plus what the picked materials add (an exceptional craft adds more)" },
     msg = UI.Label{ id = "pl_msg", text = "", class = "dim", style = { whiteSpace = "wrap" } },
+    bar = UI.Bar{ id = "pl_bar", value = 0, color = "@gold", style = { flexGrow = 1, height = 6 } },
+    barText = UI.Label{ id = "pl_bar_text", text = "", class = "dim", style = { marginLeft = 6 } },
   }
+  plEl.barRow = UI.Row{ id = "pl_progress", visible = false, style = { alignItems = "center", marginTop = 2 },
+    tooltip = "Your recipe book is read a recipe at a time, so the game doesn't stall: then I'll craft knows every"
+      .. " recipe making an item (until then, the ones named like it)",
+    children = { plEl.bar, plEl.barText } }
   plEl.statRow = UI.Column{ id = "pl_stats", visible = false, children = {
     line({ plEl.stat,
       UI.Button{ id = "pl_watch", text = "Watch", style = { marginLeft = 4 },
@@ -2444,6 +2471,7 @@ local function plBuild()
       UI.Scroll{ style = { flexGrow = 1, marginTop = 4 }, children = { plBody } },
       plEl.result,
       plEl.msg,
+      plEl.barRow,
     },
   }
 end
@@ -2484,15 +2512,36 @@ function PL.Open(text)
   return true
 end
 
--- T.ViewsTick: a change since the last refresh shows (at most every PL.REFRESH_GAP s).
+-- The bar at the bottom while the recipe book is read: how far, and about how long is left.
+function PL.ShowProgress()
+  if not plEl.barRow then return end
+  local done, total, left = D.BookProgress()
+  T.SetVisible(plEl.barRow, done ~= nil)
+  if not done then return end
+  T.SetValue(plEl.bar, total > 0 and done / total or 0)
+  local mins = math.floor(left / 60 + 0.5)
+  T.SetText(plEl.barText, "Reading recipes: " .. T.FormatNumber(done) .. " of " .. T.FormatNumber(total)
+    .. (mins >= 1 and (", about " .. mins .. " min left") or ", nearly done"))
+end
+
+-- T.ViewsTick: a change since the last refresh shows (at most every PL.REFRESH_GAP s); the reading bar moves.
 function PL.Tick()
-  if plDirty and PL.IsShown() then PL.Refresh(false) end
+  if not PL.IsShown() then return end
+  if plDirty then PL.Refresh(false) end
+  PL.ShowProgress()
 end
 
 -- Your bags, the table or the book changed (ShroudOnInventoryChanged, ShroudOnCraftingStateChanged,
 -- ShroudOnRecipesChanged): the plan is worked out again.
 function PL.Changed()
   plDirty = true
+end
+
+-- ShroudOnRecipesChanged: which recipes make what is found again.
+function PL.RecipesChanged()
+  plKnown, plQuick = nil, {}
+  plDirty = true
+  if PL.GetScratch() and PL.IsShown() then PL.NeedBook() end
 end
 
 -- ShroudOnCraftResults: the crafts made for the build order's "made" counts.
@@ -2511,7 +2560,7 @@ function PL.Init()
   local saved = T.ReadSaved(PL.KEY)
   plPrefs = type(saved) == "table" and saved or {}
   plPrefs.v = 1
-  plFresh, plBuilt, plMade, plPlan = {}, {}, {}, nil
+  plFresh, plBuilt, plMade, plPlan, plKnown, plQuick = {}, {}, {}, nil, nil, {}
 end
 
 T.Backup.OTHER_KEYS[#T.Backup.OTHER_KEYS + 1] = PL.KEY

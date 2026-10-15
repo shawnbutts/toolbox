@@ -1,5 +1,5 @@
 -- The crafting planner (Toolbox.Planner): a recipe's slots and their materials (what you have, or the stats you
--- watch), Make it from scratch, the shopping list and the build order, in the shared 8th window.
+-- watch), I'll craft from scratch, the shopping list and the build order, in the shared 8th window.
 local H = require("harness")
 
 return function(t)
@@ -69,6 +69,8 @@ return function(t)
     H.boot()
     book()
     H.chat("/tbx plan " .. (name or "augmented plate chest"))
+    t.eq(find("pl_view").value, "Shopping list", "the shopping list first")
+    H.change(W, "pl_view", "Plan")
   end
 
   t.test("use what I have: each slot takes the first material you have enough of; the shopping list and result",
@@ -82,7 +84,7 @@ return function(t)
     local b = body()
     t.ok(b:find("4 x Leather Strap: have 0, 4 short", 1, true), b)
     t.ok(b:find("Tool: 1 x Smithing Hammer: have them", 1, true), b)
-    t.no(find("pl_make_3"), "no Make it without From scratch")
+    t.no(find("pl_make_3"), "no I'll craft without From scratch")
     t.ok(text("pl_result"):find("Resistance 9, Durability 220, Weight 10, Armor Damage Resistance 0 +0.1, Focus 0 +10",
       1, true), text("pl_result"))
     H.change(W, "pl_view", "Shopping list")
@@ -127,22 +129,22 @@ return function(t)
     t.ok(body():find("7 x Copper Sheet", 1, true), "the pick is kept: " .. body())
   end)
 
-  t.test("from scratch: Make it plans the shortfall's recipe below it, the one named like the item first",
+  t.test("from scratch: I'll craft plans the shortfall's recipe below it, the one named like the item first",
       function()
     open()
     H.change(W, "pl_mode", "Stats I care about")
     H.change(W, "pl_stat", "Armor Damage Resistance")
     H.click(W, "pl_watch")                       -- iron sheets: 4 short
     H.change(W, "pl_scratch", true)
-    H.advance(5)                                 -- the recipe book, read in the background
-    t.ok(find("pl_make_1"), "Make it for the sheets")
+    t.ok(find("pl_make_1"), "I'll craft for the sheets, at once (the recipes named like them)")
+    t.eq(find("pl_make_1").kind, "Toggle", "a tick, not a button: nothing is crafted")
     t.ok(find("pl_make_3"), "and the straps")
     t.no(find("pl_make_2"), "nothing short of the bindings")
-    H.click(W, "pl_make_1")
+    H.change(W, "pl_make_1", true)
     local b = body()
     t.ok(b:find("4 short, craft 4", 1, true), b)
     t.ok(b:find("8 x Iron Ingot: have 2, 6 short", 1, true), "4 sheets x 2 ingots: " .. b)
-    H.click(W, "pl_make_2")                      -- the ingots' row, under the sheets
+    H.change(W, "pl_make_2", true)                      -- the ingots' row, under the sheets
     b = body()
     t.ok(b:find("12 x Iron Ore: have them", 1, true), "6 ingots x 2 ore, from 30: " .. b)
     t.eq(find("pl_via_2").value, "Iron Ingot", "two recipes make ingots: the one named like them")
@@ -166,7 +168,7 @@ return function(t)
     H.click(W, "pl_watch")
     H.change(W, "pl_scratch", true)
     H.advance(5)
-    H.click(W, "pl_make_1")
+    H.change(W, "pl_make_1", true)
     H.change(W, "pl_view", "Build order")
     t.ok(body():find("[ ] Iron Sheet: 4 crafts", 1, true), body())
     H.craftResults{ { kind = "craft", recipeId = 11, recipeName = "Iron Sheet", item = "Iron Sheet", quantity = 4,
@@ -209,23 +211,28 @@ return function(t)
     H.submit(W, "pl_find", "no such thing")
   end)
 
-  t.test("the book: one call a station (API 37), else a few recipes at a time", function()
-    H.boot()
-    book()
-    H.S.bookCalls = 0
-    local n = 0
-    Toolbox.Daily.ReadRecipeBook(function(ok) if ok then n = n + 1 end end)
-    H.advance(5)
-    t.eq(n, 1)
-    t.eq(H.S.bookCalls, 3, "Blacksmithing, Smelting, Tailoring")
-    t.eq(#Toolbox.Daily.recipeIndex.byKey[key("i")], 2, "two recipes make ingots, by key")
-    H.S.noRecipeBook = true
-    H.reload()
-    book()
-    Toolbox.Daily.ReadRecipeBook(function(ok) if ok then n = n + 1 end end)
-    H.advance(5)
-    t.eq(n, 2)
-    t.eq(#Toolbox.Daily.recipeIndex.byResult["Iron Ingot"], 2)
+  t.test("the book: a recipe at a time, with a bar while it's read; I'll craft knows every maker once it's done",
+      function()
+    open()
+    H.S.recipes[15] = { id = 15, name = "Smelt Scrap Iron", category = "Smelting", categoryKey = "Crafting_Smelting",
+      station = "Smelter", ingredients = { { name = "Metal Scraps", key = key("k"), quantity = 3, have = 0 } },
+      results = { { name = "Iron Ingot", key = key("i"), quantity = 2 } } }   -- named unlike what it makes
+    H.change(W, "pl_mode", "Stats I care about")
+    H.change(W, "pl_stat", "Armor Damage Resistance")
+    H.click(W, "pl_watch")
+    H.change(W, "pl_scratch", true)
+    t.ok(find("pl_progress").visible ~= false, "the bar shows while the book is read")
+    t.ok(text("pl_bar_text"):find("^Reading recipes: %d of 6"), text("pl_bar_text"))
+    H.change(W, "pl_make_1", true)
+    H.change(W, "pl_make_2", true)
+    t.eq(#find("pl_via_2").choices, 2, "before the book: the two named like ingots")
+    local before = find("pl_bar").value
+    H.advance(2)
+    t.ok(find("pl_bar").value > before, "the bar moves")
+    H.advance(6)
+    t.eq(find("pl_progress").visible, false, "gone once read")
+    t.eq(#find("pl_via_2").choices, 3, "then every recipe making them")
+    t.eq(#Toolbox.Daily.recipeIndex.byKey[key("i")], 3, "by item key")
   end)
 
   t.test("your bags are shared across the plan, and a recipe is never planned inside itself", function()

@@ -178,16 +178,20 @@ into one if a new file is ever needed).
   their result; without `made`, items gained at a station count as made by name (`D.IsProduct`), the rest
   as `station`. Looted = items - crafted - station - gathered + pending. Skill levels: `D.SkillGains` over
   the highest `trainedLevel` seen per skill (`skill_levels`); deaths from `ShroudOnDeathChanged(true)`.
-  The recipe book (`D.ReadRecipeBook`, for `/toolbox recipe` and the planner): with API 37's `ShroudGetRecipeBook`
-  one station (`categoryKey`) a `D.BOOK_PERIOD` step, else `D.BOOK_STEP` recipes by id (the whole book at once ran
-  past the game's time limit, 2026-10-05); kept for the session in `D.recipeIndex` (`recipes`, `byResult` by name,
+  The recipe book (`D.ReadRecipeBook`, for `/toolbox recipe` and the planner): `D.BOOK_STEP` (1) recipe by id a
+  `D.BOOK_PERIOD` (0.05 s) step, about 90 s for a big book (the whole book at once ran past the game's time limit,
+  2026-10-05; API 37's `ShroudGetRecipeBook`, one station a step, hitched in game, owner 2026-10-15: not used;
+  `D.BookProgress` for the planner's bar); kept for the session in `D.recipeIndex` (`recipes`, `byResult` by name,
   `byKey` by item key), dropped on `ShroudOnRecipesChanged`. At the end, `Toolbox.Planner` (PL; owner, 2026-10-15,
   the 1.9.0 feature; header comment): the crafting planner, `/toolbox plan [recipe]`, the shared 8th window's fourth
   user (`T.TakeSharedWindow("planner")`). Pure model: `PL.Expand(rootId, crafts, ctx)` (rows, shopping list, build
   order; your bags shared across the plan; no recipe inside itself), `PL.PickChoice` (the player's pick, "stats" mode's
   best for the first watched stat, else the first you have enough of), `PL.PickMaker`, `PL.Preview` (base + the
   root's picks, weight left out). Refreshed on `ShroudOnInventoryChanged` / craft results / the crafting state at most
-  every `PL.REFRESH_GAP` s while shown (`PL.Tick` from `T.ViewsTick`), the plan's recipes read fresh; the Plan view's
+  every `PL.REFRESH_GAP` s while shown (`PL.Tick` from `T.ViewsTick`), the plan's recipes read fresh; before the
+  book is read, the makers are the known recipes named like the item (`plQuickMakers`, a few calls); the shortfall's
+  control is an "I'll craft" Toggle (owner: "Make it" read as if it would craft); the Shopping list is the first and
+  default view (owner); the Plan view's
   rows are rebuilt only when their structure changes (`plRowSig`), counts and choices set in place. Text budget (the
   stress test's four 30-choice slots: 47,278 at the peak): `PL.CHOICES_SHOWN` (10) choices a slot, each with only the
   first watched stat (the others on the row's status).
@@ -816,7 +820,7 @@ Iron Ingot -> ore and coal). BUILT (2026-10-15: `Toolbox.Planner`, daily.lua, ab
 of crafter (owner: "some just use what they have, others craft for stat combos for their builds"): "Use what I have"
 (default: each slot's first choice you have enough of, in the game's order) and "Stats I care about" (a stat picker;
 each choice shows those stats, sorted by the first; a preview totals base + the picks; the player picks each slot;
-remembered per recipe kind); no automatic best-combination pick yet. "From scratch" on: a choice you lack gets "Make it"
+remembered per recipe kind); no automatic best-combination pick yet. "From scratch" on: a choice you lack gets "Make it" (built as an "I'll craft" tick, owner 2026-10-15)
 (the shortfall crafted, its recipe expanded into the shopping list and build order; an unknown recipe = "buy"; nested
 slots get their own pick); off: the plan stops at the slot. To check in game: whether a material's stats that don't
 fit the item (Base Weapon Damage on a chest) apply. Also a gathering session HUD; lock-position / snap presets for strips
@@ -970,8 +974,8 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
   `T.FollowCharacter`): read too early, a missing `save_mark` would put the copy back needlessly (same data, a chat line).
 - That the client fixing `ShroudGetNearestWaterType`'s cost (20-28 ms a call) reports API 39 (`LOC.WATER_FAST_API`):
   check with `/toolbox perf` on that client, and move the number if the fix comes with another.
-- The crafting planner on the live client: `ShroudGetRecipeBook(categoryKey)` one station a step within the game's time
-  limit (`/toolbox perf` names "recipe book"); `ShroudOnInventoryChanged` firing for the crafting table and trunks
+- The crafting planner on the live client: one recipe each 0.05 s without hitching (`/toolbox perf` names "recipe
+  book"); `ShroudOnInventoryChanged` firing for the crafting table and trunks
   (`have`); a material's stats applying as the result line adds them (the owner's two-sheet test).
 - `ShroudGetClientInfo().languageCode` on a non-English client (assumed "de", "fr"...; the docs' example is "en").
 - The run Beacon (`ShroudSetBeacon`, API 9): the marker at the recorded spot on the compass and map, its "Loot run

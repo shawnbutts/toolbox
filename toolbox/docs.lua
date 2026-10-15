@@ -115,15 +115,17 @@ D.SECTIONS = {
       .. "weight). Watch up to six; the others show beside the picked one. Pick a material yourself and that "
       .. "slot keeps it, for this recipe, until you pick another. The Result line adds what your picks give "
       .. "to the item's base stats (an exceptional craft adds more).",
-    "From scratch: tick it and anything you're short of that one of your recipes makes gets Make it. Press it "
-      .. "and the shortfall is crafted: its own ingredients are planned under it, as deep as it goes (Make it "
-      .. "again there). When two recipes make it (Iron Ingot, Iron Ingot from Metal Scraps), the one named like "
-      .. "the item is used, and made by changes it. Buy instead goes back.",
-    "Show switches between the Plan, the Shopping list (everything to buy or gather, added up) and the Build "
-      .. "order: the crafts grouped by station, the ones that make materials first. Each is ticked off as you "
-      .. "craft (what's on the crafting table counts), with how many you made. The planner follows your bags as "
-      .. "they change, every few seconds. It shares a window with the Docs and Map overlays: opening one closes "
-      .. "the other. Your plan and picks are this character's own." },
+    "From scratch: tick it and anything you're short of that one of your recipes makes gets I'll craft (in the "
+      .. "Plan). Tick that to plan crafting the shortfall yourself: its own ingredients are planned under it, as "
+      .. "deep as it goes, instead of it going on the shopping list. Toolbox never crafts anything. When two "
+      .. "recipes make it (Iron Ingot, Iron Ingot from Metal Scraps), the one named like the item is used, and "
+      .. "made by changes it. The first time, your recipe book is read in the background, a recipe at a time so "
+      .. "the game doesn't stall: the bar at the bottom shows how far (about a minute and a half).",
+    "Show switches between the Shopping list (everything to buy or gather, added up; shown first), the "
+      .. "Plan and the Build order: the crafts grouped by station, the ones that make materials first. Each is "
+      .. "ticked off as you craft (what's on the crafting table counts), with how many you made. The planner "
+      .. "follows your bags as they change, every few seconds. It shares a window with the Docs and Map "
+      .. "overlays: opening one closes the other. Your plan and picks are this character's own." },
   { "Toolbelt",
     "The Toolbelt is your buff bar with your health, focus and Vigor bars beside it and your consumables, "
       .. "gear repair and target under it: one strip with everything you watch in a fight, moved as one. Build "

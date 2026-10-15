@@ -13,9 +13,10 @@ ones included).
   Lua API 37) lists them with how many you have, picked one of two ways: **Use what I have** (the first you have
   enough of) or **Stats I care about** (watch the stats your build needs: each choice shows what it adds, and the
   best is picked). A material you pick yourself is kept for that recipe. The result line adds your picks' stats to
-  the item's base stats. **From scratch** offers **Make it** for what you're short of and one of your recipes makes:
-  its ingredients are planned under it, as deep as it goes. Views: the plan, a **Shopping list** (what to buy or
-  gather, added up) and a **Build order** (the crafts by station, materials first, ticked off as you craft). It
+  the item's base stats. **From scratch** offers an **I'll craft** tick for what you're short of and one of your recipes
+  makes: its ingredients are planned under it, as deep as it goes (your recipe book is read in the background the
+  first time, with a progress bar). Views: a **Shopping list** (what to buy or gather, added up; the first), the plan
+  and a **Build order** (the crafts by station, materials first, ticked off as you craft). It
   shares a window with the Docs and Map overlays; the menu has a button for it.
 
 ### Changed

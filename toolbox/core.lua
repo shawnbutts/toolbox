@@ -1028,7 +1028,7 @@ end)
 function ShroudOnRecipesChanged()
   T.Ran("recipes")
   T.Daily.ForgetRecipes()
-  T.Planner.Changed()
+  T.Planner.RecipesChanged()
 end
 
 -- Your bags changed: the crafting planner's counts (worked out again only while it shows).
