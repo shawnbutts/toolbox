@@ -148,7 +148,7 @@ folder replaces them). Skill level changes (gained or lost) can also be listed o
 A column of gold buttons on a shaded panel, at the top left at first: one click opens XP, XP Detailed, Today,
 the Loot Tracker, the crafting planner, Combat Detailed, Notifications, the Docs or the settings, and a second click closes it. A
 button is bright while its window is open. Move it by its grip. Under **Menu, setups, backup & reset** in the
-settings make it a row, change its icon size and shade, hide it during combat, pick its buttons, or switch it
+settings make it a row, change its icon size and shade (every HUD strip has a Background shade slider too), hide it during combat, pick its buttons, or switch it
 off to open windows from the settings as before (`/toolbox menu`).
 
 ## Location

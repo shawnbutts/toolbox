@@ -664,6 +664,21 @@ function T.Flush()
 end
 
 -- 1234567 -> "1,234,567" (rounded to a whole number).
+-- HUD strip backgrounds (owner, 2026-10-15): black at a strip's `shade` % behind its text or icons, the same default
+-- everywhere (the menu, combat stats, notifications, XP, Today, location, the health bars' and target's Dark panel). A
+-- color's alpha doesn't fade the text (opacity would). The game has no opacity for HUD frames (only windows').
+T.SHADE_DEFAULT, T.SHADE_MAX = 60, 90
+-- A saved shade, or the default for anything else.
+function T.ShadeOf(v)
+  if type(v) == "number" and v == math.floor(v) and v >= 0 and v <= T.SHADE_MAX then return v end
+  return T.SHADE_DEFAULT
+end
+-- "#00000099": black at `pct` % (0 or less: none).
+function T.ShadeColor(pct)
+  if type(pct) ~= "number" or pct <= 0 then return "#00000000" end
+  return string.format("#000000%02x", math.floor(math.min(pct, 100) * 255 / 100 + 0.5))
+end
+
 function T.FormatNumber(n)
   n = math.floor((n or 0) + 0.5)
   local s = string.format("%d", math.abs(n))

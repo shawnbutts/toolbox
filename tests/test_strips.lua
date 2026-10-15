@@ -131,4 +131,47 @@ return function(t)
     H.advance(1)
     t.ok(xpStrip():Find("elapsed").text:find("^Session"))
   end)
+
+  -- Owner, 2026-10-15: every HUD strip's background shade has a slider, all alike at first.
+  t.test("background shade: the XP, Today, notification and location strips, alike at first, set in place", function()
+    local was = H.MAX_HUD_FRAMES
+    H.MAX_HUD_FRAMES = 25                       -- every strip at once (the work log, 2026-10-01)
+    H.boot()
+    H.chat("/tbx xp")
+    H.chat("/tbx xp hud")
+    H.chat("/tbx daily")
+    H.chat("/tbx daily hud")
+    H.chat("/tbx location on")
+    H.chat("/tbx notify mail via hud")
+    H.setNotes{ unreadMail = 2 }
+    H.advance(1)
+    local function bg(frame, id) return frame:Find(id).style.backgroundColor end
+    local panels = {
+      { xpStrip, "strip", "xp_shade", "compact" },
+      { dailyStrip, "strip", "daily_shade", "daily_window" },
+      { function() return H.nhud() end, "nh_panel", "nhud_shade", "notify_hud" },
+      { function() return H.S.frames.toolbox_location end, "loc_strip", "loc_shade", "location" },
+    }
+    for _, p in ipairs(panels) do
+      t.eq(bg(p[1](), p[2]), "#00000099", p[3] .. ": 60% at first")
+      t.no(p[1]():Find(p[2]):Classes().inset, p[3] .. ": not the theme's panel (it can't be made lighter)")
+    end
+    H.chat("/tbx config")
+    for i, p in ipairs(panels) do
+      local before = p[1]():Find(p[2])
+      H.change("toolbox_config", p[3], i * 10)
+      t.eq(p[1]():Find(p[2]), before, p[3] .. ": not rebuilt")
+      t.eq(bg(p[1](), p[2]), Toolbox.ShadeColor(i * 10), p[3])
+      t.eq(H.saved(p[4]).shade, i * 10, p[3] .. " saved")
+    end
+    H.change("toolbox_config", "xp_shade", 0)
+    t.eq(bg(xpStrip(), "strip"), "#00000000", "0: none")
+    H.reload()
+    H.advance(1)
+    t.eq(bg(dailyStrip(), "strip"), Toolbox.ShadeColor(20), "kept")
+    t.eq(bg(H.S.frames.toolbox_location, "loc_strip"), Toolbox.ShadeColor(40))
+    t.no(Toolbox.Compact.SetShade(95), "past the most")
+    t.no(Toolbox.Location.SetShade(-5))
+    H.MAX_HUD_FRAMES = was
+  end)
 end

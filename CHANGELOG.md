@@ -20,10 +20,16 @@ ones included).
   Settings, XP & Loot).
 - **Backups** (Lua API 39): before a settings reset, a setup import and the first start of a new version, the game
   keeps a dated copy of the saved file beside it, and chat names it.
+- **Background shade** for every HUD strip: a slider in its settings sets how dark the panel behind it is (0 for
+  none), the text staying solid: the XP and Today strips, the notification HUD, the location strip and the health bars'
+  and target's Dark number panels, beside the menu's and combat stats' own.
 - **Map title** (Lua API 40): the full map's corner names what Toolbox shows in that scene, such as "Toolbox:
   Gathering, loot runs, last death", so you can tell Toolbox's markers from other add-ons'.
 
 ### Changed
+- Every HUD strip's background starts at the same shade, 60%: the menu was 40%, combat stats 70%, the notification
+  HUD 60%, and the XP, Today and location strips and the Dark number panels the UI theme's dark panel (which can't be
+  made lighter).
 - Location strip: the water line names the kinds of water you can fish in this scene ("Fishable water: salt,
   fresh"), what to expect on your line, instead of the nearest water and how far. The nearest-water lookup was slow
   in the game, so it isn't asked any more.

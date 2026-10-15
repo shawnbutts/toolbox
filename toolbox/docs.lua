@@ -291,7 +291,9 @@ D.SECTIONS = {
     "Settings, Menu, setups, backup & reset: Show the menu (off: open the windows from the settings, as "
       .. "before), Vertical (off: a row), Hide during combat (it comes back a few seconds after a fight, and "
       .. "shows while the settings are open so you can place it), Icon size, Background shade (how dark the "
-      .. "panel behind the buttons is; 0 for none), and which buttons it has (at least one).",
+      .. "panel behind the buttons is; 0 for none), and which buttons it has (at least one). Every HUD strip "
+      .. "has a Background shade slider in its own settings (XP, Today, notifications, location, the health bars' "
+      .. "and target's Dark numbers, combat stats), all 60% at first.",
     "In chat: /toolbox menu (on, off, vertical, horizontal, size <n>, shade <n>, combat hide|show, "
       .. "move <x> <y>); /toolbox launcher works too." },
   { "Location strip",
@@ -1191,6 +1193,7 @@ local history = {}        -- newest first: { when, title, text }
 local hudRows = {}
 local rowClass = {}       -- row -> the class it has now ("text" as built, then "bright" or "dim")
 local hudScroll = nil
+local hudPanel = nil                  -- the shaded panel (hprefs.shade)
 local hudEmpty = nil
 local visibleUntil = 0
 local hovered = {}
@@ -1292,7 +1295,7 @@ end
 
 -- For Toolbox.Hud: the strip was destroyed; the HUD's refresh skips it until BuildContent runs again.
 function NH.Unbuilt()
-  hudScroll, hudEmpty = nil, nil
+  hudScroll, hudEmpty, hudPanel = nil, nil, nil
   hudRows = {}
 end
 
@@ -1309,10 +1312,11 @@ function NH.BuildContent()
     children = { UI.Column{ children = rows } } }
   hudEmpty = UI.Label{ id = "nh_empty", text = NH.EMPTY_TEXT, class = "dim", visible = false,
     style = emptyStyle() }
-  local content = UI.Column{ id = "nh_panel", style = { padding = NH.PAD, backgroundColor = "#00000099" },
+  hudPanel = UI.Column{ id = "nh_panel", style = { padding = NH.PAD, borderRadius = 3,
+      backgroundColor = T.ShadeColor(NH.GetShade()) },
     onHover = function(_, over) hover("panel", over) end, children = { hudEmpty, hudScroll } }
   NH.Fill()
-  return content
+  return hudPanel
 end
 
 function NH.ContentSize()
@@ -1382,6 +1386,7 @@ local function loadHud()
   if type(saved) == "table" then
     for _, c in ipairs(NH.HIDE_CHOICES) do if saved.hideAfter == c[1] then hprefs.hideAfter = c[1] end end
     if type(saved.x) == "number" and type(saved.y) == "number" then hprefs.x, hprefs.y = saved.x, saved.y end
+    if type(saved.shade) == "number" then hprefs.shade = T.ShadeOf(saved.shade) end
     local f = saved.font
     if type(f) == "number" and f >= T.Window.FONT_MIN and f <= T.Window.FONT_MAX then hprefs.font = math.floor(f) end
     local sp = saved.spacing
@@ -1415,12 +1420,24 @@ function NH.FollowCharacter()
   loadHud()
   ownerChanged = true
   NH.ApplyText()                       -- also refills the rows and re-fits the strip
+  if hudPanel then T.SetStyle(hudPanel, { backgroundColor = T.ShadeColor(NH.GetShade()) }) end
   -- Its own place if it has one; else it stays where it is (owner, 2026-10-03: sent back to the top-left corner
   -- on switching account), and Toolbox.Hud's tick saves that place as this character's.
   if hprefs.x and hprefs.y then NH.MoveTo(hprefs.x, hprefs.y) end
 end
 
 function NH.GetHideAfter() return hprefs.hideAfter end
+
+-- The background shade (0..T.SHADE_MAX %; owner, 2026-10-15: 60 before, now every strip's default), set in place.
+function NH.GetShade() return T.ShadeOf(hprefs.shade) end
+function NH.SetShade(n)
+  if type(n) ~= "number" or T.ShadeOf(n) ~= n then return false end
+  hprefs.shade = n
+  saveHud()
+  if hudPanel then T.SetStyle(hudPanel, { backgroundColor = T.ShadeColor(n) }) end
+  T.Config.Sync()
+  return true
+end
 
 -- Re-applies the text size and line height in place (a slider fires many changes: never rebuilt).
 function NH.ApplyText()

@@ -27,15 +27,14 @@ V.ROW_GAP = 2                                                 -- px between rows
 V.BAR_THICKNESS = 0.5     -- bar height / line height (was 0.7: the bars touched, "looks like a flag")
 V.BASE_FONT = 12                                             -- text size at 100%
 
--- Backgrounds for the numbers, from the game's theme so they follow the player's skin.
--- Dark is the theme class `inset` (works in game). Light was the class `card`, which showed
--- nothing behind a label in game, so it is a panel in the theme colour @text (the skin's
--- light text colour) with dark text on it (the theme has no dark text colour). The Light
--- panel sits on a wrapper around the number: a colour set on the label itself can't be
--- unset later and would hide the Dark class's panel.
+-- Backgrounds for the numbers. Dark is black at the `shade` setting (owner, 2026-10-15: every strip's background
+-- strength set alike; the theme class `inset` before 1.9.0, which can't be made lighter). Light was the class
+-- `card`, which showed nothing behind a label in game, so it is a panel in the theme colour @text (the skin's light
+-- text colour) with dark text on it (the theme has no dark text colour). Both panels sit on a wrapper around the
+-- number: a colour set on the label itself can't be unset later.
 V.BACKGROUNDS = {
   { name = "None" },
-  { name = "Dark", class = "inset" },
+  { name = "Dark", shade = true },
   { name = "Light", color = "@text", darkText = true },
 }
 V.DARK_TEXT = "#1a1a1a"
@@ -202,7 +201,7 @@ local function metrics(bars, text, bg)
     textW = math.ceil(font * 5.2),        -- room for "9999 / 9999"
     rowGap = math.max(2, math.floor(V.ROW_GAP * f + 0.5)),   -- rows are a text line high
   }
-  local hasBg = bg.class or bg.color
+  local hasBg = bg.class or bg.color or bg.shade
   m.pad = hasBg and math.max(2, math.floor(3 * f + 0.5)) or 0   -- room around the text on a background
   if not bars then m.barW, m.gap = 0, 0 end
   if not text then m.textW, m.gap, m.pad = 0, 0, 0 end
@@ -256,12 +255,13 @@ local function textStyle(m, bar)
   return V.NumberStyle(m, color)
 end
 
--- The wrapper around a number: the gap after the bar, and the Light panel (background entry `bg`).
-function V.WrapStyle(m, bg)
+-- The wrapper around a number: the gap after the bar, and the panel (background entry `bg`; Dark at `shade` %).
+function V.WrapStyle(m, bg, shade)
   local panel = bg.color
+  if bg.shade then panel = T.ShadeColor(T.ShadeOf(shade)) end
   return { marginLeft = m.gap, backgroundColor = panel or "#00000000", borderRadius = panel and 3 or 0 }
 end
-local function wrapStyle(m) return V.WrapStyle(m, background()) end
+local function wrapStyle(m) return V.WrapStyle(m, background(), prefs.shade) end
 
 -- A number label's classes on background `bg`.
 function V.NumberClass(bg)
@@ -448,6 +448,7 @@ function V.Init()
     prefs.showBars = saved.showBars ~= false
     if not prefs.showText and not prefs.showBars then prefs.showText = true end
     if type(saved.bg) == "string" then prefs.bg = saved.bg end
+    if type(saved.shade) == "number" then prefs.shade = T.ShadeOf(saved.shade) end
     prefs.flash = saved.flash ~= false
     if type(saved.flashBelow) == "number" and saved.flashBelow >= V.FLASH_MIN and saved.flashBelow <= V.FLASH_MAX then
       prefs.flashBelow = math.floor(saved.flashBelow)
@@ -610,6 +611,17 @@ function V.SetBackground(name)
 end
 
 function V.GetBackground() return background().name end
+
+-- The Dark panel's strength (0..T.SHADE_MAX %), set in place.
+function V.GetShade() return T.ShadeOf(prefs.shade) end
+function V.SetShade(n)
+  if type(n) ~= "number" or T.ShadeOf(n) ~= n then return false end
+  prefs.shade = n
+  T.Save("vitals", prefs)
+  applySize()
+  T.Config.Sync()
+  return true
+end
 
 -- Flash when low: on/off, and the threshold in percent.
 function V.SetFlash(on)
@@ -975,7 +987,7 @@ local function styleNumbers(m)
   for i, t in ipairs(tText) do
     local _, color = V.ColorsFor(colors[i], false, bg, tprefs.bars)
     local label = V.NumberStyle(m, color)
-    local wrap = V.WrapStyle(m, bg)
+    local wrap = V.WrapStyle(m, bg, tprefs.shade)
     if tLeft then
       label.textAlign = "right"
       wrap.marginLeft, wrap.marginRight = 0, m.gap
@@ -1368,6 +1380,14 @@ function TG.SetShowBars(on) return tSetPart("bars", on) end
 function TG.SetShowText(on) return tSetPart("numbers", on) end
 
 function TG.GetBackground() return V.BackgroundNamed(tprefs.bg).name end
+function TG.GetShade() return T.ShadeOf(tprefs.shade) end
+-- The Dark panel's strength (0..T.SHADE_MAX %), set in place.
+function TG.SetShade(n)
+  if type(n) ~= "number" or T.ShadeOf(n) ~= n then return false end
+  tprefs.shade = n
+  applyLook()
+  return true
+end
 -- None, Dark or Light (any case). Returns false for anything else.
 function TG.SetBackground(name)
   local found = nil
@@ -1455,6 +1475,7 @@ function TG.Init()
     tprefs.numbers = saved.numbers == true
     if not tprefs.bars and not tprefs.numbers and tprefs.effects == "none" then tprefs.bars = true end
     tprefs.bg = V.BackgroundNamed(saved.bg).name
+    if type(saved.shade) == "number" then tprefs.shade = T.ShadeOf(saved.shade) end
     tprefs.flash = saved.flash == true
     tprefs.hidePet = saved.hidePet ~= false             -- on by default (owner, 2026-10-02)
     local fb = saved.flashBelow

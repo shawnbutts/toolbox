@@ -175,12 +175,12 @@ return function(t)
 
   -- background ---------------------------------------------------------------
 
-  t.test("Dark: one flat panel at 70% behind all rows, no per-row pieces", function()
+  t.test("Dark: one flat panel at 60% (every strip's default) behind all rows, no per-row pieces", function()
     H.boot()
     H.chat("/tbx combat")
     local m = C().Metrics()
     local rows = H.combatHud():Find("combat_rows")
-    t.eq(rows.style.backgroundColor, "#000000b3", "black at 70% (0xb3)")
+    t.eq(rows.style.backgroundColor, "#00000099", "black at 60% (0x99)")
     t.eq(rows.style.paddingTop, m.pad)
     t.eq(rows.style.paddingBottom, m.pad)
     t.eq(rows.style.opacity, nil, "the colour's alpha, not opacity: the text isn't faded")

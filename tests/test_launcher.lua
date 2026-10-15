@@ -172,7 +172,7 @@ return function(t)
   t.test("a shade behind the buttons, changed in place; 0 for none", function()
     H.boot()
     local box = strip():Find("launcher")
-    t.eq(box.style.backgroundColor, "#00000066", "40% by default")
+    t.eq(box.style.backgroundColor, "#00000099", "60% by default, as every strip")
     local made = H.S.constructed
     H.chat("/tbx config")
     H.change("toolbox_config", "ln_shade", 70)

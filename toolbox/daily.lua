@@ -1063,6 +1063,7 @@ function D.InitWindow()
     prefs.compact = saved.compact == true
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
     if type(saved.hx) == "number" and type(saved.hy) == "number" then prefs.hx, prefs.hy = saved.hx, saved.hy end
+    if type(saved.shade) == "number" then prefs.shade = saved.shade end   -- the strip checks it (T.ShadeOf)
   end
   strip = T.Hud.TextStrip{ key = "daily", FRAME_ID = "toolbox_daily_hud", HOME = D.HOME, titleId = "date",
     lines = LINES, hover = hover, prefs = prefs, save = D.SavePrefs,
@@ -1129,6 +1130,15 @@ end
 
 function D.GetHud()
   return prefs.hud
+end
+
+-- The HUD strip's background shade (0..T.SHADE_MAX %; owner, 2026-10-15).
+function D.GetShade() return T.ShadeOf(prefs.shade) end
+function D.SetShade(n)
+  if not strip then return false end
+  local ok = strip.SetShade(n)
+  if ok then T.Config.Sync() end
+  return ok
 end
 
 -- The window form as a compact window (API 19: its title bar shows only on hover, laid over the content)

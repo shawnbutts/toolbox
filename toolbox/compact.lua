@@ -117,6 +117,7 @@ function C.Init()
     prefs.compact = saved.compact == true
     if type(saved.x) == "number" and type(saved.y) == "number" then prefs.x, prefs.y = saved.x, saved.y end
     if type(saved.hx) == "number" and type(saved.hy) == "number" then prefs.hx, prefs.hy = saved.hx, saved.hy end
+    if type(saved.shade) == "number" then prefs.shade = saved.shade end   -- the strip checks it (T.ShadeOf)
   end
   strip = T.Hud.TextStrip{ key = "xp", FRAME_ID = "toolbox_xp_hud", HOME = C.HOME, titleId = "elapsed",
     lines = LINES, hover = hover, prefs = prefs, save = C.SavePrefs,
@@ -186,6 +187,15 @@ end
 
 function C.GetHud()
   return prefs.hud
+end
+
+-- The HUD strip's background shade (0..T.SHADE_MAX %; owner, 2026-10-15).
+function C.GetShade() return T.ShadeOf(prefs.shade) end
+function C.SetShade(n)
+  if not strip then return false end
+  local ok = strip.SetShade(n)
+  if ok then T.Config.Sync() end
+  return ok
 end
 
 -- The window form as a compact window (API 19: its title bar shows only on hover, laid over the content)

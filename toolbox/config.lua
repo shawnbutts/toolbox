@@ -72,6 +72,12 @@ local function slider(id, label, lo, hi, step, value, tooltip, onChange)
   } }
 end
 
+-- A HUD strip's background shade (owner, 2026-10-15: every strip has one, all T.SHADE_DEFAULT at first).
+local function shadeSlider(id, value, what, onChange)
+  return slider(id, "Background shade (%)", 0, T.SHADE_MAX, 5, value,
+    "How dark the panel behind " .. what .. " is; the text stays solid. 0: none", onChange)
+end
+
 -- "Label ........ [dropdown]"
 local function dropdownRow(label, spec)
   return UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
@@ -239,6 +245,7 @@ function C.XPSection()
     UI.Toggle{ id = "hover_popup", text = "Show XP Detailed on hover", value = T.Compact.GetHover(),
       style = { marginLeft = 16 }, tooltip = "Hovering the XP window pops up the XP Detailed window",
       onChange = function(_, value) T.Compact.SetHover(value) end },
+    shadeSlider("xp_shade", T.Compact.GetShade(), "the XP HUD strip", function(n) T.Compact.SetShade(n) end),
     UI.Toggle{ id = "show_xp", text = "Show XP Detailed window", value = W.IsOpen(),
       onChange = function(_, value) C.OnShowXP(value) end },
     UI.Toggle{ id = "xp_net", text = "Subtract XP lost (net change)", value = W.GetNet(),
@@ -252,6 +259,7 @@ function C.XPSection()
     UI.Toggle{ id = "hover_daily", text = "Show Loot Tracker on hover", value = T.Daily.GetHover(),
       style = { marginLeft = 16 }, tooltip = "Hovering the Today window pops up the Loot Tracker window",
       onChange = function(_, value) T.Daily.SetHover(value) end },
+    shadeSlider("daily_shade", T.Daily.GetShade(), "the Today HUD strip", function(n) T.Daily.SetShade(n) end),
     UI.Toggle{ id = "show_daily_detail", text = "Show Loot Tracker window", value = T.DailyDetail.IsOpen(),
       onChange = function(_, value) C.OnShowDailyDetail(value) end },
     UI.Toggle{ id = "dd_values", text = "Estimated values (SotANET)", value = T.DailyDetail.GetValues(),
@@ -467,6 +475,7 @@ function C.VitalsSection()
     dropdownRow("Number background", { id = "vitals_bg", choices = V.BackgroundNames(), value = V.GetBackground(),
       tooltip = "A dark or light panel behind the numbers, in your UI theme's colours",
       onChange = function(_, value) V.SetBackground(value) end }),
+    shadeSlider("vitals_shade", V.GetShade(), "the numbers (Dark)", function(n) V.SetShade(n) end),
     UI.Toggle{ id = "vitals_flash", text = "Flash when low", value = V.GetFlash(),
       style = { marginTop = 6 }, onChange = function(_, v) V.SetFlash(v) end },
     slider("vitals_flash_below", "Flash below (%)", V.FLASH_MIN, V.FLASH_MAX, 1, V.GetFlashBelow(),
@@ -714,6 +723,8 @@ function C.NotifySection()
   children[#children + 1] = slider("nhud_spacing", "Line spacing", T.Window.SPACING_MIN, T.Window.SPACING_MAX, 1,
     NH.GetSpacing(), "Extra pixels between the notification HUD's lines (until you set it, the XP windows')",
     function(n) NH.SetSpacing(n) end)
+  children[#children + 1] = shadeSlider("nhud_shade", NH.GetShade(), "the notification HUD",
+    function(n) NH.SetShade(n) end)
   children[#children + 1] = UI.Row{ style = { justifyContent = "end", marginTop = 4 }, children = {
     UI.Button{ id = "nhud_clear", text = "Clear notification history",
       tooltip = "Delete the notification HUD's saved list (it can't be undone)",
@@ -866,6 +877,8 @@ function C.ToolbeltSection()
   children[#children + 1] = dropdownRow("Number background", { id = "target_bg", choices = T.Vitals.BackgroundNames(),
     value = TG.GetBackground(), tooltip = "A dark or light panel behind the target's numbers",
     onChange = function(_, value) TG.SetBackground(value) end })
+  children[#children + 1] = shadeSlider("target_shade", TG.GetShade(), "the target's numbers (Dark)",
+    function(n) TG.SetShade(n) end)
   children[#children + 1] = UI.Toggle{ id = "target_hide_pet", text = "Leave out your pet", value = TG.GetHidePet(),
     tooltip = "Once the fight is over the game targets your pet; with this, the target HUD stays empty instead",
     onChange = function(_, v) TG.SetHidePet(v) end }
@@ -909,6 +922,7 @@ function C.MapSection()
       tooltip = loc.HasWater() and "The kinds of water you can fish in here (salt, fresh...): what to expect"
         .. " on your line" or "Needs a newer game client (Lua API 32)",
       onChange = function(_, v) loc.SetWater(v) end },
+    shadeSlider("loc_shade", loc.GetShade(), "the location strip", function(n) loc.SetShade(n) end),
     UI.Toggle{ id = "loc_pin", text = "Map overlays button", value = loc.GetPin(),
       tooltip = "A pin beside the scene's name: a click opens the Map overlays window (mark where you stand)",
       onChange = function(_, v) loc.SetPin(v) end },
@@ -1471,6 +1485,8 @@ end
 
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
 local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "ov_window", "ov_death", "pl_open",
+  "xp_shade", "xp_shade_value", "daily_shade", "daily_shade_value", "nhud_shade", "nhud_shade_value",
+  "vitals_shade", "vitals_shade_value", "target_shade", "target_shade_value", "loc_shade", "loc_shade_value",
   "ln_show", "ln_vertical", "ln_combat", "ln_size", "ln_size_value", "ln_shade", "ln_shade_value",
   "ln_btn_xp", "ln_btn_xpdetail", "ln_btn_today", "ln_btn_loot", "ln_btn_combat", "ln_btn_notify",
   "ln_btn_location", "ln_btn_docs", "ln_btn_settings",
@@ -2181,6 +2197,8 @@ function C.Sync()
   setValue("vitals_vigor", V.GetShowVigor())
   setValue("vitals_replace", V.GetReplace())
   setValue("vitals_bg", V.GetBackground())
+  sliderValue("vitals_shade", V.GetShade())
+  setEnabled("vitals_shade", vitalsOn and V.GetShowText() and V.GetBackground() == "Dark")
   setValue("vitals_flash", V.GetFlash())
   sliderValue("vitals_flash_below", V.GetFlashBelow())
   for _, id in ipairs({ "vitals_scale", "vitals_width", "vitals_show_bars", "vitals_show_text", "vitals_bg",
@@ -2226,6 +2244,7 @@ function C.Sync()
   sliderValue("nhud_font", T.Notify.Hud.GetFont())
   sliderValue("nhud_spacing", T.Notify.Hud.GetSpacing())
   setValue("nhud_hide", T.Notify.Hud.HideLabel(T.Notify.Hud.GetHideAfter()) or "Never")
+  sliderValue("nhud_shade", T.Notify.Hud.GetShade())
   -- Sounds
   sliderValue("volume", S.GetVolume())
   for _, def in ipairs(S.DEFS) do sliderValue("snd_" .. def.key .. "_vol", S.GetLevel(def.key)) end
@@ -2245,6 +2264,8 @@ function C.Sync()
   setValue("target_show_bars", T.Target.GetShowBars())
   setValue("target_show_text", T.Target.GetShowText())
   setValue("target_bg", T.Target.GetBackground())
+  sliderValue("target_shade", T.Target.GetShade())
+  setEnabled("target_shade", T.Target.GetShow() and T.Target.GetShowText() and T.Target.GetBackground() == "Dark")
   setValue("target_flash", T.Target.GetFlash())
   setValue("target_hide_pet", T.Target.GetHidePet())
   sliderValue("target_flash_below", T.Target.GetFlashBelow())
@@ -2283,6 +2304,12 @@ function C.Sync()
   setValue("loc_pin", T.Location.GetPin())
   setValue("ov_death", T.Location.GetDeath())
   setEnabled("loc_water", T.Location.GetShow() and T.Location.HasWater())
+  sliderValue("loc_shade", T.Location.GetShade())
+  setEnabled("loc_shade", T.Location.GetShow())
+  sliderValue("xp_shade", T.Compact.GetShade())
+  setEnabled("xp_shade", T.Compact.GetHud())
+  sliderValue("daily_shade", T.Daily.GetShade())
+  setEnabled("daily_shade", T.Daily.GetHud())
   if T.SkillBar then T.SkillBar.ConfigSync(C.Helpers) end   -- skills.lua, when present
   C.SyncLive()
 end

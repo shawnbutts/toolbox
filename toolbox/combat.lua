@@ -38,7 +38,7 @@ C.MAX_STATS = 8
 --   row is pulled up onto it by one line height. (One big panel with the rows shifted across it
 --   by the strip's width doesn't work: the game clamps margins to -64..256.)
 C.BACKGROUNDS = { "None", "Dark", "Light" }
-C.BG_DEFAULT, C.OPACITY_DEFAULT = "Dark", 70
+C.BG_DEFAULT, C.OPACITY_DEFAULT = "Dark", T.SHADE_DEFAULT      -- every strip's default shade (70 before 1.9.0)
 C.OPACITY_MIN, C.OPACITY_MAX = 10, 100
 C.DARK_TEXT = "#1a1a1a"
 

@@ -606,7 +606,18 @@ function Hud.TextStrip(spec)
   local styled = {}                   -- { element, function() -> style }, re-applied by ApplyText
   -- The strip was destroyed: drop its labels AND the restyle list (ApplyText after a switch to a window
   -- touched a destroyed label: "this Label was destroyed", 2026-09-29). The refresh skips an empty strip.
-  function strip.Unbuilt() strip.el, styled = {}, {} end
+  local column = nil                  -- the panel, shaded (owner, 2026-10-15: `shade`, the module's saved prefs)
+  function strip.Unbuilt() strip.el, styled, column = {}, {}, nil end
+
+  function strip.GetShade() return T.ShadeOf(spec.prefs.shade) end
+  -- 0..T.SHADE_MAX %, set in place; false for anything else. The module saves its prefs.
+  function strip.SetShade(n)
+    if type(n) ~= "number" or T.ShadeOf(n) ~= n then return false end
+    spec.prefs.shade = n
+    spec.save()
+    if column then T.SetStyle(column, { backgroundColor = T.ShadeColor(n) }) end
+    return true
+  end
 
   function strip.Metrics()
     local font = T.Window.GetFont()
@@ -650,13 +661,14 @@ function Hud.TextStrip(spec)
           label(line.id, "", "text", style(values, "right", 0)),
         } }
     end
-    local column = UI.Column{ id = "strip", class = "inset",
+    local built = UI.Column{ id = "strip",
       onHover = function(_, over) spec.hover:Report("t:hud", over) end,
       style = { paddingLeft = m.pad, paddingRight = m.pad, paddingTop = m.pad, paddingBottom = m.pad,
-                marginLeft = 0, marginRight = 0, marginTop = 0, marginBottom = 0 },
+                marginLeft = 0, marginRight = 0, marginTop = 0, marginBottom = 0, borderRadius = 3,
+                backgroundColor = T.ShadeColor(strip.GetShade()) },
       children = rows }
-    strip.el, styled = building, buildingStyled
-    return column
+    strip.el, styled, column = building, buildingStyled, built
+    return built
   end
 
   function strip.ContentSize()
@@ -849,9 +861,10 @@ function LOC.BuildContent()
     top = UI.Row{ style = { alignItems = "center", marginLeft = 0, marginRight = 0 },
       children = { built.scene, pinElement() } }
   end
-  built.column = UI.Column{ id = "loc_strip", class = "inset", tooltip = "",
+  built.column = UI.Column{ id = "loc_strip", tooltip = "",
     style = { paddingLeft = pad, paddingRight = pad, paddingTop = pad, paddingBottom = pad,
-              marginLeft = 0, marginRight = 0, marginTop = 0, marginBottom = 0 },
+              marginLeft = 0, marginRight = 0, marginTop = 0, marginBottom = 0, borderRadius = 3,
+              backgroundColor = T.ShadeColor(T.ShadeOf(locPrefs.shade)) },
     children = { top, built.coords, built.facing, built.water } }
   locEl, locLast = built, {}
   locWater.line, locWater.scene = nil, nil
@@ -919,6 +932,17 @@ function LOC.UpdateWater(scene)
     for _, key in ipairs({ "scene", "coords", "facing", "water" }) do T.SetStyle(locEl[key], locStyle()) end
     Hud.Refresh()                      -- the strip's size follows the line
   end
+  return true
+end
+
+-- The background shade (0..T.SHADE_MAX %; owner, 2026-10-15), set in place.
+function LOC.GetShade() return T.ShadeOf(locPrefs.shade) end
+function LOC.SetShade(n)
+  if type(n) ~= "number" or T.ShadeOf(n) ~= n then return false end
+  locPrefs.shade = n
+  locSave()
+  if locEl.column then T.SetStyle(locEl.column, { backgroundColor = T.ShadeColor(n) }) end
+  T.Config.Sync()
   return true
 end
 
@@ -995,6 +1019,7 @@ function LOC.Init()
     locPrefs.show = saved.show == true
     locPrefs.facing = saved.facing ~= false
     locPrefs.water = saved.water ~= false
+    if type(saved.shade) == "number" then locPrefs.shade = T.ShadeOf(saved.shade) end
     locPrefs.pin = saved.pin ~= false
     if type(saved.x) == "number" and type(saved.y) == "number" then locPrefs.x, locPrefs.y = saved.x, saved.y end
   end
@@ -2708,7 +2733,7 @@ Toolbox.Launcher = LN
 LN.TICK = 0.5
 LN.PATH = "toolbox/launcher.png"
 LN.SIZE_MIN, LN.SIZE_MAX, LN.SIZE_DEFAULT = 20, 64, 32
-LN.SHADE_MAX, LN.SHADE_DEFAULT = 90, 40
+LN.SHADE_MAX, LN.SHADE_DEFAULT = T.SHADE_MAX, T.SHADE_DEFAULT
 LN.GAP, LN.PAD = 4, 3
 LN.COLOR = "@gold"
 LN.LIT, LN.DIM = 1, 0.4               -- opacity: its window open, closed
@@ -2777,10 +2802,7 @@ end
 
 -- The shade behind the buttons: black at `shade` % ("#00000066"), or none. A colour's alpha doesn't fade the
 -- buttons (opacity would).
-function LN.ShadeColor(pct)
-  if type(pct) ~= "number" or pct <= 0 then return "#00000000" end
-  return string.format("#000000%02x", math.floor(math.min(pct, 100) * 255 / 100 + 0.5))
-end
+function LN.ShadeColor(pct) return T.ShadeColor(pct) end
 
 local function lnTooltip(b)
   return b.name .. (b.strip and "\nClick to show or hide the strip (/" or "\nClick to open or close it (/")
