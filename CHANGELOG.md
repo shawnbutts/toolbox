@@ -18,6 +18,8 @@ ones included).
   (what to buy or gather, added up; the first), the plan and a **Build order** (the crafts by station, materials
   first, ticked off as you craft). It shares a window with the Docs and Map overlays; the menu has a button for it (and
   Settings, XP & Loot).
+- **Map title** (Lua API 40): the full map's corner names what Toolbox shows in that scene, such as "Toolbox:
+  Gathering, loot runs, last death", so you can tell Toolbox's markers from other add-ons'.
 
 ### Changed
 - Location strip: the water line names the kinds of water you can fish in this scene ("Fishable water: salt,

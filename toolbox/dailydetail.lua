@@ -200,7 +200,7 @@ end
 DD.MARKER_ICON = "flag"
 DD.MARKER_COLOR = "#e8c060"             -- the game takes #rgb only (no theme token): close to @gold
 DD.MARKER_RETRY = 30
-local markers = { raw = nil, who = nil, version = nil, on = nil, retryAt = -math.huge }
+local markers = { raw = nil, who = nil, version = nil, on = nil, retryAt = -math.huge, count = 0 }
 
 function DD.HasMarkers()
   return type(ShroudSetMapMarker) == "function" and type(ShroudGetMapMarkers) == "function"
@@ -264,12 +264,16 @@ function DD.SyncMarkers()
     if not (ok and set == true) then failed = ok and tostring(reason) or "error" end
   end
   DD.markerFailed = failed
+  markers.count, markers.countRaw = #want, raw
   if failed then
     markers.raw, markers.retryAt = nil, T.Now() + DD.MARKER_RETRY
   else
     markers.retryAt = -math.huge
   end
 end
+
+-- How many run flags were put up in scene `raw` (the map title names them).
+function DD.MarkersIn(raw) return markers.countRaw == raw and markers.count or 0 end
 
 function DD.GetMarkers() return prefs.markers ~= false end
 

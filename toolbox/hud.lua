@@ -2112,6 +2112,44 @@ function OV.Sync()
   end
 end
 
+-- The map title (API 40; the owner's request #13082): one line in the full map's corner naming Toolbox's markers in
+-- this scene ("Toolbox: Gathering, loot runs, last death"), set from T.ViewsTick after the markers, only when its text
+-- changes (the game takes 10 changes, then 20 a minute: a refusal is retried after OV.RETRY s) or the scene does (a
+-- title belongs to its scene); taken down when there's nothing. Nothing saved: the game drops it at a reload.
+OV.TITLE_MAX = 60
+local ovTitle = { raw = nil, text = nil, retryAt = -math.huge }
+
+function OV.HasTitle() return type(ShroudSetMapTitle) == "function" end
+
+-- The title for scene `raw`: the shown overlay (with places), the run flags and your last death, or nil.
+function OV.TitleText(raw)
+  local parts = {}
+  local ov = OV.Shown()
+  if ov and #OV.Places(ov) > 0 then parts[#parts + 1] = ov.name end
+  if T.DailyDetail.MarkersIn(raw) > 0 then parts[#parts + 1] = "loot runs" end
+  local death = ovData.death
+  if death and death.raw == raw and LOC.GetDeath() then parts[#parts + 1] = "last death" end
+  if #parts == 0 then return nil end
+  local text = table.concat(parts, ", ")
+  if #text > OV.TITLE_MAX then text = text:sub(1, OV.TITLE_MAX) end
+  return text
+end
+
+function OV.SyncTitle()
+  if not (OV.HasTitle() and OV.HasMarkers()) then return end
+  local raw = hereRaw()
+  if not raw or T.Now() < ovTitle.retryAt then return end
+  local text = OV.TitleText(raw)
+  if raw == ovTitle.raw and text == ovTitle.text then return end
+  local ok, set, why = pcall(ShroudSetMapTitle, text)
+  if ok and set == true then
+    ovTitle.raw, ovTitle.text, ovTitle.retryAt = raw, text, -math.huge
+  else
+    OV.titleFailed = ok and tostring(why) or "error"
+    ovTitle.raw, ovTitle.retryAt = nil, T.Now() + OV.RETRY
+  end
+end
+
 -- Kept by a reset (the player's own places, like the runs). Not in the recovery copy (owner, 2026-10-13): the account
 -- file's 256 KB is every character's copy together, and a full set of overlays is most of it.
 T.Backup.OTHER_KEYS[#T.Backup.OTHER_KEYS + 1] = OV.KEY

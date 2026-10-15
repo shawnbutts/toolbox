@@ -374,6 +374,55 @@ return function(t)
     t.ok(H.logged("Couldn't mark Wolf: show one of this scene's overlays first"), "in chat: " .. H.lastLog())
   end)
 
+  -- API 40, the owner's request #13082: a line in the full map's corner saying what Toolbox's markers here are.
+  t.test("the map title names the shown overlay, the loot runs and your last death here; down when none", function()
+    local function title() return H.call(function() return ShroudGetMapTitle() end) end
+    H.boot()
+    H.advance(1)
+    t.eq(title(), nil, "nothing marked")
+    H.chat("/tbx mark Bank")
+    H.advance(1)
+    t.eq(title(), "Places")
+    H.setDead(true)
+    H.setDead(false)
+    H.advance(1)
+    t.eq(title(), "Places, last death")
+    local sets = H.S.titleSets
+    H.advance(10)
+    t.eq(H.S.titleSets, sets, "set only when it changes")
+    H.chat("/tbx overlay off")
+    H.advance(1)
+    t.eq(title(), "last death")
+    H.chat("/tbx loot reset")
+    H.advance(300)
+    H.chat("/tbx loot reset")                            -- a run filed here: its flag
+    H.advance(2)
+    t.eq(title(), "loot runs, last death")
+    H.chat("/tbx death clear")
+    H.call(Toolbox.DailyDetail.SetMarkers, false)      -- the Map & location page's toggle
+    H.advance(2)
+    t.eq(title(), nil, "nothing left: taken down")
+    H.S.titleRefuse = "rate"
+    H.chat("/tbx overlay show places")
+    t.ok(H.logged("Showing Places"), H.lastLog())
+    H.advance(1)
+    t.eq(title(), nil, "refused")
+    H.S.titleRefuse = nil
+    H.advance(5)
+    t.eq(title(), nil, "not asked again at once")
+    H.advance(Toolbox.Overlays.RETRY)
+    t.eq(title(), "Places", "tried again later")
+    goTo("Elsewhere")
+    t.eq(title(), nil, "another scene: its own")
+    goTo("Novia")
+    t.eq(title(), "Places")
+    H.S.noMapTitle = true
+    H.reload()
+    H.advance(2)
+    t.ok(true, "an older client: no title, no error")
+    H.S.noMapTitle = nil
+  end)
+
   t.test("one overlay at a time: a switch takes the last one's marks down; other marks stay", function()
     H.boot()
     H.call(function() ShroudSetMapMarker("x-1", 1, 0, 1, { label = "Not ours" }) end)

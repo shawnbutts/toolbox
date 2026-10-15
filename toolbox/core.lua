@@ -2948,6 +2948,7 @@ function T.ViewsTick()
   T.DailyDetail.SyncMarkers()         -- Loot Tracker runs on the map (API 30), on a change only
   T.Overlays.DeathTick()              -- your last death clears itself (back there, or old and elsewhere)
   T.Overlays.Sync()                   -- the shown map overlay's places (API 30), on a change only
+  T.Overlays.SyncTitle()              -- the map's title line naming them (API 40), on a change only
   T.Overlays.Tick()                   -- the Map overlays window follows a scene change
   T.Planner.Tick()                    -- the crafting planner follows your bags and crafts
   T.Config.SyncLive()

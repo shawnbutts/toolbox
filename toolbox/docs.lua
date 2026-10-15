@@ -310,7 +310,8 @@ D.SECTIONS = {
       .. "which one it shows: a Loot overlay in every scene you farm, say. Each place is a mark on the region map "
       .. "and minimap (a newer game client), in the shape and color you picked for it, named as you named it. Up "
       .. "to 10 overlays a scene, 39 places each. They're this character's own. The Loot Tracker's run flags stay "
-      .. "their own setting and show beside any overlay.",
+      .. "their own setting and show beside any overlay. On the newest game client the full map's corner names "
+      .. "what Toolbox shows there (Toolbox: Gathering, loot runs, last death).",
     "Room: the game keeps at most 256 KB in each of an add-on's saved files, so the overlays of all your scenes "
       .. "share a part of this character's file (thousands of places). The window shows how full it is. A mark "
       .. "that won't fit is refused and named, and nothing is saved; /toolbox overlay scenes lists what each scene "

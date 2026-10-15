@@ -101,7 +101,7 @@ local function fresh(disk)
     date = "2026-09-27",               -- what os.date("%Y-%m-%d") returns
     serverTime = "2026-09-27 12:00:00",
     files = { ["toolbox/clock.png"] = true },   -- files that exist, relative to the Lua folder
-    clips = {}, clipPaths = {}, clipState = {}, pendingClips = {}, played = {}, markers = {},
+    clips = {}, clipPaths = {}, clipState = {}, pendingClips = {}, played = {}, markers = {}, mapTitles = {},
     screen = { width = 1920, height = 1080, uiWidth = 1920, uiHeight = 1080, uiScale = 1, displayWidth = 1920,
                displayHeight = 1080, fullScreen = true, mode = "fullscreen" },
     buffs = {},                        -- { name, remaining, icon, debuff, tooltip } per effect
@@ -291,6 +291,30 @@ local function install_api()
       end
       return out
     end
+    -- The map title (API 40; H.S.noMapTitle: an older client): H.S.mapTitles[raw] = text; H.S.titleRefuse = a reason;
+    -- H.S.titleSets counts the changes made.
+    if not S.noMapTitle then
+      ShroudSetMapTitle = function(text)
+        assert(S.inCallback, "ShroudSetMapTitle at file top level")
+        if text ~= nil and type(text) ~= "string" then return false, "bad_title" end
+        local raw = ShroudGetCurrentSceneNameRaw()
+        local clean = text and text:gsub("[%[%]<>]", ""):gsub("\n", " ") or ""
+        if #clean > 60 then clean = clean:sub(1, 60) end
+        if clean:find("^%s*$") then
+          S.mapTitles[raw] = nil
+          return true
+        end
+        if raw == "" then return false, "no_scene" end
+        if S.mapTitles[raw] == clean then return true end
+        if S.titleRefuse then return false, S.titleRefuse end
+        S.titleSets = (S.titleSets or 0) + 1
+        S.mapTitles[raw] = clean
+        return true
+      end
+      ShroudGetMapTitle = function() return S.mapTitles[ShroudGetCurrentSceneNameRaw()] end
+    else
+      ShroudSetMapTitle, ShroudGetMapTitle = nil, nil
+    end
     -- H.S.markerIcons: the shapes a newer client offers (set, then H.reload()).
     ShroudListMapMarkerIcons = function()
       return S.markerIcons or { "pin", "diamond", "circle", "square", "star", "flag" }
@@ -298,6 +322,7 @@ local function install_api()
   else
     ShroudSetMapMarker, ShroudRemoveMapMarker, ShroudClearMapMarkers = nil, nil, nil
     ShroudGetMapMarkers, ShroudListMapMarkerIcons = nil, nil
+    ShroudSetMapTitle, ShroudGetMapTitle = nil, nil
   end
   -- The world calendar (API 35; H.S.noCalendar: an older client). H.S.calendar = { status, rows = { row tables },
   -- stronghold }: a row's documented fields (key, ordinal, occurrence, source, title, location, startsUnix, endsUnix,

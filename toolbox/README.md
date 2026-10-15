@@ -162,7 +162,8 @@ salt, fresh"). Hover it for the whole `/loc` line. Off by default: switch it on 
 
 Sets of places you mark in a scene, shown on its map one set at a time: one for loot, one for gathering, one for
 vendors. Each scene has its own overlays and remembers which one it shows. Each place is a mark on the region map and
-minimap (a newer game client), in a shape and color of its own, and Compass points the game's compass at one. Up to 10
+minimap (a newer game client), in a shape and color of its own, and Compass points the game's compass at one; on the
+newest client the full map's corner names what Toolbox shows there ("Toolbox: Gathering, loot runs"). Up to 10
 overlays a scene, with room for thousands of places in all. Mark as you go in the
 small **Map overlays** window, where you also make, rename and delete them: the pin on the location strip opens it
 (or **Map & location** in the settings, or `/toolbox overlay window`); `/toolbox mark <name>` marks where you stand.

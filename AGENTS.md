@@ -763,7 +763,10 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   nil)` puts one line per add-on per scene in the full map's top-left corner, as "Toolbox: text" (<= 60 characters,
   cleaned like a marker label; at most three add-ons; rate 10 then 20 a minute, the same text free; nil / "" takes it
   down; bad_title / rate / pvp / no_scene; session-only like markers, so set again on a scene load), and
-  `ShroudGetMapTitle()`. Neither used yet. The location strip no longer asks `ShroudGetNearestWaterType` (owner, same day: the
+  `ShroudGetMapTitle()`. The title is used: `OV.SyncTitle` (from `T.ViewsTick` after the markers; `OV.TitleText`: the
+  shown overlay with places, "loot runs" when `DD.MarkersIn(raw)` > 0, "last death"; set only when the text or the
+  scene changes, a refusal retried after `OV.RETRY` s; harness `H.S.mapTitles[raw]`, `H.S.titleRefuse`,
+  `H.S.titleSets`, `H.S.noMapTitle`). The location strip no longer asks `ShroudGetNearestWaterType` (owner, same day: the
   scene's kinds instead).
 
 **Waiting on the developers:** more windows per add-on, 12 instead of 8 (the owner asked, 2026-10-15): then the
