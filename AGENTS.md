@@ -31,7 +31,8 @@ This file holds current facts and rules; the history behind them is in git (`git
 - **Make text fields with `T.TextField{...}`** (config's `UI` stand-in does it for its pages): the spec's `onSubmit`
   alone did nothing on Enter in game (owner, 2026-10-15, the planner's search), so the handler also goes through the
   `OnSubmit` method, run once a press (harness `H.S.specSubmitIgnored`; two presses in one test frame are one). Even
-  so Enter did nothing there (owner, same day): the planner's search fills as you type (`onChange`, which works in game,
+  so one Enter did nothing there (owner, same day: only a quick second Enter reaches the field's submit, request 27
+  drafted): the planner's search fills as you type (`onChange`, which works in game,
   as the settings search's does); `/toolbox plan debug` says in chat what the box gets. Don't rely on Enter alone.
 - **Read a UI element's state with its getters** (`GetText`, `GetValue`, `IsVisible`, `IsEnabled`...), never its
   fields: in game an element is a game object ("cannot access field text of userdata<Shroud.UI.Label>",
