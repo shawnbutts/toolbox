@@ -112,7 +112,8 @@ D.SECTIONS = {
       .. "list of them, each with how many you have. Two ways to fill them: Use what I have takes the first one "
       .. "you have enough of, and Stats I care about picks for your build: choose a stat and press Watch, and "
       .. "every choice shows what it adds, the best for the stat you watched last picked (the lightest, for "
-      .. "weight). Watch up to six; the others show beside the picked one. Pick a material yourself and that "
+      .. "weight). Watch up to six. Under each slot, a line shows what the picked material adds to the item "
+      .. "(a slot that doesn't pass its bonus on: only its weight). Pick a material yourself and that "
       .. "slot keeps it, for this recipe, until you pick another. The Result line adds what your picks give "
       .. "to the item's base stats (an exceptional craft adds more).",
     "From scratch: tick it and anything you're short of that one of your recipes makes gets I'll craft (in the "

@@ -2046,8 +2046,8 @@ local function plDrop()
 end
 
 -- A choice as its dropdown shows it: "Iron Sheet (have 3)", and in "stats" mode the value of the stat the picks
--- follow (one: every choice of every slot is on screen, against the add-on's text budget; the row's status shows
--- the picked one's other watched stats).
+-- follow (one: every choice of every slot is on screen, against the add-on's text budget; the line under the slot
+-- shows everything the picked one adds, PL.AddsText).
 local function plChoiceText(c, watch)
   local text = tostring(T.Field(c, "name")) .. " (have " .. T.FormatNumber(PL.HaveOf(c)) .. ")"
   if PL.GetMode() == "stats" and watch[1] then
@@ -2057,14 +2057,22 @@ local function plChoiceText(c, watch)
   return text
 end
 
--- The picked material's other watched stats, short: "Focus +10, Strength +1".
-local function plOtherStats(item, watch)
-  local parts = {}
-  for i = 2, #watch do
-    local v = PL.StatValue(item, watch[i])
-    if v then parts[#parts + 1] = PL.StatLabel(item, watch[i]) .. " " .. PL.Number(v, true) end
+-- What the picked material adds to the item, on its own line under the slot (owner, 2026-10-15: the result line
+-- sums them; "some users may want to see things specific to the item they are selecting"): "Adds Armor Damage
+-- Resistance +0.2, Focus +10; weight 2". A slot that doesn't pass its material's bonus on lists only the weight.
+function PL.AddsText(item)
+  local parts, weight = {}, nil
+  for _, sr in ipairs(T.List(T.Field(item, "stats"))) do
+    local key, v = T.Field(sr, "key"), plNum(T.Field(sr, "value"))
+    if v and key == "weight" then
+      weight = v
+    elseif v and type(key) == "string" then
+      parts[#parts + 1] = PL.StatName(sr) .. " " .. PL.Number(v, true)
+    end
   end
-  return table.concat(parts, ", ")
+  local text = #parts > 0 and ("Adds " .. table.concat(parts, ", ")) or "Adds nothing to the item's stats here"
+  if weight then text = text .. "; weight " .. PL.Number(weight) end
+  return text
 end
 
 -- A row's text: "7 x Metal Sheet:" for a slot with a dropdown, "4 x Iron Ingot: have 3, 1 short" for the rest.
@@ -2079,14 +2087,12 @@ local function plRowText(r)
   return text
 end
 
-local function plGroupStatus(r, watch)
-  local others = PL.GetMode() == "stats" and plOtherStats(r.item, watch) or ""
-  if others ~= "" then others = "; " .. others end
-  if r.optional then return (others:gsub("^; ", "")) end
-  if r.short <= 0 then return "have them" .. others end
+local function plGroupStatus(r)
+  if r.optional then return "" end
+  if r.short <= 0 then return "have them" end
   local text = T.FormatNumber(r.short) .. " short"
   if r.making then text = text .. ", craft " .. T.FormatNumber(r.crafts) end
-  return text .. others
+  return text
 end
 
 -- The choices a slot's dropdown lists: the first PL.CHOICES_SHOWN, the picked one always among them.
@@ -2148,7 +2154,7 @@ local function plPlanRows(plan, watch)
           if key then PL.SetPick(r.recipe, r.slot, key) end
         end }
       parts[#parts + 1] = e.pick
-      e.status = UI.Label{ text = plGroupStatus(r, watch), class = "dim", style = { marginLeft = 4 } }
+      e.status = UI.Label{ text = plGroupStatus(r), class = "dim", style = { marginLeft = 4 } }
       parts[#parts + 1] = e.status
     end
     if r.canMake then
@@ -2160,6 +2166,12 @@ local function plPlanRows(plan, watch)
       parts[#parts + 1] = e.make
     end
     children[#children + 1] = UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = parts }
+    if r.group then
+      e.adds = UI.Label{ id = "pl_adds_" .. i, text = PL.AddsText(r.item), class = "dim",
+        style = { marginLeft = r.depth * PL.INDENT + PL.INDENT, whiteSpace = "wrap" },
+        tooltip = "What the picked material adds to the finished item, for this recipe's amount of it" }
+      children[#children + 1] = e.adds
+    end
     if r.making and #r.makers > 1 then
       local names, values, chosen = plMakerNames(r)
       e.makerValues = values
@@ -2231,7 +2243,8 @@ local function plUpdateRows(plan, watch)
     local e = plRows[i]
     if e then
       T.SetText(e.label, plRowText(r))
-      if e.status then T.SetText(e.status, plGroupStatus(r, watch)) end
+      if e.status then T.SetText(e.status, plGroupStatus(r)) end
+      if e.adds then T.SetText(e.adds, PL.AddsText(r.item)) end
       if e.pick then
         local names, values, picked = plShownChoices(r, watch)
         local joined = table.concat(names, "\n")
