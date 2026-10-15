@@ -8,8 +8,8 @@ ones included).
 ## [Unreleased]
 
 ### Added
-- **Crafting planner** (`/toolbox plan [recipe]`): pick one of your recipes and how many crafts, and see every
-  ingredient you need, have and are short of. A slot that takes a choice of material (Metal Sheet, Metal Binding...;
+- **Crafting planner** (`/toolbox plan [recipe]`): find one of your recipes as you type, pick how many crafts, and
+  see every ingredient you need, have and are short of. A slot that takes a choice of material (Metal Sheet, Metal Binding...;
   Lua API 37) lists them with how many you have, starting on the first you have enough of, and under it what the
   picked material adds to the item. A material you pick yourself is kept for that recipe; **Reset** starts the plan
   over. The result line adds your picks' stats to the item's base stats. **From scratch** offers an **I'll craft**
@@ -22,6 +22,12 @@ ones included).
 ### Changed
 - Location strip: on a game client with the developers' fix for the slow nearest-water lookup (assumed Lua API 39),
   the nearest water is checked every 3 seconds instead of every 15.
+- Sounds settings: a **Set** button beside each custom sound's path. On the current game client one press of Enter in
+  an add-on's text box does nothing (a quick second press works), so nothing in Toolbox needs Enter any more.
+
+### Fixed
+- `/toolbox perf only <name>`: a timer that starts during the measurement (the planner's recipe book) is said to run,
+  and named in the report, instead of "all of Toolbox's are paused".
 
 ## [1.8.0] - 2026-10-14
 
