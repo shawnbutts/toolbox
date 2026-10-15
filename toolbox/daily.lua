@@ -1244,39 +1244,61 @@ function D.ForgetRecipes()
   end
 end
 
+-- Adds one recipe to the book being read: by id, and under each result's name and (API 37) item key.
+local function indexRecipe(r, id, rec)
+  r.recipes[id] = rec
+  for _, res in ipairs(T.List(T.Field(rec, "results"))) do
+    local q = T.Field(res, "quantity")
+    local maker = { id = id, yield = type(q) == "number" and q or 0 }
+    local name, key = T.Field(res, "name"), T.Field(res, "key")
+    if type(name) == "string" then
+      r.byResult[name] = r.byResult[name] or {}
+      table.insert(r.byResult[name], maker)
+    end
+    if type(key) == "string" and key ~= "" then
+      r.byKey[key] = r.byKey[key] or {}
+      table.insert(r.byKey[key], maker)
+    end
+  end
+end
+
+-- One step: D.BOOK_STEP recipes by id, or (API 37, ShroudGetRecipeBook) one station's recipes in one call, the game
+-- counting your bags once for them (the reference: "build it once, keep it").
 local function readSome()
   local r = reading
   if not r then return end
-  local stop = math.min(#r.list, r.at + D.BOOK_STEP - 1)
-  for i = r.at, stop do
-    local id = type(T.Field(r.list[i], "id")) == "number" and T.Field(r.list[i], "id") or nil
-    if id then
-      local ok, rec = pcall(ShroudGetRecipe, id)
-      if ok and rec then
-        r.recipes[id] = rec
-        for _, res in ipairs(T.List(T.Field(rec, "results"))) do
-          local name = T.Field(res, "name")
-          if type(name) == "string" then
-            r.byResult[name] = r.byResult[name] or {}
-            local makers = r.byResult[name]
-            local q = T.Field(res, "quantity")
-            makers[#makers + 1] = { id = id, yield = type(q) == "number" and q or 0 }
-          end
-        end
+  local t0 = T.PerfT()
+  if r.cats then
+    local ok, list = pcall(ShroudGetRecipeBook, r.cats[r.at])
+    for _, rec in ipairs(ok and T.List(list) or {}) do
+      local id = T.Field(rec, "id")
+      if type(id) == "number" then indexRecipe(r, id, rec) end
+    end
+    r.at = r.at + 1
+    r.done = r.at > #r.cats
+  else
+    local stop = math.min(#r.list, r.at + D.BOOK_STEP - 1)
+    for i = r.at, stop do
+      local id = type(T.Field(r.list[i], "id")) == "number" and T.Field(r.list[i], "id") or nil
+      if id then
+        local ok, rec = pcall(ShroudGetRecipe, id)
+        if ok and rec then indexRecipe(r, id, rec) end
       end
     end
+    r.at = stop + 1
+    r.done = r.at > #r.list
   end
-  r.at = stop + 1
-  if r.at > #r.list then
+  T.PerfAdd("recipe book", t0)
+  if r.done then
     pcall(ShroudRemovePeriodic, BOOK_TIMER)
     reading = nil
-    D.recipeIndex = { recipes = r.recipes, byResult = r.byResult }
+    D.recipeIndex = { recipes = r.recipes, byResult = r.byResult, byKey = r.byKey }
     for _, done in ipairs(r.waiting) do done(true) end
   end
 end
 
--- Reads the recipe book a few recipes at a time, then calls done(true) (done(false) if it was dropped).
--- Returns how many recipes it reads, or nil when there's nothing to read (no book: done isn't called).
+-- Reads the recipe book a few recipes (or one station) at a time, then calls done(true) (done(false) if it was
+-- dropped). Returns how many recipes it reads, or nil when there's nothing to read (no book: done isn't called).
 function D.ReadRecipeBook(done)
   if D.recipeIndex then
     done(true)
@@ -1290,10 +1312,26 @@ function D.ReadRecipeBook(done)
   local ok, book = pcall(ShroudGetKnownRecipes)
   local list = ok and T.List(book) or {}
   if #list == 0 then return nil end
-  reading = { list = list, at = 1, recipes = {}, byResult = {}, waiting = { done } }
+  local cats = nil
+  if type(ShroudGetRecipeBook) == "function" then
+    local seen = {}
+    cats = {}
+    for _, known in ipairs(list) do
+      local cat = T.Field(known, "categoryKey")
+      if type(cat) == "string" and cat ~= "" and not seen[cat] then
+        seen[cat] = true
+        cats[#cats + 1] = cat
+      end
+    end
+    if #cats == 0 then cats = nil end
+  end
+  reading = { list = list, cats = cats, at = 1, recipes = {}, byResult = {}, byKey = {}, waiting = { done } }
   T.RegisterPeriodic(BOOK_TIMER, readSome, D.BOOK_PERIOD, true)
   return #list
 end
+
+-- Whether the book is being read now.
+function D.ReadingRecipes() return reading ~= nil end
 D.PROBE_DEPTH = 8
 D.PROBE_LINES = 80
 D.PROBE_MATCHES = 15
@@ -1516,3 +1554,964 @@ function D.RecipeLines(text)
   for _, n in ipairs(names) do say("  " .. raw[n] .. " x " .. n) end
   return lines
 end
+
+-- ---------------------------------------------------------------------------
+-- The crafting planner (Toolbox.Planner, PL; owner, 2026-10-15, the 1.9.0 feature): pick a known recipe and a
+-- number of crafts; each slot that takes a choice of material ("Metal Sheet", API 37) gets a dropdown, filled one of
+-- two ways (owner: "some just use what they have, others craft for stat combos for their builds"): "Use what I have"
+-- (the first choice you have enough of, in the game's order, which puts the ones you can craft with first) or
+-- "Stats I care about" (the stats you watch, per recipe kind, shown on every choice, the best for the first one
+-- picked; a lower weight or charge time is better). A slot you pick yourself keeps your pick (`picks`, per recipe).
+-- With From scratch on, an ingredient you're short of and a known recipe makes gets Make it: the shortfall is
+-- crafted, that recipe's ingredients planned below it (`makes`, by the row's path; a recipe never inside itself;
+-- several recipes making one item: the one named like it, or the one picked). The plan's views: Plan (the slots),
+-- Shopping list (what to buy or gather) and Build order (the crafts by station, deepest first, ticked off as their
+-- count reaches 0: the game's `have` counts what's on the crafting table, so a craft made counts at once). The
+-- result line adds the picks' stats to the result's base stats (the reference: a slot that doesn't pass its
+-- material's bonus on lists only its weight, which isn't added). Its window is the shared 8th one
+-- (T.TakeSharedWindow), built when opened. The plan is worked out again on a change: inventory, a craft, a
+-- learned recipe (at most every PL.REFRESH_GAP s while shown), with the plan's recipes read fresh (`have`).
+-- Saved var "planner" (character scope; a reset keeps it): { v = 1, mode = "have"/"stats", scratch = bool,
+-- crafts = n, recipe = id, view = a PL.VIEWS name, makes = { [path] = true }, makers = { [item key] = recipe id },
+-- picks = { ["r" .. recipe id] = { at = n, ["s" .. slot] = item key } } (at most PL.PICKS_MAX recipes, the oldest
+-- picked dropped), pickAt = n, watch = { [categoryKey] = { stat keys } } }.
+-- ---------------------------------------------------------------------------
+local PL = {}
+Toolbox.Planner = PL
+PL.KEY = "planner"
+PL.WINDOW_ID = "toolbox_planner"
+PL.DEPTH = 8                          -- levels of Make it below the recipe
+PL.MATCHES = 15                       -- recipes a search lists
+PL.CHOICES_SHOWN = 10                 -- a slot's choices in its dropdown (the game gives up to 30): the text budget
+PL.ROWS_MAX = 60
+PL.PICKS_MAX = 60
+PL.WATCH_MAX = 6
+PL.RESULT_STATS = 8                   -- stats on the result line
+PL.REFRESH_GAP = 2
+PL.INDENT = 14
+PL.CRAFTS = { 1, 2, 3, 4, 5, 10, 20, 50, 100 }
+PL.MODES = { { "have", "Use what I have" }, { "stats", "Stats I care about" } }
+PL.VIEWS = { "Plan", "Shopping list", "Build order" }
+PL.NO_RECIPE = "Find a recipe first"
+PL.NO_STATS = "No stats to watch"
+PL.STAT_NAMES = { weight = "Weight", durability = "Durability", damageMin = "Min damage", damageMax = "Max damage",
+                  critical = "Critical", parry = "Parry", chargeSeconds = "Charge time", resistance = "Resistance",
+                  avoidance = "Avoidance" }
+PL.LOWER_BETTER = { weight = true, chargeSeconds = true }
+
+local plPrefs = {}
+local plWin, plEl = nil, {}
+local plMatches = {}                  -- the recipe dropdown's names -> recipe ids
+local plFresh = {}                    -- recipe id -> ShroudGetRecipe's table, read for this plan
+local plPlan = nil                    -- the last PL.Expand result
+local plDirty, plAt = false, -math.huge
+local plRows = {}                     -- the Plan view's rows as built: { sig, label, pick, make, via, values }
+local plBodySig = nil                 -- what the body was built for (rebuilt only when it changes)
+local plBody, plCol = nil, nil
+local plBuilt = {}                    -- recipe id -> { name, station, depth }: every craft the plan has asked for
+local plMade = {}                     -- recipe id -> crafts made since the plan was set (ShroudOnCraftResults)
+local plStatChoices = {}              -- the stat dropdown's names -> stat keys
+
+local function plNum(v) if type(v) == "number" and v == v then return v end return nil end
+
+local function plSave() T.Save(PL.KEY, plPrefs) end
+
+-- An item's key (API 37: "item:" + 32 hex), or its name on an older client.
+function PL.KeyOf(item)
+  local key = T.Field(item, "key")
+  if type(key) == "string" and key ~= "" then return key end
+  return tostring(T.Field(item, "name"))
+end
+
+-- How many of an item the craft can reach: `have` (a choice has it only when choosable), else `carried`, else 0.
+function PL.HaveOf(item)
+  return plNum(T.Field(item, "have")) or plNum(T.Field(item, "carried")) or 0
+end
+
+function PL.StatName(sr)
+  local name = T.Field(sr, "name")
+  if type(name) == "string" and name ~= "" then return name end
+  local key = tostring(T.Field(sr, "key"))
+  if PL.STAT_NAMES[key] then return PL.STAT_NAMES[key] end
+  return (key:gsub("^stat:", ""))
+end
+
+-- The value an item's stats rows give one stat key, or nil.
+function PL.StatValue(item, key)
+  for _, sr in ipairs(T.List(T.Field(item, "stats"))) do
+    if T.Field(sr, "key") == key then return plNum(T.Field(sr, "value")) end
+  end
+  return nil
+end
+
+-- A stat's name as an item's rows give it, else from its key.
+function PL.StatLabel(item, key)
+  for _, sr in ipairs(T.List(T.Field(item, "stats"))) do
+    if T.Field(sr, "key") == key then return PL.StatName(sr) end
+  end
+  return PL.StatName({ key = key })
+end
+
+-- "+0.2" / "-1" / "220": a stat's number, short.
+function PL.Number(v, signed)
+  local text = string.format("%.2f", v):gsub("0+$", ""):gsub("%.$", "")
+  if signed and v >= 0 then text = "+" .. text end
+  return text
+end
+
+-- A group slot's choice: the player's pick (`manual`, an item key) when it's still offered; in "stats" mode the
+-- best for `stat` (the highest, or the lowest for PL.LOWER_BETTER); else, and when no choice has that stat, the first
+-- you have enough of (`avail(choice)`), else the one you have most of. Nil without choices.
+function PL.PickChoice(choices, need, avail, mode, stat, manual)
+  if manual then
+    for _, c in ipairs(choices) do
+      if PL.KeyOf(c) == manual then return c end
+    end
+  end
+  if mode == "stats" and stat then
+    local best, bestV = nil, nil
+    for _, c in ipairs(choices) do
+      local v = PL.StatValue(c, stat)
+      if v and (bestV == nil or (PL.LOWER_BETTER[stat] and v < bestV) or (not PL.LOWER_BETTER[stat] and v > bestV)) then
+        best, bestV = c, v
+      end
+    end
+    if best then return best end
+  end
+  local most, mostN = nil, -1
+  for _, c in ipairs(choices) do
+    local n = avail(c)
+    if n >= need then return c end
+    if n > mostN then most, mostN = c, n end
+  end
+  return most
+end
+
+-- Of several recipes making an item: the player's (`picked`, a recipe id), else the one named like the item ("Iron
+-- Ingot", not "Iron Ingot from Metal Scraps"), else the first. `makers`: { { id, yield } }, `nameOf(id)`.
+function PL.PickMaker(makers, itemName, picked, nameOf)
+  local named = nil
+  for _, m in ipairs(makers) do
+    if picked and m.id == picked then return m end
+    if not named and nameOf(m.id) == itemName then named = m end
+  end
+  return named or makers[1]
+end
+
+-- Works a plan out: `crafts` crafts of recipe `rootId`. `ctx`: recipe(id) -> the recipe's table; makers(key, name) ->
+-- { { id, yield } } (yield > 0); mode, stat (the first watched, or nil), scratch, makes (set of row paths), pick(id,
+-- slot) -> an item key or nil, maker(key) -> a recipe id or nil. Your bags are shared across the plan (an item used
+-- in one branch isn't counted again in another). Returns { rows, shop (list of { key, name, n, tool }), build (list
+-- of { id, name, station, crafts, depth }, deepest first, then by station), cut (rows past PL.ROWS_MAX) }.
+function PL.Expand(rootId, crafts, ctx)
+  local out = { rows = {}, shop = {}, build = {}, cut = false }
+  local pool, shopBy, buildBy = {}, {}, {}
+  local function avail(item)
+    local key = PL.KeyOf(item)
+    if pool[key] == nil then return PL.HaveOf(item) end
+    return pool[key]
+  end
+  local function take(item, need)
+    local key = PL.KeyOf(item)
+    if pool[key] == nil then pool[key] = PL.HaveOf(item) end
+    local use = math.min(pool[key], need)
+    pool[key] = pool[key] - use
+    return need - use, use
+  end
+  local function addShop(r)
+    local s = shopBy[r.key]
+    if not s then
+      s = { key = r.key, name = r.name, n = 0, tool = r.tool }
+      shopBy[r.key] = s
+      out.shop[#out.shop + 1] = s
+    end
+    s.n = s.n + r.short
+  end
+  local function walk(id, n, depth, path, seen)
+    local rec = ctx.recipe(id)
+    if not rec then return end
+    local b = buildBy[id]
+    if not b then
+      b = { id = id, name = tostring(T.Field(rec, "name")), station = tostring(T.Field(rec, "station")
+        or T.Field(rec, "category") or ""), crafts = 0, depth = depth }
+      buildBy[id] = b
+      out.build[#out.build + 1] = b
+    end
+    b.crafts = b.crafts + n
+    if depth > b.depth then b.depth = depth end
+    seen[id] = true
+    for i, ing in ipairs(T.List(T.Field(rec, "ingredients"))) do
+      local qty = plNum(T.Field(ing, "quantity")) or 0
+      local r = { depth = depth, path = path .. "." .. i, recipe = id, slot = i,
+                  slotName = tostring(T.Field(ing, "name")),
+                  tool = T.Field(ing, "tool") == true, optional = T.Field(ing, "optional") == true,
+                  group = T.Field(ing, "group") == true, short = 0, have = 0 }
+      r.need = r.tool and qty or qty * n
+      local item = ing
+      if r.group then
+        r.choices = T.List(T.Field(ing, "choices"))
+        local manual = ctx.pick(id, i)
+        if manual == nil and type(T.Field(ing, "chosenKey")) == "string" then manual = T.Field(ing, "chosenKey") end
+        item = PL.PickChoice(r.choices, r.need, avail, ctx.mode, ctx.stat, manual) or ing
+        r.pick = item ~= ing and PL.KeyOf(item) or nil
+      end
+      r.item, r.name, r.key = item, tostring(T.Field(item, "name")), PL.KeyOf(item)
+      if #out.rows < PL.ROWS_MAX then out.rows[#out.rows + 1] = r else out.cut = true end
+      if not r.optional then
+        r.short, r.have = take(item, r.need)
+        local makers = {}
+        for _, m in ipairs(ctx.makers(r.key, r.name)) do
+          if not seen[m.id] and m.yield > 0 then makers[#makers + 1] = m end
+        end
+        r.makers = makers
+        r.canMake = r.short > 0 and ctx.scratch == true and #makers > 0 and not r.tool and depth + 1 <= PL.DEPTH
+        r.making = r.canMake and ctx.makes[r.path] == true
+        if r.making then
+          local m = PL.PickMaker(makers, r.name, ctx.maker(r.key), function(mid)
+            return T.Field(ctx.recipe(mid), "name")
+          end)
+          r.maker = m.id
+          r.crafts = math.floor((r.short + m.yield - 1) / m.yield)
+          walk(m.id, r.crafts, depth + 1, r.path, seen)
+        elseif r.short > 0 then
+          addShop(r)
+        end
+      end
+    end
+    seen[id] = nil
+  end
+  walk(rootId, crafts, 0, "p", {})
+  table.sort(out.build, function(a, b)
+    if a.depth ~= b.depth then return a.depth > b.depth end
+    if a.station ~= b.station then return a.station < b.station end
+    return a.name < b.name
+  end)
+  table.sort(out.shop, function(a, b) return a.name < b.name end)
+  return out
+end
+
+-- The result line's stats: the result's base stats with what the recipe's own slots add (each row's item, weight
+-- left out: an ingredient's weight is its own), watched stats first. { { key, name, base, add } }.
+function PL.Preview(rec, rows, watch)
+  local list, by = {}, {}
+  local function entry(key, name)
+    if not by[key] then
+      by[key] = { key = key, name = name, base = nil, add = 0 }
+      list[#list + 1] = by[key]
+    end
+    return by[key]
+  end
+  for _, key in ipairs(watch or {}) do entry(key, PL.STAT_NAMES[key] or (key:gsub("^stat:", ""))) end
+  local res = T.List(T.Field(rec, "results"))[1]
+  for _, sr in ipairs(res and T.List(T.Field(res, "stats")) or {}) do
+    local key, v = T.Field(sr, "key"), plNum(T.Field(sr, "value"))
+    if type(key) == "string" and v then
+      local e = entry(key, PL.StatName(sr))
+      e.name, e.base = PL.StatName(sr), (e.base or 0) + v
+    end
+  end
+  for _, r in ipairs(rows) do
+    if r.depth == 0 and not r.tool then
+      for _, sr in ipairs(T.List(T.Field(r.item, "stats"))) do
+        local key, v = T.Field(sr, "key"), plNum(T.Field(sr, "value"))
+        if type(key) == "string" and key ~= "weight" and v then
+          local e = entry(key, PL.StatName(sr))
+          e.name, e.add = PL.StatName(sr), e.add + v
+        end
+      end
+    end
+  end
+  return list
+end
+
+function PL.PreviewText(list)
+  local parts = {}
+  for i = 1, math.min(#list, PL.RESULT_STATS) do
+    local e = list[i]
+    local text = e.name .. " " .. (e.base and PL.Number(e.base) or "0")
+    if e.add ~= 0 then text = text .. " " .. PL.Number(e.add, true) end
+    parts[#parts + 1] = text
+  end
+  if #list > PL.RESULT_STATS then parts[#parts + 1] = "..." end
+  if #parts == 0 then return "Result: no stats given for it" end
+  return "Result: " .. table.concat(parts, ", ")
+end
+
+-- ---- the player's choices ----
+
+local function plRecipeId() return plNum(plPrefs.recipe) end
+
+local function plRecipe(id)
+  if plFresh[id] == nil then
+    local ok, rec = pcall(ShroudGetRecipe, id)
+    plFresh[id] = (ok and rec) or false
+  end
+  return plFresh[id] or nil
+end
+
+local function plCategory()
+  local rec = plRecipeId() and plRecipe(plRecipeId())
+  local cat = rec and T.Field(rec, "categoryKey")
+  if type(cat) == "string" and cat ~= "" then return cat end
+  return "any"
+end
+
+function PL.Watched()
+  local w = type(plPrefs.watch) == "table" and plPrefs.watch[plCategory()]
+  return type(w) == "table" and w or {}
+end
+
+function PL.Watch(key)
+  local w = PL.Watched()
+  for _, k in ipairs(w) do
+    if k == key then return false, "already watched" end
+  end
+  if #w >= PL.WATCH_MAX then return false, "at most " .. PL.WATCH_MAX .. " stats" end
+  plPrefs.watch = type(plPrefs.watch) == "table" and plPrefs.watch or {}
+  local copy = { key }
+  for _, k in ipairs(w) do copy[#copy + 1] = k end
+  plPrefs.watch[plCategory()] = copy        -- the newest first: it's the one the picks follow
+  plSave()
+  return true
+end
+
+function PL.Unwatch(key)
+  local w, kept, found = PL.Watched(), {}, false
+  for _, k in ipairs(w) do
+    if k == key then found = true else kept[#kept + 1] = k end
+  end
+  if not found then return false end
+  plPrefs.watch[plCategory()] = #kept > 0 and kept or nil
+  plSave()
+  return true
+end
+
+local function plPickOf(id, slot)
+  local p = type(plPrefs.picks) == "table" and plPrefs.picks["r" .. id]
+  local key = type(p) == "table" and p["s" .. slot]
+  return type(key) == "string" and key or nil
+end
+
+-- Remembers the player's material for one slot of a recipe (nil: back to the mode's choice).
+function PL.SetPick(id, slot, key)
+  plPrefs.picks = type(plPrefs.picks) == "table" and plPrefs.picks or {}
+  local p = plPrefs.picks["r" .. id] or {}
+  p["s" .. slot] = key
+  plPrefs.pickAt = (plNum(plPrefs.pickAt) or 0) + 1
+  p.at = plPrefs.pickAt
+  plPrefs.picks["r" .. id] = p
+  local n, oldest, oldestAt = 0, nil, math.huge
+  for k, v in pairs(plPrefs.picks) do
+    n = n + 1
+    local at = type(v) == "table" and plNum(v.at) or 0
+    if at < oldestAt then oldest, oldestAt = k, at end
+  end
+  if n > PL.PICKS_MAX and oldest then plPrefs.picks[oldest] = nil end
+  plSave()
+  PL.Refresh(true)
+end
+
+function PL.SetMaking(path, on)
+  plPrefs.makes = type(plPrefs.makes) == "table" and plPrefs.makes or {}
+  plPrefs.makes[path] = on and true or nil
+  plSave()
+  PL.Refresh(true)
+end
+
+function PL.SetMaker(key, id)
+  plPrefs.makers = type(plPrefs.makers) == "table" and plPrefs.makers or {}
+  plPrefs.makers[key] = id
+  plSave()
+  PL.Refresh(true)
+end
+
+function PL.SetMode(mode)
+  plPrefs.mode = mode == "stats" and "stats" or "have"
+  plSave()
+  PL.Refresh(true)
+end
+function PL.GetMode() return plPrefs.mode == "stats" and "stats" or "have" end
+
+function PL.SetScratch(on)
+  plPrefs.scratch = on == true
+  plSave()
+  if plPrefs.scratch then PL.NeedBook() end
+  PL.Refresh(true)
+end
+function PL.GetScratch() return plPrefs.scratch == true end
+
+function PL.SetCrafts(n)
+  n = plNum(n)
+  if not n or n < 1 then return end
+  plPrefs.crafts = math.floor(n)
+  plSave()
+  PL.Refresh(true)
+end
+function PL.GetCrafts() return plNum(plPrefs.crafts) or 1 end
+
+function PL.SetView(view)
+  for _, v in ipairs(PL.VIEWS) do
+    if v == view then plPrefs.view = v end
+  end
+  plSave()
+  PL.Refresh(true)
+end
+function PL.GetView() return plPrefs.view or PL.VIEWS[1] end
+
+-- Plans a recipe (by id): a new plan, so the Make it choices and the crafts made start over.
+function PL.SetRecipe(id)
+  plPrefs.recipe, plPrefs.makes = id, {}
+  plBuilt, plMade = {}, {}
+  plSave()
+  PL.Refresh(true)
+end
+
+-- Known recipes whose name has `text` in it (an exact name alone): { { id, name } }, at most PL.MATCHES, and how
+-- many matched in all.
+function PL.Find(text)
+  local want = T.Trim(text or ""):lower()
+  local found, n = {}, 0
+  if want == "" or type(ShroudGetKnownRecipes) ~= "function" then return found, 0 end
+  local ok, book = pcall(ShroudGetKnownRecipes)
+  for _, r in ipairs(ok and T.List(book) or {}) do
+    local name, id = T.Field(r, "name"), plNum(T.Field(r, "id"))
+    if type(name) == "string" and id and name:lower():find(want, 1, true) then
+      if name:lower() == want then return { { id = id, name = name } }, 1 end
+      n = n + 1
+      if #found < PL.MATCHES then found[#found + 1] = { id = id, name = name } end
+    end
+  end
+  return found, n
+end
+
+-- The recipe book (for Make it), read once a session in the background (D.ReadRecipeBook).
+function PL.NeedBook()
+  if D.recipeIndex or D.ReadingRecipes() then return end
+  D.ReadRecipeBook(function(ok)
+    if ok then PL.Refresh(true) end
+  end)
+end
+
+local function plMakers(key, name)
+  local index = D.recipeIndex
+  if not index then return {} end
+  if index.byKey and key and index.byKey[key] then return index.byKey[key] end
+  return index.byResult[name] or {}
+end
+
+-- Works the plan out again (nil without a recipe or a game client with the recipe calls).
+function PL.Plan()
+  local id = plRecipeId()
+  if not id or type(ShroudGetRecipe) ~= "function" or not plRecipe(id) then return nil end
+  local watch = PL.Watched()
+  local stat = PL.GetMode() == "stats" and watch[1] or nil
+  return PL.Expand(id, PL.GetCrafts(), {
+    recipe = plRecipe, makers = plMakers, mode = PL.GetMode(), stat = stat, scratch = PL.GetScratch(),
+    makes = type(plPrefs.makes) == "table" and plPrefs.makes or {},
+    pick = plPickOf,
+    maker = function(key) return type(plPrefs.makers) == "table" and plNum(plPrefs.makers[key]) or nil end,
+  })
+end
+
+-- ---- the window ----
+
+local function plMsg(text) if plEl.msg then T.SetText(plEl.msg, text or "") end end
+
+local function plDrop()
+  if plWin then pcall(function() plWin:Destroy() end) end
+  plWin, plEl, plRows, plBodySig, plBody, plCol = nil, {}, {}, nil, nil, nil
+end
+
+-- A choice as its dropdown shows it: "Iron Sheet (have 3)", and in "stats" mode the value of the stat the picks
+-- follow (one: every choice of every slot is on screen, against the add-on's text budget; the row's status shows
+-- the picked one's other watched stats).
+local function plChoiceText(c, watch)
+  local text = tostring(T.Field(c, "name")) .. " (have " .. T.FormatNumber(PL.HaveOf(c)) .. ")"
+  if PL.GetMode() == "stats" and watch[1] then
+    local v = PL.StatValue(c, watch[1])
+    if v then text = text .. ": " .. PL.StatLabel(c, watch[1]) .. " " .. PL.Number(v, true) end
+  end
+  return text
+end
+
+-- The picked material's other watched stats, short: "Focus +10, Strength +1".
+local function plOtherStats(item, watch)
+  local parts = {}
+  for i = 2, #watch do
+    local v = PL.StatValue(item, watch[i])
+    if v then parts[#parts + 1] = PL.StatLabel(item, watch[i]) .. " " .. PL.Number(v, true) end
+  end
+  return table.concat(parts, ", ")
+end
+
+-- A row's text: "7 x Metal Sheet:" for a slot with a dropdown, "4 x Iron Ingot: have 3, 1 short" for the rest.
+local function plRowText(r)
+  local lead = (r.optional and "(optional) " or "") .. (r.tool and "Tool: " or "") .. T.FormatNumber(r.need) .. " x "
+  if r.group then return lead .. r.slotName .. ":" end
+  local text = lead .. r.name
+  if r.optional then return text end
+  if r.short <= 0 then return text .. ": have them" end
+  text = text .. ": have " .. T.FormatNumber(r.have) .. ", " .. T.FormatNumber(r.short) .. " short"
+  if r.making then text = text .. ", craft " .. T.FormatNumber(r.crafts) end
+  return text
+end
+
+local function plGroupStatus(r, watch)
+  local others = PL.GetMode() == "stats" and plOtherStats(r.item, watch) or ""
+  if others ~= "" then others = "; " .. others end
+  if r.optional then return (others:gsub("^; ", "")) end
+  if r.short <= 0 then return "have them" .. others end
+  local text = T.FormatNumber(r.short) .. " short"
+  if r.making then text = text .. ", craft " .. T.FormatNumber(r.crafts) end
+  return text .. others
+end
+
+-- The choices a slot's dropdown lists: the first PL.CHOICES_SHOWN, the picked one always among them.
+local function plShownChoices(r, watch)
+  local names, values = {}, {}
+  local pickedIn = false
+  for i, c in ipairs(r.choices) do
+    if i <= PL.CHOICES_SHOWN or PL.KeyOf(c) == r.pick then
+      local text = plChoiceText(c, watch)
+      if values[text] == nil then
+        names[#names + 1] = text
+        values[text] = PL.KeyOf(c)
+        if PL.KeyOf(c) == r.pick then pickedIn = text end
+      end
+    end
+  end
+  return names, values, pickedIn
+end
+
+local function plMakerNames(r)
+  local names, values, chosen = {}, {}, nil
+  for _, m in ipairs(r.makers or {}) do
+    local rec = plRecipe(m.id)
+    local name = tostring(rec and T.Field(rec, "name") or m.id)
+    if values[name] == nil then
+      names[#names + 1] = name
+      values[name] = m.id
+      if m.id == r.maker then chosen = name end
+    end
+  end
+  return names, values, chosen
+end
+
+-- The structure the Plan view's elements were made for: rebuilt only when it changes (the creation cap); the
+-- counts change in place.
+local function plRowSig(r)
+  return table.concat({ r.path, tostring(r.group), tostring(r.canMake), tostring(r.making),
+    tostring(r.makers and #r.makers > 1 and r.making) }, "|")
+end
+
+local function plPlanRows(plan, watch)
+  local children = {}
+  plRows = {}
+  for i, r in ipairs(plan.rows) do
+    local e = { sig = plRowSig(r) }
+    local parts = {}
+    e.label = UI.Label{ text = plRowText(r), class = r.optional and "dim" or "text", style = { flexShrink = 1,
+      marginLeft = r.depth * PL.INDENT, whiteSpace = "wrap" } }
+    parts[#parts + 1] = e.label
+    if r.group then
+      local names, values, picked = plShownChoices(r, watch)
+      if #names == 0 then names = { "No choices given" } end
+      e.values, e.names = values, table.concat(names, "\n")
+      e.pick = UI.Dropdown{ id = "pl_pick_" .. i, choices = names, value = picked or names[1],
+        style = { flexGrow = 1, flexShrink = 1, marginLeft = 4 },
+        tooltip = "The material for this slot (the game lists up to 30; the first " .. PL.CHOICES_SHOWN .. " here)",
+        onChange = function(_, text)
+          local key = e.values[text]
+          if key then PL.SetPick(r.recipe, r.slot, key) end
+        end }
+      parts[#parts + 1] = e.pick
+      e.status = UI.Label{ text = plGroupStatus(r, watch), class = "dim", style = { marginLeft = 4 } }
+      parts[#parts + 1] = e.status
+    end
+    if r.canMake then
+      e.make = UI.Button{ id = "pl_make_" .. i, text = r.making and "Buy instead" or "Make it",
+        style = { marginLeft = 4 },
+        tooltip = r.making and "Get the shortfall instead of crafting it"
+          or "Craft the shortfall from its recipe (planned below it)",
+        onClick = function() PL.SetMaking(r.path, not r.making) end }
+      parts[#parts + 1] = e.make
+    end
+    children[#children + 1] = UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = parts }
+    if r.making and #r.makers > 1 then
+      local names, values, chosen = plMakerNames(r)
+      e.makerValues = values
+      e.via = UI.Dropdown{ id = "pl_via_" .. i, choices = names, value = chosen or names[1],
+        style = { flexGrow = 1, flexShrink = 1 }, tooltip = "Which of your recipes makes it",
+        onChange = function(_, name)
+          local mid = e.makerValues[name]
+          if mid then PL.SetMaker(r.key, mid) end
+        end }
+      children[#children + 1] = UI.Row{ style = { alignItems = "center", marginLeft = (r.depth + 1) * PL.INDENT },
+        children = { UI.Label{ text = "made by", class = "dim", style = { marginRight = 4 } }, e.via } }
+    end
+    plRows[i] = e
+  end
+  if plan.cut then
+    children[#children + 1] = UI.Label{ text = "... and more (the plan is cut at " .. PL.ROWS_MAX .. " lines)",
+      class = "dim" }
+  end
+  return children
+end
+
+local function plShopRows(plan)
+  local children = {}
+  for _, s in ipairs(plan.shop) do
+    children[#children + 1] = UI.Label{ text = T.FormatNumber(s.n) .. " x " .. s.name .. (s.tool and " (a tool)"
+      or ""), class = "text" }
+  end
+  if #children == 0 then
+    children[1] = UI.Label{ text = "Nothing to get: you have everything the plan needs.", class = "dim" }
+  end
+  return children
+end
+
+local function plBuildRows(plan)
+  local now = {}
+  for _, b in ipairs(plan.build) do
+    now[b.id] = b
+    plBuilt[b.id] = plBuilt[b.id] or { name = b.name, station = b.station, depth = b.depth, order = 0 }
+  end
+  local list = {}
+  for id, b in pairs(plBuilt) do list[#list + 1] = { id = id, name = b.name, station = b.station, depth = b.depth } end
+  table.sort(list, function(a, b)
+    if a.depth ~= b.depth then return a.depth > b.depth end
+    if a.station ~= b.station then return a.station < b.station end
+    return a.name < b.name
+  end)
+  local children, station = {}, nil
+  local rootId = plRecipeId()
+  for _, b in ipairs(list) do
+    if b.station ~= station then
+      station = b.station
+      children[#children + 1] = UI.Label{ text = station ~= "" and station or "Station", class = "text",
+        style = { marginTop = 4 } }
+    end
+    local left = now[b.id] and now[b.id].crafts or 0
+    local made = plMade[b.id] or 0
+    if b.id == rootId then left = math.max(0, left - made) end   -- the recipe itself: its crafts, less those made
+    local text = (left > 0 and "[ ] " or "[x] ") .. b.name .. (left > 0 and (": " .. T.FormatNumber(left)
+      .. " crafts") or ": done") .. (made > 0 and (" (made " .. T.FormatNumber(made) .. ")") or "")
+    children[#children + 1] = UI.Label{ text = text, class = left > 0 and "text" or "dim",
+      style = { marginLeft = PL.INDENT } }
+  end
+  return children
+end
+
+-- The plan's text, in place when the Plan view's structure is the same (counts, choices' have).
+local function plUpdateRows(plan, watch)
+  for i, r in ipairs(plan.rows) do
+    local e = plRows[i]
+    if e then
+      T.SetText(e.label, plRowText(r))
+      if e.status then T.SetText(e.status, plGroupStatus(r, watch)) end
+      if e.pick then
+        local names, values, picked = plShownChoices(r, watch)
+        local joined = table.concat(names, "\n")
+        if #names > 0 and joined ~= e.names then
+          e.values, e.names = values, joined
+          pcall(function() e.pick:SetChoices(names) end)
+        end
+        if picked then pcall(function() e.pick:SetValue(picked) end) end
+      end
+    end
+  end
+end
+
+local function plStatList()
+  local id = plRecipeId()
+  local rec = id and plRecipe(id)
+  local keys, names = {}, {}
+  local function add(sr)
+    local key = T.Field(sr, "key")
+    if type(key) == "string" and key ~= "weight" and not names[key] then
+      names[key] = PL.StatName(sr)
+      keys[#keys + 1] = key
+    end
+  end
+  if rec then
+    for _, res in ipairs(T.List(T.Field(rec, "results"))) do
+      for _, sr in ipairs(T.List(T.Field(res, "stats"))) do add(sr) end
+    end
+    for _, ing in ipairs(T.List(T.Field(rec, "ingredients"))) do
+      for _, c in ipairs(T.List(T.Field(ing, "choices"))) do
+        for _, sr in ipairs(T.List(T.Field(c, "stats"))) do add(sr) end
+      end
+      for _, sr in ipairs(T.List(T.Field(ing, "stats"))) do add(sr) end
+    end
+  end
+  table.sort(keys, function(a, b) return names[a] < names[b] end)
+  return keys, names
+end
+
+local function plSyncStats()
+  if not plEl.stat then return end
+  local stats = PL.GetMode() == "stats"
+  T.SetVisible(plEl.statRow, stats)
+  if not stats then return end
+  local keys, names = plStatList()
+  local choices = {}
+  plStatChoices = {}
+  for _, key in ipairs(keys) do
+    choices[#choices + 1] = names[key]
+    plStatChoices[names[key]] = key
+  end
+  if #choices == 0 then choices = { PL.NO_STATS } end
+  local keep = plEl.stat:GetValue()
+  pcall(function()
+    plEl.stat:SetChoices(choices)
+    plEl.stat:SetValue(plStatChoices[keep] and keep or choices[1])
+  end)
+  local watched = {}
+  for _, key in ipairs(PL.Watched()) do watched[#watched + 1] = names[key] or PL.STAT_NAMES[key] or key end
+  T.SetText(plEl.watching, #watched > 0 and ("Watching: " .. table.concat(watched, ", "))
+    or "Pick a stat and Watch it: each slot's choices show it, and the best for the first is picked")
+end
+
+-- Fills the window from a new plan. `now`: at once (a player's change), else only when something changed and at
+-- most every PL.REFRESH_GAP s (PL.Tick).
+function PL.Refresh(now)
+  plDirty = true
+  if not (plWin and plBody) then return end
+  if not now and T.Now() - plAt < PL.REFRESH_GAP then return end
+  plDirty, plAt = false, T.Now()
+  plFresh = {}
+  local t0 = T.PerfT()
+  local plan = PL.Plan()
+  plPlan = plan
+  local watch = PL.Watched()
+  local view = PL.GetView()
+  pcall(function()
+    plEl.mode:SetValue(PL.MODES[PL.GetMode() == "stats" and 2 or 1][2])
+    plEl.scratch:SetValue(PL.GetScratch())
+    plEl.crafts:SetValue(tostring(PL.GetCrafts()))
+    plEl.view:SetValue(view)
+  end)
+  plSyncStats()
+  local id = plRecipeId()
+  local rec = id and plRecipe(id)
+  if not plan or not rec then
+    T.SetText(plEl.title, id and "That recipe isn't in your book any more: find another" or
+      "Type part of a recipe's name and Find it")
+    T.SetText(plEl.result, "")
+    if plCol then pcall(function() plCol:Destroy() end) end
+    plCol, plBodySig, plRows = nil, nil, {}
+    T.PerfAdd("planner", t0)
+    return
+  end
+  local yield = 0
+  for _, res in ipairs(T.List(T.Field(rec, "results"))) do yield = yield + (plNum(T.Field(res, "quantity")) or 0) end
+  T.SetText(plEl.title, tostring(T.Field(rec, "name")) .. " at " .. tostring(T.Field(rec, "station")
+    or T.Field(rec, "category")) .. (yield > 0 and (": makes " .. T.FormatNumber(yield * PL.GetCrafts())) or ""))
+  T.SetText(plEl.result, PL.PreviewText(PL.Preview(rec, plan.rows, PL.GetMode() == "stats" and watch or nil)))
+  local readingBook = PL.GetScratch() and not D.recipeIndex
+  if readingBook then PL.NeedBook() end
+  local sigParts = { view, tostring(id), tostring(PL.GetMode()), table.concat(watch, ",") }
+  if view == "Plan" then
+    for _, r in ipairs(plan.rows) do sigParts[#sigParts + 1] = plRowSig(r) end
+  elseif view == "Shopping list" then
+    for _, s in ipairs(plan.shop) do sigParts[#sigParts + 1] = s.key .. "=" .. s.n end
+  else
+    for _, b in ipairs(plan.build) do sigParts[#sigParts + 1] = b.id .. "=" .. b.crafts end
+    for k, n in pairs(plMade) do sigParts[#sigParts + 1] = "m" .. k .. "=" .. n end
+  end
+  local sig = table.concat(sigParts, ";")
+  if sig == plBodySig and plCol then
+    if view == "Plan" then plUpdateRows(plan, watch) end
+  else
+    if plCol then pcall(function() plCol:Destroy() end) end
+    plCol, plRows = nil, {}
+    local children = nil
+    if view == "Plan" then children = plPlanRows(plan, watch)
+    elseif view == "Shopping list" then children = plShopRows(plan)
+    else children = plBuildRows(plan) end
+    local ok, col = pcall(function() return plBody:Add(UI.Column{ children = children }) end)
+    if ok then
+      plCol, plBodySig = col, sig
+    else
+      plRows, plBodySig = {}, nil
+      plDirty = true                    -- the creation cap: tried again at the next tick
+    end
+  end
+  plMsg(readingBook and "Reading your recipe book for Make it: a few seconds." or nil)
+  T.PerfAdd("planner", t0)
+end
+
+local function plFind(text)
+  local found, n = PL.Find(text or (plEl.find and plEl.find:GetText()) or "")
+  if #found == 0 then
+    plMsg(T.Trim(text or (plEl.find and plEl.find:GetText()) or "") == "" and "Type part of a recipe's name first."
+      or "No recipe you know has that in its name.")
+    return
+  end
+  local names = {}
+  plMatches = {}
+  for _, f in ipairs(found) do
+    local name = f.name
+    if plMatches[name] then name = name .. " (" .. f.id .. ")" end
+    names[#names + 1] = name
+    plMatches[name] = f.id
+  end
+  pcall(function()
+    plEl.recipe:SetChoices(names)
+    plEl.recipe:SetValue(names[1])
+  end)
+  PL.SetRecipe(found[1].id)
+  plMsg(n > #found and (n .. " recipes match: the first " .. #found .. " are listed; type more of the name.")
+    or (#found > 1 and (#found .. " recipes match: pick one.") or nil))
+end
+
+local function plBuild()
+  local modes, crafts = {}, {}
+  for i, m in ipairs(PL.MODES) do modes[i] = m[2] end
+  for i, n in ipairs(PL.CRAFTS) do crafts[i] = tostring(n) end
+  local function line(children, top)
+    return UI.Row{ style = { alignItems = "center", marginTop = top or 4 }, children = children }
+  end
+  local id = plRecipeId()
+  local rec = id and plRecipe(id)
+  local first = rec and tostring(T.Field(rec, "name")) or PL.NO_RECIPE
+  plMatches = {}
+  if rec then plMatches[first] = id end
+  plEl = {
+    find = UI.TextField{ id = "pl_find", text = "", placeholder = "Part of a recipe's name: plate chest...",
+      maxLength = 60, style = { flexGrow = 1, flexShrink = 1 },
+      tooltip = "Search the recipes you know", onSubmit = function(_, text) plFind(text) end },
+    recipe = UI.Dropdown{ id = "pl_recipe", choices = { first }, value = first,
+      style = { flexGrow = 1, flexShrink = 1 },
+      tooltip = "The recipe planned (Find lists the ones matching)",
+      onChange = function(_, name)
+        local rid = plMatches[name]
+        if rid and rid ~= plRecipeId() then PL.SetRecipe(rid) end
+      end },
+    crafts = UI.Dropdown{ id = "pl_crafts", choices = crafts, value = tostring(PL.GetCrafts()),
+      tooltip = "How many times to craft it", onChange = function(_, v) PL.SetCrafts(tonumber(v)) end },
+    title = UI.Label{ id = "pl_title", text = "", class = "text", style = { flexGrow = 1, flexShrink = 1,
+      whiteSpace = "wrap", marginLeft = 6 } },
+    mode = UI.Dropdown{ id = "pl_mode", choices = modes, value = modes[1],
+      tooltip = "How each slot's material is picked: the first you have enough of, or the best for the stats you"
+        .. " watch (a slot you pick yourself keeps your pick)",
+      onChange = function(_, v) PL.SetMode(v == PL.MODES[2][2] and "stats" or "have") end },
+    scratch = UI.Toggle{ id = "pl_scratch", text = "From scratch", value = PL.GetScratch(),
+      tooltip = "Offer Make it for what you're short of and one of your recipes makes",
+      onChange = function(_, on) PL.SetScratch(on == true) end },
+    stat = UI.Dropdown{ id = "pl_stat", choices = { PL.NO_STATS }, value = PL.NO_STATS,
+      style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The stats this recipe and its materials give",
+      onChange = function() plMsg("") end },
+    watching = UI.Label{ id = "pl_watching", text = "", class = "dim", style = { whiteSpace = "wrap" } },
+    view = UI.Dropdown{ id = "pl_view", choices = PL.VIEWS, value = PL.GetView(),
+      tooltip = "The slots, what to buy or gather, or the crafts in order by station",
+      onChange = function(_, v) PL.SetView(v) end },
+    result = UI.Label{ id = "pl_result", text = "", class = "text", style = { whiteSpace = "wrap" },
+      tooltip = "The result's base stats, plus what the picked materials add (an exceptional craft adds more)" },
+    msg = UI.Label{ id = "pl_msg", text = "", class = "dim", style = { whiteSpace = "wrap" } },
+  }
+  plEl.statRow = UI.Column{ id = "pl_stats", visible = false, children = {
+    line({ plEl.stat,
+      UI.Button{ id = "pl_watch", text = "Watch", style = { marginLeft = 4 },
+        tooltip = "Show this stat on every choice; the newest watched is the one the picks follow",
+        onClick = function()
+          local key = plStatChoices[plEl.stat:GetValue()]
+          if not key then return end
+          local ok, why = PL.Watch(key)
+          plMsg(ok and "" or ("Can't watch it: " .. why .. "."))
+          PL.Refresh(true)
+        end },
+      UI.Button{ id = "pl_unwatch", text = "Stop", style = { marginLeft = 2 },
+        tooltip = "Stop watching this stat",
+        onClick = function()
+          local key = plStatChoices[plEl.stat:GetValue()]
+          if key and PL.Unwatch(key) then PL.Refresh(true) end
+        end } }),
+    plEl.watching } }
+  plBody = UI.Column{ id = "pl_body", style = { paddingRight = 4 } }
+  plWin = UI.Window{
+    id = PL.WINDOW_ID, title = "Crafting planner", width = 500, height = 460, minWidth = 380, minHeight = 300,
+    x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y, escCloses = true,
+    style = { paddingLeft = 8, paddingRight = 8, paddingTop = 4, paddingBottom = 6 },
+    children = {
+      line({ plEl.find, UI.Button{ id = "pl_find_go", text = "Find", style = { marginLeft = 4 },
+        tooltip = "List the recipes you know with this in their name", onClick = function() plFind() end } }, 0),
+      line({ UI.Label{ text = "Recipe", class = "text", style = { marginRight = 6 } }, plEl.recipe }),
+      line({ UI.Label{ text = "Crafts", class = "text", style = { marginRight = 6 } }, plEl.crafts, plEl.title }),
+      line({ plEl.mode, UI.Label{ text = "", style = { flexGrow = 1 } }, plEl.scratch }),
+      plEl.statRow,
+      line({ UI.Label{ text = "Show", class = "text", style = { marginRight = 6 } }, plEl.view }),
+      UI.Scroll{ style = { flexGrow = 1, marginTop = 4 }, children = { plBody } },
+      plEl.result,
+      plEl.msg,
+    },
+  }
+end
+
+function PL.IsShown() return plWin ~= nil and plWin:IsShown() end
+function PL.LastPlan() return plPlan end
+
+-- Opens the planner (or closes it when it's open and `text` is empty); `text`: a recipe to find. True when shown.
+function PL.Open(text)
+  text = T.Trim(text or "")
+  if PL.IsShown() and text == "" then
+    plWin:Hide()
+    return false
+  end
+  if type(ShroudGetRecipe) ~= "function" or type(ShroudGetKnownRecipes) ~= "function" then
+    T.Print("This game client has no recipe calls for add-ons (the planner needs Lua API 18; material choices 37).")
+    return false
+  end
+  if not plWin then
+    T.TakeSharedWindow("planner", plDrop)
+    local ok, err = pcall(plBuild)
+    if not ok then
+      plDrop()
+      T.Print("The crafting planner can't open right now; try again in a moment. (" .. tostring(err) .. ")")
+      return false
+    end
+  end
+  if not plWin:IsShown() and not plWin:Show() then
+    T.Print("The crafting planner can't reopen right now; try again in a few seconds.")
+    return false
+  end
+  plBodySig = nil
+  if text ~= "" then
+    plFind(text)
+  else
+    PL.Refresh(true)
+  end
+  return true
+end
+
+-- T.ViewsTick: a change since the last refresh shows (at most every PL.REFRESH_GAP s).
+function PL.Tick()
+  if plDirty and PL.IsShown() then PL.Refresh(false) end
+end
+
+-- Your bags, the table or the book changed (ShroudOnInventoryChanged, ShroudOnCraftingStateChanged,
+-- ShroudOnRecipesChanged): the plan is worked out again.
+function PL.Changed()
+  plDirty = true
+end
+
+-- ShroudOnCraftResults: the crafts made for the build order's "made" counts.
+function PL.OnCraftResults(results)
+  if not plRecipeId() then return end
+  for _, r in ipairs(T.List(results)) do
+    local id, n = plNum(T.Field(r, "recipeId")), plNum(T.Field(r, "crafted")) or 0
+    if id and n > 0 and (plBuilt[id] or id == plRecipeId()) then plMade[id] = (plMade[id] or 0) + n end
+  end
+  plDirty = true
+end
+
+-- Re-runnable (another character): its own plan and picks; the window, built for the last one, goes.
+function PL.Init()
+  if plWin then plDrop() end
+  local saved = T.ReadSaved(PL.KEY)
+  plPrefs = type(saved) == "table" and saved or {}
+  plPrefs.v = 1
+  plFresh, plBuilt, plMade, plPlan = {}, {}, {}, nil
+end
+
+T.Backup.OTHER_KEYS[#T.Backup.OTHER_KEYS + 1] = PL.KEY

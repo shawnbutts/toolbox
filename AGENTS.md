@@ -178,6 +178,19 @@ into one if a new file is ever needed).
   their result; without `made`, items gained at a station count as made by name (`D.IsProduct`), the rest
   as `station`. Looted = items - crafted - station - gathered + pending. Skill levels: `D.SkillGains` over
   the highest `trainedLevel` seen per skill (`skill_levels`); deaths from `ShroudOnDeathChanged(true)`.
+  The recipe book (`D.ReadRecipeBook`, for `/toolbox recipe` and the planner): with API 37's `ShroudGetRecipeBook`
+  one station (`categoryKey`) a `D.BOOK_PERIOD` step, else `D.BOOK_STEP` recipes by id (the whole book at once ran
+  past the game's time limit, 2026-10-05); kept for the session in `D.recipeIndex` (`recipes`, `byResult` by name,
+  `byKey` by item key), dropped on `ShroudOnRecipesChanged`. At the end, `Toolbox.Planner` (PL; owner, 2026-10-15,
+  the 1.9.0 feature; header comment): the crafting planner, `/toolbox plan [recipe]`, the shared 8th window's fourth
+  user (`T.TakeSharedWindow("planner")`). Pure model: `PL.Expand(rootId, crafts, ctx)` (rows, shopping list, build
+  order; your bags shared across the plan; no recipe inside itself), `PL.PickChoice` (the player's pick, "stats" mode's
+  best for the first watched stat, else the first you have enough of), `PL.PickMaker`, `PL.Preview` (base + the
+  root's picks, weight left out). Refreshed on `ShroudOnInventoryChanged` / craft results / the crafting state at most
+  every `PL.REFRESH_GAP` s while shown (`PL.Tick` from `T.ViewsTick`), the plan's recipes read fresh; the Plan view's
+  rows are rebuilt only when their structure changes (`plRowSig`), counts and choices set in place. Text budget (the
+  stress test's four 30-choice slots: 47,278 at the peak): `PL.CHOICES_SHOWN` (10) choices a slot, each with only the
+  first watched stat (the others on the row's status).
 - `dailydetail.lua`: `Toolbox.DailyDetail`, **Loot Tracker** (views Looted / Crafted / Gathered). Refreshes
   on change only (`Daily.itemsVersion`, `Prices.version`, `DD.FULL_EVERY` catch-up). Reset (owner,
   2026-10-04): `day.since` = a copy of the counts at that moment (`D.StartRun`); the tracker reads `DD.Day()` =
@@ -525,7 +538,7 @@ wedge (`SetSweep`, `SetSweepTimer`, refused as in game for a lone duration) read
   `H.S.httpRefuse`, `H.S.saveRefused` / `H.S.refuseKeys` (every saved-var write, or those keys), `H.S.language = { "German", "de" }` / `H.S.noLanguage`
   (the client's language; read at load: set it, then `H.reload()`), `H.S.pos = { x, y, z }` (where you stand,
   `ShroudPlayerX/Y/Z`), `H.S.sceneRaw`, `H.S.beacon` (`ShroudSetBeacon`'s), `H.S.noMap` (the beacon refused),
-  `H.S.noApi29`, `H.S.heading` (the compass heading), `H.S.char.tags` (added to the display name, same file), `H.S.recipes`, `H.S.showRefused`; `element.laidOut = { w, h }` sets what GetSize reports.
+  `H.S.noApi29`, `H.S.heading` (the compass heading), `H.S.char.tags` (added to the display name, same file), `H.S.recipes` (API 37 fields as given; `ShroudGetRecipeBook` from them, `H.S.noRecipeBook`, `H.S.bookCalls`), `H.inventoryChanged()`, `H.S.showRefused`; `element.laidOut = { w, h }` sets what GetSize reports.
 - Reading: `H.logged(pattern)`, `H.logs()`, `H.lastLog()`, `H.saved(key, scope)`, `H.frame()` (buff strip),
   `H.hud()` (glued strip), `H.vitals()`, `H.config()` (all categories built) / `H.configRaw()`, `H.detail()`,
   `H.detailRows()`, `H.daily()`, `H.dailyText(id)`, `H.notify()`, `H.notice(key)`, `H.nhud()`,
@@ -564,6 +577,7 @@ character" sentinel.
 | `launcher` | `{ show = bool (default true), vertical = bool (default true), size = 20..64 (default 32), shade = 0..90 (% black behind, default 40), combat = bool (hide during combat), hide = { [button key] = true } (never all), x, y }` (the menu, hud.lua; absent = never started: the chat line) |
 | `map_overlays` | `{ v = 2, nextId, scenes = { [scene id] = { scene = its name, shown = overlay id or 0, auto = true (the auto map on there), list = { { id, name (<= 24, unique in the scene), icon = an OV.ICONS shape, color = an OV.COLORS name (the next marks'), nextPlace, places = "id|name|x|y|z|shape n|color n;...", auto = a node kind, or "*" for Gathering (made by the auto map) } } } }, ignore = { name parts the auto map skips }, death = { raw, scene, x, y, z, at = "HH:MM", date, clock = T.Clock() at death, away = true once you've left it } (your last death) }` (hud.lua; at most OV.MAX a scene, OV.SCENE_MAX places each, OV.BUDGET in all); v = 1 (one list, places with raw / scene; development only) converted at the first read; kept by a reset; NOT in the recovery copy (`B.OTHER_KEYS`: the account file's 256 KB) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
+| `planner` | `{ v = 1, mode = "have"/"stats", scratch = bool, crafts = n, recipe = id, view = a PL.VIEWS name, makes = { [row path "p.1.2"] = true }, makers = { [item key] = recipe id }, picks = { ["r" .. id] = { at = n, ["s" .. slot] = item key } } (<= PL.PICKS_MAX), pickAt = n, watch = { [categoryKey] = { stat keys, newest first } } }` (daily.lua's crafting planner; kept by a reset, not in the recovery copy: `B.OTHER_KEYS`) |
 | `skills_paused` | `{ v = 1, how = "off"/"maintain", when = "HH:MM", list = { { key = skill key or name, from = mode, to = mode } } }`: the pause's record (skills.lua; empty list = not paused); kept by a reset, copied for recovery |
 | `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`, events' `{ [occurrence] = start (UTC seconds, as text) }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), font = 9..32, spacing = 0..12 (each unset: the XP windows'), x, y }` |
@@ -796,7 +810,7 @@ recipe's ingredients can be SLOT CATEGORIES ("Metal Sheet", "Metal Binding", "Cl
 makes an item by that name; the choices are e.g. the recipes whose result ends in "Sheet", "Glass Sheet" being a
 false match), and several recipes can make one item ("Iron Ingot" and "Iron Ingot from Metal Scraps": default to
 the one named like the item, let the player switch). Below a chosen item the chain expands exactly (Iron Sheet ->
-Iron Ingot -> ore and coal). Decided (owner, 2026-10-15, the 1.9.0 feature): its own window, the SHARED 8th
+Iron Ingot -> ore and coal). BUILT (2026-10-15: `Toolbox.Planner`, daily.lua, above). Decided (owner, 2026-10-15, the 1.9.0 feature): its own window, the SHARED 8th
 (`T.TakeSharedWindow`, beside Docs, version and Map overlays), not a Loot Tracker view. Slot choices serve both kinds
 of crafter (owner: "some just use what they have, others craft for stat combos for their builds"): "Use what I have"
 (default: each slot's first choice you have enough of, in the game's order) and "Stats I care about" (a stat picker;
@@ -955,6 +969,9 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
   `T.FollowCharacter`): read too early, a missing `save_mark` would put the copy back needlessly (same data, a chat line).
 - That the client fixing `ShroudGetNearestWaterType`'s cost (20-28 ms a call) reports API 39 (`LOC.WATER_FAST_API`):
   check with `/toolbox perf` on that client, and move the number if the fix comes with another.
+- The crafting planner on the live client: `ShroudGetRecipeBook(categoryKey)` one station a step within the game's time
+  limit (`/toolbox perf` names "recipe book"); `ShroudOnInventoryChanged` firing for the crafting table and trunks
+  (`have`); a material's stats applying as the result line adds them (the owner's two-sheet test).
 - `ShroudGetClientInfo().languageCode` on a non-English client (assumed "de", "fr"...; the docs' example is "en").
 - The run Beacon (`ShroudSetBeacon`, API 9): the marker at the recorded spot on the compass and map, its "Loot run
   HH:MM" label, and `ShroudGetCurrentSceneNameRaw` matching across visits to a scene (instanced scenes may differ).

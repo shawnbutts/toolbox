@@ -571,8 +571,31 @@ local function install_api()
       end
       return out
     end
+    -- API 37: the book in one call, each as ShroudGetRecipe gives it (one categoryKey's only, when given);
+    -- H.S.noRecipeBook = true: an older client. H.S.bookCalls counts the calls.
+    if not S.noRecipeBook then
+      ShroudGetRecipeBook = function(categoryKey)
+        if not S.char.present then return nil end
+        S.bookCalls = (S.bookCalls or 0) + 1
+        local ids = {}
+        for id in pairs(S.recipes or {}) do ids[#ids + 1] = id end
+        table.sort(ids)
+        local out = {}
+        for _, id in ipairs(ids) do
+          local r = S.recipes[id]
+          if categoryKey == nil or (r.categoryKey or "Blacksmithy") == categoryKey then
+            local c = copy(r)
+            c.id = c.id or id
+            out[#out + 1] = c
+          end
+        end
+        return out
+      end
+    else
+      ShroudGetRecipeBook = nil
+    end
   else
-    ShroudGetCraftingState, ShroudGetRecipe = nil, nil
+    ShroudGetCraftingState, ShroudGetRecipe, ShroudGetRecipeBook = nil, nil, nil
   end
   -- Worn items (documented fields; empty slots skipped). Game objects when H.S.buffObjects is set.
   ShroudGetEquipmentItems = function()
@@ -1857,6 +1880,7 @@ function H.categoryOf(e)
 end
 
 -- API 18 result events, with the documented fields (see the reference): a list of results + dropped.
+function H.inventoryChanged() return H.callback("ShroudOnInventoryChanged") end
 function H.craftResults(results, dropped) return H.callback("ShroudOnCraftResults", results, dropped or 0) end
 function H.gatherResults(results, dropped) return H.callback("ShroudOnGatherResults", results, dropped or 0) end
 function H.craftingState(state)

@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Added" },
+  { "item", "Crafting planner (/toolbox plan [recipe]): pick one of your recipes and how many crafts, and see every ingredient you need, have and are short of. A slot that takes a choice of material (Metal Sheet, Metal Binding...; Lua API 37) lists them with how many you have, picked one of two ways: Use what I have (the first you have enough of) or Stats I care about (watch the stats your build needs: each choice shows what it adds, and the best is picked). A material you pick yourself is kept for that recipe. The result line adds your picks' stats to the item's base stats. From scratch offers Make it for what you're short of and one of your recipes makes: its ingredients are planned under it, as deep as it goes. Views: the plan, a Shopping list (what to buy or gather, added up) and a Build order (the crafts by station, materials first, ticked off as you craft). It shares a window with the Docs and Map overlays." },
   { "section", "Changed" },
   { "item", "Location strip: on a game client with the developers' fix for the slow nearest-water lookup (assumed Lua API 39), the nearest water is checked every 3 seconds instead of every 15." },
   { "version", "1.8.0 - 2026-10-14" },

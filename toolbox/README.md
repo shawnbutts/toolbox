@@ -169,6 +169,16 @@ ignore list: `/toolbox overlay auto ignore <kind or word>`, or Ignore kind in th
 the map too, beside any overlay, and `/toolbox death compass` points you back to it; it clears itself once you're
 back there, or after an hour in another scene.
 
+## Crafting planner
+
+Plan a craft from the recipes you know: `/toolbox plan` (or `/toolbox plan plate chest`). Every ingredient shows what
+you need, have and are short of. A slot that takes a choice of material, like Metal Sheet, lists them with how many
+you have, filled one of two ways: Use what I have, or Stats I care about, for crafting a build (watch the stats you
+want and each choice shows what it adds; the best is picked). A material you pick yourself stays picked. The result
+line shows the item's stats with your picks. With From scratch on, Make it plans the crafts for what you're short of,
+as deep as your recipes go. The Shopping list adds up what to buy or gather, and the Build order lists the crafts by
+station, materials first, ticked off as you craft.
+
 ## Commands
 
 `/toolbox` and `/tbx` do the same thing; `/toolbox commands` lists them all in chat.
@@ -187,6 +197,7 @@ back there, or after an hour in another scene.
 - `/toolbox notify`: notification settings
 - `/toolbox location`: the location strip (`on|off`, `facing on|off`, `water on|off`)
 - `/toolbox overlay`: this scene's map overlays (`<name>`, `off`, `new`, `rename`, `delete`, `places`, `icon`, `color`, `auto`, `scenes`, `forget`)
+- `/toolbox plan`: the crafting planner (`/toolbox plan <recipe>` finds one)
 - `/toolbox mark`: mark where you stand in the shown overlay (`<name>`, `remove`, `compass`, `look`)
 - `/toolbox menu`: the menu (`on|off`, `vertical|horizontal`, `size <n>`, `shade <n>`, `combat hide|show`)
 - `/toolbox settings`: settings files and setups (`save`, `reset`, `cancel`, `setups`, `import`, `export`)

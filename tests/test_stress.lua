@@ -285,7 +285,8 @@ return function(t)
   -- 8 target tooltips (~400 characters each here: the game cuts a tooltip at 512). STRESS_PRINT=1 prints it.
   -- 2026-10-13: 47,712 at the peak (the guide's Commands topic, 4,790), so guide topics and a version's notes are
   -- now held to Docs.TOPIC_MAX (3,500): 46,641, the Sounds settings page the biggest addition (Today and the Loot
-  -- Tracker the guide's, 46,307). The limit leaves room for the game counting more than the harness.
+  -- Tracker the guide's, 46,307). 2026-10-15: 47,278 with the crafting planner (four 30-choice slots, six stats
+  -- watched). The limit leaves room for the game counting more than the harness.
   LIMITS.text = 48000
   t.test("on-screen text at its worst stays well inside the game's 65,536 characters", function()
     H.boot(veteranDisk(false))
@@ -336,7 +337,35 @@ return function(t)
     H.chat("/tbx overlay window")                  -- the 8th window's third user: a full overlay's places here
     H.change("toolbox_config", "category", "Map & location")
     H.advance(2)
-    noErrors("settings, the guide, the version and Map overlays windows")
+    -- and its fourth, the crafting planner: a recipe with four 30-choice slots, every choice with six stats, watched
+    local ings = {}
+    for g = 1, 4 do
+      local choices = {}
+      for c = 1, 30 do
+        local stats = { { key = "weight", value = 1.25 } }
+        for k = 1, 6 do
+          stats[#stats + 1] = { key = "stat:S" .. k, value = c * 0.01 + k, name = "Long Stat Name Number " .. k }
+        end
+        choices[c] = { name = "A Long Material Name " .. g .. "-" .. c, key = "item:" .. string.rep(tostring(g), 30)
+          .. string.format("%02d", c), have = c, carried = c, stats = stats }
+      end
+      ings[g] = { name = "Material Slot " .. g, quantity = 7, have = 30, group = true, choosable = true,
+                  choiceCount = 30, choices = choices }
+    end
+    for i = 5, 12 do ings[i] = { name = "Plain Ingredient Number " .. i, key = "item:" .. string.rep("f", 30) .. i,
+                                 quantity = 3, have = 1 } end
+    H.S.recipes = { [99] = { id = 99, name = "An Augmented Masterwork Plate Chest Armor", station = "Blacksmithing",
+      categoryKey = "Crafting_Blacksmithing", ingredients = ings,
+      results = { { name = "An Augmented Masterwork Plate Chest Armor", quantity = 1,
+                    stats = { { key = "resistance", value = 9 } } } } } }
+    H.chat("/tbx plan augmented masterwork")
+    H.change("toolbox_planner", "pl_mode", "Stats I care about")
+    for k = 1, 6 do
+      H.change("toolbox_planner", "pl_stat", "Long Stat Name Number " .. k)
+      H.click("toolbox_planner", "pl_watch")
+    end
+    H.advance(2)
+    noErrors("settings, the guide, the version, Map overlays and planner windows")
     if os.getenv("STRESS_PRINT") then
       print(string.format("  text: %d characters with everything open, %d at the peak (limit %d); %d elements",
         base, H.S.textPeak, LIMITS.text, H.S.live))

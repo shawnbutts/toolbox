@@ -13,7 +13,7 @@ return function(t)
   local KEPT = { session = true, daily = true, buff_timers = true, buff_durations = true, skill_levels = true,
     notify_history = true, prices = true, welcomed = true, version_seen = true, guild_motd = true,
     settings_pending = true, loot_runs = true, skills_paused = true, map_overlays = true, recovery_index = true,
-    ceiling_due = true }
+    ceiling_due = true, planner = true }
 
   t.test("every saved key is a setting (reset clears it) or listed as kept", function()
     H.boot()

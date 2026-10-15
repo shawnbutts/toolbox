@@ -1028,7 +1028,17 @@ end)
 function ShroudOnRecipesChanged()
   T.Ran("recipes")
   T.Daily.ForgetRecipes()
+  T.Planner.Changed()
 end
+
+-- Your bags changed: the crafting planner's counts (worked out again only while it shows).
+function ShroudOnInventoryChanged()
+  T.Ran("inventory")
+  T.Planner.Changed()
+end
+
+add("plan", "the crafting planner: a recipe's materials, what to get and what to craft (plan [recipe])",
+  function(rest) T.Planner.Open(rest) end)
 
 add("crafted", "today's crafting: items made, crafts per recipe, exceptional and XP (Loot Tracker)",
   function() openView("crafted") end)
@@ -2882,6 +2892,7 @@ function T.ViewsTick()
   T.Overlays.DeathTick()              -- your last death clears itself (back there, or old and elsewhere)
   T.Overlays.Sync()                   -- the shown map overlay's places (API 30), on a change only
   T.Overlays.Tick()                   -- the Map overlays window follows a scene change
+  T.Planner.Tick()                    -- the crafting planner follows your bags and crafts
   T.Config.SyncLive()
   T.RefreshViews()
   T.Notify.Hud.Tick()                -- the notification HUD's auto-hide
@@ -3822,6 +3833,7 @@ local function startModules(places)
   if T.SkillBar then step("the skill activity strip", T.SkillBar.Init) end   -- skills.lua, when present
   step("the location strip", T.Location.Init)
   step("the map overlays", T.Overlays.Init)
+  step("the crafting planner", T.Planner.Init)
   step("the launcher", T.Launcher.Init)
   step("the HUD strips", function() T.Hud.Init(places) end)  -- builds the HUD strips (glued or not); retries on the cap
   step("the buff bar", T.BuffBar.Tick)
@@ -4055,6 +4067,7 @@ function ShroudOnCraftResults(results, dropped)
   T.Ran("crafting")
   local t0 = T.PerfT()
   T.Daily.OnCraftResults(results, dropped)
+  T.Planner.OnCraftResults(results)
   T.ProbeEvent("craft", results, dropped)
   T.PerfAdd("callback:crafting", t0)
 end
@@ -4069,6 +4082,7 @@ end
 function ShroudOnCraftingStateChanged(state)
   T.Ran("crafting")
   T.Daily.OnCraftingState(state)
+  T.Planner.Changed()
   T.ProbeEvent("state", state)
 end
 

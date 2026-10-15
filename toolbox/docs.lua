@@ -104,6 +104,26 @@ D.SECTIONS = {
       .. "today.",
     "Like XP, it can be a compact window or a HUD strip: /toolbox daily compact, daily hud (and daily "
       .. "window, daily move <x> <y>)." },
+  { "Crafting planner",
+    "Plan a craft from the recipes you know: /toolbox plan opens the planner (/toolbox plan plate chest finds one "
+      .. "too). Type part of a recipe's name and press Find; pick it in the Recipe list, and how many Crafts. Each "
+      .. "ingredient gets a line: how many you need, how many you have and how many you're short.",
+    "A slot that takes a choice of material (Metal Sheet, Metal Binding, a strap...; a newer game client) gets a "
+      .. "list of them, each with how many you have. Two ways to fill them: Use what I have takes the first one "
+      .. "you have enough of, and Stats I care about picks for your build: choose a stat and press Watch, and "
+      .. "every choice shows what it adds, the best for the stat you watched last picked (the lightest, for "
+      .. "weight). Watch up to six; the others show beside the picked one. Pick a material yourself and that "
+      .. "slot keeps it, for this recipe, until you pick another. The Result line adds what your picks give "
+      .. "to the item's base stats (an exceptional craft adds more).",
+    "From scratch: tick it and anything you're short of that one of your recipes makes gets Make it. Press it "
+      .. "and the shortfall is crafted: its own ingredients are planned under it, as deep as it goes (Make it "
+      .. "again there). When two recipes make it (Iron Ingot, Iron Ingot from Metal Scraps), the one named like "
+      .. "the item is used, and made by changes it. Buy instead goes back.",
+    "Show switches between the Plan, the Shopping list (everything to buy or gather, added up) and the Build "
+      .. "order: the crafts grouped by station, the ones that make materials first. Each is ticked off as you "
+      .. "craft (what's on the crafting table counts), with how many you made. The planner follows your bags as "
+      .. "they change, every few seconds. It shares a window with the Docs and Map overlays: opening one closes "
+      .. "the other. Your plan and picks are this character's own." },
   { "Toolbelt",
     "The Toolbelt is your buff bar with your health, focus and Vigor bars beside it and your consumables, "
       .. "gear repair and target under it: one strip with everything you watch in a fight, moved as one. Build "
