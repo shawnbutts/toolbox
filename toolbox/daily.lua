@@ -1802,7 +1802,9 @@ local function plRecipeId() return plNum(plPrefs.recipe) end
 
 local function plRecipe(id)
   if plFresh[id] == nil then
+    local t0 = T.PerfT()
     local ok, rec = pcall(ShroudGetRecipe, id)
+    T.PerfAdd("planner:a recipe read", t0)
     plFresh[id] = (ok and rec) or false
   end
   return plFresh[id] or nil
@@ -2183,6 +2185,7 @@ function PL.Refresh(now)
   plFresh = {}
   local t0 = T.PerfT()
   local plan = PL.Plan()
+  T.PerfAdd("planner:the plan", t0)
   plPlan = plan
   local view = PL.GetView()
   pcall(function()
@@ -2217,7 +2220,8 @@ function PL.Refresh(now)
     for k, n in pairs(plMade) do sigParts[#sigParts + 1] = "m" .. k .. "=" .. n end
   end
   local sig = table.concat(sigParts, ";")
-  if sig == plBodySig and plCol then
+  local tRows, same = T.PerfT(), sig == plBodySig and plCol ~= nil
+  if same then
     if view == "Plan" then plUpdateRows(plan) end
   else
     if plCol then pcall(function() plCol:Destroy() end) end
@@ -2234,6 +2238,7 @@ function PL.Refresh(now)
       plDirty = true                    -- the creation cap: tried again at the next tick
     end
   end
+  T.PerfAdd(same and "planner:rows set" or "planner:rows built", tRows)
   PL.ShowProgress()
   T.PerfAdd("planner", t0)
 end

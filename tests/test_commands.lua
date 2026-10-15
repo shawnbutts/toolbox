@@ -259,6 +259,7 @@ return function(t)
     H.advance(11, 0.05)
     t.ok(Toolbox.Daily.recipeIndex, "read")
     t.ok(H.logged("recipe book [%d.]+ ms at most"), table.concat(H.logs(), "\n"))
+    t.ok(H.logged("^Only toolbox_recipe_book ran"), "named among the ones that ran")
   end)
 
   t.test("perf: a client refusing the 0.01 s timer gets a longer one; refusing every one is said", function()

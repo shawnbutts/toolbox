@@ -2416,7 +2416,12 @@ function T.PerfHolds(name)
   if not (p and p.filter) or name == T.PERF_ID then return false end
   if type(p.filter) == "table" then
     for _, part in ipairs(p.filter) do
-      if name:find(part, 1, true) then return false end
+      if name:find(part, 1, true) then
+        local listed = false
+        for _, n in ipairs(p.kept) do listed = listed or n == name end
+        if not listed then p.kept[#p.kept + 1] = name end   -- the report names it among the ones that ran
+        return false
+      end
     end
   end
   for _, n in ipairs(p.paused) do
