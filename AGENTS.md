@@ -270,11 +270,12 @@ into one if a new file is ever needed).
   again at once, past the creation cap with a big strip (the buff block's 40 slots). At the end of the file,
   `Toolbox.Location` (LOC; owner, 2026-10-08): the location strip (scene, position rounded, compass heading from
   `ShroudGetPlayerCompassHeading`; hover = `ShroudGetLocationText`), its own `LOC.TICK` periodic setting text only
-  on change, its width from the scene name's length (refit on a scene change); fishable water (API 32, `water`: the nearest within
-  30 m on a line hidden when none, `LOC.UpdateWater`; the scene's kinds in the hover, re-read every `LOC.WATER_EVERY` s (30; 5 before the 1.8.0 perf runs); the nearest every `LOC.WaterNearEvery()` s (15, owner;
-  the game's answer took up to 28 ms; the slowness is the game's, fixed in the next client, owner 2026-10-15: `LOC.WATER_NEAR_FAST` 3 s from
-  `LOC.WATER_FAST_API` 39, assumed)
-  (a town's water decoration changes them, review 32); harness `H.S.water`, `H.S.sceneWater`, `H.S.noWater`); controls (and its Position rows: `POSITIONED`'s
+  on change, its width from the scene name's length (refit on a scene change); fishable water (API 32, `water`: a
+  line naming the scene's kinds, "Fishable water: salt, fresh", hidden when none, `LOC.UpdateWater`; owner,
+  2026-10-15: what a player who fishes can expect; the strip as wide as the line; read at a scene change, every
+  `LOC.WATER_EMPTY_EVERY` s while empty for `LOC.WATER_SETTLE` s, then every `LOC.WATER_EVERY` s (30: a town's water
+  decoration changes them, review 32); the nearest water, `ShroudGetNearestWaterType`, isn't asked: it took up to 28
+  ms a call in game, 2026-10-14; harness `H.S.water`, `H.S.sceneWater`, `H.S.noWater`); controls (and its Position rows: `POSITIONED`'s
   page field) on the "Map & location" page (`C.MapSection`, key "map", with the run markers' toggle; owner, 2026-10-13:
   the home for map features to come).
   Then `Toolbox.Overlays` (OV; owner, 2026-10-13): map overlays, named sets of places (`/toolbox mark`, `/toolbox
@@ -762,8 +763,8 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   nil)` puts one line per add-on per scene in the full map's top-left corner, as "Toolbox: text" (<= 60 characters,
   cleaned like a marker label; at most three add-ons; rate 10 then 20 a minute, the same text free; nil / "" takes it
   down; bad_title / rate / pvp / no_scene; session-only like markers, so set again on a scene load), and
-  `ShroudGetMapTitle()`. Neither used yet. Neither page mentions `ShroudGetNearestWaterType`'s cost: whether this client
-  is the fixed one (`LOC.WATER_FAST_API` 39) is still the owner's `/toolbox perf` to tell.
+  `ShroudGetMapTitle()`. Neither used yet. The location strip no longer asks `ShroudGetNearestWaterType` (owner, same day: the
+  scene's kinds instead).
 
 **Waiting on the developers:** more windows per add-on, 12 instead of 8 (the owner asked, 2026-10-15): then the
 shared 8th window's users (Docs, version, Map overlays, the crafting planner) could have their own. A read-only game settings API (first use: the game's "stack buffs lasting
@@ -997,8 +998,6 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
   255 (written `%uXXXX`) and `string.char` of it reading back.
 - Recovery: that a character's own saved vars are loaded when `B.Recover` runs (ShroudOnStart with a character, and
   `T.FollowCharacter`): read too early, a missing `save_mark` would put the copy back needlessly (same data, a chat line).
-- That the client fixing `ShroudGetNearestWaterType`'s cost (20-28 ms a call) reports API 39 (`LOC.WATER_FAST_API`):
-  check with `/toolbox perf` on that client, and move the number if the fix comes with another.
 - The crafting planner on the live client: one recipe each 0.05 s without hitching (`/toolbox perf` names "recipe
   book"); `ShroudOnInventoryChanged` firing for the crafting table and trunks
   (`have`); a material's stats applying as the result line adds them (the owner's two-sheet test).

@@ -904,10 +904,10 @@ function C.MapSection()
     UI.Toggle{ id = "loc_facing", text = "Which way you face", value = loc.GetFacing(),
       tooltip = "The compass direction and degrees (0 north, 90 east)",
       onChange = function(_, v) loc.SetFacing(v) end },
-    UI.Toggle{ id = "loc_water", text = "Fishable water nearby", value = loc.GetWater(),
+    UI.Toggle{ id = "loc_water", text = "Fishable water in this scene", value = loc.GetWater(),
       enabled = loc.HasWater(),
-      tooltip = loc.HasWater() and "The nearest water you can fish in, within 30 m, and how far; the"
-        .. " scene's kinds in the hover" or "Needs a newer game client (Lua API 32)",
+      tooltip = loc.HasWater() and "The kinds of water you can fish in here (salt, fresh...): what to expect"
+        .. " on your line" or "Needs a newer game client (Lua API 32)",
       onChange = function(_, v) loc.SetWater(v) end },
     UI.Toggle{ id = "loc_pin", text = "Map overlays button", value = loc.GetPin(),
       tooltip = "A pin beside the scene's name: a click opens the Map overlays window (mark where you stand)",

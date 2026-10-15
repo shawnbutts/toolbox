@@ -297,9 +297,9 @@ D.SECTIONS = {
   { "Location strip",
     "A small strip showing where you are: the scene, your position (x, height, z, in whole numbers, as /loc "
       .. "gives them) and which way you face (the compass direction and degrees, 0 north, 90 east). It follows "
-      .. "you as you move. Hover it for the whole /loc line. On a newer game client it also names the nearest "
-      .. "water you can fish in, within 30 m, and how far (Salt water, 12 m), and the hover lists the scene's "
-      .. "kinds of water. Switch it on with the menu's Location button or under Settings, Map & location "
+      .. "you as you move. Hover it for the whole /loc line. On a newer game client it also names the kinds "
+      .. "of water you can fish in this scene (Fishable water: salt, fresh), so you know what to expect on your "
+      .. "line. Switch it on with the menu's Location button or under Settings, Map & location "
       .. "(Show "
       .. "where you are), where you can also hide the facing and water lines and place it, or type /toolbox "
       .. "location (on, off, facing on|off, water on|off, pin on|off, move <x> <y>). It's off by default. The "

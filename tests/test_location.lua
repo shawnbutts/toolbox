@@ -99,58 +99,56 @@ return function(t)
     t.ok(strip():Find("loc_strip").tooltip:find("^Novia %(1%.23, 2%.00, 3%.00%)"), strip():Find("loc_strip").tooltip)
   end)
 
-  t.test("fishable water (API 32): the nearest within 30 m, its line hidden without; the scene's kinds", function()
+  -- Owner, 2026-10-15: the scene's kinds on the strip (what to expect when you fish); the nearest water isn't asked.
+  t.test("fishable water (API 32): the scene's kinds on a line, hidden without; read again as the scene changes",
+    function()
     H.boot()
     H.S.sceneWater = {}                          -- the game is still reading the scene
-    H.chat("/tbx location on")
-    H.advance(1)
-    local _, h0 = Toolbox.Location.ContentSize()
-    t.eq(strip():Find("loc_water").visible, false, "no water near")
     H.S.water = { "salt", 12.4 }
-    H.S.pos = { 5, 0, 0 }                        -- walked up to it
-    H.advance(Toolbox.Location.WaterNearEvery())
-    t.eq(text("loc_water"), "Salt water, 12 m")
-    t.ok(strip():Find("loc_water").visible ~= false)
-    local _, h1 = Toolbox.Location.ContentSize()
-    t.ok(h1 > h0, "the strip takes the line")
-    H.S.water = { "fresh", 0 }
-    H.S.pos = { 17, 0, 0 }
-    H.advance(Toolbox.Location.WaterNearEvery())
-    t.eq(text("loc_water"), "In fresh water")
-    local asks, ask = 0, ShroudGetNearestWaterType          -- asked every 15 s, not each tick
+    local nearest, ask = 0, ShroudGetNearestWaterType
     ShroudGetNearestWaterType = function(...)
-      asks = asks + 1
+      nearest = nearest + 1
       return ask(...)
     end
-    for i = 1, 30 do                                        -- walking for 30 s
-      H.S.pos = { 17 + i, 0, 0 }
-      H.advance(1)
-    end
-    ShroudGetNearestWaterType = ask
-    t.ok(asks <= 30 / Toolbox.Location.WaterNearEvery() + 1, asks .. " asks in 30 s")
-    t.eq(Toolbox.Location.WaterText("lava", 3), "Lava, 3 m")
-    t.no(strip():Find("loc_strip").tooltip:find("Fishable water"), "the scene's list isn't read yet")
+    H.chat("/tbx location on")
+    H.advance(1)
+    local w0, h0 = Toolbox.Location.ContentSize()
+    t.eq(strip():Find("loc_water").visible, false, "none yet")
     H.S.sceneWater = { "salt", "fresh" }
-    H.advance(Toolbox.Location.WATER_EVERY + 1)
-    local tip = strip():Find("loc_strip").tooltip
-    t.ok(tip:find("Fishable water in this scene: salt water, fresh water%.$"), tip)
+    H.advance(Toolbox.Location.WATER_EMPTY_EVERY + 1)   -- read again soon while the scene is new
+    t.eq(text("loc_water"), "Fishable water: salt, fresh")
+    t.ok(strip():Find("loc_water").visible ~= false)
+    local w1, h1 = Toolbox.Location.ContentSize()
+    t.ok(h1 > h0, "the strip takes the line")
+    t.ok(w1 >= w0, "and is as wide as it")
+    t.no(strip():Find("loc_strip").tooltip:find("Fishable"), "not in the hover any more")
     -- A town's water decoration changes the scene's list: it's read again (review 32).
-    H.S.sceneWater = { "fetid" }
+    H.S.sceneWater = { "fetid", "lava" }
     H.advance(Toolbox.Location.WATER_EVERY + 1)
-    tip = strip():Find("loc_strip").tooltip
-    t.ok(tip:find("Fishable water in this scene: fetid water%.$"), tip)
+    t.eq(text("loc_water"), "Fishable water: fetid, lava")
     H.S.sceneWater = {}
     H.advance(Toolbox.Location.WATER_EVERY + 1)
-    t.no(strip():Find("loc_strip").tooltip:find("Fishable water"), "none left")
-    H.S.sceneWater = { "salt", "fresh" }
-    H.advance(Toolbox.Location.WATER_EVERY + 1)
+    t.eq(strip():Find("loc_water").visible, false, "none left")
+    local reads, list = 0, ShroudGetSceneWaterTypes
+    ShroudGetSceneWaterTypes = function(...)
+      reads = reads + 1
+      return list(...)
+    end
+    H.advance(Toolbox.Location.WATER_SETTLE + 30)
+    t.ok(reads <= 4, reads .. " reads in 90 s: a scene without water isn't asked every few seconds")
+    ShroudGetSceneWaterTypes = list
+    H.S.sceneWater = { "salt" }
+    H.S.scene = "Elsewhere"
+    H.callback("ShroudOnSceneLoaded", H.S.scene)
+    H.advance(1)
+    t.eq(text("loc_water"), "Fishable water: salt", "a new scene: read at once")
     H.chat("/tbx location water off")
     t.eq(strip():Find("loc_water").visible, false, "switched off")
     t.eq(H.saved("location").water, false)
-    t.no(strip():Find("loc_strip").tooltip:find("Fishable water"))
-    H.S.water = nil
     H.chat("/tbx location water on")
-    t.eq(strip():Find("loc_water").visible, false, "none near")
+    t.eq(text("loc_water"), "Fishable water: salt", "on again: read at once")
+    ShroudGetNearestWaterType = ask
+    t.eq(nearest, 0, "the slow nearest-water call isn't made")
     H.S.noWater = true
     H.reload()
     H.chat("/tbx config")
@@ -158,29 +156,6 @@ return function(t)
   end)
 
   -- API 31: a smaller game window (or a bigger UI scale) can leave a strip past the edge.
-  t.test("the nearest water every 15 s, every 3 s on a client with the game's fix (API 39 assumed)", function()
-    local function asksIn(secs, api)
-      H.boot()
-      ShroudLuaApiVersion = api                  -- each boot puts back 25
-      H.S.water = { "salt", 12.4 }
-      H.chat("/tbx location on")
-      H.advance(1)
-      local asks, ask = 0, ShroudGetNearestWaterType
-      ShroudGetNearestWaterType = function(...)
-        asks = asks + 1
-        return ask(...)
-      end
-      H.advance(secs)
-      ShroudGetNearestWaterType = ask
-      return asks
-    end
-    t.eq(asksIn(30, 25), 2, "API 25: every 15 s")
-    t.eq(Toolbox.Location.WaterNearEvery(), 15)
-    t.eq(asksIn(30, 39), 10, "API 39: every 3 s")
-    t.eq(Toolbox.Location.WaterNearEvery(), 3)
-    H.boot()
-  end)
-
   t.test("the game window shrinks: a strip past the edge comes back on screen, and its place is kept", function()
     H.boot()
     H.chat("/tbx location on")

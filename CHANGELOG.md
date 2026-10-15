@@ -20,8 +20,9 @@ ones included).
   Settings, XP & Loot).
 
 ### Changed
-- Location strip: on a game client with the developers' fix for the slow nearest-water lookup (assumed Lua API 39),
-  the nearest water is checked every 3 seconds instead of every 15.
+- Location strip: the water line names the kinds of water you can fish in this scene ("Fishable water: salt,
+  fresh"), what to expect on your line, instead of the nearest water and how far. The nearest-water lookup was slow
+  in the game, so it isn't asked any more.
 - Sounds settings: a **Set** button beside each custom sound's path. On the current game client one press of Enter in
   an add-on's text box does nothing (a quick second press works), so nothing in Toolbox needs Enter any more.
 

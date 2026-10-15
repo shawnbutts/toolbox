@@ -692,9 +692,11 @@ end
 -- HUD compass's heading, API 10). Read every LOC.TICK s while it shows; a label is set only when its text
 -- changes. Hovering shows /loc's whole line (API 29; else the scene and the position to two decimals). Its width
 -- follows the scene's name (the strip is refitted when the scene changes), so the numbers don't make it jump.
--- Fishable water (API 32, our request 25; setting `water`): a line for the nearest within 30 m ("Salt water, 12 m"),
--- hidden when there is none (the strip refits), and the scene's kinds in the hover (read again every
--- LOC.WATER_EVERY s: the game may still be reading the scene, and a town's water decoration changes it).
+-- Fishable water (API 32, our request 25; setting `water`): a line with the scene's kinds ("Fishable water: salt,
+-- fresh"; owner, 2026-10-15: for players who fish, what water to expect here), hidden when there is none (the strip
+-- refits). Read at a scene change, again every LOC.WATER_EMPTY_EVERY s while empty for LOC.WATER_SETTLE s (the game may
+-- still be reading the scene), then every LOC.WATER_EVERY s (a town's water decoration changes it, review 32). The
+-- nearest water (ShroudGetNearestWaterType: up to 28 ms a call in game, 2026-10-14) isn't asked.
 -- Saved var "location": { show = bool (default false), facing = bool (default true), water = bool (default true),
 -- x, y }.
 -- ---------------------------------------------------------------------------
@@ -705,32 +707,20 @@ LOC.POINTS = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" }
 LOC.CHAR_W = 0.6                      -- a character's width, as a share of the text size
 LOC.MIN_CHARS = 19                    -- "-12345, 123, -12345"
 -- s between reads of the scene's water kinds (5 before the owner's /toolbox perf found location near 9 hitches a
--- minute, 2026-10-14); a scene change reads them at once
+-- minute, 2026-10-14, with the nearest water asked too); a scene change reads them at once
 LOC.WATER_EVERY = 30
+LOC.WATER_EMPTY_EVERY = 5
+LOC.WATER_SETTLE = 60
 LOC.WATER_NAMES = { fresh = "Fresh water", fetid = "Fetid water", salt = "Salt water", lava = "Lava" }
 local LOC_PERIODIC = "toolbox_location"
 local locPrefs = { show = false, facing = true, water = true }
 local locEl = {}                      -- column, scene, coords, facing (empty until built)
 local locScene = ""                   -- the scene the width is fitted to
 local locLast = {}                    -- the last rounded reading: x, y, z, heading
-local locWater = { scene = nil, kinds = "", at = -math.huge, shown = false,   -- the scene's kinds; the line shown
-                   near = nil, nearAt = -math.huge }   -- the nearest water as last read, and when
--- The nearest water is asked every LOC.WATER_NEAR_EVERY s, moving or not, and at once in a new scene or with the line
--- switched on (the owner's perf runs, 2026-10-14: asked twice a second, the game's answer took up to 28 ms; owner:
--- "every 15 second should be fine"). The slowness is the game's, fixed in the next client (owner, 2026-10-15: then
--- every 3 s): assumed to come with API LOC.WATER_FAST_API; an older client keeps 15.
-LOC.WATER_NEAR_EVERY = 15
-LOC.WATER_NEAR_FAST = 3
-LOC.WATER_FAST_API = 39
-function LOC.WaterNearEvery()
-  if type(ShroudLuaApiVersion) == "number" and ShroudLuaApiVersion >= LOC.WATER_FAST_API then
-    return LOC.WATER_NEAR_FAST
-  end
-  return LOC.WATER_NEAR_EVERY
-end
+local locWater = { scene = nil, since = -math.huge, at = -math.huge, line = nil }   -- the line shown (nil: none)
 
 function LOC.HasWater()
-  return type(ShroudGetNearestWaterType) == "function" and type(ShroudGetSceneWaterTypes) == "function"
+  return type(ShroudGetSceneWaterTypes) == "function"
 end
 
 -- A kind as players say it ("Salt water"; an unknown one as the game names it).
@@ -738,22 +728,14 @@ function LOC.WaterName(kind)
   return LOC.WATER_NAMES[kind] or (tostring(kind):gsub("^%l", string.upper) .. " water")
 end
 
--- The nearest water's line ("Salt water, 12 m"; "In salt water" when you're in it), or nil when there's none.
-function LOC.WaterText(kind, metres)
-  if type(kind) ~= "string" or kind == "" or type(metres) ~= "number" or metres ~= metres then return nil end
-  local m = math.floor(metres + 0.5)
-  if m <= 0 then return "In " .. LOC.WaterName(kind):lower() end
-  return LOC.WaterName(kind) .. ", " .. m .. " m"
-end
-
--- The scene's fishable water as a hover line ("Fishable water here: salt, fresh"), "" when none (or still reading).
+-- The scene's fishable water as the strip's line ("Fishable water: salt, fresh"), nil when none (or still reading).
 function LOC.SceneWaterLine(list)
   local names = {}
   for _, k in ipairs(T.List(list)) do
-    if type(k) == "string" and k ~= "" then names[#names + 1] = LOC.WaterName(k):lower() end
+    if type(k) == "string" and k ~= "" then names[#names + 1] = (LOC.WaterName(k):gsub(" water$", "")):lower() end
   end
-  if #names == 0 then return "" end
-  return "\nFishable water in this scene: " .. table.concat(names, ", ") .. "."
+  if #names == 0 then return nil end
+  return "Fishable water: " .. table.concat(names, ", ")
 end
 
 local function locSave()
@@ -805,7 +787,7 @@ function LOC.LocLine(scene, x, y, z)
 end
 
 local function locWidth()
-  return math.ceil(math.max(LOC.MIN_CHARS, #locScene) * T.Window.GetFont() * LOC.CHAR_W)
+  return math.ceil(math.max(LOC.MIN_CHARS, #locScene, #(locWater.line or "")) * T.Window.GetFont() * LOC.CHAR_W)
 end
 
 local function locStyle()
@@ -824,7 +806,7 @@ local function pinSize() return T.Window.LineHeight() end
 local function pinShown() return locPrefs.pin ~= false end
 
 function LOC.ContentSize()
-  local lines = 2 + (locPrefs.facing and 1 or 0) + (locWater.shown and 1 or 0)
+  local lines = 2 + (locPrefs.facing and 1 or 0) + (locWater.line and 1 or 0)
   local pin = pinShown() and (pinSize() + LOC.PIN_GAP) or 0
   return locWidth() + pin + 2 * Hud.STRIP_PAD, lines * T.Window.LineHeight() + 2 * Hud.STRIP_PAD
 end
@@ -872,7 +854,7 @@ function LOC.BuildContent()
               marginLeft = 0, marginRight = 0, marginTop = 0, marginBottom = 0 },
     children = { top, built.coords, built.facing, built.water } }
   locEl, locLast = built, {}
-  locWater.shown, locWater.scene = false, nil
+  locWater.line, locWater.scene = nil, nil
   return built.column
 end
 
@@ -889,7 +871,7 @@ function LOC.Update()
     Hud.Refresh()                      -- the strip's width follows the name
     locLast = {}
   end
-  local waterChanged = LOC.UpdateWater(scene)
+  LOC.UpdateWater(scene)
   T.PerfAdd("location:water", t0)
   t0 = T.PerfT()
   T.SetText(locEl.scene, scene ~= "" and scene or "--")
@@ -900,10 +882,10 @@ function LOC.Update()
     T.SetText(locEl.coords, LOC.CoordsText(x, y, z))
   end
   -- The hover has /loc's decimals: it follows any move, not just a whole unit (review 21).
-  if x ~= locLast.px or y ~= locLast.py or z ~= locLast.pz or locLast.px == nil or waterChanged then
+  if x ~= locLast.px or y ~= locLast.py or z ~= locLast.pz or locLast.px == nil then
     locLast.px, locLast.py, locLast.pz = x, y, z
     T.SetTooltip(locEl.column, LOC.LocLine(scene, x, y, z) .. "\nWhere you are: the scene and your position (x,"
-      .. " height, z). Type /loc for a line to paste in chat." .. locWater.kinds)
+      .. " height, z). Type /loc for a line to paste in chat.")
   end
   local rh = heading and (math.floor(heading + 0.5) % 360) or nil
   if locPrefs.facing and (rh ~= locLast.h or locLast.hSet == nil) then
@@ -913,40 +895,37 @@ function LOC.Update()
   T.PerfAdd("location:show", t0)
 end
 
--- The water line and the scene's kinds (API 32, with `water` on). True when the kinds changed (the hover follows).
+-- The water line: the scene's kinds (API 32, with `water` on). The strip refits when the line comes, goes or changes.
 function LOC.UpdateWater(scene)
-  local text, kinds = nil, ""
-  if LOC.HasWater() and locPrefs.water ~= false then
-    if scene ~= locWater.scene or T.Now() - locWater.nearAt >= LOC.WaterNearEvery() then
-      local ok, kind, metres = pcall(ShroudGetNearestWaterType)
-      locWater.near = ok and LOC.WaterText(kind, metres) or nil
-      locWater.nearAt = T.Now()
-    end
-    text = locWater.near
-    kinds = locWater.kinds
-    -- Re-read every few seconds, not only while empty: a player town's water decoration changes the list (review 32).
-    if scene ~= locWater.scene or T.Now() - locWater.at >= LOC.WATER_EVERY then
-      local okL, list = pcall(ShroudGetSceneWaterTypes)
-      kinds = okL and LOC.SceneWaterLine(list) or ""
-      locWater.scene, locWater.at = scene, T.Now()
+  local line = locWater.line
+  if not (LOC.HasWater() and locPrefs.water ~= false) then
+    line = nil
+  else
+    local now = T.Now()
+    if scene ~= locWater.scene then locWater.scene, locWater.since, locWater.at = scene, now, -math.huge end
+    local every = (line == nil and now - locWater.since < LOC.WATER_SETTLE) and LOC.WATER_EMPTY_EVERY or LOC.WATER_EVERY
+    if now - locWater.at >= every then
+      locWater.at = now
+      local ok, list = pcall(ShroudGetSceneWaterTypes)
+      line = ok and LOC.SceneWaterLine(list) or nil
     end
   end
-  local shown = text ~= nil
-  if shown then T.SetText(locEl.water, text) end
-  if shown ~= locWater.shown then
-    locWater.shown = shown
-    T.SetVisible(locEl.water, shown)
-    Hud.Refresh()                      -- the strip's height follows the line
+  if line == locWater.line then return false end
+  local resized = line == nil or locWater.line == nil or #line ~= #locWater.line
+  locWater.line = line
+  if line then T.SetText(locEl.water, line) end
+  T.SetVisible(locEl.water, line ~= nil)
+  if resized then
+    for _, key in ipairs({ "scene", "coords", "facing", "water" }) do T.SetStyle(locEl[key], locStyle()) end
+    Hud.Refresh()                      -- the strip's size follows the line
   end
-  local changed = kinds ~= locWater.kinds
-  locWater.kinds = kinds
-  return changed
+  return true
 end
 
 function LOC.GetWater() return locPrefs.water ~= false end
 function LOC.SetWater(on)
   locPrefs.water = on == true
-  locWater.nearAt = -math.huge         -- asked again at once
+  locWater.at = -math.huge             -- read again at once
   locSave()
   if locEl.column then LOC.Update() end
 end
@@ -1030,8 +1009,8 @@ Hud.NAMES.location = "location"
 T.Backup.KEYS[#T.Backup.KEYS + 1] = "location"
 
 -- /toolbox location
-T.AddCommand("location", "the location strip: your scene, position, facing and water nearby (on|off; facing on|off;"
-  .. " water on|off; pin on|off: its Map overlays button; move [x y])",
+T.AddCommand("location", "the location strip: your scene, position, facing and its fishable water (on|off;"
+  .. " facing on|off; water on|off; pin on|off: its Map overlays button; move [x y])",
   function(rest)
     local word, args = T.ParseArgs(rest)
     word = word:lower()

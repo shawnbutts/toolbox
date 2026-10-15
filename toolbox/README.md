@@ -154,8 +154,8 @@ off to open windows from the settings as before (`/toolbox menu`).
 ## Location
 
 A small strip showing where you are: the scene, your position (as `/loc` gives it, in whole numbers) and
-which way you face, and on a newer game client the nearest water you can fish in ("Salt water, 12 m"). Hover it
-for the whole `/loc` line and the scene's kinds of water. Off by default: switch it on with the menu's Location button, under
+which way you face, and on a newer game client the kinds of water you can fish in this scene ("Fishable water:
+salt, fresh"). Hover it for the whole `/loc` line. Off by default: switch it on with the menu's Location button, under
 **Map & location** in the settings, or type `/toolbox location`.
 
 ## Map overlays
