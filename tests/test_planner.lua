@@ -1,5 +1,6 @@
--- The crafting planner (Toolbox.Planner): a recipe's slots and their materials (what you have, or the stats you
--- watch), I'll craft from scratch, the shopping list and the build order, in the shared 8th window.
+-- The crafting planner (Toolbox.Planner): a recipe's slots and their materials (the first you have enough of, or
+-- your pick, with what it adds), I'll craft from scratch, Reset, the shopping list and the build order, in the
+-- shared 8th window.
 local H = require("harness")
 
 return function(t)
@@ -97,26 +98,39 @@ return function(t)
     t.ok(body():find("11 x Bronze Sheet", 1, true), "21 sheets, 11 short of the bronze (have 10): " .. body())
   end)
 
-  t.test("stats I care about: the watched stat on every choice, the best for it picked; a lower weight is better",
-      function()
+  t.test("no modes: the materials come with their counts; a pick shows what it adds", function()
     open()
-    H.change(W, "pl_mode", "Stats I care about")
-    t.ok(find("pl_stats").visible ~= false, "the stat picker shows")
-    H.change(W, "pl_stat", "Armor Damage Resistance")
-    H.click(W, "pl_watch")
-    t.ok(text("pl_watching"):find("Watching: Armor Damage Resistance", 1, true), text("pl_watching"))
-    t.ok(find("pl_pick_1").value:find("^Iron Sheet %(have 3%): Armor Damage Resistance %+0.2"),
-      find("pl_pick_1").value)
+    t.no(find("pl_mode") or find("pl_stat") or find("pl_watch"), "no pick modes or watched stats")
+    t.eq(table.concat(find("pl_pick_1").choices, "; "), "Copper Sheet (have 0); Iron Sheet (have 3); Bronze Sheet"
+      .. " (have 10)", "the game's order, with counts")
+    H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
+    t.eq(text("pl_adds_1"), "Adds Armor Damage Resistance +0.2; weight 2")
     t.ok(text("pl_result"):find("Armor Damage Resistance 0 +0.2", 1, true), text("pl_result"))
-    H.change(W, "pl_view", "Shopping list")
-    t.ok(body():find("4 x Iron Sheet", 1, true), "7 iron for 3 had: " .. body())
+    t.eq(Toolbox.Planner.PickChoice(H.S.recipes[10].ingredients[1].choices, 4, Toolbox.Planner.HaveOf).name,
+      "Bronze Sheet", "the first with enough")
+  end)
+
+  t.test("Reset: the plan's fields cleared, the recipe book kept", function()
+    open()
+    H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
+    H.change(W, "pl_crafts", "5")
+    H.change(W, "pl_scratch", true)
+    H.advance(8)
+    t.ok(Toolbox.Daily.recipeIndex, "the book is read")
+    H.change(W, "pl_make_1", true)
+    local index = Toolbox.Daily.recipeIndex
+    H.click(W, "pl_reset")
+    t.eq(find("pl_recipe").value, "Find a recipe first")
+    t.eq(find("pl_find").text, "")
+    t.eq(find("pl_crafts").value, "1")
+    t.ok(text("pl_title"):find("Find it", 1, true), text("pl_title"))
+    t.eq(body(), "", "nothing planned")
+    t.eq(Toolbox.Daily.recipeIndex, index, "the book isn't read again")
+    t.eq(find("pl_scratch").value, true, "From scratch is how you plan: kept")
+    H.chat("/tbx plan augmented plate chest")
     H.change(W, "pl_view", "Plan")
-    H.change(W, "pl_stat", "Focus")
-    H.click(W, "pl_watch")                       -- the newest watched leads
-    t.ok(find("pl_pick_2").value:find("^Copper Binding %(have 2%): Focus %+10"), find("pl_pick_2").value)
-    local P = Toolbox.Planner
-    t.eq(P.PickChoice(H.S.recipes[10].ingredients[1].choices, 7, P.HaveOf, "stats", "weight", nil).name,
-      "Copper Sheet", "the lightest")
+    t.ok(find("pl_pick_1").value:find("^Bronze Sheet"), "the pick went: " .. find("pl_pick_1").value)
+    t.ok(find("pl_make_3") and find("pl_make_3").value == false, "no ticks left")
   end)
 
   t.test("a slot you pick yourself keeps your pick, over a reload too", function()
@@ -136,9 +150,7 @@ return function(t)
   t.test("from scratch: I'll craft plans the shortfall's recipe below it, the one named like the item first",
       function()
     open()
-    H.change(W, "pl_mode", "Stats I care about")
-    H.change(W, "pl_stat", "Armor Damage Resistance")
-    H.click(W, "pl_watch")                       -- iron sheets: 4 short
+    H.change(W, "pl_pick_1", "Iron Sheet (have 3)")   -- iron sheets: 4 short
     H.change(W, "pl_scratch", true)
     t.ok(find("pl_make_1"), "I'll craft for the sheets, at once (the recipes named like them)")
     t.eq(find("pl_make_1").kind, "Toggle", "a tick, not a button: nothing is crafted")
@@ -167,9 +179,7 @@ return function(t)
 
   t.test("the build order ticks off as you craft: the game's counts, and the crafts made", function()
     open()
-    H.change(W, "pl_mode", "Stats I care about")
-    H.change(W, "pl_stat", "Armor Damage Resistance")
-    H.click(W, "pl_watch")
+    H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
     H.change(W, "pl_scratch", true)
     H.advance(5)
     H.change(W, "pl_make_1", true)
@@ -221,9 +231,7 @@ return function(t)
     H.S.recipes[15] = { id = 15, name = "Smelt Scrap Iron", category = "Smelting", categoryKey = "Crafting_Smelting",
       station = "Smelter", ingredients = { { name = "Metal Scraps", key = key("k"), quantity = 3, have = 0 } },
       results = { { name = "Iron Ingot", key = key("i"), quantity = 2 } } }   -- named unlike what it makes
-    H.change(W, "pl_mode", "Stats I care about")
-    H.change(W, "pl_stat", "Armor Damage Resistance")
-    H.click(W, "pl_watch")
+    H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
     H.change(W, "pl_scratch", true)
     t.ok(find("pl_progress").visible ~= false, "the bar shows while the book is read")
     t.ok(text("pl_bar_text"):find("^Reading recipes: %d of 6"), text("pl_bar_text"))

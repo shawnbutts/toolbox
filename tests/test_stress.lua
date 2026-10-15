@@ -285,8 +285,8 @@ return function(t)
   -- 8 target tooltips (~400 characters each here: the game cuts a tooltip at 512). STRESS_PRINT=1 prints it.
   -- 2026-10-13: 47,712 at the peak (the guide's Commands topic, 4,790), so guide topics and a version's notes are
   -- now held to Docs.TOPIC_MAX (3,500): 46,641, the Sounds settings page the biggest addition (Today and the Loot
-  -- Tracker the guide's, 46,307). 2026-10-15: 47,278 with the crafting planner (four 30-choice slots, six stats
-  -- watched). The limit leaves room for the game counting more than the harness.
+  -- Tracker the guide's, 46,307). 2026-10-15: 46,703 with the crafting planner's Plan (four 30-choice slots,
+  -- each with what its pick adds). The limit leaves room for the game counting more than the harness.
   LIMITS.text = 48000
   t.test("on-screen text at its worst stays well inside the game's 65,536 characters", function()
     H.boot(veteranDisk(false))
@@ -337,7 +337,7 @@ return function(t)
     H.chat("/tbx overlay window")                  -- the 8th window's third user: a full overlay's places here
     H.change("toolbox_config", "category", "Map & location")
     H.advance(2)
-    -- and its fourth, the crafting planner: a recipe with four 30-choice slots, every choice with six stats, watched
+    -- and its fourth, the crafting planner: a recipe with four 30-choice slots, every choice with seven stats
     local ings = {}
     for g = 1, 4 do
       local choices = {}
@@ -359,11 +359,7 @@ return function(t)
       results = { { name = "An Augmented Masterwork Plate Chest Armor", quantity = 1,
                     stats = { { key = "resistance", value = 9 } } } } } }
     H.chat("/tbx plan augmented masterwork")
-    H.change("toolbox_planner", "pl_mode", "Stats I care about")
-    for k = 1, 6 do
-      H.change("toolbox_planner", "pl_stat", "Long Stat Name Number " .. k)
-      H.click("toolbox_planner", "pl_watch")
-    end
+    H.change("toolbox_planner", "pl_view", "Plan")
     H.advance(2)
     noErrors("settings, the guide, the version, Map overlays and planner windows")
     if os.getenv("STRESS_PRINT") then

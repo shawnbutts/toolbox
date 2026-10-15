@@ -40,8 +40,8 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
   the location strip) with one click, bright while a window is open (`/toolbox menu`; settings under Menu, setups,
   backup & reset).
 - **Crafting planner** (`/toolbox plan [recipe]`): a recipe's ingredients, what you have and what you're short of;
-  each material slot (Metal Sheet...) filled from what you have, or picked for the stats your build needs (Lua API
-  37), with the result's stats; From scratch plans the crafts for what you lack (I'll craft), with a shopping list and a
+  each material slot (Metal Sheet...) lists the choices with how many you have and shows what the picked one adds
+  (Lua API 37), with the result's stats; From scratch plans the crafts for what you lack (I'll craft), with a shopping list and a
   build order by station, ticked off as you craft.
 - **Map overlays**: sets of places you mark in a scene (`/toolbox mark <name>`), one set shown on its region map and
   minimap at a time (Lua API 30): one for loot, one for gathering... Each scene has its own (up to 10, 39 places each)

@@ -173,10 +173,9 @@ back there, or after an hour in another scene.
 
 Plan a craft from the recipes you know: `/toolbox plan` (or `/toolbox plan plate chest`). Every ingredient shows what
 you need, have and are short of. A slot that takes a choice of material, like Metal Sheet, lists them with how many
-you have, filled one of two ways: Use what I have, or Stats I care about, for crafting a build (watch the stats you
-want and each choice shows what it adds; the best is picked). A material you pick yourself stays picked. The result
-line shows the item's stats with your picks. With From scratch on, tick I'll craft to plan the crafts for what you're short of,
-as deep as your recipes go. The Shopping list adds up what to buy or gather, and the Build order lists the crafts by
+you have, starting on the first you have enough of; a line under it shows what the picked one adds to the item, for
+crafting a build. A material you pick yourself stays picked. The result line shows the item's stats with your picks.
+With From scratch on, tick I'll craft to plan the crafts for what you're short of, as deep as your recipes go. The Shopping list adds up what to buy or gather, and the Build order lists the crafts by
 station, materials first, ticked off as you craft.
 
 ## Commands

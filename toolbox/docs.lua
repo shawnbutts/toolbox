@@ -109,13 +109,12 @@ D.SECTIONS = {
       .. "too). Type part of a recipe's name and press Find; pick it in the Recipe list, and how many Crafts. Each "
       .. "ingredient gets a line: how many you need, how many you have and how many you're short.",
     "A slot that takes a choice of material (Metal Sheet, Metal Binding, a strap...; a newer game client) gets a "
-      .. "list of them, each with how many you have. Two ways to fill them: Use what I have takes the first one "
-      .. "you have enough of, and Stats I care about picks for your build: choose a stat and press Watch, and "
-      .. "every choice shows what it adds, the best for the stat you watched last picked (the lightest, for "
-      .. "weight). Watch up to six. Under each slot, a line shows what the picked material adds to the item "
-      .. "(a slot that doesn't pass its bonus on: only its weight). Pick a material yourself and that "
-      .. "slot keeps it, for this recipe, until you pick another. The Result line adds what your picks give "
-      .. "to the item's base stats (an exceptional craft adds more).",
+      .. "list of them, each with how many you have, starting on the first you have enough of. Under each slot, "
+      .. "a line shows what the picked material adds to the item (a slot that doesn't pass its bonus on: only "
+      .. "its weight), so you can pick for your build. Pick a material yourself and that slot keeps it, for this "
+      .. "recipe, until you pick another. The Result line adds what your picks give to the item's base stats "
+      .. "(an exceptional craft adds more). Reset starts over: no recipe, 1 craft, nothing ticked, and this "
+      .. "recipe's materials back to the first you have enough of (your recipe book stays read).",
     "From scratch: tick it and anything you're short of that one of your recipes makes gets I'll craft (in the "
       .. "Plan). Tick that to plan crafting the shortfall yourself: its own ingredients are planned under it, as "
       .. "deep as it goes, instead of it going on the shopping list. Toolbox never crafts anything. When two "

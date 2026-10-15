@@ -187,16 +187,17 @@ into one if a new file is ever needed).
   makers would take a large share of a 256 KB file. At the end, `Toolbox.Planner` (PL; owner, 2026-10-15,
   the 1.9.0 feature; header comment): the crafting planner, `/toolbox plan [recipe]`, the shared 8th window's fourth
   user (`T.TakeSharedWindow("planner")`). Pure model: `PL.Expand(rootId, crafts, ctx)` (rows, shopping list, build
-  order; your bags shared across the plan; no recipe inside itself), `PL.PickChoice` (the player's pick, "stats" mode's
-  best for the first watched stat, else the first you have enough of), `PL.PickMaker`, `PL.Preview` (base + the
+  order; your bags shared across the plan; no recipe inside itself), `PL.PickChoice` (the player's pick, else the first you
+  have enough of; the "Use what I have" / "Stats I care about" modes and watched stats were dropped the same day,
+  owner: the counts and the "Adds ..." line under each slot, `PL.AddsText`, show it; `PL.Reset` clears the plan, not
+  the book), `PL.PickMaker`, `PL.Preview` (base + the
   root's picks, weight left out). Refreshed on `ShroudOnInventoryChanged` / craft results / the crafting state at most
   every `PL.REFRESH_GAP` s while shown (`PL.Tick` from `T.ViewsTick`), the plan's recipes read fresh; before the
   book is read, the makers are the known recipes named like the item (`plQuickMakers`, a few calls); the shortfall's
   control is an "I'll craft" Toggle (owner: "Make it" read as if it would craft); the Shopping list is the first and
   default view (owner); the Plan view's
   rows are rebuilt only when their structure changes (`plRowSig`), counts and choices set in place. Text budget (the
-  stress test's four 30-choice slots: 47,278 at the peak): `PL.CHOICES_SHOWN` (10) choices a slot, each with only the
-  first watched stat (the others on the row's status).
+  stress test's four 30-choice slots: 46,703 at the peak): `PL.CHOICES_SHOWN` (10) choices a slot.
 - `dailydetail.lua`: `Toolbox.DailyDetail`, **Loot Tracker** (views Looted / Crafted / Gathered). Refreshes
   on change only (`Daily.itemsVersion`, `Prices.version`, `DD.FULL_EVERY` catch-up). Reset (owner,
   2026-10-04): `day.since` = a copy of the counts at that moment (`D.StartRun`); the tracker reads `DD.Day()` =
@@ -583,7 +584,7 @@ character" sentinel.
 | `launcher` | `{ show = bool (default true), vertical = bool (default true), size = 20..64 (default 32), shade = 0..90 (% black behind, default 40), combat = bool (hide during combat), hide = { [button key] = true } (never all), x, y }` (the menu, hud.lua; absent = never started: the chat line) |
 | `map_overlays` | `{ v = 2, nextId, scenes = { [scene id] = { scene = its name, shown = overlay id or 0, auto = true (the auto map on there), list = { { id, name (<= 24, unique in the scene), icon = an OV.ICONS shape, color = an OV.COLORS name (the next marks'), nextPlace, places = "id|name|x|y|z|shape n|color n;...", auto = a node kind, or "*" for Gathering (made by the auto map) } } } }, ignore = { name parts the auto map skips }, death = { raw, scene, x, y, z, at = "HH:MM", date, clock = T.Clock() at death, away = true once you've left it } (your last death) }` (hud.lua; at most OV.MAX a scene, OV.SCENE_MAX places each, OV.BUDGET in all); v = 1 (one list, places with raw / scene; development only) converted at the first read; kept by a reset; NOT in the recovery copy (`B.OTHER_KEYS`: the account file's 256 KB) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
-| `planner` | `{ v = 1, mode = "have"/"stats", scratch = bool, crafts = n, recipe = id, view = a PL.VIEWS name, makes = { [row path "p.1.2"] = true }, makers = { [item key] = recipe id }, picks = { ["r" .. id] = { at = n, ["s" .. slot] = item key } } (<= PL.PICKS_MAX), pickAt = n, watch = { [categoryKey] = { stat keys, newest first } } }` (daily.lua's crafting planner; kept by a reset, not in the recovery copy: `B.OTHER_KEYS`) |
+| `planner` | `{ v = 1, scratch = bool, crafts = n, recipe = id, view = a PL.VIEWS name, makes = { [row path "p.1.2"] = true }, makers = { [item key] = recipe id }, picks = { ["r" .. id] = { at = n, ["s" .. slot] = item key } } (<= PL.PICKS_MAX), pickAt = n }` (daily.lua's crafting planner; kept by a reset, not in the recovery copy: `B.OTHER_KEYS`) |
 | `skills_paused` | `{ v = 1, how = "off"/"maintain", when = "HH:MM", list = { { key = skill key or name, from = mode, to = mode } } }`: the pause's record (skills.lua; empty list = not paused); kept by a reset, copied for recovery |
 | `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`, events' `{ [occurrence] = start (UTC seconds, as text) }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ hideAfter = seconds (0 never, 5..60), font = 9..32, spacing = 0..12 (each unset: the XP windows'), x, y }` |
