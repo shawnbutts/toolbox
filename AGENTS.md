@@ -796,7 +796,15 @@ recipe's ingredients can be SLOT CATEGORIES ("Metal Sheet", "Metal Binding", "Cl
 makes an item by that name; the choices are e.g. the recipes whose result ends in "Sheet", "Glass Sheet" being a
 false match), and several recipes can make one item ("Iron Ingot" and "Iron Ingot from Metal Scraps": default to
 the one named like the item, let the player switch). Below a chosen item the chain expands exactly (Iron Sheet ->
-Iron Ingot -> ore and coal); a gathering session HUD; lock-position / snap presets for strips
+Iron Ingot -> ore and coal). Decided (owner, 2026-10-15, the 1.9.0 feature): its own window, the SHARED 8th
+(`T.TakeSharedWindow`, beside Docs, version and Map overlays), not a Loot Tracker view. Slot choices serve both kinds
+of crafter (owner: "some just use what they have, others craft for stat combos for their builds"): "Use what I have"
+(default: each slot's first choice you have enough of, in the game's order) and "Stats I care about" (a stat picker;
+each choice shows those stats, sorted by the first; a preview totals base + the picks; the player picks each slot;
+remembered per recipe kind); no automatic best-combination pick yet. "From scratch" on: a choice you lack gets "Make it"
+(the shortfall crafted, its recipe expanded into the shopping list and build order; an unknown recipe = "buy"; nested
+slots get their own pick); off: the plan stops at the slot. To check in game: whether a material's stats that don't
+fit the item (Base Weapon Damage on a chest) apply. Also a gathering session HUD; lock-position / snap presets for strips
 (only if a strip's grip can be hidden).
 
 ## Game behaviour (confirmed in game)
