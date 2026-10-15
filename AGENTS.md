@@ -181,8 +181,10 @@ into one if a new file is ever needed).
   The recipe book (`D.ReadRecipeBook`, for `/toolbox recipe` and the planner): `D.BOOK_STEP` (1) recipe by id a
   `D.BOOK_PERIOD` (0.05 s) step, about 90 s for a big book (the whole book at once ran past the game's time limit,
   2026-10-05; API 37's `ShroudGetRecipeBook`, one station a step, hitched in game, owner 2026-10-15: not used;
-  `D.BookProgress` for the planner's bar); kept for the session in `D.recipeIndex` (`recipes`, `byResult` by name,
-  `byKey` by item key), dropped on `ShroudOnRecipesChanged`. At the end, `Toolbox.Planner` (PL; owner, 2026-10-15,
+  `D.BookProgress` for the planner's bar, with a once-a-login note, `PL.BOOK_NOTE`); kept for the session in
+  `D.recipeIndex` (`recipes`, `byResult` by name,
+  `byKey` by item key), dropped on `ShroudOnRecipesChanged` and by `PL.Init` (a login or another character). Not saved: 1,764 recipes'
+  makers would take a large share of a 256 KB file. At the end, `Toolbox.Planner` (PL; owner, 2026-10-15,
   the 1.9.0 feature; header comment): the crafting planner, `/toolbox plan [recipe]`, the shared 8th window's fourth
   user (`T.TakeSharedWindow("planner")`). Pure model: `PL.Expand(rootId, crafts, ctx)` (rows, shopping list, build
   order; your bags shared across the plan; no recipe inside itself), `PL.PickChoice` (the player's pick, "stats" mode's

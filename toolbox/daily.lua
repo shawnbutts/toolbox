@@ -1582,6 +1582,7 @@ PL.MODES = { { "have", "Use what I have" }, { "stats", "Stats I care about" } }
 PL.VIEWS = { "Shopping list", "Plan", "Build order" }   -- the shopping list first, and by default (owner)
 PL.NO_RECIPE = "Find a recipe first"
 PL.NO_STATS = "No stats to watch"
+PL.BOOK_NOTE = "Reading your recipe book, once a login (and after learning a recipe): the planner works meanwhile."
 PL.STAT_NAMES = { weight = "Weight", durability = "Durability", damageMin = "Min damage", damageMax = "Max damage",
                   critical = "Critical", parry = "Parry", chargeSeconds = "Charge time", resistance = "Resistance",
                   avoidance = "Avoidance" }
@@ -2433,10 +2434,12 @@ local function plBuild()
     bar = UI.Bar{ id = "pl_bar", value = 0, color = "@gold", style = { flexGrow = 1, height = 6 } },
     barText = UI.Label{ id = "pl_bar_text", text = "", class = "dim", style = { marginLeft = 6 } },
   }
-  plEl.barRow = UI.Row{ id = "pl_progress", visible = false, style = { alignItems = "center", marginTop = 2 },
+  plEl.barRow = UI.Column{ id = "pl_progress", visible = false, style = { marginTop = 2 },
     tooltip = "Your recipe book is read a recipe at a time, so the game doesn't stall: then I'll craft knows every"
       .. " recipe making an item (until then, the ones named like it)",
-    children = { plEl.bar, plEl.barText } }
+    children = {
+      UI.Label{ id = "pl_bar_note", text = PL.BOOK_NOTE, class = "dim", style = { whiteSpace = "wrap" } },
+      UI.Row{ style = { alignItems = "center" }, children = { plEl.bar, plEl.barText } } } }
   plEl.statRow = UI.Column{ id = "pl_stats", visible = false, children = {
     line({ plEl.stat,
       UI.Button{ id = "pl_watch", text = "Watch", style = { marginLeft = 4 },
@@ -2554,9 +2557,11 @@ function PL.OnCraftResults(results)
   plDirty = true
 end
 
--- Re-runnable (another character): its own plan and picks; the window, built for the last one, goes.
+-- Re-runnable (another character, or a login after the login screen): its own plan and picks, and its own
+-- recipe book, read again; the window, built for the last one, goes.
 function PL.Init()
   if plWin then plDrop() end
+  D.ForgetRecipes()                    -- another character knows other recipes
   local saved = T.ReadSaved(PL.KEY)
   plPrefs = type(saved) == "table" and saved or {}
   plPrefs.v = 1

@@ -119,8 +119,9 @@ D.SECTIONS = {
       .. "Plan). Tick that to plan crafting the shortfall yourself: its own ingredients are planned under it, as "
       .. "deep as it goes, instead of it going on the shopping list. Toolbox never crafts anything. When two "
       .. "recipes make it (Iron Ingot, Iron Ingot from Metal Scraps), the one named like the item is used, and "
-      .. "made by changes it. The first time, your recipe book is read in the background, a recipe at a time so "
-      .. "the game doesn't stall: the bar at the bottom shows how far (about a minute and a half).",
+      .. "made by changes it. Once a login (and after you learn a recipe), your recipe book is read in the "
+      .. "background, a recipe at a time so the game doesn't stall: the bar at the bottom shows how far (about a "
+      .. "minute and a half), and the planner works meanwhile.",
     "Show switches between the Shopping list (everything to buy or gather, added up; shown first), the "
       .. "Plan and the Build order: the crafts grouped by station, the ones that make materials first. Each is "
       .. "ticked off as you craft (what's on the crafting table counts), with how many you made. The planner "
