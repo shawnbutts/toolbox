@@ -469,7 +469,7 @@ into one if a new file is ever needed).
   arpeggio into a ringing chord, and skill_down, sinking "wah wah" notes, and skill_train / skill_maintain /
   skill_unlearn, two quick notes up, even and down, belong to skills.lua; block, parry and
   dodge, a thud, a clash and a whoosh, to combat.lua's shout), `launcher.py` (-> `toolbox/launcher.png`: the
-  menu's nine button pictures (in `LN.BUTTONS` order), white line art with a dark edge, tinted in game). Re-encoding changes the bytes even when the audio is the same:
+  menu's ten button pictures (in `LN.BUTTONS` order), white line art with a dark edge, tinted in game). Re-encoding changes the bytes even when the audio is the same:
   `git checkout` an .ogg you didn't mean to change. A player's own `Lua/toolbox_<name>` sounds win.
   Effect sounds (owner, 2026-10-08): a player's file per buff / debuff, for when you get it ("get": a debuff's
   landing, or a buff appearing outside the settling, `timers` empty) and / or when it's about to run out ("end": the
@@ -736,7 +736,8 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   this item uses them?); `chosenKey` not seen yet (selecting a recipe isn't picking a slot's material). The guide's new "Keeping an add-on light"
   matches the house rules.
 
-**Waiting on the developers:** a read-only game settings API (first use: the game's "stack buffs lasting
+**Waiting on the developers:** more windows per add-on, 12 instead of 8 (the owner asked, 2026-10-15): then the
+shared 8th window's users (Docs, version, Map overlays, the crafting planner) could have their own. A read-only game settings API (first use: the game's "stack buffs lasting
 longer than" option feeding `BB.GroupAfter()`). Submitted 2026-10-07 (`tmp/client-issues.md`): **18**, for the
 crafting planner (ingredient choices for slot categories, item stats, language-independent item keys, a `have`
 that counts containers, the recipe book in one call, the station a recipe needs), and **19**, the saved "/" data

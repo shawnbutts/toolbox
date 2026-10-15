@@ -2707,6 +2707,8 @@ LN.BUTTONS = {
     open = function() return T.Daily.IsShown() end, toggle = function() T.Daily.Toggle() end },
   { key = "loot", name = "Loot Tracker", short = "Loot", cmd = " loot",
     open = function() return T.DailyDetail.IsOpen() end, toggle = function() T.DailyDetail.Toggle() end },
+  { key = "planner", name = "Crafting planner", short = "Plan", cmd = " plan",
+    open = function() return T.Planner.IsShown() end, toggle = function() T.Planner.Open() end },
   { key = "combat", name = "Combat Detailed", short = "Fight", cmd = " combat detail",
     open = function() return T.Combat.Detail.IsOpen() end, toggle = function() T.Combat.Detail.Toggle() end },
   { key = "notify", name = "Notifications", short = "News", cmd = " notify show",

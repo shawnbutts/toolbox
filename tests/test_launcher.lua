@@ -19,7 +19,7 @@ return function(t)
     t.ok(H.logged("New: the menu, top left"), table.concat(H.logs(), "\n"))
     local w, h = Toolbox.Launcher.ContentSize()
     t.ok(h > w, "a column")
-    t.eq(#Toolbox.Launcher.BUTTONS, 9)
+    t.eq(#Toolbox.Launcher.BUTTONS, 10)
     for _, b in ipairs(Toolbox.Launcher.BUTTONS) do
       t.ok(button(b.key), b.key)
       t.ok(button(b.key).tooltip:find(b.name, 1, true), b.key)
@@ -28,6 +28,19 @@ return function(t)
     H.reload()
     t.no(H.logged("New: the menu"), "once")
     t.ok(strip(), "still on")
+  end)
+
+  t.test("the crafting planner's button opens it and lights; another click closes it", function()
+    H.boot()
+    H.S.recipes = { [1] = { id = 1, name = "Iron Ingot", ingredients = {}, results = {} } }
+    H.advance(1)
+    t.no(lit("planner"), "dimmed")
+    click("planner")
+    t.ok(Toolbox.Planner.IsShown(), "open")
+    t.ok(lit("planner"), "lit")
+    click("planner")
+    t.no(Toolbox.Planner.IsShown(), "closed")
+    t.no(lit("planner"), "dimmed again")
   end)
 
   t.test("a click opens its window and lights the button; another closes it and dims it", function()
@@ -150,7 +163,7 @@ return function(t)
     H.boot()
     local keys = {}
     for _, b in ipairs(Toolbox.Launcher.BUTTONS) do keys[#keys + 1] = b.key end
-    t.eq(table.concat(keys, " "), "xp xpdetail today loot combat notify location docs settings")
+    t.eq(table.concat(keys, " "), "xp xpdetail today loot planner combat notify location docs settings")
     local kids = strip():Find("launcher").children
     t.eq(kids[#kids].id, "ln_settings")
     t.eq(kids[#kids - 1].id, "ln_docs")

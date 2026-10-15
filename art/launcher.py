@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Generate toolbox/launcher.png: the launcher strip's button pictures, as a nine-frame sprite.
+"""Generate toolbox/launcher.png: the launcher strip's button pictures, as a ten-frame sprite.
 
     python3 art/launcher.py
 
 Frames, left to right (hud.lua's LN.BUTTONS uses the same order): XP (a star), XP Detailed (a star over a bar
-chart), Today (a sun), Loot Tracker (a bag), Combat Detailed (crossed swords), Notifications (a bell), Location
+chart), Today (a sun), Loot Tracker (a bag), Crafting planner (a hammer over a list; owner, 2026-10-15), Combat Detailed (crossed swords), Notifications (a bell), Location
 (a map pin; owner, 2026-10-13), Docs (an open book), Settings (a gear): Settings last, Docs above it (owner,
 2026-10-10). White line art with a dark edge, so the game's tint (@gold) colours it and it
 reads on any skin. Each frame is FRAME px square, drawn on a 64-unit grid. Writes art/launcher.svg and renders it
@@ -51,6 +51,9 @@ FRAMES = [
     ("today", '<circle cx="32" cy="32" r="11"/>' + rays(17, 25, 0.39)),
     ("loot", '<path d="M24 24 C9 33 11 55 32 55 C53 55 55 33 40 24 Z"/>'
              '<path d="M24 24 L19 12 C27 15 37 15 45 12 L40 24"/><line x1="23" y1="24" x2="41" y2="24"/>'),
+    ("planner", '<polygon points="37,12 54,29 47,36 30,19" stroke-linejoin="round"/>'
+                '<line x1="16" y1="50" x2="38.5" y2="27.5"/>'
+                '<line x1="42" y1="47" x2="56" y2="47"/><line x1="42" y1="55" x2="56" y2="55"/>'),
     ("combat", '<line x1="20" y1="44" x2="51" y2="13"/><line x1="44" y1="44" x2="13" y2="13"/>'
                '<line x1="13" y1="37" x2="27" y2="51"/><line x1="51" y1="37" x2="37" y2="51"/>'
                '<line x1="20" y1="44" x2="13" y2="51"/><line x1="44" y1="44" x2="51" y2="51"/>'

@@ -279,9 +279,10 @@ D.SECTIONS = {
       .. "/toolbox gear bar off hides the bar; /toolbox gear move <x> <y> places it." },
   { "Menu",
     "A column of gold buttons, at the top left at first, that opens Toolbox's windows with one click: XP, "
-      .. "XP Detailed, Today, Loot Tracker, Combat Detailed, Notifications (the news now, whatever each usually "
-      .. "shows in), Location (shows or hides the location strip), Docs and Settings. A button is bright "
-      .. "while its window is open; click it again to close it. Hover one for its name and its chat command. "
+      .. "XP Detailed, Today, Loot Tracker, Crafting planner, Combat Detailed, Notifications (the news now, "
+      .. "whatever each usually shows in), Location (shows or hides the location strip), Docs and Settings. "
+      .. "A button is bright while its window is open; click it again to close it. Hover one for its name and "
+      .. "its chat command. "
       .. "Move it by its grip, or with the Position buttons under HUD layout.",
     "Settings, Menu, setups, backup & reset: Show the menu (off: open the windows from the settings, as "
       .. "before), Vertical (off: a row), Hide during combat (it comes back a few seconds after a fight, and "

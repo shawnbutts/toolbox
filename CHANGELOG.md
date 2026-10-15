@@ -16,7 +16,7 @@ ones included).
   the item's base stats. **From scratch** offers **Make it** for what you're short of and one of your recipes makes:
   its ingredients are planned under it, as deep as it goes. Views: the plan, a **Shopping list** (what to buy or
   gather, added up) and a **Build order** (the crafts by station, materials first, ticked off as you craft). It
-  shares a window with the Docs and Map overlays.
+  shares a window with the Docs and Map overlays; the menu has a button for it.
 
 ### Changed
 - Location strip: on a game client with the developers' fix for the slow nearest-water lookup (assumed Lua API 39),
