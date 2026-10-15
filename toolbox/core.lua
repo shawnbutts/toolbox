@@ -1058,8 +1058,16 @@ function ShroudOnInventoryChanged()
   T.Planner.Changed()
 end
 
-add("plan", "the crafting planner: a recipe's materials, what to get and what to craft (plan [recipe])",
-  function(rest) T.Planner.Open(rest) end)
+add("plan", "the crafting planner: a recipe's materials, what to get and what to craft (plan [recipe]; plan debug)",
+  function(rest)
+    if T.Trim(rest or ""):lower() == "debug" then
+      T.Planner.debug = not T.Planner.debug
+      T.Print("Planner debug " .. (T.Planner.debug and "on: each event the search box gets is said in chat (type,"
+        .. " then press Enter)." or "off."))
+      return
+    end
+    T.Planner.Open(rest)
+  end)
 
 add("crafted", "today's crafting: items made, crafts per recipe, exceptional and XP (Loot Tracker)",
   function() openView("crafted") end)

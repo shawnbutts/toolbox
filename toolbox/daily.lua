@@ -1679,6 +1679,9 @@ PL.INDENT = 14
 PL.CRAFTS = { 1, 2, 3, 4, 5, 10, 20, 50, 100 }
 PL.VIEWS = { "Shopping list", "Plan", "Build order" }   -- the shopping list first, and by default (owner)
 PL.NO_RECIPE = "Find a recipe first"
+PL.PICK_ONE = "%d matches: pick one"      -- the Recipe list's first line while it lists matches, not yet picked
+PL.MIN_TYPED = 3
+PL.debug = false                        -- /toolbox plan debug: the search box's events in chat
 PL.BOOK_NOTE = "Reading your recipe book, once a login (and after learning a recipe): the planner works meanwhile."
 PL.STAT_NAMES = { weight = "Weight", durability = "Durability", damageMin = "Min damage", damageMax = "Max damage",
                   critical = "Critical", parry = "Parry", chargeSeconds = "Charge time", resistance = "Resistance",
@@ -2342,15 +2345,22 @@ function PL.Refresh(now)
   T.PerfAdd("planner", t0)
 end
 
-local function plFind(text)
-  local found, n = PL.Find(text or (plEl.find and plEl.find:GetText()) or "")
+-- The search: `pick` (Find, Enter) plans the first match; as you type (owner, 2026-10-15: Enter never reached the
+-- field in game, its onChange does, like the settings search) the Recipe list only fills with the matches from
+-- PL.MIN_TYPED letters, a single match planned at once.
+local function plFind(text, pick)
+  text = text or (plEl.find and plEl.find:GetText()) or ""
+  local typed = T.Trim(text)
+  if not pick and #typed < PL.MIN_TYPED then return end
+  local found, n = PL.Find(typed)
   if #found == 0 then
-    plMsg(T.Trim(text or (plEl.find and plEl.find:GetText()) or "") == "" and "Type part of a recipe's name first."
-      or "No recipe you know has that in its name.")
+    plMsg(typed == "" and "Type part of a recipe's name first." or "No recipe you know has that in its name.")
     return
   end
   local names = {}
   plMatches = {}
+  local auto = pick or #found == 1
+  if not auto then names[1] = string.format(PL.PICK_ONE, n) end
   for _, f in ipairs(found) do
     local name = f.name
     if plMatches[name] then name = name .. " (" .. f.id .. ")" end
@@ -2361,9 +2371,9 @@ local function plFind(text)
     plEl.recipe:SetChoices(names)
     plEl.recipe:SetValue(names[1])
   end)
-  PL.SetRecipe(found[1].id)
+  if auto then PL.SetRecipe(found[1].id) end
   plMsg(n > #found and (n .. " recipes match: the first " .. #found .. " are listed; type more of the name.")
-    or (#found > 1 and (#found .. " recipes match: pick one.") or nil))
+    or (#found > 1 and (#found .. " recipes match: pick one in the Recipe list.") or nil))
 end
 
 local function plBuild()
@@ -2380,7 +2390,15 @@ local function plBuild()
   plEl = {
     find = T.TextField{ id = "pl_find", text = "", placeholder = "Part of a recipe's name: plate chest...",
       maxLength = 60, style = { flexGrow = 1, flexShrink = 1 },
-      tooltip = "Search the recipes you know", onSubmit = function(_, text) plFind(text) end },
+      tooltip = "Search the recipes you know: the Recipe list fills as you type",
+      onChange = function(_, text)
+        if PL.debug then T.Print("[plan debug] the search box changed: '" .. tostring(text) .. "'") end
+        plFind(text, false)
+      end,
+      onSubmit = function(_, text)
+        if PL.debug then T.Print("[plan debug] Enter in the search box: '" .. tostring(text) .. "'") end
+        plFind(text, true)
+      end },
     recipe = UI.Dropdown{ id = "pl_recipe", choices = { first }, value = first,
       style = { flexGrow = 1, flexShrink = 1 },
       tooltip = "The recipe planned (Find lists the ones matching)",
@@ -2417,7 +2435,7 @@ local function plBuild()
     style = { paddingLeft = 8, paddingRight = 8, paddingTop = 4, paddingBottom = 6 },
     children = {
       line({ plEl.find, UI.Button{ id = "pl_find_go", text = "Find", style = { marginLeft = 4 },
-        tooltip = "List the recipes you know with this in their name", onClick = function() plFind() end },
+        tooltip = "Plan the first recipe you know with this in its name", onClick = function() plFind(nil, true) end },
         UI.Button{ id = "pl_reset", text = "Reset", style = { marginLeft = 2 },
           tooltip = "Start over: no recipe, 1 craft, no I'll craft ticks, and this recipe's materials back to the"
             .. " first you have enough of (your recipe book stays read)", onClick = function() PL.Reset() end } }, 0),
@@ -2482,7 +2500,7 @@ function PL.Open(text)
   end
   plBodySig = nil
   if text ~= "" then
-    plFind(text)
+    plFind(text, true)
   else
     PL.Refresh(true)
   end
