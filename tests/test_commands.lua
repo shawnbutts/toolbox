@@ -245,6 +245,22 @@ return function(t)
     t.ok(H.S.periodics.toolbox_location and H.S.periodics.toolbox_buffbar, "back after the report")
   end)
 
+  t.test("perf only <a timer not started yet>: it runs once it starts (the planner's recipe book)", function()
+    H.boot()
+    H.S.recipes = { [1] = { id = 1, name = "Iron Ingot", ingredients = {}, results = { { name = "Iron Ingot",
+      quantity = 1 } } } }
+    H.advance(3, 0.05)
+    H.clearLogs()
+    H.chat("/tbx perf only recipe 10")
+    t.ok(H.logged("No timer matches recipe yet: Toolbox's others are paused, and one that starts meanwhile"),
+      H.logs()[1])
+    Toolbox.Daily.ReadRecipeBook(function() end)
+    t.ok(H.S.periodics.toolbox_recipe_book, "the book's timer runs")
+    H.advance(11, 0.05)
+    t.ok(Toolbox.Daily.recipeIndex, "read")
+    t.ok(H.logged("recipe book [%d.]+ ms at most"), table.concat(H.logs(), "\n"))
+  end)
+
   t.test("perf: a client refusing the 0.01 s timer gets a longer one; refusing every one is said", function()
     H.boot()
     H.S.periodMin = 0.011

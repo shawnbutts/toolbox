@@ -2591,7 +2591,8 @@ add("perf", "measure hitches for a minute (perf <seconds>; perf stop): slow fram
   local onlyText = type(quiet) == "table" and #kept > 0 and (" with only " .. table.concat(kept, ", ") .. " running"
     .. " (Toolbox's other strips and windows stand still until then)") or nil
   if type(quiet) == "table" and not onlyText then
-    T.Print("No timer matches " .. table.concat(quiet, ", ") .. ": all of Toolbox's are paused, as perf quiet.")
+    T.Print("No timer matches " .. table.concat(quiet, ", ") .. " yet: Toolbox's others are paused, and one that"
+      .. " starts meanwhile with that in its name runs (the recipe book's, once the planner reads it).")
   end
   local how = onlyText or (quiet and " with Toolbox's timers paused (its strips and windows stand still until then)")
     or ""
