@@ -717,8 +717,17 @@ local locWater = { scene = nil, kinds = "", at = -math.huge, shown = false,   --
                    near = nil, nearAt = -math.huge }   -- the nearest water as last read, and when
 -- The nearest water is asked every LOC.WATER_NEAR_EVERY s, moving or not, and at once in a new scene or with the line
 -- switched on (the owner's perf runs, 2026-10-14: asked twice a second, the game's answer took up to 28 ms; owner:
--- "every 15 second should be fine").
+-- "every 15 second should be fine"). The slowness is the game's, fixed in the next client (owner, 2026-10-15: then
+-- every 3 s): assumed to come with API LOC.WATER_FAST_API; an older client keeps 15.
 LOC.WATER_NEAR_EVERY = 15
+LOC.WATER_NEAR_FAST = 3
+LOC.WATER_FAST_API = 39
+function LOC.WaterNearEvery()
+  if type(ShroudLuaApiVersion) == "number" and ShroudLuaApiVersion >= LOC.WATER_FAST_API then
+    return LOC.WATER_NEAR_FAST
+  end
+  return LOC.WATER_NEAR_EVERY
+end
 
 function LOC.HasWater()
   return type(ShroudGetNearestWaterType) == "function" and type(ShroudGetSceneWaterTypes) == "function"
@@ -908,7 +917,7 @@ end
 function LOC.UpdateWater(scene)
   local text, kinds = nil, ""
   if LOC.HasWater() and locPrefs.water ~= false then
-    if scene ~= locWater.scene or T.Now() - locWater.nearAt >= LOC.WATER_NEAR_EVERY then
+    if scene ~= locWater.scene or T.Now() - locWater.nearAt >= LOC.WaterNearEvery() then
       local ok, kind, metres = pcall(ShroudGetNearestWaterType)
       locWater.near = ok and LOC.WaterText(kind, metres) or nil
       locWater.nearAt = T.Now()

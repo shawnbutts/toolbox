@@ -241,8 +241,9 @@ into one if a new file is ever needed).
   `Toolbox.Location` (LOC; owner, 2026-10-08): the location strip (scene, position rounded, compass heading from
   `ShroudGetPlayerCompassHeading`; hover = `ShroudGetLocationText`), its own `LOC.TICK` periodic setting text only
   on change, its width from the scene name's length (refit on a scene change); fishable water (API 32, `water`: the nearest within
-  30 m on a line hidden when none, `LOC.UpdateWater`; the scene's kinds in the hover, re-read every `LOC.WATER_EVERY` s (30; 5 before the 1.8.0 perf runs); the nearest every `LOC.WATER_NEAR_EVERY` s (15, owner;
-  the game's answer took up to 28 ms)
+  30 m on a line hidden when none, `LOC.UpdateWater`; the scene's kinds in the hover, re-read every `LOC.WATER_EVERY` s (30; 5 before the 1.8.0 perf runs); the nearest every `LOC.WaterNearEvery()` s (15, owner;
+  the game's answer took up to 28 ms; the slowness is the game's, fixed in the next client, owner 2026-10-15: `LOC.WATER_NEAR_FAST` 3 s from
+  `LOC.WATER_FAST_API` 39, assumed)
   (a town's water decoration changes them, review 32); harness `H.S.water`, `H.S.sceneWater`, `H.S.noWater`); controls (and its Position rows: `POSITIONED`'s
   page field) on the "Map & location" page (`C.MapSection`, key "map", with the run markers' toggle; owner, 2026-10-13:
   the home for map features to come).
@@ -944,6 +945,8 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
   255 (written `%uXXXX`) and `string.char` of it reading back.
 - Recovery: that a character's own saved vars are loaded when `B.Recover` runs (ShroudOnStart with a character, and
   `T.FollowCharacter`): read too early, a missing `save_mark` would put the copy back needlessly (same data, a chat line).
+- That the client fixing `ShroudGetNearestWaterType`'s cost (20-28 ms a call) reports API 39 (`LOC.WATER_FAST_API`):
+  check with `/toolbox perf` on that client, and move the number if the fix comes with another.
 - `ShroudGetClientInfo().languageCode` on a non-English client (assumed "de", "fr"...; the docs' example is "en").
 - The run Beacon (`ShroudSetBeacon`, API 9): the marker at the recorded spot on the compass and map, its "Loot run
   HH:MM" label, and `ShroudGetCurrentSceneNameRaw` matching across visits to a scene (instanced scenes may differ).

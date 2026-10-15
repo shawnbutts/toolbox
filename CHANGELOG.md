@@ -7,6 +7,10 @@ ones included).
 
 ## [Unreleased]
 
+### Changed
+- Location strip: on a game client with the developers' fix for the slow nearest-water lookup (assumed Lua API 39),
+  the nearest water is checked every 3 seconds instead of every 15.
+
 ## [1.8.0] - 2026-10-14
 
 ### Added

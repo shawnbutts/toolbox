@@ -108,14 +108,14 @@ return function(t)
     t.eq(strip():Find("loc_water").visible, false, "no water near")
     H.S.water = { "salt", 12.4 }
     H.S.pos = { 5, 0, 0 }                        -- walked up to it
-    H.advance(Toolbox.Location.WATER_NEAR_EVERY)
+    H.advance(Toolbox.Location.WaterNearEvery())
     t.eq(text("loc_water"), "Salt water, 12 m")
     t.ok(strip():Find("loc_water").visible ~= false)
     local _, h1 = Toolbox.Location.ContentSize()
     t.ok(h1 > h0, "the strip takes the line")
     H.S.water = { "fresh", 0 }
     H.S.pos = { 17, 0, 0 }
-    H.advance(Toolbox.Location.WATER_NEAR_EVERY)
+    H.advance(Toolbox.Location.WaterNearEvery())
     t.eq(text("loc_water"), "In fresh water")
     local asks, ask = 0, ShroudGetNearestWaterType          -- asked every 15 s, not each tick
     ShroudGetNearestWaterType = function(...)
@@ -127,7 +127,7 @@ return function(t)
       H.advance(1)
     end
     ShroudGetNearestWaterType = ask
-    t.ok(asks <= 30 / Toolbox.Location.WATER_NEAR_EVERY + 1, asks .. " asks in 30 s")
+    t.ok(asks <= 30 / Toolbox.Location.WaterNearEvery() + 1, asks .. " asks in 30 s")
     t.eq(Toolbox.Location.WaterText("lava", 3), "Lava, 3 m")
     t.no(strip():Find("loc_strip").tooltip:find("Fishable water"), "the scene's list isn't read yet")
     H.S.sceneWater = { "salt", "fresh" }
@@ -158,6 +158,29 @@ return function(t)
   end)
 
   -- API 31: a smaller game window (or a bigger UI scale) can leave a strip past the edge.
+  t.test("the nearest water every 15 s, every 3 s on a client with the game's fix (API 39 assumed)", function()
+    local function asksIn(secs, api)
+      H.boot()
+      ShroudLuaApiVersion = api                  -- each boot puts back 25
+      H.S.water = { "salt", 12.4 }
+      H.chat("/tbx location on")
+      H.advance(1)
+      local asks, ask = 0, ShroudGetNearestWaterType
+      ShroudGetNearestWaterType = function(...)
+        asks = asks + 1
+        return ask(...)
+      end
+      H.advance(secs)
+      ShroudGetNearestWaterType = ask
+      return asks
+    end
+    t.eq(asksIn(30, 25), 2, "API 25: every 15 s")
+    t.eq(Toolbox.Location.WaterNearEvery(), 15)
+    t.eq(asksIn(30, 39), 10, "API 39: every 3 s")
+    t.eq(Toolbox.Location.WaterNearEvery(), 3)
+    H.boot()
+  end)
+
   t.test("the game window shrinks: a strip past the edge comes back on screen, and its place is kept", function()
     H.boot()
     H.chat("/tbx location on")
