@@ -113,8 +113,15 @@ local function soundRows(def)
   local row = {
     UI.TextField{ id = "snd_" .. def.key .. "_path", text = S.GetPath(def.key),
       placeholder = "custom file in your Lua folder", maxLength = 200, style = { flexGrow = 1, flexShrink = 1 },
-      tooltip = "A .ogg/.wav/.mp3 path inside your Lua folder; press Enter to use it, clear it for the default",
+      tooltip = "A .ogg/.wav/.mp3 path inside your Lua folder: Set uses it; empty, the default",
       onSubmit = function(_, text) S.SetPath(def.key, text) end },
+    -- Enter alone doesn't reach a field on the live client (owner, 2026-10-15): a button sets it
+    UI.Button{ id = "snd_" .. def.key .. "_set", text = "Set", style = { marginLeft = 4 },
+      tooltip = "Use the path typed here (empty: the default sound)",
+      onClick = function()
+        local field = el["snd_" .. def.key .. "_path"]
+        if field then S.SetPath(def.key, field:GetText()) end
+      end },
   }
   if S.CanPick() then
     row[#row + 1] = UI.Button{ id = "snd_" .. def.key .. "_choose", text = "Choose...", style = { marginLeft = 4 },

@@ -139,6 +139,7 @@ function T.TextField(spec)
   if type(fn) ~= "function" then return Shroud.UI.TextField(spec) end
   local at, said = nil, nil
   local function once(el, text)
+    if T.enterDebug then T.Print("[enter debug] Enter in " .. tostring(spec.id) .. ": '" .. tostring(text) .. "'") end
     if at == ShroudTime and said == text then return end
     at, said = ShroudTime, text
     return fn(el, text)
@@ -1062,8 +1063,9 @@ add("plan", "the crafting planner: a recipe's materials, what to get and what to
   function(rest)
     if T.Trim(rest or ""):lower() == "debug" then
       T.Planner.debug = not T.Planner.debug
-      T.Print("Planner debug " .. (T.Planner.debug and "on: each event the search box gets is said in chat (type,"
-        .. " then press Enter)." or "off."))
+      T.enterDebug = T.Planner.debug
+      T.Print("Planner debug " .. (T.Planner.debug and "on: each event the planner's search box gets, and Enter in"
+        .. " any Toolbox text box (with its name), is said in chat." or "off."))
       return
     end
     T.Planner.Open(rest)
