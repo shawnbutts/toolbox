@@ -231,6 +231,7 @@ return function(t)
     H.S.recipes[15] = { id = 15, name = "Smelt Scrap Iron", category = "Smelting", categoryKey = "Crafting_Smelting",
       station = "Smelter", ingredients = { { name = "Metal Scraps", key = key("k"), quantity = 3, have = 0 } },
       results = { { name = "Iron Ingot", key = key("i"), quantity = 2 } } }   -- named unlike what it makes
+    H.callback("ShroudOnRecipesChanged")         -- learned
     H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
     H.change(W, "pl_scratch", true)
     t.ok(find("pl_progress").visible ~= false, "the bar shows while the book is read")
@@ -254,6 +255,25 @@ return function(t)
     H.callback("ShroudOnSceneLoaded", "Novia")
     H.advance(1)
     t.eq(Toolbox.Daily.recipeIndex, nil, "another character: its own book, read again")
+  end)
+
+  t.test("the known recipes are read once a session: search, the names, the book read share them", function()
+    H.boot()
+    book()
+    local calls, get = 0, ShroudGetKnownRecipes
+    ShroudGetKnownRecipes = function() calls = calls + 1 return get() end
+    H.chat("/tbx plan augmented plate chest")
+    H.change(W, "pl_view", "Plan")
+    H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
+    H.change(W, "pl_scratch", true)
+    H.change(W, "pl_make_1", true)
+    H.submit(W, "pl_find", "iron")
+    H.advance(8)
+    t.eq(calls, 1, "one call")
+    H.callback("ShroudOnRecipesChanged")
+    H.submit(W, "pl_find", "iron")
+    t.eq(calls, 2, "again after learning a recipe")
+    ShroudGetKnownRecipes = get
   end)
 
   t.test("your bags are shared across the plan, and a recipe is never planned inside itself", function()

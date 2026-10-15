@@ -1236,8 +1236,35 @@ D.recipeIndex = nil                       -- { recipes = { [id] = recipe }, byRe
 local reading = nil                       -- the book being read: { list, at, recipes, byResult, waiting }
 local BOOK_TIMER = "toolbox_recipe_book"
 
+-- The known recipes, read once a session (ShroudGetKnownRecipes gives every one as a table: about 20 ms for 1,764 in
+-- game, and the planner and the book read both need it, owner's perf 2026-10-15): { { id, name, lower, categoryKey } },
+-- and by the first word of the lower-case name. Dropped with the book (D.ForgetRecipes).
+local knownList, knownByWord = nil, nil
+function D.KnownRecipes()
+  if knownList then return knownList, knownByWord end
+  knownList, knownByWord = {}, {}
+  if type(ShroudGetKnownRecipes) ~= "function" then return knownList, knownByWord end
+  local t0 = T.PerfT()
+  local ok, book = pcall(ShroudGetKnownRecipes)
+  for _, r in ipairs(ok and T.List(book) or {}) do
+    local name, id = T.Field(r, "name"), T.Field(r, "id")
+    if type(name) == "string" and type(id) == "number" then
+      local k = { id = id, name = name, lower = name:lower(), categoryKey = T.Field(r, "categoryKey") }
+      knownList[#knownList + 1] = k
+      local word = k.lower:match("^%S+")
+      if word then
+        knownByWord[word] = knownByWord[word] or {}
+        table.insert(knownByWord[word], k)
+      end
+    end
+  end
+  T.PerfAdd("knownList recipes", t0)
+  return knownList, knownByWord
+end
+
 function D.ForgetRecipes()
   D.recipeIndex = nil
+  knownList, knownByWord = nil, nil
   if reading then
     pcall(ShroudRemovePeriodic, BOOK_TIMER)
     local waiting = reading.waiting
@@ -1299,8 +1326,7 @@ function D.ReadRecipeBook(done)
     return #reading.list
   end
   if type(ShroudGetKnownRecipes) ~= "function" or type(ShroudGetRecipe) ~= "function" then return nil end
-  local ok, book = pcall(ShroudGetKnownRecipes)
-  local list = ok and T.List(book) or {}
+  local list = D.KnownRecipes()
   if #list == 0 then return nil end
   reading = { list = list, at = 1, recipes = {}, byResult = {}, byKey = {}, waiting = { done } }
   T.RegisterPeriodic(BOOK_TIMER, readSome, D.BOOK_PERIOD, true)
@@ -1596,7 +1622,6 @@ local plBodySig = nil                 -- what the body was built for (rebuilt on
 local plBody, plCol = nil, nil
 local plBuilt = {}                    -- recipe id -> { name, station, depth }: every craft the plan has asked for
 local plMade = {}                     -- recipe id -> crafts made since the plan was set (ShroudOnCraftResults)
-local plKnown = nil                   -- this session's known recipes: { { id, lower = its name in lower case } }
 local plQuick = {}                    -- item key -> the recipes named like it that make it ({ { id, yield } })
 
 local function plNum(v) if type(v) == "number" and v == v then return v end return nil end
@@ -1888,14 +1913,12 @@ end
 function PL.Find(text)
   local want = T.Trim(text or ""):lower()
   local found, n = {}, 0
-  if want == "" or type(ShroudGetKnownRecipes) ~= "function" then return found, 0 end
-  local ok, book = pcall(ShroudGetKnownRecipes)
-  for _, r in ipairs(ok and T.List(book) or {}) do
-    local name, id = T.Field(r, "name"), plNum(T.Field(r, "id"))
-    if type(name) == "string" and id and name:lower():find(want, 1, true) then
-      if name:lower() == want then return { { id = id, name = name } }, 1 end
+  if want == "" then return found, 0 end
+  for _, k in ipairs((D.KnownRecipes())) do
+    if k.lower:find(want, 1, true) then
+      if k.lower == want then return { { id = k.id, name = k.name } }, 1 end
       n = n + 1
-      if #found < PL.MATCHES then found[#found + 1] = { id = id, name = name } end
+      if #found < PL.MATCHES then found[#found + 1] = { id = k.id, name = k.name } end
     end
   end
   return found, n
@@ -1909,23 +1932,14 @@ function PL.NeedBook()
   end)
 end
 
-local function plKnownList()
-  if plKnown then return plKnown end
-  plKnown = {}
-  local ok, book = pcall(ShroudGetKnownRecipes)
-  for _, r in ipairs(ok and T.List(book) or {}) do
-    local name, id = T.Field(r, "name"), plNum(T.Field(r, "id"))
-    if type(name) == "string" and id then plKnown[#plKnown + 1] = { id = id, lower = name:lower() } end
-  end
-  return plKnown
-end
-
 -- Before the whole book is read: the known recipes named like the item ("Iron Ingot", "Iron Ingot from Metal
 -- Scraps"), each read to check it makes it (by key, or by name on an older client).
 local function plQuickMakers(key, name)
   if plQuick[key] then return plQuick[key] end
+  local t0 = T.PerfT()
   local want, out = name:lower(), {}
-  for _, k in ipairs(plKnownList()) do
+  local _, byWord = D.KnownRecipes()
+  for _, k in ipairs(byWord[want:match("^%S+") or ""] or {}) do
     if k.lower == want or k.lower:sub(1, #want + 1) == want .. " " then
       local rec = plRecipe(k.id)
       for _, res in ipairs(rec and T.List(T.Field(rec, "results")) or {}) do
@@ -1938,6 +1952,7 @@ local function plQuickMakers(key, name)
     end
   end
   plQuick[key] = out
+  T.PerfAdd("planner:makers by name", t0)
   return out
 end
 
@@ -2416,7 +2431,7 @@ end
 
 -- ShroudOnRecipesChanged: which recipes make what is found again.
 function PL.RecipesChanged()
-  plKnown, plQuick = nil, {}
+  plQuick = {}
   plDirty = true
   if PL.GetScratch() and PL.IsShown() then PL.NeedBook() end
 end
@@ -2439,7 +2454,7 @@ function PL.Init()
   local saved = T.ReadSaved(PL.KEY)
   plPrefs = type(saved) == "table" and saved or {}
   plPrefs.v, plPrefs.mode, plPrefs.watch = 1, nil, nil
-  plFresh, plBuilt, plMade, plPlan, plKnown, plQuick = {}, {}, {}, nil, nil, {}
+  plFresh, plBuilt, plMade, plPlan, plQuick = {}, {}, {}, nil, {}
 end
 
 T.Backup.OTHER_KEYS[#T.Backup.OTHER_KEYS + 1] = PL.KEY
