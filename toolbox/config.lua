@@ -266,6 +266,17 @@ function C.XPSection()
       tooltip = T.Daily.HasResults() and "Off: Loot Tracker's Looted list leaves out what you crafted or"
         .. " gathered (they have their own views)" or "Needs a newer game client (Lua API 18)",
       onChange = function(_, value) T.DailyDetail.SetInclude(value) end },
+    heading("Crafting planner"),
+    UI.Label{ text = "Plan a craft from your recipes: each ingredient you need, have and are short of, the"
+      .. " material for each slot (and what it adds), what to craft from scratch, a shopping list and a build order."
+      .. " Also the menu's hammer button, or /" .. T.commands[1] .. " plan <recipe>.",
+      class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
+    UI.Row{ style = { marginTop = 4 }, children = {
+      UI.Button{ id = "pl_open", text = "Open the crafting planner", enabled = T.Daily.HasResults(),
+        tooltip = T.Daily.HasResults() and ("Opens the planner (it shares a window with the Docs and Map overlays;"
+          .. " or /" .. T.commands[1] .. " plan)") or "Needs a newer game client (Lua API 18)",
+        onClick = function() T.Planner.Open() end },
+    } },
     heading("Text in these windows"),
     slider("font", "Text size", W.FONT_MIN, W.FONT_MAX, 1, W.GetFont(),
       "Text size of the XP and Today windows (" .. W.FONT_MIN .. "-" .. W.FONT_MAX .. ")",
@@ -1446,7 +1457,7 @@ local function category(keyOrLabel)
 end
 
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
-local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "ov_window", "ov_death",
+local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "ov_window", "ov_death", "pl_open",
   "ln_show", "ln_vertical", "ln_combat", "ln_size", "ln_size_value", "ln_shade", "ln_shade_value",
   "ln_btn_xp", "ln_btn_xpdetail", "ln_btn_today", "ln_btn_loot", "ln_btn_combat", "ln_btn_notify",
   "ln_btn_location", "ln_btn_docs", "ln_btn_settings",

@@ -317,6 +317,20 @@ return function(t)
     t.eq(plan.shop[2].n, 2)
   end)
 
+  t.test("settings: a search for planner finds its button, which opens it", function()
+    H.boot()
+    book()
+    H.chat("/tbx config")
+    H.change("toolbox_config", "search", "crafting planner")
+    local found = false
+    for _, c in ipairs(H.config():Find("search_results").choices) do
+      found = found or c:find("Crafting planner", 1, true) ~= nil
+    end
+    t.ok(found, table.concat(H.config():Find("search_results").choices, " | "))
+    H.click("toolbox_config", "pl_open")
+    t.ok(Toolbox.Planner.IsShown(), "opened")
+  end)
+
   t.test("an older client: no recipe calls, so no planner", function()
     H.boot()
     H.S.noCrafting = true

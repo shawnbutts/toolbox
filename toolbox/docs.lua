@@ -105,9 +105,10 @@ D.SECTIONS = {
     "Like XP, it can be a compact window or a HUD strip: /toolbox daily compact, daily hud (and daily "
       .. "window, daily move <x> <y>)." },
   { "Crafting planner",
-    "Plan a craft from the recipes you know: /toolbox plan opens the planner (/toolbox plan plate chest finds one "
-      .. "too). Type part of a recipe's name and press Find; pick it in the Recipe list, and how many Crafts. Each "
-      .. "ingredient gets a line: how many you need, how many you have and how many you're short.",
+    "Plan a craft from the recipes you know: the menu's hammer button, Settings, XP & Loot, or /toolbox plan "
+      .. "opens the planner (/toolbox plan plate chest finds one too). Type part of a recipe's name and press "
+      .. "Find; pick it in the Recipe list, and how many Crafts. Each ingredient gets a line: how many you need, "
+      .. "how many you have and how many you're short.",
     "A slot that takes a choice of material (Metal Sheet, Metal Binding, a strap...; a newer game client) gets a "
       .. "list of them, each with how many you have, starting on the first you have enough of. Under each slot, "
       .. "a line shows what the picked material adds to the item (a slot that doesn't pass its bonus on: only "

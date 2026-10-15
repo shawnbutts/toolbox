@@ -4,7 +4,8 @@
 your buffs and debuffs (with clock sweeps and a warning before they run out), your health, focus and
 Vigor, your food and potions, any gear that needs repair, and your target's health and effects into one
 movable HUD strip that can appear only in combat. Around it: XP per hour and time to your next level, everything you looted,
-crafted and gathered today with its market value, DPS and combat stats, and notifications.
+crafted and gathered today with its market value, a crafting planner, map overlays, DPS and combat stats, and
+notifications.
 
 **Highlights**
 
@@ -17,6 +18,8 @@ crafted and gathered today with its market value, DPS and combat stats, and noti
 - **XP tracking:** XP per hour, time to next level and a last-hour chart, for adventurer and producer XP.
 - **Today:** gold, kills, XP, and every item looted, crafted or gathered, with optional values from shroudoftheavatar.net.
 - **Combat stats:** DPS, damage taken, healing, crits, each skill's share, per-target damage and a fight timeline.
+- **Crafting planner:** a recipe's materials, what you're short of and what to craft from scratch, with a shopping list and a build order by station.
+- **Map overlays:** mark places on your map, or let the auto map mark every resource node you gather; your last death shows there too.
 - **Notifications:** guild message, mail, rewards, gear needing repair and friends coming online, in a window, on the HUD or in chat, with an optional sound.
 - **A one-click menu:** a column of gold buttons that opens any Toolbox window, lit while it's open.
 - **All set up in one settings window,** with a search to find any setting and a guide to every feature in the game. No files to edit.

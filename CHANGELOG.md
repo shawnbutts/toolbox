@@ -12,11 +12,12 @@ ones included).
   ingredient you need, have and are short of. A slot that takes a choice of material (Metal Sheet, Metal Binding...;
   Lua API 37) lists them with how many you have, starting on the first you have enough of, and under it what the
   picked material adds to the item. A material you pick yourself is kept for that recipe; **Reset** starts the plan
-  over. The result line adds your picks' stats to the item's base stats. **From scratch** offers an **I'll craft** tick for what you're short of and one of your recipes
-  makes: its ingredients are planned under it, as deep as it goes (your recipe book is read in the background once a
-  login, with a progress bar). Views: a **Shopping list** (what to buy or gather, added up; the first), the plan
-  and a **Build order** (the crafts by station, materials first, ticked off as you craft). It
-  shares a window with the Docs and Map overlays; the menu has a button for it.
+  over. The result line adds your picks' stats to the item's base stats. **From scratch** offers an **I'll craft**
+  tick for what you're short of and one of your recipes makes: its ingredients are planned under it, as deep as it
+  goes (your recipe book is read in the background once a login, with a progress bar). Views: a **Shopping list**
+  (what to buy or gather, added up; the first), the plan and a **Build order** (the crafts by station, materials
+  first, ticked off as you craft). It shares a window with the Docs and Map overlays; the menu has a button for it (and
+  Settings, XP & Loot).
 
 ### Changed
 - Location strip: on a game client with the developers' fix for the slow nearest-water lookup (assumed Lua API 39),
