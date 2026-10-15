@@ -1141,7 +1141,8 @@ add("settings", "settings files and setups (save, reset, cancel; setups, export,
     end
     local ok, why = B2.Import(s)
     T.Print(ok and ("Imported '" .. s.name .. "': this character now has a copy of its settings and positions."
-      .. (why and (" (" .. why .. ")") or "")) or ("Couldn't import: " .. tostring(why) .. "."))
+      .. (why and (" (" .. why .. ")") or "") .. B2.BackupNote(B2.lastBackup))
+      or ("Couldn't import: " .. tostring(why) .. "."))
   elseif word == "delete" then
     local s = B2.FindSetup(name)
     if not s then
@@ -2986,8 +2987,10 @@ function T.WhatsNew(welcomed)
   if ShroudGetSavedVar(T.VERSION_SEEN, "account") == T.version then return false end
   T.SetSavedVar(T.VERSION_SEEN, T.version, "account")
   if welcomed then return false end
+  local kept = T.Backup.updateBackups
   T.Print("Toolbox is now " .. T.version .. ": the version window shows what's new (/" .. T.commands[1]
-    .. " version).")
+    .. " version)." .. (kept and (" Copies of your saved files from before were kept in Lua/SavedVariables ("
+    .. table.concat(kept, ", ") .. ").") or ""))
   T.RegisterPeriodic("toolbox_whatsnew", function() T.Docs.OpenVersion() end, T.WELCOME_DELAY, false)
   return true
 end
@@ -3071,6 +3074,40 @@ function B.Pending()
   local p = ShroudGetSavedVar(B.PENDING, SCOPE)
   if type(p) ~= "table" or p.kind ~= "reset" then return nil end
   return p
+end
+
+-- The game's backups (API 39; owner, 2026-10-15): a copy of a saved file as it is ON DISK (the last save) to
+-- "<file>.<yyyyMMdd-HHmmss>" beside it in Lua/SavedVariables, the newest 5 kept, one a minute a file. Taken before
+-- what could lose settings: a reset (B.ApplyPending), an import (B.Import) and the first start of a new version
+-- (B.UpdateBackup: the account file and the first character's). Returns the backup's name, or nil (an older
+-- client, nothing saved yet, or refused: the change goes ahead anyway; the recovery copies stay for older clients).
+function B.HasBackups() return type(ShroudBackupSavedVars) == "function" end
+function B.KeepBackup(scope)
+  if not B.HasBackups() then return nil end
+  local ok, done, name = pcall(ShroudBackupSavedVars, scope or SCOPE)
+  if ok and done == true and type(name) == "string" and name ~= "" then return name end
+  return nil
+end
+
+-- "A copy of the file was kept first (name, in Lua/SavedVariables)." or "".
+function B.BackupNote(name)
+  if not name then return "" end
+  return " A copy of the file from before was kept: " .. name .. " (in Lua/SavedVariables)."
+end
+
+-- From ShroudOnStart, before anything is changed: the first start of a new version on an install that ran Toolbox
+-- before (not a new one: no "welcomed") backs up the account file and this character's. The names, for T.WhatsNew.
+function B.UpdateBackup()
+  B.updateBackups = nil
+  if ShroudGetSavedVar(T.VERSION_SEEN, ACCOUNT) == T.version or ShroudGetSavedVar("welcomed", ACCOUNT) == nil then
+    return
+  end
+  local kept = {}
+  for _, scope in ipairs({ SCOPE, ACCOUNT }) do
+    local name = B.KeepBackup(scope)           -- nil for a file never saved (a character's first start)
+    if name then kept[#kept + 1] = name end
+  end
+  if #kept > 0 then B.updateBackups = kept end
 end
 
 -- Asks for a reset at the next start. Returns true, or false and why (the game refused to store the request,
@@ -3752,6 +3789,7 @@ function B.Import(s)
   local saved = ShroudGetSavedVar(foundSetupKey(s.name, s.character), ACCOUNT)
   if type(saved) ~= "table" or type(saved.keys) ~= "table" then return false, "that setup is gone" end
   local values = importValues(saved.keys)
+  B.lastBackup = B.KeepBackup(SCOPE)     -- this character's settings as last saved (the caller says so)
   local old, written = {}, {}
   for _, key in ipairs(B.KEYS) do old[key] = T.Resaved(ShroudGetSavedVar(key, SCOPE)) end
   for _, key in ipairs(B.KEYS) do
@@ -3850,6 +3888,7 @@ end
 -- From ShroudOnStart, before any module reads its settings: carries out a waiting reset.
 function B.ApplyPending()
   if not B.Pending() then return end
+  local kept = B.KeepBackup(SCOPE)    -- the settings as they were (the request was flushed with them)
   T.DeleteSaved(B.PENDING, SCOPE)     -- first: a failure below doesn't repeat at every start
   local unlisted, why = unlistMine()         -- sharing goes back to off: its copy goes too (review, 2026-10-04)
   if not unlisted then T.Print("Couldn't take this character's setup off the shared list: " .. why .. ".") end
@@ -3861,7 +3900,7 @@ function B.ApplyPending()
     T.Print("Toolbox's settings are back to their defaults for now, but the game couldn't write them to disk:"
       .. " your old settings may come back after a restart.")
   else
-    T.Print("Toolbox's settings are back to their defaults.")
+    T.Print("Toolbox's settings are back to their defaults." .. B.BackupNote(kept))
   end
 end
 
@@ -3965,6 +4004,7 @@ function ShroudOnStart()
   T.RegisterKeybind()
   T.settingsFor = characterName() or false
   step("the saved files' size", T.Backup.MeasureFiles)  -- before any write: each file's 256 KB
+  step("the update's backup", T.Backup.UpdateBackup)    -- a new version: the files as they were, before any change
   step("the price cache's size", T.Prices.KeepSize)     -- first: an older, bigger cache must not fill the file
   step("the setup names", T.Backup.TidyTagged)          -- copies kept under a tagged name, before the check
   step("the recovery check", T.Backup.Recover)          -- a file the game couldn't read: put back first

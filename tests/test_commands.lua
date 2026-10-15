@@ -621,7 +621,7 @@ return function(t)
 
   t.test("api lists which newer functions exist", function()
     H.boot()
-    H.S.noApi16, H.S.noMapTitle = true, true   -- an older client
+    H.S.noApi16, H.S.noMapTitle, H.S.noBackups = true, true, true   -- an older client
     H.reload()
     H.clearLogs()
     H.chat("/tbx api")
@@ -639,7 +639,7 @@ return function(t)
     t.ok(H.logged("calendar now %(API 38%): none present"), "told by the version")
     t.ok(H.logged("Saved%-file backups %(API 39%): none present"))
     t.ok(H.logged("Map title %(API 40%): none present"))
-    H.S.noMapTitle = nil
+    H.S.noMapTitle, H.S.noBackups = nil, nil
     ShroudSetBuffBarVisible, ShroudGetBuffBarRect, ShroudGetGuildMotd = nil, nil, nil
     ShroudLuaApiVersion = 38
     H.clearLogs()

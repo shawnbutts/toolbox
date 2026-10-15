@@ -93,6 +93,52 @@ return function(t)
     t.no(H.logged("back to their defaults"), "not again")
   end)
 
+  -- API 39 (owner, 2026-10-15): the game's own copy of a file before what could lose settings.
+  t.test("the game's backups: before a reset, an import and a new version's first start; not on an older client",
+    function()
+    local CH = "character:Tester"
+    H.boot()
+    H.chat("/tbx vitals size 200")
+    H.advance(Toolbox.flushSeconds + 1)
+    H.chat("/tbx settings reset")
+    H.clearLogs()
+    reloadForReal()
+    local kept = H.S.backups[CH]
+    t.eq(#kept, 1, "one copy, of the character file")
+    t.eq(kept[1].data.vitals.scale, 200, "the settings from before the reset")
+    local named = kept[1].name:gsub("%.", "%%.")
+    t.ok(H.logged("back to their defaults%. A copy of the file from before was kept: " .. named), H.logs()[1])
+
+    H.advance(61)                                    -- the game takes one a minute a file
+    H.chat("/tbx settings export Raid")
+    H.clearLogs()
+    H.chat("/tbx settings import Raid")
+    t.eq(#H.S.backups[CH], 2, "before the import")
+    t.ok(H.logged("^Imported 'Raid'.*A copy of the file from before was kept: "), H.lastLog())
+
+    H.boot({ account = { version_seen = "1.7.0", welcomed = true }, [CH] = { vitals = { scale = 150 } } })
+    t.eq(#H.S.backups[CH], 1, "a new version: this character's file")
+    t.eq(H.S.backups[CH][1].data.vitals.scale, 150)
+    t.eq(#H.S.backups.account, 1, "and the account's")
+    t.ok(H.logged("Copies of your saved files from before were kept in Lua/SavedVariables %(toolbox%.character"),
+      H.lastLog())
+    H.reload()
+    t.eq(#H.S.backups[CH], 1, "only at the first start of it")
+    H.boot()
+    t.eq(H.S.backups[CH], nil, "the same version: none")
+    H.firstBoot()
+    t.eq(H.S.backups.account, nil, "a new install: nothing to keep")
+
+    H.boot({ account = { version_seen = "1.7.0", welcomed = true } })
+    H.S.noBackups = true
+    H.reload()
+    H.chat("/tbx settings reset")
+    H.clearLogs()
+    reloadForReal()
+    t.ok(H.logged("back to their defaults%.$"), "an older client: no copy, no note: " .. H.logs()[1])
+    H.S.noBackups = nil
+  end)
+
   t.test("cancel drops a waiting reset", function()
     H.boot()
     H.chat("/tbx buffs")

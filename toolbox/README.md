@@ -214,7 +214,9 @@ The files are the game's saved-variable files in `Lua/SavedVariables`: `toolbox.
 for each character, and `toolbox.account.json` shared by all (it holds the setups). To back up, press
 **Save now** under **Menu, setups, backup & reset** in the settings window and copy those files; to restore it (or move to
 another computer), quit the game and copy them back. **Reset all settings** there puts everything back to
-the defaults at the next `/lua reload`.
+the defaults at the next `/lua reload`. On the newest game client (Lua API 39) the game also keeps a dated copy of a
+file before a reset, an import and the first start of a new version, beside it, and chat names it: to go back to it,
+quit the game and rename it to the file's own name.
 
 Toolbox also keeps a copy of each character's settings, positions and run history in `toolbox.account.json`.
 If the game ever can't read a character's file, Toolbox puts them back from that copy and says so in chat.

@@ -1295,7 +1295,8 @@ function C.ImportSetup()
   end
   local ok, why = T.Backup.Import(s)
   setText("setup_msg", ok and ("Imported '" .. s.name .. "'. Later changes stay this character's own."
-    .. (why and (" (" .. why .. ")") or "")) or ("Couldn't import: " .. tostring(why) .. "."))
+    .. (why and (" (" .. why .. ")") or "") .. T.Backup.BackupNote(T.Backup.lastBackup))
+    or ("Couldn't import: " .. tostring(why) .. "."))
   C.Sync()
 end
 

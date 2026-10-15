@@ -102,6 +102,7 @@ local function fresh(disk)
     serverTime = "2026-09-27 12:00:00",
     files = { ["toolbox/clock.png"] = true },   -- files that exist, relative to the Lua folder
     clips = {}, clipPaths = {}, clipState = {}, pendingClips = {}, played = {}, markers = {}, mapTitles = {},
+    backups = {},
     screen = { width = 1920, height = 1080, uiWidth = 1920, uiHeight = 1080, uiScale = 1, displayWidth = 1920,
                displayHeight = 1080, fullScreen = true, mode = "fullscreen" },
     buffs = {},                        -- { name, remaining, icon, debuff, tooltip } per effect
@@ -819,6 +820,26 @@ local function install_api()
     S.flushes = S.flushes + 1
     S.dirty = false
     return true
+  end
+  -- Backups (API 39; H.S.noBackups: an older client): H.S.backups[file] = { { name, data = the file on disk } },
+  -- newest first, 5 kept, one a minute a file; the name names the file (the scope's).
+  if not S.noBackups then
+    S.backupAt = S.backupAt or {}
+    ShroudBackupSavedVars = function(scope)
+      if not S.inCallback then return false, "noAddon" end
+      local sc = scopeOf(scope)
+      if S.disk[sc] == nil or next(S.disk[sc]) == nil then return false, "noFile" end
+      if S.backupAt[sc] and ShroudTime - S.backupAt[sc] < 60 then return false, "rateLimited" end
+      S.backupAt[sc] = ShroudTime
+      local list = S.backups[sc] or {}
+      S.backups[sc] = list
+      local name = "toolbox." .. sc:gsub(":", ".") .. ".json.2026" .. string.format("%04d", #list + 1)
+      table.insert(list, 1, { name = name, data = copy(S.disk[sc]) })
+      while #list > 5 do table.remove(list) end
+      return true, name
+    end
+  else
+    ShroudBackupSavedVars = nil
   end
 
   ShroudRegisterPeriodic = function(name, fn, period, repeating)

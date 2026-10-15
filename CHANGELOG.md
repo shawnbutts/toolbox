@@ -18,6 +18,8 @@ ones included).
   (what to buy or gather, added up; the first), the plan and a **Build order** (the crafts by station, materials
   first, ticked off as you craft). It shares a window with the Docs and Map overlays; the menu has a button for it (and
   Settings, XP & Loot).
+- **Backups** (Lua API 39): before a settings reset, a setup import and the first start of a new version, the game
+  keeps a dated copy of the saved file beside it, and chat names it.
 - **Map title** (Lua API 40): the full map's corner names what Toolbox shows in that scene, such as "Toolbox:
   Gathering, loot runs, last death", so you can tell Toolbox's markers from other add-ons'.
 

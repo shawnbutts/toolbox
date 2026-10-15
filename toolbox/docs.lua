@@ -406,7 +406,10 @@ D.SECTIONS = {
       .. "share on|off.",
     "Your settings are in the game's files in Lua/SavedVariables: toolbox.<character>.character.json "
       .. "for each character, and toolbox.account.json (the setups). To back up, press Save now and copy "
-      .. "them. To restore or move computers, quit the game and copy them back.",
+      .. "them. To restore or move computers, quit the game and copy them back. On the newest game client, "
+      .. "Toolbox also has the game keep a dated copy of a file before a reset, an import and the first start of "
+      .. "a new version (toolbox.<character>.character.json.<date>, beside it; chat names it): to go back to "
+      .. "it, quit the game and rename it to the file's own name.",
     "Toolbox also keeps a copy of each character's settings, positions and run history in "
       .. "toolbox.account.json. If the game ever can't read a character's file (it then starts Toolbox with "
       .. "nothing), Toolbox puts them back from that copy at once and says so in chat. Today's counts and the "

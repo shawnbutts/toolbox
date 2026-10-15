@@ -759,7 +759,12 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   file returns the newest's name; noAddon / noFile / rateLimited / diskError), `ShroudListSavedVarBackups(scope)`
   ({ name, time = os.time seconds, size }, newest first), `ShroudRestoreSavedVarBackup(scope, name)` (keeps the
   replaced file as a backup, drops the cached values: read again; unflushed changes lost; badName / notFound / tooBig /
-  unreadable / rateLimited / diskError). 40, the map title (requested by the owner, #13082): `ShroudSetMapTitle(text |
+  unreadable / rateLimited / diskError). Used (owner, same day): `B.KeepBackup(scope)` before a reset
+  (`B.ApplyPending`), an import (`B.Import`, `B.lastBackup`) and the first start of a new version (`B.UpdateBackup`,
+  first in ShroudOnStart after the measure: the account file and that character's, on an install with `welcomed`;
+  named in `T.WhatsNew`'s line); chat names each (`B.BackupNote`). No restore control yet (the player renames the copy
+  with the game closed); the recovery copies stay for older clients. Harness `H.S.backups[file]` (with the disk
+  copy), `H.S.noBackups`. 40, the map title (requested by the owner, #13082): `ShroudSetMapTitle(text |
   nil)` puts one line per add-on per scene in the full map's top-left corner, as "Toolbox: text" (<= 60 characters,
   cleaned like a marker label; at most three add-ons; rate 10 then 20 a minute, the same text free; nil / "" takes it
   down; bad_title / rate / pvp / no_scene; session-only like markers, so set again on a scene load), and
