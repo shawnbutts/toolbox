@@ -28,6 +28,9 @@ This file holds current facts and rules; the history behind them is in git (`git
   (a trim on a long buff description got Toolbox disabled); fixed in API 25, but the house style stays: use
   `Toolbox.Trim` / `Toolbox.ParseArgs` or plain `find`/`sub`. `tools/build.py` refuses a `(.-)` capture
   anchored with `$`; the harness raises for any `.-` pattern on text over 120 characters.
+- **Make text fields with `T.TextField{...}`** (config's `UI` stand-in does it for its pages): the spec's `onSubmit`
+  alone did nothing on Enter in game (owner, 2026-10-15, the planner's search), so the handler also goes through the
+  `OnSubmit` method, run once a press (harness `H.S.specSubmitIgnored`; two presses in one test frame are one).
 - **Read a UI element's state with its getters** (`GetText`, `GetValue`, `IsVisible`, `IsEnabled`...), never its
   fields: in game an element is a game object ("cannot access field text of userdata<Shroud.UI.Label>",
   2026-09-30). The harness's elements are plain tables, so tests can't catch it; `tools/build.py` refuses a field

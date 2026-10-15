@@ -2378,7 +2378,7 @@ local function plBuild()
   plMatches = {}
   if rec then plMatches[first] = id end
   plEl = {
-    find = UI.TextField{ id = "pl_find", text = "", placeholder = "Part of a recipe's name: plate chest...",
+    find = T.TextField{ id = "pl_find", text = "", placeholder = "Part of a recipe's name: plate chest...",
       maxLength = 60, style = { flexGrow = 1, flexShrink = 1 },
       tooltip = "Search the recipes you know", onSubmit = function(_, text) plFind(text) end },
     recipe = UI.Dropdown{ id = "pl_recipe", choices = { first }, value = first,

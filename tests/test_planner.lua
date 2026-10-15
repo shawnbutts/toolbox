@@ -336,6 +336,26 @@ return function(t)
     t.eq(plan.shop[2].n, 2)
   end)
 
+  t.test("Enter searches: through OnSubmit too (the live client ignored the spec's onSubmit), once a press",
+      function()
+    H.boot()
+    book()
+    H.chat("/tbx plan")
+    local finds, find0 = 0, Toolbox.Planner.Find
+    Toolbox.Planner.Find = function(...) finds = finds + 1 return find0(...) end
+    H.submit(W, "pl_find", "chest")
+    t.eq(finds, 1, "both ways ran it: once")
+    t.eq(find("pl_recipe").value, "Augmented Plate Chest Armor")
+    H.S.specSubmitIgnored = true
+    H.submit(W, "pl_find", "iron ingot")
+    t.eq(find("pl_recipe").value, "Iron Ingot", "the method alone")
+    H.advance(1)
+    H.submit(W, "pl_find", "iron ingot")
+    t.eq(finds, 3, "the same text again, a new press (a later frame): run")
+    H.S.specSubmitIgnored = nil
+    Toolbox.Planner.Find = find0
+  end)
+
   t.test("settings: a search for planner finds its button, which opens it", function()
     H.boot()
     book()

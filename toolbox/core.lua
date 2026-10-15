@@ -130,6 +130,27 @@ function T.TakeSharedWindow(name, drop)
   sharedOwner, sharedDrop = name, drop
 end
 
+-- A text field whose Enter works (owner, 2026-10-15: "when i type in chest in the top field and hit enter, nothing
+-- happens", the handler given only as the spec's onSubmit). The reference lists both the spec field and the
+-- OnSubmit method: the handler goes through both, and runs once for one press (a second call in the same frame with
+-- the same text is the other way's). Constructors raise at file top level: call it from a builder.
+function T.TextField(spec)
+  local fn = spec.onSubmit
+  if type(fn) ~= "function" then return Shroud.UI.TextField(spec) end
+  local at, said = nil, nil
+  local function once(el, text)
+    if at == ShroudTime and said == text then return end
+    at, said = ShroudTime, text
+    return fn(el, text)
+  end
+  local copy = {}
+  for k, v in pairs(spec) do copy[k] = v end
+  copy.onSubmit = once
+  local field = Shroud.UI.TextField(copy)
+  pcall(function() field:OnSubmit(once) end)
+  return field
+end
+
 -- ---------------------------------------------------------------------------
 -- UI updates: only when something changes
 -- ---------------------------------------------------------------------------

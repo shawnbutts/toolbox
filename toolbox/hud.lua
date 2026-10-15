@@ -2532,7 +2532,7 @@ local function mwBuild()
         local ok, why = OV.Show(mwPicks[name])
         mwMsg(ok and "" or ("Couldn't show it: " .. why .. "."))
       end },
-    ovname = UI.TextField{ id = "mw_ovname", text = "", placeholder = "An overlay's name: Gathering, XP farming...",
+    ovname = T.TextField{ id = "mw_ovname", text = "", placeholder = "An overlay's name: Gathering, XP farming...",
       maxLength = OV.NAME_MAX, style = { flexGrow = 1, flexShrink = 1 },
       tooltip = "A name for a new overlay (New), or the shown one's new name (Rename)",
       onSubmit = function(_, text) mwNew(text) end },
@@ -2556,7 +2556,7 @@ local function mwBuild()
         if ov then ok, why = OV.SetColor(ov, v) end
         mwMsg(ok and "" or ("Couldn't change it: " .. why .. "."))
       end },
-    name = UI.TextField{ id = "mw_name", text = "", placeholder = "Name this spot: Iron vein, Bank...",
+    name = T.TextField{ id = "mw_name", text = "", placeholder = "Name this spot: Iron vein, Bank...",
       maxLength = OV.NAME_MAX, style = { flexGrow = 1, flexShrink = 1 },
       tooltip = "Empty: Place 1, Place 2... (a name used: Wolf 2)",
       onSubmit = function(_, text) mwMark(text) end },

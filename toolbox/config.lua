@@ -18,8 +18,13 @@ Toolbox.Config = C
 local REAL_UI = Shroud.UI
 local recording = false
 local recorders = {}
+-- A real element of `kind`: a text field through T.TextField (Enter both ways, once).
+local function realUI(kind)
+  if kind == "TextField" then return T.TextField end
+  return REAL_UI[kind]
+end
 local UI = setmetatable({}, { __index = function(_, kind)
-  if not recording then return REAL_UI[kind] end
+  if not recording then return realUI(kind) end
   local f = recorders[kind]
   if not f then
     f = function(spec) return { kind = kind, spec = spec } end
@@ -1818,7 +1823,7 @@ local function replay(node, made)
     spec.children = {}
     for i, c in ipairs(node.spec.children) do spec.children[i] = replay(c, made) end
   end
-  local e = REAL_UI[node.kind](spec)
+  local e = realUI(node.kind)(spec)
   made[node] = e
   return e
 end

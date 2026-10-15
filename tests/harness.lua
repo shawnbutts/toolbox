@@ -1244,6 +1244,7 @@ function Element:SetTooltip(t)
   if not ok then self.tooltip = was; error(err, 2) end
 end
 function Element:GetText() return self.text end
+function Element:OnSubmit(fn) self.submitMethod = fn return self end
 function Element:SetValue(v) self.value = v end
 -- Dropdown (docs): replace or read the choices; the 1-based index of the current one (0 for none).
 function Element:SetChoices(list)
@@ -1408,7 +1409,11 @@ function H.submit(windowId, elementId, text)
   local f = S.windows[windowId]:Find(elementId)
   assert(f, "no element " .. elementId)
   f.text = text
-  H.call(function() f.onSubmit(f, text) end)
+  -- the spec's onSubmit and the OnSubmit method, as a client may run either or both (H.S.specSubmitIgnored: the
+  -- live client of 2026-10-15, where Enter did nothing with only the spec's)
+  S.submits = (S.submits or 0) + 1
+  if f.onSubmit and not S.specSubmitIgnored then H.call(function() f.onSubmit(f, text) end) end
+  if f.submitMethod then H.call(function() f.submitMethod(f, text) end) end
 end
 
 function H.click(windowId, elementId)
