@@ -1008,8 +1008,9 @@ function C.ResetSettings()
   resetArmedAt = nil
   setText("settings_reset", RESET_TEXT)
   local ok, why = T.Backup.RequestReset()
-  setText("backup_msg", ok and "Reset waiting: type /lua reload to apply it." or ("Couldn't ask for a reset: "
-    .. why .. "."))
+  setText("backup_msg", ok and ("Reset waiting: type /lua reload to apply it." .. T.Backup.BackupNote(why))
+    or ("Couldn't ask for a reset: " .. why .. "."))
+  C.restoreDirty = true                -- the copy made for it
   C.Sync()
 end
 
@@ -1089,12 +1090,12 @@ function C.RestoreBackup()
     return
   end
   disarmRestore()
-  local ok, kept = T.Backup.Restore(b.name)
+  local ok, kept, warn = T.Backup.Restore(b.name)
   C.restoreDirty = true
   syncRestore()
-  setText("backup_msg", ok and ("Restored the settings and positions from " .. b.label .. "."
-    .. (kept and (" The file it replaced was kept as a copy: " .. kept .. ".") or ""))
-    or ("Couldn't restore: " .. tostring(kept) .. "."))
+  setText("backup_msg", ok and ("Restored the settings and positions from " .. b.label
+    .. (warn and (", " .. warn) or "") .. "." .. (kept and (" The file it replaced was kept as a copy: " .. kept
+    .. ".") or "")) or ("Couldn't restore: " .. tostring(kept) .. "."))
   C.Sync()
 end
 

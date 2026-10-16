@@ -1129,7 +1129,7 @@ add("settings", "settings files and setups (save, reset, cancel, backup, backups
       return
     end
     T.Print("Every setting and position will go back to its default when Toolbox next starts: type /lua reload now."
-      .. " " .. cmd .. " cancel drops it.")
+      .. " " .. cmd .. " cancel drops it." .. B2.BackupNote(why))
   elseif word == "backup" then
     for _, line in ipairs(B2.BackupLines()) do T.Print(line) end
   elseif word == "backups" then
@@ -1148,10 +1148,10 @@ add("settings", "settings files and setups (save, reset, cancel, backup, backups
       T.Print("Which copy? " .. cmd .. " backups lists them; then " .. cmd .. " restore <number>.")
       return
     end
-    local ok, kept = B2.Restore(pick.name)
-    T.Print(ok and ("Restored this character's settings from the copy of " .. pick.label .. "."
-      .. (kept and (" The file it replaced was kept too: " .. kept .. ".") or ""))
-      or ("Couldn't restore: " .. tostring(kept) .. "."))
+    local ok, kept, warn = B2.Restore(pick.name)
+    T.Print(ok and ("Restored this character's settings from the copy of " .. pick.label
+      .. (warn and (", " .. warn) or "") .. "." .. (kept and (" The file it replaced was kept too: " .. kept .. ".")
+      or "")) or ("Couldn't restore: " .. tostring(kept) .. "."))
   elseif word == "cancel" then
     local had, written = B2.Cancel()
     T.Print((had and "Dropped the waiting reset." or "Nothing was waiting.")
@@ -3227,7 +3227,9 @@ end
 -- Back up now: the files written first, then a copy of each. Returns the character file's copy (or nil and why)
 -- and the account file's (or nil).
 function B.BackupNow()
-  T.Flush()
+  if B.SaveNow() == false then                -- the game copies the file on disk (review 53)
+    return nil, "the game couldn't write the settings to disk first, so a copy wouldn't hold them", nil
+  end
   local name = B.KeepBackup(SCOPE)
   local why = B.backupWhy
   local account = B.KeepBackup(ACCOUNT)
@@ -3241,7 +3243,9 @@ end
 -- (nil when none), or false and why.
 function B.Restore(name)
   if not B.CanRestore() then return false, "this game client can't restore (needs Lua API 39)" end
-  T.Flush()
+  if B.SaveNow() == false then                -- else the copy of the file replaced misses them (review 53)
+    return false, "the game couldn't write the current settings to disk first, so nothing was restored"
+  end
   local ok, done, kept = pcall(ShroudRestoreSavedVarBackup, SCOPE, name)
   if not ok then return false, "error " .. tostring(done) end
   if done ~= true then
@@ -3252,10 +3256,17 @@ function B.Restore(name)
       noAddon = "the game didn't take the call as Toolbox's" }
     return false, words[word] or word
   end
-  if ShroudGetSavedVar(B.PENDING, SCOPE) ~= nil then T.DeleteSaved(B.PENDING, SCOPE) end
+  local hadPending = ShroudGetSavedVar(B.PENDING, SCOPE) ~= nil
+  if hadPending then T.DeleteSaved(B.PENDING, SCOPE) end
   T.settingsFor = false                -- read every module's settings again, as at a login
   T.FollowCharacter()
-  return true, type(kept) == "string" and kept ~= "" and kept or nil
+  kept = type(kept) == "string" and kept ~= "" and kept or nil
+  -- on disk now: the reset waiting in an older copy must not come back at a restart (review 51)
+  if T.Flush() == false then
+    return true, kept, hadPending and "but the game couldn't write the file yet: if the game closes now, the reset"
+      .. " in that copy may still happen" or "but the game couldn't write the file yet"
+  end
+  return true, kept
 end
 
 -- From ShroudOnStart, before anything is changed: the first start of a new version on an install that ran Toolbox
@@ -3283,12 +3294,25 @@ end
 
 -- Asks for a reset at the next start. Returns true, or false and why (the game refused to store the request,
 -- or to write it to disk: then it may not survive to the next start).
+-- With the game's backups (review 51): the settings are written and copied BEFORE the request is stored, so the copy
+-- holds them and not the reset (restored by hand, it doesn't reset again); its name rides in the request, for the
+-- line after the restart. Second value on success: the copy's name, or nil (B.backupWhy says why).
 function B.RequestReset()
-  if not T.SetSavedVar(B.PENDING, { kind = "reset" }, SCOPE) then
+  local backup = nil
+  B.backupWhy = nil
+  if B.HasBackups() then
+    if B.SaveNow() == false then
+      return false, "the game couldn't write the settings to disk first, so no copy of them could be kept"
+    end
+    backup = B.KeepBackup(SCOPE)
+  end
+  local request = { kind = "reset" }
+  if backup then request.backup = backup end
+  if not T.SetSavedVar(B.PENDING, T.ForSaving(request), SCOPE) then
     return false, "the game refused to store the request"
   end
   if T.Flush() == false then return false, "the game couldn't write it to disk, so it may not happen" end
-  return true
+  return true, backup
 end
 
 -- Drops a waiting reset. Returns whether one was waiting, and false as a second value when the game
@@ -4018,7 +4042,14 @@ function B.Import(s)
   local saved = ShroudGetSavedVar(foundSetupKey(s.name, s.character), ACCOUNT)
   if type(saved) ~= "table" or type(saved.keys) ~= "table" then return false, "that setup is gone" end
   local values = importValues(saved.keys)
-  B.lastBackup = B.KeepBackup(SCOPE)     -- this character's settings as last saved (the caller says so)
+  B.lastBackup = nil
+  if B.HasBackups() then                 -- the game copies the file on disk: the settings written first (review 52)
+    if B.SaveNow() == false then
+      return false, "the game couldn't write this character's settings to disk first, so no copy of them could be"
+        .. " kept; nothing was imported"
+    end
+    B.lastBackup = B.KeepBackup(SCOPE)   -- this character's settings as they were (the caller says so)
+  end
   local old, written = {}, {}
   for _, key in ipairs(B.KEYS) do old[key] = T.Resaved(ShroudGetSavedVar(key, SCOPE)) end
   for _, key in ipairs(B.KEYS) do
@@ -4116,8 +4147,11 @@ end
 
 -- From ShroudOnStart, before any module reads its settings: carries out a waiting reset.
 function B.ApplyPending()
-  if not B.Pending() then return end
-  local kept = B.KeepBackup(SCOPE)    -- the settings as they were (the request was flushed with them)
+  local pending = B.Pending()
+  if not pending then return end
+  local kept = T.FromSaved(pending).backup   -- the copy made as it was asked for (review 51)
+  if type(kept) ~= "string" or kept == "" then kept = nil end
+  B.backupWhy = nil
   T.DeleteSaved(B.PENDING, SCOPE)     -- first: a failure below doesn't repeat at every start
   local unlisted, why = unlistMine()         -- sharing goes back to off: its copy goes too (review, 2026-10-04)
   if not unlisted then T.Print("Couldn't take this character's setup off the shared list: " .. why .. ".") end

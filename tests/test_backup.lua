@@ -130,12 +130,14 @@ return function(t)
     t.eq(H.S.backups.account, nil, "a new install: nothing to keep")
 
     H.boot({ account = { version_seen = "1.7.0", welcomed = true } })
-    H.chat("/tbx settings reset")
     H.clearLogs()
     H.S.backupAt[CH] = ShroudTime                -- the game copied the file a moment ago (its minute)
+    H.chat("/tbx settings reset")
+    t.ok(H.logged("cancel drops it%. The game kept no copy of the file first %(the game keeps one a minute"),
+      "the game's reason said: " .. H.lastLog())
+    H.clearLogs()
     reloadForReal()
-    t.ok(H.logged("back to their defaults%. The game kept no copy of the file first %(the game keeps one a minute"),
-      "the game's reason said: " .. H.logs()[1])
+    t.ok(H.logged("back to their defaults%.$"), "no copy named: " .. H.logs()[1])
 
     H.advance(61)
     H.clearLogs()
@@ -272,6 +274,88 @@ return function(t)
     t.ok(H.logged("^Which copy%?"), H.lastLog())
   end)
 
+  -- Codex review 51: the reset's copy is made before the request is stored, so it holds the settings, not the reset.
+  t.test("a reset's copy restored by hand (the file renamed back) brings the settings back and doesn't reset (51)",
+    function()
+    local CH = "character:Tester"
+    H.boot()
+    H.chat("/tbx vitals size 200")
+    H.chat("/tbx settings reset")
+    local copy = H.S.backups[CH][1].data
+    t.eq(copy.vitals.scale, 200, "the copy holds the settings")
+    t.eq(copy.settings_pending, nil, "and not the reset")
+    reloadForReal()
+    t.eq(Toolbox.Vitals.GetScale(), 100, "reset")
+    t.ok(H.logged("back to their defaults%. A copy of the file from before was kept: " .. H.S.backups[CH][1].name
+      :gsub("[%.%-]", "%%%0")), "the copy named after the restart: " .. H.lastLog())
+    H.S.disk[CH] = H.copy(copy)                      -- the player renames the copy back, the game closed
+    H.restart()
+    t.eq(Toolbox.Vitals.GetScale(), 200, "the settings are back")
+    t.eq(B().Pending(), nil)
+  end)
+
+  t.test("Restore of a copy holding a reset: written at once, so a crash right after doesn't reset (51)", function()
+    local CH = "character:Tester"
+    H.boot()
+    H.chat("/tbx vitals size 120")
+    H.advance(Toolbox.flushSeconds + 1)
+    H.S.backups[CH] = { { name = H.BackupName(CH),                   -- from a build that copied it at the start
+      data = { vitals = { scale = 200 }, settings_pending = { kind = "reset" } } } }
+    H.clearLogs()
+    H.chat("/tbx settings restore 1")
+    t.ok(H.logged("^Restored"), H.lastLog())
+    t.eq(Toolbox.Vitals.GetScale(), 200)
+    H.restart()                                      -- no shutdown save: only what's on disk
+    t.eq(Toolbox.Vitals.GetScale(), 200, "not reset")
+    t.eq(B().Pending(), nil)
+  end)
+
+  -- Codex review 52: the copy before an import holds the settings as they are, not the last flush's.
+  t.test("an import's copy holds the settings changed since the last flush (52)", function()
+    local CH = "character:Tester"
+    H.boot()
+    H.chat("/tbx vitals size 150")
+    H.chat("/tbx settings export Raid")
+    H.advance(61)
+    H.chat("/tbx vitals size 200")                   -- not on disk yet
+    H.chat("/tbx settings import Raid")
+    t.eq(H.S.backups[CH][1].data.vitals.scale, 200, "the setting being replaced is in the copy")
+    t.eq(Toolbox.Vitals.GetScale(), 150, "imported")
+    H.advance(61)
+    H.chat("/tbx vitals size 180")
+    H.S.flushFails = true
+    H.clearLogs()
+    H.chat("/tbx settings import Raid")
+    t.ok(H.logged("^Couldn't import: the game couldn't write this character's settings"), H.lastLog())
+    t.eq(Toolbox.Vitals.GetScale(), 180, "nothing imported without a copy of what it replaces")
+    H.S.flushFails = false
+  end)
+
+  -- Codex review 53: Back up now and Restore need the settings on disk first (the game copies the file on disk).
+  t.test("a refused write: Back up now keeps no stale copy, Restore changes nothing (53)", function()
+    local CH = "character:Tester"
+    H.boot()
+    H.chat("/tbx vitals size 120")
+    H.advance(Toolbox.flushSeconds + 1)
+    H.chat("/tbx config")
+    H.click("toolbox_config", "bk_now")
+    H.advance(61)
+    H.chat("/tbx vitals size 200")
+    H.S.flushFails = true
+    H.click("toolbox_config", "bk_now")
+    local msg = H.config():Find("backup_msg").text
+    t.ok(msg:find("couldn't write the settings to disk first"), msg)
+    t.eq(#H.S.backups[CH], 1, "no copy missing the settings")
+    H.click("toolbox_config", "bk_restore")
+    H.click("toolbox_config", "bk_restore")
+    msg = H.config():Find("backup_msg").text
+    t.ok(msg:find("^Couldn't restore: the game couldn't write the current settings"), msg)
+    t.eq(Toolbox.Vitals.GetScale(), 200, "the settings in memory kept")
+    t.eq(H.S.disk[CH].vitals.scale, 120, "and the file on disk")
+    t.eq(H.S.restores, nil, "nothing restored")
+    H.S.flushFails = false
+  end)
+
   t.test("an older client: no Back up now or Restore; the commands say why", function()
     H.boot()
     H.S.noBackups = true
@@ -308,7 +392,8 @@ return function(t)
     t.ok(H.logged("The game refused to write the files"), H.lastLog())
     H.clearLogs()
     H.chat("/tbx settings reset")
-    t.ok(H.logged("^Couldn't ask for a reset: the game couldn't write it to disk"), H.lastLog())
+    t.ok(H.logged("^Couldn't ask for a reset: the game couldn't write the settings to disk first"), H.lastLog())
+    t.eq(B().Pending(), nil, "no reset without a copy of what it clears")
     H.clearLogs()
     H.chat("/tbx settings cancel")
     t.ok(H.logged("The game couldn't write that to disk"), H.lastLog())
