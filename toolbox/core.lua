@@ -1151,7 +1151,7 @@ add("settings", "settings files and setups (save, reset, cancel, backup, backups
     local ok, kept, warn = B2.Restore(pick.name)
     T.Print(ok and ("Restored this character's settings from the copy of " .. pick.label
       .. (warn and (", " .. warn) or "") .. "." .. (kept and (" The file it replaced was kept too: " .. kept .. ".")
-      or "")) or ("Couldn't restore: " .. tostring(kept) .. "."))
+      or " The file already held that copy's settings.")) or ("Couldn't restore: " .. tostring(kept) .. "."))
   elseif word == "cancel" then
     local had, written = B2.Cancel()
     T.Print((had and "Dropped the waiting reset." or "Nothing was waiting.")

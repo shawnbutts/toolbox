@@ -1060,17 +1060,22 @@ local function syncRestore()
   setEnabled("bk_restore", #labels > 0)
 end
 
+-- Back up now and Restore say it in chat too (owner, 2026-10-16: the page's line alone went unnoticed).
+local function backupSay(text)
+  setText("backup_msg", text)
+  T.Print(text)
+end
+
 function C.BackupNow()
   local name, why, account = T.Backup.BackupNow()
   C.restoreDirty = true
   syncRestore()
   if name then
-    setText("backup_msg", "Kept a copy of this character's file: " .. name .. (account and (", and of the"
+    backupSay("Kept a copy of this character's file: " .. name .. (account and (", and of the"
       .. " account file: " .. account) or "") .. " (in Lua/SavedVariables).")
   else
     local word = tostring(why):match("^false (%a+)$")
-    setText("backup_msg", "The game kept no copy: " .. (word and T.Backup.BACKUP_REASONS[word] or tostring(why))
-      .. ".")
+    backupSay("The game kept no copy: " .. (word and T.Backup.BACKUP_REASONS[word] or tostring(why)) .. ".")
   end
 end
 
@@ -1093,9 +1098,9 @@ function C.RestoreBackup()
   local ok, kept, warn = T.Backup.Restore(b.name)
   C.restoreDirty = true
   syncRestore()
-  setText("backup_msg", ok and ("Restored the settings and positions from " .. b.label
+  backupSay(ok and ("Restored the settings and positions from " .. b.label
     .. (warn and (", " .. warn) or "") .. "." .. (kept and (" The file it replaced was kept as a copy: " .. kept
-    .. ".") or "")) or ("Couldn't restore: " .. tostring(kept) .. "."))
+    .. ".") or " The file already held that copy's settings.")) or ("Couldn't restore: " .. tostring(kept) .. "."))
   C.Sync()
 end
 
