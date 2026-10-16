@@ -276,6 +276,20 @@ return function(t)
     t.ok(H.logged("^Which copy%?"), H.lastLog())
   end)
 
+  -- Codex review 55: the reset's silence is for its own character, not another one logging in later.
+  t.test("after a reset, another character without a menu saved still hears about it (55)", function()
+    H.boot()
+    H.chat("/tbx settings reset")
+    H.clearLogs()
+    reloadForReal()
+    t.ok(not H.logged("^New: the menu"), "not for the character reset")
+    H.logout()
+    H.S.char.name = "Alt"
+    H.callback("ShroudOnSceneLoaded", "Novia")
+    H.advance(1)
+    t.ok(H.logged("^New: the menu"), "the other character gets its first-use line: " .. table.concat(H.logs(), "\n"))
+  end)
+
   -- Codex review 51: the reset's copy is made before the request is stored, so it holds the settings, not the reset.
   t.test("a reset's copy restored by hand (the file renamed back) brings the settings back and doesn't reset (51)",
     function()
