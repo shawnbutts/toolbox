@@ -2975,8 +2975,10 @@ function LN.Init()
     end
     if type(saved.x) == "number" and type(saved.y) == "number" then lnPrefs.x, lnPrefs.y = saved.x, saved.y end
   else
-    T.Print("New: the menu, top left: one click opens a Toolbox window. Move it by its grip; change or switch it"
-      .. " off in Settings, Menu, setups, backup & reset (or /" .. T.commands[1] .. " menu off).")
+    if not T.Backup.resetApplied then   -- not after a reset, which cleared it (owner, 2026-10-16)
+      T.Print("New: the menu, top left: one click opens a Toolbox window. Move it by its grip; change or switch it"
+        .. " off in Settings, Menu, setups, backup & reset (or /" .. T.commands[1] .. " menu off).")
+    end
     T.Save("launcher", lnPrefs)
   end
   lnEl, lnLit, lnBox, lnShown = {}, {}, nil, nil

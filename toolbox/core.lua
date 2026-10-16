@@ -4149,6 +4149,7 @@ end
 function B.ApplyPending()
   local pending = B.Pending()
   if not pending then return end
+  B.resetApplied = true                      -- the menu's "New" line isn't said again (hud.lua)
   local kept = T.FromSaved(pending).backup   -- the copy made as it was asked for (review 51)
   if type(kept) ~= "string" or kept == "" then kept = nil end
   B.backupWhy = nil

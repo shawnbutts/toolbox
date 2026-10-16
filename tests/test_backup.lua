@@ -286,8 +286,10 @@ return function(t)
     local copy = H.S.backups[CH][1].data
     t.eq(copy.vitals.scale, 200, "the copy holds the settings")
     t.eq(copy.settings_pending, nil, "and not the reset")
+    H.clearLogs()
     reloadForReal()
     t.eq(Toolbox.Vitals.GetScale(), 100, "reset")
+    t.ok(not H.logged("^New: the menu"), "the menu isn't announced as new after a reset")
     t.ok(H.logged("back to their defaults%. A copy of the file from before was kept: " .. H.S.backups[CH][1].name
       :gsub("[%.%-]", "%%%0")), "the copy named after the restart: " .. H.lastLog())
     H.S.disk[CH] = H.copy(copy)                      -- the player renames the copy back, the game closed
