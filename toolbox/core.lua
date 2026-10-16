@@ -1104,7 +1104,8 @@ add("reset", "start a new XP session", function()
   end
 end)
 
-add("settings", "settings files and setups (save, reset, cancel; setups, export, import, delete <name>; share on|off)",
+add("settings", "settings files and setups (save, reset, cancel, backup; setups, export, import, delete <name>;"
+    .. " share on|off)",
     function(rest)
   local B2 = T.Backup
   local word, name = T.ParseArgs(rest)
@@ -1120,6 +1121,8 @@ add("settings", "settings files and setups (save, reset, cancel; setups, export,
     end
     T.Print("Every setting and position will go back to its default when Toolbox next starts: type /lua reload now."
       .. " " .. cmd .. " cancel drops it.")
+  elseif word == "backup" then
+    for _, line in ipairs(B2.BackupLines()) do T.Print(line) end
   elseif word == "cancel" then
     local had, written = B2.Cancel()
     T.Print((had and "Dropped the waiting reset." or "Nothing was waiting.")
@@ -3005,7 +3008,8 @@ function T.WhatsNew(welcomed)
   local kept = T.Backup.updateBackups
   T.Print("Toolbox is now " .. T.version .. ": the version window shows what's new (/" .. T.commands[1]
     .. " version)." .. (kept and (" Copies of your saved files from before were kept in Lua/SavedVariables ("
-    .. table.concat(kept, ", ") .. ").") or ""))
+    .. table.concat(kept, ", ") .. ").") or "") .. (T.Backup.updateWhy and (" The game didn't keep a copy of every"
+    .. " file (" .. T.Backup.updateWhy .. ").") or ""))
   T.RegisterPeriodic("toolbox_whatsnew", function() T.Docs.OpenVersion() end, T.WELCOME_DELAY, false)
   return true
 end
@@ -3096,33 +3100,87 @@ end
 -- what could lose settings: a reset (B.ApplyPending), an import (B.Import) and the first start of a new version
 -- (B.UpdateBackup: the account file and the first character's). Returns the backup's name, or nil (an older
 -- client, nothing saved yet, or refused: the change goes ahead anyway; the recovery copies stay for older clients).
+-- B.backupWhy: the game's reason when the last one wasn't kept (its word, or the error), for the note and the
+-- debug command (owner, 2026-10-16: no copy was made in game and nothing said why).
+B.backupWhy = nil
 function B.HasBackups() return type(ShroudBackupSavedVars) == "function" end
 function B.KeepBackup(scope)
+  B.backupWhy = nil
   if not B.HasBackups() then return nil end
   local ok, done, name = pcall(ShroudBackupSavedVars, scope or SCOPE)
   if ok and done == true and type(name) == "string" and name ~= "" then return name end
+  if not ok then
+    B.backupWhy = "error " .. tostring(done)
+  else
+    B.backupWhy = tostring(done) .. " " .. tostring(name)
+  end
   return nil
 end
 
--- "A copy of the file was kept first (name, in Lua/SavedVariables)." or "".
+-- The game's reasons in words (the reference's).
+B.BACKUP_REASONS = {
+  noAddon = "the game didn't take the call as Toolbox's",
+  noFile = "nothing saved yet",
+  rateLimited = "the game keeps one a minute, and one was just made",
+  diskError = "the copy couldn't be written",
+}
+
+-- "A copy of the file was kept first (name, in Lua/SavedVariables)."; when the game kept none, why; or "" on a
+-- client without backups.
 function B.BackupNote(name)
-  if not name then return "" end
+  if not name then
+    if not B.HasBackups() or not B.backupWhy then return "" end
+    local word = B.backupWhy:match("^false (%a+)$")
+    return " The game kept no copy of the file first (" .. (word and B.BACKUP_REASONS[word] or B.backupWhy) .. ")."
+  end
   return " A copy of the file from before was kept: " .. name .. " (in Lua/SavedVariables)."
+end
+
+-- /toolbox settings backup: the files written now, a copy of each tried, and the game's raw answers and lists.
+function B.BackupLines()
+  if not B.HasBackups() then return { "This game client can't keep backups (needs Lua API 39)." } end
+  local out = {}
+  local flushed = T.Flush()
+  out[#out + 1] = "Backups: the files written first (" .. tostring(flushed ~= false) .. ")."
+  for _, scope in ipairs({ SCOPE, ACCOUNT }) do
+    local name = B.KeepBackup(scope)
+    out[#out + 1] = "  " .. scope .. ": " .. (name and ("true " .. name) or tostring(B.backupWhy))
+    if type(ShroudListSavedVarBackups) == "function" then
+      local ok, rows, why = pcall(ShroudListSavedVarBackups, scope)
+      if not ok then
+        out[#out + 1] = "    list: error " .. tostring(rows)
+      elseif type(rows) ~= "table" then
+        out[#out + 1] = "    list: " .. tostring(rows) .. " " .. tostring(why)
+      else
+        out[#out + 1] = "    " .. #rows .. " kept, newest first:"
+        for _, r in ipairs(rows) do
+          out[#out + 1] = "    " .. tostring(T.Field(r, "name")) .. ", " .. tostring(T.Field(r, "size")) .. " bytes"
+        end
+      end
+    end
+  end
+  return out
 end
 
 -- From ShroudOnStart, before anything is changed: the first start of a new version on an install that ran Toolbox
 -- before (not a new one: no "welcomed") backs up the account file and this character's. The names, for T.WhatsNew.
 function B.UpdateBackup()
   B.updateBackups = nil
+  B.updateWhy = nil
   if ShroudGetSavedVar(T.VERSION_SEEN, ACCOUNT) == T.version or ShroudGetSavedVar("welcomed", ACCOUNT) == nil then
     return
   end
-  local kept = {}
+  local kept, why = {}, nil
   for _, scope in ipairs({ SCOPE, ACCOUNT }) do
     local name = B.KeepBackup(scope)           -- nil for a file never saved (a character's first start)
-    if name then kept[#kept + 1] = name end
+    if name then
+      kept[#kept + 1] = name
+    elseif B.backupWhy and B.backupWhy ~= "false noFile" then
+      why = B.backupWhy
+    end
   end
   if #kept > 0 then B.updateBackups = kept end
+  B.updateWhy = why
 end
 
 -- Asks for a reset at the next start. Returns true, or false and why (the game refused to store the request,

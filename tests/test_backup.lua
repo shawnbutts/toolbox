@@ -130,8 +130,28 @@ return function(t)
     t.eq(H.S.backups.account, nil, "a new install: nothing to keep")
 
     H.boot({ account = { version_seen = "1.7.0", welcomed = true } })
+    H.chat("/tbx settings reset")
+    H.clearLogs()
+    H.S.backupAt[CH] = ShroudTime                -- the game copied the file a moment ago (its minute)
+    reloadForReal()
+    t.ok(H.logged("back to their defaults%. The game kept no copy of the file first %(the game keeps one a minute"),
+      "the game's reason said: " .. H.logs()[1])
+
+    H.advance(61)
+    H.clearLogs()
+    H.chat("/tbx settings backup")
+    t.ok(H.logged("^  character: true toolbox%."), "a copy made now: " .. table.concat(H.logs(), " | "))
+    t.ok(H.logged("^    1 kept, newest first:$") and H.logged("^    toolbox%.character%.Tester%.json%.%d+, 100 bytes$"),
+      "the game's list: " .. table.concat(H.logs(), " | "))
+    H.clearLogs()
+    H.chat("/tbx settings backup")
+    t.ok(H.logged("^  character: false rateLimited$"), "the raw answer: " .. table.concat(H.logs(), " | "))
+
     H.S.noBackups = true
     H.reload()
+    H.clearLogs()
+    H.chat("/tbx settings backup")
+    t.ok(H.logged("needs Lua API 39"), H.lastLog())
     H.chat("/tbx settings reset")
     H.clearLogs()
     reloadForReal()

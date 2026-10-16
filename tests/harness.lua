@@ -838,8 +838,15 @@ local function install_api()
       while #list > 5 do table.remove(list) end
       return true, name
     end
+    ShroudListSavedVarBackups = function(scope)
+      if not S.inCallback then return nil, "noAddon" end
+      local out = {}
+      for i, b in ipairs(S.backups[scopeOf(scope)] or {}) do out[i] = { name = b.name, time = 0, size = 100 } end
+      return out
+    end
   else
     ShroudBackupSavedVars = nil
+    ShroudListSavedVarBackups = nil
   end
 
   ShroudRegisterPeriodic = function(name, fn, period, repeating)
