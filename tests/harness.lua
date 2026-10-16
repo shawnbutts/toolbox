@@ -823,7 +823,7 @@ local function install_api()
   end
   -- Backups (API 39; H.S.noBackups: an older client): H.S.backups[file] = { { name, data = the file on disk } },
   -- newest first, 5 kept, one a minute a file; the name names the file (the scope's).
-  if not S.noBackups then
+  if not S.noBackups and not H.olderClient then
     S.backupAt = S.backupAt or {}
     ShroudBackupSavedVars = function(scope)
       if not S.inCallback then return false, "noAddon" end
@@ -844,9 +844,34 @@ local function install_api()
       for i, b in ipairs(S.backups[scopeOf(scope)] or {}) do out[i] = { name = b.name, time = 0, size = 100 } end
       return out
     end
+    -- The backup in place of the file, on disk and in memory (unflushed changes lost); the replaced file kept as a
+    -- backup first (nil when there was none). H.S.restoreRefuse = a reason.
+    ShroudRestoreSavedVarBackup = function(scope, name)
+      if not S.inCallback then return false, "noAddon" end
+      if S.restoreRefuse then return false, S.restoreRefuse end
+      local sc = scopeOf(scope)
+      local list = S.backups[sc] or {}
+      local found = nil
+      for _, b in ipairs(list) do
+        if b.name == name then found = b end
+      end
+      if type(name) ~= "string" or not name:find("^toolbox%.") then return false, "badName" end
+      if not found then return false, "notFound" end
+      local kept = nil
+      if S.disk[sc] ~= nil and next(S.disk[sc]) ~= nil then
+        kept = "toolbox." .. sc:gsub(":", ".") .. ".json.2026r" .. string.format("%04d", #list + 1)
+        table.insert(list, 1, { name = kept, data = copy(S.disk[sc]) })
+        while #list > 5 do table.remove(list) end
+      end
+      S.disk[sc] = copy(found.data)
+      S.memory[sc] = copy(found.data)
+      S.restores = (S.restores or 0) + 1
+      return true, kept
+    end
   else
     ShroudBackupSavedVars = nil
     ShroudListSavedVarBackups = nil
+    ShroudRestoreSavedVarBackup = nil
   end
 
   ShroudRegisterPeriodic = function(name, fn, period, repeating)
@@ -1545,6 +1570,17 @@ end
 
 -- Fresh client with a character in the world. `disk` seeds saved-var files. Boots as a
 -- returning player (already welcomed) unless `firstRun` is true.
+-- H.olderClient = true: every boot and reload is a client without API 39's backups (the recovery copies' path);
+-- H.OlderClient(fn) wraps a test in it.
+function H.OlderClient(fn)
+  return function()
+    H.olderClient = true
+    local ok, err = pcall(fn)
+    H.olderClient = nil
+    if not ok then error(err, 0) end
+  end
+end
+
 function H.boot(disk, time, firstRun)
   disk = copy(disk or {})
   if not firstRun then

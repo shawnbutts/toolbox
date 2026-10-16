@@ -3167,6 +3167,7 @@ end
 function B.UpdateBackup()
   B.updateBackups = nil
   B.updateWhy = nil
+  B.updateAccount = nil
   if ShroudGetSavedVar(T.VERSION_SEEN, ACCOUNT) == T.version or ShroudGetSavedVar("welcomed", ACCOUNT) == nil then
     return
   end
@@ -3175,6 +3176,7 @@ function B.UpdateBackup()
     local name = B.KeepBackup(scope)           -- nil for a file never saved (a character's first start)
     if name then
       kept[#kept + 1] = name
+      if scope == ACCOUNT then B.updateAccount = true end
     elseif B.backupWhy and B.backupWhy ~= "false noFile" then
       why = B.backupWhy
     end
@@ -3386,7 +3388,14 @@ end
 -- restored by hand, or one older than its copy, has its number: left alone. Stats that change all the time (the
 -- day, the XP session) aren't copied.
 -- ---------------------------------------------------------------------------
+-- Only on a client without the game's backups (owner, 2026-10-16): from API 39 the game keeps a file it couldn't
+-- read beside the new one (fixed since chaos build 318, before API 39) and copies a file before a reset, an import
+-- or a new version, which the player can restore; there no copy is written or put back, and the old ones go once
+-- (B.DropRecovery).
 B.MARK = "save_mark"                 -- character: the number of the recovery copy last written
+function B.UsesRecovery()
+  return not (B.HasBackups() and type(ShroudRestoreSavedVarBackup) == "function")
+end
 B.RECOVER_EXTRA = { "loot_runs", "skill_levels", "buff_durations" }
 local recoverList, recoverSet = nil, nil
 
@@ -3425,6 +3434,10 @@ end
 -- Writes this character's recovery copy (from T.Flush, after a change). Its number goes into the character's file
 -- first: a copy refused afterwards leaves an older copy, never a file without a number.
 function B.KeepRecovery()
+  if not B.UsesRecovery() then
+    T.recoveryDirty = false
+    return
+  end
   local who = T.settingsFor
   if not who or T.PlayerName() ~= who then return end
   local keys = {}
@@ -3735,6 +3748,10 @@ end
 function B.Recover()
   local who = T.settingsFor
   if not who or T.PlayerName() ~= who then return false end
+  if not B.UsesRecovery() then
+    B.DropRecovery()
+    return false
+  end
   if ShroudGetSavedVar(B.MARK, SCOPE) ~= nil then return false end
   local copy = B.RecoveryCopy(who)
   if not copy then return false end
@@ -3754,6 +3771,49 @@ function B.Recover()
     .. " session) can't be." .. (flushed and "" or " The game couldn't write them to disk yet."))
   T.recoveryDirty = false
   return restored > 0
+end
+
+-- On a client with backups: the recovery copies leave the account file, once it has a game backup holding them
+-- (the new version's, B.UpdateBackup, or one made now; none: tried again at the next start or character). Every
+-- copy Toolbox can name (the index's, the shared setups' characters', this character's) and this character's
+-- number go; the index stays, emptied, with its `legacy` and learned `ceiling` (1.7.0's unlisted copies can't be
+-- named: their room stays kept), marked `dropped`. Returns how many copies went.
+local droppedFor = {}
+function B.DropRecovery()
+  local who = T.settingsFor
+  if who and ShroudGetSavedVar(B.MARK, SCOPE) ~= nil then T.DeleteSaved(B.MARK, SCOPE) end
+  local names, legacy, index = readRecoveryIndex()
+  local doneBefore = type(index) == "table" and index.dropped == true
+  if doneBefore and (not who or droppedFor[who:lower()]) then return 0 end
+  local keys, found = {}, {}
+  local function addCopy(name)
+    local key = type(name) == "string" and name ~= "" and recoveryKey(name)
+    if key and not found[key] then
+      found[key] = true
+      if ShroudGetSavedVar(key, ACCOUNT) ~= nil then keys[#keys + 1] = key end
+    end
+  end
+  if not doneBefore then
+    for _, n in ipairs(names) do addCopy(n) end
+    for _, e in ipairs(allSetups()) do
+      if e.character == true then addCopy(e.name) end
+    end
+  end
+  if who then addCopy(who) end
+  if #keys == 0 and (doneBefore or index == nil) then
+    if who then droppedFor[who:lower()] = true end
+    return 0
+  end
+  if #keys > 0 then
+    local backed = B.updateBackups ~= nil and B.updateAccount == true
+    if not backed and not B.KeepBackup(ACCOUNT) then return 0 end
+  end
+  for _, key in ipairs(keys) do T.DeleteSaved(key, ACCOUNT) end
+  local ceiling, by = learnedCeiling(index)
+  T.SetSavedVar(B.RECOVERIES, T.ForSaving({ v = 1, names = {}, legacy = legacy, ceiling = ceiling, by = by,
+    dropped = true }), ACCOUNT)
+  if who then droppedFor[who:lower()] = true end
+  return #keys
 end
 
 -- Character copies saved under a tagged name (T.PlainName: 1.7.0 and before kept "shawn[PVP]" apart from "shawn"):

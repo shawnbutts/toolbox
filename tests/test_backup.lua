@@ -159,6 +159,57 @@ return function(t)
     H.S.noBackups = nil
   end)
 
+  -- API 39 (owner, 2026-10-16): the game's backups take the recovery copies' place.
+  t.test("with the game's backups: no recovery copy is written or put back; the old ones go once, after a backup",
+    function()
+    local CH = "character:Tester"
+    local copy = { v = 1, n = 3, when = "2026-10-15 10:00", keys = { vitals = { scale = 180 } } }
+    local disk = {
+      account = { version_seen = "1.8.0", welcomed = true, ["recovery:tester"] = copy, ["recovery:alt"] = copy,
+        recovery_index = { v = 1, names = { "tester", "alt" }, legacy = true, ceiling = 200000, by = "alt" } },
+      [CH] = { vitals = { scale = 150 }, save_mark = 3 },
+    }
+    H.boot(disk)
+    t.eq(#H.S.backups.account, 1, "the new version's backup of the account file, holding the copies")
+    t.ok(H.S.backups.account[1].data["recovery:alt"] ~= nil, "the copies are in it")
+    t.eq(ShroudGetSavedVar("recovery:tester", "account"), nil, "this character's copy gone")
+    t.eq(ShroudGetSavedVar("recovery:alt", "account"), nil, "and another character's, listed in the index")
+    local index = ShroudGetSavedVar("recovery_index", "account")
+    t.eq(#index.names, 0)
+    t.eq(index.dropped, true)
+    t.eq(index.legacy, true, "1.7.0's unlisted copies' room stays kept")
+    t.eq(index.ceiling, 200000, "and the learned ceiling")
+    t.eq(ShroudGetSavedVar("save_mark"), nil, "the number goes")
+    H.chat("/tbx vitals size 120")
+    H.advance(Toolbox.flushSeconds + 1)
+    t.eq(ShroudGetSavedVar("recovery:tester", "account"), nil, "no copy written at the flush")
+    t.eq(ShroudGetSavedVar("save_mark"), nil)
+
+    -- A file without its number, a copy still there (no backup yet): left as it is, nothing put back.
+    disk.account.version_seen = H.VERSION
+    disk[CH] = { vitals = { scale = 150 } }
+    H.boot(disk)
+    t.eq(ShroudGetSavedVar("vitals").scale, 150, "nothing put back from the copy")
+    t.ok(not H.logged("put back from Toolbox's copy"))
+  end)
+
+  t.test("with the game's backups: no account backup yet (the game's minute): the copies stay until there is one",
+    function()
+    H.boot()
+    local copy = { v = 1, n = 3, when = "2026-10-15 10:00", keys = { vitals = { scale = 180 } } }
+    ShroudSetSavedVar("recovery:tester", copy, "account")
+    ShroudSetSavedVar("recovery_index", { v = 1, names = { "tester" } }, "account")
+    ShroudFlushSavedVars()
+    H.S.backupAt.account = ShroudTime          -- the game copied the account file a moment ago
+    t.eq(H.call(Toolbox.Backup.DropRecovery), 0, "no backup holding them: kept")
+    t.ok(ShroudGetSavedVar("recovery:tester", "account") ~= nil)
+    H.advance(61)
+    t.eq(H.call(Toolbox.Backup.DropRecovery), 1, "once the game makes one")
+    t.eq(ShroudGetSavedVar("recovery:tester", "account"), nil)
+    t.ok(H.S.backups.account[1].data["recovery:tester"] ~= nil, "the backup holds it")
+    t.eq(H.call(Toolbox.Backup.DropRecovery), 0, "once")
+  end)
+
   t.test("cancel drops a waiting reset", function()
     H.boot()
     H.chat("/tbx buffs")
@@ -373,7 +424,7 @@ return function(t)
     H.restart(nil)
   end
 
-  t.test("recovery: a character file the game couldn't read is put back from the account copy", function()
+  t.test("recovery: a character file the game couldn't read is put back from the account copy", H.OlderClient(function()
     H.boot()
     H.chat("/tbx location on")
     H.chat("/tbx buffs quiet add Stillness")
@@ -391,7 +442,7 @@ return function(t)
     H.restart(nil, true)
     t.no(H.logged("couldn't read"), "once: the file has its number again")
     t.eq(Toolbox.Location.GetShow(), true)
-  end)
+  end))
 
   t.test("recovery: a file with its number is left alone, even if older; no copy, nothing to do", function()
     H.boot()
@@ -412,7 +463,7 @@ return function(t)
     t.no(H.logged("couldn't read"))
   end)
 
-  t.test("recovery: Reset and an import carry into the copy; another character has its own", function()
+  t.test("recovery: Reset and an import carry into the copy; another character has its own", H.OlderClient(function()
     H.boot()
     H.chat("/tbx location on")
     H.advance(2)
@@ -427,7 +478,7 @@ return function(t)
     H.advance(2)
     t.eq(Toolbox.Location.GetShow(), false, "Alt's own")
     t.ok(H.S.memory.account["recovery:alt"], "Alt's copy")
-  end)
+  end))
 
   -- Each file's estimate against what the harness would write: every key counted, never below the real size.
   local function measuredWhole(label)
@@ -471,7 +522,8 @@ return function(t)
     Toolbox.saveRefused.test_big_b = nil
   end)
 
-  t.test("other characters' recovery copies count toward the account file; overlays aren't copied", function()
+  t.test("other characters' recovery copies count toward the account file; overlays aren't copied",
+    H.OlderClient(function()
     H.boot()
     H.chat("/tbx mark Bank")
     H.advance(5)
@@ -486,9 +538,10 @@ return function(t)
     H.restart()
     t.ok(Toolbox.fileUse.account.keys["recovery:alt"], "Alt's copy measured with Alt not playing")
     measuredWhole("Tester again")
-  end)
+  end))
 
-  t.test("an older account file with 2,000 prices is cut to 600 at start; the other account writes then fit", function()
+  t.test("an older account file with 2,000 prices is cut to 600 at start; the other account writes then fit",
+    H.OlderClient(function()
     local items = {}
     for i = 1, 2000 do
       items[string.format("an item with a long name %04d", i)] = { avg = i + 0.37, sold = i, last = "2026-09-20",
@@ -501,9 +554,10 @@ return function(t)
     H.advance(5)
     t.eq(next(Toolbox.saveRefused), nil, "nothing refused")
     t.ok(H.S.memory.account["recovery:tester"], "the recovery copy written")
-  end)
+  end))
 
-  t.test("1.7.0's unlisted recovery copies: room kept for them; a fresh install keeps none (review 36)", function()
+  t.test("1.7.0's unlisted recovery copies: room kept for them; a fresh install keeps none (review 36)",
+    H.OlderClient(function()
     local alt = { v = 1, n = 3, when = "2026-10-12 20:00", keys = { buff_durations = { v = 2, durations = {} } } }
     for i = 1, 600 do alt.keys.buff_durations.durations[string.format("A_Long_Rune_Name_%04d", i)] = 3600 + i end
     H.boot({ account = { welcomed = true, ["recovery:alt"] = alt } })
@@ -522,9 +576,9 @@ return function(t)
     H.firstBoot()
     H.advance(2)
     t.eq(select(2, Toolbox.FileUse("account")), Toolbox.FILE_MAX, "a new install keeps no room")
-  end)
+  end))
 
-  t.test("a recovery copy is listed before it's written: a refused index writes no copy", function()
+  t.test("a recovery copy is listed before it's written: a refused index writes no copy", H.OlderClient(function()
     H.boot()
     H.advance(5)
     H.S.refuseKeys = { recovery_index = true }
@@ -538,7 +592,7 @@ return function(t)
     H.advance(Toolbox.flushSeconds + 1)
     t.ok(H.S.memory.account["recovery:alt"], "written once the index is")
     t.eq(H.S.memory.account.recovery_index.names[2], "alt")
-  end)
+  end))
 
   -- A 1.8.0 development copy with full overlays (review 36's case, 135 KB for ten; thirteen here), unlisted.
   local function bigLegacyCopy()
@@ -601,7 +655,8 @@ return function(t)
     t.ok(Toolbox.SetSavedVar("test_fill", fill, "account"), "accepted: Alt's copy can't be measured")
   end
 
-  t.test("no prices to clear: the account file's latest changes are undone and named, the rest written", function()
+  t.test("no prices to clear: the account file's latest changes are undone and named, the rest written",
+    H.OlderClient(function()
     bigUnlisted()
     local before = H.S.disk.account
     local ok, why = Toolbox.Flush()
@@ -619,7 +674,7 @@ return function(t)
     Toolbox.saveRefused = {}
     t.ok(Toolbox.Flush() ~= false, "later flushes work")
     H.S.fileLimitAsGame = nil
-  end)
+  end))
 
   t.test("an export the full account file undid says so", function()
     bigUnlisted()
@@ -631,7 +686,7 @@ return function(t)
     H.S.fileLimitAsGame = nil
   end)
 
-  t.test("a ceiling learned rises again as an unmeasured copy's character logs in", function()
+  t.test("a ceiling learned rises again as an unmeasured copy's character logs in", H.OlderClient(function()
     bigUnlisted()
     Toolbox.Flush()
     Toolbox.saveRefused = {}
@@ -649,9 +704,10 @@ return function(t)
     t.ok(H.JsonSize(H.S.disk.account) <= 256 * 1024)
     Toolbox.saveRefused = {}                       -- Tester's copy, refused at its logout while the room was short
     H.S.fileLimitAsGame = nil
-  end)
+  end))
 
-  t.test("an undo keeps this character's copy listed: the index is never rolled back past it (review 40)", function()
+  t.test("an undo keeps this character's copy listed: the index is never rolled back past it (review 40)",
+    H.OlderClient(function()
     H.boot({ account = { ["recovery:alt"] = bigLegacyCopy() } })
     H.callback("ShroudOnLogOut")
     H.S.char.name = "Third"                        -- a character listed for the first time...
@@ -676,10 +732,10 @@ return function(t)
     t.no(disk.test_fill, "the big value undone")
     Toolbox.saveRefused = {}
     H.S.fileLimitAsGame = nil
-  end)
+  end))
 
   local function ceilingKeptThrough(name, fail)
-    t.test(name, function()
+    t.test(name, H.OlderClient(function()
       bigUnlisted()
       local undo = fail()
       local ok, why = Toolbox.Flush()
@@ -699,7 +755,7 @@ return function(t)
       t.ok(select(2, Toolbox.FileUse("account")) <= max)
       Toolbox.saveRefused = {}
       H.S.fileLimitAsGame = nil
-    end)
+    end))
   end
   ceilingKeptThrough("a refused ceiling write is tried again at every flush until it's on disk (review 41)",
     function()
@@ -721,7 +777,7 @@ return function(t)
     end)
 
   local function ceilingKeptAcrossRestart(name, fail)
-    t.test(name, function()
+    t.test(name, H.OlderClient(function()
       bigUnlisted()
       local undo = fail()
       t.eq(Toolbox.Flush(), false)
@@ -742,7 +798,7 @@ return function(t)
       t.eq(select(2, Toolbox.FileUse("account")), max)
       Toolbox.saveRefused = {}
       H.S.fileLimitAsGame = nil
-    end)
+    end))
   end
   ceilingKeptAcrossRestart("a refused ceiling write survives a restart before the retry (review 42)", function()
     H.S.refuseKeys = { recovery_index = true }
@@ -802,7 +858,8 @@ return function(t)
     t.ok(Toolbox.fileUse.account.reserve > 0, "an upgraded install: room kept")
   end
 
-  t.test("a refusal that passes changes nothing: no prices or copy lost, no ceiling (review 39)", function()
+  t.test("a refusal that passes changes nothing: no prices or copy lost, no ceiling (review 39)",
+    H.OlderClient(function()
     withPrices()
     local real, refusals = ShroudFlushSavedVars, 1
     ShroudFlushSavedVars = function()
@@ -819,9 +876,10 @@ return function(t)
     t.ok(H.S.disk.account["recovery:tester"], "the copy kept")
     t.eq(H.S.memory.account.recovery_index.ceiling, nil, "no ceiling")
     t.no(H.logged("256 KB a file"))
-  end)
+  end))
 
-  t.test("a refusal that passes after room was made: everything put back, nothing learned (review 39)", function()
+  t.test("a refusal that passes after room was made: everything put back, nothing learned (review 39)",
+    H.OlderClient(function()
     withPrices()
     local real, refusals = ShroudFlushSavedVars, 2   -- the first try and the retry; then it passes
     ShroudFlushSavedVars = function()
@@ -837,9 +895,9 @@ return function(t)
     t.ok(H.S.disk.account.prices and H.S.disk.account["recovery:tester"], "both on disk")
     t.eq(H.S.memory.account.recovery_index.ceiling, nil, "no ceiling")
     t.no(H.logged("256 KB a file"))
-  end)
+  end))
 
-  t.test("a refusal that keeps on (a disk error) loses nothing and learns nothing (review 39)", function()
+  t.test("a refusal that keeps on (a disk error) loses nothing and learns nothing (review 39)", H.OlderClient(function()
     withPrices()
     local copy = H.S.memory.account["recovery:tester"]
     H.S.flushFails = true
@@ -851,5 +909,5 @@ return function(t)
     t.ok(H.logged("Couldn't write Toolbox's saved settings to disk"), "the usual warning")
     t.no(H.logged("256 KB a file"))
     t.ok(Toolbox.Flush() ~= false)
-  end)
+  end))
 end

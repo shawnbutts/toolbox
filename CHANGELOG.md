@@ -28,6 +28,10 @@ ones included).
   Gathering, loot runs, last death", so you can tell Toolbox's markers from other add-ons'.
 
 ### Changed
+- On a game client with saved-file backups (Lua API 39), Toolbox no longer keeps its own recovery copy of each
+  character's settings in the account file: the game's copies take its place, and a file it can't read is kept
+  beside the new one. The old copies are deleted once the game has a backup holding them, which leaves the account
+  file more room and makes saving lighter. Older clients keep the recovery copies.
 - Every HUD strip's background starts at the same shade, 60%: the menu was 40%, combat stats 70%, the notification
   HUD 60%, and the XP, Today and location strips and the Dark number panels the UI theme's dark panel (which can't be
   made lighter).
