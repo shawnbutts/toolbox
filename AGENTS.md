@@ -985,7 +985,8 @@ Rules learned the hard way; keep to them.
 - **Background shade sliders** (confirmed 2026-10-16, the owner in game): every HUD strip's own shade works.
 - **Backups (API 39)** (confirmed 2026-10-16, `tmp/backuptest.lua` and `/toolbox settings backup`): a copy is made from
   ShroudOnStart, a command, a click and a periodic alike; `rateLimited` within the minute (a reload doesn't reset it);
-  a restore puts the values back at once. Toolbox's own call works (`toolbox.shawn.character.json.<date>`).
+  a restore puts the values back at once. Toolbox's own call works (`toolbox.shawn.character.json.<date>`), and the
+  reset's copy and its chat line too (the owner's test, same day).
 - **Louder sounds** (confirmed 2026-10-07): the +7.5 dB .ogg files, the halved saved volume and the per-sound
   volume sliders work in game.
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
