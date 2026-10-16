@@ -983,6 +983,9 @@ Rules learned the hard way; keep to them.
   ("working great") and its ignore list, your last death (look and clearing), and the performance pass measured by
   `/toolbox perf`: crafting at a station, 25-32 hitches a minute before, 2 after (quiet: 0 with Toolbox's timers paused).
 - **Background shade sliders** (confirmed 2026-10-16, the owner in game): every HUD strip's own shade works.
+- **Backups (API 39)** (confirmed 2026-10-16, `tmp/backuptest.lua` and `/toolbox settings backup`): a copy is made from
+  ShroudOnStart, a command, a click and a periodic alike; `rateLimited` within the minute (a reload doesn't reset it);
+  a restore puts the values back at once. Toolbox's own call works (`toolbox.shawn.character.json.<date>`).
 - **Louder sounds** (confirmed 2026-10-07): the +7.5 dB .ogg files, the halved saved volume and the per-sound
   volume sliders work in game.
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
