@@ -1027,6 +1027,8 @@ Rules learned the hard way; keep to them.
   settings re-read at once, no reload) confirmed by the owner the same day.
 - **The planner while the book is read** (confirmed 2026-10-16, the owner in game): every control greyed out until the
   read finishes, then usable again.
+- **The menu's icon color** (confirmed 2026-10-16, the owner in game): the theme tokens tint launcher.png, changed in
+  place by `SetTint`.
 - **Louder sounds** (confirmed 2026-10-07): the +7.5 dB .ogg files, the halved saved volume and the per-sound
   volume sliders work in game.
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
