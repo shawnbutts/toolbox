@@ -816,7 +816,9 @@ refused instead of stored in a "nochar" file; until then Toolbox saves at `Shrou
 is named and skips character writes without one (`T.NoCharacter`). **26** (submitted): the known recipes that make an item
 (`ShroudGetRecipesMaking(itemKey)`, or a light recipe book), so the planner needn't read the whole book (`D.ReadRecipeBook`,
 about 90 s a login; near 22 of 23 hitches in the owner's perf run, 2026-10-16, single `ShroudGetRecipe` calls of 260 and
-519 ms). Everything reported is fixed: the API 25 client issues, and
+519 ms). **29** (submitted 2026-10-16, after 26): item counts without reading recipes
+(`ShroudGetItemCounts`), a lighter `ShroudGetRecipe(id, { choices, stats, counts = false })`, and a cheaper full read;
+until then the planner re-reads its recipes for the counts (`PL.REFRESH_GAP`). Everything reported is fixed: the API 25 client issues, and
 (work log 2026-09-30, `ac63e8c01b`, **API 26**, in the next client build, not yet in the owner's) the party
 ones (`tmp/client-issues.md` 14, 15): the slot getters reach the whole party (slot 0 = you, then party-frame
 order, so `for slot = 0, count - 1` finds everyone, buffs included), `ShroudGetPartyMemberNamesInScene()`
