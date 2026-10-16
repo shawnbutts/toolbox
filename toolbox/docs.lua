@@ -408,14 +408,16 @@ D.SECTIONS = {
       .. "share on|off.",
     "Your settings are in the game's files in Lua/SavedVariables: toolbox.<character>.character.json "
       .. "for each character, and toolbox.account.json (the setups). To back up, press Save now and copy "
-      .. "them. To restore or move computers, quit the game and copy them back. On the newest game client, "
-      .. "Toolbox also has the game keep a dated copy of a file before a reset, an import and the first start of "
-      .. "a new version (toolbox.<character>.character.json.<date>, beside it; chat names it): to go back to "
-      .. "it, quit the game and rename it to the file's own name.",
-    "Toolbox also keeps a copy of each character's settings, positions and run history in "
-      .. "toolbox.account.json. If the game ever can't read a character's file (it then starts Toolbox with "
-      .. "nothing), Toolbox puts them back from that copy at once and says so in chat. Today's counts and the "
-      .. "XP session aren't in the copy.",
+      .. "them. To restore or move computers, quit the game and copy them back.",
+    "On the newest game client (Lua API 39), the game keeps dated copies too: press Back up now, and Toolbox "
+      .. "has one made before a reset, an import and the first start of a new version (chat names it). To go "
+      .. "back, pick a copy under Back up now and press Restore twice: this character's settings and positions "
+      .. "come back at once, and the file as it was is kept as a copy too. Today's counts and the XP session "
+      .. "carry on. The game keeps the last five copies of each file. In chat: /toolbox settings backup, "
+      .. "backups, restore <number>.",
+    "On an older client, Toolbox keeps its own copy of each character's settings, positions and run history in "
+      .. "toolbox.account.json instead. If the game ever can't read a character's file (it then starts Toolbox "
+      .. "with nothing), Toolbox puts them back from that copy at once and says so in chat.",
     "Reset all settings applies at the next /lua reload; stats are kept." },
 }
 

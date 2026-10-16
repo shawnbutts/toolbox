@@ -767,8 +767,14 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   unreadable / rateLimited / diskError). Used (owner, same day): `B.KeepBackup(scope)` before a reset
   (`B.ApplyPending`), an import (`B.Import`, `B.lastBackup`) and the first start of a new version (`B.UpdateBackup`,
   first in ShroudOnStart after the measure: the account file and that character's, on an install with `welcomed`;
-  named in `T.WhatsNew`'s line); chat names each (`B.BackupNote`). No restore control yet (the player renames the copy
-  with the game closed); the recovery copies stay for older clients. Harness `H.S.backups[file]` (with the disk
+  named in `T.WhatsNew`'s line); chat names each (`B.BackupNote`). Back up now and Restore (owner, 2026-10-16): `B.BackupNow`,
+  `B.BackupList` (this character's file only: the account file holds every character's setups), `B.Restore` (flush
+  first, so the replaced file's copy is current; a waiting reset in the copy, which the reset's own backup has, is
+  dropped; then `T.FollowCharacter` with `settingsFor` cleared: every module reads again, the day and session carry
+  on from memory), config's `bk_now` / `bk_pick` / `bk_restore` (two clicks; the list read at a page build, another
+  character, an import and our actions: `C.restoreDirty`), `/toolbox settings backup|backups|restore <n>`; the
+  recovery copies only for older clients (above). Harness `ShroudRestoreSavedVarBackup` (`H.S.restoreRefuse`, one a
+  minute), names as the game's (`H.BackupName`). Harness `H.S.backups[file]` (with the disk
   copy), `H.S.noBackups`. 40, the map title (requested by the owner, #13082): `ShroudSetMapTitle(text |
   nil)` puts one line per add-on per scene in the full map's top-left corner, as "Toolbox: text" (<= 60 characters,
   cleaned like a marker label; at most three add-ons; rate 10 then 20 a minute, the same text free; nil / "" takes it

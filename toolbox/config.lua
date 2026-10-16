@@ -1020,6 +1020,84 @@ function C.CancelPending()
   C.Sync()
 end
 
+-- Back up now and Restore (Toolbox.Backup, API 39; owner, 2026-10-16): this character's file's copies in a
+-- dropdown, read from the game when the page is built, for another character and after Back up now / Restore (a
+-- disk listing: not every Sync); Restore takes a second click within C.CONFIRM_SECONDS on the same copy.
+C.RESTORE_NONE = "No copies yet"
+local RESTORE_TEXT = "Restore"
+local restorePicks = {}              -- dropdown label -> backup { name, label }
+local restoreArmed = nil             -- { at = T.Now(), name = the copy it was armed for }
+C.restoreDirty = true
+
+local function disarmRestore(staleOnly)
+  if restoreArmed and (not staleOnly or T.Now() - restoreArmed.at > C.CONFIRM_SECONDS) then
+    restoreArmed = nil
+    setText("bk_restore", RESTORE_TEXT)
+  end
+end
+
+local function syncRestore()
+  local drop = el.bk_pick
+  if not drop then return end
+  if C.restoreFor ~= T.settingsFor then
+    C.restoreFor = T.settingsFor
+    C.restoreDirty = true
+  end
+  if not C.restoreDirty then return end
+  C.restoreDirty = false
+  disarmRestore()
+  restorePicks = {}
+  local labels = {}
+  for _, b in ipairs(T.Backup.BackupList()) do
+    local label = b.label
+    if restorePicks[label] then label = label .. " (" .. (#labels + 1) .. ")" end   -- two in one minute
+    restorePicks[label] = b
+    labels[#labels + 1] = label
+  end
+  drop:SetChoices(#labels > 0 and labels or { C.RESTORE_NONE })
+  drop:SetValue(labels[1] or C.RESTORE_NONE)
+  setEnabled("bk_restore", #labels > 0)
+end
+
+function C.BackupNow()
+  local name, why, account = T.Backup.BackupNow()
+  C.restoreDirty = true
+  syncRestore()
+  if name then
+    setText("backup_msg", "Kept a copy of this character's file: " .. name .. (account and (", and of the"
+      .. " account file: " .. account) or "") .. " (in Lua/SavedVariables).")
+  else
+    local word = tostring(why):match("^false (%a+)$")
+    setText("backup_msg", "The game kept no copy: " .. (word and T.Backup.BACKUP_REASONS[word] or tostring(why))
+      .. ".")
+  end
+end
+
+function C.RestoreBackup()
+  local drop = el.bk_pick
+  local b = drop and restorePicks[drop:GetValue()]
+  if not b then
+    setText("backup_msg", "Pick a copy first.")
+    return
+  end
+  if not (restoreArmed and restoreArmed.name == b.name and T.Now() - restoreArmed.at <= C.CONFIRM_SECONDS) then
+    disarmRestore()
+    restoreArmed = { at = T.Now(), name = b.name }
+    setText("bk_restore", "Click again to confirm")
+    setText("backup_msg", "Restoring puts this character's settings and positions back as they were at "
+      .. b.label .. ". The file as it is now is kept as a copy too. Click Restore again to go ahead.")
+    return
+  end
+  disarmRestore()
+  local ok, kept = T.Backup.Restore(b.name)
+  C.restoreDirty = true
+  syncRestore()
+  setText("backup_msg", ok and ("Restored the settings and positions from " .. b.label .. "."
+    .. (kept and (" The file it replaced was kept as a copy: " .. kept .. ".") or ""))
+    or ("Couldn't restore: " .. tostring(kept) .. "."))
+  C.Sync()
+end
+
 -- Muted effects (Toolbox.BuffBar): no expiry or debuff sound for the effects picked. Both lists are dropdowns
 -- (owner, 2026-10-04: names are hard to type): recent alerts, what's on you and every effect seen cast; and
 -- the muted ones, to unmute.
@@ -1308,6 +1386,7 @@ function C.ImportSetup()
     return
   end
   local ok, why = T.Backup.Import(s)
+  C.restoreDirty = true                -- the game's copy from before it
   setText("setup_msg", ok and ("Imported '" .. s.name .. "'. Later changes stay this character's own."
     .. (why and (" (" .. why .. ")") or "") .. T.Backup.BackupNote(T.Backup.lastBackup))
     or ("Couldn't import: " .. tostring(why) .. "."))
@@ -1433,10 +1512,30 @@ function C.BackupSection()
     end
     children[#children + 1] = UI.Label(spec)
   end
-  children[#children + 1] = UI.Row{ style = { marginTop = 4 }, children = {
+  local saveRow = {
     UI.Button{ id = "backup_save", text = "Save now", tooltip = "Write the settings files now, ready to copy",
       onClick = function() C.SaveSettingsNow() end },
-  } }
+  }
+  if T.Backup.CanRestore() then          -- API 39: the game's copies
+    C.restoreDirty, restoreArmed = true, nil
+    saveRow[2] = UI.Button{ id = "bk_now", text = "Back up now", style = { marginLeft = 4 },
+      tooltip = "The game keeps a dated copy of this character's file and the account file (one a minute)",
+      onClick = function() C.BackupNow() end }
+  end
+  children[#children + 1] = UI.Row{ style = { marginTop = 4 }, children = saveRow }
+  if T.Backup.CanRestore() then
+    children[#children + 1] = UI.Label{ text = "Copies of this character's file, newest first. The game keeps"
+      .. " the last five, made by Back up now and before a reset, an import or a new version.", class = "dim",
+      style = { whiteSpace = "wrap", marginTop = 6 } }
+    children[#children + 1] = UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
+      UI.Dropdown{ id = "bk_pick", choices = { C.RESTORE_NONE }, value = C.RESTORE_NONE,
+        style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The copy to put back",
+        onChange = function() disarmRestore() end },
+      UI.Button{ id = "bk_restore", text = RESTORE_TEXT, style = { marginLeft = 4 },
+        tooltip = "Put this character's settings and positions back as they were in this copy",
+        onClick = function() C.RestoreBackup() end },
+    } }
+  end
   children[#children + 1] = C.SetupSection()
   children[#children + 1] = heading("Reset")
   children[#children + 1] = UI.Label{ text = "Every setting and position goes back to its default at the next"
@@ -1513,7 +1612,8 @@ local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "ov_window",
   "target_hide_pet", "target_flash_test", "nhud_spacing", "nhud_spacing_value",
   "target_flash", "target_flash_below", "target_flash_below_value",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
-  "buff_countdown_secs_value", "backup_where", "backup_save", "settings_reset", "backup_pending",
+  "buff_countdown_secs_value", "backup_where", "backup_save", "bk_now", "bk_pick", "bk_restore", "settings_reset",
+  "backup_pending",
   "backup_cancel", "backup_msg", "quiet_pick", "quiet_mute", "quiet_list", "quiet_unmute", "quiet_msg",
   "fx_when", "fx_path", "fx_set", "fx_choose", "fx_list", "fx_test", "fx_remove", "fx_msg",
   "setup_share", "setup_pick", "setup_import", "setup_delete", "setup_name",
@@ -2282,6 +2382,7 @@ function C.Sync()
   local p = el.backup_pending
   if p and p:IsVisible() ~= pending then p:SetVisible(pending) end
   syncSetups()
+  syncRestore()
   syncQuiet()
   syncEffectSounds()
   setValue("setup_share", T.Backup.GetShare())
@@ -2322,6 +2423,7 @@ function C.SyncLive()
   if not C.IsShown() then return end
   disarm()
   disarmSetups(true)
+  disarmRestore(true)
   syncQuiet()
   syncEffectSounds()
   C.SyncSounds()

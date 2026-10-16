@@ -833,7 +833,7 @@ local function install_api()
       S.backupAt[sc] = ShroudTime
       local list = S.backups[sc] or {}
       S.backups[sc] = list
-      local name = "toolbox." .. sc:gsub(":", ".") .. ".json.2026" .. string.format("%04d", #list + 1)
+      local name = H.BackupName(sc)
       table.insert(list, 1, { name = name, data = copy(S.disk[sc]) })
       while #list > 5 do table.remove(list) end
       return true, name
@@ -857,9 +857,12 @@ local function install_api()
       end
       if type(name) ~= "string" or not name:find("^toolbox%.") then return false, "badName" end
       if not found then return false, "notFound" end
+      S.restoreAt = S.restoreAt or {}        -- one a minute a file, counted only when it passes every check
+      if S.restoreAt[sc] and ShroudTime - S.restoreAt[sc] < 60 then return false, "rateLimited" end
+      S.restoreAt[sc] = ShroudTime
       local kept = nil
       if S.disk[sc] ~= nil and next(S.disk[sc]) ~= nil then
-        kept = "toolbox." .. sc:gsub(":", ".") .. ".json.2026r" .. string.format("%04d", #list + 1)
+        kept = H.BackupName(sc)
         table.insert(list, 1, { name = kept, data = copy(S.disk[sc]) })
         while #list > 5 do table.remove(list) end
       end
@@ -1570,6 +1573,13 @@ end
 
 -- Fresh client with a character in the world. `disk` seeds saved-var files. Boots as a
 -- returning player (already welcomed) unless `firstRun` is true.
+-- A backup's name as the game makes it: the file's, then the local time ShroudTime stands for on 2026-10-16.
+function H.BackupName(sc)
+  local t = math.floor(ShroudTime or 0) % 86400
+  return "toolbox." .. sc:gsub(":", ".") .. ".json.20261016-" .. string.format("%02d%02d%02d", math.floor(t / 3600),
+    math.floor(t / 60) % 60, t % 60)
+end
+
 -- H.olderClient = true: every boot and reload is a client without API 39's backups (the recovery copies' path);
 -- H.OlderClient(fn) wraps a test in it.
 function H.OlderClient(fn)

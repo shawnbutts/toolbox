@@ -19,8 +19,10 @@ ones included).
   first, ticked off as you craft). It shares a window with the Docs and Map overlays; the menu has a button for it (and
   Settings, XP & Loot).
 - **Backups** (Lua API 39): before a settings reset, a setup import and the first start of a new version, the game
-  keeps a dated copy of the saved file beside it, and chat names it (or says why the game kept none).
-  `/toolbox settings backup` keeps a copy of both files now and lists the copies the game has.
+  keeps a dated copy of the saved file beside it, and chat names it (or says why the game kept none). **Back up now**
+  (Settings, Menu, setups, backup & reset) makes one whenever you like, and **Restore** (two clicks) puts this
+  character's settings and positions back from a copy at once, keeping the file it replaced as a copy too. In chat:
+  `/toolbox settings backup`, `backups` and `restore <number>`.
 - **Background shade** for every HUD strip: a slider in its settings sets how dark the panel behind it is (0 for
   none), the text staying solid: the XP and Today strips, the notification HUD, the location strip and the health bars'
   and target's Dark number panels, beside the menu's and combat stats' own.

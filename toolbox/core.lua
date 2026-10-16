@@ -1104,8 +1104,8 @@ add("reset", "start a new XP session", function()
   end
 end)
 
-add("settings", "settings files and setups (save, reset, cancel, backup; setups, export, import, delete <name>;"
-    .. " share on|off)",
+add("settings", "settings files and setups (save, reset, cancel, backup, backups, restore <n>; setups, export,"
+    .. " import, delete <name>; share on|off)",
     function(rest)
   local B2 = T.Backup
   local word, name = T.ParseArgs(rest)
@@ -1123,6 +1123,26 @@ add("settings", "settings files and setups (save, reset, cancel, backup; setups,
       .. " " .. cmd .. " cancel drops it.")
   elseif word == "backup" then
     for _, line in ipairs(B2.BackupLines()) do T.Print(line) end
+  elseif word == "backups" then
+    local list, why = B2.BackupList()
+    if #list == 0 then
+      T.Print("No copies of this character's file to restore" .. (why and (" (" .. why .. ")") or "") .. ". "
+        .. cmd .. " backup keeps one now.")
+    else
+      T.Print("Copies of this character's file, newest first (" .. cmd .. " restore <number>):")
+      for i, b in ipairs(list) do T.Print("  " .. i .. ". " .. b.label) end
+    end
+  elseif word == "restore" then
+    local list = B2.BackupList()
+    local pick = list[tonumber(name) or 0]
+    if not pick then
+      T.Print("Which copy? " .. cmd .. " backups lists them; then " .. cmd .. " restore <number>.")
+      return
+    end
+    local ok, kept = B2.Restore(pick.name)
+    T.Print(ok and ("Restored this character's settings from the copy of " .. pick.label .. "."
+      .. (kept and (" The file it replaced was kept too: " .. kept .. ".") or ""))
+      or ("Couldn't restore: " .. tostring(kept) .. "."))
   elseif word == "cancel" then
     local had, written = B2.Cancel()
     T.Print((had and "Dropped the waiting reset." or "Nothing was waiting.")
@@ -3160,6 +3180,73 @@ function B.BackupLines()
     end
   end
   return out
+end
+
+-- Back up now and Restore (owner, 2026-10-16): the player's own copies, and putting this character's file back
+-- from one. Only the character file is restored: the account file holds every character's setups.
+function B.CanRestore()
+  return B.HasBackups() and type(ShroudListSavedVarBackups) == "function"
+    and type(ShroudRestoreSavedVarBackup) == "function"
+end
+
+-- "2026-10-16 06:12" from a backup's name (its stamp is the local time it was made), else the name.
+function B.BackupWhen(name)
+  local y, mo, d, h, mi = tostring(name):match("%.(%d%d%d%d)(%d%d)(%d%d)%-(%d%d)(%d%d)%d%d$")
+  if not y then return tostring(name) end
+  return y .. "-" .. mo .. "-" .. d .. " " .. h .. ":" .. mi
+end
+
+-- This character's file's copies, newest first: { { name, label, size } }; and why there are none (nil: none).
+function B.BackupList()
+  if not B.CanRestore() then return {}, "needs Lua API 39" end
+  local ok, rows, why = pcall(ShroudListSavedVarBackups, SCOPE)
+  if not ok then return {}, tostring(rows) end
+  if type(rows) ~= "table" then return {}, tostring(why) end
+  local out = {}
+  for _, r in ipairs(rows) do
+    local name = T.Field(r, "name")
+    if type(name) == "string" and name ~= "" then
+      local size = T.Field(r, "size")
+      local kb = type(size) == "number" and size > 0 and math.max(1, math.floor(size / 1024 + 0.5)) or nil
+      out[#out + 1] = { name = name, size = size,
+        label = B.BackupWhen(name) .. (kb and (", " .. kb .. " KB") or "") }
+    end
+  end
+  return out, nil
+end
+
+-- Back up now: the files written first, then a copy of each. Returns the character file's copy (or nil and why)
+-- and the account file's (or nil).
+function B.BackupNow()
+  T.Flush()
+  local name = B.KeepBackup(SCOPE)
+  local why = B.backupWhy
+  local account = B.KeepBackup(ACCOUNT)
+  return name, why, account
+end
+
+-- Puts this character's file back from the copy `name` (one of B.BackupList's): the file as it is now is written
+-- first, so the game's copy of it (which it keeps, `kept`) holds the latest settings and the restore can be undone.
+-- Every module then reads its settings again, as at a login; today's stats and the XP session carry on from memory.
+-- A reset waiting in the copy (the reset's own backup has one) is dropped. Returns true and the kept copy's name
+-- (nil when none), or false and why.
+function B.Restore(name)
+  if not B.CanRestore() then return false, "this game client can't restore (needs Lua API 39)" end
+  T.Flush()
+  local ok, done, kept = pcall(ShroudRestoreSavedVarBackup, SCOPE, name)
+  if not ok then return false, "error " .. tostring(done) end
+  if done ~= true then
+    local word = tostring(kept)
+    local words = { notFound = "that copy is gone", tooBig = "that copy is over the 256 KB a saved file may be",
+      unreadable = "the game can't read that copy", rateLimited = "the game restores one a minute: try again soon",
+      badName = "that isn't one of this character's copies", diskError = "the file couldn't be written",
+      noAddon = "the game didn't take the call as Toolbox's" }
+    return false, words[word] or word
+  end
+  if ShroudGetSavedVar(B.PENDING, SCOPE) ~= nil then T.DeleteSaved(B.PENDING, SCOPE) end
+  T.settingsFor = false                -- read every module's settings again, as at a login
+  T.FollowCharacter()
+  return true, type(kept) == "string" and kept ~= "" and kept or nil
 end
 
 -- From ShroudOnStart, before anything is changed: the first start of a new version on an install that ran Toolbox
