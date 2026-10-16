@@ -807,7 +807,10 @@ opens), built only when `S.CanPick()`; the picked path still goes through `S.Cle
 fish arrives as two `ShroudOnItemsGained` calls about 4 s apart, each x1 (`/toolbox loot log`), so the Loot Tracker
 counts fish twice; no workaround (owner, 2026-10-08: wait for the fix). **25** (submitted 2026-10-08): the kind of fishable water at a position
 (`ShroudGetWaterType(x, y, z)`) or a scene's list in `ShroudGetSceneInfo()`, for the location strip; nothing in the API
-describes water today (a caught fish's name, "(Saltwater Fish)", is the only hint); no stopgap (owner: wait for the API); landed in API 32, used by the location strip. Everything reported is fixed: the API 25 client issues, and
+describes water today (a caught fish's name, "(Saltwater Fish)", is the only hint); no stopgap (owner: wait for the API); landed in API 32, used by the location strip. **28** (submitted 2026-10-16): a callback before
+the logout while the character is still in (`ShroudOnBeforeLogOut`), and a character-scope write with no character
+refused instead of stored in a "nochar" file; until then Toolbox saves at `ShroudOnSceneUnloaded` while a character
+is named and skips character writes without one (`T.NoCharacter`). Everything reported is fixed: the API 25 client issues, and
 (work log 2026-09-30, `ac63e8c01b`, **API 26**, in the next client build, not yet in the owner's) the party
 ones (`tmp/client-issues.md` 14, 15): the slot getters reach the whole party (slot 0 = you, then party-frame
 order, so `for slot = 0, count - 1` finds everyone, buffs included), `ShroudGetPartyMemberNamesInScene()`
