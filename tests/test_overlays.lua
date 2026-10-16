@@ -528,13 +528,13 @@ return function(t)
     local m = marks()["ov1-1"]
     t.eq(m.icon, "star")
     t.eq(m.color, "#e86050")
-    H.callback("ShroudOnLogOut")
+    H.logout()
     H.S.char.name = "Alt"
     H.callback("ShroudOnSceneLoaded", "Novia")
     H.advance(1)
     t.eq(#OV().List(), 0, "Alt has none")
     t.eq(count(marks()), 0, "and Mining's marks came down")
-    H.callback("ShroudOnLogOut")
+    H.logout()
     H.S.char.name = "Tester"
     H.callback("ShroudOnSceneLoaded", "Novia")
     H.advance(1)

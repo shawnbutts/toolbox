@@ -5,7 +5,7 @@ local H = require("harness")
 return function(t)
   -- Logs out and in as `name`, as the game does: the logout callback, then the new character's scene.
   local function switchTo(name)
-    H.callback("ShroudOnLogOut")
+    H.logout()
     H.S.char.name = name
     H.callback("ShroudOnSceneLoaded", "Novia")
     H.advance(1)
@@ -81,7 +81,7 @@ return function(t)
     H.advance(2)
     t.ok(Toolbox.Daily.day.gold >= 250, "Tester's gold today")
     H.S.memory["character:Alt"] = { daily_window = { open = true } }
-    H.callback("ShroudOnLogOut")
+    H.logout()
     H.S.char.name = "Alt"
     H.callback("ShroudOnSceneLoaded", "Novia")   -- no tick in between
     t.eq(Toolbox.session.player, "Alt", "Alt's session")
@@ -100,7 +100,7 @@ return function(t)
     H.advance(3)
     local tester = H.notify()
     t.ok(tester and tester:IsShown(), "Tester's guild message shown")
-    H.callback("ShroudOnLogOut")
+    H.logout()
     H.S.char.name = "Alt"
     H.callback("ShroudOnSceneLoaded", "Novia")
     t.ok(H.notify() == nil or H.notify() ~= tester, "Tester's window is gone")

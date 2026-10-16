@@ -66,9 +66,10 @@ return function(t)
     H.boot(nil, 100)
     H.gain(4000, 0)
     H.advance(10)
-    H.S.char.present = false
-    H.callback("ShroudOnLogOut")
-    t.ok(H.S.disk["character:Tester"].session.ended, "ended flag flushed")
+    H.logout(true)
+    t.eq(H.S.disk["character:Tester"].session.samples[#H.S.disk["character:Tester"].session.samples].a,
+      H.S.char.adv, "the session saved at the scene's unload, with the character still in")
+    t.eq(H.S.disk["character:nochar"], nil, "nothing written for no character")
     H.advance(5)                          -- login screen: no character, nothing happens
     t.ok(Toolbox.session.ended)
     H.S.char.present = true
@@ -78,10 +79,26 @@ return function(t)
     t.eq(Toolbox.session.reason, "login")
   end)
 
+  -- Owner, 2026-10-16: Toolbox's logout save went into toolbox.nochar.character.json (the reference: by
+  -- ShroudOnLogOut the character has left). Nothing per character is written without one.
+  t.test("no character (after a logout, at the login screen): nothing is written for no character", function()
+    H.boot()
+    H.gain(100, 0)
+    H.logout(true)
+    H.chat("/tbx vitals size 150")                 -- a command at the login screen
+    H.advance(Toolbox.flushSeconds + 5)
+    H.callback("ShroudOnDisableScript")             -- the game closed from the login screen
+    ShroudFlushSavedVars()
+    t.eq(H.S.memory["character:nochar"], nil, "nothing for no character")
+    t.eq(H.S.disk["character:nochar"], nil)
+    t.eq(H.S.memory["character:Tester"].vitals, nil, "nor into the last character's file")
+    t.eq(next(Toolbox.saveRefused), nil, "and no refusal said in chat")
+  end)
+
   t.test("an ended session is not resumed on the next start", function()
     H.boot(nil, 100)
     H.gain(4000, 0)
-    H.callback("ShroudOnLogOut")
+    H.logout()
     H.restart(20)
     t.eq(gained("a"), 0)
     t.eq(Toolbox.session.start, 20)

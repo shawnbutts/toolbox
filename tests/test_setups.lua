@@ -5,7 +5,7 @@ local H = require("harness")
 return function(t)
   local B = function() return Toolbox.Backup end
   local function switchTo(name)
-    H.callback("ShroudOnLogOut")
+    H.logout()
     H.S.char.name = name
     H.callback("ShroudOnSceneLoaded", "Novia")
     H.advance(1)

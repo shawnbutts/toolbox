@@ -994,6 +994,14 @@ Rules learned the hard way; keep to them.
   ("working great") and its ignore list, your last death (look and clearing), and the performance pass measured by
   `/toolbox perf`: crafting at a station, 25-32 hitches a minute before, 2 after (quiet: 0 with Toolbox's timers paused).
 - **Background shade sliders** (confirmed 2026-10-16, the owner in game): every HUD strip's own shade works.
+- **No character after a logout** (confirmed 2026-10-16, and the reference's `ShroudOnLogOut` gotcha): by
+  `ShroudOnLogOut` the character has left and the game has flushed; a character-scope write then lands in
+  `toolbox.nochar.character.json` (Toolbox's logout save did: the ended session, the day, the timers, the windows'
+  places). So `T.SetSavedVar` / `T.DeleteSaved` skip character-scope writes while `T.NoCharacter()` (after a logout
+  until `T.FollowCharacter` reads a character again, or a start with none), quietly; the last save with the character
+  in is `ShroudOnSceneUnloaded`'s (session, timers, places, the day); the logout only ends the session in memory.
+  Harness: `H.logout(stay)` does the game's order (scene unload, flush, the scope becomes "character:nochar" while
+  `H.S.char.present` is false, then the callback).
 - **Backups (API 39)** (confirmed 2026-10-16, `tmp/backuptest.lua` and `/toolbox settings backup`): a copy is made from
   ShroudOnStart, a command, a click and a periodic alike; `rateLimited` within the minute (a reload doesn't reset it);
   a restore puts the values back at once. Toolbox's own call works (`toolbox.shawn.character.json.<date>`), and the
@@ -1010,8 +1018,7 @@ Rules learned the hard way; keep to them.
 
 Things the docs don't settle and the game hasn't shown yet. Check before depending on them more:
 
-- When `ShroudOnStart` runs relative to login (we wait for `ShroudGetLevelProgress()`); which scope
-  `ShroudSetSavedVar` writes to inside `ShroudOnLogOut`.
+- When `ShroudOnStart` runs relative to login (we wait for `ShroudGetLevelProgress()`).
 - `ShroudTime` continuing across `/lua reload` and relogs (assumed), restarting on relaunch.
 - `Window{ x, y }` versus the host's own position memory (we pass x/y, never call `SetPosition`); whether a
   window's width/height apply once the host remembers a size (assumed not); `GetPosition` returning numbers.

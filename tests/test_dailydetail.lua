@@ -407,7 +407,7 @@ return function(t)
     t.eq(#Toolbox.Daily.Runs(), Toolbox.Daily.RUNS_KEEP)
     H.restart(nil, true)
     t.eq(#Toolbox.Daily.Runs(), Toolbox.Daily.RUNS_KEEP, "kept across a restart")
-    H.callback("ShroudOnLogOut")
+    H.logout()
     H.S.char.name = "Alt"
     H.callback("ShroudOnSceneLoaded", "Novia")
     t.eq(#Toolbox.Daily.Runs(), 0, "Alt's own history")

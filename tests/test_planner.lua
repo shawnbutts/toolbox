@@ -266,7 +266,7 @@ return function(t)
     H.chat("/tbx plan")
     H.chat("/tbx plan")
     t.eq(find("pl_progress").visible, false, "kept: not read again while you play")
-    H.callback("ShroudOnLogOut")
+    H.logout()
     H.S.char.name = "Alt"
     H.callback("ShroudOnSceneLoaded", "Novia")
     H.advance(1)

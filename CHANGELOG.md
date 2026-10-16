@@ -44,6 +44,9 @@ ones included).
   an add-on's text box does nothing (a quick second press works), so nothing in Toolbox needs Enter any more.
 
 ### Fixed
+- Logging out no longer saves your session, today's stats, buff timers and window places into a file for "no
+  character" (`toolbox.nochar.character.json`): the game has already let the character go by then. They are saved as
+  the scene unloads, with the character still in, and nothing is written for no character at the login screen.
 - `/toolbox perf only <name>`: a timer that starts during the measurement (the planner's recipe book) is said to run,
   and named in the report, instead of "all of Toolbox's are paused".
 - `/toolbox perf quiet` / `only`: a short-lived timer that stopped during the measurement (a recipe book read dropped

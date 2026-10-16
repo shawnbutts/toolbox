@@ -138,6 +138,7 @@ end
 
 local function scopeOf(scope)
   if type(scope) == "string" and scope:lower() == "account" then return "account" end
+  if not S.char.present then return "character:nochar" end      -- the login screen: the game's "no character"
   return "character:" .. S.char.name
 end
 
@@ -1573,6 +1574,19 @@ end
 
 -- Fresh client with a character in the world. `disk` seeds saved-var files. Boots as a
 -- returning player (already welcomed) unless `firstRun` is true.
+-- A logout as the game does it (the reference): the world scene unloads with the character still in, the game
+-- flushes, the character leaves (the character scope is then "nochar"), then ShroudOnLogOut. `stay`: still at the
+-- login screen afterwards (H.S.char.present = true logs in again); else back in the world at once, as
+-- H.S.char.name (set it first, or after: the next tick follows).
+function H.logout(stay)
+  H.callback("ShroudOnSceneUnloaded")
+  ShroudFlushSavedVars()
+  S.char.present = false
+  H.callback("ShroudOnLogOut")
+  ShroudFlushSavedVars()
+  if not stay then S.char.present = true end
+end
+
 -- A backup's name as the game makes it: the file's, then the local time ShroudTime stands for on 2026-10-16.
 function H.BackupName(sc)
   local t = math.floor(ShroudTime or 0) % 86400

@@ -133,7 +133,7 @@ return function(t)
     H.goldChange(60)
     H.advance(1)
     H.S.char.present = false
-    H.callback("ShroudOnLogOut")
+    H.logout()
     H.S.char.gold = H.S.char.gold + 5000         -- e.g. a player vendor sold something
     H.S.char.present = true
     H.advance(2)
@@ -167,7 +167,7 @@ return function(t)
     H.boot()
     H.gain(900, 0)
     H.advance(1)
-    H.callback("ShroudOnLogOut")                     -- another character: the game logs this one out first
+    H.logout()                     -- another character: the game logs this one out first
     H.S.char.name = "Alt"
     H.advance(1)
     t.eq(day().a, 0, "Alt starts at 0")

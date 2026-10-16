@@ -851,11 +851,11 @@ return function(t)
     local f = H.S.frames.toolbox_notify_hud
     f.x, f.y = 600, 450
     H.advance(1)
-    H.callback("ShroudOnLogOut")
-    H.S.char.present = false                     -- the login screen
+    H.logout(true)                               -- the login screen
     f.x, f.y = 0, 0
     H.advance(3)
-    t.eq(H.saved("notify_hud").x, 600, "not saved at the login screen")
+    t.eq(H.S.memory["character:Tester"].notify_hud.x, 600, "not saved at the login screen")
+    t.eq(H.S.memory["character:nochar"], nil, "nor for no character")
     H.S.char.present = true                      -- the same character again
     H.callback("ShroudOnSceneLoaded", "Novia")
     H.advance(1)

@@ -388,7 +388,7 @@ return function(t)
     for i = 1, Toolbox.Backup.SETUP_MAX - 1 do H.chat("/tbx settings export A long setup name " .. i) end
     t.ok(H.logged("Exported your settings"), H.lastLog())
     for i = 1, 8 do
-      H.callback("ShroudOnLogOut")
+      H.logout()
       H.S.char.name = "Character" .. i
       H.callback("ShroudOnSceneLoaded", "Novia")
       H.chat("/tbx buffs")

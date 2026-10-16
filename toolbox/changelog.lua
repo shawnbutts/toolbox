@@ -16,6 +16,7 @@ Toolbox.CHANGELOG = {
   { "item", "Location strip: the water line names the kinds of water you can fish in this scene (\"Fishable water: salt, fresh\"), what to expect on your line, instead of the nearest water and how far. The nearest-water lookup was slow in the game, so it isn't asked any more." },
   { "item", "Sounds settings: a Set button beside each custom sound's path. On the current game client one press of Enter in an add-on's text box does nothing (a quick second press works), so nothing in Toolbox needs Enter any more." },
   { "section", "Fixed" },
+  { "item", "Logging out no longer saves your session, today's stats, buff timers and window places into a file for \"no character\" (toolbox.nochar.character.json): the game has already let the character go by then. They are saved as the scene unloads, with the character still in, and nothing is written for no character at the login screen." },
   { "item", "/toolbox perf only <name>: a timer that starts during the measurement (the planner's recipe book) is said to run, and named in the report, instead of \"all of Toolbox's are paused\"." },
   { "item", "/toolbox perf quiet / only: a short-lived timer that stopped during the measurement (a recipe book read dropped by switching characters) is no longer started again by the report." },
   { "version", "1.8.0 - 2026-10-14" },

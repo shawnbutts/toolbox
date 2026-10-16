@@ -546,7 +546,7 @@ return function(t)
     H.advance(2)
     lose("character:Tester")
     t.eq(Toolbox.Location.GetShow(), false, "the reset kept: defaults, not the old settings")
-    H.callback("ShroudOnLogOut")
+    H.logout()
     H.S.char.name = "Alt"
     H.callback("ShroudOnSceneLoaded", "Novia")
     H.advance(2)
@@ -601,13 +601,13 @@ return function(t)
     H.boot()
     H.chat("/tbx mark Bank")
     H.advance(5)
-    H.callback("ShroudOnLogOut")
+    H.logout()
     H.S.char.name = "Alt"
     H.callback("ShroudOnSceneLoaded", "Novia")
     H.advance(5)
     t.ok(H.S.memory.account["recovery:alt"], "Alt's copy")
     t.eq(H.S.memory.account["recovery:tester"].keys.map_overlays, nil, "Tester's overlays not in the copy")
-    H.callback("ShroudOnLogOut")
+    H.logout()
     H.S.char.name = "Tester"
     H.restart()
     t.ok(Toolbox.fileUse.account.keys["recovery:alt"], "Alt's copy measured with Alt not playing")
@@ -656,7 +656,7 @@ return function(t)
     H.boot()
     H.advance(5)
     H.S.refuseKeys = { recovery_index = true }
-    H.callback("ShroudOnLogOut")
+    H.logout()
     H.S.char.name = "Alt"
     H.callback("ShroudOnSceneLoaded", "Novia")
     H.advance(5)
@@ -766,7 +766,7 @@ return function(t)
     Toolbox.saveRefused = {}
     local _, max = Toolbox.FileUse("account")
     local ceiling = H.S.memory.account.recovery_index.ceiling
-    H.callback("ShroudOnLogOut")
+    H.logout()
     H.S.char.name = "Alt"
     H.callback("ShroudOnSceneLoaded", "Novia")
     H.advance(Toolbox.flushSeconds + 1)
@@ -783,7 +783,7 @@ return function(t)
   t.test("an undo keeps this character's copy listed: the index is never rolled back past it (review 40)",
     H.OlderClient(function()
     H.boot({ account = { ["recovery:alt"] = bigLegacyCopy() } })
-    H.callback("ShroudOnLogOut")
+    H.logout()
     H.S.char.name = "Third"                        -- a character listed for the first time...
     H.callback("ShroudOnSceneLoaded", "Novia")
     local index = H.S.memory.account.recovery_index

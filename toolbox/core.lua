@@ -575,7 +575,15 @@ local function noteUndo(key, scope)
 end
 
 -- Deletes a saved var (the file's measure follows).
+-- No character in the world: after a logout (the reference: by ShroudOnLogOut "the character has already left": a
+-- character-scope value written then belongs to no character; Toolbox's logout save went into
+-- toolbox.nochar.character.json, owner 2026-10-16), or a start with none. Character-scope writes are skipped then,
+-- quietly (false, "no character"), until T.FollowCharacter reads a character's settings again.
+function T.NoCharacter() return T.loggedOut == true or not T.settingsFor end
+local function characterScope(scope) return not (type(scope) == "string" and scope:lower() == "account") end
+
 function T.DeleteSaved(key, scope)
+  if characterScope(scope) and T.NoCharacter() then return false end
   noteUndo(key, scope)
   noteSize(scope, key, 0)
   return ShroudDeleteSavedVar(key, scope)
@@ -589,6 +597,7 @@ function T.SetSavedVar(key, value, scope)
   if type(key) ~= "string" or key == "" or #key > 128 or key:find("[/\\%c]") then
     return false, "a bad key"
   end
+  if characterScope(scope) and T.NoCharacter() then return false, "no character" end
   local t0 = T.PerfT()
   local ok, why = T.CheckSaved(value)
   T.PerfAdd("save " .. key .. ":check", t0)
@@ -4288,6 +4297,12 @@ function ShroudOnSceneUnloaded()
   T.Ran("scene")
   T.SceneChanged()
   T.Daily.SaveIfChanged()              -- the day is otherwise stored with the flush
+  -- the last save with the character still in when this is a logout (ShroudOnLogOut comes after it has left)
+  if T.CharacterName() and not T.NoCharacter() then
+    if T.session then T.SaveSession(false) end
+    T.BuffBar.SaveTimers()
+    pcall(T.SavePrefs)
+  end
   T.BuffBar.SceneChange()
 end
 
@@ -4404,18 +4419,14 @@ function ShroudOnCraftingStateChanged(state)
   T.ProbeEvent("state", state)
 end
 
+-- The reference: it fires once the login scene loads, the character gone and its file flushed by the game: a
+-- character-scope write now would go to no character (toolbox.nochar.character.json). The session is ended in
+-- memory (the next login starts a new one); what the character had was saved at the scene's unload and the flush.
 function ShroudOnLogOut()
   T.Ran("logout")
-  T.loggedOut = true                   -- the next login reads its settings again, even the same character's
-  if T.session then
-    T.Sample()
-    T.session.ended = true
-    T.SaveSession(false)
-  end
-  T.Daily.Save()
-  T.BuffBar.SaveTimers()
-  T.SavePrefs()
-  T.Flush()
+  T.loggedOut = true                   -- the next login reads its settings again; no character writes until then
+  if T.session then T.session.ended = true end
+  T.Flush()                            -- the account file's changes
 end
 
 function ShroudOnDisableScript()
