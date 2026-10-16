@@ -771,7 +771,9 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   `ShroudGetMapTitle()`. The title is used: `OV.SyncTitle` (from `T.ViewsTick` after the markers; `OV.TitleText`: the
   shown overlay with places, "loot runs" when `DD.MarkersIn(raw)` > 0, "last death"; set only when the text or the
   scene changes, a refusal retried after `OV.RETRY` s; harness `H.S.mapTitles[raw]`, `H.S.titleRefuse`,
-  `H.S.titleSets`, `H.S.noMapTitle`). The location strip no longer asks `ShroudGetNearestWaterType` (owner, same day: the
+  `H.S.titleSets`, `H.S.noMapTitle`). Seen in game (owner, 2026-10-16): the game prefixes the manifest `name` cut short,
+  "Toolbox: Toolbelt, HUDs, Trackers, and mo: <text>", not "Toolbox: <text>"; a client bug, reported to the developers
+  (nothing to change on our side). The location strip no longer asks `ShroudGetNearestWaterType` (owner, same day: the
   scene's kinds instead).
 
 **Waiting on the developers:** more windows per add-on, 12 instead of 8 (the owner asked, 2026-10-15): then the
@@ -980,6 +982,7 @@ Rules learned the hard way; keep to them.
 - **1.8.0 work** (confirmed 2026-10-14, the owner in game): map overlays and the Map overlays window, the auto map
   ("working great") and its ignore list, your last death (look and clearing), and the performance pass measured by
   `/toolbox perf`: crafting at a station, 25-32 hitches a minute before, 2 after (quiet: 0 with Toolbox's timers paused).
+- **Background shade sliders** (confirmed 2026-10-16, the owner in game): every HUD strip's own shade works.
 - **Louder sounds** (confirmed 2026-10-07): the +7.5 dB .ogg files, the halved saved volume and the per-sound
   volume sliders work in game.
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
