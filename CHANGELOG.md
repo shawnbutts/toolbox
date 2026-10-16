@@ -14,7 +14,8 @@ ones included).
   picked material adds to the item. A material you pick yourself is kept for that recipe; **Reset** starts the plan
   over. The result line adds your picks' stats to the item's base stats. **From scratch** offers an **I'll craft**
   tick for what you're short of and one of your recipes makes: its ingredients are planned under it, as deep as it
-  goes (your recipe book is read in the background once a login, with a progress bar). Views: a **Shopping list**
+  goes (your recipe book is read in the background once a login, with a progress bar; the planner's
+  controls wait until it's done). Views: a **Shopping list**
   (what to buy or gather, added up; the first), the plan and a **Build order** (the crafts by station, materials
   first, ticked off as you craft). It shares a window with the Docs and Map overlays; the menu has a button for it (and
   Settings, XP & Loot).

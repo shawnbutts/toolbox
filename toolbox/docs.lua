@@ -122,7 +122,7 @@ D.SECTIONS = {
       .. "recipes make it (Iron Ingot, Iron Ingot from Metal Scraps), the one named like the item is used, and "
       .. "made by changes it. Once a login (and after you learn a recipe), your recipe book is read in the "
       .. "background, a recipe at a time so the game doesn't stall: the bar at the bottom shows how far (about a "
-      .. "minute and a half), and the planner works meanwhile.",
+      .. "minute and a half), and the planner's controls are greyed out until it's done.",
     "Show switches between the Shopping list (everything to buy or gather, added up; shown first), the "
       .. "Plan and the Build order: the crafts grouped by station, the ones that make materials first. Each is "
       .. "ticked off as you craft (what's on the crafting table counts), with how many you made. The planner "

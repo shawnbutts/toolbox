@@ -1692,7 +1692,8 @@ PL.NO_RECIPE = "Find a recipe first"
 PL.PICK_ONE = "%d matches: pick one"      -- the Recipe list's first line while it lists matches, not yet picked
 PL.MIN_TYPED = 3
 PL.debug = false                        -- /toolbox plan debug: the search box's events in chat
-PL.BOOK_NOTE = "Reading your recipe book, once a login (and after learning a recipe): the planner works meanwhile."
+PL.BOOK_NOTE = "Reading your recipe book, once a login (and after learning a recipe): the planner waits until it's"
+  .. " done (the game may stutter meanwhile)."
 PL.STAT_NAMES = { weight = "Weight", durability = "Durability", damageMin = "Min damage", damageMax = "Max damage",
                   critical = "Critical", parry = "Parry", chargeSeconds = "Charge time", resistance = "Resistance",
                   avoidance = "Avoidance" }
@@ -1710,6 +1711,7 @@ local plBuilt = {}                    -- recipe id -> { name, station, depth }: 
 local plMade = {}                     -- recipe id -> crafts made since the plan was set (ShroudOnCraftResults)
 local plQuick = {}                    -- item key -> the recipes named like it that make it ({ { id, yield } })
 local plWaitKnown = false             -- a refresh is due once the known recipes are indexed
+local plLocked = nil                  -- whether the controls were last set greyed out (nil: not set since a build)
 
 local function plNum(v) if type(v) == "number" and v == v then return v end return nil end
 
@@ -2080,7 +2082,23 @@ local function plMsg(text) if plEl.msg then T.SetText(plEl.msg, text or "") end 
 
 local function plDrop()
   if plWin then pcall(function() plWin:Destroy() end) end
-  plWin, plEl, plRows, plBodySig, plBody, plCol = nil, {}, {}, nil, nil, nil
+  plWin, plEl, plRows, plBodySig, plBody, plCol, plLocked = nil, {}, {}, nil, nil, nil, nil
+end
+
+-- While the recipe book is read (owner, 2026-10-16) the controls are greyed out: a change would plan again on a
+-- book half read, in a game already stuttering from the read. Set only when it changes, or for rows just built.
+PL.LOCKED = { "find", "findGo", "reset", "recipe", "crafts", "scratch", "view" }
+local function plLock()
+  local on = D.ReadingRecipes()
+  if on == plLocked then return end
+  plLocked = on
+  local function set(e) if e then pcall(function() e:SetEnabled(not on) end) end end
+  for _, k in ipairs(PL.LOCKED) do set(plEl[k]) end
+  for _, e in pairs(plRows) do
+    set(e.pick)
+    set(e.make)
+    set(e.via)
+  end
 end
 
 -- A choice as its dropdown shows it: "Iron Sheet (have 3)" (what it adds: the line under the slot, PL.AddsText).
@@ -2346,7 +2364,7 @@ function PL.Refresh(now)
     else children = plBuildRows(plan) end
     local ok, col = pcall(function() return plBody:Add(UI.Column{ children = children }) end)
     if ok then
-      plCol, plBodySig = col, sig
+      plCol, plBodySig, plLocked = col, sig, nil   -- new rows: greyed out again if the book is being read
     else
       plRows, plBodySig = {}, nil
       plDirty = true                    -- the creation cap: tried again at the next tick
@@ -2433,6 +2451,11 @@ local function plBuild()
     msg = UI.Label{ id = "pl_msg", text = "", class = "dim", style = { whiteSpace = "wrap" } },
     bar = UI.Bar{ id = "pl_bar", value = 0, color = "@gold", style = { flexGrow = 1, height = 6 } },
     barText = UI.Label{ id = "pl_bar_text", text = "", class = "dim", style = { marginLeft = 6 } },
+    findGo = UI.Button{ id = "pl_find_go", text = "Find", style = { marginLeft = 4 },
+      tooltip = "Plan the first recipe you know with this in its name", onClick = function() plFind(nil, true) end },
+    reset = UI.Button{ id = "pl_reset", text = "Reset", style = { marginLeft = 2 },
+      tooltip = "Start over: no recipe, 1 craft, no I'll craft ticks, and this recipe's materials back to the"
+        .. " first you have enough of (your recipe book stays read)", onClick = function() PL.Reset() end },
   }
   plEl.barRow = UI.Column{ id = "pl_progress", visible = false, style = { marginTop = 2 },
     tooltip = "Your recipe book is read a recipe at a time, so the game doesn't stall: then I'll craft knows every"
@@ -2446,11 +2469,7 @@ local function plBuild()
     x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y, escCloses = true,
     style = { paddingLeft = 8, paddingRight = 8, paddingTop = 4, paddingBottom = 6 },
     children = {
-      line({ plEl.find, UI.Button{ id = "pl_find_go", text = "Find", style = { marginLeft = 4 },
-        tooltip = "Plan the first recipe you know with this in its name", onClick = function() plFind(nil, true) end },
-        UI.Button{ id = "pl_reset", text = "Reset", style = { marginLeft = 2 },
-          tooltip = "Start over: no recipe, 1 craft, no I'll craft ticks, and this recipe's materials back to the"
-            .. " first you have enough of (your recipe book stays read)", onClick = function() PL.Reset() end } }, 0),
+      line({ plEl.find, plEl.findGo, plEl.reset }, 0),
       line({ UI.Label{ text = "Recipe", class = "text", style = { marginRight = 6 } }, plEl.recipe }),
       line({ UI.Label{ text = "Crafts", class = "text", style = { marginRight = 6 } }, plEl.crafts, plEl.title }),
       line({ UI.Label{ text = "Show", class = "text", style = { marginRight = 6 } }, plEl.view,
@@ -2519,9 +2538,10 @@ function PL.Open(text)
   return true
 end
 
--- The bar at the bottom while the recipe book is read: how far, and about how long is left.
+-- The bar at the bottom while the recipe book is read: how far, and about how long is left; the controls wait.
 function PL.ShowProgress()
   if not plEl.barRow then return end
+  plLock()
   local done, total, left = D.BookProgress()
   T.SetVisible(plEl.barRow, done ~= nil)
   if not done then return end
