@@ -282,7 +282,7 @@ D.SECTIONS = {
       .. "lists your worn items and their durability; /toolbox gear repair 30 sets the threshold; "
       .. "/toolbox gear bar off hides the bar; /toolbox gear move <x> <y> places it." },
   { "Menu",
-    "A column of gold buttons, at the top left at first, that opens Toolbox's windows with one click: XP, "
+    "A column of buttons (gold at first), at the top left at first, that opens Toolbox's windows with one click: XP, "
       .. "XP Detailed, Today, Loot Tracker, Crafting planner, Combat Detailed, Notifications (the news now, "
       .. "whatever each usually shows in), Location (shows or hides the location strip), Docs and Settings. "
       .. "A button is bright while its window is open; click it again to close it. Hover one for its name and "
@@ -290,12 +290,13 @@ D.SECTIONS = {
       .. "Move it by its grip, or with the Position buttons under HUD layout.",
     "Settings, Menu, setups, backup & reset: Show the menu (off: open the windows from the settings, as "
       .. "before), Vertical (off: a row), Hide during combat (it comes back a few seconds after a fight, and "
-      .. "shows while the settings are open so you can place it), Icon size, Background shade (how dark the "
+      .. "shows while the settings are open so you can place it), Icon size, Icon color (Gold, Red, Green, Blue, "
+      .. "White or Text, from your UI skin), Background shade (how dark the "
       .. "panel behind the buttons is; 0 for none), and which buttons it has (at least one). Every HUD strip "
       .. "has a Background shade slider in its own settings (XP, Today, notifications, location, the health bars' "
       .. "and target's Dark numbers, combat stats), all 60% at first.",
-    "In chat: /toolbox menu (on, off, vertical, horizontal, size <n>, shade <n>, combat hide|show, "
-      .. "move <x> <y>); /toolbox launcher works too." },
+    "In chat: /toolbox menu (on, off, vertical, horizontal, size <n>, shade <n>, color <name>, "
+      .. "combat hide|show, move <x> <y>); /toolbox launcher works too." },
   { "Location strip",
     "A small strip showing where you are: the scene, your position (x, height, z, in whole numbers, as /loc "
       .. "gives them) and which way you face (the compass direction and degrees, 0 north, 90 east). It follows "

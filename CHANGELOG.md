@@ -8,6 +8,8 @@ ones included).
 ## [Unreleased]
 
 ### Added
+- **The menu's icon color:** Gold, Red, Green, Blue, White or Text (your UI skin's), under Settings, Menu, setups,
+  backup & reset, or /toolbox menu color <name>.
 - **Crafting planner** (`/toolbox plan [recipe]`): find one of your recipes as you type, pick how many crafts, and
   see every ingredient you need, have and are short of. A slot that takes a choice of material (Metal Sheet, Metal Binding...;
   Lua API 37) lists them with how many you have, starting on the first you have enough of, and under it what the

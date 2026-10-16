@@ -2735,7 +2735,10 @@ LN.PATH = "toolbox/launcher.png"
 LN.SIZE_MIN, LN.SIZE_MAX, LN.SIZE_DEFAULT = 20, 64, 32
 LN.SHADE_MAX, LN.SHADE_DEFAULT = T.SHADE_MAX, T.SHADE_DEFAULT
 LN.GAP, LN.PAD = 4, 3
-LN.COLOR = "@gold"
+LN.COLOR = "@gold"                    -- the pictures' tint unless the player picks another (`color`)
+-- The colors offered (owner, 2026-10-16): theme tokens, so each follows the player's skin; as the shout's.
+LN.COLORS = { { "@gold", "Gold" }, { "@red", "Red" }, { "@green", "Green" }, { "@blue", "Blue" },
+              { "@text-bright", "White" }, { "@text", "Text" } }
 LN.LIT, LN.DIM = 1, 0.4               -- opacity: its window open, closed
 -- Each button: the window, a short word for the text form, its command (for the tooltip), whether it's open and
 -- what a click does. The pop-up windows count as open when pinned (a click pins or unpins them). Settings last,
@@ -2765,7 +2768,8 @@ LN.BUTTONS = {
 }
 local LN_PERIODIC = "toolbox_launcher"
 local function lnDefaults()
-  return { show = true, vertical = true, size = LN.SIZE_DEFAULT, shade = LN.SHADE_DEFAULT, combat = false, hide = {} }
+  return { show = true, vertical = true, size = LN.SIZE_DEFAULT, shade = LN.SHADE_DEFAULT, combat = false, hide = {},
+           color = LN.COLOR }
 end
 local lnPrefs = lnDefaults()
 local lnEl = {}                       -- [i] = button i's element, nil while it's left out (empty until built)
@@ -2827,7 +2831,8 @@ function LN.BuildContent()
       local e = nil
       if lnTex >= 0 then
         e = UI.Image{ id = "ln_" .. b.key, width = s, height = s, texture = lnTex,
-          uv = { (i - 1) / pictures, 0, 1 / pictures, 1 }, tint = LN.COLOR, tooltip = lnTooltip(b), onClick = click,
+          uv = { (i - 1) / pictures, 0, 1 / pictures, 1 }, tint = lnPrefs.color, tooltip = lnTooltip(b),
+          onClick = click,
           style = style }
       else
         style.width, style.height, style.minHeight = s, s, s
@@ -2921,6 +2926,30 @@ function LN.SetShade(n)
   return true
 end
 
+-- The pictures' color: a token from LN.COLORS, or its name ("Gold"); false when it's neither. Set in place.
+function LN.ColorToken(v)
+  if type(v) ~= "string" then return nil end
+  for _, c in ipairs(LN.COLORS) do
+    if v == c[1] or v:lower() == c[2]:lower() then return c[1] end
+  end
+  return nil
+end
+function LN.ColorName(token)
+  for _, c in ipairs(LN.COLORS) do if c[1] == token then return c[2] end end
+  return LN.COLORS[1][2]
+end
+function LN.GetColor() return lnPrefs.color end
+function LN.SetColor(v)
+  local token = LN.ColorToken(v)
+  if not token then return false end
+  lnPrefs.color = token
+  lnSave()
+  for _, e in pairs(lnEl) do
+    if e.SetTint then pcall(e.SetTint, e, token) end      -- the text form (no picture) has no tint
+  end
+  return true
+end
+
 function LN.GetHideInCombat() return lnPrefs.combat == true end
 function LN.SetHideInCombat(on)
   lnPrefs.combat = on == true
@@ -2967,6 +2996,7 @@ function LN.Init()
     local function whole(v, lo, hi) return type(v) == "number" and v == math.floor(v) and v >= lo and v <= hi end
     if whole(saved.size, LN.SIZE_MIN, LN.SIZE_MAX) then lnPrefs.size = saved.size end
     if whole(saved.shade, 0, LN.SHADE_MAX) then lnPrefs.shade = saved.shade end
+    lnPrefs.color = LN.ColorToken(saved.color) or LN.COLOR
     if type(saved.hide) == "table" then
       for _, b in ipairs(LN.BUTTONS) do
         if saved.hide[b.key] == true then lnPrefs.hide[b.key] = true end
@@ -2994,7 +3024,7 @@ T.Backup.KEYS[#T.Backup.KEYS + 1] = "launcher"
 
 -- /toolbox menu (or launcher)
 T.AddCommand("menu", "the menu: buttons opening Toolbox's windows (on|off; vertical|horizontal; size <n>; shade <0-"
-    .. LN.SHADE_MAX .. ">; combat hide|show; move [x y])", function(rest)
+    .. LN.SHADE_MAX .. ">; color <name>; combat hide|show; move [x y])", function(rest)
   local word, args = T.ParseArgs(rest)
   word, args = word:lower(), args:lower()
   local c = "/" .. T.commands[1] .. " menu"
@@ -3014,16 +3044,24 @@ T.AddCommand("menu", "the menu: buttons opening Toolbox's windows (on|off; verti
       T.Print("Use " .. c .. " shade 0-" .. LN.SHADE_MAX .. " (0: none).")
       return
     end
+  elseif word == "color" or word == "colour" then
+    if not LN.SetColor(args) then
+      local names = {}
+      for i, col in ipairs(LN.COLORS) do names[i] = col[2]:lower() end
+      T.Print("Use " .. c .. " color " .. table.concat(names, "|") .. ".")
+      return
+    end
   elseif word == "combat" and (args == "hide" or args == "show") then
     LN.SetHideInCombat(args == "hide")
   elseif word == "move" then
     T.MoveCommand(LN, "menu", "The menu", args)
     return
   else
-    T.Print("Use " .. c .. " [on|off], vertical|horizontal, size <n>, shade <n>, combat hide|show or move [x y].")
+    T.Print("Use " .. c .. " [on|off], vertical|horizontal, size <n>, shade <n>, color <name>, combat hide|show or"
+      .. " move [x y].")
     return
   end
   T.Print("Menu: " .. (lnPrefs.show and "on" or "off") .. ", " .. (lnPrefs.vertical and "vertical" or "horizontal")
-    .. ", " .. lnPrefs.size .. " px, shade " .. lnPrefs.shade .. "%" .. (lnPrefs.combat and ", hidden in combat" or "")
-    .. ".")
+    .. ", " .. lnPrefs.size .. " px, " .. LN.ColorName(lnPrefs.color):lower() .. ", shade " .. lnPrefs.shade .. "%"
+    .. (lnPrefs.combat and ", hidden in combat" or "") .. ".")
 end, { "launcher" })

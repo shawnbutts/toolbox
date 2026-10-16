@@ -1485,6 +1485,11 @@ function C.MenuRows(children)
     onChange = function(_, v) L.SetHideInCombat(v) end })
   add(slider("ln_size", "Icon size", L.SIZE_MIN, L.SIZE_MAX, 2, L.GetSize(), "The buttons' size in pixels",
     function(n) L.SetSize(n) end))
+  local colors = {}
+  for i, col in ipairs(L.COLORS) do colors[i] = col[2] end
+  add(dropdownRow("Icon color", { id = "ln_color", choices = colors, value = L.ColorName(L.GetColor()),
+    tooltip = "The buttons' color (the theme's, so it follows your UI skin)",
+    onChange = function(_, v) L.SetColor(v) end }))
   add(slider("ln_shade", "Background shade (%)", 0, L.SHADE_MAX, 5, L.GetShade(),
     "How dark the panel behind the buttons is, so they stand out; 0: none", function(n) L.SetShade(n) end))
   add(UI.Label{ text = "Buttons:", class = "text", style = { marginTop = 6 } })
@@ -1592,7 +1597,7 @@ end
 local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "ov_window", "ov_death", "pl_open",
   "xp_shade", "xp_shade_value", "daily_shade", "daily_shade_value", "nhud_shade", "nhud_shade_value",
   "vitals_shade", "vitals_shade_value", "target_shade", "target_shade_value", "loc_shade", "loc_shade_value",
-  "ln_show", "ln_vertical", "ln_combat", "ln_size", "ln_size_value", "ln_shade", "ln_shade_value",
+  "ln_show", "ln_vertical", "ln_combat", "ln_size", "ln_size_value", "ln_color", "ln_shade", "ln_shade_value",
   "ln_btn_xp", "ln_btn_xpdetail", "ln_btn_today", "ln_btn_loot", "ln_btn_combat", "ln_btn_notify",
   "ln_btn_location", "ln_btn_docs", "ln_btn_settings",
   "font", "font_value", "spacing", "spacing_value", "xp_net", "xp_mode", "daily_mode", "show_xp",
@@ -2399,7 +2404,10 @@ function C.Sync()
   setValue("ln_combat", L.GetHideInCombat())
   sliderValue("ln_size", L.GetSize())
   sliderValue("ln_shade", L.GetShade())
-  for _, id in ipairs({ "ln_vertical", "ln_combat", "ln_size", "ln_shade" }) do setEnabled(id, L.GetShow()) end
+  setValue("ln_color", L.ColorName(L.GetColor()))
+  for _, id in ipairs({ "ln_vertical", "ln_combat", "ln_size", "ln_color", "ln_shade" }) do
+    setEnabled(id, L.GetShow())
+  end
   for _, b in ipairs(L.BUTTONS) do
     setValue("ln_btn_" .. b.key, L.GetButton(b.key))
     setEnabled("ln_btn_" .. b.key, L.GetShow())
