@@ -626,6 +626,11 @@ you read back and fall back to defaults.
 
 ## Releasing
 
+**Next release: 1.9.0** (agreed with the owner, 2026-10-16), HELD until the open requests to the developers are done
+(owner, same day): 26 and 29 (the recipe calls) and 28 (a callback before logout). 27 (one Enter) and the map title's
+long name are fixed in build 323 (catnipgames.net, 2026-10-16). When they land: use the new calls (feature-detected),
+check them in game, then release.
+
 0. **Agree the version number with the owner first** (owner, 2026-10-02): before bumping anything, read the
    `[Unreleased]` notes, propose a number with the reason, and wait for the owner's answer. Versions follow
    [semver](https://semver.org) from 1.0.3 on, read from the player's side:
@@ -1020,6 +1025,8 @@ Rules learned the hard way; keep to them.
   a restore puts the values back at once. Toolbox's own call works (`toolbox.shawn.character.json.<date>`), and the
   reset's copy and its chat line too (the owner's test, same day). Back up now and Restore (the settings page, the
   settings re-read at once, no reload) confirmed by the owner the same day.
+- **The planner while the book is read** (confirmed 2026-10-16, the owner in game): every control greyed out until the
+  read finishes, then usable again.
 - **Louder sounds** (confirmed 2026-10-07): the +7.5 dB .ogg files, the halved saved volume and the per-sound
   volume sliders work in game.
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
