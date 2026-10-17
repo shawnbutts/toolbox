@@ -296,8 +296,9 @@ function C.GeneralSection()
   return UI.Column{ children = {
     heading("Text", true),
     UI.Label{ text = "For Toolbox's windows and HUD strips: XP, Today, the Loot Tracker, the Crafting Planner HUD,"
-      .. " the location strip and the rest. The Notifications window and HUD can have their own (Notifications"
-      .. " page); the bars and icons have their own sizes on their pages.",
+      .. " the location strip, the Docs. Not the combat stats or the health bars: each has its own Size slider"
+      .. " (Combat and Health bars pages); the icon strips have their icon size. The Notifications window and HUD"
+      .. " can have their own text size (Notifications page).",
       class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
     slider("font", "Text size", W.FONT_MIN, W.FONT_MAX, 1, W.GetFont(),
       "Text size of Toolbox's windows and strips (" .. W.FONT_MIN .. "-" .. W.FONT_MAX .. "; /" .. T.commands[1]
