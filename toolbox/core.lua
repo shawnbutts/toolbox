@@ -1083,15 +1083,26 @@ function ShroudOnInventoryChanged()
   T.Planner.Changed()
 end
 
-add("plan", "the crafting planner: a recipe's materials, what to get and what to craft (plan [recipe]; plan hud;"
-  .. " plan debug)",
+add("plan", "the crafting planner: a recipe's materials, what to get and what to craft (plan [recipe]; plan hud"
+  .. " [close <seconds>]; plan debug)",
   function(rest)
     local word = T.Trim(rest or ""):lower()
+    local PL = T.Planner
+    local close = word:match("^hud close (.+)$")
+    if close then
+      if PL.SetHudClose(close) then
+        T.Print(PL.HUD_NAME .. ": closes " .. (PL.GetHudClose() > 0 and (PL.HudCloseName(PL.GetHudClose())
+          .. " after every craft is done.") or "only when you close it."))
+      else
+        T.Print("Use /" .. T.commands[1] .. " plan hud close never|10|30|60|120|300 (seconds).")
+      end
+      return
+    end
     if word == "hud" or word == "hud on" or word == "hud off" then
-      local on = word == "hud on" or (word == "hud" and not T.Planner.GetHud())
-      T.Planner.SetHud(on)
-      T.Print(on and "The shopping list is on the HUD (/toolbox plan hud again hides it)." or
-        "The shopping list strip is hidden.")
+      local on = word == "hud on" or (word == "hud" and not PL.GetHud())
+      PL.SetHud(on)
+      T.Print(PL.HUD_NAME .. (on and " on: the shopping list, then the build order (/toolbox plan hud again"
+        .. " hides it)." or " hidden."))
       return
     end
     if word == "debug" then

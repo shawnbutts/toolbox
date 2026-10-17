@@ -30,6 +30,8 @@ Alerts:
   skill_maintain  two quick even notes (A5, A5), 0.4 s: a skill set to maintain
   skill_unlearn   two quick notes stepping down (D5 -> G4), 0.45 s: a skill set to unlearn
   (skill_train / skill_maintain / skill_unlearn: the skill strip's training markers in skills.lua)
+  craft_done      a little fanfare, three quick G5s into a ringing C major chord (C6 E6 G6 C7), 1.8 s: "ta-ta-ta
+                  taaa", every craft of a plan done (the Crafting Planner HUD, daily.lua)
 Tweak the constants in each render_* function and re-run.
 """
 
@@ -125,6 +127,13 @@ def render_skill_up() -> list[float]:
     return render_chimes(1.6, [(0.00, 523.25, 0.70), (0.08, 659.25, 0.75), (0.16, 783.99, 0.80),
                                (0.24, 1046.50, 0.95),
                                (0.40, 1046.50, 0.75), (0.40, 1318.51, 0.60), (0.40, 1567.98, 0.50)])
+
+
+def render_craft_done() -> list[float]:
+    # a fanfare: three quick repeated notes, then the chord a fourth above rings out
+    return render_chimes(1.8, [(0.00, 783.99, 0.70), (0.10, 783.99, 0.70), (0.20, 783.99, 0.75),
+                               (0.34, 1046.50, 1.00), (0.34, 1318.51, 0.70), (0.34, 1567.98, 0.60),
+                               (0.34, 2093.00, 0.35)])
 
 
 # ---------------------------------------------------------------------------
@@ -288,6 +297,7 @@ ALERTS = {
     "skill_train": render_skill_train,
     "skill_maintain": render_skill_maintain,
     "skill_unlearn": render_skill_unlearn,
+    "craft_done": render_craft_done,
 }
 
 

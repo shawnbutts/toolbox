@@ -236,6 +236,8 @@ end
 
 function C.XPSection()
   local W = T.Window
+  local hudCloses = {}
+  for i, c in ipairs(T.Planner.HUD_CLOSE) do hudCloses[i] = c[2] end
   return UI.Column{ children = {
     heading("XP", true),
     dropdownRow("XP window", { id = "xp_mode", choices = C.MODES, value = C.ModeOf(T.Compact),
@@ -297,6 +299,10 @@ function C.XPSection()
           .. " or /" .. T.commands[1] .. " plan)") or "Needs a newer game client (Lua API 18)",
         onClick = function() T.Planner.Open() end },
     } },
+    dropdownRow("Close the " .. T.Planner.HUD_NAME .. " when every craft is done", { id = "pl_hud_close",
+      choices = hudCloses, value = T.Planner.HudCloseName(T.Planner.GetHudClose()),
+      tooltip = "After this long (it plays the Crafting plan done sound first; the Sounds page sets it)",
+      onChange = function(_, v) T.Planner.SetHudClose(v) end }),
     heading("Text in these windows"),
     slider("font", "Text size", W.FONT_MIN, W.FONT_MAX, 1, W.GetFont(),
       "Text size of the XP and Today windows (" .. W.FONT_MIN .. "-" .. W.FONT_MAX .. ")",
@@ -1594,7 +1600,7 @@ local function category(keyOrLabel)
 end
 
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
-local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "ov_window", "ov_death", "pl_open",
+local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "ov_window", "ov_death", "pl_open", "pl_hud_close",
   "xp_shade", "xp_shade_value", "daily_shade", "daily_shade_value", "nhud_shade", "nhud_shade_value",
   "vitals_shade", "vitals_shade_value", "target_shade", "target_shade_value", "loc_shade", "loc_shade_value",
   "ln_show", "ln_vertical", "ln_combat", "ln_size", "ln_size_value", "ln_color", "ln_shade", "ln_shade_value",
@@ -2405,6 +2411,7 @@ function C.Sync()
   sliderValue("ln_size", L.GetSize())
   sliderValue("ln_shade", L.GetShade())
   setValue("ln_color", L.ColorName(L.GetColor()))
+  setValue("pl_hud_close", T.Planner.HudCloseName(T.Planner.GetHudClose()))
   for _, id in ipairs({ "ln_vertical", "ln_combat", "ln_size", "ln_color", "ln_shade" }) do
     setEnabled(id, L.GetShow())
   end

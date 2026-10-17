@@ -8,9 +8,13 @@ ones included).
 ## [Unreleased]
 
 ### Added
-- **The shopping list on the HUD:** the crafting planner's Shopping list has a **Show on the HUD** button (or
-  /toolbox plan hud): a small strip listing what you have of each item against what the plan needs, ticked off as
-  you gather, with the planner closed.
+- **Crafting Planner HUD:** a button at the bottom of the crafting planner (or /toolbox plan hud) opens a small
+  strip to follow the plan with the planner closed: the shopping list first (what you have of each item against what
+  the plan needs, ticked off as you gather), then, once you have it all, the build order, ticked off as you craft.
+  Its button skips to the build order (crafting from your lot's containers) and back. When every craft is done it
+  plays a fanfare (**Crafting plan done** on the Sounds page) and closes after 30 seconds (Settings, XP & Loot, or
+  /toolbox plan hud close <seconds>; or never). The planner now counts the crafts still to make, so the materials a
+  made one used aren't asked for again.
 - **The menu's icon color:** Gold, Red, Green, Blue, White or Text (your UI skin's), under Settings, Menu, setups,
   backup & reset, or /toolbox menu color <name>.
 - **Crafting planner** (`/toolbox plan [recipe]`): find one of your recipes as you type, pick how many crafts, and

@@ -212,10 +212,14 @@ into one if a new file is ever needed).
   planner opening, `D.PrepareKnown`, since one frame took 24 ms; a search finishes it at once); the shortfall's
   control is an "I'll craft" Toggle (owner: "Make it" read as if it would craft); the Shopping list is the first and
   default view (owner); the Plan view's
-  rows are rebuilt only when their structure changes (`plRowSig`), counts and choices set in place. The shopping list
-  on the HUD (owner, 2026-10-17; `PL.Strip`, Hud key `shopping`, `toolbox_shopping`, the Shopping list's `pl_hud`
-  button, `/toolbox plan hud`): have / need for each item the plan was short of (`PL.Expand`'s `gather`; a line stays,
-  ticked and faded, once listed: `got`, cleared with a new recipe), planned again every `PL.HUD_GAP` s on a change
+  rows are rebuilt only when their structure changes (`plRowSig`), counts and choices set in place. The plan is for
+  `PL.Remaining()` crafts (the plan's less those made since it was set, `plMade`, memory only). The Crafting Planner
+  HUD (owner, 2026-10-17; header comment; `PL.Strip`, Hud key `shopping`, `toolbox_shopping`, the window's bottom
+  `pl_hud` button, `/toolbox plan hud [close <s>]`): the shopping list (have / need for each item the plan was short
+  of, `PL.Expand`'s `gather`; a line stays, ticked and faded, once listed: `got`, cleared with a new recipe), then the
+  build order once all is gathered (`hudStage`; its `sh_switch` button goes either way, back to the list staying
+  there, `hudStay`), then at the end the `craft_done` sound (sounds.lua's `S.DEFS`, art/alerts.py) and a close after
+  `hudClose` s (`PL.HUD_CLOSE`, default 30, settings `pl_hud_close`); planned again every `PL.HUD_GAP` s on a change
   with the window closed, counts in place, rebuilt when lines come or go. Text budget (the
   stress test's four 30-choice slots: 46,703 at the peak): `PL.CHOICES_SHOWN` (10) choices a slot.
 - `dailydetail.lua`: `Toolbox.DailyDetail`, **Loot Tracker** (views Looted / Crafted / Gathered). Refreshes
@@ -493,7 +497,8 @@ into one if a new file is ever needed).
   toolbox/icon.png`), `clock.py` (-> `toolbox/clock.png`: a normal and a red set of 120 frames; keep in sync
   with `BuffBar.CLOCK`), `marks.py` (-> `toolbox/skillmarks.png`: the skill strip's training markers), `alerts.py` (-> `toolbox/*.ogg` via ffmpeg's Vorbis encoder, +7.5 dB into a limiter at -1.5 dBFS since
   2026-10-07 (twice as loud as before): buff_expiring falls,
-  debuff_landed steps down, notify rises; ping, tap and mail (a doorbell, D6 A5 D6) are the other notification sounds; skill_up, a rising
+  debuff_landed steps down, notify rises; ping, tap and mail (a doorbell, D6 A5 D6) are the other notification sounds; craft_done (a
+  fanfare, three G5s into a C chord) is the Crafting Planner HUD's; skill_up, a rising
   arpeggio into a ringing chord, and skill_down, sinking "wah wah" notes, and skill_train / skill_maintain /
   skill_unlearn, two quick notes up, even and down, belong to skills.lua; block, parry and
   dodge, a thud, a clash and a whoosh, to combat.lua's shout), `launcher.py` (-> `toolbox/launcher.png`: the
@@ -606,7 +611,8 @@ character" sentinel.
 | `map_overlays` | `{ v = 2, nextId, scenes = { [scene id] = { scene = its name, shown = overlay id or 0, auto = true (the auto map on there), list = { { id, name (<= 24, unique in the scene), icon = an OV.ICONS shape, color = an OV.COLORS name (the next marks'), nextPlace, places = "id|name|x|y|z|shape n|color n;...", auto = a node kind, or "*" for Gathering (made by the auto map) } } } }, ignore = { name parts the auto map skips }, death = { raw, scene, x, y, z, at = "HH:MM", date, clock = T.Clock() at death, away = true once you've left it } (your last death) }` (hud.lua; at most OV.MAX a scene, OV.SCENE_MAX places each, OV.BUDGET in all); v = 1 (one list, places with raw / scene; development only) converted at the first read; kept by a reset; NOT in the recovery copy (`B.OTHER_KEYS`: the account file's 256 KB) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
 | `planner` | `{ v = 1, scratch = bool, crafts = n, recipe = id, view = a PL.VIEWS name, makes = { [row path "p.1.2"] = true }, makers = { [item key] = recipe id }, picks = { ["r" .. id] = { at = n, ["s" .. slot] = item key } } (<= PL.PICKS_MAX), pickAt = n, hud = bool (the
-shopping list strip), hx, hy, got = { [item key] = true } (the strip's lines) }` (daily.lua's crafting planner; kept by a reset, not in the recovery copy: `B.OTHER_KEYS`) |
+Crafting Planner HUD), hudStage = "shop"/"build", hudStay = bool, hudClose = seconds (PL.HUD_CLOSE), hx, hy, got =
+{ [item key] = true } (the strip's shopping lines) }` (daily.lua's crafting planner; kept by a reset, not in the recovery copy: `B.OTHER_KEYS`) |
 | `skills_paused` | `{ v = 1, how = "off"/"maintain", when = "HH:MM", list = { { key = skill key or name, from = mode, to = mode } } }`: the pause's record (skills.lua; empty list = not paused); kept by a reset, copied for recovery |
 | `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`, events' `{ [occurrence] = start (UTC seconds, as text) }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ shade = 0..90 (% black behind the HUD strip; default T.SHADE_DEFAULT, 60, every strip alike), hideAfter = seconds (0 never, 5..60), font = 9..32, spacing = 0..12 (each unset: the XP windows'), x, y }` |

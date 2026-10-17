@@ -39,6 +39,7 @@ S.DEFS = {
   { key = "ping", file = "ping.ogg", label = "Notification ping" },
   { key = "tap", file = "tap.ogg", label = "Notification tap" },
   { key = "mail", file = "mail.ogg", label = "Mail doorbell" },     -- the mail notifications' own (owner, 2026-10-08)
+  { key = "craft_done", file = "craft_done.ogg", label = "Crafting plan done" },   -- the Crafting Planner HUD
 }
 
 -- state[key] = { candidates = {...}, at = index, since = t, before = n, clip = name|nil,

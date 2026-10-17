@@ -123,13 +123,17 @@ D.SECTIONS = {
       .. "made by changes it. Once a login (and after you learn a recipe), your recipe book is read in the "
       .. "background, a recipe at a time so the game doesn't stall: the bar at the bottom shows how far (about a "
       .. "minute and a half), and the planner's controls are greyed out until it's done.",
-    "Show switches between the Shopping list (everything to buy or gather, added up; shown first; its Show on "
-      .. "the HUD button, or /toolbox plan hud, puts it on a small strip: what you have of each against what's "
-      .. "needed, ticked off as you gather, the planner closed), the "
+    "Show switches between the Shopping list (everything to buy or gather, added up; shown first), the "
       .. "Plan and the Build order: the crafts grouped by station, the ones that make materials first. Each is "
       .. "ticked off as you craft (what's on the crafting table counts), with how many you made. The planner "
       .. "follows your bags as they change, every few seconds. It shares a window with the Docs and Map "
-      .. "overlays: opening one closes the other. Your plan and picks are this character's own." },
+      .. "overlays: opening one closes the other. Your plan and picks are this character's own.",
+    "The button at the bottom opens the Crafting Planner HUD (or /toolbox plan hud), a small strip to follow the "
+      .. "plan with the planner closed: the shopping list first, what you have of each item against what's needed, "
+      .. "ticked off as you gather; once you have it all, the build order, ticked off as you craft. Its button "
+      .. "skips to the build order (crafting from your lot's containers) and back. When every craft is done it "
+      .. "plays a fanfare (Crafting plan done, on the Sounds page) and closes after 30 seconds: Settings, XP & "
+      .. "Loot, or /toolbox plan hud close <seconds> (or never)." },
   { "Toolbelt",
     "The Toolbelt is your buff bar with your health, focus and Vigor bars beside it and your consumables, "
       .. "gear repair and target under it: one strip with everything you watch in a fight, moved as one. Build "
