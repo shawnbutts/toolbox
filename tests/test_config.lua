@@ -328,10 +328,10 @@ return function(t)
     H.chat("/tbx config")
     local opened = (H.S.constructed or 0) - before
     local w = H.configRaw()
-    t.eq(w:Find("category").value, "Toolbelt", "the Toolbelt first: the quickest start")
+    t.eq(w:Find("category").value, "General", "General first (owner, 2026-10-17)")
     t.eq(#w:Find("category").choices, #Toolbox.Config.CATEGORIES)
-    t.ok(w:Find("toolbelt_show"), "the first category is built")
-    t.eq(w:Find("show_buffs"), nil, "the others aren't yet")
+    t.ok(w:Find("font"), "the first category is built")
+    t.eq(w:Find("toolbelt_show"), nil, "the others aren't yet")
     t.ok(opened < 90, "elements created when it opens: " .. opened)
     H.change("toolbox_config", "category", "Buffs")          -- (H.change builds all; pick by the handler)
     t.eq(Toolbox.Config.CurrentCategory(), "buffs")
@@ -578,7 +578,7 @@ return function(t)
     t.eq(Toolbox.Config.PageOf("spacing"), "general")
     local keys = {}
     for _, c in ipairs(Toolbox.Config.CATEGORIES) do keys[#keys + 1] = c.key end
-    t.eq(table.concat(keys, " "), "toolbelt general xp crafting buffs gear vitals combat skills map notify sounds hud"
+    t.eq(table.concat(keys, " "), "general toolbelt xp crafting buffs gear vitals combat skills map notify sounds hud"
       .. " backup", "Skill activity right after Combat")
   end)
 end

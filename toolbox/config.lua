@@ -1651,8 +1651,8 @@ end
 
 -- key, label, builder. The first is shown when the window first opens.
 C.CATEGORIES = {
-  { key = "toolbelt", label = "Toolbelt", build = function() return C.ToolbeltSection() end },
   { key = "general", label = "General", build = function() return C.GeneralSection() end },
+  { key = "toolbelt", label = "Toolbelt", build = function() return C.ToolbeltSection() end },
   { key = "xp", label = "XP & Loot", build = function() return C.XPSection() end },
   { key = "crafting", label = "Crafting", build = function() return C.CraftingSection() end },
   { key = "buffs", label = "Buffs", build = function() return C.BuffBarSection() end },
