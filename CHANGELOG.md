@@ -8,6 +8,9 @@ ones included).
 ## [Unreleased]
 
 ### Added
+- **The shopping list on the HUD:** the crafting planner's Shopping list has a **Show on the HUD** button (or
+  /toolbox plan hud): a small strip listing what you have of each item against what the plan needs, ticked off as
+  you gather, with the planner closed.
 - **The menu's icon color:** Gold, Red, Green, Blue, White or Text (your UI skin's), under Settings, Menu, setups,
   backup & reset, or /toolbox menu color <name>.
 - **Crafting planner** (`/toolbox plan [recipe]`): find one of your recipes as you type, pick how many crafts, and

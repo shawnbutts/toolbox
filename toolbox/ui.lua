@@ -267,6 +267,7 @@ function W.ApplyText()
   T.Vitals.ApplyText()
   T.Notify.Hud.ApplyText()        -- its own size and spacing, or these when unset
   T.Location.ApplyText()
+  T.Planner.ApplyText()           -- the shopping list strip
   T.Config.Sync()
 end
 

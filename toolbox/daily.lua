@@ -1776,11 +1776,12 @@ end
 -- { { id, yield } } (yield > 0); scratch, makes (set of row paths), pick(id,
 -- slot) -> an item key or nil, maker(key) -> a recipe id or nil. Your bags are shared across the plan (an item used
 -- in one branch isn't counted again in another; a tool isn't used up, review 49; what a craft makes past its row's
--- need is there for the next rows, review 50). Returns { rows, shop (list of { key, name, n, tool }), build (list
--- of { id, name, station, crafts, depth }, deepest first, then by station), cut (rows past PL.ROWS_MAX) }.
+-- need is there for the next rows, review 50). Returns { rows, shop (list of { key, name, n, tool }), gather (every
+-- item the plan takes rather than crafts: { key, name, need, have, tool }, have = what your bags give it, by name),
+-- build (list of { id, name, station, crafts, depth }, deepest first, then by station), cut (rows past PL.ROWS_MAX) }.
 function PL.Expand(rootId, crafts, ctx)
-  local out = { rows = {}, shop = {}, build = {}, cut = false }
-  local pool, shopBy, buildBy = {}, {}, {}
+  local out = { rows = {}, shop = {}, gather = {}, build = {}, cut = false }
+  local pool, shopBy, buildBy, gatherBy = {}, {}, {}, {}
   local function avail(item)
     local key = PL.KeyOf(item)
     if pool[key] == nil then return PL.HaveOf(item) end
@@ -1801,6 +1802,19 @@ function PL.Expand(rootId, crafts, ctx)
       out.shop[#out.shop + 1] = s
     end
     if r.tool then s.n = math.max(s.n, r.short) else s.n = s.n + r.short end   -- one tool serves every recipe
+  end
+  local function addGather(r)
+    local g = gatherBy[r.key]
+    if not g then
+      g = { key = r.key, name = r.name, need = 0, have = 0, tool = r.tool }
+      gatherBy[r.key] = g
+      out.gather[#out.gather + 1] = g
+    end
+    if r.tool then
+      g.need, g.have = math.max(g.need, r.need), math.max(g.have, r.have)
+    else
+      g.need, g.have = g.need + r.need, g.have + r.have
+    end
   end
   local function walk(id, n, depth, path, seen)
     local rec = ctx.recipe(id)
@@ -1849,8 +1863,9 @@ function PL.Expand(rootId, crafts, ctx)
           r.crafts = math.floor((r.short + m.yield - 1) / m.yield)
           walk(m.id, r.crafts, depth + 1, r.path, seen)
           pool[r.key] = (pool[r.key] or 0) + r.crafts * m.yield - r.short   -- the surplus, for the next rows
-        elseif r.short > 0 then
-          addShop(r)
+        else
+          addGather(r)
+          if r.short > 0 then addShop(r) end
         end
       end
     end
@@ -1863,6 +1878,7 @@ function PL.Expand(rootId, crafts, ctx)
     return a.name < b.name
   end)
   table.sort(out.shop, function(a, b) return a.name < b.name end)
+  table.sort(out.gather, function(a, b) return a.name < b.name end)
   return out
 end
 
@@ -1993,7 +2009,7 @@ function PL.GetView() return plPrefs.view or PL.VIEWS[1] end   -- the shopping l
 
 -- Plans a recipe (by id): a new plan, so the I'll craft ticks and the crafts made start over.
 function PL.SetRecipe(id)
-  plPrefs.recipe, plPrefs.makes = id, {}
+  plPrefs.recipe, plPrefs.makes, plPrefs.got = id, {}, {}
   plBuilt, plMade = {}, {}
   plSave()
   PL.Refresh(true)
@@ -2242,14 +2258,178 @@ local function plPlanRows(plan)
   return children
 end
 
+-- ---- the shopping list on the HUD (owner, 2026-10-17) ----
+-- A small strip with the shopping list while you gather, the planner closed: each item the plan was short of, what
+-- you have against what it needs ("[ ] 12 / 40 Iron Ore"), ticked and faded once you have enough. A line stays once
+-- listed (`got`, saved: a reload mid-gathering keeps the ticked ones), until the item leaves the plan or another
+-- recipe is planned. Its own HUD frame (`PL.HUD_KEY`), built only while on (`hud`); the plan is worked out again on a
+-- change at most every PL.HUD_GAP s while only the strip shows. Counts are set in place; the strip is rebuilt when
+-- its lines come or go. Saved in "planner": hud = bool, hx, hy, got = { [item key] = true }.
+PL.HUD_KEY = "shopping"
+PL.HUD_FRAME = "toolbox_shopping"
+PL.HUD_HOME = { 600, 140 }
+PL.HUD_MAX = 20                       -- item lines (the rest: "+ N more")
+PL.HUD_GAP = 3
+PL.HUD_CHARS = { 24, 48 }             -- the strip's width in characters, least and most
+PL.HUD_DONE = 0.5                     -- a ticked line's opacity
+
+local SH = { FRAME_ID = PL.HUD_FRAME, HOME = PL.HUD_HOME }
+PL.Strip = SH
+local shEl = {}                       -- title, note, lines (empty until built)
+local shState = { title = "Shopping list", lines = {}, note = "Working the plan out...", chars = PL.HUD_CHARS[1] }
+
+function PL.GetHud() return plPrefs.hud == true end
+
+-- The strip's items: the plan's gather entries listed since the recipe was planned (nil without a plan).
+function PL.HudItems(plan)
+  if not plan then return nil end
+  plPrefs.got = type(plPrefs.got) == "table" and plPrefs.got or {}
+  local got, dirty, list, inPlan = plPrefs.got, false, {}, {}
+  for _, g in ipairs(plan.gather) do
+    inPlan[g.key] = true
+    if g.have < g.need and not got[g.key] then got[g.key], dirty = true, true end
+    if got[g.key] then list[#list + 1] = g end
+  end
+  for k in pairs(got) do
+    if not inPlan[k] then got[k], dirty = nil, true end
+  end
+  if dirty then plSave() end
+  return list
+end
+
+function PL.HudLine(g)
+  return (g.have >= g.need and "[x] " or "[ ] ") .. T.FormatNumber(g.have) .. " / " .. T.FormatNumber(g.need) .. " "
+    .. g.name .. (g.tool and " (a tool)" or "")
+end
+
+local function shStyle(done)
+  local w = math.ceil(T.Window.GetFont() * T.Location.CHAR_W * shState.chars)
+  return T.Window.TextStyle{ width = w, marginLeft = 0, marginRight = 0, paddingLeft = 0, paddingRight = 0,
+    whiteSpace = "nowrap", opacity = done and PL.HUD_DONE or 1 }
+end
+
+function SH.BuildContent()
+  local pad = T.Hud.STRIP_PAD
+  local built = { lines = {} }
+  built.title = UI.Label{ id = "sh_title", text = shState.title, class = "title", style = shStyle() }
+  local children = { built.title }
+  for i, line in ipairs(shState.lines) do
+    built.lines[i] = UI.Label{ id = "sh_" .. i, text = line.text, class = "text", style = shStyle(line.done) }
+    children[#children + 1] = built.lines[i]
+  end
+  if shState.note ~= "" then
+    built.note = UI.Label{ id = "sh_note", text = shState.note, class = "dim", style = shStyle() }
+    children[#children + 1] = built.note
+  end
+  built.column = UI.Column{ id = "sh_strip", tooltip = "The crafting planner's shopping list: what you have of each"
+      .. " item against what the plan needs (/toolbox plan opens the planner)",
+    style = { paddingLeft = pad, paddingRight = pad, paddingTop = pad, paddingBottom = pad,
+              marginLeft = 0, marginRight = 0, marginTop = 0, marginBottom = 0, borderRadius = 3,
+              backgroundColor = T.ShadeColor(T.SHADE_DEFAULT) },
+    children = children }
+  built.sig = #shState.lines .. (shState.note ~= "" and "n" or "")
+  shEl = built
+  return built.column
+end
+
+function SH.ContentSize()
+  local pad = T.Hud.STRIP_PAD
+  local n = 1 + #shState.lines + (shState.note ~= "" and 1 or 0)
+  return math.ceil(T.Window.GetFont() * T.Location.CHAR_W * shState.chars) + 2 * pad,
+    n * T.Window.LineHeight() + 2 * pad
+end
+
+function SH.IsShown() return PL.GetHud() end
+function SH.Wanted() return PL.GetHud() end
+function SH.Unbuilt() shEl = {} end
+function SH.GetSavedPosition() return plPrefs.hx, plPrefs.hy end
+function SH.SavePosition(x, y)
+  if x ~= plPrefs.hx or y ~= plPrefs.hy then
+    plPrefs.hx, plPrefs.hy = x, y
+    plSave()
+  end
+end
+
+-- From PL.Refresh: the strip follows the plan (in place, or rebuilt when its lines come or go).
+local function shUpdate(plan)
+  if not PL.GetHud() then return end
+  local items = PL.HudItems(plan)
+  local id = plRecipeId()
+  local rec = plan and id and plRecipe(id)
+  local st = { lines = {}, note = "" }
+  st.title = rec and ("Shopping list: " .. tostring(T.Field(rec, "name")) .. (PL.GetCrafts() > 1 and (" x "
+    .. PL.GetCrafts()) or "")) or "Shopping list"
+  if not items then
+    st.note = id and "That recipe isn't in your book any more" or "No recipe planned: /toolbox plan"
+  else
+    for i = 1, math.min(#items, PL.HUD_MAX) do
+      st.lines[i] = { text = PL.HudLine(items[i]), done = items[i].have >= items[i].need }
+    end
+    if #items > PL.HUD_MAX then
+      st.note = "+ " .. (#items - PL.HUD_MAX) .. " more in the planner"
+    elseif #items == 0 then
+      st.note = "Nothing to get: you have everything"
+    end
+  end
+  local most = #st.title
+  for _, line in ipairs(st.lines) do most = math.max(most, #line.text) end
+  most = math.max(most, #st.note)
+  st.chars = math.min(PL.HUD_CHARS[2], math.max(PL.HUD_CHARS[1], most))
+  local widen = st.chars ~= shState.chars
+  shState = st
+  if not shEl.column or shEl.sig ~= #st.lines .. (st.note ~= "" and "n" or "") then
+    T.Hud.Rebuild(PL.HUD_KEY)
+    return
+  end
+  T.SetText(shEl.title, st.title)
+  if shEl.note then T.SetText(shEl.note, st.note) end
+  for i, line in ipairs(st.lines) do
+    T.SetText(shEl.lines[i], line.text)
+    T.SetStyle(shEl.lines[i], shStyle(line.done))
+  end
+  if widen then
+    T.SetStyle(shEl.title, shStyle())
+    if shEl.note then T.SetStyle(shEl.note, shStyle()) end
+    T.Hud.Refresh()
+  end
+end
+
+-- Shows or hides the strip (the Shopping list's button, /toolbox plan hud).
+function PL.SetHud(on)
+  plPrefs.hud = on == true
+  plSave()
+  if plEl.hud then T.SetText(plEl.hud, PL.HudButtonText()) end
+  if plPrefs.hud then
+    shEl = {}
+    PL.Refresh(true)                   -- works the list out and builds the strip
+  else
+    T.Hud.Rebuild(PL.HUD_KEY)          -- not wanted: its frame goes
+  end
+end
+
+function PL.HudButtonText() return PL.GetHud() and "Hide the HUD list" or "Show on the HUD" end
+
+-- Follows the text size and line spacing settings (Toolbox.Window.ApplyText).
+function PL.ApplyText()
+  if not shEl.column then return end
+  T.SetStyle(shEl.title, shStyle())
+  if shEl.note then T.SetStyle(shEl.note, shStyle()) end
+  for i, line in ipairs(shState.lines) do T.SetStyle(shEl.lines[i], shStyle(line.done)) end
+  T.Hud.Refresh()
+end
+
 local function plShopRows(plan)
   local children = {}
+  plEl.hud = UI.Button{ id = "pl_hud", text = PL.HudButtonText(),
+    tooltip = "A small strip with this list, what you have against what's needed, ticked off as you gather (the"
+      .. " planner can stay closed)", onClick = function() PL.SetHud(not PL.GetHud()) end }
+  children[1] = UI.Row{ style = { marginBottom = 4 }, children = { plEl.hud } }
   for _, s in ipairs(plan.shop) do
     children[#children + 1] = UI.Label{ text = T.FormatNumber(s.n) .. " x " .. s.name .. (s.tool and " (a tool)"
       or ""), class = "text" }
   end
-  if #children == 0 then
-    children[1] = UI.Label{ text = "Nothing to get: you have everything the plan needs.", class = "dim" }
+  if #children == 1 then
+    children[2] = UI.Label{ text = "Nothing to get: you have everything the plan needs.", class = "dim" }
   end
   return children
 end
@@ -2311,14 +2491,22 @@ end
 -- most every PL.REFRESH_GAP s (PL.Tick).
 function PL.Refresh(now)
   plDirty = true
-  if not (plWin and plBody) then return end
-  if not now and T.Now() - plAt < PL.REFRESH_GAP then return end
+  local inWin = plWin ~= nil and plBody ~= nil
+  if not (inWin or PL.GetHud()) then return end
+  if not now and T.Now() - plAt < ((inWin and PL.IsShown()) and PL.REFRESH_GAP or PL.HUD_GAP) then return end
   plDirty, plAt = false, T.Now()
   plFresh = {}
   local t0 = T.PerfT()
   local plan = PL.Plan()
   T.PerfAdd("planner:the plan", t0)
   plPlan = plan
+  shUpdate(plan)
+  if not inWin then
+    if plan and PL.GetScratch() and type(plPrefs.makes) == "table" and next(plPrefs.makes) ~= nil
+      and not D.recipeIndex then PL.NeedBook() end
+    T.PerfAdd("planner", t0)
+    return
+  end
   local view = PL.GetView()
   pcall(function()
     plEl.scratch:SetValue(PL.GetScratch())
@@ -2332,7 +2520,7 @@ function PL.Refresh(now)
       "Type part of a recipe's name and Find it")
     T.SetText(plEl.result, "")
     if plCol then pcall(function() plCol:Destroy() end) end
-    plCol, plBodySig, plRows = nil, nil, {}
+    plCol, plBodySig, plRows, plEl.hud = nil, nil, {}, nil
     T.PerfAdd("planner", t0)
     return
   end
@@ -2357,7 +2545,7 @@ function PL.Refresh(now)
     if view == "Plan" then plUpdateRows(plan) end
   else
     if plCol then pcall(function() plCol:Destroy() end) end
-    plCol, plRows = nil, {}
+    plCol, plRows, plEl.hud = nil, {}, nil
     local children = nil
     if view == "Plan" then children = plPlanRows(plan)
     elseif view == "Shopping list" then children = plShopRows(plan)
@@ -2487,7 +2675,7 @@ end
 function PL.Reset()
   local id = plRecipeId()
   if id and type(plPrefs.picks) == "table" then plPrefs.picks["r" .. id] = nil end
-  plPrefs.recipe, plPrefs.crafts, plPrefs.makes = nil, 1, {}
+  plPrefs.recipe, plPrefs.crafts, plPrefs.makes, plPrefs.got = nil, 1, {}, {}
   plBuilt, plMade, plMatches = {}, {}, {}
   plSave()
   if plEl.find then
@@ -2553,9 +2741,10 @@ end
 
 -- T.ViewsTick: a change since the last refresh shows (at most every PL.REFRESH_GAP s); the reading bar moves.
 function PL.Tick()
-  if not PL.IsShown() then return end
+  local shown = PL.IsShown()
+  if not (shown or PL.GetHud()) then return end
   if plDirty then PL.Refresh(false) end
-  PL.ShowProgress()
+  if shown then PL.ShowProgress() end
 end
 
 -- Your bags, the table or the book changed (ShroudOnInventoryChanged, ShroudOnCraftingStateChanged,
@@ -2590,6 +2779,14 @@ function PL.Init()
   plPrefs = type(saved) == "table" and saved or {}
   plPrefs.v, plPrefs.mode, plPrefs.watch = 1, nil, nil
   plFresh, plBuilt, plMade, plPlan, plQuick, plWaitKnown = {}, {}, {}, nil, {}, false
+  plDirty, plAt = PL.GetHud(), -math.huge   -- the strip's list, worked out at the first tick
+  shEl, shState = {}, { title = "Shopping list", lines = {}, note = "Working the plan out...", chars = PL.HUD_CHARS[1] }
+  local order = T.Hud.ORDER
+  local listed = false
+  for _, k in ipairs(order) do if k == PL.HUD_KEY then listed = true end end
+  if not listed then table.insert(order, #order, PL.HUD_KEY) end   -- before the target, built last
+  T.Hud.NAMES[PL.HUD_KEY] = "shopping list"
+  T.Hud.Register(PL.HUD_KEY, SH)
 end
 
 T.Backup.OTHER_KEYS[#T.Backup.OTHER_KEYS + 1] = PL.KEY

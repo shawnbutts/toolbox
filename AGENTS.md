@@ -212,7 +212,11 @@ into one if a new file is ever needed).
   planner opening, `D.PrepareKnown`, since one frame took 24 ms; a search finishes it at once); the shortfall's
   control is an "I'll craft" Toggle (owner: "Make it" read as if it would craft); the Shopping list is the first and
   default view (owner); the Plan view's
-  rows are rebuilt only when their structure changes (`plRowSig`), counts and choices set in place. Text budget (the
+  rows are rebuilt only when their structure changes (`plRowSig`), counts and choices set in place. The shopping list
+  on the HUD (owner, 2026-10-17; `PL.Strip`, Hud key `shopping`, `toolbox_shopping`, the Shopping list's `pl_hud`
+  button, `/toolbox plan hud`): have / need for each item the plan was short of (`PL.Expand`'s `gather`; a line stays,
+  ticked and faded, once listed: `got`, cleared with a new recipe), planned again every `PL.HUD_GAP` s on a change
+  with the window closed, counts in place, rebuilt when lines come or go. Text budget (the
   stress test's four 30-choice slots: 46,703 at the peak): `PL.CHOICES_SHOWN` (10) choices a slot.
 - `dailydetail.lua`: `Toolbox.DailyDetail`, **Loot Tracker** (views Looted / Crafted / Gathered). Refreshes
   on change only (`Daily.itemsVersion`, `Prices.version`, `DD.FULL_EVERY` catch-up). Reset (owner,
@@ -601,7 +605,8 @@ character" sentinel.
 | `launcher` | `{ show = bool (default true), vertical = bool (default true), size = 20..64 (default 32), color = an `LN.COLORS` token (default "@gold"; owner, 2026-10-16), shade = 0..90 (% black behind, default T.SHADE_DEFAULT, 60), combat = bool (hide during combat), hide = { [button key] = true } (never all), x, y }` (the menu, hud.lua; absent = never started: the chat line) |
 | `map_overlays` | `{ v = 2, nextId, scenes = { [scene id] = { scene = its name, shown = overlay id or 0, auto = true (the auto map on there), list = { { id, name (<= 24, unique in the scene), icon = an OV.ICONS shape, color = an OV.COLORS name (the next marks'), nextPlace, places = "id|name|x|y|z|shape n|color n;...", auto = a node kind, or "*" for Gathering (made by the auto map) } } } }, ignore = { name parts the auto map skips }, death = { raw, scene, x, y, z, at = "HH:MM", date, clock = T.Clock() at death, away = true once you've left it } (your last death) }` (hud.lua; at most OV.MAX a scene, OV.SCENE_MAX places each, OV.BUDGET in all); v = 1 (one list, places with raw / scene; development only) converted at the first read; kept by a reset; NOT in the recovery copy (`B.OTHER_KEYS`: the account file's 256 KB) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
-| `planner` | `{ v = 1, scratch = bool, crafts = n, recipe = id, view = a PL.VIEWS name, makes = { [row path "p.1.2"] = true }, makers = { [item key] = recipe id }, picks = { ["r" .. id] = { at = n, ["s" .. slot] = item key } } (<= PL.PICKS_MAX), pickAt = n }` (daily.lua's crafting planner; kept by a reset, not in the recovery copy: `B.OTHER_KEYS`) |
+| `planner` | `{ v = 1, scratch = bool, crafts = n, recipe = id, view = a PL.VIEWS name, makes = { [row path "p.1.2"] = true }, makers = { [item key] = recipe id }, picks = { ["r" .. id] = { at = n, ["s" .. slot] = item key } } (<= PL.PICKS_MAX), pickAt = n, hud = bool (the
+shopping list strip), hx, hy, got = { [item key] = true } (the strip's lines) }` (daily.lua's crafting planner; kept by a reset, not in the recovery copy: `B.OTHER_KEYS`) |
 | `skills_paused` | `{ v = 1, how = "off"/"maintain", when = "HH:MM", list = { { key = skill key or name, from = mode, to = mode } } }`: the pause's record (skills.lua; empty list = not paused); kept by a reset, copied for recovery |
 | `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`, events' `{ [occurrence] = start (UTC seconds, as text) }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ shade = 0..90 (% black behind the HUD strip; default T.SHADE_DEFAULT, 60, every strip alike), hideAfter = seconds (0 never, 5..60), font = 9..32, spacing = 0..12 (each unset: the XP windows'), x, y }` |

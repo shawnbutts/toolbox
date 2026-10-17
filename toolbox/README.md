@@ -179,7 +179,7 @@ Plan a craft from the recipes you know: `/toolbox plan` (or `/toolbox plan plate
 you need, have and are short of. A slot that takes a choice of material, like Metal Sheet, lists them with how many
 you have, starting on the first you have enough of; a line under it shows what the picked one adds to the item, for
 crafting a build. A material you pick yourself stays picked. The result line shows the item's stats with your picks.
-With From scratch on, tick I'll craft to plan the crafts for what you're short of, as deep as your recipes go. The Shopping list adds up what to buy or gather, and the Build order lists the crafts by
+With From scratch on, tick I'll craft to plan the crafts for what you're short of, as deep as your recipes go. The Shopping list adds up what to buy or gather (Show on the HUD puts it on a small strip while you gather: what you have against what's needed), and the Build order lists the crafts by
 station, materials first, ticked off as you craft.
 
 ## Commands
@@ -200,7 +200,7 @@ station, materials first, ticked off as you craft.
 - `/toolbox notify`: notification settings
 - `/toolbox location`: the location strip (`on|off`, `facing on|off`, `water on|off`)
 - `/toolbox overlay`: this scene's map overlays (`<name>`, `off`, `new`, `rename`, `delete`, `places`, `icon`, `color`, `auto`, `scenes`, `forget`)
-- `/toolbox plan`: the crafting planner (`/toolbox plan <recipe>` finds one)
+- `/toolbox plan`: the crafting planner (`/toolbox plan <recipe>` finds one; `/toolbox plan hud`: the shopping list on the HUD)
 - `/toolbox mark`: mark where you stand in the shown overlay (`<name>`, `remove`, `compass`, `look`)
 - `/toolbox menu`: the menu (`on|off`, `vertical|horizontal`, `size <n>`, `shade <n>`, `combat hide|show`)
 - `/toolbox settings`: settings files and setups (`save`, `reset`, `cancel`, `setups`, `import`, `export`)

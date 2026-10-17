@@ -1083,9 +1083,18 @@ function ShroudOnInventoryChanged()
   T.Planner.Changed()
 end
 
-add("plan", "the crafting planner: a recipe's materials, what to get and what to craft (plan [recipe]; plan debug)",
+add("plan", "the crafting planner: a recipe's materials, what to get and what to craft (plan [recipe]; plan hud;"
+  .. " plan debug)",
   function(rest)
-    if T.Trim(rest or ""):lower() == "debug" then
+    local word = T.Trim(rest or ""):lower()
+    if word == "hud" or word == "hud on" or word == "hud off" then
+      local on = word == "hud on" or (word == "hud" and not T.Planner.GetHud())
+      T.Planner.SetHud(on)
+      T.Print(on and "The shopping list is on the HUD (/toolbox plan hud again hides it)." or
+        "The shopping list strip is hidden.")
+      return
+    end
+    if word == "debug" then
       T.Planner.debug = not T.Planner.debug
       T.enterDebug = T.Planner.debug
       T.Print("Planner debug " .. (T.Planner.debug and "on: each event the planner's search box gets, and Enter in"
