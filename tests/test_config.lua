@@ -570,4 +570,15 @@ return function(t)
     H.change("toolbox_config", "search", "")
     t.eq(H.config():Find("search_results").choices[1], Toolbox.Config.SEARCH_PROMPT)
   end)
+
+  t.test("General holds the text size and line spacing; the pages' order", function()
+    H.boot()
+    H.chat("/tbx config")
+    t.eq(Toolbox.Config.PageOf("font"), "general")
+    t.eq(Toolbox.Config.PageOf("spacing"), "general")
+    local keys = {}
+    for _, c in ipairs(Toolbox.Config.CATEGORIES) do keys[#keys + 1] = c.key end
+    t.eq(table.concat(keys, " "), "toolbelt general xp crafting buffs gear vitals combat skills map notify sounds hud"
+      .. " backup", "Skill activity right after Combat")
+  end)
 end

@@ -286,13 +286,31 @@ function C.XPSection()
       tooltip = T.Daily.HasResults() and "Off: Loot Tracker's Looted list leaves out what you crafted or"
         .. " gathered (they have their own views)" or "Needs a newer game client (Lua API 18)",
       onChange = function(_, value) T.DailyDetail.SetInclude(value) end },
-    heading("Text in these windows"),
+  } }
+end
+
+-- The "General" category (owner, 2026-10-17: "make it clear where the everything controls are"): the text size and
+-- line spacing every window and strip uses, and where the other all-of-Toolbox settings are.
+function C.GeneralSection()
+  local W = T.Window
+  return UI.Column{ children = {
+    heading("Text", true),
+    UI.Label{ text = "For Toolbox's windows and HUD strips: XP, Today, the Loot Tracker, the Crafting Planner HUD,"
+      .. " the location strip and the rest. The Notifications window and HUD can have their own (Notifications"
+      .. " page); the bars and icons have their own sizes on their pages.",
+      class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
     slider("font", "Text size", W.FONT_MIN, W.FONT_MAX, 1, W.GetFont(),
-      "Text size of the XP and Today windows (" .. W.FONT_MIN .. "-" .. W.FONT_MAX .. ")",
+      "Text size of Toolbox's windows and strips (" .. W.FONT_MIN .. "-" .. W.FONT_MAX .. "; /" .. T.commands[1]
+        .. " font <n>)",
       function(n) C.OnFont(n) end),
     slider("spacing", "Line spacing", W.SPACING_MIN, W.SPACING_MAX, 1, W.GetSpacing(),
-      "Extra pixels between lines (" .. W.SPACING_MIN .. "-" .. W.SPACING_MAX .. ")",
+      "Extra pixels between lines (" .. W.SPACING_MIN .. "-" .. W.SPACING_MAX .. "; /" .. T.commands[1]
+        .. " spacing <n>)",
       function(n) C.OnSpacing(n) end),
+    heading("Also for all of Toolbox"),
+    UI.Label{ text = "Sounds: the volume of every alert. HUD layout: every strip's place. Menu, setups, backup &"
+      .. " reset: the menu, copying your settings to another character, backups and starting over.",
+      class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
   } }
 end
 
@@ -1634,6 +1652,7 @@ end
 -- key, label, builder. The first is shown when the window first opens.
 C.CATEGORIES = {
   { key = "toolbelt", label = "Toolbelt", build = function() return C.ToolbeltSection() end },
+  { key = "general", label = "General", build = function() return C.GeneralSection() end },
   { key = "xp", label = "XP & Loot", build = function() return C.XPSection() end },
   { key = "crafting", label = "Crafting", build = function() return C.CraftingSection() end },
   { key = "buffs", label = "Buffs", build = function() return C.BuffBarSection() end },
@@ -1648,7 +1667,9 @@ C.CATEGORIES = {
 }
 -- skills.lua, when present: its page after Combat
 if T.SkillBar then
-  table.insert(C.CATEGORIES, 7, { key = "skills", label = T.SkillBar.PAGE,
+  local at = #C.CATEGORIES + 1
+  for i, c in ipairs(C.CATEGORIES) do if c.key == "combat" then at = i + 1 end end
+  table.insert(C.CATEGORIES, at, { key = "skills", label = T.SkillBar.PAGE,
                                   build = function() return T.SkillBar.ConfigSection(C.Helpers) end })
 end
 

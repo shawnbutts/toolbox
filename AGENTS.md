@@ -482,7 +482,9 @@ into one if a new file is ever needed).
   config's `UI` (another file's page: `h.UI` from `C.Helpers`), (2) not call element methods or change state
   while building, and (3) give each control an id; `tests/test_config.lua` fails for a control the search can't
   find. Categories (`C.CATEGORIES`, the "Settings" dropdown;
-  Toolbelt first; "Crafting", owner 2026-10-17: the planner, its recipe book and its HUD): only the one shown is built; switching destroys the previous one first (every page kept
+  Toolbelt first, then "General", owner 2026-10-17: the text size and line spacing everything uses, `C.GeneralSection`;
+  "Crafting", same day: the planner, its recipe book and its HUD; skills.lua's page goes after Combat, found by key):
+  only the one shown is built; switching destroys the previous one first (every page kept
   built took ~420 elements and hit the game's 2,000 cap in game, 2026-09-30). So `Sync` uses `setValue` /
   `setText` / `setEnabled`, which skip missing controls, every id it looks up must be in `ALL_IDS`, and state
   tied to a page's controls is reset when it is built (`C.statShownSig`, `C.backupSig`). `C.ShowControl(id)` (the page found from the recordings,

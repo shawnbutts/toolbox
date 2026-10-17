@@ -36,7 +36,8 @@ D.SECTIONS = {
   { "Getting started",
     "Type /toolbox (or /tbx) to open the settings window and tick what you want on screen. Its Settings "
       .. "dropdown picks a category: Toolbelt (first, and the quickest start: your buffs, health bars, "
-      .. "consumables and gear in one strip), XP & Loot, Buffs, Consumables & gear, Health bars, Combat, "
+      .. "consumables and gear in one strip), General (the text size and line spacing of every window and "
+      .. "strip), XP & Loot, Crafting, Buffs, Consumables & gear, Health bars, Combat, "
       .. "Skill activity, Map & location, Notifications, Sounds, HUD layout (the strips' positions; the location "
       .. "strip's is on Map & location) and Menu, "
       .. "setups, backup & reset. "
