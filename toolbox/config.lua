@@ -236,8 +236,6 @@ end
 
 function C.XPSection()
   local W = T.Window
-  local hudCloses = {}
-  for i, c in ipairs(T.Planner.HUD_CLOSE) do hudCloses[i] = c[2] end
   return UI.Column{ children = {
     heading("XP", true),
     dropdownRow("XP window", { id = "xp_mode", choices = C.MODES, value = C.ModeOf(T.Compact),
@@ -288,21 +286,6 @@ function C.XPSection()
       tooltip = T.Daily.HasResults() and "Off: Loot Tracker's Looted list leaves out what you crafted or"
         .. " gathered (they have their own views)" or "Needs a newer game client (Lua API 18)",
       onChange = function(_, value) T.DailyDetail.SetInclude(value) end },
-    heading("Crafting planner"),
-    UI.Label{ text = "Plan a craft from your recipes: each ingredient you need, have and are short of, the"
-      .. " material for each slot (and what it adds), what to craft from scratch, a shopping list and a build order."
-      .. " Also the menu's hammer button, or /" .. T.commands[1] .. " plan <recipe>.",
-      class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
-    UI.Row{ style = { marginTop = 4 }, children = {
-      UI.Button{ id = "pl_open", text = "Open the crafting planner", enabled = T.Daily.HasResults(),
-        tooltip = T.Daily.HasResults() and ("Opens the planner (it shares a window with the Docs and Map overlays;"
-          .. " or /" .. T.commands[1] .. " plan)") or "Needs a newer game client (Lua API 18)",
-        onClick = function() T.Planner.Open() end },
-    } },
-    dropdownRow("Close the " .. T.Planner.HUD_NAME .. " when every craft is done", { id = "pl_hud_close",
-      choices = hudCloses, value = T.Planner.HudCloseName(T.Planner.GetHudClose()),
-      tooltip = "After this long (it plays the Crafting plan done sound first; the Sounds page sets it)",
-      onChange = function(_, v) T.Planner.SetHudClose(v) end }),
     heading("Text in these windows"),
     slider("font", "Text size", W.FONT_MIN, W.FONT_MAX, 1, W.GetFont(),
       "Text size of the XP and Today windows (" .. W.FONT_MIN .. "-" .. W.FONT_MAX .. ")",
@@ -310,6 +293,80 @@ function C.XPSection()
     slider("spacing", "Line spacing", W.SPACING_MIN, W.SPACING_MAX, 1, W.GetSpacing(),
       "Extra pixels between lines (" .. W.SPACING_MIN .. "-" .. W.SPACING_MAX .. ")",
       function(n) C.OnSpacing(n) end),
+  } }
+end
+
+-- The "Crafting" category (owner, 2026-10-17): the crafting planner, when its recipe book is read, and the Crafting
+-- Planner HUD.
+function C.CraftingSection()
+  local PL = T.Planner
+  local has = T.Daily.HasResults()
+  local needs = "Needs a newer game client (Lua API 18)"
+  local function names(list) local out = {} for i, c in ipairs(list) do out[i] = c[2] end return out end
+  local reading = T.Daily.ReadingRecipes()
+  return UI.Column{ children = {
+    heading("Crafting planner", true),
+    UI.Label{ text = "Plan a craft from your recipes: each ingredient you need, have and are short of, the"
+      .. " material for each slot (and what it adds), what to craft from scratch, a shopping list and a build order."
+      .. " Also the menu's hammer button, or /" .. T.commands[1] .. " plan <recipe>.",
+      class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
+    UI.Row{ style = { marginTop = 4 }, children = {
+      UI.Button{ id = "pl_open", text = "Open the crafting planner", enabled = has,
+        tooltip = has and ("Opens the planner (it shares a window with the Docs and Map overlays;"
+          .. " or /" .. T.commands[1] .. " plan)") or needs,
+        onClick = function() PL.Open() end },
+    } },
+    UI.Toggle{ id = "pl_cfg_scratch", text = "From scratch", value = PL.GetScratch(), enabled = has,
+      tooltip = "On: an ingredient you're short of can be crafted (I'll craft), its own materials added to the plan;"
+        .. " it uses the recipe book (below). The same as the planner's From scratch.",
+      onChange = function(_, on) PL.SetScratch(on == true) end },
+    heading("Recipe book"),
+    UI.Label{ text = "From scratch needs every recipe you know, read one at a time (about a minute and a half for a"
+      .. " big book), and the game may stutter meanwhile. Until it's read, I'll craft knows only the recipes named"
+      .. " like the item.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
+    dropdownRow("Read it", { id = "pl_book_when", choices = names(PL.BOOK_WHEN),
+      value = PL.BookWhenName(PL.GetBookWhen()), enabled = has,
+      tooltip = "When the planner needs it: as From scratch asks. At login: in the background a minute after you log"
+        .. " in, and after learning a recipe. Only when I ask: never on its own (Read it now); a recipe learned"
+        .. " leaves the book you read in use.",
+      onChange = function(_, v) PL.SetBookWhen(v) end }),
+    UI.Label{ id = "pl_book_status", text = PL.BookStatus(), class = "dim", style = { whiteSpace = "wrap" } },
+    UI.Row{ style = { marginTop = 4 }, children = {
+      UI.Button{ id = "pl_book_read", text = T.Daily.recipeIndex and "Read it again" or "Read it now",
+        enabled = has and not reading,
+        tooltip = has and ("Reads your recipe book now, in the background (or /" .. T.commands[1]
+          .. " plan book read)") or needs,
+        onClick = function() PL.ReadBook() end },
+      UI.Button{ id = "pl_book_stop", text = "Stop", enabled = reading, style = { marginLeft = 4 },
+        tooltip = "Stops the read (a fight coming, say); nothing starts another on its own until you read it",
+        onClick = function() PL.StopBook() end },
+    } },
+    heading(PL.HUD_NAME),
+    UI.Label{ text = "A small strip to follow the plan with the planner closed: the shopping list while you gather,"
+      .. " then the build order as you craft.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
+    UI.Toggle{ id = "pl_hud_show", text = "Show the " .. PL.HUD_NAME, value = PL.GetHud(), enabled = has,
+      tooltip = "Also the planner's button, or /" .. T.commands[1] .. " plan hud",
+      onChange = function(_, on) PL.SetHud(on == true) end },
+    dropdownRow("Open it on", { id = "pl_hud_start", choices = names(PL.HUD_STARTS),
+      value = PL.HudStartName(PL.GetHudStart()),
+      tooltip = "The build order skips the shopping list (crafting from your lot's containers); Start over goes"
+        .. " back to it too",
+      onChange = function(_, v) PL.SetHudStart(v) end }),
+    UI.Toggle{ id = "pl_hud_auto", text = "Switch to the build order once everything is gathered",
+      value = PL.GetHudAuto(),
+      tooltip = "Off: the shopping list stays until you press its Build order button",
+      onChange = function(_, on) PL.SetHudAuto(on == true) end },
+    dropdownRow("Close it when every craft is done", { id = "pl_hud_close",
+      choices = names(PL.HUD_CLOSE), value = PL.HudCloseName(PL.GetHudClose()),
+      tooltip = "After this long (it plays the Crafting plan done sound first)",
+      onChange = function(_, v) PL.SetHudClose(v) end }),
+    UI.Row{ style = { marginTop = 4 }, children = {
+      UI.Button{ id = "pl_hud_sound", text = "The Crafting plan done sound...",
+        tooltip = "Its file and volume, on the Sounds page",
+        onClick = function() C.GoToControl("snd_" .. PL.HUD_SOUND .. "_test") end },
+    } },
+    shadeSlider("pl_hud_shade", PL.GetHudShade(), "the " .. PL.HUD_NAME, function(n) PL.SetHudShade(n) end),
+    C.PositionRows("plhud", PL.Strip, "Position"),
   } }
 end
 
@@ -781,6 +838,7 @@ local POSITIONED = {
   { "combat", T.Combat, "Combat stats" }, { "nhud", T.Notify.Hud, "Notification HUD" },
   { "target", T.Target, "Target HUD" }, { "buffblock", T.BuffBlock, "Buff block" },
   { "location", T.Location, "Location strip", "map" }, { "launcher", T.Launcher, "Menu" },
+  { "plhud", T.Planner.Strip, T.Planner.HUD_NAME, "crafting" },
 }
 if T.SkillBar then POSITIONED[#POSITIONED + 1] = { "skills", T.SkillBar, T.SkillBar.PAGE } end
 
@@ -976,7 +1034,8 @@ function C.HudSection()
     UI.Label{ text = "Strips show while this window is open, so you can place them. Drag a strip's grip"
       .. " (untick Options > Interface > Nameplates & Chat Bubbles > Lock Status Movement to see it) or"
       .. " use the buttons.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
-    UI.Label{ text = "The location strip is placed on the Map & location page.", class = "dim",
+    UI.Label{ text = "The location strip is placed on the Map & location page, the " .. T.Planner.HUD_NAME
+      .. " on the Crafting page.", class = "dim",
       style = { whiteSpace = "wrap", marginTop = 4 } },
   }
   for _, p in ipairs(POSITIONED) do
@@ -1576,6 +1635,7 @@ end
 C.CATEGORIES = {
   { key = "toolbelt", label = "Toolbelt", build = function() return C.ToolbeltSection() end },
   { key = "xp", label = "XP & Loot", build = function() return C.XPSection() end },
+  { key = "crafting", label = "Crafting", build = function() return C.CraftingSection() end },
   { key = "buffs", label = "Buffs", build = function() return C.BuffBarSection() end },
   { key = "gear", label = "Consumables & gear", build = function() return C.ConsumablesGearSection() end },
   { key = "vitals", label = "Health bars", build = function() return C.VitalsSection() end },
@@ -1601,6 +1661,8 @@ end
 
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
 local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "ov_window", "ov_death", "pl_open", "pl_hud_close",
+  "pl_cfg_scratch", "pl_book_when", "pl_book_status", "pl_book_read", "pl_book_stop", "pl_hud_show", "pl_hud_start",
+  "pl_hud_auto", "pl_hud_shade", "pl_hud_shade_value",
   "xp_shade", "xp_shade_value", "daily_shade", "daily_shade_value", "nhud_shade", "nhud_shade_value",
   "vitals_shade", "vitals_shade_value", "target_shade", "target_shade_value", "loc_shade", "loc_shade_value",
   "ln_show", "ln_vertical", "ln_combat", "ln_size", "ln_size_value", "ln_color", "ln_shade", "ln_shade_value",
@@ -2412,6 +2474,13 @@ function C.Sync()
   sliderValue("ln_shade", L.GetShade())
   setValue("ln_color", L.ColorName(L.GetColor()))
   setValue("pl_hud_close", T.Planner.HudCloseName(T.Planner.GetHudClose()))
+  setValue("pl_cfg_scratch", T.Planner.GetScratch())
+  setValue("pl_book_when", T.Planner.BookWhenName(T.Planner.GetBookWhen()))
+  setValue("pl_hud_show", T.Planner.GetHud())
+  setValue("pl_hud_start", T.Planner.HudStartName(T.Planner.GetHudStart()))
+  setValue("pl_hud_auto", T.Planner.GetHudAuto())
+  sliderValue("pl_hud_shade", T.Planner.GetHudShade())
+  C.SyncBook()
   for _, id in ipairs({ "ln_vertical", "ln_combat", "ln_size", "ln_color", "ln_shade" }) do
     setEnabled(id, L.GetShow())
   end
@@ -2440,6 +2509,15 @@ end
 -- by its grip); called once a tick from Toolbox.Tick, and from Sync (so opening the window brings
 -- them up to date). Only while the window is shown: once built, the window stays built while
 -- hidden, and refreshing it then cost ~9 UI calls a second for nothing (review, 2026-09-29).
+-- The recipe book's line and buttons (Sync, and every second from SyncLive while it's read).
+function C.SyncBook()
+  local reading = T.Daily.ReadingRecipes()
+  setText("pl_book_status", T.Planner.BookStatus())
+  setText("pl_book_read", T.Daily.recipeIndex and "Read it again" or "Read it now")
+  setEnabled("pl_book_read", T.Daily.HasResults() and not reading)
+  setEnabled("pl_book_stop", reading)
+end
+
 function C.SyncLive()
   if not C.IsShown() then return end
   disarm()
@@ -2448,6 +2526,7 @@ function C.SyncLive()
   syncQuiet()
   syncEffectSounds()
   C.SyncSounds()
+  C.SyncBook()
   if el.shortcut then T.SetText(el.shortcut, "Shortcut: " .. T.KeyStatus()) end
   for _, p in ipairs(POSITIONED) do
     local e = el[p[1] .. "_pos"]

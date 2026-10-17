@@ -13,10 +13,16 @@ ones included).
   the plan needs, ticked off as you gather), then, once you have it all, the build order, ticked off as you craft.
   Its button skips to the build order (crafting from your lot's containers) and back; a step stays done once its
   crafts are (crafting the item uses up what you made for it), the item counts the ones made, and **Start over**
-  goes back to the shopping list for another batch. When every craft is done it
-  plays a fanfare (**Crafting plan done** on the Sounds page) and closes after 30 seconds (Settings, XP & Loot, or
-  /toolbox plan hud close <seconds>; or never). The planner now counts the crafts still to make, so the materials a
-  made one used aren't asked for again.
+  goes back to the start for another batch. When every craft is done it
+  plays a fanfare (**Crafting plan done** on the Sounds page) and closes after 30 seconds (or never). Settings,
+  Crafting: what it opens on (the build order for crafting from the lot; /toolbox plan hud start), whether it moves on
+  once everything is gathered (hud auto), the close delay (hud close), its background shade (hud shade) and its
+  position. The planner now counts the crafts still to make, so the materials a made one used aren't asked for again.
+- **Settings, Crafting:** a page of its own for the crafting planner (moved from XP & Loot, with From scratch), its
+  recipe book and the Crafting Planner HUD. **When the recipe book is read** (it can stutter the game): when the
+  planner needs it, at login in the background, or only when you ask, with **Read it now** (also the planner's own
+  button, or /toolbox plan book read) and **Stop** (/toolbox plan book stop); read only on ask, a recipe you learn
+  leaves the book you read in use until you read it again.
 - **The menu's icon color:** Gold, Red, Green, Blue, White or Text (your UI skin's), under Settings, Menu, setups,
   backup & reset, or /toolbox menu color <name>.
 - **Crafting planner** (`/toolbox plan [recipe]`): find one of your recipes as you type, pick how many crafts, and
@@ -29,7 +35,7 @@ ones included).
   controls wait until it's done). Views: a **Shopping list**
   (what to buy or gather, added up; the first), the plan and a **Build order** (the crafts by station, materials
   first, ticked off as you craft). It shares a window with the Docs and Map overlays; the menu has a button for it (and
-  Settings, XP & Loot).
+  Settings, Crafting).
 - **Backups** (Lua API 39): before a settings reset, a setup import and the first start of a new version, the game
   keeps a dated copy of the saved file beside it, and chat names it (or says why the game kept none). **Back up now**
   (Settings, Menu, setups, backup & reset) makes one whenever you like, and **Restore** (two clicks) puts this

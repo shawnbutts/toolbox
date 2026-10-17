@@ -196,6 +196,11 @@ into one if a new file is ever needed).
   `D.BookProgress` for the planner's bar, with a once-a-login note, `PL.BOOK_NOTE`; meanwhile the planner's
   controls are greyed out, `plLock` from `PL.ShowProgress`: owner, 2026-10-16); kept for the session in
   `D.recipeIndex` (`recipes`, `byResult` by name,
+  `count`; when it's read is the player's, owner 2026-10-17: `PL.BOOK_WHEN` "need" (`PL.NeedBook`), "login"
+  (`PL.BOOK_LOGIN_DELAY` s after `PL.Init` and a recipe learned) or "manual" (`PL.ReadBook` only: Settings' `pl_book_read`,
+  the planner's `pl_book`, `/toolbox plan book read`; a recipe learned keeps the book, `D.ForgetRecipes(keep)`,
+  `D.bookStale`); `PL.StopBook` (`plBookStopped`: nothing auto until read); a read again keeps the old one in use,
+  the planner not greyed;
   `byKey` by item key), dropped on `ShroudOnRecipesChanged` and by `PL.Init` (a login or another character). Not saved: 1,764 recipes'
   makers would take a large share of a 256 KB file. At the end, `Toolbox.Planner` (PL; owner, 2026-10-15,
   the 1.9.0 feature; header comment): the crafting planner, `/toolbox plan [recipe]`, the shared 8th window's fourth
@@ -220,7 +225,9 @@ into one if a new file is ever needed).
   build order once all is gathered (`hudStage`; its `sh_switch` button goes either way, back to the list staying
   there, `hudStay`; a step below the recipe stays done once its crafts were, `plDone`, since crafting the recipe uses
   it up, owner 2026-10-17; `sh_again`, Start over, `PL.StartOver`: the same recipe, nothing made, the shopping list), then at the end the `craft_done` sound (sounds.lua's `S.DEFS`, art/alerts.py) and a close after
-  `hudClose` s (`PL.HUD_CLOSE`, default 30, settings `pl_hud_close`); planned again every `PL.HUD_GAP` s on a change
+  `hudClose` s (`PL.HUD_CLOSE`, default 30, settings `pl_hud_close`); what it opens on and Start over goes back to
+  (`hudStart`), the move on once gathered (`hudAuto`), its shade and Position row (`plhud`, POSITIONED's "crafting"
+  page); planned again every `PL.HUD_GAP` s on a change
   with the window closed, counts in place, rebuilt when lines come or go. Text budget (the
   stress test's four 30-choice slots: 46,703 at the peak): `PL.CHOICES_SHOWN` (10) choices a slot.
 - `dailydetail.lua`: `Toolbox.DailyDetail`, **Loot Tracker** (views Looted / Crafted / Gathered). Refreshes
@@ -475,7 +482,7 @@ into one if a new file is ever needed).
   config's `UI` (another file's page: `h.UI` from `C.Helpers`), (2) not call element methods or change state
   while building, and (3) give each control an id; `tests/test_config.lua` fails for a control the search can't
   find. Categories (`C.CATEGORIES`, the "Settings" dropdown;
-  Toolbelt first): only the one shown is built; switching destroys the previous one first (every page kept
+  Toolbelt first; "Crafting", owner 2026-10-17: the planner, its recipe book and its HUD): only the one shown is built; switching destroys the previous one first (every page kept
   built took ~420 elements and hit the game's 2,000 cap in game, 2026-09-30). So `Sync` uses `setValue` /
   `setText` / `setEnabled`, which skip missing controls, every id it looks up must be in `ALL_IDS`, and state
   tied to a page's controls is reset when it is built (`C.statShownSig`, `C.backupSig`). `C.ShowControl(id)` (the page found from the recordings,
@@ -612,7 +619,8 @@ character" sentinel.
 | `map_overlays` | `{ v = 2, nextId, scenes = { [scene id] = { scene = its name, shown = overlay id or 0, auto = true (the auto map on there), list = { { id, name (<= 24, unique in the scene), icon = an OV.ICONS shape, color = an OV.COLORS name (the next marks'), nextPlace, places = "id|name|x|y|z|shape n|color n;...", auto = a node kind, or "*" for Gathering (made by the auto map) } } } }, ignore = { name parts the auto map skips }, death = { raw, scene, x, y, z, at = "HH:MM", date, clock = T.Clock() at death, away = true once you've left it } (your last death) }` (hud.lua; at most OV.MAX a scene, OV.SCENE_MAX places each, OV.BUDGET in all); v = 1 (one list, places with raw / scene; development only) converted at the first read; kept by a reset; NOT in the recovery copy (`B.OTHER_KEYS`: the account file's 256 KB) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
 | `planner` | `{ v = 1, scratch = bool, crafts = n, recipe = id, view = a PL.VIEWS name, makes = { [row path "p.1.2"] = true }, makers = { [item key] = recipe id }, picks = { ["r" .. id] = { at = n, ["s" .. slot] = item key } } (<= PL.PICKS_MAX), pickAt = n, hud = bool (the
-Crafting Planner HUD), hudStage = "shop"/"build", hudStay = bool, hudClose = seconds (PL.HUD_CLOSE), hx, hy, got =
+Crafting Planner HUD), hudStage = "shop"/"build", hudStay = bool, hudClose = seconds (PL.HUD_CLOSE), hudStart = "shop"/"build", hudAuto =
+bool (default true), shade = 0..90, book = a PL.BOOK_WHEN key (default "need"), hx, hy, got =
 { [item key] = true } (the strip's shopping lines) }` (daily.lua's crafting planner; kept by a reset, not in the recovery copy: `B.OTHER_KEYS`) |
 | `skills_paused` | `{ v = 1, how = "off"/"maintain", when = "HH:MM", list = { { key = skill key or name, from = mode, to = mode } } }`: the pause's record (skills.lua; empty list = not paused); kept by a reset, copied for recovery |
 | `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`, events' `{ [occurrence] = start (UTC seconds, as text) }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |

@@ -1073,7 +1073,7 @@ end)
 -- You learned a recipe (or marked a favorite): /toolbox recipe reads the book again.
 function ShroudOnRecipesChanged()
   T.Ran("recipes")
-  T.Daily.ForgetRecipes()
+  T.Daily.ForgetRecipes(T.Planner.KeepsBook())   -- read only on ask: the old book stays, marked stale
   T.Planner.RecipesChanged()
 end
 
@@ -1084,10 +1084,58 @@ function ShroudOnInventoryChanged()
 end
 
 add("plan", "the crafting planner: a recipe's materials, what to get and what to craft (plan [recipe]; plan hud"
-  .. " [close <seconds>]; plan debug)",
+  .. " [close <seconds>|start shop|build|auto on|off|shade <0-90>]; plan book [read|stop|need|login|manual];"
+  .. " plan debug)",
   function(rest)
     local word = T.Trim(rest or ""):lower()
     local PL = T.Planner
+    local cmd = "/" .. T.commands[1] .. " plan "
+    local book = word == "book" and "" or word:match("^book%s+(.+)$")   -- not "bookcase"
+    if book then
+      if book == "read" then
+        if not PL.ReadBook() and not T.Daily.ReadingRecipes() then
+          T.Print("This game client has no recipe book for add-ons.")
+        end
+      elseif book == "stop" then
+        T.Print(PL.StopBook() and "Recipe book: stopped. Nothing reads it on its own until you do (" .. cmd
+          .. "book read)." or "The recipe book isn't being read.")
+      elseif book ~= "" then
+        if PL.SetBookWhen(book) then
+          T.Print("Recipe book: read " .. PL.BookWhenName(PL.GetBookWhen()):lower() .. ".")
+        else
+          T.Print("Use " .. cmd .. "book read|stop|need|login|manual.")
+        end
+      else
+        T.Print("Recipe book: " .. PL.BookStatus() .. ". Read " .. PL.BookWhenName(PL.GetBookWhen()):lower()
+          .. " (" .. cmd .. "book need|login|manual; read; stop).")
+      end
+      return
+    end
+    local start = word:match("^hud start (.+)$")
+    if start then
+      if PL.SetHudStart(start) then
+        T.Print(PL.HUD_NAME .. ": opens on the " .. PL.HudStartName(PL.GetHudStart()):lower() .. ".")
+      else
+        T.Print("Use " .. cmd .. "hud start shop|build.")
+      end
+      return
+    end
+    local auto = word:match("^hud auto (%a+)$")
+    if auto == "on" or auto == "off" then
+      PL.SetHudAuto(auto == "on")
+      T.Print(PL.HUD_NAME .. (auto == "on" and ": on to the build order once everything is gathered."
+        or ": the shopping list stays until you switch."))
+      return
+    end
+    local shade = word:match("^hud shade (.+)$")
+    if shade then
+      if PL.SetHudShade(tonumber(shade)) then
+        T.Print(PL.HUD_NAME .. ": background shade " .. PL.GetHudShade() .. "%.")
+      else
+        T.Print("Use " .. cmd .. "hud shade 0-" .. T.SHADE_MAX .. ".")
+      end
+      return
+    end
     local close = word:match("^hud close (.+)$")
     if close then
       if PL.SetHudClose(close) then

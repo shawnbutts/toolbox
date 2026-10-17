@@ -105,7 +105,7 @@ D.SECTIONS = {
     "Like XP, it can be a compact window or a HUD strip: /toolbox daily compact, daily hud (and daily "
       .. "window, daily move <x> <y>)." },
   { "Crafting planner",
-    "Plan a craft from the recipes you know: the menu's hammer button, Settings, XP & Loot, or /toolbox plan "
+    "Plan a craft from the recipes you know: the menu's hammer button, Settings, Crafting, or /toolbox plan "
       .. "opens the planner (/toolbox plan plate chest finds one too). Type part of a recipe's name: the Recipe "
       .. "list fills as you type (Find plans the first). Pick one there, and how many Crafts. Each ingredient "
       .. "gets a line: how many you need, how many you have and how many you're short.",
@@ -120,22 +120,33 @@ D.SECTIONS = {
       .. "Plan). Tick that to plan crafting the shortfall yourself: its own ingredients are planned under it, as "
       .. "deep as it goes, instead of it going on the shopping list. Toolbox never crafts anything. When two "
       .. "recipes make it (Iron Ingot, Iron Ingot from Metal Scraps), the one named like the item is used, and "
-      .. "made by changes it. Once a login (and after you learn a recipe), your recipe book is read in the "
-      .. "background, a recipe at a time so the game doesn't stall: the bar at the bottom shows how far (about a "
-      .. "minute and a half), and the planner's controls are greyed out until it's done.",
+      .. "made by changes it. For that your recipe book is read in the background, a recipe at a time so the game "
+      .. "doesn't stall (it may stutter): the bar at the bottom shows how far (about a minute and a half), and the "
+      .. "planner's controls are greyed out until it's done.",
+    "When the book is read is up to you (Settings, Crafting, or /toolbox plan book need|login|manual): when the "
+      .. "planner needs it (the default), at login (in the background a minute after you log in, and after you "
+      .. "learn a recipe), or only when you ask: Read it now there, the planner's own button, or /toolbox plan "
+      .. "book read. Then a recipe you learn leaves the book you read in use until you read it again. Stop (or "
+      .. "/toolbox plan book stop) stops a read, a fight coming say, and nothing starts another on its own until "
+      .. "you read it.",
     "Show switches between the Shopping list (everything to buy or gather, added up; shown first), the "
       .. "Plan and the Build order: the crafts grouped by station, the ones that make materials first. Each is "
       .. "ticked off as you craft (what's on the crafting table counts), with how many you made. The planner "
       .. "follows your bags as they change, every few seconds. It shares a window with the Docs and Map "
-      .. "overlays: opening one closes the other. Your plan and picks are this character's own.",
-    "The button at the bottom opens the Crafting Planner HUD (or /toolbox plan hud), a small strip to follow the "
+      .. "overlays: opening one closes the other. Your plan and picks are this character's own." },
+  { "Crafting Planner HUD",
+    "The planner's button at the bottom opens the Crafting Planner HUD (or /toolbox plan hud), a small strip to "
+      .. "follow the "
       .. "plan with the planner closed: the shopping list first, what you have of each item against what's needed, "
       .. "ticked off as you gather; once you have it all, the build order, ticked off as you craft. Its button "
       .. "skips to the build order (crafting from your lot's containers) and back. A step stays done once its "
-      .. "crafts are, though crafting the item uses it up; Start over goes back to the shopping list for another "
+      .. "crafts are, though crafting the item uses it up; Start over goes back to the start for another "
       .. "batch. When every craft is done it "
-      .. "plays a fanfare (Crafting plan done, on the Sounds page) and closes after 30 seconds: Settings, XP & "
-      .. "Loot, or /toolbox plan hud close <seconds> (or never)." },
+      .. "plays a fanfare (Crafting plan done, on the Sounds page) and closes after 30 seconds (or never).",
+    "Settings, Crafting: show it, open it on the build order instead (Start over goes back there too; /toolbox "
+      .. "plan hud start shop|build), keep the shopping list until you switch (/toolbox plan hud auto off), the "
+      .. "close delay (/toolbox plan hud close <seconds>), its background shade (/toolbox plan hud shade "
+      .. "<0-90>) and its position." },
   { "Toolbelt",
     "The Toolbelt is your buff bar with your health, focus and Vigor bars beside it and your consumables, "
       .. "gear repair and target under it: one strip with everything you watch in a fight, moved as one. Build "

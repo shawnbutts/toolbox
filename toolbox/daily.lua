@@ -1244,6 +1244,7 @@ end
 D.BOOK_STEP, D.BOOK_PERIOD = 1, 0.05
 D.BOOK_SHOW_EVERY = 20                    -- steps between moves of the planner's bar (about a second)
 D.recipeIndex = nil                       -- { recipes = { [id] = recipe }, byResult = { [item] = { { id, yield } } } }
+D.bookStale = false                       -- a recipe learned since the book was read, kept (PL's "Only when I ask")
 local reading = nil                       -- the book being read: { list, at, recipes, byResult, waiting }
 local BOOK_TIMER = "toolbox_recipe_book"
 
@@ -1339,19 +1340,30 @@ function D.KnownRecipes(now)
   return knownList, knownByWord
 end
 
-function D.ForgetRecipes()
-  D.recipeIndex = nil
+-- Stops the book being read (nothing changes if none is): its waiting callers get done(false).
+function D.StopRecipeBook()
+  if not reading then return false end
+  T.RemovePeriodic(BOOK_TIMER)
+  local waiting = reading.waiting
+  reading = nil
+  for _, done in ipairs(waiting) do done(false) end
+  return true
+end
+
+-- The known recipes and the book dropped (a recipe learned, another character). `keepBook`: the book read stays in
+-- use, marked stale (D.bookStale), and a read under way goes on: the player reads it again when they choose.
+function D.ForgetRecipes(keepBook)
   knownList, knownByWord, knownSrc = nil, nil, nil
   if knownBuild then
     T.RemovePeriodic(KNOWN_TIMER)
     knownBuild = nil
   end
-  if reading then
-    T.RemovePeriodic(BOOK_TIMER)
-    local waiting = reading.waiting
-    reading = nil
-    for _, done in ipairs(waiting) do done(false) end
+  if keepBook then
+    D.bookStale = D.recipeIndex ~= nil or reading ~= nil
+    return
   end
+  D.recipeIndex, D.bookStale = nil, false
+  D.StopRecipeBook()
 end
 
 -- Adds one recipe to the book being read: by id, and under each result's name and (API 37) item key.
@@ -1392,15 +1404,16 @@ local function readSome()
   if r.at > #r.list then
     T.RemovePeriodic(BOOK_TIMER)
     reading = nil
-    D.recipeIndex = { recipes = r.recipes, byResult = r.byResult, byKey = r.byKey }
+    D.recipeIndex = { recipes = r.recipes, byResult = r.byResult, byKey = r.byKey, count = #r.list }
     for _, done in ipairs(r.waiting) do done(true) end
   end
 end
 
 -- Reads the recipe book a few recipes at a time, then calls done(true) (done(false) if it was dropped).
 -- Returns how many recipes it reads, or nil when there's nothing to read (no book: done isn't called).
-function D.ReadRecipeBook(done)
-  if D.recipeIndex then
+-- `again`: read even with a book read (the player's Read it again); the old one stays in use until the new is done.
+function D.ReadRecipeBook(done, again)
+  if D.recipeIndex and not again then
     done(true)
     return 0
   end
@@ -1409,8 +1422,10 @@ function D.ReadRecipeBook(done)
     return #reading.list
   end
   if type(ShroudGetKnownRecipes) ~= "function" or type(ShroudGetRecipe) ~= "function" then return nil end
+  if again then knownSrc = nil end         -- the game's list read fresh too
   local list = D.KnownSource()             -- only ids are read, a recipe a step: no need for the index
   if #list == 0 then return nil end
+  D.bookStale = false
   reading = { list = list, at = 1, recipes = {}, byResult = {}, byKey = {}, waiting = { done } }
   T.RegisterPeriodic(BOOK_TIMER, readSome, D.BOOK_PERIOD, true)
   return #list
@@ -1692,8 +1707,15 @@ PL.NO_RECIPE = "Find a recipe first"
 PL.PICK_ONE = "%d matches: pick one"      -- the Recipe list's first line while it lists matches, not yet picked
 PL.MIN_TYPED = 3
 PL.debug = false                        -- /toolbox plan debug: the search box's events in chat
-PL.BOOK_NOTE = "Reading your recipe book, once a login (and after learning a recipe): the planner waits until it's"
-  .. " done (the game may stutter meanwhile)."
+PL.BOOK_NOTE = "Reading your recipe book: the planner waits until it's done (the game may stutter meanwhile)."
+  .. " Settings > Crafting sets when it's read."
+PL.BOOK_AGAIN_NOTE = "Reading your recipe book again: the planner uses the one read before until it's done."
+-- When the book is read on its own (owner, 2026-10-17: the read stutters the game, so the player picks):
+-- "need" (the planner's From scratch asks for it), "login" (in the background PL.BOOK_LOGIN_DELAY s after a login
+-- and after learning a recipe) or "manual" (only Read it now; a recipe learned leaves the old book in use, stale).
+PL.BOOK_WHEN = { { "need", "When the planner needs it" }, { "login", "At login, in the background" },
+                 { "manual", "Only when I ask" } }
+PL.BOOK_LOGIN_DELAY = 60
 PL.STAT_NAMES = { weight = "Weight", durability = "Durability", damageMin = "Min damage", damageMax = "Max damage",
                   critical = "Critical", parry = "Parry", chargeSeconds = "Charge time", resistance = "Resistance",
                   avoidance = "Avoidance" }
@@ -1712,6 +1734,7 @@ local plDone = {}                     -- recipe id -> true: a step below the rec
 local plMade = {}                     -- recipe id -> crafts made since the plan was set (ShroudOnCraftResults)
 local plQuick = {}                    -- item key -> the recipes named like it that make it ({ { id, yield } })
 local plWaitKnown = false             -- a refresh is due once the known recipes are indexed
+local plBookStopped = false           -- the player stopped a read: nothing starts one on its own until they read it
 local plLocked = nil                  -- whether the controls were last set greyed out (nil: not set since a build)
 
 local function plNum(v) if type(v) == "number" and v == v then return v end return nil end
@@ -2032,12 +2055,103 @@ function PL.Find(text)
   return found, n
 end
 
--- The recipe book (for I'll craft), read once a session in the background (D.ReadRecipeBook).
+-- The recipe book (for I'll craft), read once a session in the background (D.ReadRecipeBook), unless the player
+-- reads it only when they ask (PL.BOOK_WHEN) or stopped a read.
 function PL.NeedBook()
-  if D.recipeIndex or D.ReadingRecipes() then return end
+  if D.recipeIndex or D.ReadingRecipes() or plBookStopped or PL.GetBookWhen() == "manual" then return end
   D.ReadRecipeBook(function(ok)
     if ok then PL.Refresh(true) end
   end)
+end
+
+function PL.GetBookWhen()
+  for _, w in ipairs(PL.BOOK_WHEN) do if w[1] == plPrefs.book then return w[1] end end
+  return "need"
+end
+function PL.BookWhenName(key)
+  for _, w in ipairs(PL.BOOK_WHEN) do if w[1] == key then return w[2] end end
+  return nil
+end
+
+local BOOK_LOGIN_TIMER = "toolbox_book_login"
+
+-- "At login": the read starts PL.BOOK_LOGIN_DELAY s from now (a login settling, a recipe just learned).
+local function plBookLater()
+  if PL.GetBookWhen() ~= "login" or type(ShroudGetKnownRecipes) ~= "function" then return end
+  T.RegisterPeriodic(BOOK_LOGIN_TIMER, function()
+    if PL.GetBookWhen() ~= "login" or plBookStopped or D.recipeIndex or D.ReadingRecipes() then return end
+    D.ReadRecipeBook(function(ok)
+      if ok then PL.Changed() end
+    end)
+  end, PL.BOOK_LOGIN_DELAY, false)
+end
+
+-- A PL.BOOK_WHEN key or its name; false for anything else.
+function PL.SetBookWhen(v)
+  local want = type(v) == "string" and v:lower() or ""
+  for _, w in ipairs(PL.BOOK_WHEN) do
+    if w[1] == want or w[2]:lower() == want then
+      plPrefs.book = w[1]
+      plSave()
+      if w[1] == "login" and not D.recipeIndex and not D.ReadingRecipes() and not plBookStopped then
+        PL.ReadBook(true)                  -- chosen now: no login to wait for
+      end
+      T.Config.Sync()
+      return true
+    end
+  end
+  return false
+end
+
+-- Reads the book now (again when read; Settings > Crafting, the planner, /toolbox plan book read). `quiet`: no chat.
+-- Returns how many recipes it reads, or nil (no recipe calls, or reading already).
+function PL.ReadBook(quiet)
+  if D.ReadingRecipes() then return nil end
+  plBookStopped = false
+  local again = D.recipeIndex ~= nil
+  local n = D.ReadRecipeBook(function(ok)
+    if not ok then return end
+    if not quiet then T.Print("Recipe book read: " .. T.FormatNumber(D.recipeIndex.count or 0) .. " recipes.") end
+    PL.Changed()
+    T.Config.Sync()
+  end, again)
+  if n and n > 0 and not quiet then
+    local mins = math.max(1, math.floor(n / D.BOOK_STEP * D.BOOK_PERIOD / 60 + 0.5))
+    T.Print("Reading your recipe book" .. (again and " again" or "") .. " (" .. T.FormatNumber(n) .. " recipes):"
+      .. " about " .. mins .. " min, in the background. /" .. T.commands[1] .. " plan book stop stops it.")
+  end
+  if plWin then PL.ShowProgress() end
+  T.Config.Sync()
+  return n
+end
+
+-- Stops a read (the game stuttering in a fight, say); nothing starts another on its own until the player reads it.
+function PL.StopBook()
+  if not D.StopRecipeBook() then return false end
+  plBookStopped = true
+  if plWin then PL.ShowProgress() end
+  T.Config.Sync()
+  return true
+end
+
+-- One line on the book: read, being read, stale or not yet.
+function PL.BookStatus()
+  local done, total, left = D.BookProgress()
+  if done then
+    local mins = math.floor(left / 60 + 0.5)
+    return "Reading: " .. T.FormatNumber(done) .. " of " .. T.FormatNumber(total) .. " recipes"
+      .. (mins >= 1 and (", about " .. mins .. " min left") or ", nearly done")
+  end
+  if D.recipeIndex then
+    local n = T.FormatNumber(D.recipeIndex.count or 0)
+    if D.bookStale then return "Read (" .. n .. " recipes) before you learned a recipe: read it again to add it" end
+    return "Read this session: " .. n .. " recipes"
+  end
+  if plBookStopped then return "Stopped: not read (Read it now when you're ready)" end
+  local when = PL.GetBookWhen()
+  if when == "login" then return "Not read yet: it starts about a minute after you log in" end
+  if when == "manual" then return "Not read yet: Read it now when you need it" end
+  return "Not read yet: read when the planner needs it (From scratch)"
 end
 
 -- Before the whole book is read: the known recipes named like the item ("Iron Ingot", "Iron Ingot from Metal
@@ -2113,7 +2227,7 @@ end
 -- book half read, in a game already stuttering from the read. Set only when it changes, or for rows just built.
 PL.LOCKED = { "find", "findGo", "reset", "recipe", "crafts", "scratch", "view" }
 local function plLock()
-  local on = D.ReadingRecipes()
+  local on = D.ReadingRecipes() and not D.recipeIndex   -- read again: the old book is used meanwhile
   if on == plLocked then return end
   plLocked = on
   local function set(e) if e then pcall(function() e:SetEnabled(not on) end) end end
@@ -2277,7 +2391,10 @@ end
 -- PL.Remaining), so what the made ones used isn't asked for again. Its own HUD frame (`PL.HUD_KEY`), built only
 -- while on (`hud`); the plan is worked out again on a change at most every PL.HUD_GAP s while only the strip
 -- shows. Counts are set in place; the strip is rebuilt when its lines come or go. Saved in "planner": hud = bool,
--- hudStage = "shop"/"build", hudStay = bool, hudClose = seconds, hx, hy, got = { [item key] = true }.
+-- hudStage = "shop"/"build", hudStay = bool, hudClose = seconds, hudStart = "shop"/"build" (what it opens on),
+-- hudAuto = false (stays on the list once all is gathered), shade = 0..T.SHADE_MAX, hx, hy,
+-- got = { [item key] = true }.
+-- The recipe book's read: book = a PL.BOOK_WHEN key (Settings > Crafting, owner 2026-10-17).
 PL.HUD_KEY = "shopping"
 PL.HUD_FRAME = "toolbox_shopping"
 PL.HUD_HOME = { 600, 140 }
@@ -2290,6 +2407,7 @@ PL.HUD_DONE = 0.5                     -- a ticked line's opacity
 PL.HUD_CLOSE_DEFAULT = 30
 PL.HUD_CLOSE = { { 0, "Never" }, { 10, "10 s" }, { 30, "30 s" }, { 60, "1 min" }, { 120, "2 min" }, { 300, "5 min" } }
 PL.HUD_SOUND = "craft_done"
+PL.HUD_STARTS = { { "shop", "Shopping list" }, { "build", "Build order" } }   -- what it opens on (hudStart)
 
 local SH = { FRAME_ID = PL.HUD_FRAME, HOME = PL.HUD_HOME }
 PL.Strip = SH
@@ -2314,6 +2432,46 @@ function PL.HudCloseName(n)
   return nil
 end
 -- Seconds (one of PL.HUD_CLOSE) or its name ("30 s", "never"); false for anything else.
+-- What the strip opens on (and Start over goes back to): "shop" or "build" (crafting from the lot's containers).
+function PL.GetHudStart() return plPrefs.hudStart == "build" and "build" or "shop" end
+function PL.HudStartName(key)
+  for _, c in ipairs(PL.HUD_STARTS) do if c[1] == key then return c[2] end end
+  return nil
+end
+-- A PL.HUD_STARTS key ("shop", "build") or its name ("build order"); false for anything else.
+function PL.SetHudStart(v)
+  local want = type(v) == "string" and v:lower() or ""
+  for _, c in ipairs(PL.HUD_STARTS) do
+    if c[1] == want or c[2]:lower() == want then
+      plPrefs.hudStart = c[1]
+      plSave()
+      T.Config.Sync()
+      return true
+    end
+  end
+  return false
+end
+
+-- Whether the shopping list moves on to the build order by itself once everything is gathered (default on).
+function PL.GetHudAuto() return plPrefs.hudAuto ~= false end
+function PL.SetHudAuto(on)
+  plPrefs.hudAuto = on == true
+  plSave()
+  T.Config.Sync()
+  PL.Refresh(true)
+end
+
+-- The background shade (0..T.SHADE_MAX %), set in place.
+function PL.GetHudShade() return T.ShadeOf(plPrefs.shade) end
+function PL.SetHudShade(n)
+  if type(n) ~= "number" or T.ShadeOf(n) ~= n then return false end
+  plPrefs.shade = n
+  plSave()
+  if shEl.column then T.SetStyle(shEl.column, { backgroundColor = T.ShadeColor(n) }) end
+  T.Config.Sync()
+  return true
+end
+
 function PL.SetHudClose(v)
   local want = type(v) == "string" and v:lower() or v
   for _, c in ipairs(PL.HUD_CLOSE) do
@@ -2394,8 +2552,8 @@ function SH.BuildContent()
     onClick = function() PL.SwitchHud() end }
   if shState.stage == "build" then
     built.again = UI.Button{ id = "sh_again", text = "Start over", style = shButtonStyle(4),
-      tooltip = "Back to the shopping list for the same recipe and crafts, as if nothing were made yet (another"
-        .. " batch)", onClick = function() PL.StartOver() end }
+      tooltip = "The same recipe and crafts again, as if nothing were made yet (another batch), from the "
+        .. PL.HudStartName(PL.GetHudStart()):lower(), onClick = function() PL.StartOver() end }
   end
   built.close = UI.Button{ id = "sh_close", text = "Close", tooltip = "Close the " .. PL.HUD_NAME
       .. " (the planner's button opens it again)", style = shButtonStyle(4),
@@ -2408,7 +2566,7 @@ function SH.BuildContent()
       .. " order (/toolbox plan opens the planner)",
     style = { paddingLeft = pad, paddingRight = pad, paddingTop = pad, paddingBottom = pad,
               marginLeft = 0, marginRight = 0, marginTop = 0, marginBottom = 0, borderRadius = 3,
-              backgroundColor = T.ShadeColor(T.SHADE_DEFAULT) },
+              backgroundColor = T.ShadeColor(PL.GetHudShade()) },
     children = children }
   built.sig = shSig(shState)
   shEl = built
@@ -2425,6 +2583,12 @@ function SH.IsShown() return PL.GetHud() end
 function SH.Wanted() return PL.GetHud() end
 function SH.Unbuilt() shEl = {} end
 function SH.GetSavedPosition() return plPrefs.hx, plPrefs.hy end
+-- Position commands for the settings' Position row (hud.lua loads after this file: the mover is made at first use).
+local shMover = nil
+local function shMove() shMover = shMover or T.Hud.MoverFor(PL.HUD_KEY, PL.HUD_HOME) return shMover end
+function SH.GetPosition() return shMove().Get() end
+function SH.Nudge(dx, dy) return shMove().Nudge(dx, dy) end
+function SH.ResetPosition() return shMove().Reset() end
 function SH.SavePosition(x, y)
   if x ~= plPrefs.hx or y ~= plPrefs.hy then
     plPrefs.hx, plPrefs.hy = x, y
@@ -2481,7 +2645,7 @@ local function shUpdate(plan)
     local list = plBuildList(plan)
     done = #list > 0
     for _, b in ipairs(list) do if b.left > 0 then done = false end end
-    if PL.HudStage() == "shop" and (done or (not short and not plPrefs.hudStay)) then
+    if PL.HudStage() == "shop" and (done or (not short and not plPrefs.hudStay and PL.GetHudAuto())) then
       plPrefs.hudStage = "build"       -- everything gathered: on to the crafts
       plSave()
     end
@@ -2553,7 +2717,7 @@ local function plHudButtonText() return (PL.GetHud() and "Hide" or "Show") .. " 
 -- Shows (on the shopping list) or hides the strip: the planner's button, its Close, /toolbox plan hud.
 function PL.SetHud(on)
   plPrefs.hud = on == true
-  if plPrefs.hud then plPrefs.hudStage, plPrefs.hudStay = "shop", nil end
+  if plPrefs.hud then plPrefs.hudStage, plPrefs.hudStay = PL.GetHudStart(), nil end
   shDoneAt = nil
   plSave()
   if plEl.hud then T.SetText(plEl.hud, plHudButtonText()) end
@@ -2565,11 +2729,11 @@ function PL.SetHud(on)
   end
 end
 
--- The strip's Start over (owner, 2026-10-17: the next batch): the same recipe and crafts, nothing made, back on the
--- shopping list.
+-- The strip's Start over (owner, 2026-10-17: the next batch): the same recipe and crafts, nothing made, back on what
+-- the strip opens on (the shopping list unless Settings > Crafting says the build order).
 function PL.StartOver()
   plBuilt, plMade, plDone = {}, {}, {}
-  plPrefs.got, plPrefs.hudStage, plPrefs.hudStay = {}, "shop", nil
+  plPrefs.got, plPrefs.hudStage, plPrefs.hudStay = {}, PL.GetHudStart(), nil
   shDoneAt = nil
   plSave()
   PL.Refresh(true)
@@ -2814,11 +2978,14 @@ local function plBuild()
       tooltip = "Start over: no recipe, 1 craft, no I'll craft ticks, and this recipe's materials back to the"
         .. " first you have enough of (your recipe book stays read)", onClick = function() PL.Reset() end },
   }
+  plEl.barNote = UI.Label{ id = "pl_bar_note", text = PL.BOOK_NOTE, class = "dim", style = { whiteSpace = "wrap" } }
+  plEl.book = UI.Button{ id = "pl_book", text = "Read the recipe book", visible = false, style = { marginLeft = 4 },
+    onClick = function() PL.ReadBook() end }
   plEl.barRow = UI.Column{ id = "pl_progress", visible = false, style = { marginTop = 2 },
     tooltip = "Your recipe book is read a recipe at a time, so the game doesn't stall: then I'll craft knows every"
       .. " recipe making an item (until then, the ones named like it)",
     children = {
-      UI.Label{ id = "pl_bar_note", text = PL.BOOK_NOTE, class = "dim", style = { whiteSpace = "wrap" } },
+      plEl.barNote,
       UI.Row{ style = { alignItems = "center" }, children = { plEl.bar, plEl.barText } } } }
   plBody = UI.Column{ id = "pl_body", style = { paddingRight = 4 } }
   plWin = UI.Window{
@@ -2835,7 +3002,7 @@ local function plBuild()
       plEl.result,
       plEl.msg,
       plEl.barRow,
-      line({ plEl.hud }),
+      line({ plEl.hud, plEl.book }),
     },
   }
 end
@@ -2902,7 +3069,19 @@ function PL.ShowProgress()
   plLock()
   local done, total, left = D.BookProgress()
   T.SetVisible(plEl.barRow, done ~= nil)
+  -- From scratch with no book read (only on ask, or stopped): the player's way to read it from here
+  T.SetVisible(plEl.book, done == nil and PL.GetScratch() and (not D.recipeIndex or D.bookStale))
+  if D.recipeIndex then
+    T.SetText(plEl.book, "Read the recipe book again")
+    T.SetTooltip(plEl.book, "A recipe was learned since the book was read: read it again (in the background) so"
+      .. " I'll craft knows it")
+  else
+    T.SetText(plEl.book, "Read the recipe book")
+    T.SetTooltip(plEl.book, "In the background, about a minute and a half: then I'll craft knows every recipe"
+      .. " making an item (until then, the ones named like it). Settings > Crafting sets when it's read.")
+  end
   if not done then return end
+  T.SetText(plEl.barNote, D.recipeIndex and PL.BOOK_AGAIN_NOTE or PL.BOOK_NOTE)
   T.SetValue(plEl.bar, total > 0 and done / total or 0)
   local mins = math.floor(left / 60 + 0.5)
   T.SetText(plEl.barText, "Reading recipes: " .. T.FormatNumber(done) .. " of " .. T.FormatNumber(total)
@@ -2929,7 +3108,12 @@ function PL.RecipesChanged()
   plQuick = {}
   plDirty = true
   if PL.GetScratch() and PL.IsShown() then PL.NeedBook() end
+  plBookLater()
+  T.Config.Sync()
 end
+
+-- Whether a recipe learned keeps the book read in use (core's ShroudOnRecipesChanged): when it's read only on ask.
+function PL.KeepsBook() return PL.GetBookWhen() == "manual" end
 
 -- ShroudOnCraftResults: the crafts made for the build order's "made" counts.
 function PL.OnCraftResults(results)
@@ -2948,6 +3132,8 @@ function PL.Init()
   D.ForgetRecipes()                    -- another character knows other recipes
   local saved = T.ReadSaved(PL.KEY)
   plPrefs = type(saved) == "table" and saved or {}
+  plBookStopped = false
+  plBookLater()
   plPrefs.v, plPrefs.mode, plPrefs.watch = 1, nil, nil
   plFresh, plBuilt, plMade, plDone, plPlan, plQuick, plWaitKnown = {}, {}, {}, {}, nil, {}, false
   plDirty, plAt = PL.GetHud(), -math.huge   -- the strip's list, worked out at the first tick
