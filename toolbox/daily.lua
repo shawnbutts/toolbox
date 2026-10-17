@@ -1708,6 +1708,7 @@ local plRows = {}                     -- the Plan view's rows as built: { sig, l
 local plBodySig = nil                 -- what the body was built for (rebuilt only when it changes)
 local plBody, plCol = nil, nil
 local plBuilt = {}                    -- recipe id -> { name, station, depth }: every craft the plan has asked for
+local plDone = {}                     -- recipe id -> true: a step below the recipe once all its crafts were done
 local plMade = {}                     -- recipe id -> crafts made since the plan was set (ShroudOnCraftResults)
 local plQuick = {}                    -- item key -> the recipes named like it that make it ({ { id, yield } })
 local plWaitKnown = false             -- a refresh is due once the known recipes are indexed
@@ -2010,7 +2011,7 @@ function PL.GetView() return plPrefs.view or PL.VIEWS[1] end   -- the shopping l
 -- Plans a recipe (by id): a new plan, so the I'll craft ticks and the crafts made start over.
 function PL.SetRecipe(id)
   plPrefs.recipe, plPrefs.makes, plPrefs.got = id, {}, {}
-  plBuilt, plMade = {}, {}
+  plBuilt, plMade, plDone = {}, {}, {}
   plSave()
   PL.Refresh(true)
 end
@@ -2284,6 +2285,7 @@ PL.HUD_NAME = "Crafting Planner HUD"
 PL.HUD_MAX = 20                       -- item or craft lines (the rest: "+ N more")
 PL.HUD_GAP = 3
 PL.HUD_CHARS = { 26, 48 }             -- the strip's width in characters, least and most
+PL.HUD_BUILD_CHARS = 36               -- the least on the build order: room for its three buttons
 PL.HUD_DONE = 0.5                     -- a ticked line's opacity
 PL.HUD_CLOSE_DEFAULT = 30
 PL.HUD_CLOSE = { { 0, "Never" }, { 10, "10 s" }, { 30, "30 s" }, { 60, "1 min" }, { 120, "2 min" }, { 300, "5 min" } }
@@ -2349,8 +2351,9 @@ end
 
 function PL.HudBuildLine(b)
   local where = b.station ~= "" and (b.station .. ": ") or ""
+  local made = (b.root and b.made > 0) and (" (" .. T.FormatNumber(b.made) .. " made)") or ""
   return (b.left > 0 and "[ ] " or "[x] ") .. where .. b.name .. (b.left > 0 and (", " .. T.FormatNumber(b.left)
-    .. (b.left == 1 and " craft" or " crafts")) or ": done")
+    .. (b.left == 1 and " craft" or " crafts")) or ": done") .. made
 end
 
 local function shWidth() return math.ceil(T.Window.GetFont() * T.Location.CHAR_W * shState.chars) end
@@ -2389,11 +2392,18 @@ function SH.BuildContent()
   end
   built.switch = UI.Button{ id = "sh_switch", text = shSwitchText(), tooltip = shSwitchTip(), style = shButtonStyle(),
     onClick = function() PL.SwitchHud() end }
+  if shState.stage == "build" then
+    built.again = UI.Button{ id = "sh_again", text = "Start over", style = shButtonStyle(4),
+      tooltip = "Back to the shopping list for the same recipe and crafts, as if nothing were made yet (another"
+        .. " batch)", onClick = function() PL.StartOver() end }
+  end
   built.close = UI.Button{ id = "sh_close", text = "Close", tooltip = "Close the " .. PL.HUD_NAME
       .. " (the planner's button opens it again)", style = shButtonStyle(4),
     onClick = function() PL.SetHud(false) end }
-  children[#children + 1] = UI.Row{ style = { marginTop = 4, marginLeft = 0, marginRight = 0 },
-    children = { built.switch, built.close } }
+  local buttons = { built.switch }
+  if built.again then buttons[#buttons + 1] = built.again end
+  buttons[#buttons + 1] = built.close
+  children[#children + 1] = UI.Row{ style = { marginTop = 4, marginLeft = 0, marginRight = 0 }, children = buttons }
   built.column = UI.Column{ id = "sh_strip", tooltip = PL.HUD_NAME .. ": the plan's shopping list, then its build"
       .. " order (/toolbox plan opens the planner)",
     style = { paddingLeft = pad, paddingRight = pad, paddingTop = pad, paddingBottom = pad,
@@ -2423,17 +2433,23 @@ function SH.SavePosition(x, y)
 end
 
 -- The build order as shown: every craft the plan has asked for since it was set (plBuilt, so a finished one stays,
--- ticked), deepest first, then by station: { id, name, station, depth, left, made }.
+-- ticked), deepest first, then by station: { id, name, station, depth, left, made, root }. A step below the recipe
+-- stays done once all its crafts were (plDone; owner, 2026-10-17: crafting the bows used up the strings made for
+-- them, and the strings showed as to craft again).
 local function plBuildList(plan)
   local now = {}
   for _, b in ipairs(plan.build) do
     now[b.id] = b
     plBuilt[b.id] = plBuilt[b.id] or { name = b.name, station = b.station, depth = b.depth }
   end
-  local list = {}
+  local list, rootId = {}, plRecipeId()
   for id, b in pairs(plBuilt) do
-    list[#list + 1] = { id = id, name = b.name, station = b.station, depth = b.depth,
-                        left = now[id] and now[id].crafts or 0, made = plMade[id] or 0 }
+    local left = now[id] and now[id].crafts or 0
+    if id ~= rootId then
+      if left <= 0 then plDone[id] = true elseif plDone[id] then left = 0 end
+    end
+    list[#list + 1] = { id = id, name = b.name, station = b.station, depth = b.depth, left = left,
+                        made = plMade[id] or 0, root = id == rootId }
   end
   table.sort(list, function(a, b)
     if a.depth ~= b.depth then return a.depth > b.depth end
@@ -2501,7 +2517,7 @@ local function shUpdate(plan)
   local most = #st.title
   for _, line in ipairs(st.lines) do most = math.max(most, #line.text) end
   most = math.max(most, #st.note, done and #"All crafted! Closing in 300 s" or 0)
-  st.chars = math.min(PL.HUD_CHARS[2], math.max(PL.HUD_CHARS[1], most))
+  st.chars = math.min(PL.HUD_CHARS[2], math.max(st.stage == "build" and PL.HUD_BUILD_CHARS or PL.HUD_CHARS[1], most))
   local widen = st.chars ~= shState.chars
   shState = st
   if not shEl.column or shEl.sig ~= shSig(st) then
@@ -2549,6 +2565,16 @@ function PL.SetHud(on)
   end
 end
 
+-- The strip's Start over (owner, 2026-10-17: the next batch): the same recipe and crafts, nothing made, back on the
+-- shopping list.
+function PL.StartOver()
+  plBuilt, plMade, plDone = {}, {}, {}
+  plPrefs.got, plPrefs.hudStage, plPrefs.hudStay = {}, "shop", nil
+  shDoneAt = nil
+  plSave()
+  PL.Refresh(true)
+end
+
 -- The strip's button: the shopping list or the build order.
 function PL.SwitchHud()
   if PL.HudStage() == "shop" then
@@ -2571,6 +2597,7 @@ function PL.ApplyText()
   if shEl.note then T.SetStyle(shEl.note, shStyle()) end
   for i, line in ipairs(shState.lines) do T.SetStyle(shEl.lines[i], shStyle(line.done)) end
   T.SetStyle(shEl.switch, shButtonStyle())
+  if shEl.again then T.SetStyle(shEl.again, shButtonStyle(4)) end
   T.SetStyle(shEl.close, shButtonStyle(4))
   T.Hud.Refresh()
 end
@@ -2819,7 +2846,7 @@ function PL.Reset()
   local id = plRecipeId()
   if id and type(plPrefs.picks) == "table" then plPrefs.picks["r" .. id] = nil end
   plPrefs.recipe, plPrefs.crafts, plPrefs.makes, plPrefs.got = nil, 1, {}, {}
-  plBuilt, plMade, plMatches = {}, {}, {}
+  plBuilt, plMade, plDone, plMatches = {}, {}, {}, {}
   plSave()
   if plEl.find then
     pcall(function()
@@ -2922,7 +2949,7 @@ function PL.Init()
   local saved = T.ReadSaved(PL.KEY)
   plPrefs = type(saved) == "table" and saved or {}
   plPrefs.v, plPrefs.mode, plPrefs.watch = 1, nil, nil
-  plFresh, plBuilt, plMade, plPlan, plQuick, plWaitKnown = {}, {}, {}, nil, {}, false
+  plFresh, plBuilt, plMade, plDone, plPlan, plQuick, plWaitKnown = {}, {}, {}, {}, nil, {}, false
   plDirty, plAt = PL.GetHud(), -math.huge   -- the strip's list, worked out at the first tick
   shEl, shState, shDoneAt = {}, shFresh(), nil
   local order = T.Hud.ORDER

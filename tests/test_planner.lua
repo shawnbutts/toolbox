@@ -258,7 +258,7 @@ return function(t)
     H.S.played = {}
     H.craftResults{ { kind = "craft", recipeId = 10, crafted = 1, made = 1, outcome = "success" } }
     H.advance(Toolbox.Planner.HUD_GAP + 1)
-    t.eq(hudLine("sh_1").text, "[x] Blacksmithing Station: Augmented Plate Chest Armor: done")
+    t.eq(hudLine("sh_1").text, "[x] Blacksmithing Station: Augmented Plate Chest Armor: done (1 made)")
     t.ok(hudLine("sh_note").text:find("^All crafted! Closing in %d+ s"), hudLine("sh_note").text)
     t.ok(H.playedNames():find("craft_done", 1, true), H.playedNames())
     H.advance(Toolbox.Planner.HUD_CLOSE_DEFAULT - 10)
@@ -266,6 +266,39 @@ return function(t)
     H.advance(10)
     t.no(hudStrip(), "closed after the delay")
     t.no(Toolbox.Planner.GetHud())
+  end)
+
+  t.test("the Crafting Planner HUD: a step stays done as the recipe uses it up; Start over for the next batch",
+      function()
+    hudOpen()
+    H.chat("/tbx plan")
+    H.change(W, "pl_scratch", true)
+    H.advance(5)
+    H.change(W, "pl_view", "Plan")
+    H.change(W, "pl_make_3", true)                 -- the straps: crafted from leather
+    H.chat("/tbx plan")
+    H.S.recipes[14].ingredients[1].have = 1        -- the leather gathered
+    H.inventoryChanged()
+    H.advance(Toolbox.Planner.HUD_GAP + 1)
+    t.eq(hudLine("sh_title").text, "Build order: Augmented Plate Chest Armor", hudLine("sh_title").text)
+    t.eq(hudLine("sh_1").text, "[ ] Tailoring Station: Leather Strap, 1 craft")
+    H.S.recipes[14].ingredients[1].have = 0
+    bags(4)                                        -- the straps made
+    t.eq(hudLine("sh_1").text, "[x] Tailoring Station: Leather Strap: done")
+    t.eq(hudLine("sh_2").text, "[ ] Blacksmithing Station: Augmented Plate Chest Armor, 1 craft")
+    H.S.recipes[10].ingredients[3].have = 0        -- the straps used up, the craft not counted yet
+    H.inventoryChanged()
+    H.advance(Toolbox.Planner.HUD_GAP + 1)
+    t.eq(hudLine("sh_1").text, "[x] Tailoring Station: Leather Strap: done", "stays done")
+    H.craftResults{ { kind = "craft", recipeId = 10, crafted = 1, made = 1, outcome = "success" } }
+    H.advance(Toolbox.Planner.HUD_GAP + 1)
+    t.eq(hudLine("sh_2").text, "[x] Blacksmithing Station: Augmented Plate Chest Armor: done (1 made)")
+    t.ok(hudLine("sh_again"), "Start over on the build order")
+    hudClick("sh_again")
+    t.eq(hudLine("sh_title").text, "Shopping list: Augmented Plate Chest Armor", "the next batch")
+    t.eq(hudLine("sh_1").text, "[ ] 0 / 1 Leather", "what it takes again")
+    t.eq(hudLine("sh_again"), nil)
+    t.ok(hudLine("sh_close"), "Close still there")
   end)
 
   t.test("the Crafting Planner HUD: switch to the build order and back; Close; the delay; from chat", function()

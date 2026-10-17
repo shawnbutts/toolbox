@@ -131,7 +131,9 @@ D.SECTIONS = {
     "The button at the bottom opens the Crafting Planner HUD (or /toolbox plan hud), a small strip to follow the "
       .. "plan with the planner closed: the shopping list first, what you have of each item against what's needed, "
       .. "ticked off as you gather; once you have it all, the build order, ticked off as you craft. Its button "
-      .. "skips to the build order (crafting from your lot's containers) and back. When every craft is done it "
+      .. "skips to the build order (crafting from your lot's containers) and back. A step stays done once its "
+      .. "crafts are, though crafting the item uses it up; Start over goes back to the shopping list for another "
+      .. "batch. When every craft is done it "
       .. "plays a fanfare (Crafting plan done, on the Sounds page) and closes after 30 seconds: Settings, XP & "
       .. "Loot, or /toolbox plan hud close <seconds> (or never)." },
   { "Toolbelt",

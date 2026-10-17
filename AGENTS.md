@@ -218,7 +218,8 @@ into one if a new file is ever needed).
   `pl_hud` button, `/toolbox plan hud [close <s>]`): the shopping list (have / need for each item the plan was short
   of, `PL.Expand`'s `gather`; a line stays, ticked and faded, once listed: `got`, cleared with a new recipe), then the
   build order once all is gathered (`hudStage`; its `sh_switch` button goes either way, back to the list staying
-  there, `hudStay`), then at the end the `craft_done` sound (sounds.lua's `S.DEFS`, art/alerts.py) and a close after
+  there, `hudStay`; a step below the recipe stays done once its crafts were, `plDone`, since crafting the recipe uses
+  it up, owner 2026-10-17; `sh_again`, Start over, `PL.StartOver`: the same recipe, nothing made, the shopping list), then at the end the `craft_done` sound (sounds.lua's `S.DEFS`, art/alerts.py) and a close after
   `hudClose` s (`PL.HUD_CLOSE`, default 30, settings `pl_hud_close`); planned again every `PL.HUD_GAP` s on a change
   with the window closed, counts in place, rebuilt when lines come or go. Text budget (the
   stress test's four 30-choice slots: 46,703 at the peak): `PL.CHOICES_SHOWN` (10) choices a slot.
