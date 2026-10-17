@@ -296,9 +296,9 @@ function C.GeneralSection()
   return UI.Column{ children = {
     heading("Text", true),
     UI.Label{ text = "For Toolbox's windows and HUD strips: XP, Today, the Loot Tracker, the Crafting Planner HUD,"
-      .. " the location strip, the Docs. Not the combat stats or the health bars: each has its own Size slider"
-      .. " (Combat and Health bars pages); the icon strips have their icon size. The Notifications window and HUD"
-      .. " can have their own text size (Notifications page).",
+      .. " the location strip, the Docs, the combat stats (their Size on the Combat page scales it). Not the health"
+      .. " bars: they have their own Size (Health bars page); the icon strips have their icon size. The"
+      .. " Notifications window and HUD can have their own text size (Notifications page).",
       class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
     slider("font", "Text size", W.FONT_MIN, W.FONT_MAX, 1, W.GetFont(),
       "Text size of Toolbox's windows and strips (" .. W.FONT_MIN .. "-" .. W.FONT_MAX .. "; /" .. T.commands[1]
@@ -587,7 +587,8 @@ function C.CombatSection()
     UI.Toggle{ id = "combat_pet", text = "Count pet damage in DPS", value = M.GetPet(),
       onChange = function(_, v) M.SetPet(v) end },
     slider("combat_scale", "Size (%)", M.SCALE_MIN, M.SCALE_MAX, 5, M.GetScale(),
-      "Scales the combat stats text", function(n) M.SetScale(n) end),
+      "The combat stats' text as a share of the text size (General page): 100% is the same size",
+      function(n) M.SetScale(n) end),
     dropdownRow("Background", { id = "combat_bg", choices = M.BACKGROUNDS, value = (M.GetBackground()),
       tooltip = "A dark panel, or a light one in your UI theme's text colour, behind the combat stats",
       onChange = function(_, value) M.SetBackground(value) end }),

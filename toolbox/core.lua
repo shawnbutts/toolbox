@@ -1740,7 +1740,7 @@ function T.CombatHelp()
     "  " .. c .. "combat reset - clear the fight and session numbers",
     "  " .. c .. "combat detail [fight|session] - the Combat Detailed window: damage by skill, the last"
       .. " minute, healing (it also pops up when you hover the HUD)",
-    "  " .. c .. "combat size 150 - scale it (75-250%)",
+    "  " .. c .. "combat size 150 - scale it (75-250% of the text size)",
     "  " .. c .. "combat bg dark 70 - background: dark, light or none, with opacity 10-100%",
     "  " .. c .. "combat pet on|off - count your pet's damage in DPS",
     "  " .. c .. "combat move 600 300 - place it (or drag its grip, or use settings)",

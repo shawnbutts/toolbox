@@ -609,7 +609,7 @@ character" sentinel.
 | `buff_durations` | `{ v = 2, durations = { [rune name] = seconds } }`: full durations learned from casts |
 | `vitals` | `{ shade = 0..90 (the Dark panel's %, default 60), show, width = 20..400 (bar length at 100%), scale = 75..250 (%), showText, showBars, bg = "None"/"Dark"/"Light", flash, flashBelow = 1..95, vigor = bool, replaceStock = bool (API 28: hide the game's player-frame bars), x, y }` |
 | `hud` | `{ glued = bool, x, y }` (the glued strip's position) |
-| `combat` | `{ show, scale = 75..250, pet, stats = { "MagicResistance", ... }, bg = None/Dark/Light, bgOpacity = 10..100, x, y }` |
+| `combat` | `{ show, scale = 75..250 (% of the General text size, `T.Window.GetFont`), pet, stats = { "MagicResistance", ... }, bg = None/Dark/Light, bgOpacity = 10..100, x, y }` |
 | `combat_detail` | `{ open = bool (pinned), x, y, scope = "fight"/"session", hover = bool }` |
 | `combat_shout` | `{ on = bool (default false), size = 12..32, kinds = { block/parry/dodge = { text = bool, sound = bool, color = a CS.COLORS token } } }` |
 | `consumables` | `{ show = bool (default true), glue = bool, extra = { name parts, <= 20 }, cats = { [category] = true } (absent: defaults), exclude = { name parts } (absent: Scroll, Torch, Bait), max = 1..10, combatOnly = bool, x, y }` |

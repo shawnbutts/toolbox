@@ -21,7 +21,8 @@ C.TICK = 0.5
 C.WINDOW = 5                   -- seconds for the "now" rates
 C.IDLE_END = 12                -- a fight also ends after this long without a combat line
 C.SCALE_MIN, C.SCALE_MAX, C.SCALE_DEFAULT = 75, 250, 100
-C.BASE_FONT = 12
+-- The text size at 100% is the General page's (T.Window.GetFont; owner, 2026-10-17: the combat stats follow it), so
+-- Size scales that.
 -- Stats shown by default. The docs name MagicResistance (Animal Lore's "Defenses" stat);
 -- other names are found in game with /toolbox stats and added with /toolbox combat stat add.
 C.DEFAULT_STATS = { "MagicResistance" }
@@ -477,7 +478,7 @@ local function opacity() return prefs.bgOpacity or C.OPACITY_DEFAULT end
 
 function C.Metrics()
   local f = scale() / 100
-  local font = math.max(9, math.min(32, math.floor(C.BASE_FONT * f + 0.5)))
+  local font = math.max(9, math.min(32, math.floor(T.Window.GetFont() * f + 0.5)))
   local line = math.ceil(font * 1.15) + 1
   local labelW, valueW = math.ceil(font * 7.5), math.ceil(font * 9)
   local pad = background() ~= "None" and math.max(3, math.floor(5 * f + 0.5)) or 0
@@ -706,17 +707,21 @@ function C.SetScale(n)
   if type(n) ~= "number" or n ~= math.floor(n) or n < C.SCALE_MIN or n > C.SCALE_MAX then return false end
   prefs.scale = n
   save()
-  if content then
-    local m = C.Metrics()
-    for _, slot in ipairs(el) do
-      slot.name:SetStyle(labelStyle(m, m.labelW, "left"))
-      slot.value:SetStyle(labelStyle(m, m.valueW, "right"))
-    end
-    applyBackground()
-    T.Hud.Refresh()
-  end
+  C.ApplyText()
   T.Config.Sync()
   return true
+end
+
+-- The sizes again, in place: Size, or the General page's text size (Toolbox.Window.ApplyText).
+function C.ApplyText()
+  if not content then return end
+  local m = C.Metrics()
+  for _, slot in ipairs(el) do
+    slot.name:SetStyle(labelStyle(m, m.labelW, "left"))
+    slot.value:SetStyle(labelStyle(m, m.valueW, "right"))
+  end
+  applyBackground()
+  T.Hud.Refresh()
 end
 
 -- Background: "None" / "Dark" / "Light" (any case), and optionally its opacity in percent.
