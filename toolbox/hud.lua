@@ -710,7 +710,8 @@ end
 -- still be reading the scene), then every LOC.WATER_EVERY s (a town's water decoration changes it, review 32). The
 -- nearest water (ShroudGetNearestWaterType: up to 28 ms a call in game, 2026-10-14) isn't asked.
 -- The shown map overlay (owner, 2026-10-18; setting `overlay`): a line naming the overlay this scene's map shows, with
--- arrows stepping through the scene's overlays (OV.Step), hidden while the scene has none.
+-- arrows stepping through the scene's overlays (OV.Step); in a scene with none it says so, without the arrows (hidden,
+-- the owner looked for it in a town with none and thought it missing).
 -- Saved var "location": { show = bool (default false), facing = bool (default true), water = bool (default true),
 -- overlay = bool (default true), x, y }.
 -- ---------------------------------------------------------------------------
@@ -725,6 +726,7 @@ LOC.MIN_CHARS = 19                    -- "-12345, 123, -12345"
 LOC.WATER_EVERY = 30
 LOC.WATER_EMPTY_EVERY = 5
 LOC.WATER_SETTLE = 60
+LOC.NO_OVERLAYS = "Map: no overlays here"   -- the overlay line in a scene with none
 LOC.WATER_NAMES = { fresh = "Fresh water", fetid = "Fetid water", salt = "Salt water", lava = "Lava" }
 local LOC_PERIODIC = "toolbox_location"
 local locPrefs = { show = false, facing = true, water = true }
@@ -825,7 +827,9 @@ local function pinShown() return locPrefs.pin ~= false end
 function LOC.ContentSize()
   local lines = 2 + (locPrefs.facing and 1 or 0) + (locWater.line and 1 or 0) + (locOv.line and 1 or 0)
   local right = pinShown() and (pinSize() + LOC.PIN_GAP) or 0
-  if locOv.line then right = math.max(right, 2 * (pinSize() + LOC.PIN_GAP)) end   -- the overlay line's arrows
+  if locOv.line and locOv.line ~= LOC.NO_OVERLAYS then               -- the overlay line's arrows
+    right = math.max(right, 2 * (pinSize() + LOC.PIN_GAP))
+  end
   return locWidth() + right + 2 * Hud.STRIP_PAD, lines * T.Window.LineHeight() + 2 * Hud.STRIP_PAD
 end
 
@@ -875,9 +879,10 @@ function LOC.BuildContent()
       tooltip = "The overlay shown on this scene's map. The arrows step through them: yours, then Gathering and"
         .. " its kinds, then Fights and its creatures, then none. The pin opens the Map overlays window" },
   }
+  built.ovPrev, built.ovNext = stepButton("loc_ov_prev", "<", -1), stepButton("loc_ov_next", ">", 1)
   built.ovRow = UI.Row{ id = "loc_ov_row", visible = false,
     style = { alignItems = "center", marginLeft = 0, marginRight = 0 },
-    children = { built.overlay, stepButton("loc_ov_prev", "<", -1), stepButton("loc_ov_next", ">", 1) } }
+    children = { built.overlay, built.ovPrev, built.ovNext } }
   local top = built.scene
   if pinShown() then
     top = UI.Row{ style = { alignItems = "center", marginLeft = 0, marginRight = 0 },
@@ -959,11 +964,11 @@ function LOC.UpdateWater(scene)
   return true
 end
 
--- The overlay line's text: "Map: Iron Ore (4 places)", "Map: none (3 overlays)", or nil while the scene has none.
+-- The overlay line's text: "Map: Iron Ore (4 places)", "Map: none (3 overlays)" or "Map: no overlays here".
 function LOC.OverlayLine()
   local OV = T.Overlays
   local n = #OV.List()
-  if n == 0 then return nil end
+  if n == 0 then return LOC.NO_OVERLAYS end
   local ov = OV.Shown()
   if not ov then return "Map: none (" .. n .. " overlay" .. (n == 1 and "" or "s") .. ")" end
   local k = #OV.Places(ov)
@@ -985,6 +990,8 @@ function LOC.UpdateOverlay()
   locOv.line = line
   if line then T.SetText(locEl.overlay, line) end
   T.SetVisible(locEl.ovRow, line ~= nil)
+  T.SetVisible(locEl.ovPrev, line ~= LOC.NO_OVERLAYS)
+  T.SetVisible(locEl.ovNext, line ~= LOC.NO_OVERLAYS)
   if resized then
     for _, key in ipairs(LOC_LABELS) do T.SetStyle(locEl[key], locStyle()) end
     Hud.Refresh()

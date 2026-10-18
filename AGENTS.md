@@ -301,7 +301,8 @@ into one if a new file is ever needed).
   page field) on the "Map & location" page (`C.MapSection`, key "map", with the run markers' toggle; owner, 2026-10-13:
   the home for map features to come).
   The shown overlay's line (owner, 2026-10-18; setting `overlay`, `LOC.UpdateOverlay` on an `OV.version` / scene /
-  character change, hidden in a scene with none): "Map: <name> (N places)" and `<` / `>` buttons (`loc_ov_prev`,
+  character change; "Map: no overlays here" without the arrows in a scene with none, owner 2026-10-18: hidden, it
+  looked missing): "Map: <name> (N places)" and `<` / `>` buttons (`loc_ov_prev`,
   `loc_ov_next`) calling `OV.Step` through `OV.StepOrder` (yours, Gathering, its kinds, Fights, its creatures, then
   none); `/toolbox overlay next|prev`. A step isn't saved at once (it joins `ovPending`, saved with the next batch or
   `T.SavePrefs`) and the markers and title wait `OV.STEP_SETTLE` s after the last click (`ovMarks.holdUntil`).

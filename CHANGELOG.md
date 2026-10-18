@@ -8,8 +8,8 @@ ones included).
 ## [Unreleased]
 
 ### Added
-- **The overlay shown, on the location strip:** in a scene with map overlays, a line names the one its map shows
-  ("Map: Iron Ore (4 places)"), and its arrows step through them: yours, then Gathering and its kinds, then Fights and
+- **The overlay shown, on the location strip:** a line names the map overlay this scene shows ("Map: Iron Ore (4
+  places)"), and its arrows step through them: yours, then Gathering and its kinds, then Fights and
   its creatures, then none. Click through as fast as you like: the map follows a moment after the last click.
   /toolbox overlay next and prev do the same; Settings, Map & location: The overlay shown on the map.
 - **Auto map, fights:** a second switch beside Gathering in the Map overlays window (or /toolbox overlay auto fights

@@ -1012,7 +1012,7 @@ function C.MapSection()
       onChange = function(_, v) loc.SetPin(v) end },
     UI.Toggle{ id = "loc_overlay", text = "The overlay shown on the map", value = loc.GetOverlay(),
       tooltip = "A line naming the map overlay this scene shows, with arrows to step through its overlays (yours,"
-        .. " Gathering, Fights). Hidden in a scene with none",
+        .. " Gathering, Fights)",
       onChange = function(_, v) loc.SetOverlay(v) end },
     C.PositionRows("location", loc, "Location strip"),
     C.OverlayRows(),

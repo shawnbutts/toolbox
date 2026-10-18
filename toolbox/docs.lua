@@ -327,7 +327,7 @@ D.SECTIONS = {
       .. "where you are), where you can also hide the facing and water lines and place it, or type /toolbox "
       .. "location (on, off, facing on|off, water on|off, pin on|off, overlay on|off, move <x> <y>). It's off by "
       .. "default. The pin beside the scene's name opens the Map overlays window (Map overlays button in "
-      .. "settings). In a scene with map overlays, a line names the one its map shows (Map: Iron Ore, 4 places), "
+      .. "settings). A line names the map overlay shown in this scene (Map: Iron Ore, 4 places), "
       .. "and its arrows step through them: yours, then Gathering and its kinds, then Fights and its creatures, "
       .. "then none (The overlay shown on the map in settings)." },
   { "Map overlays",
