@@ -692,11 +692,14 @@ return function(t)
     H.advance(2)
     t.eq(loc():Find("loc_overlay").text, "Map: Bank (1 place)")
     t.ok(loc():Find("loc_ov_next").visible ~= false, "the arrows now")
-    local seen = {}
+    t.eq(loc():Find("loc_ov_row").children[1].id, "loc_ov_prev", "the arrows first, so they stay put")
+    local seen, w0 = {}, Toolbox.Location.ContentSize()
     for _ = 1, 5 do
       step("loc_ov_next")
+      H.call(Toolbox.Location.Update)                -- the strip's tick, without time passing
       local shown = OV().Shown()
       seen[#seen + 1] = shown and shown.name or "none"
+      t.eq(Toolbox.Location.ContentSize(), w0, "the same width for every overlay of the scene")
     end
     t.eq(table.concat(seen, ", "), "Gathering, Iron Ore, Fights, Elf Mage, none")
     H.advance(1)

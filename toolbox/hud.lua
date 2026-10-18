@@ -734,7 +734,9 @@ local locEl = {}                      -- column, scene, coords, facing (empty un
 local locScene = ""                   -- the scene the width is fitted to
 local locLast = {}                    -- the last rounded reading: x, y, z, heading
 local locWater = { scene = nil, since = -math.huge, at = -math.huge, line = nil }   -- the line shown (nil: none)
-local locOv = { key = nil, line = nil }   -- the shown overlay's line (nil: hidden) and what it was made from
+-- the shown overlay's line (nil: hidden), what it was made from, and the characters its width is for (the scene's
+-- longest: stepping through moves nothing, owner 2026-10-18)
+local locOv = { key = nil, line = nil, chars = 0 }
 
 function LOC.HasWater()
   return type(ShroudGetSceneWaterTypes) == "function"
@@ -804,7 +806,7 @@ function LOC.LocLine(scene, x, y, z)
 end
 
 local function locWidth()
-  return math.ceil(math.max(LOC.MIN_CHARS, #locScene, #(locWater.line or ""), #(locOv.line or ""))
+  return math.ceil(math.max(LOC.MIN_CHARS, #locScene, #(locWater.line or ""), locOv.line and locOv.chars or 0)
     * T.Window.GetFont() * LOC.CHAR_W)
 end
 
@@ -839,7 +841,7 @@ local function stepButton(id, text, dir)
   return UI.Button{ id = id, text = text,
     tooltip = dir > 0 and "Show the next overlay on this scene's map" or "Show the overlay before",
     onClick = function() T.Overlays.Step(dir) end,
-    style = { marginLeft = LOC.PIN_GAP, marginRight = 0, marginTop = 0, marginBottom = 0, width = s, height = s,
+    style = { marginLeft = 0, marginRight = LOC.PIN_GAP, marginTop = 0, marginBottom = 0, width = s, height = s,
               minHeight = s, paddingLeft = 0, paddingRight = 0, fontSize = math.max(9, math.floor(s * 0.6)) } }
 end
 
@@ -882,7 +884,7 @@ function LOC.BuildContent()
   built.ovPrev, built.ovNext = stepButton("loc_ov_prev", "<", -1), stepButton("loc_ov_next", ">", 1)
   built.ovRow = UI.Row{ id = "loc_ov_row", visible = false,
     style = { alignItems = "center", marginLeft = 0, marginRight = 0 },
-    children = { built.overlay, built.ovPrev, built.ovNext } }
+    children = { built.ovPrev, built.ovNext, built.overlay } }   -- the arrows first: they stay put
   local top = built.scene
   if pinShown() then
     top = UI.Row{ style = { alignItems = "center", marginLeft = 0, marginRight = 0 },
@@ -895,7 +897,7 @@ function LOC.BuildContent()
     children = { top, built.coords, built.facing, built.water, built.ovRow } }
   locEl, locLast = built, {}
   locWater.line, locWater.scene = nil, nil
-  locOv.line, locOv.key = nil, nil
+  locOv.line, locOv.key, locOv.chars = nil, nil, 0
   return built.column
 end
 
@@ -975,19 +977,30 @@ function LOC.OverlayLine()
   return "Map: " .. ov.name .. " (" .. k .. " place" .. (k == 1 and "" or "s") .. ")"
 end
 
+-- The most characters this scene's overlay line can take: its longest name with "(39 places)" (or the none line).
+function LOC.OverlayChars()
+  local list = T.Overlays.List()
+  local most = #LOC.NO_OVERLAYS
+  if #list > 0 then most = #("Map: none (" .. #list .. " overlays)") end
+  local tail = #("Map: " .. " (" .. T.Overlays.SCENE_MAX .. " places)")
+  for _, ov in ipairs(list) do most = math.max(most, #ov.name + tail) end
+  return most
+end
+
 -- The overlay line, made again only when the overlays, the scene or the character changed.
 function LOC.UpdateOverlay()
-  local line = nil
+  local line, chars = nil, 0
   if locPrefs.overlay ~= false then
     local okRaw, raw = pcall(T.SceneRaw)
     local key = T.Overlays.version .. ">" .. tostring(okRaw and raw) .. ">" .. tostring(T.CharacterName())
     if key == locOv.key then return false end
     locOv.key = key
-    line = LOC.OverlayLine()
+    line, chars = LOC.OverlayLine(), LOC.OverlayChars()
   end
-  if line == locOv.line then return false end
-  local resized = line == nil or locOv.line == nil or #line ~= #locOv.line
-  locOv.line = line
+  if line == locOv.line and chars == locOv.chars then return false end
+  local resized = (line == nil) ~= (locOv.line == nil) or chars ~= locOv.chars
+    or (line == LOC.NO_OVERLAYS) ~= (locOv.line == LOC.NO_OVERLAYS)          -- the arrows come or go
+  locOv.line, locOv.chars = line, chars
   if line then T.SetText(locEl.overlay, line) end
   T.SetVisible(locEl.ovRow, line ~= nil)
   T.SetVisible(locEl.ovPrev, line ~= LOC.NO_OVERLAYS)

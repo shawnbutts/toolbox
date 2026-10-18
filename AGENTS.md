@@ -302,8 +302,9 @@ into one if a new file is ever needed).
   the home for map features to come).
   The shown overlay's line (owner, 2026-10-18; setting `overlay`, `LOC.UpdateOverlay` on an `OV.version` / scene /
   character change; "Map: no overlays here" without the arrows in a scene with none, owner 2026-10-18: hidden, it
-  looked missing): "Map: <name> (N places)" and `<` / `>` buttons (`loc_ov_prev`,
-  `loc_ov_next`) calling `OV.Step` through `OV.StepOrder` (yours, Gathering, its kinds, Fights, its creatures, then
+  looked missing): `<` / `>` buttons (`loc_ov_prev`, `loc_ov_next`, before the text so
+  they stay put) and "Map: <name> (N places)", as wide as the scene's longest name (`LOC.OverlayChars`: stepping moves
+  nothing; owner, 2026-10-18), calling `OV.Step` through `OV.StepOrder` (yours, Gathering, its kinds, Fights, its creatures, then
   none); `/toolbox overlay next|prev`. A step isn't saved at once (it joins `ovPending`, saved with the next batch or
   `T.SavePrefs`) and the markers and title wait `OV.STEP_SETTLE` s after the last click (`ovMarks.holdUntil`).
   Then `Toolbox.Overlays` (OV; owner, 2026-10-13): map overlays, named sets of places (`/toolbox mark`, `/toolbox
