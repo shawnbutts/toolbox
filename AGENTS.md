@@ -1058,6 +1058,11 @@ Rules learned the hard way; keep to them.
   read finishes, then usable again.
 - **The menu's icon color** (confirmed 2026-10-16, the owner in game): the theme tokens tint launcher.png, changed in
   place by `SetTint`.
+- **1.9.0 work** (confirmed 2026-10-18, the owner in game): 1.8.0's map overlays converted to one key a scene (the
+  counts and storage as before, places drawn, a mark kept across a reload, Forget), the auto map's fights (overlays by
+  creature name and Fights, the window row), the Crafting Planner HUD (the shopping list, the build order and its "(N
+  made)", Start over, the fanfare and close), the General and Crafting settings pages, and `/toolbox perf` (no hitches
+  in 60 s; it showed `buff_durations` saved on every recast, fixed by `BB.LEARN_SLACK`).
 - **Louder sounds** (confirmed 2026-10-07): the +7.5 dB .ogg files, the halved saved volume and the per-sound
   volume sliders work in game.
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored
