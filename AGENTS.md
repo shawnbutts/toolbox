@@ -332,7 +332,8 @@ into one if a new file is ever needed).
   core's `ShroudOnGatherResults`, `OV.AutoMark`): on per scene (`sc.auto`: true / false as switched there, absent =
   the default, `OV.AutoByDefault`: on in an adventure area, off in a town, owner 2026-10-18, crafting in a town marked
   its trunks and stations; `OV.SceneKind`: `ShroudGetSceneInfo`'s isPot / isBasement / isOverworld, else the scene id's
-  words, `OV.TOWN_WORDS`; the `location.autoNew` setting, `ov_auto_new`; `OV.AutoText` says which; harness
+  words, `OV.TOWN_WORDS`; the `location.autoNew` setting, `ov_auto_new`; `OV.AutoText` says which, and the window's `mw_autoline`, `OV.AutoSceneLine`, over the switches, owner: "make it
+  clear they're scene specific"; harness
   `H.S.sceneInfo`; window toggle `mw_auto`, `/toolbox overlay
   auto`), each node finished is marked where you stand in its kind's overlay (`OV.NodeKind`: the node's name as sent)
   and in "Gathering" (`OV.AUTO_ALL`, every kind in its kind's look), unless one of its kind is within `OV.AUTO_NEAR` m

@@ -375,9 +375,10 @@ D.SECTIONS = {
       .. "which holds every kind so the map shows them all. A node already marked within 6 m (the same node, "
       .. "gathered from another side) isn't marked again. One chat line says what was marked.",
     "In towns, player towns and basements it's off (their trunks and crafting stations would be marked), unless "
-      .. "you turn it on there; a switch you flip in a scene stays for that scene. /toolbox overlay auto says which "
-      .. "a scene counts as. Settings, Map & location: Auto map adventure areas off, and it waits to be turned on "
-      .. "in each scene. Up to 10 automatic overlays a scene (Gathering and 9 kinds), "
+      .. "you turn it on there; a switch you flip in a scene stays for that scene only. The window's line over the "
+      .. "switches names the scene and what it counts as (Auto map in Crossroads only: a player-owned town), as "
+      .. "/toolbox overlay auto does. Settings, Map & location: Auto map adventure areas off, and it waits to be "
+      .. "turned on in each scene. Up to 10 automatic overlays a scene (Gathering and 9 kinds), "
       .. "apart from your own 10; past that, a new kind is marked in Gathering only, and chat says so once. "
       .. "They're ordinary overlays: show, rename, restyle or delete them like your own.",
     "Too many kinds? Ignore the ones you don't want, in every scene: show a kind's overlay (or pick one of its "

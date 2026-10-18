@@ -2130,6 +2130,23 @@ function OV.SceneKind()
   return ovKind.kind, why
 end
 
+-- The Map overlays window's line over the auto map's switches (owner, 2026-10-18: make it clear they're the scene's):
+-- "Auto map in Crossroads only (a player-owned town: off unless you switch it on)".
+function OV.AutoSceneLine()
+  local okName, name = pcall(T.SceneName)
+  name = okName and type(name) == "string" and name ~= "" and name or "this scene"
+  local kind, why = OV.SceneKind()
+  local about = nil
+  if not T.Location.GetAutoNew() then
+    about = "off unless you switch it on"
+  elseif kind == "town" then
+    about = why .. ": off unless you switch it on"
+  elseif kind == "adventure" then
+    about = "an adventure area: on unless you switch it off"
+  end
+  return "Auto map in " .. name .. " only" .. (about and (" (" .. about .. ")") or "")
+end
+
 -- "on in this scene (an adventure area: on unless you turn it off)": the state and where it comes from.
 function OV.AutoText(fights)
   local sc = ovData.scenes[hereRaw() or ""]
@@ -3056,6 +3073,7 @@ function OV.SyncWindow()
     mwEl.places:SetValue(mwPlaces[keep] and keep or places[1])
     mwEl.icon:SetValue(shown and shown.icon or OV.ICONS[1])
     mwEl.color:SetValue(shown and shown.color or OV.COLORS[1][1])
+    T.SetText(mwEl.autoLine, OV.AutoSceneLine())
     mwEl.auto:SetValue(OV.AutoOn())
     mwEl.fights:SetValue(OV.AutoOn(nil, true))
     for _, k in ipairs({ "icon", "color", "rename", "delete" }) do mwEl[k]:SetEnabled(shown ~= nil) end
@@ -3214,23 +3232,27 @@ local function mwBuild()
         local ok, why = OV.RemovePlace(ov, p)
         mwMsg(ok and ("Removed " .. p.name .. ".") or ("Couldn't remove it: " .. why .. "."))
       end },
+    autoLine = UI.Label{ id = "mw_autoline", text = "", class = "text", style = { whiteSpace = "wrap", flexGrow = 1,
+      flexShrink = 1 },
+      tooltip = "The auto map's switches below are this scene's own: each scene keeps its own. Adventure areas start"
+        .. " on, towns, player towns and basements off (Settings, Map & location: Auto map adventure areas)" },
     auto = UI.Toggle{ id = "mw_auto", text = "Gathering", value = false,
-      tooltip = "Auto map this scene's gathering: each resource node you gather here is marked where you stand, in an"
+      tooltip = "In this scene only: each resource node you gather here is marked where you stand, in an"
         .. " overlay of its kind and in " .. OV.GATHERING .. " (all kinds); a node already marked within "
         .. OV.AUTO_NEAR .. " m isn't marked again",
       onChange = function(_, on)
         local ok, why = OV.SetAuto(on == true)
-        mwMsg(ok and (on and ("Auto map on: gather here and each node is marked.") or "Auto map of gathering off.")
-          or ("Couldn't change it: " .. why .. "."))
+        mwMsg(ok and (on and ("Gathering on in this scene: each node you gather here is marked.")
+          or "Gathering off in this scene.") or ("Couldn't change it: " .. why .. "."))
       end },
     fights = UI.Toggle{ id = "mw_fights", text = "Fights", value = false, style = { marginLeft = 4 },
-      tooltip = "Auto map this scene's fights: each creature you kill here is marked where you stand, in an overlay"
+      tooltip = "In this scene only: each creature you kill here is marked where you stand, in an overlay"
         .. " of its name and in " .. OV.FIGHTS .. " (all of them); one already marked within " .. OV.FIGHT_NEAR
         .. " m isn't marked again",
       onChange = function(_, on)
         local ok, why = OV.SetAuto(on == true, true)
-        mwMsg(ok and (on and ("Auto map of fights on: each creature you kill here is marked.")
-          or "Auto map of fights off.") or ("Couldn't change it: " .. why .. "."))
+        mwMsg(ok and (on and ("Fights on in this scene: each creature you kill here is marked.")
+          or "Fights off in this scene.") or ("Couldn't change it: " .. why .. "."))
       end },
     ignore = UI.Button{ id = "mw_ignore", text = "Ignore kind", style = { marginLeft = 4 },
       tooltip = "Stop auto mapping this kind, in every scene (the shown automatic overlay's, or in " .. OV.GATHERING
@@ -3253,7 +3275,7 @@ local function mwBuild()
         .. " /" .. T.commands[1] .. " overlay scenes shows what each scene takes" },
   }
   mw = UI.Window{
-    id = MW_ID, title = "Map overlays", width = 420, height = 310, minWidth = 340, minHeight = 270,
+    id = MW_ID, title = "Map overlays", width = 420, height = 335, minWidth = 340, minHeight = 295,
     x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y, escCloses = true,
     style = { paddingLeft = 8, paddingRight = 8, paddingTop = 4, paddingBottom = 6 },
     children = {
@@ -3266,8 +3288,8 @@ local function mwBuild()
         tooltip = "Add where you stand to the shown overlay, in the shape and color above (or to a new overlay,"
           .. " Places, if you have none)", onClick = function() mwMark() end } }),
       row({ mwEl.places, mwEl.beacon, mwEl.look, mwEl.remove }),
-      row({ UI.Label{ text = "Auto map", class = "text", style = { marginRight = 4 } }, mwEl.auto, mwEl.fights,
-        UI.Label{ text = "", style = { flexGrow = 1 } }, mwEl.ignore, mwEl.death }),
+      row({ mwEl.autoLine }),
+      row({ mwEl.auto, mwEl.fights, UI.Label{ text = "", style = { flexGrow = 1 } }, mwEl.ignore, mwEl.death }, 2),
       row({ mwEl.msg, mwEl.storage }),
     },
   }
