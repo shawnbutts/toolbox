@@ -687,9 +687,9 @@ scene change; offline shown only for a friend or guild member, from their lists)
 health level, a chosen debuff landing on one); (4) a Party view in Combat Detailed (damage, healing, damage taken per
 member from the combat events' `party` flag; the last hits before a member reached 0). Maybe: a party buff check
 (who lacks a chosen buff) and a "who's here" line. Not possible with today's API: targeting a member, positions or
-range, others' cooldowns, add-on messages, a member's death or online state; drafted as requests 30-33
-(`tmp/client-issues.md`, not submitted yet): a whole-party read with online / scene / dead / leader, target a member
-from a click, who applied an effect, and in range.
+range, others' cooldowns, add-on messages, a member's death or online state; drafted as requests 30-32
+(`tmp/client-issues.md`, not submitted yet): a whole-party read with online / scene / dead / leader, who applied an
+effect, and in range. Not asked: setting the target (owner, 2026-10-18: the developers could read it as automation).
 
 0. **Agree the version number with the owner first** (owner, 2026-10-02): before bumping anything, read the
    `[Unreleased]` notes, propose a number with the reason, and wait for the owner's answer. Versions follow
