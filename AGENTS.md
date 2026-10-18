@@ -677,6 +677,20 @@ you read back and fall back to defaults.
 fixed in build 323 (catnipgames.net, 2026-10-16), 27 (one Enter) in build 2da431775a (2026-10-18, not released yet). When they land: use the new calls (feature-detected),
 check them in game, then release.
 
+**After it: 1.10.0, the party manager** (owner, 2026-10-18; 1.9.x waits on client fixes meanwhile). In scope: (1) the
+Party Toolbelt, its own strip, never joined to the player's Toolbelt (the idea below): a row per member, health and
+focus bars, their debuffs, members elsewhere dimmed, the lowest flagged, sort by party order or lowest health,
+combat-only; sized for 12 members (the game's party today) and able to take 16 (the owner expects a raise); (2) comings
+and goings, a notification source (joins, leaves, leaving and coming back to your scene: `ShroudOnPartyChanged`, the
+slot names against `ShroudGetPartyMemberNamesInScene`, names by `T.PlainName`, quiet for a few seconds after your own
+scene change; offline shown only for a friend or guild member, from their lists); (3) watch alerts (a member below a
+health level, a chosen debuff landing on one); (4) a Party view in Combat Detailed (damage, healing, damage taken per
+member from the combat events' `party` flag; the last hits before a member reached 0). Maybe: a party buff check
+(who lacks a chosen buff) and a "who's here" line. Not possible with today's API: targeting a member, positions or
+range, others' cooldowns, add-on messages, a member's death or online state; drafted as requests 30-33
+(`tmp/client-issues.md`, not submitted yet): a whole-party read with online / scene / dead / leader, target a member
+from a click, who applied an effect, and in range.
+
 0. **Agree the version number with the owner first** (owner, 2026-10-02): before bumping anything, read the
    `[Unreleased]` notes, propose a number with the reason, and wait for the owner's answer. Versions follow
    [semver](https://semver.org) from 1.0.3 on, read from the player's side:
