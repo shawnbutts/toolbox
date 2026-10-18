@@ -1208,4 +1208,61 @@ return function(t)
     for i, o in ipairs(before) do t.eq(after.Novia.list[i].places, o.places) end
     t.eq(after["Owl'sHead"].list[1], nil, "Owl's Head's too")
   end)
+
+  t.test("one key a scene: a big 1.8.0 key whose conversion is refused part way survives whole (review 60)", function()
+    local function bigPlaces(tag)
+      local each = {}
+      for i = 1, 2300 do each[i] = string.format("%d|%s place number %04d|%d|0|%d|1|1", i, tag, i, i, i) end
+      return table.concat(each, ";")
+    end
+    local v2 = { v = 2, nextId = 3, ignore = {}, scenes = {
+      Novia = { scene = "Novia", shown = 1, list = {
+        { id = 1, name = "North", icon = "pin", color = "Red", nextPlace = 2301, places = bigPlaces("North") } } },
+      ["Owl'sHead"] = { scene = "Owl's Head", shown = 2, list = {
+        { id = 2, name = "South", icon = "pin", color = "Blue", nextPlace = 2301, places = bigPlaces("South") } } } },
+      ["%E"] = 1 }
+    H.boot()
+    t.ok(Toolbox.SavedSize(v2) > 200000, "near the file's limit: " .. Toolbox.SavedSize(v2))
+    ShroudSetSavedVar("map_overlays", v2)
+    H.callback("ShroudOnDisableScript")
+    local n = 0
+    H.S.refuseKeys = setmetatable({}, { __index = function(_, key)
+      if key:find("^map_scene:") then
+        n = n + 1
+        return n >= 2                                -- the second scene refused, after the first was written
+      end
+      return false
+    end })
+    H.reload()
+    H.advance(1)
+    H.S.refuseKeys = nil
+    t.ok(n >= 2, "a scene was refused")
+    t.eq(H.saved("map_overlays").v, 2, "the old key back")
+    t.eq(next(Toolbox.saveRefused), nil, "every undo taken: " .. tostring(next(Toolbox.saveRefused)))
+    H.restart(nil, true)                             -- flushed: what reached the disk
+    H.advance(1)
+    local saved = savedOV()
+    t.eq(saved.v, 3, "converted at the next start")
+    t.eq(saved.scenes.Novia.list[1].places, v2.scenes.Novia.list[1].places, "Novia's whole")
+    t.eq(saved.scenes["Owl'sHead"].list[1].places, v2.scenes["Owl'sHead"].list[1].places, "Owl's Head's whole")
+  end)
+
+  t.test("one key a scene: a scene's key the game won't delete keeps the scene, measured (review 61)", function()
+    H.boot()
+    H.chat("/tbx mark Bank")
+    local key = "map_scene:" .. H.saved("map_overlays").scenes.Novia
+    H.S.deleteRefuse = { [key] = true }
+    H.chat("/tbx overlay forget novia")
+    H.chat("/tbx overlay forget novia")
+    t.ok(H.logged("Couldn't"), H.lastLog())
+    t.ok(H.saved("map_overlays").scenes.Novia, "still in the index")
+    t.ok(Toolbox.fileUse.character.keys[key], "and measured")
+    t.eq(#OV().List(), 1, "and kept")
+    H.S.deleteRefuse = nil
+    H.chat("/tbx overlay forget novia")
+    H.chat("/tbx overlay forget novia")
+    t.eq(ShroudGetSavedVar(key), nil, "deleted")
+    t.eq(Toolbox.fileUse.character.keys[key], nil)
+    t.eq(H.saved("map_overlays").scenes.Novia, nil)
+  end)
 end

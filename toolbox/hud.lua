@@ -1550,39 +1550,59 @@ ovWrite = function()
     local ok, _, kind = T.SetSavedVar(OV.KEY, indexEnc or T.ForSaving(index))
     if not ok then return false, refusedWhy(kind) end
   end
-  local function undo(upTo)
-    if convert then T.SetSavedVar(OV.KEY, convert) end
-    for i = 1, upTo do
-      local e = changed[i]
-      if e.was and e.was.key == e.key and e.was.form then
-        T.SetSavedVar(sceneKey(e.key), T.ForSaving(e.was.form))
-      else
-        T.DeleteSaved(sceneKey(e.key))
+  -- What's been done, undone newest first when a step is refused (the file as it was before: a converted one's new
+  -- scene keys out BEFORE the old value goes back, review 60, or both could pass 256 KB). Each undo is checked.
+  local done = {}
+  local function undo()
+    local undone = true
+    for i = #done, 1, -1 do
+      local d, ok = done[i], true
+      local was = d.was
+      if was and was.key == d.key and was.form then
+        ok = T.SetSavedVar(sceneKey(d.key), T.ForSaving(was.form))
+      elseif d.wrote then
+        ok = T.DeleteSaved(sceneKey(d.key))
       end
+      undone = undone and ok
+    end
+    if convert then undone = T.SetSavedVar(OV.KEY, convert) and undone end
+    if not undone then
+      T.Print("Map overlays: a save was refused and couldn't be fully undone; your overlays are fine for now, but"
+        .. " make room (/" .. T.commands[1] .. " overlay scenes) and change one to save them again.")
     end
   end
-  for i, e in ipairs(changed) do
+  for _, e in ipairs(changed) do
     local ok, _, kind = T.SetSavedVar(sceneKey(e.key), e.enc)
     if not ok then
-      undo(i - 1)
+      undo()
       return false, refusedWhy(kind)
+    end
+    done[#done + 1] = { key = e.key, was = e.was, wrote = true }
+  end
+  -- scenes gone: their keys deleted before the index stops naming them (refused, nothing changes: review 61)
+  for _, g in ipairs(gone) do
+    local reused = false
+    for _, e in ipairs(changed) do reused = reused or e.key == g.was.key end
+    if not reused then
+      if not T.DeleteSaved(sceneKey(g.was.key)) and ShroudGetSavedVar(sceneKey(g.was.key)) ~= nil then
+        undo()
+        return false, OV.REFUSED
+      end
+      done[#done + 1] = { key = g.was.key, was = g.was }
     end
   end
   if indexEnc and not convert then
     local ok, _, kind = T.SetSavedVar(OV.KEY, indexEnc)
     if not ok then
-      undo(#changed)
+      undo()
       return false, refusedWhy(kind)
     end
   end
   if indexEnc or convert then ovSaved.index = { form = index, size = indexSize } end
-  for _, e in ipairs(changed) do ovSaved.scenes[e.raw] = { key = e.key, form = e.form, size = e.size } end
   for _, g in ipairs(gone) do
     if ovSaved.scenes[g.raw] == g.was then ovSaved.scenes[g.raw] = nil end
-    local still = false
-    for _, e in ipairs(changed) do still = still or e.key == g.was.key end
-    if not still then T.DeleteSaved(sceneKey(g.was.key)) end
   end
+  for _, e in ipairs(changed) do ovSaved.scenes[e.raw] = { key = e.key, form = e.form, size = e.size } end
   ovSize, ovPending, ovOld = size, nil, nil
   T.unflushed = true                          -- to disk with the next periodic flush
   return true

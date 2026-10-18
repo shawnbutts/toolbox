@@ -582,11 +582,17 @@ end
 function T.NoCharacter() return T.loggedOut == true or not T.settingsFor end
 local function characterScope(scope) return not (type(scope) == "string" and scope:lower() == "account") end
 
+local function gameDelete(key, scope)
+  return ShroudDeleteSavedVar(key, scope)
+end
+
 function T.DeleteSaved(key, scope)
   if characterScope(scope) and T.NoCharacter() then return false end
   noteUndo(key, scope)
-  noteSize(scope, key, 0)
-  return ShroudDeleteSavedVar(key, scope)
+  local ok = gameDelete(key, scope)
+  -- still in the file until the game deletes it (review 61); a key already absent is gone too
+  if ok or ShroudGetSavedVar(key, scope) == nil then noteSize(scope, key, 0) end
+  return ok
 end
 
 -- Every saved-variable write goes through here. Refuses (false, why) a value that isn't safe to save (chat says so

@@ -788,6 +788,7 @@ local function install_api()
     return t and t[key]      -- by reference, as documented
   end
   ShroudDeleteSavedVar = function(key, scope)
+    if S.deleteRefuse and S.deleteRefuse[key] then return false end   -- H.S.deleteRefuse = { [key] = true }
     local t = S.memory[scopeOf(scope)]
     if not t or t[key] == nil then return false end
     t[key] = nil
