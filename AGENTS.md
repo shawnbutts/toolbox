@@ -861,7 +861,16 @@ counts fish twice; no workaround (owner, 2026-10-08: wait for the fix). **25** (
 describes water today (a caught fish's name, "(Saltwater Fish)", is the only hint); no stopgap (owner: wait for the API); landed in API 32, used by the location strip. **28** (submitted 2026-10-16): a callback before
 the logout while the character is still in (`ShroudOnBeforeLogOut`), and a character-scope write with no character
 refused instead of stored in a "nochar" file; until then Toolbox saves at `ShroudOnSceneUnloaded` while a character
-is named and skips character writes without one (`T.NoCharacter`). **26** (submitted): the known recipes that make an item
+is named and skips character writes without one (`T.NoCharacter`). Done (the developers, 2026-10-18: build
+094495886b, API 43; not on chaos or live yet, the reference with the next deploy): `ShroudOnBeforeLogOut` runs once on
+Exit to Menu / Quit with the character still in, the saved vars flushed right after; a logout not chosen (lost
+connection, kick, idle) runs it late at the login screen, before the logout flush, still keyed to that character, but
+`ShroudGetPlayerName` and such may be nil there. With no character, character-scope `ShroudSetSavedVar` /
+`ShroudDeleteSavedVar` return false (one console line an add-on) and `ShroudGetSavedVar` nil. Plan, for 1.9.1 (owner,
+2026-10-18), once the reference is live: the full save in the callback (session, day, timers, places, `ovPending`, then
+`T.SavePrefs`), feature-detected, keeping `ShroudOnSceneUnloaded`'s for older clients; and a game refusal with no
+character treated as `T.NoCharacter`'s (quiet: no "Could not save" line, no `autoUndo` of the auto map's marks). Check a
+logout and a character switch in game. **26** (submitted): the known recipes that make an item
 (`ShroudGetRecipesMaking(itemKey)`, or a light recipe book), so the planner needn't read the whole book (`D.ReadRecipeBook`,
 about 90 s a login; near 22 of 23 hitches in the owner's perf run, 2026-10-16, single `ShroudGetRecipe` calls of 260 and
 519 ms). **29** (submitted 2026-10-16, after 26): item counts without reading recipes
