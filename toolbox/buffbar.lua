@@ -1616,9 +1616,15 @@ end
 -- Records a buff's full duration, seen from a cast, for next time it is already running.
 -- Saved as { v = 2, durations = { [name] = seconds } }: unversioned saves were learned before the
 -- login settling (BB.SETTLE) and may hold time left at login instead of a full duration.
+-- A total within BB.LEARN_SLACK of the one kept isn't saved again: the game's totals wobble a little
+-- from cast to cast, and each save is a walk of the whole table (11 a minute in the owner's perf run).
+BB.LEARN_SLACK = 0.5
 function BB.Learn(name, total)
-  if type(total) ~= "number" or total <= 0 or learned[name] == total then return end
-  learned[name] = math.floor(total * 10 + 0.5) / 10
+  if type(total) ~= "number" or total <= 0 then return end
+  local rounded = math.floor(total * 10 + 0.5) / 10
+  local had = learned[name]
+  if had and math.abs(had - rounded) < BB.LEARN_SLACK then return end
+  learned[name] = rounded
   T.Save("buff_durations", { v = 2, durations = learned })
 end
 

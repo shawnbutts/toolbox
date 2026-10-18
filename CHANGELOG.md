@@ -74,6 +74,8 @@ ones included).
   an add-on's text box does nothing (a quick second press works), so nothing in Toolbox needs Enter any more.
 
 ### Fixed
+- **Buff durations saved less often:** recasting a buff no longer saves its learned duration again each time
+  (the game's length wobbles a little from cast to cast), a small stutter in a long fight.
 - Logging out no longer saves your session, today's stats, buff timers and window places into a file for "no
   character" (`toolbox.nochar.character.json`): the game has already let the character go by then. They are saved as
   the scene unloads, with the character still in, and nothing is written for no character at the login screen.

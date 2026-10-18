@@ -1357,6 +1357,26 @@ return function(t)
     t.eq(H.saved("buff_durations").v, 2)
   end)
 
+  t.test("a recast within half a second of the learned duration isn't saved again", function()
+    bootSettled()
+    local saves, real = 0, ShroudSetSavedVar
+    ShroudSetSavedVar = function(key, ...)
+      if key == "buff_durations" then saves = saves + 1 end
+      return real(key, ...)
+    end
+    local ok, err = pcall(function()
+      Toolbox.BuffBar.Learn("Heal", 30.04)
+      Toolbox.BuffBar.Learn("Heal", 30.04)   -- kept as 30.0: once compared unrounded, saved every cast
+      Toolbox.BuffBar.Learn("Heal", 29.8)    -- the game's wobble
+      t.eq(saves, 1)
+      Toolbox.BuffBar.Learn("Heal", 45)      -- really longer now
+      t.eq(saves, 2)
+    end)
+    ShroudSetSavedVar = real
+    if not ok then error(err, 0) end
+    t.eq(H.saved("buff_durations").durations.Heal, 45)
+  end)
+
   t.test("a scene change or another character settles too", function()
     bootSettled()
     H.callback("ShroudOnSceneLoaded", "Town")
