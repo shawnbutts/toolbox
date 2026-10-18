@@ -34,6 +34,10 @@ This file holds current facts and rules; the history behind them is in git (`git
   so one Enter did nothing there (owner, same day: only a quick second Enter reaches the field's submit, request 27
   submitted 2026-10-16): the planner's search fills as you type (`onChange`, which works in game,
   as the settings search's does); `/toolbox plan debug` says in chat what the box gets. Don't rely on Enter alone.
+  Request 27 is fixed (the developers, 2026-10-18: build 2da431775a, not on chaos or live yet): one Enter calls the
+  handler, the spec field's and `OnSubmit`'s alike, with the typed text; the box keeps the keyboard and chat doesn't
+  open. `T.TextField` needs no change (if both ways fire for one press, `once` runs it once); check a single Enter in
+  the planner's search once the build is out, then the "Don't rely on Enter alone" note can go.
 - **Read a UI element's state with its getters** (`GetText`, `GetValue`, `IsVisible`, `IsEnabled`...), never its
   fields: in game an element is a game object ("cannot access field text of userdata<Shroud.UI.Label>",
   2026-09-30). The harness's elements are plain tables, so tests can't catch it; `tools/build.py` refuses a field
@@ -669,8 +673,8 @@ you read back and fall back to defaults.
 ## Releasing
 
 **Next release: 1.9.0** (agreed with the owner, 2026-10-16), HELD until the open requests to the developers are done
-(owner, same day): 26 and 29 (the recipe calls) and 28 (a callback before logout). 27 (one Enter) and the map title's
-long name are fixed in build 323 (catnipgames.net, 2026-10-16). When they land: use the new calls (feature-detected),
+(owner, same day): 26 and 29 (the recipe calls) and 28 (a callback before logout). The map title's long name is
+fixed in build 323 (catnipgames.net, 2026-10-16), 27 (one Enter) in build 2da431775a (2026-10-18, not released yet). When they land: use the new calls (feature-detected),
 check them in game, then release.
 
 0. **Agree the version number with the owner first** (owner, 2026-10-02): before bumping anything, read the
