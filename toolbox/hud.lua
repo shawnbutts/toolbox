@@ -820,7 +820,8 @@ function LOC.IsShown() return locPrefs.show == true end
 function LOC.Unbuilt() locEl, locLast = {}, {} end
 local LOC_LABELS = { "scene", "coords", "facing", "water", "overlay" }
 
--- The pin beside the scene's name (owner, 2026-10-13): opens the Map overlays window. The menu's map-pin picture.
+-- The pin before the scene's name (owner, 2026-10-13; on the left since 2026-10-18): opens the Map overlays
+-- window. The menu's map-pin picture.
 LOC.PIN_GAP = 4
 local locTex = -1
 local function pinSize() return T.Window.LineHeight() end
@@ -858,7 +859,7 @@ local function pinElement()
   local s = pinSize()
   local tip = "Map overlays: mark where you stand, pick the overlay shown (/" .. T.commands[1] .. " overlay window)"
   local click = function() T.Overlays.ToggleWindow() end
-  local style = { marginLeft = LOC.PIN_GAP, marginRight = 0, marginTop = 0, marginBottom = 0 }
+  local style = { marginLeft = 0, marginRight = LOC.PIN_GAP, marginTop = 0, marginBottom = 0 }
   if locTex >= 0 then
     return UI.Image{ id = "loc_pin", width = s, height = s, texture = locTex, uv = { (frame - 1) / count, 0,
       1 / count, 1 }, tint = LN.COLOR, tooltip = tip, onClick = click, style = style }
@@ -888,7 +889,7 @@ function LOC.BuildContent()
   local top = built.scene
   if pinShown() then
     top = UI.Row{ style = { alignItems = "center", marginLeft = 0, marginRight = 0 },
-      children = { built.scene, pinElement() } }
+      children = { pinElement(), built.scene } }   -- the pin first, like the overlay line's arrows
   end
   built.column = UI.Column{ id = "loc_strip", tooltip = "",
     style = { paddingLeft = pad, paddingRight = pad, paddingTop = pad, paddingBottom = pad,
