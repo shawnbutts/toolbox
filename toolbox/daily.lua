@@ -1345,6 +1345,8 @@ function D.StopRecipeBook()
   if not reading then return false end
   T.RemovePeriodic(BOOK_TIMER)
   local waiting = reading.waiting
+  -- a read again of a stale book that's stopped leaves it stale: the book in use still lacks what was learned
+  if reading.stale and D.recipeIndex then D.bookStale = true end
   reading = nil
   for _, done in ipairs(waiting) do done(false) end
   return true
@@ -1425,8 +1427,8 @@ function D.ReadRecipeBook(done, again)
   if again then knownSrc = nil end         -- the game's list read fresh too
   local list = D.KnownSource()             -- only ids are read, a recipe a step: no need for the index
   if #list == 0 then return nil end
+  reading = { list = list, at = 1, recipes = {}, byResult = {}, byKey = {}, waiting = { done }, stale = D.bookStale }
   D.bookStale = false
-  reading = { list = list, at = 1, recipes = {}, byResult = {}, byKey = {}, waiting = { done } }
   T.RegisterPeriodic(BOOK_TIMER, readSome, D.BOOK_PERIOD, true)
   return #list
 end
@@ -2010,6 +2012,7 @@ function PL.SetScratch(on)
   plSave()
   if plPrefs.scratch then PL.NeedBook() end
   PL.Refresh(true)
+  T.Config.Sync()                      -- Settings > Crafting mirrors it
 end
 function PL.GetScratch() return plPrefs.scratch == true end
 
@@ -2727,6 +2730,7 @@ function PL.SetHud(on)
   else
     T.Hud.Rebuild(PL.HUD_KEY)          -- not wanted: its frame goes
   end
+  T.Config.Sync()                      -- Settings > Crafting's Show the HUD (the strip's Close, the auto close too)
 end
 
 -- The strip's Start over (owner, 2026-10-17: the next batch): the same recipe and crafts, nothing made, back on what

@@ -20,8 +20,8 @@ ones included).
   position. The planner now counts the crafts still to make, so the materials a made one used aren't asked for again.
 - **Settings, General:** the text size and line spacing every window and strip uses, moved from XP & Loot to a page
   of their own, the first page (settings open on it), so the settings for all of Toolbox are easy to find. The combat
-  stats HUD now follows the text size too: its Size (Combat page) is a share of it, 100% the same size (unchanged at
-  the default text size).
+  stats HUD now follows the text size and line spacing too: its Size (Combat page) is a share of the text size, 100% the
+  same size (unchanged at the defaults).
 - **Settings, Crafting:** a page of its own for the crafting planner (moved from XP & Loot, with From scratch), its
   recipe book and the Crafting Planner HUD. **When the recipe book is read** (it can stutter the game): when the
   planner needs it, at login in the background, or only when you ask, with **Read it now** (also the planner's own

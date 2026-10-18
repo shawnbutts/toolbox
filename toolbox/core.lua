@@ -1278,7 +1278,7 @@ add("settings", "settings files and setups (save, reset, cancel, backup, backups
   T.Config.Sync()
 end)
 
-add("font", "set the window text size, 9-32 (no number: show the current size)", function(rest)
+add("font", "set the text size of the windows and text strips, 9-32 (no number: show the current size)", function(rest)
   if rest == "" then
     T.Print("Window text size is " .. T.Window.GetFont() .. ". Use /" .. T.commands[1] .. " font <9-32>.")
   elseif T.Window.SetFont(tonumber(rest)) then

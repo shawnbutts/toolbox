@@ -479,7 +479,8 @@ local function opacity() return prefs.bgOpacity or C.OPACITY_DEFAULT end
 function C.Metrics()
   local f = scale() / 100
   local font = math.max(9, math.min(32, math.floor(T.Window.GetFont() * f + 0.5)))
-  local line = math.ceil(font * 1.15) + 1
+  -- the General line spacing too: its default (2) gives the 1 px this strip always had
+  local line = math.ceil(font * 1.15) + math.max(0, T.Window.GetSpacing() - 1)
   local labelW, valueW = math.ceil(font * 7.5), math.ceil(font * 9)
   local pad = background() ~= "None" and math.max(3, math.floor(5 * f + 0.5)) or 0
   return { font = font, line = line, labelW = labelW, valueW = valueW, pad = pad,

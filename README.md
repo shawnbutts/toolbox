@@ -114,7 +114,7 @@ with that setting's section at the top and the setting blinking.
 | `/toolbox plan [recipe]` | the crafting planner: a recipe's ingredients and material choices, what to craft from scratch, the shopping list and build order (`plan hud`: the Crafting Planner HUD; `plan book [read\|stop\|need\|login\|manual]`: when your recipe book is read) |
 | `/toolbox death` (`compass` / `clear`) | where you last died; point your compass back to it; take it off the map |
 | `/toolbox mark` (`<name>` / `remove [name]` / `compass [name]` / `look [name]`) | mark where you stand in the shown overlay (the first mark makes one, Places); remove a place (no name: the nearest within 15 m); point your compass at one (the game's beacon); give one the shape and color set for the next marks |
-| `/toolbox menu` (`on\|off` / `vertical\|horizontal` / `size <n>` / `shade <n>` / `combat hide\|show` / `move [x y]`) | show or hide the menu: buttons opening Toolbox's windows with one click (`launcher` works too) |
+| `/toolbox menu` (`on\|off` / `vertical\|horizontal` / `size <n>` / `shade <n>` / `color <name>` / `combat hide\|show` / `move [x y]`) | show or hide the menu: buttons opening Toolbox's windows with one click (`launcher` works too) |
 | `/toolbox api` | which newer API functions this game client has |
 | `/toolbox perf [quiet] [seconds]` | measure hitches (default a minute): slow frames, and whether Toolbox was working near them; quiet pauses Toolbox's timers meanwhile, to compare |
 | `/toolbox welcome` (`reset`) | show the first-run welcome again: the line and the settings window (`reset`: at the next reload, as on a first run) |
@@ -123,7 +123,7 @@ with that setting's section at the top and the setting blinking.
 | `/toolbox config` | open or close the settings window |
 | `/toolbox settings` (`save` / `reset` / `cancel` / `setups` / `import` / `export` / `delete`) | where the settings files are (`Lua/SavedVariables/toolbox.<character>.character.json` and `toolbox.account.json`) and how to back them up (copy them; to restore, quit the game and copy them back); `save` writes them now; `reset` puts every setting and position back to its default at the next `/lua reload`; `setups` lists the setups you can import (named ones, and the characters on this computer that list theirs: `share on`, off at first), `import <name>` copies one into this character now, `export <name>` saves yours under a name, `delete <name>` removes one |
 | `/toolbox spacing <0-12>` | set the extra space between lines in pixels (no number: show and measure it; default 2) |
-| `/toolbox font <9-32>` | set the window text size (no number: show the current size; default 12) |
+| `/toolbox font <9-32>` | set the text size of the windows and text HUD strips (Settings, General) (no number: show the current size; default 12) |
 
 If the game refuses a command name (another add-on has it, or it is too close to a chat
 command), the add-on says why in chat, e.g. `Could not register /tbx: taken`.
