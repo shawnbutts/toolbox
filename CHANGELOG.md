@@ -64,6 +64,10 @@ ones included).
   Gathering, loot runs, last death", so you can tell Toolbox's markers from other add-ons'.
 
 ### Changed
+- **Auto map on by default in adventure areas:** gathering and fights are mapped in every adventure area without
+  switching them on, and never in towns, player towns and basements (crafting there marked trunks and stations),
+  unless you switch them there; a switch you flip in a scene stays for that scene. /toolbox overlay auto says what a
+  scene counts as. Settings, Map & location: Auto map adventure areas (off: wait to be switched on in each scene).
 - On a game client with saved-file backups (Lua API 39), Toolbox no longer keeps its own recovery copy of each
   character's settings in the account file: the game's copies take its place, and a file it can't read is kept
   beside the new one. The old copies are deleted once the game has a backup holding them, which leaves the account

@@ -49,8 +49,8 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
   and remembers the one it shows; each place in its own shape and color, with a Compass button; the window shows how
   full the map storage is (all scenes share part of the character's saved file); all in a small window the location
   strip's pin opens, and the location strip names the overlay shown, with arrows to step through them
-  (`/toolbox overlay window`, or the button under Settings, Map & location). **Auto map** (`/toolbox overlay auto on`,
-  per scene): each resource node you gather is marked in an overlay of its kind and in Gathering (every kind);
+  (`/toolbox overlay window`, or the button under Settings, Map & location). **Auto map** (on by default in adventure areas,
+  off in towns; per scene, `/toolbox overlay auto on|off`): each resource node you gather is marked in an overlay of its kind and in Gathering (every kind);
   fights too, on their own switch (`/toolbox overlay auto fights on`): each creature you kill is marked where you stand,
   in an overlay of its name and in Fights; kinds you don't want go on an ignore list (`/toolbox overlay auto ignore
   <kind or word>`, or Ignore kind).

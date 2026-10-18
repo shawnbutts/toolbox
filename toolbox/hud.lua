@@ -713,7 +713,7 @@ end
 -- arrows stepping through the scene's overlays (OV.Step); in a scene with none it says so, without the arrows (hidden,
 -- the owner looked for it in a town with none and thought it missing).
 -- Saved var "location": { show = bool (default false), facing = bool (default true), water = bool (default true),
--- overlay = bool (default true), x, y }.
+-- overlay = bool (default true), autoNew = bool (the auto map on by default in adventure areas; default true), x, y }.
 -- ---------------------------------------------------------------------------
 local LOC = { FRAME_ID = "toolbox_location", HOME = { 600, 40 }, PAGE = "Location" }
 Toolbox.Location = LOC
@@ -1018,6 +1018,15 @@ function LOC.SetWater(on)
   if locEl.column then LOC.Update() end
 end
 
+-- The auto map on by default in adventure areas, off in towns (Toolbox.Overlays.AutoByDefault); a scene's own
+-- switch wins.
+function LOC.GetAutoNew() return locPrefs.autoNew ~= false end
+function LOC.SetAutoNew(on)
+  locPrefs.autoNew = on == true
+  locSave()
+  if Toolbox.Overlays then Toolbox.Overlays.Changed() end
+end
+
 function LOC.GetOverlay() return locPrefs.overlay ~= false end
 function LOC.SetOverlay(on)
   locPrefs.overlay = on == true
@@ -1085,7 +1094,7 @@ LOC.GetPosition, LOC.MoveTo, LOC.Nudge, LOC.ResetPosition = locMover.Get, locMov
 -- Re-runnable (another character's settings): before Toolbox.Hud.Init builds the strips.
 function LOC.Init()
   local saved = T.ReadSaved("location")
-  locPrefs = { show = false, facing = true, water = true, pin = true, death = true, overlay = true }
+  locPrefs = { show = false, facing = true, water = true, pin = true, death = true, overlay = true, autoNew = true }
   if type(saved) == "table" then
     locPrefs.death = saved.death ~= false
     locPrefs.show = saved.show == true
@@ -1094,6 +1103,7 @@ function LOC.Init()
     if type(saved.shade) == "number" then locPrefs.shade = T.ShadeOf(saved.shade) end
     locPrefs.pin = saved.pin ~= false
     locPrefs.overlay = saved.overlay ~= false
+    locPrefs.autoNew = saved.autoNew ~= false
     if type(saved.x) == "number" and type(saved.y) == "number" then locPrefs.x, locPrefs.y = saved.x, saved.y end
   end
   locEl, locLast = {}, {}
@@ -1348,8 +1358,8 @@ local function readScene(raw, s, ids)
   do
     do
       local sc = { scene = type(s.scene) == "string" and s.scene ~= "" and s.scene or raw, shown = 0, list = {} }
-      if s.auto == true then sc.auto = true end
-      if s.fights == true then sc.fights = true end
+      if type(s.auto) == "boolean" then sc.auto = s.auto end        -- false: off in a scene on by default
+      if type(s.fights) == "boolean" then sc.fights = s.fights end
       local names, own, auto = {}, 0, { g = 0, f = 0 }
       for _, o in ipairs(type(s.list) == "table" and s.list or {}) do
         local name = type(o) == "table" and type(o.id) == "number" and OV.CleanName(o.name)
@@ -1367,7 +1377,7 @@ local function readScene(raw, s, ids)
           if o.id == s.shown then sc.shown = ov.id end
         end
       end
-      if #sc.list > 0 or sc.auto or sc.fights then
+      if #sc.list > 0 or sc.auto ~= nil or sc.fights ~= nil then
         ovData.scenes[raw] = sc
         return sc
       end
@@ -1432,7 +1442,7 @@ local function readV3(saved)
 end
 
 -- Whether scene `sc` is saved at all (overlays, or the auto map on there).
-local function sceneKept(sc) return #sc.list > 0 or sc.auto == true or sc.fights == true end
+local function sceneKept(sc) return #sc.list > 0 or sc.auto ~= nil or sc.fights ~= nil end
 
 -- A scene's saved form (each overlay changed since it was packed packed again, `dirty`; the others as they were:
 -- packing every overlay read this session took a fair share of each save once a lot of scenes were mapped).
@@ -1853,7 +1863,7 @@ function OV.Delete(ov)
   end
   sc.list = kept
   if sc.shown == ov.id then sc.shown = 0 end
-  if #kept == 0 and not sc.auto and not sc.fights then ovData.scenes[ov.raw] = nil end
+  if #kept == 0 and sc.auto == nil and sc.fights == nil then ovData.scenes[ov.raw] = nil end
   return ovSave(snap)
 end
 
@@ -2072,9 +2082,69 @@ end
 -- Whether the auto map is on in the scene you're in (`raw`: another): for gathering, or for fights with `fights`.
 function OV.AutoOn(raw, fights)
   ovFollow()
-  local sc = ovData.scenes[raw or hereRaw() or ""]
-  if fights then return sc ~= nil and sc.fights == true end
-  return sc ~= nil and sc.auto == true
+  local here = hereRaw()
+  raw = raw or here
+  local sc = ovData.scenes[raw or ""]
+  local set = nil
+  if sc then
+    if fights then set = sc.fights else set = sc.auto end
+  end
+  if set ~= nil then return set end
+  return raw ~= nil and raw == here and OV.AutoByDefault()
+end
+
+-- Whether the auto map is on in the scene you're in without being switched there (owner, 2026-10-18: crafting in a
+-- town marked its trunks and stations): on in adventure areas, off in towns, while the setting is on.
+function OV.AutoByDefault()
+  return T.Location.GetAutoNew() and OV.SceneKind() == "adventure"
+end
+
+-- What the scene you're in is, for the auto map's default: "town" or "adventure" (nil while unknown, loading), and
+-- for a town why ("a player-owned town"). ShroudGetSceneInfo (API 14) flags player towns, basements and the
+-- overworld; the NPC towns have no flag, so their scene id's words (Novia_R4_City_Ardoris: OV.TOWN_WORDS). Kept for
+-- the scene.
+OV.TOWN_WORDS = { city = true, town = true, village = true }
+local ovKind = { raw = nil, kind = nil, why = nil }
+function OV.SceneKind()
+  local raw = hereRaw()
+  if not raw then return nil end
+  if ovKind.raw == raw then return ovKind.kind, ovKind.why end
+  local why = nil
+  local ok, info = pcall(ShroudGetSceneInfo)
+  if ok and type(info) == "table" then
+    if T.Field(info, "loaded") == false then return nil end
+    if T.Field(info, "isPot") == true then
+      why = "a player-owned town"
+    elseif T.Field(info, "isBasement") == true then
+      why = "a basement"
+    elseif T.Field(info, "isOverworld") == true then
+      why = "the overworld map"
+    end
+  end
+  if not why then
+    for word in raw:lower():gmatch("%a+") do
+      if OV.TOWN_WORDS[word] then why = "a town" end
+    end
+  end
+  ovKind.raw, ovKind.kind, ovKind.why = raw, why and "town" or "adventure", why
+  return ovKind.kind, why
+end
+
+-- "on in this scene (an adventure area: on unless you turn it off)": the state and where it comes from.
+function OV.AutoText(fights)
+  local sc = ovData.scenes[hereRaw() or ""]
+  local set = nil
+  if sc then
+    if fights then set = sc.fights else set = sc.auto end
+  end
+  local on = OV.AutoOn(nil, fights)
+  local text = (on and "on" or "off") .. " in this scene"
+  if set ~= nil then return text .. " (you switched it " .. (on and "on" or "off") .. " here)" end
+  local kind, why = OV.SceneKind()
+  if not T.Location.GetAutoNew() then return text .. " (off unless you switch it on here)" end
+  if kind == "town" then return text .. " (" .. why .. ": off unless you switch it on)" end
+  if kind == "adventure" then return text .. " (an adventure area: on unless you switch it off)" end
+  return text
 end
 
 -- Turns the auto map on or off in the scene you're in (its fights with `fights`). Returns true, or false and why.
@@ -2082,21 +2152,13 @@ function OV.SetAuto(on, fights)
   ovFollow()
   local here = OV.Here()
   if not here then return false, "the scene you're in can't be read right now" end
-  local sc = ovData.scenes[here.raw]
-  if not sc and not on then return true end
   local snap = ovSnapshot()
+  local sc = ovData.scenes[here.raw]
   if not sc then
     sc = { scene = here.scene, shown = 0, list = {} }
     ovData.scenes[here.raw] = sc
   end
-  if fights then
-    if on then sc.fights = true else sc.fights = nil end
-  elseif on then
-    sc.auto = true
-  else
-    sc.auto = nil
-  end
-  if not sc.auto and not sc.fights and #sc.list == 0 then ovData.scenes[here.raw] = nil end
+  if fights then sc.fights = on == true else sc.auto = on == true end   -- kept either way: the default may differ
   return ovSave(snap)
 end
 
@@ -2289,10 +2351,21 @@ function OV.AutoMark(sc, here, kind, fight)
 end
 
 -- From ShroudOnGatherResults (core.lua): each node finished, while the auto map is on here.
+-- The scene at `here`, made (unsaved: kept only once it holds an overlay) when the auto map is on there by default.
+local function autoScene(here)
+  if not here then return nil end
+  local sc = ovData.scenes[here.raw]
+  if not sc then
+    sc = { scene = here.scene, shown = 0, list = {} }
+    ovData.scenes[here.raw] = sc
+  end
+  return sc
+end
+
 function OV.OnGathered(results)
   if not OV.AutoOn() then return end
   local here = OV.Here()
-  local sc = here and ovData.scenes[here.raw]
+  local sc = autoScene(here)
   if not sc then return end
   for _, r in ipairs(T.List(results)) do
     local kind = OV.NodeKind(T.Field(r, "node"))
@@ -2310,7 +2383,7 @@ function OV.OnCombat(events)
       if not sc then
         if not OV.AutoOn(nil, true) then return end
         here = OV.Here()
-        sc = here and ovData.scenes[here.raw]
+        sc = autoScene(here)
         if not sc then return end
       end
       local kind = OV.NodeKind(e.target)
@@ -2529,13 +2602,15 @@ function OV.Scenes()
   ovFollow()
   local out = {}
   for raw, sc in pairs(ovData.scenes) do
-    local places, size = 0, 0
-    for _, ov in ipairs(sc.list) do
-      places = places + placeCount(ov)
-      size = size + T.SavedSize(T.ForSaving((ov.places and ov.dirty) and packPlaces(ov.places) or ov.packed))
-        + T.SavedSize(T.ForSaving(ov.name)) + 60
+    if sceneKept(sc) then                       -- (not an adventure area visited with nothing marked)
+      local places, size = 0, 0
+      for _, ov in ipairs(sc.list) do
+        places = places + placeCount(ov)
+        size = size + T.SavedSize(T.ForSaving((ov.places and ov.dirty) and packPlaces(ov.places) or ov.packed))
+          + T.SavedSize(T.ForSaving(ov.name)) + 60
+      end
+      out[#out + 1] = { raw = raw, scene = sc.scene, overlays = #sc.list, places = places, size = size }
     end
-    out[#out + 1] = { raw = raw, scene = sc.scene, overlays = #sc.list, places = places, size = size }
   end
   table.sort(out, function(a, b)
     if a.size ~= b.size then return a.size > b.size end
@@ -2734,7 +2809,7 @@ T.AddCommand("overlay", "map overlays, sets of places you mark in a scene, one s
       elseif sub == "fights" then
         local turn = what:lower()
         if turn ~= "on" and turn ~= "off" then
-          T.Print("Auto map of fights is " .. (OV.AutoOn(nil, true) and "on" or "off") .. " in this scene: " .. c
+          T.Print("Auto map of fights is " .. OV.AutoText(true) .. ": " .. c
             .. "overlay auto fights on marks each creature you kill here, by name, and in " .. OV.FIGHTS .. ".")
           return
         end
@@ -2746,7 +2821,7 @@ T.AddCommand("overlay", "map overlays, sets of places you mark in a scene, one s
       end
       local want = args:lower()
       if want ~= "on" and want ~= "off" then
-        T.Print("Auto map is " .. (OV.AutoOn() and "on" or "off") .. " in this scene: " .. c .. "overlay auto on"
+        T.Print("Auto map is " .. OV.AutoText() .. ": " .. c .. "overlay auto on"
           .. " marks each resource node you gather here, by kind, and in " .. OV.GATHERING .. ".")
         return
       end

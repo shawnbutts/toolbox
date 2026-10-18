@@ -1048,6 +1048,12 @@ function C.OverlayRows()
       tooltip = OV.HasMarkers() and ("A magenta diamond where you last died, in its scene, beside any overlay (/"
         .. T.commands[1] .. " death compass points you back)") or "Needs a newer game client (Lua API 30)",
       onChange = function(_, v) T.Location.SetDeath(v) end },
+    UI.Toggle{ id = "ov_auto_new", text = "Auto map adventure areas", value = T.Location.GetAutoNew(),
+      style = { marginTop = 4 },
+      tooltip = "Mark the nodes you gather and the creatures you kill in every adventure area, unless you switch it"
+        .. " off there; never in towns, player towns and basements unless you switch it on there (the Map overlays"
+        .. " window's Gathering and Fights)",
+      onChange = function(_, v) T.Location.SetAutoNew(v) end },
   } }
 end
 
@@ -1688,6 +1694,7 @@ end
 
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
 local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "loc_overlay", "ov_window", "ov_death",
+  "ov_auto_new",
   "pl_open", "pl_hud_close",
   "pl_cfg_scratch", "pl_book_when", "pl_book_status", "pl_book_read", "pl_book_stop", "pl_hud_show", "pl_hud_start",
   "pl_hud_auto", "pl_hud_shade", "pl_hud_shade_value",
@@ -2524,6 +2531,7 @@ function C.Sync()
   setValue("loc_overlay", T.Location.GetOverlay())
   setEnabled("loc_overlay", T.Location.GetShow())
   setValue("ov_death", T.Location.GetDeath())
+  setValue("ov_auto_new", T.Location.GetAutoNew())
   setEnabled("loc_water", T.Location.GetShow() and T.Location.HasWater())
   sliderValue("loc_shade", T.Location.GetShade())
   setEnabled("loc_shade", T.Location.GetShow())

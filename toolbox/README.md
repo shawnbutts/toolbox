@@ -168,7 +168,8 @@ overlays a scene, with room for thousands of places in all. Mark as you go in th
 small **Map overlays** window, where you also make, rename and delete them: the pin on the location strip opens it
 (or **Map & location** in the settings, or `/toolbox overlay window`); `/toolbox mark <name>` marks where you stand.
 The location strip names the overlay the map shows, and its arrows step through them.
-Auto map, turned on in a scene, marks every resource node you gather there: in an overlay of its kind and in
+Auto map, on by default in adventure areas and off in towns (a switch per scene), marks every resource node you
+gather there: in an overlay of its kind and in
 Gathering, which shows them all. Nodes don't move, so one visit maps a scene. Its Fights switch marks each
 creature you kill the same way, in an overlay of its name and in Fights. Kinds you don't want go on an
 ignore list: `/toolbox overlay auto ignore <kind or word>`, or Ignore kind in the window. Your last death shows on

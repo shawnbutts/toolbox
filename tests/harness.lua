@@ -195,6 +195,17 @@ local function install_api()
     if not S.char.present then return "" end
     return S.sceneRaw or (S.scene or "Novia"):gsub(" ", "")
   end
+  -- The scene's kind and rules (API 14): H.S.sceneInfo's fields (isPot, isBasement, isOverworld...) over a plain
+  -- adventure area's; loaded false with no character.
+  ShroudGetSceneInfo = function()
+    local raw = ShroudGetCurrentSceneNameRaw()
+    local info = { loaded = raw ~= "", name = ShroudGetCurrentSceneName(), rawName = raw, isOverworld = false,
+                   isDungeon = false, isBasement = false, isSiege = false, isBattleground = false, isPvp = false,
+                   isPot = false, maxPlayers = 40, levelCap = 0, skillCap = 0, craftingSkillCap = 0,
+                   overworldX = -1, overworldY = -1 }
+    for k, v in pairs(S.sceneInfo or {}) do info[k] = v end
+    return info
+  end
   -- Which way you face, as the HUD compass names it (API 10): H.S.heading (default 0), 0 with no character.
   ShroudGetPlayerCompassHeading = function()
     if not S.char.present then return 0 end

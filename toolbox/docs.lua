@@ -368,20 +368,24 @@ D.SECTIONS = {
       .. "yours); /toolbox death clear takes it off. Switch it off under Settings, Map & location: Show your last "
       .. "death on the map." },
   { "Auto map",
-    "Resource nodes don't move, though not all are up at once. Turn on Auto map: Gathering in the Map overlays "
-      .. "window (or /toolbox overlay auto on) and each node you gather there is marked where you stand: in an "
+    "Resource nodes don't move, though not all are up at once. In an adventure area the auto map is on by "
+      .. "default (Auto map: Gathering in the Map overlays window, or /toolbox overlay auto on|off), and each node "
+      .. "you gather there is marked where you stand: in an "
       .. "overlay of its kind (Iron Ore, made the first time, each kind in a look of its own) and in Gathering, "
       .. "which holds every kind so the map shows them all. A node already marked within 6 m (the same node, "
       .. "gathered from another side) isn't marked again. One chat line says what was marked.",
-    "It stays on in that scene until you turn it off, and only there: turn it on the first time you visit a "
-      .. "scene, gather, and the scene is mapped. Up to 10 automatic overlays a scene (Gathering and 9 kinds), "
+    "In towns, player towns and basements it's off (their trunks and crafting stations would be marked), unless "
+      .. "you turn it on there; a switch you flip in a scene stays for that scene. /toolbox overlay auto says which "
+      .. "a scene counts as. Settings, Map & location: Auto map adventure areas off, and it waits to be turned on "
+      .. "in each scene. Up to 10 automatic overlays a scene (Gathering and 9 kinds), "
       .. "apart from your own 10; past that, a new kind is marked in Gathering only, and chat says so once. "
       .. "They're ordinary overlays: show, rename, restyle or delete them like your own.",
     "Too many kinds? Ignore the ones you don't want, in every scene: show a kind's overlay (or pick one of its "
       .. "places in Gathering) and click Ignore kind twice, or type /toolbox overlay auto ignore and a kind or a "
       .. "word of one (Corpse skips Wolf Corpse, Bear Corpse...). Its overlay and its places in this scene go, and "
       .. "it isn't marked again. /toolbox overlay auto ignore lists them; auto unignore <name> takes one off.",
-    "Fights too: turn on Auto map: Fights (or /toolbox overlay auto fights on) and each creature you or your pet "
+    "Fights too, on their own switch with the same defaults (Auto map: Fights, /toolbox overlay auto fights "
+      .. "on|off): each creature you or your pet "
       .. "kill in that scene is marked where you stand (the game doesn't say where the creature was, so a ranged "
       .. "kill marks you): in an overlay of its name (Elf Fighter, Reaper...) and in Fights, which holds them all. "
       .. "One already marked within 20 m (the same camp) isn't marked again. Fights have their own 10 automatic "
