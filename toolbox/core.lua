@@ -3886,11 +3886,18 @@ end
 -- Character keys that aren't settings or recovered (B.KEYS, B.RecoverList()); other files append theirs. Every key
 -- Toolbox saves is in one of them (tests/test_backup.lua), so each file's size is measured whole.
 B.OTHER_KEYS = { "session", "daily", "buff_timers", "notify_history", "guild_motd", B.MARK, B.PENDING, B.CEILING_DUE }
+-- Functions giving more of them, named at run time (the map overlays' scene keys, from their index).
+B.KEY_LISTS = {}
 
 -- Measures the files as they are (at start: both; for another character: its file).
 function B.MeasureFiles(characterOnly)
   local keys, listed = {}, {}
-  for _, list in ipairs({ B.RecoverList(), B.OTHER_KEYS }) do
+  local lists = { B.RecoverList(), B.OTHER_KEYS }
+  for _, more in ipairs(B.KEY_LISTS) do
+    local ok, list = pcall(more)
+    if ok and type(list) == "table" then lists[#lists + 1] = list end
+  end
+  for _, list in ipairs(lists) do
     for _, k in ipairs(list) do
       if not listed[k] then
         listed[k] = true

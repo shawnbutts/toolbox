@@ -13,6 +13,26 @@ return function(t)
     for _ in pairs(list) do n = n + 1 end
     return n
   end
+  -- The overlays as saved, in 1.8.0's shape ({ v, nextId, scenes = { [raw] = scene } }), from the index and each
+  -- scene's own key; and their size as saved, every key together.
+  local function savedOV()
+    local index = H.saved("map_overlays")
+    if type(index) ~= "table" then return nil end
+    local out = { v = index.v, nextId = index.nextId, scenes = {} }
+    for raw, n in pairs(index.scenes or {}) do out.scenes[raw] = H.saved("map_scene:" .. n) end
+    return out
+  end
+  local function savedSize()
+    local index = ShroudGetSavedVar("map_overlays")
+    local size = Toolbox.SavedSize(index)
+    for _, n in pairs(index.scenes or {}) do size = size + Toolbox.SavedSize(ShroudGetSavedVar("map_scene:" .. n)) end
+    return size
+  end
+  -- Every overlay key refused (the index and each scene's).
+  local REFUSE_ALL = setmetatable({}, { __index = function(_, key)
+    return key == "map_overlays" or key:find("^map_scene:") ~= nil
+  end })
+
   local function goTo(scene, pos)
     H.S.scene, H.S.sceneRaw = scene, scene:gsub(" ", "")
     if pos then H.S.pos = pos end
@@ -169,7 +189,7 @@ return function(t)
   end)
 
   local function savedPlaces(name)
-    local saved = H.saved("map_overlays")
+    local saved = savedOV()
     for _, sc in pairs(saved and saved.scenes or {}) do
       for _, o in ipairs(sc.list) do
         if o.name == name then return o.places end
@@ -219,7 +239,7 @@ return function(t)
     gather("Iron Ore", { 10, 0, 10 })
     gather("Oak Tree", { 40, 0, 10 })
     t.eq(#OV().List(), 3)
-    H.S.refuseKeys = { map_overlays = true }
+    H.S.refuseKeys = REFUSE_ALL
     H.advance(OV().SAVE_AFTER + 1)
     t.ok(H.logged("Auto map: 4 new marks couldn't be saved %(the game refused to save it%), so they're taken off"),
       H.lastLog())
@@ -903,7 +923,7 @@ return function(t)
     H.chat("/tbx overlay new Real")
     H.chat("/tbx mark Bank")
     local real = OV().Shown()
-    H.S.refuseKeys = { map_overlays = true }
+    H.S.refuseKeys = REFUSE_ALL
     H.chat("/tbx overlay new Ghost")
     t.ok(H.logged("Couldn't make it: the game refused to save it"), H.lastLog())
     t.eq(#OV().List(), 1, "Ghost isn't kept")
@@ -928,7 +948,7 @@ return function(t)
     t.ok(marks()["ov" .. real.id .. "-1"], "its marker still up")
     H.S.refuseKeys = nil
     H.chat("/tbx overlay icon star")              -- a save that works: only this change goes with it
-    local saved = H.saved("map_overlays").scenes.Novia
+    local saved = savedOV().scenes.Novia
     t.eq(#saved.list, 1)
     t.eq(saved.list[1].name, "Real")
     t.eq(saved.list[1].icon, "star")
@@ -946,7 +966,7 @@ return function(t)
     H.chat("/tbx overlay new Real")
     H.chat("/tbx mark Bank")
     H.chat("/tbx overlay window")
-    H.S.refuseKeys = { map_overlays = true }
+    H.S.refuseKeys = REFUSE_ALL
     H.change("toolbox_marks", "mw_color", "Red")
     t.ok(mw():Find("mw_msg"):GetText():find("Couldn't change it", 1, true), mw():Find("mw_msg"):GetText())
     t.eq(mw():Find("mw_color"):GetValue(), "Green", "put back")
@@ -978,12 +998,12 @@ return function(t)
     H.chat("/tbx mark Bank")
     local budget = OV().BUDGET
     OV().BUDGET = math.floor(OV().StorageUse() * budget) + 10      -- room for nothing more
-    local before = H.saved("map_overlays")
+    local before = savedOV()
     H.chat("/tbx mark Iron vein")
     t.ok(H.logged("Couldn't mark Iron vein: map storage is full%. Nothing was saved, and your other places are"
       .. " safe%. Remove places, or a scene's overlays %(/toolbox overlay scenes%), to make room%."), H.lastLog())
     t.eq(#OV().Places(OV().Shown()), 1, "only Bank")
-    t.eq(H.saved("map_overlays").scenes.Novia.list[1].places, before.scenes.Novia.list[1].places, "not saved")
+    t.eq(savedOV().scenes.Novia.list[1].places, before.scenes.Novia.list[1].places, "not saved")
     H.chat("/tbx overlay window")
     H.submit("toolbox_marks", "mw_name", "Iron vein")
     t.ok(mw():Find("mw_msg"):GetText():find("Couldn't mark Iron vein: map storage is full", 1, true),
@@ -1015,7 +1035,7 @@ return function(t)
     t.eq(#places, 1)
     t.eq(places[1].name, "Bank")
     t.eq(places[1].icon, "flag")
-    t.eq(H.saved("map_overlays").v, 2, "saved in the new form at once")
+    t.eq(H.saved("map_overlays").v, 3, "saved in the new form at once")
     t.eq(#OV().List(), 1, "an overlay with no places has no scene: left out")
     goTo("Owl's Head")
     t.eq(OV().Shown().name, "Loot", "its Owl's Head part, shown there too")
@@ -1042,7 +1062,7 @@ return function(t)
     t.ok(H.logged("Deleted Novia's overlays"), H.lastLog())
     goTo("Novia")
     t.eq(#OV().List(), 0)
-    t.eq(H.saved("map_overlays").scenes.Novia, nil)
+    t.eq(savedOV().scenes.Novia, nil)
     H.chat("/tbx overlay forget Atlantis")
     t.ok(H.logged("No overlays in a scene called 'Atlantis'"), H.lastLog())
   end)
@@ -1064,11 +1084,10 @@ return function(t)
     H.boot()
     H.chat("/tbx overlay new %%%%%%%%%%%%")
     for i = 1, 5 do H.chat("/tbx mark %%%%%%%%%%%% " .. i) end
-    local raw = ShroudGetSavedVar("map_overlays")
-    t.near(OV().StorageUse() * OV().BUDGET, Toolbox.SavedSize(raw), 1e-6, "the saved form's size")
+    t.near(OV().StorageUse() * OV().BUDGET, savedSize(), 1e-6, "the saved form's size")
     H.restart(nil, true)
     H.advance(1)
-    t.near(OV().StorageUse() * OV().BUDGET, Toolbox.SavedSize(ShroudGetSavedVar("map_overlays")), 1e-6,
+    t.near(OV().StorageUse() * OV().BUDGET, savedSize(), 1e-6,
       "read back the same")
   end)
 
@@ -1081,7 +1100,7 @@ return function(t)
     H.chat("/tbx mark Iron vein")
     t.ok(H.logged("Couldn't mark Iron vein: map storage is full"), H.lastLog())
     t.eq(#OV().List(), 0, "no Places overlay left behind")
-    t.eq(H.saved("map_overlays").scenes["Owl'sHead"], nil, "nor saved")
+    t.eq(savedOV().scenes["Owl'sHead"], nil, "nor saved")
     H.chat("/tbx overlay window")
     H.submit("toolbox_marks", "mw_name", "Camp")
     t.ok(mw():Find("mw_msg"):GetText():find("Couldn't mark Camp: map storage is full", 1, true),
@@ -1090,5 +1109,103 @@ return function(t)
     OV().BUDGET = budget
     H.chat("/tbx mark Iron vein")
     t.ok(H.logged("Marked Iron vein in Places"), H.lastLog())
+  end)
+
+  -- one key a scene ------------------------------------------------------------
+
+  -- The overlay keys written while `fn` runs.
+  local function writes(fn)
+    local keys, real = {}, ShroudSetSavedVar
+    ShroudSetSavedVar = function(key, ...)
+      if key == "map_overlays" or key:find("^map_scene:") then keys[#keys + 1] = key end
+      return real(key, ...)
+    end
+    local ok, err = pcall(fn)
+    ShroudSetSavedVar = real
+    if not ok then error(err, 0) end
+    return keys
+  end
+
+  t.test("one key a scene: a change writes only its scene's key (and the index when that changes)", function()
+    H.boot()
+    H.chat("/tbx mark Bank")
+    goTo("Owl's Head")
+    H.chat("/tbx mark Camp")
+    local index = H.saved("map_overlays")
+    t.eq(index.v, 3)
+    local novia, owls = index.scenes.Novia, index.scenes["Owl'sHead"]
+    t.ok(novia and owls and novia ~= owls, "a key each")
+    local keys = writes(function() H.chat("/tbx mark Well") end)
+    t.eq(table.concat(keys, ","), "map_scene:" .. owls, "only Owl's Head's: " .. table.concat(keys, ","))
+    keys = writes(function() H.chat("/tbx overlay new Mine") end)      -- a new overlay id: the index too
+    t.eq(table.concat(keys, ","), "map_scene:" .. owls .. ",map_overlays", table.concat(keys, ","))
+    t.eq(savedOV().scenes.Novia.list[1].places:match("^1|Bank|") ~= nil, true, "Novia's untouched")
+    H.restart(nil, true)
+    H.advance(1)
+    t.eq(Toolbox.fileUse.character.keys["map_scene:" .. owls] ~= nil, true, "each scene's key measured at start")
+    goTo("Owl's Head")
+    t.eq(#OV().List(), 2, "read back")
+    t.ok(OV().FindPlace(OV().Find("Places"), "Well"))
+    H.chat("/tbx overlay forget owl's head")
+    H.chat("/tbx overlay forget owl's head")
+    t.eq(ShroudGetSavedVar("map_scene:" .. owls), nil, "a scene forgotten: its key deleted")
+    t.eq(H.saved("map_overlays").scenes["Owl'sHead"], nil, "and out of the index")
+  end)
+
+  t.test("one key a scene: 1.8.0's single key is converted at the first start; refused, it stays as it was", function()
+    local v2 = { v = 2, nextId = 3, ignore = { "Corpse" }, scenes = {
+      Novia = { scene = "Novia", shown = 1, auto = true, list = {
+        { id = 1, name = "Loot", icon = "star", color = "Red", nextPlace = 2, places = "1|Bank|10|1|-20|5|4" } } },
+      ["Owl'sHead"] = { scene = "Owl's Head", shown = 0, fights = true, list = {
+        { id = 2, name = "Camps", icon = "pin", color = "Blue", nextPlace = 2, places = "1|Camp|5|0|5|1|2" } } } },
+      ["%E"] = 1 }
+    H.boot()
+    ShroudSetSavedVar("map_overlays", v2)          -- a 1.8.0 file, read at the next start
+    H.S.refuseKeys = setmetatable({}, { __index = function(_, key) return key:find("^map_scene:") ~= nil end })
+    H.reload()
+    H.advance(1)
+    t.eq(H.saved("map_overlays").v, 2, "a scene refused: the old key put back")
+    t.eq(OV().Shown().name, "Loot", "and the overlays work meanwhile")
+    H.S.refuseKeys = nil
+    H.restart(nil, true)
+    H.advance(1)
+    local index = H.saved("map_overlays")
+    t.eq(index.v, 3, "converted")
+    t.eq(index.ignore[1], "Corpse")
+    local saved = savedOV()
+    t.eq(saved.scenes.Novia.list[1].places, "1|Bank|10|1|-20|5|4")
+    t.eq(saved.scenes.Novia.auto, true)
+    t.eq(saved.scenes["Owl'sHead"].fights, true)
+    H.restart(nil, true)
+    H.advance(1)
+    t.eq(OV().Places(OV().Shown())[1].name, "Bank", "read back from today's form")
+    t.ok(OV().AutoOn())
+    goTo("Owl's Head")
+    t.ok(OV().AutoOn(nil, true))
+    t.eq(OV().Places(OV().Find("Camps"))[1].name, "Camp")
+  end)
+
+  t.test("one key a scene: a batch over two scenes, one refused, puts the other back as it was", function()
+    H.boot()
+    H.advance(1)
+    H.chat("/tbx overlay auto on")
+    gather("Iron Ore", { 10, 0, 10 })
+    goTo("Owl's Head", { 0, 0, 0 })
+    H.chat("/tbx overlay auto on")
+    H.callback("ShroudOnDisableScript")
+    local index = H.saved("map_overlays")
+    local novia, owls = index.scenes.Novia, index.scenes["Owl'sHead"]
+    local before = savedOV().scenes.Novia.list
+    gather("Oak Tree", { 30, 0, 10 })
+    goTo("Novia", { 0, 0, 0 })
+    gather("Iron Ore", { 90, 0, 10 })
+    H.S.refuseKeys = { ["map_scene:" .. math.max(novia, owls)] = true }
+    H.advance(OV().SAVE_AFTER + 1)
+    t.ok(H.logged("couldn't be saved"), H.lastLog())
+    H.S.refuseKeys = nil
+    local after = savedOV().scenes
+    t.eq(#after.Novia.list, #before, "Novia's key as it was")
+    for i, o in ipairs(before) do t.eq(after.Novia.list[i].places, o.places) end
+    t.eq(after["Owl'sHead"].list[1], nil, "Owl's Head's too")
   end)
 end

@@ -1080,14 +1080,17 @@ T.AddCommand("location", "the location strip: your scene, position, facing and i
 -- and Beacon works.
 -- Each place has its own look (owner, 2026-10-13: changing the shape for a new spot restyled the ones before):
 -- an overlay's icon and color are what its next marks get; "Set look" restyles one place.
--- Saved var "map_overlays" (character; kept by a reset; not in the recovery copy): { v = 2, nextId, scenes = {
--- [scene id] = { scene = its name, shown = overlay id or 0, list = { { id, name, icon, color (an OV.COLORS name; for
--- its next marks), nextPlace, places = packed text } } } } }. v = 1 (one list, places carrying their scene; never
--- released) is converted at the first read.
+-- Saved vars (character; kept by a reset; not in the recovery copy), one key a scene (owner, 2026-10-18: a save
+-- writes only the scenes that changed): "map_overlays" is the index, { v = 3, nextId, nextKey, ignore, death,
+-- scenes = { [scene id] = n } }, and "map_scene:<n>" each scene's, { raw = scene id, scene = its name, shown = overlay
+-- id or 0, auto, fights, list = { { id, name, icon, color (an OV.COLORS name; for its next marks), nextPlace, places
+-- = packed text, auto } } }. v = 2 (every scene in "map_overlays", 1.8.0) and v = 1 (one list, places carrying their
+-- scene; never released) are converted at the first read.
 -- ---------------------------------------------------------------------------
 local OV = {}
 Toolbox.Overlays = OV
 OV.KEY = "map_overlays"
+OV.SCENE_KEY = "map_scene:"           -- and a number: one scene's overlays
 OV.MAX = 10                           -- overlays a scene (owner: a short list to pick from), the auto map's apart
 OV.SCENE_MAX = 39                     -- places an overlay (50 markers a scene, less 10 run flags and the last death)
 OV.BUDGET = 150000                    -- the saved overlays' estimated size: their share of the character file
@@ -1106,11 +1109,16 @@ OV.REFUSED = "the game refused to save it"
 OV.version = 0
 local ovData = { scenes = {}, nextId = 1, ignore = {} }
 local ovFor = nil
-local ovSize = 0                      -- the saved form's estimated size (at the last read or save)
+local ovSize = 0                      -- the saved form's estimated size (at the last read or save): every key's
+-- What each key holds on disk, as read or last written (plain, before T.ForSaving): ovSaved[raw] = { key = n, form,
+-- size }, ovSaved.index = { form, size }. A write compares each scene's form with it and writes only those changed.
+local ovSaved = { scenes = {} }
 -- The auto map's marks not saved yet (owner, 2026-10-18: a save walks every scene's overlays, slow once many are
 -- mapped, and a fight's kill mustn't pay for it): { bytes = their estimated room, since = T.Now() of the first,
 -- items = { { ov, place } or { sc, made = ov, shownWas } } }, saved together by OV.SavePending.
 local ovPending = nil
+local ovWrite = nil                   -- (below)
+local ovOld = nil                     -- an older form's saved value, until a write has converted it
 local ovMarks = { raw = nil, who = nil, version = nil, retryAt = -math.huge }
 
 function OV.HasMarkers() return T.DailyDetail.HasMarkers() end
@@ -1256,10 +1264,11 @@ local function readV1(saved)
   end
 end
 
-local function readV2(saved)
-  local ids = {}
-  for raw, s in pairs(type(saved.scenes) == "table" and saved.scenes or {}) do
-    if type(raw) == "string" and raw ~= "" and type(s) == "table" then
+-- One scene's saved overlays (`s`, a v = 2 scene entry or a v = 3 scene key) into ovData; `ids`: overlay ids taken.
+-- Returns its scene, or nil (nothing worth keeping).
+local function readScene(raw, s, ids)
+  do
+    do
       local sc = { scene = type(s.scene) == "string" and s.scene ~= "" and s.scene or raw, shown = 0, list = {} }
       if s.auto == true then sc.auto = true end
       if s.fights == true then sc.fights = true end
@@ -1280,9 +1289,17 @@ local function readV2(saved)
           if o.id == s.shown then sc.shown = ov.id end
         end
       end
-      if #sc.list > 0 or sc.auto or sc.fights then ovData.scenes[raw] = sc end
+      if #sc.list > 0 or sc.auto or sc.fights then
+        ovData.scenes[raw] = sc
+        return sc
+      end
     end
   end
+  return nil
+end
+
+-- What every version's index holds besides the scenes: the next ids, your last death, the ignore list.
+local function readCommon(saved)
   if type(saved.nextId) == "number" and saved.nextId > ovData.nextId then ovData.nextId = math.floor(saved.nextId) end
   local d = saved.death
   if type(d) == "table" and type(d.raw) == "string" and d.raw ~= "" and type(d.x) == "number"
@@ -1303,44 +1320,140 @@ local function readV2(saved)
   end
 end
 
--- The saved form (each overlay changed since it was packed packed again, `dirty`; the others as they were: packing
--- every overlay read this session took a fair share of each save once a lot of scenes were mapped).
-local function savedForm()
-  local scenes = {}
-  for raw, sc in pairs(ovData.scenes) do
-    if #sc.list > 0 or sc.auto or sc.fights then
-      local list = {}
-      for i, ov in ipairs(sc.list) do
-        if ov.places and ov.dirty then
-          ov.packed, ov.dirty = packPlaces(ov.places), nil
-        end
-        list[i] = { id = ov.id, name = ov.name, icon = ov.icon, color = ov.color, nextPlace = ov.nextPlace,
-                    places = ov.packed, auto = ov.auto }
+-- 1.8.0's form: every scene in the one key.
+local function readV2(saved)
+  local ids = {}
+  for raw, s in pairs(type(saved.scenes) == "table" and saved.scenes or {}) do
+    if type(raw) == "string" and raw ~= "" and type(s) == "table" then readScene(raw, s, ids) end
+  end
+  readCommon(saved)
+end
+
+local function sceneKey(n) return OV.SCENE_KEY .. n end
+
+-- Today's: the index, and a key a scene. A scene whose key is gone or isn't its own is left out (the index drops it
+-- at the next write).
+local function readV3(saved)
+  local ids = {}
+  readCommon(saved)
+  if type(saved.nextKey) == "number" and saved.nextKey > ovData.nextKey then
+    ovData.nextKey = math.floor(saved.nextKey)
+  end
+  for raw, n in pairs(type(saved.scenes) == "table" and saved.scenes or {}) do
+    if type(raw) == "string" and raw ~= "" and type(n) == "number" and n >= 1 and n == math.floor(n) then
+      local s = T.ReadSaved(sceneKey(n))
+      if type(s) == "table" and s.raw == raw then
+        local sc = readScene(raw, s, ids)
+        if sc then sc.key = n end
+        -- (kept with nothing in it: deleted at the next write)
+        ovSaved.scenes[raw] = { key = n, size = T.SavedSize(ShroudGetSavedVar(sceneKey(n))) }
       end
-      scenes[raw] = { scene = sc.scene, shown = sc.shown, list = list, auto = sc.auto, fights = sc.fights }
+      if n >= ovData.nextKey then ovData.nextKey = n + 1 end
     end
   end
-  local ignore = {}
+end
+
+-- Whether scene `sc` is saved at all (overlays, or the auto map on there).
+local function sceneKept(sc) return #sc.list > 0 or sc.auto == true or sc.fights == true end
+
+-- A scene's saved form (each overlay changed since it was packed packed again, `dirty`; the others as they were:
+-- packing every overlay read this session took a fair share of each save once a lot of scenes were mapped).
+local function sceneForm(raw, sc)
+  local list = {}
+  for i, ov in ipairs(sc.list) do
+    if ov.places and ov.dirty then
+      ov.packed, ov.dirty = packPlaces(ov.places), nil
+    end
+    list[i] = { id = ov.id, name = ov.name, icon = ov.icon, color = ov.color, nextPlace = ov.nextPlace,
+                places = ov.packed, auto = ov.auto }
+  end
+  return { raw = raw, scene = sc.scene, shown = sc.shown, list = list, auto = sc.auto, fights = sc.fights }
+end
+
+local OV_FIELDS = { "id", "name", "icon", "color", "nextPlace", "places", "auto" }
+local SCENE_FIELDS = { "raw", "scene", "shown", "auto", "fights" }
+local DEATH_FIELDS = { "raw", "scene", "x", "y", "z", "at", "date", "clock", "away" }
+
+local function sameFields(a, b, fields)
+  for _, f in ipairs(fields) do
+    if a[f] ~= b[f] then return false end
+  end
+  return true
+end
+
+local function sameScene(a, b)
+  if not (a and b and sameFields(a, b, SCENE_FIELDS) and #a.list == #b.list) then return false end
+  for i, o in ipairs(a.list) do
+    if not sameFields(o, b.list[i], OV_FIELDS) then return false end
+  end
+  return true
+end
+
+-- The index's saved form (the scenes kept, each with its key).
+local function indexForm()
+  local scenes, ignore, death = {}, {}, nil
+  for raw, sc in pairs(ovData.scenes) do
+    if sceneKept(sc) then scenes[raw] = sc.key end
+  end
   for i, part in ipairs(ovData.ignore) do ignore[i] = part end
-  return { v = 2, nextId = ovData.nextId, scenes = scenes, ignore = ignore, death = ovData.death }
+  if ovData.death then
+    death = {}
+    for _, f in ipairs(DEATH_FIELDS) do death[f] = ovData.death[f] end
+  end
+  return { v = 3, nextId = ovData.nextId, nextKey = ovData.nextKey, scenes = scenes, ignore = ignore, death = death }
+end
+
+local function sameIndex(a, b)
+  if not (a and b and a.nextId == b.nextId and a.nextKey == b.nextKey and #a.ignore == #b.ignore) then return false end
+  for i, part in ipairs(a.ignore) do
+    if part ~= b.ignore[i] then return false end
+  end
+  if (a.death == nil) ~= (b.death == nil) or (a.death and not sameFields(a.death, b.death, DEATH_FIELDS)) then
+    return false
+  end
+  for raw, n in pairs(a.scenes) do
+    if b.scenes[raw] ~= n then return false end
+  end
+  for raw in pairs(b.scenes) do
+    if a.scenes[raw] == nil then return false end
+  end
+  return true
 end
 
 -- This character's overlays (read once per character; re-runnable). A scene's places are read when needed.
 function OV.Init()
   ovFor = T.CharacterName()
-  ovData = { scenes = {}, nextId = 1, ignore = {} }
-  ovPending = nil
+  ovData = { scenes = {}, nextId = 1, nextKey = 1, ignore = {} }
+  ovPending, ovSaved, ovOld = nil, { scenes = {} }, nil
   local saved = T.ReadSaved(OV.KEY)
-  if type(saved) == "table" and saved.v == 2 then
+  local old = type(saved) == "table" and (saved.v == 2 or saved.v == 1)
+  if type(saved) == "table" and saved.v == 3 then
+    readV3(saved)
+    ovSaved.index = { size = T.SavedSize(ShroudGetSavedVar(OV.KEY)) }   -- as saved: its text escaped (review 37)
+    -- the forms to compare with, as read (a scene or an index dropped or cut on the way in differs: written again)
+    for raw, sc in pairs(ovData.scenes) do
+      if ovSaved.scenes[raw] then ovSaved.scenes[raw].form = sceneForm(raw, sc) end
+    end
+    local form = indexForm()
+    local same = true
+    for raw, n in pairs(type(saved.scenes) == "table" and saved.scenes or {}) do
+      if form.scenes[raw] ~= n then same = false end
+    end
+    if same then ovSaved.index.form = form end
+  elseif type(saved) == "table" and saved.v == 2 then
     readV2(saved)
-    ovSize = T.SavedSize(ShroudGetSavedVar(OV.KEY))      -- as saved: its text escaped (review 37)
   elseif type(saved) == "table" and saved.v == 1 then
     readV1(saved)
-    local form = T.ForSaving(savedForm())
-    ovSize = T.SavedSize(form)
-    T.SetSavedVar(OV.KEY, form)
-  else
-    ovSize = 0
+  end
+  ovSize = 0
+  for _, e in pairs(ovSaved.scenes) do ovSize = ovSize + e.size end
+  ovSize = ovSize + (ovSaved.index and ovSaved.index.size or (old and T.SavedSize(ShroudGetSavedVar(OV.KEY)) or 0))
+  if old then
+    -- into today's form now: every scene written, then the index over the old key (refused: the old key stays,
+    -- read the same way next time)
+    ovSaved.index = { size = ovSize }
+    ovOld = ShroudGetSavedVar(OV.KEY)
+    ovWrite()
   end
   OV.version = OV.version + 1
   ovMarks.retryAt = -math.huge
@@ -1393,14 +1506,84 @@ end
 -- Saves the overlays as changed since `snap` (ovSnapshot() taken before the change), or puts `snap` back when it
 -- doesn't fit (OV.BUDGET; a change that frees room always fits) or the game refuses the write. Returns true, or
 -- false and why.
--- Writes the overlays (the auto map's unsaved marks with them). Returns true, or false and why.
-local function ovWrite()
-  local form = T.ForSaving(savedForm())       -- measured as saved: escaped text can be longer (review 37)
-  local size = T.SavedSize(form)
-  if size > OV.BUDGET and size > ovSize then return false, OV.FULL end
-  local saved, _, kind = T.SetSavedVar(OV.KEY, form)
-  if not saved then return false, kind == "full" and "this character's save file is full" or OV.REFUSED end
-  ovSize, ovPending = size, nil
+-- Writes what changed (the auto map's unsaved marks with it): each scene changed into its own key, then the index
+-- when it changed, then the keys of scenes gone are deleted. Refused part way, the scenes written are put back as
+-- they were. An older form being converted (ovOld; past the budget too): the index goes over it FIRST, so the file
+-- never holds both (it could pass 256 KB), and it's put back if a scene is refused. Returns true, or false and why.
+local function refusedWhy(kind) return kind == "full" and "this character's save file is full" or OV.REFUSED end
+
+ovWrite = function()
+  local convert = ovOld                       -- (until a write converts it)
+  local changed, gone, size = {}, {}, ovSize
+  for raw, sc in pairs(ovData.scenes) do
+    if sceneKept(sc) then
+      local was = ovSaved.scenes[raw]
+      local form = sceneForm(raw, sc)
+      if not (was and was.key == sc.key and sameScene(was.form, form)) then
+        if not sc.key then
+          sc.key = ovData.nextKey
+          ovData.nextKey = ovData.nextKey + 1
+        end
+        local enc = T.ForSaving(form)           -- measured as saved: escaped text can be longer (review 37)
+        local e = { raw = raw, key = sc.key, form = form, enc = enc, size = T.SavedSize(enc), was = was }
+        changed[#changed + 1] = e
+        size = size - (was and was.size or 0) + e.size
+      end
+    end
+  end
+  for raw, was in pairs(ovSaved.scenes) do
+    local sc = ovData.scenes[raw]
+    if not (sc and sceneKept(sc) and sc.key == was.key) then
+      gone[#gone + 1] = { raw = raw, was = was }
+      size = size - was.size
+    end
+  end
+  local index = indexForm()
+  local indexEnc, indexSize = nil, ovSaved.index and ovSaved.index.size or 0
+  if not (ovSaved.index and sameIndex(ovSaved.index.form, index)) then
+    indexEnc = T.ForSaving(index)
+    size = size - indexSize + T.SavedSize(indexEnc)
+    indexSize = T.SavedSize(indexEnc)
+  end
+  if not convert and size > OV.BUDGET and size > ovSize then return false, OV.FULL end
+  if convert then
+    local ok, _, kind = T.SetSavedVar(OV.KEY, indexEnc or T.ForSaving(index))
+    if not ok then return false, refusedWhy(kind) end
+  end
+  local function undo(upTo)
+    if convert then T.SetSavedVar(OV.KEY, convert) end
+    for i = 1, upTo do
+      local e = changed[i]
+      if e.was and e.was.key == e.key and e.was.form then
+        T.SetSavedVar(sceneKey(e.key), T.ForSaving(e.was.form))
+      else
+        T.DeleteSaved(sceneKey(e.key))
+      end
+    end
+  end
+  for i, e in ipairs(changed) do
+    local ok, _, kind = T.SetSavedVar(sceneKey(e.key), e.enc)
+    if not ok then
+      undo(i - 1)
+      return false, refusedWhy(kind)
+    end
+  end
+  if indexEnc and not convert then
+    local ok, _, kind = T.SetSavedVar(OV.KEY, indexEnc)
+    if not ok then
+      undo(#changed)
+      return false, refusedWhy(kind)
+    end
+  end
+  if indexEnc or convert then ovSaved.index = { form = index, size = indexSize } end
+  for _, e in ipairs(changed) do ovSaved.scenes[e.raw] = { key = e.key, form = e.form, size = e.size } end
+  for _, g in ipairs(gone) do
+    if ovSaved.scenes[g.raw] == g.was then ovSaved.scenes[g.raw] = nil end
+    local still = false
+    for _, e in ipairs(changed) do still = still or e.key == g.was.key end
+    if not still then T.DeleteSaved(sceneKey(g.was.key)) end
+  end
+  ovSize, ovPending, ovOld = size, nil, nil
   T.unflushed = true                          -- to disk with the next periodic flush
   return true
 end
@@ -2318,6 +2501,17 @@ end
 -- Kept by a reset (the player's own places, like the runs). Not in the recovery copy (owner, 2026-10-13): the account
 -- file's 256 KB is every character's copy together, and a full set of overlays is most of it.
 T.Backup.OTHER_KEYS[#T.Backup.OTHER_KEYS + 1] = OV.KEY
+-- each scene's key, as the index on disk lists them (the file measured whole before OV.Init reads it)
+T.Backup.KEY_LISTS[#T.Backup.KEY_LISTS + 1] = function()
+  local keys = {}
+  local index = ShroudGetSavedVar(OV.KEY)
+  if type(index) == "table" and index.v == 3 and type(index.scenes) == "table" then
+    for _, n in pairs(index.scenes) do
+      if type(n) == "number" then keys[#keys + 1] = OV.SCENE_KEY .. math.floor(n) end
+    end
+  end
+  return keys
+end
 
 local function ovSummary(ov)
   local n = #OV.Places(ov)
