@@ -679,8 +679,9 @@ check them in game, then release.
 
 **After it: 1.10.0, the party manager** (owner, 2026-10-18; 1.9.x waits on client fixes meanwhile). In scope: (1) the
 Party Toolbelt, its own strip, never joined to the player's Toolbelt (the idea below): a row per member, health and
-focus bars, their debuffs, members elsewhere dimmed, the lowest flagged, sort by party order or lowest health,
-combat-only; sized for 12 members (the game's party today) and able to take 16 (the owner expects a raise); (2) comings
+focus bars, their debuffs, members elsewhere dimmed, the lowest flagged, sort by party order (default) or lowest health,
+combat-only, yourself hidden by default (owner, 2026-10-18); effects: every debuff, plus the buffs the player names (a
+watched list, whoever cast them: the API doesn't say who applied an effect; "only mine" waits on request 31); sized for 12 members (the game's party today) and able to take 16 (the owner expects a raise); (2) comings
 and goings, a notification source (joins, leaves, leaving and coming back to your scene: `ShroudOnPartyChanged`, the
 slot names against `ShroudGetPartyMemberNamesInScene`, names by `T.PlainName`, quiet for a few seconds after your own
 scene change; offline shown only for a friend or guild member, from their lists); (3) watch alerts (a member below a
