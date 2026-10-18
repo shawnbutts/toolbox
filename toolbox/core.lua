@@ -3138,6 +3138,7 @@ function T.SavePrefs()
   T.DailyDetail.Track()
   T.Combat.Detail.Track()
   T.Hud.Tick()
+  T.Overlays.SavePending(true)       -- the auto map's unsaved marks
   T.Window.SavePrefs()
   T.Compact.SavePrefs()
   T.Daily.SavePrefs()

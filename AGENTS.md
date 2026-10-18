@@ -330,7 +330,12 @@ into one if a new file is ever needed).
   (`OV.OwnCount`); a kind named like one of the player's gets " (auto)", then " (auto 2)"... (review 44). Fights (owner, 2026-10-18; `sc.fights`, window toggle `mw_fights`, `/toolbox overlay auto fights`):
   `OV.OnCombat` from core's `ShroudOnCombatEvents` marks each kill (`D.IsKill`) where you stand (no creature position
   in the API) in "!" + its name's overlay and in "Fights" (`OV.AUTO_FIGHTS`), unless within `OV.FIGHT_NEAR` m; their
-  own `OV.AUTO_MAX` (`OV.AutoFight`, `OV.AutoKind`). Ignore list (owner, 2026-10-14: dozens of kinds a scene):
+  own `OV.AUTO_MAX` (`OV.AutoFight`, `OV.AutoKind`). The auto map's marks aren't saved one by one (a save walks every
+  scene's overlays: 20 ms in the harness at 87% of the budget, far more in game): `ovPending` keeps them (their room
+  estimated against `OV.BUDGET`, `autoUndo` to take them back), `OV.SavePending` writes them `OV.SAVE_AFTER` s after the
+  first and out of combat (`OV.Tick`), and at once from `T.SavePrefs` (scene unload, shutdown, `B.SaveNow`); a refused
+  batch is taken off the map. Only overlays whose places changed are packed again (`ov.dirty`: set it wherever places
+  change). Ignore list (owner, 2026-10-14: dozens of kinds a scene):
   `ignore`, name parts matched as whole words (`OV.IgnoredBy`), for every scene, at most `OV.IGNORE_MAX`; `OV.Ignore`
   also drops this scene's matching kind overlays and Gathering places (`OV.PlaceKind`: "Iron Ore 3" -> "Iron Ore");
   window button `mw_ignore` (two clicks: the shown kind, or Gathering's picked place's), `/toolbox overlay auto ignore

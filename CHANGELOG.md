@@ -13,6 +13,8 @@ ones included).
   Fighter, Reaper...) and in Fights, which holds them all, so the map shows where the fights are as well as the
   nodes. One already marked within 20 m (the same camp) isn't marked again; fights have their own 10 automatic
   overlays a scene, and the ignore list covers them too.
+- **Auto map, lighter:** its marks are saved together, 30 seconds after the first and never during a fight, instead of
+  one save each: a save goes through every scene's overlays, which grew slow once many scenes were mapped.
 - **Crafting Planner HUD:** a button at the bottom of the crafting planner (or /toolbox plan hud) opens a small
   strip to follow the plan with the planner closed: the shopping list first (what you have of each item against what
   the plan needs, ticked off as you gather), then, once you have it all, the build order, ticked off as you craft.

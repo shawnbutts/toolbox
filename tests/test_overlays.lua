@@ -82,7 +82,7 @@ return function(t)
     t.eq(oakInAll.icon, oak.icon, "in Gathering, the kind's look")
     t.eq(oakInAll.color, oak.color)
     t.eq(count(marks()), 3, "on the map")
-    H.advance(31)
+    H.advance(OV().SAVE_AFTER + 31)     -- the auto map's marks saved, then flushed
     H.restart()
     H.advance(2)
     t.ok(OV().AutoOn(), "kept on")
@@ -163,8 +163,92 @@ return function(t)
     for i = 1, 10 do kill("Beast " .. i, { i * 30, 0, 100 }) end
     t.eq(#OV().List(), 2 * OV().AUTO_MAX, "10 each")
     t.ok(OV().FindPlace(byName("Fights"), "Beast 10 1"), "the 10th in Fights only")
+    H.callback("ShroudOnDisableScript")      -- /lua reload as the game does it: saved at shutdown
     H.reload()
     t.eq(#OV().List(), 2 * OV().AUTO_MAX, "read back whole")
+  end)
+
+  local function savedPlaces(name)
+    local saved = H.saved("map_overlays")
+    for _, sc in pairs(saved and saved.scenes or {}) do
+      for _, o in ipairs(sc.list) do
+        if o.name == name then return o.places end
+      end
+    end
+    return nil
+  end
+
+  t.test("auto map: marks are saved together, never in a fight; at shutdown too; a crash loses only those", function()
+    H.boot()
+    H.advance(1)
+    H.chat("/tbx overlay auto on")
+    H.chat("/tbx overlay auto fights on")
+    H.setCombat(true)
+    kill("Elf Fighter", { 10, 0, 10 })
+    t.ok(OV().FindPlace(byName("Fights"), "Elf Fighter 1"), "on the map at once")
+    t.eq(count(marks()), 1)
+    t.eq(savedPlaces("Fights"), nil, "but not saved: a save walks every scene's overlays")
+    H.advance(OV().SAVE_AFTER + 5)
+    t.eq(savedPlaces("Fights"), nil, "never during a fight")
+    kill("Elf Mage", { 60, 0, 10 })
+    H.setCombat(false)
+    H.advance(1)
+    t.eq(savedPlaces("Fights"), nil, "nor just after it (the combat linger)")
+    H.advance(Toolbox.BuffBar.COMBAT_LINGER + 1)
+    t.ok((savedPlaces("Fights") or ""):find("Elf Mage 1", 1, true), "saved once out of combat: "
+      .. tostring(savedPlaces("Fights")))
+    gather("Iron Ore", { 10, 0, 10 })
+    H.advance(5)
+    t.eq(savedPlaces("Gathering"), nil, "gathering's wait for the batch too")
+    H.callback("ShroudOnDisableScript")            -- a reload or quit: everything goes
+    t.ok((savedPlaces("Gathering") or ""):find("Iron Ore 1", 1, true), "saved at shutdown")
+    H.restart(nil, true)
+    H.advance(2)
+    t.eq(#OV().Places(byName("Fights")), 2, "kept")
+    t.eq(#OV().Places(byName("Gathering")), 1)
+    gather("Oak Tree", { 40, 0, 10 })
+    H.restart()                                    -- a crash before the save: that mark only is lost
+    H.advance(2)
+    t.eq(#OV().Places(byName("Gathering")), 1, "the unsaved one gone, the rest kept")
+  end)
+
+  t.test("auto map: a batch the game refuses is taken off the map, and chat says so", function()
+    H.boot()
+    H.advance(1)
+    H.chat("/tbx overlay auto on")
+    gather("Iron Ore", { 10, 0, 10 })
+    gather("Oak Tree", { 40, 0, 10 })
+    t.eq(#OV().List(), 3)
+    H.S.refuseKeys = { map_overlays = true }
+    H.advance(OV().SAVE_AFTER + 1)
+    t.ok(H.logged("Auto map: 4 new marks couldn't be saved %(the game refused to save it%), so they're taken off"),
+      H.lastLog())
+    t.eq(#OV().List(), 0, "the overlays made for them go too")
+    t.eq(count(marks()), 0, "and their markers")
+    H.S.refuseKeys = nil
+    gather("Iron Ore", { 10, 0, 10 })
+    t.ok(H.logged("Auto map: Iron Ore 1 marked"), "marked again: " .. H.lastLog())
+  end)
+
+  t.test("auto map: a mark's room is estimated: past the budget it's refused without a save", function()
+    H.boot()
+    H.advance(1)
+    H.chat("/tbx overlay auto on")
+    local budget = OV().BUDGET
+    OV().BUDGET = math.floor(OV().StorageUse() * budget) + 150    -- room for a few places, not a new kind
+    gather("Iron Ore", { 10, 0, 10 })
+    local n = 0
+    for i = 1, 20 do
+      gather("Iron Ore", { 10 + i * 10, 0, 10 })
+      if H.logged("Auto map couldn't mark Iron Ore: ") then break end
+      n = i
+    end
+    t.ok(H.logged("Auto map couldn't mark Iron Ore: "), H.lastLog())
+    t.ok(n < 20, "refused once full: " .. n)
+    t.ok(OV().StorageUse() <= 1, "never past it: " .. OV().StorageUse())
+    H.callback("ShroudOnDisableScript")
+    t.ok(H.saved("map_overlays"), "what fitted is saved")
+    OV().BUDGET = budget
   end)
 
   t.test("auto map: at most 10 automatic overlays a scene, apart from your own; told once", function()
@@ -181,6 +265,7 @@ return function(t)
     gather("Kind 10", { 500, 0, 0 })
     t.no(H.logged("no room"), "told once")
     t.eq(OV().Create("Mine 11"), nil, "your own still capped at 10")
+    H.callback("ShroudOnDisableScript")      -- /lua reload as the game does it: saved at shutdown
     H.reload()
     t.eq(#OV().List(), OV().MAX + OV().AUTO_MAX, "read back whole")
   end)
@@ -277,7 +362,7 @@ return function(t)
       t.no(names[o.name:lower()], "unique: " .. o.name)
       names[o.name:lower()] = true
     end
-    H.advance(31)
+    H.advance(OV().SAVE_AFTER + 31)     -- the auto map's marks saved, then flushed
     H.restart()
     H.advance(2)
     ov = byName("Iron Ore (auto 2)")

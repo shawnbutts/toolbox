@@ -1107,6 +1107,10 @@ OV.version = 0
 local ovData = { scenes = {}, nextId = 1, ignore = {} }
 local ovFor = nil
 local ovSize = 0                      -- the saved form's estimated size (at the last read or save)
+-- The auto map's marks not saved yet (owner, 2026-10-18: a save walks every scene's overlays, slow once many are
+-- mapped, and a fight's kill mustn't pay for it): { bytes = their estimated room, since = T.Now() of the first,
+-- items = { { ov, place } or { sc, made = ov, shownWas } } }, saved together by OV.SavePending.
+local ovPending = nil
 local ovMarks = { raw = nil, who = nil, version = nil, retryAt = -math.huge }
 
 function OV.HasMarkers() return T.DailyDetail.HasMarkers() end
@@ -1299,14 +1303,17 @@ local function readV2(saved)
   end
 end
 
--- The saved form (each overlay read this session packed again; the others as they were read).
+-- The saved form (each overlay changed since it was packed packed again, `dirty`; the others as they were: packing
+-- every overlay read this session took a fair share of each save once a lot of scenes were mapped).
 local function savedForm()
   local scenes = {}
   for raw, sc in pairs(ovData.scenes) do
     if #sc.list > 0 or sc.auto or sc.fights then
       local list = {}
       for i, ov in ipairs(sc.list) do
-        if ov.places then ov.packed = packPlaces(ov.places) end
+        if ov.places and ov.dirty then
+          ov.packed, ov.dirty = packPlaces(ov.places), nil
+        end
         list[i] = { id = ov.id, name = ov.name, icon = ov.icon, color = ov.color, nextPlace = ov.nextPlace,
                     places = ov.packed, auto = ov.auto }
       end
@@ -1322,6 +1329,7 @@ end
 function OV.Init()
   ovFor = T.CharacterName()
   ovData = { scenes = {}, nextId = 1, ignore = {} }
+  ovPending = nil
   local saved = T.ReadSaved(OV.KEY)
   if type(saved) == "table" and saved.v == 2 then
     readV2(saved)
@@ -1372,7 +1380,7 @@ local function ovRestore(snap)
           kp.p.icon, kp.p.color = kp.icon, kp.color
           places[j] = kp.p
         end
-        ov.places = places
+        ov.places, ov.dirty = places, true            -- its packed text may be the refused one
       end
       list[i] = ov
     end
@@ -1385,20 +1393,22 @@ end
 -- Saves the overlays as changed since `snap` (ovSnapshot() taken before the change), or puts `snap` back when it
 -- doesn't fit (OV.BUDGET; a change that frees room always fits) or the game refuses the write. Returns true, or
 -- false and why.
-local function ovSave(snap)
-  OV.version = OV.version + 1
+-- Writes the overlays (the auto map's unsaved marks with them). Returns true, or false and why.
+local function ovWrite()
   local form = T.ForSaving(savedForm())       -- measured as saved: escaped text can be longer (review 37)
   local size = T.SavedSize(form)
-  local ok, why = true, nil
-  if size > OV.BUDGET and size > ovSize then
-    ok, why = false, OV.FULL
-  else
-    local saved, _, kind = T.SetSavedVar(OV.KEY, form)
-    if not saved then
-      ok, why = false, kind == "full" and "this character's save file is full" or OV.REFUSED
-    end
-  end
-  if ok then ovSize = size else ovRestore(snap) end
+  if size > OV.BUDGET and size > ovSize then return false, OV.FULL end
+  local saved, _, kind = T.SetSavedVar(OV.KEY, form)
+  if not saved then return false, kind == "full" and "this character's save file is full" or OV.REFUSED end
+  ovSize, ovPending = size, nil
+  T.unflushed = true                          -- to disk with the next periodic flush
+  return true
+end
+
+local function ovSave(snap)
+  OV.version = OV.version + 1
+  local ok, why = ovWrite()
+  if not ok then ovRestore(snap) end
   ovMarks.retryAt = -math.huge
   OV.Sync()
   T.Config.Sync()
@@ -1407,7 +1417,7 @@ local function ovSave(snap)
 end
 
 -- How full the overlays' room is: 0..1 (and more, for a file saved before the budget).
-function OV.StorageUse() return ovSize / OV.BUDGET end
+function OV.StorageUse() return (ovSize + (ovPending and ovPending.bytes or 0)) / OV.BUDGET end
 
 local function ovFollow()
   if ovFor ~= T.CharacterName() then OV.Init() end
@@ -1458,7 +1468,7 @@ local function addOverlay(here, name)
   end
   local color = OV.COLORS[#sc.list % (#OV.COLORS - 1) + 1][1]
   local ov = newOverlay(here.raw, ovData.nextId, name, OV.ICONS[1], color, 1)
-  ov.places = {}
+  ov.places, ov.dirty = {}, true
   ovData.nextId = ovData.nextId + 1
   sc.list[#sc.list + 1] = ov
   sc.shown = ov.id
@@ -1536,6 +1546,7 @@ function OV.SetPlaceLook(ov, p)
   OV.Places(ov)
   local snap = ovSnapshot()
   p.icon, p.color = ov.icon, ov.color
+  ov.dirty = true
   return ovSave(snap)
 end
 
@@ -1597,6 +1608,7 @@ function OV.Mark(text)
                   z = here.z, icon = ov.icon, color = ov.color }
   ov.nextPlace = ov.nextPlace + 1
   places[#places + 1] = place
+  ov.dirty = true
   local ok, why = ovSave(snap)
   if not ok then return nil, why, name end
   return place, ov
@@ -1701,7 +1713,7 @@ function OV.Ignore(text)
           for _, p in ipairs(OV.Places(ov)) do
             if OV.IgnoredBy(OV.PlaceKind(p.name)) then places = places + 1 else left[#left + 1] = p end
           end
-          ov.places = left
+          ov.places, ov.dirty = left, true
         end
       end
     end
@@ -1810,7 +1822,7 @@ local function autoOverlay(sc, here, key)
     color = OV.COLORS[looks % (#OV.COLORS - 1) + 1][1]
   end
   local ov = newOverlay(here.raw, ovData.nextId, name, icon, color, 1)
-  ov.places, ov.auto = {}, key
+  ov.places, ov.auto, ov.dirty = {}, key, true
   ovData.nextId = ovData.nextId + 1
   sc.list[#sc.list + 1] = ov
   if sc.shown == 0 and autoIsAll(key) then sc.shown = ov.id end
@@ -1831,7 +1843,56 @@ local function autoPlace(ov, kind, here, icon, color, want)
               icon = icon, color = color }
   ov.nextPlace = ov.nextPlace + 1
   places[#places + 1] = p
+  ov.dirty = true
   return p
+end
+
+-- Takes the auto map's marks `items` (see ovPending) back out: their places, then the overlays made for them.
+local function autoUndo(items)
+  for _, it in ipairs(items) do
+    if it.place and it.ov.places then
+      for i = #it.ov.places, 1, -1 do
+        if it.ov.places[i] == it.place then table.remove(it.ov.places, i) end
+      end
+      it.ov.dirty = true
+    end
+  end
+  for _, it in ipairs(items) do
+    if it.made then
+      for i = #it.sc.list, 1, -1 do
+        if it.sc.list[i] == it.made then table.remove(it.sc.list, i) end
+      end
+      if it.sc.shown == it.made.id then it.sc.shown = it.shownWas or 0 end
+    end
+  end
+end
+
+OV.SAVE_AFTER = 30                    -- s: the auto map's marks saved together this long after the first, out of combat
+
+-- Saves the auto map's unsaved marks: `now`, or (from OV.Tick) OV.SAVE_AFTER s after the first and out of combat (a
+-- save walks every scene's overlays). Refused (the file full, say), they're taken back out and chat says so.
+function OV.SavePending(now)
+  if not ovPending then return true end
+  if not now and (T.Now() - ovPending.since < OV.SAVE_AFTER or T.BuffBar.InCombatWindow()) then return true end
+  if ovFor ~= T.CharacterName() or T.NoCharacter() then return true end   -- not this character's file to write
+  local pending = ovPending
+  local ok, why = ovWrite()
+  if not ok then
+    ovPending = nil
+    autoUndo(pending.items)
+    local n = 0
+    for _, it in ipairs(pending.items) do
+      if it.place then n = n + 1 end
+    end
+    T.Print("Auto map: " .. n .. " new mark" .. (n == 1 and "" or "s") .. " couldn't be saved (" .. why
+      .. "), so they're taken off.")
+  end
+  OV.version = OV.version + 1
+  ovMarks.retryAt = -math.huge
+  OV.Sync()
+  T.Config.Sync()
+  OV.SyncWindow()
+  return ok, why
 end
 
 -- Marks a node of `kind` where you stand (the auto map is on in `sc`), or with `fight` a creature killed. Returns
@@ -1842,7 +1903,7 @@ function OV.AutoMark(sc, here, kind, fight)
   if fight then key, allKey = OV.AUTO_FIGHTS .. kind, OV.AUTO_FIGHTS end
   local mine, all = autoFind(sc, key), autoFind(sc, allKey)
   if (mine and autoNear(mine, nil, here, near)) or (all and autoNear(all, kind, here, near)) then return nil end
-  local snap = ovSnapshot()
+  local hadMine, hadAll, shownWas = mine, all, sc.shown
   all = all or autoOverlay(sc, here, allKey)
   mine = mine or autoOverlay(sc, here, key)
   local icon = mine and mine.icon or OV.ICONS[1]
@@ -1850,14 +1911,34 @@ function OV.AutoMark(sc, here, kind, fight)
   local p = mine and autoPlace(mine, kind, here, icon, color)
   local q = all and autoPlace(all, kind, here, icon, color, p and p.name)
   local name = (p or q) and (p or q).name
-  if not name then
-    ovRestore(snap)
-  else
-    local ok, why = ovSave(snap)
-    if not ok then
-      T.Print("Auto map couldn't mark " .. kind .. ": " .. why .. ".")
+  -- kept in memory, saved with the next batch (OV.SavePending); the room it takes estimated, not measured
+  local items, bytes = {}, 0
+  for _, made in ipairs({ (all and not hadAll) and all or false, (mine and not hadMine) and mine or false }) do
+    if made then
+      items[#items + 1] = { sc = sc, made = made, shownWas = shownWas }
+      bytes = bytes + T.SavedSize(T.ForSaving({ id = made.id, name = made.name, icon = made.icon, color = made.color,
+        nextPlace = made.nextPlace, places = "", auto = made.auto })) + 4
+    end
+  end
+  for _, pair in ipairs({ { mine, p }, { all, q } }) do
+    if pair[2] then
+      items[#items + 1] = { ov = pair[1], place = pair[2] }
+      bytes = bytes + #T.ForSaving(packPlaces({ pair[2] })) + 1
+    end
+  end
+  if not name or ovSize + (ovPending and ovPending.bytes or 0) + bytes > OV.BUDGET then
+    autoUndo(items)
+    if name then
+      T.Print("Auto map couldn't mark " .. kind .. ": " .. OV.FULL .. ".")
       return nil
     end
+  else
+    ovPending = ovPending or { bytes = 0, since = T.Now(), items = {} }
+    ovPending.bytes = ovPending.bytes + bytes
+    for _, it in ipairs(items) do ovPending.items[#ovPending.items + 1] = it end
+    OV.version = OV.version + 1
+    OV.Sync()
+    OV.SyncWindow()
     T.Print("Auto map: " .. name .. " marked" .. ((p and q) and "" or (" in " .. (p and mine.name or all.name)
       .. " only")) .. ".")
   end
@@ -2087,7 +2168,7 @@ function OV.RemovePlace(ov, place)
   for _, p in ipairs(places) do
     if p ~= place then kept[#kept + 1] = p end
   end
-  ov.places = kept
+  ov.places, ov.dirty = kept, true
   return ovSave(snap)
 end
 
@@ -2118,7 +2199,7 @@ function OV.Scenes()
     local places, size = 0, 0
     for _, ov in ipairs(sc.list) do
       places = places + placeCount(ov)
-      size = size + T.SavedSize(T.ForSaving(ov.places and packPlaces(ov.places) or ov.packed))
+      size = size + T.SavedSize(T.ForSaving((ov.places and ov.dirty) and packPlaces(ov.places) or ov.packed))
         + T.SavedSize(T.ForSaving(ov.name)) + 60
     end
     out[#out + 1] = { raw = raw, scene = sc.scene, overlays = #sc.list, places = places, size = size }
@@ -2796,6 +2877,7 @@ end
 
 -- Every tick (T.Tick): the window follows a scene change (its list is this scene's places).
 function OV.Tick()
+  OV.SavePending()                    -- the auto map's marks, together, out of combat
   if not mw then return end
   if mwArmed and T.Now() - mwArmed.at > OV.CONFIRM then mwDisarm() end
   OV.SyncWindow()
