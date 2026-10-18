@@ -1059,6 +1059,8 @@ Rules learned the hard way; keep to them.
   until `T.FollowCharacter` reads a character again, or a start with none), quietly; the last save with the character
   in is `ShroudOnSceneUnloaded`'s (session, timers, places, the day); the logout only ends the session in memory.
   Confirmed in game the same day after the fix: a logout writes the character's file and no nochar file.
+  A `nochar` file still appeared on 2026-10-18 (05:32, the day and the strips' places at 0, 0, around a switch to
+  another character): a known client issue, fixed in a coming client update (owner, same day); nothing to change here.
   Harness: `H.logout(stay)` does the game's order (scene unload, flush, the scope becomes "character:nochar" while
   `H.S.char.present` is false, then the callback).
 - **Backups (API 39)** (confirmed 2026-10-16, `tmp/backuptest.lua` and `/toolbox settings backup`): a copy is made from
