@@ -1216,7 +1216,8 @@ local ovSize = 0                      -- the saved form's estimated size (at the
 local ovSaved = { scenes = {} }
 -- The auto map's marks not saved yet (owner, 2026-10-18: a save walks every scene's overlays, slow once many are
 -- mapped, and a fight's kill mustn't pay for it): { bytes = their estimated room, since = T.Now() of the first,
--- items = { { ov, place } or { sc, made = ov, shownWas } } }, saved together by OV.SavePending.
+-- items = { { ov, place } or { sc, made = ov, shownWas } or { sc, step = true, shownWas } } }, saved together by
+-- OV.SavePending.
 local ovPending = nil
 local ovWrite = nil                   -- (below)
 local ovOld = nil                     -- an older form's saved value, until a write has converted it
@@ -1803,8 +1804,15 @@ function OV.Step(dir)
   end
   at = (at - 1 + (dir < 0 and -1 or 1)) % (#order + 1) + 1
   local ov = order[at]
-  sc.shown = ov and ov.id or 0
   ovPending = ovPending or { bytes = 0, since = T.Now(), items = {} }
+  local kept = false
+  for _, it in ipairs(ovPending.items) do
+    if it.step and it.sc == sc then kept = true end
+  end
+  if not kept then   -- the selection as saved, put back if the batch is refused (review 62)
+    ovPending.items[#ovPending.items + 1] = { sc = sc, step = true, shownWas = sc.shown }
+  end
+  sc.shown = ov and ov.id or 0
   ovMarks.holdUntil = T.Now() + OV.STEP_SETTLE
   OV.version = OV.version + 1
   T.Config.Sync()
@@ -2125,7 +2133,7 @@ function OV.SceneKind()
   if ovKind.raw == raw then return ovKind.kind, ovKind.why end
   local why = nil
   local ok, info = pcall(ShroudGetSceneInfo)
-  if ok and type(info) == "table" then
+  if ok and info ~= nil then                 -- a table or a game object: read by field (review 63)
     if T.Field(info, "loaded") == false then return nil end
     if T.Field(info, "isPot") == true then
       why = "a player-owned town"
@@ -2269,7 +2277,8 @@ local function autoPlace(ov, kind, here, icon, color, want)
   return p
 end
 
--- Takes the auto map's marks `items` (see ovPending) back out: their places, then the overlays made for them.
+-- Takes the auto map's marks `items` (see ovPending) back out: their places, then the overlays made for them, then
+-- the location strip's steps (`step`: the scene's shown overlay as saved).
 local function autoUndo(items)
   for _, it in ipairs(items) do
     if it.place and it.ov.places then
@@ -2285,6 +2294,15 @@ local function autoUndo(items)
         if it.sc.list[i] == it.made then table.remove(it.sc.list, i) end
       end
       if it.sc.shown == it.made.id then it.sc.shown = it.shownWas or 0 end
+    end
+  end
+  for _, it in ipairs(items) do
+    if it.step then                                -- an arrow's step (OV.Step): the selection before it
+      local back = 0
+      for _, ov in ipairs(it.sc.list) do
+        if ov.id == it.shownWas then back = ov.id end   -- (unless it was an overlay this batch made, now gone)
+      end
+      it.sc.shown = back
     end
   end
 end
@@ -2310,7 +2328,7 @@ function OV.SavePending(now)
       T.Print("Auto map: " .. n .. " new mark" .. (n == 1 and "" or "s") .. " couldn't be saved (" .. why
         .. "), so they're taken off.")
     else
-      T.Print("Map overlays: the overlay shown couldn't be saved (" .. why .. ").")
+      T.Print("Map overlays: the overlay shown couldn't be saved (" .. why .. "), so the one before is back.")
     end
   end
   OV.version = OV.version + 1

@@ -204,6 +204,16 @@ local function install_api()
                    isPot = false, maxPlayers = 40, levelCap = 0, skillCap = 0, craftingSkillCap = 0,
                    overworldX = -1, overworldY = -1 }
     for k, v in pairs(S.sceneInfo or {}) do info[k] = v end
+    -- H.S.sceneInfoObject: a game object read by field only (real userdata on LuaJIT via newproxy)
+    if S.sceneInfoObject then
+      local proxy = rawget(_G, "newproxy")
+      if proxy then
+        local u = proxy(true)
+        getmetatable(u).__index = info
+        return u
+      end
+      return setmetatable({}, { __index = info })
+    end
     return info
   end
   -- Which way you face, as the HUD compass names it (API 10): H.S.heading (default 0), 0 with no character.

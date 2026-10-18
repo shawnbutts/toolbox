@@ -738,6 +738,56 @@ return function(t)
     t.eq(H.saved("location").overlay, false)
   end)
 
+  t.test("a refused arrow step goes back to the overlay before, and no later save writes it (review 62)", function()
+    H.boot()
+    H.chat("/tbx overlay new A")
+    H.chat("/tbx mark One")
+    H.chat("/tbx overlay new B")
+    H.chat("/tbx mark Two")
+    H.chat("/tbx overlay a")
+    local a, b = byName("A"), byName("B")
+    local function savedShown()
+      local index = H.saved("map_overlays")
+      return H.saved("map_scene:" .. index.scenes.Novia).shown
+    end
+    t.eq(savedShown(), a.id)
+    OV().Step(1)
+    t.eq(OV().Shown(), b, "stepped to B")
+    H.S.refuseKeys = REFUSE_ALL
+    H.advance(OV().SAVE_AFTER + 2)
+    t.ok(H.logged("the overlay shown couldn't be saved"), H.lastLog())
+    Toolbox.saveRefused = nil
+    H.S.refuseKeys = nil
+    t.eq(OV().Shown(), a, "back to A")
+    H.chat("/tbx mark Three")                             -- an unrelated save that works
+    t.eq(savedShown(), a.id, "A saved, not the refused B")
+    H.callback("ShroudOnDisableScript")
+    H.restart()
+    H.advance(2)
+    t.eq(OV().Shown().name, "A")
+  end)
+
+  t.test("scene info as a game object still marks a player town or basement as a town (review 63)", function()
+    H.boot()
+    H.S.sceneInfoObject = true
+    H.S.sceneInfo = { isPot = true }
+    goTo("POT Crossroads", { 0, 0, 0 })
+    t.eq(OV().SceneKind(), "town")
+    t.no(OV().AutoOn(), "off in a player town")
+    H.chat("/tbx overlay auto")
+    t.ok(H.logged("a player%-owned town: off unless you switch it on"), H.lastLog())
+    gather("Trunk", { 5, 0, 5 })
+    t.eq(#OV().List(), 0, "its trunks aren't marked")
+    H.S.sceneInfo = { isBasement = true }
+    goTo("Cellar", { 0, 0, 0 })
+    local kind, why = OV().SceneKind()
+    t.eq(kind .. ": " .. why, "town: a basement")
+    H.S.sceneInfo = nil
+    goTo("Spectral Forest", { 0, 0, 0 })
+    t.eq(OV().SceneKind(), "adventure")
+    t.ok(OV().AutoOn())
+  end)
+
   t.test("one overlay at a time: a switch takes the last one's marks down; other marks stay", function()
     H.boot()
     H.call(function() ShroudSetMapMarker("x-1", 1, 0, 1, { label = "Not ours" }) end)

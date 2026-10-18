@@ -305,8 +305,8 @@ into one if a new file is ever needed).
   looked missing): `<` / `>` buttons (`loc_ov_prev`, `loc_ov_next`, before the text so
   they stay put, like the pin before the scene name) and "Map: <name> (N places)", as wide as the scene's longest name (`LOC.OverlayChars`: stepping moves
   nothing; owner, 2026-10-18), calling `OV.Step` through `OV.StepOrder` (yours, Gathering, its kinds, Fights, its creatures, then
-  none); `/toolbox overlay next|prev`. A step isn't saved at once (it joins `ovPending`, saved with the next batch or
-  `T.SavePrefs`) and the markers and title wait `OV.STEP_SETTLE` s after the last click (`ovMarks.holdUntil`).
+  none); `/toolbox overlay next|prev`. A step isn't saved at once (it joins `ovPending` with the selection it replaced, once a scene a
+  batch, put back by `autoUndo` if the batch is refused, review 62; saved with the next batch or `T.SavePrefs`) and the markers and title wait `OV.STEP_SETTLE` s after the last click (`ovMarks.holdUntil`).
   Then `Toolbox.Overlays` (OV; owner, 2026-10-13): map overlays, named sets of places (`/toolbox mark`, `/toolbox
   overlay`), each BELONGING TO ONE SCENE (owner: a place is only good on its own map; 1,000+ scenes): a scene lists only
   its own (`OV.List(raw)`, `OV.MAX` 10 a scene), shows STRICTLY ONE (the 50 markers a scene; `OV.SCENE_MAX` 39 places an
@@ -332,7 +332,8 @@ into one if a new file is ever needed).
   string (no clipboard API; a TextField takes 1,024 characters). The auto map (owner, 2026-10-14; `OV.OnGathered` from
   core's `ShroudOnGatherResults`, `OV.AutoMark`): on per scene (`sc.auto`: true / false as switched there, absent =
   the default, `OV.AutoByDefault`: on in an adventure area, off in a town, owner 2026-10-18, crafting in a town marked
-  its trunks and stations; `OV.SceneKind`: `ShroudGetSceneInfo`'s isPot / isBasement / isOverworld, else the scene id's
+  its trunks and stations; `OV.SceneKind`: `ShroudGetSceneInfo`'s isPot / isBasement / isOverworld (read by `T.Field`: a game
+  object too, review 63; harness `H.S.sceneInfoObject`), else the scene id's
   words, `OV.TOWN_WORDS`; the `location.autoNew` setting, `ov_auto_new`; `OV.AutoText` says which, and the window's `mw_autoline`, `OV.AutoSceneLine`, over the switches, owner: "make it
   clear they're scene specific"; harness
   `H.S.sceneInfo`; window toggle `mw_auto`, `/toolbox overlay
