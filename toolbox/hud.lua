@@ -2130,21 +2130,21 @@ function OV.SceneKind()
   return ovKind.kind, why
 end
 
--- The Map overlays window's line over the auto map's switches (owner, 2026-10-18: make it clear they're the scene's):
--- "Auto map in Crossroads only (a player-owned town: off unless you switch it on)".
+-- The Map overlays window's line over the auto map's switches (owner, 2026-10-18: make it clear they're the scene's;
+-- short, some town names are long): "Auto map (Crossroads):", and its hover: what the scene counts as.
 function OV.AutoSceneLine()
   local okName, name = pcall(T.SceneName)
   name = okName and type(name) == "string" and name ~= "" and name or "this scene"
   local kind, why = OV.SceneKind()
-  local about = nil
+  local about = "Switched on or off here, Gathering and Fights stay that way in this scene only."
   if not T.Location.GetAutoNew() then
-    about = "off unless you switch it on"
+    about = "Off unless you switch it on (Settings, Map & location: Auto map adventure areas is off). " .. about
   elseif kind == "town" then
-    about = why .. ": off unless you switch it on"
+    about = name .. " is " .. why .. ": off unless you switch it on. " .. about
   elseif kind == "adventure" then
-    about = "an adventure area: on unless you switch it off"
+    about = name .. " is an adventure area: on unless you switch it off. " .. about
   end
-  return "Auto map in " .. name .. " only" .. (about and (" (" .. about .. ")") or "")
+  return "Auto map (" .. name .. "):", about
 end
 
 -- "on in this scene (an adventure area: on unless you turn it off)": the state and where it comes from.
@@ -3073,7 +3073,9 @@ function OV.SyncWindow()
     mwEl.places:SetValue(mwPlaces[keep] and keep or places[1])
     mwEl.icon:SetValue(shown and shown.icon or OV.ICONS[1])
     mwEl.color:SetValue(shown and shown.color or OV.COLORS[1][1])
-    T.SetText(mwEl.autoLine, OV.AutoSceneLine())
+    local line, about = OV.AutoSceneLine()
+    T.SetText(mwEl.autoLine, line)
+    T.SetTooltip(mwEl.autoLine, about)
     mwEl.auto:SetValue(OV.AutoOn())
     mwEl.fights:SetValue(OV.AutoOn(nil, true))
     for _, k in ipairs({ "icon", "color", "rename", "delete" }) do mwEl[k]:SetEnabled(shown ~= nil) end
@@ -3234,8 +3236,7 @@ local function mwBuild()
       end },
     autoLine = UI.Label{ id = "mw_autoline", text = "", class = "text", style = { whiteSpace = "wrap", flexGrow = 1,
       flexShrink = 1 },
-      tooltip = "The auto map's switches below are this scene's own: each scene keeps its own. Adventure areas start"
-        .. " on, towns, player towns and basements off (Settings, Map & location: Auto map adventure areas)" },
+      tooltip = "" },
     auto = UI.Toggle{ id = "mw_auto", text = "Gathering", value = false,
       tooltip = "In this scene only: each resource node you gather here is marked where you stand, in an"
         .. " overlay of its kind and in " .. OV.GATHERING .. " (all kinds); a node already marked within "
