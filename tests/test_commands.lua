@@ -639,12 +639,20 @@ return function(t)
     t.ok(H.logged("calendar now %(API 38%): none present"), "told by the version")
     t.ok(H.logged("Saved%-file backups %(API 39%): none present"))
     t.ok(H.logged("Map title %(API 40%): none present"))
+    t.ok(H.logged("Helmet %(API 42%): none present"))
+    t.ok(H.logged("no nochar file %(API 43%): none present"), "told by the version")
     H.S.noMapTitle, H.S.noBackups = nil, nil
     ShroudSetBuffBarVisible, ShroudGetBuffBarRect, ShroudGetGuildMotd = nil, nil, nil
     ShroudLuaApiVersion = 38
     H.clearLogs()
     H.chat("/tbx api")
     t.ok(H.logged("calendar now %(API 38%): all 1 present"))
+    t.ok(H.logged("Plain item names %(API 44%): none present"))
+    ShroudLuaApiVersion = 44
+    H.clearLogs()
+    H.chat("/tbx api")
+    t.ok(H.logged("one item's weight and value %(API 41%): all 1 present"))
+    t.ok(H.logged("Plain item names %(API 44%): all 1 present"))
     ShroudLuaApiVersion = 25
   end)
 

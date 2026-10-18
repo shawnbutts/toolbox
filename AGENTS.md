@@ -856,9 +856,19 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   "Toolbox: Toolbelt, HUDs, Trackers, and mo: <text>", not "Toolbox: <text>"; a client bug, reported to the developers
   (nothing to change on our side). The location strip no longer asks `ShroudGetNearestWaterType` (owner, same day: the
   scene's kinds instead).
+- **API 41-44** (docs 2026-10-18; `T.DOCS_API` = 44, `min_api_version` stays 25; `/toolbox api` tells each, by version
+  where there's no function to look up): 41, **30 windows per add-on** (8 before; the owner asked for 12): the shared
+  8th window's users (Docs, version, Map overlays, the crafting planner) can have their own, planned with 1.10.0, and
+  `T.TakeSharedWindow` kept for older clients; `ShroudGetInventoryItems` / `ShroudGetEquipmentItems` `weight` and
+  `value` are one item's, with `totalWeight` / `totalValue` the stack's (before: the stack's; Toolbox reads neither); a
+  window's right-click "Remember Size and Position" makes its `SetSize` / `SetPosition` change nothing and return false
+  (Toolbox calls neither on a window). 42, the helmet: `ShroudIsHelmetVisible`, `ShroudSetHelmetVisible(b)`,
+  `ShroudToggleHelmet` (a gesture; saved, seen by others; unused). 43, request 28: `ShroudOnBeforeLogOut` and
+  character-scope writes refused with no character (above; adopted in 1.9.1). 44, item names as plain text (#13710:
+  `[u]...[/u]` and color tags stripped; inventory and equipment names). Not in them: request 27's fix (client only),
+  26 and 29.
 
-**Waiting on the developers:** more windows per add-on, 12 instead of 8 (the owner asked, 2026-10-15): then the
-shared 8th window's users (Docs, version, Map overlays, the crafting planner) could have their own. A read-only game settings API (first use: the game's "stack buffs lasting
+**Waiting on the developers:** A read-only game settings API (first use: the game's "stack buffs lasting
 longer than" option feeding `BB.GroupAfter()`). Submitted 2026-10-07 (`tmp/client-issues.md`): **18**, for the
 crafting planner (ingredient choices for slot categories, item stats, language-independent item keys, a `have`
 that counts containers, the recipe book in one call, the station a recipe needs), and **19**, the saved "/" data

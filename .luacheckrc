@@ -103,6 +103,7 @@ local api_probed = {
   "ShroudGetRecipeBook",                                                                           -- API 37
   "ShroudBackupSavedVars", "ShroudListSavedVarBackups", "ShroudRestoreSavedVarBackup",            -- API 39
   "ShroudSetMapTitle", "ShroudGetMapTitle",                                                        -- API 40
+  "ShroudIsHelmetVisible", "ShroudSetHelmetVisible", "ShroudToggleHelmet",                         -- API 42
 }
 
 -- Callbacks an add-on may define. Listed as writable globals.
@@ -121,6 +122,7 @@ local api_callbacks = {
   "ShroudOnScreenChanged",                                  -- API 31
   "ShroudOnCalendarChanged",                                -- API 35
   "ShroudOnCalendarNowChanged",                             -- API 38
+  "ShroudOnBeforeLogOut",                                   -- API 43
 }
 
 -- The early global `Shroud` (read-only userdata) and its documented fields.

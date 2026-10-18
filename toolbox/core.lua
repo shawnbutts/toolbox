@@ -2190,10 +2190,11 @@ end)
 -- 2026-09-27) lag the client (API 20), and a documented crafting/social group was withdrawn,
 -- so ask the game. Names are referenced directly: no lookup by a built name.
 -- The Lua API version the official docs described when this build was made (update with each docs check).
-T.DOCS_API = 40
+T.DOCS_API = 44
 
 function T.ApiLines()
   local function has(f) return type(f) == "function" end
+  local function since(n) return type(ShroudLuaApiVersion) == "number" and ShroudLuaApiVersion >= n end
   local groups = {
     { "Buff bar (API 16)", {
       { "ShroudSetBuffBarVisible", has(ShroudSetBuffBarVisible) },
@@ -2247,7 +2248,7 @@ function T.ApiLines()
     { "Recipe book (API 37)", { { "ShroudGetRecipeBook", has(ShroudGetRecipeBook) } } },
     -- API 38 adds callbacks and element methods, which can't be looked up without one: told by the version
     { "Window show / hide, FollowHeading, calendar now (API 38)", {
-      { "API 38", type(ShroudLuaApiVersion) == "number" and ShroudLuaApiVersion >= 38 } } },
+      { "API 38", since(38) } } },
     { "Saved-file backups (API 39)", {
       { "ShroudBackupSavedVars", has(ShroudBackupSavedVars) },
       { "ShroudListSavedVarBackups", has(ShroudListSavedVarBackups) },
@@ -2255,6 +2256,14 @@ function T.ApiLines()
     { "Map title (API 40)", {
       { "ShroudSetMapTitle", has(ShroudSetMapTitle) },
       { "ShroudGetMapTitle", has(ShroudGetMapTitle) } } },
+    -- API 41, 43 and 44 change limits, fields and callbacks: told by the version too
+    { "30 windows, one item's weight and value (API 41)", { { "API 41", since(41) } } },
+    { "Helmet (API 42)", {
+      { "ShroudIsHelmetVisible", has(ShroudIsHelmetVisible) },
+      { "ShroudSetHelmetVisible", has(ShroudSetHelmetVisible) },
+      { "ShroudToggleHelmet", has(ShroudToggleHelmet) } } },
+    { "Save before logout, no nochar file (API 43)", { { "API 43", since(43) } } },
+    { "Plain item names (API 44)", { { "API 44", since(44) } } },
   }
   local lines = { "Lua API " .. tostring(ShroudLuaApiVersion) .. " (the docs described " .. T.DOCS_API
     .. " when this build was made)." }

@@ -76,6 +76,7 @@ ones included).
 - Every HUD strip's background starts at the same shade, 60%: the menu was 40%, combat stats 70%, the notification
   HUD 60%, and the XP, Today and location strips and the Dark number panels the UI theme's dark panel (which can't be
   made lighter).
+- /toolbox api also reports Lua API 41-44 (more windows, the helmet calls, saving before logout, plain item names).
 - Location strip: the water line names the kinds of water you can fish in this scene ("Fishable water: salt,
   fresh"), what to expect on your line, instead of the nearest water and how far. The nearest-water lookup was slow
   in the game, so it isn't asked any more.
