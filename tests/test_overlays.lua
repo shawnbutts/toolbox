@@ -599,6 +599,73 @@ return function(t)
     H.S.noMapTitle = nil
   end)
 
+  t.test("the location strip names the shown overlay; arrows step: yours, Gathering, Fights, none", function()
+    H.boot()
+    H.chat("/tbx location on")
+    H.advance(1)
+    local function loc() return H.S.frames.toolbox_location end
+    local function step(id)
+      local b = loc():Find(id)
+      H.call(function() b.onClick(b) end)
+    end
+    t.eq(loc():Find("loc_ov_row").visible, false, "no overlays here: no line")
+    local _, h0 = Toolbox.Location.ContentSize()
+    H.chat("/tbx overlay new Bank")
+    H.chat("/tbx mark Vault")
+    H.chat("/tbx overlay auto on")
+    H.chat("/tbx overlay auto fights on")
+    gather("Iron Ore", { 100, 0, 100 })
+    kill("Elf Mage", { 300, 0, 300 })
+    H.advance(31)                                         -- the marks saved
+    H.chat("/tbx overlay bank")
+    H.advance(2)
+    t.ok(loc():Find("loc_ov_row").visible ~= false, "a line now")
+    t.eq(loc():Find("loc_overlay").text, "Map: Bank (1 place)")
+    local _, h1 = Toolbox.Location.ContentSize()
+    t.ok(h1 > h0, "the strip grows a line")
+    local seen = {}
+    for _ = 1, 5 do
+      step("loc_ov_next")
+      local shown = OV().Shown()
+      seen[#seen + 1] = shown and shown.name or "none"
+    end
+    t.eq(table.concat(seen, ", "), "Gathering, Iron Ore, Fights, Elf Mage, none")
+    H.advance(1)
+    t.eq(loc():Find("loc_overlay").text, "Map: none (5 overlays)")
+    step("loc_ov_next")
+    t.eq(OV().Shown().name, "Bank", "round to the first again")
+    step("loc_ov_prev")
+    step("loc_ov_prev")
+    t.eq(OV().Shown().name, "Elf Mage", "and back")
+    -- clicked through quickly: the markers wait for the last click, then follow
+    t.ok(marks()["ov1-1"], "Bank's marker still up right after the clicks")
+    H.advance(3)
+    t.no(marks()["ov1-1"], "then down")
+    t.eq(marks()["ov" .. OV().Shown().id .. "-1"].label, "Elf Mage 1", "the shown one's up")
+    t.eq(loc():Find("loc_overlay").text, "Map: Elf Mage (1 place)")
+    -- not saved at each click: with the next batch, or at shutdown
+    local function savedShown()
+      local index = H.saved("map_overlays")
+      return H.saved("map_scene:" .. index.scenes.Novia).shown
+    end
+    t.eq(savedShown(), byName("Bank").id, "not saved yet")
+    H.advance(31)
+    t.eq(savedShown(), OV().Shown().id, "saved with the batch")
+    H.chat("/tbx overlay next")
+    t.ok(H.logged("No overlay shown"), H.lastLog())
+    H.chat("/tbx overlay prev")
+    H.chat("/tbx overlay prev")
+    t.ok(H.logged("Showing Fights"), H.lastLog())
+    H.callback("ShroudOnDisableScript")
+    H.restart()
+    H.advance(2)
+    t.eq(OV().Shown().name, "Fights", "the shutdown save keeps it")
+    H.chat("/tbx location overlay off")
+    H.advance(1)
+    t.eq(loc():Find("loc_ov_row").visible, false, "the setting hides it")
+    t.eq(H.saved("location").overlay, false)
+  end)
+
   t.test("one overlay at a time: a switch takes the last one's marks down; other marks stay", function()
     H.boot()
     H.call(function() ShroudSetMapMarker("x-1", 1, 0, 1, { label = "Not ours" }) end)

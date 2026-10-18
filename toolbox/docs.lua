@@ -325,8 +325,11 @@ D.SECTIONS = {
       .. "line. Switch it on with the menu's Location button or under Settings, Map & location "
       .. "(Show "
       .. "where you are), where you can also hide the facing and water lines and place it, or type /toolbox "
-      .. "location (on, off, facing on|off, water on|off, pin on|off, move <x> <y>). It's off by default. The "
-      .. "pin beside the scene's name opens the Map overlays window (Map overlays button in settings)." },
+      .. "location (on, off, facing on|off, water on|off, pin on|off, overlay on|off, move <x> <y>). It's off by "
+      .. "default. The pin beside the scene's name opens the Map overlays window (Map overlays button in "
+      .. "settings). In a scene with map overlays, a line names the one its map shows (Map: Iron Ore, 4 places), "
+      .. "and its arrows step through them: yours, then Gathering and its kinds, then Fights and its creatures, "
+      .. "then none (The overlay shown on the map in settings)." },
   { "Map overlays",
     "Sets of places you mark in a scene, shown on its map one set at a time: one for loot, one for gathering, "
       .. "one for vendors... Each scene has its own overlays (a place is only good on its own map), and remembers "
@@ -350,7 +353,8 @@ D.SECTIONS = {
     "In chat: /toolbox mark Iron vein marks where you stand (your first mark makes an overlay called Places); "
       .. "/toolbox mark remove takes out the nearest place within 15 m (or one by name) and /toolbox mark compass "
       .. "<name> points your compass at one. /toolbox overlay lists this scene's overlays; /toolbox overlay "
-      .. "Gathering shows one, "
+      .. "Gathering shows one, overlay next and overlay prev step through them (as the location strip's "
+      .. "arrows do), "
       .. "overlay off none, and overlay new, rename <old> = <new>, delete and places (each with its /loc) do the "
       .. "rest; overlay icon star and overlay color Red set the next marks' look, mark look <name> gives it to a "
       .. "place." },

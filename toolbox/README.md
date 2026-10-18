@@ -167,6 +167,7 @@ newest client the full map's corner names what Toolbox shows there ("Toolbox: Ga
 overlays a scene, with room for thousands of places in all. Mark as you go in the
 small **Map overlays** window, where you also make, rename and delete them: the pin on the location strip opens it
 (or **Map & location** in the settings, or `/toolbox overlay window`); `/toolbox mark <name>` marks where you stand.
+The location strip names the overlay the map shows, and its arrows step through them.
 Auto map, turned on in a scene, marks every resource node you gather there: in an overlay of its kind and in
 Gathering, which shows them all. Nodes don't move, so one visit maps a scene. Its Fights switch marks each
 creature you kill the same way, in an overlay of its name and in Fights. Kinds you don't want go on an
@@ -199,7 +200,7 @@ station, materials first, ticked off as you craft. The Crafting Planner HUD foll
 - `/toolbox daily` / `dailydetailed`: the Today windows
 - `/toolbox combat`: the combat stats HUD
 - `/toolbox notify`: notification settings
-- `/toolbox location`: the location strip (`on|off`, `facing on|off`, `water on|off`)
+- `/toolbox location`: the location strip (`on|off`, `facing on|off`, `water on|off`, `overlay on|off`)
 - `/toolbox overlay`: this scene's map overlays (`<name>`, `off`, `new`, `rename`, `delete`, `places`, `icon`, `color`, `auto`, `scenes`, `forget`)
 - `/toolbox plan`: the crafting planner (`/toolbox plan <recipe>` finds one; `/toolbox plan hud`: the Crafting Planner HUD; `/toolbox plan book read`: read your recipe book now)
 - `/toolbox mark`: mark where you stand in the shown overlay (`<name>`, `remove`, `compass`, `look`)

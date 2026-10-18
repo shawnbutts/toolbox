@@ -1010,6 +1010,10 @@ function C.MapSection()
     UI.Toggle{ id = "loc_pin", text = "Map overlays button", value = loc.GetPin(),
       tooltip = "A pin beside the scene's name: a click opens the Map overlays window (mark where you stand)",
       onChange = function(_, v) loc.SetPin(v) end },
+    UI.Toggle{ id = "loc_overlay", text = "The overlay shown on the map", value = loc.GetOverlay(),
+      tooltip = "A line naming the map overlay this scene shows, with arrows to step through its overlays (yours,"
+        .. " Gathering, Fights). Hidden in a scene with none",
+      onChange = function(_, v) loc.SetOverlay(v) end },
     C.PositionRows("location", loc, "Location strip"),
     C.OverlayRows(),
     heading("Loot Tracker runs"),
@@ -1683,7 +1687,8 @@ local function category(keyOrLabel)
 end
 
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
-local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "ov_window", "ov_death", "pl_open", "pl_hud_close",
+local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "loc_overlay", "ov_window", "ov_death",
+  "pl_open", "pl_hud_close",
   "pl_cfg_scratch", "pl_book_when", "pl_book_status", "pl_book_read", "pl_book_stop", "pl_hud_show", "pl_hud_start",
   "pl_hud_auto", "pl_hud_shade", "pl_hud_shade_value",
   "xp_shade", "xp_shade_value", "daily_shade", "daily_shade_value", "nhud_shade", "nhud_shade_value",
@@ -2516,6 +2521,8 @@ function C.Sync()
   setEnabled("loc_facing", T.Location.GetShow())
   setValue("loc_water", T.Location.GetWater())
   setValue("loc_pin", T.Location.GetPin())
+  setValue("loc_overlay", T.Location.GetOverlay())
+  setEnabled("loc_overlay", T.Location.GetShow())
   setValue("ov_death", T.Location.GetDeath())
   setEnabled("loc_water", T.Location.GetShow() and T.Location.HasWater())
   sliderValue("loc_shade", T.Location.GetShade())

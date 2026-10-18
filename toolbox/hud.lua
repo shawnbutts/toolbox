@@ -709,8 +709,10 @@ end
 -- refits). Read at a scene change, again every LOC.WATER_EMPTY_EVERY s while empty for LOC.WATER_SETTLE s (the game may
 -- still be reading the scene), then every LOC.WATER_EVERY s (a town's water decoration changes it, review 32). The
 -- nearest water (ShroudGetNearestWaterType: up to 28 ms a call in game, 2026-10-14) isn't asked.
+-- The shown map overlay (owner, 2026-10-18; setting `overlay`): a line naming the overlay this scene's map shows, with
+-- arrows stepping through the scene's overlays (OV.Step), hidden while the scene has none.
 -- Saved var "location": { show = bool (default false), facing = bool (default true), water = bool (default true),
--- x, y }.
+-- overlay = bool (default true), x, y }.
 -- ---------------------------------------------------------------------------
 local LOC = { FRAME_ID = "toolbox_location", HOME = { 600, 40 }, PAGE = "Location" }
 Toolbox.Location = LOC
@@ -730,6 +732,7 @@ local locEl = {}                      -- column, scene, coords, facing (empty un
 local locScene = ""                   -- the scene the width is fitted to
 local locLast = {}                    -- the last rounded reading: x, y, z, heading
 local locWater = { scene = nil, since = -math.huge, at = -math.huge, line = nil }   -- the line shown (nil: none)
+local locOv = { key = nil, line = nil }   -- the shown overlay's line (nil: hidden) and what it was made from
 
 function LOC.HasWater()
   return type(ShroudGetSceneWaterTypes) == "function"
@@ -799,7 +802,8 @@ function LOC.LocLine(scene, x, y, z)
 end
 
 local function locWidth()
-  return math.ceil(math.max(LOC.MIN_CHARS, #locScene, #(locWater.line or "")) * T.Window.GetFont() * LOC.CHAR_W)
+  return math.ceil(math.max(LOC.MIN_CHARS, #locScene, #(locWater.line or ""), #(locOv.line or ""))
+    * T.Window.GetFont() * LOC.CHAR_W)
 end
 
 local function locStyle()
@@ -810,6 +814,7 @@ end
 function LOC.Wanted() return locPrefs.show == true end
 function LOC.IsShown() return locPrefs.show == true end
 function LOC.Unbuilt() locEl, locLast = {}, {} end
+local LOC_LABELS = { "scene", "coords", "facing", "water", "overlay" }
 
 -- The pin beside the scene's name (owner, 2026-10-13): opens the Map overlays window. The menu's map-pin picture.
 LOC.PIN_GAP = 4
@@ -818,9 +823,20 @@ local function pinSize() return T.Window.LineHeight() end
 local function pinShown() return locPrefs.pin ~= false end
 
 function LOC.ContentSize()
-  local lines = 2 + (locPrefs.facing and 1 or 0) + (locWater.line and 1 or 0)
-  local pin = pinShown() and (pinSize() + LOC.PIN_GAP) or 0
-  return locWidth() + pin + 2 * Hud.STRIP_PAD, lines * T.Window.LineHeight() + 2 * Hud.STRIP_PAD
+  local lines = 2 + (locPrefs.facing and 1 or 0) + (locWater.line and 1 or 0) + (locOv.line and 1 or 0)
+  local right = pinShown() and (pinSize() + LOC.PIN_GAP) or 0
+  if locOv.line then right = math.max(right, 2 * (pinSize() + LOC.PIN_GAP)) end   -- the overlay line's arrows
+  return locWidth() + right + 2 * Hud.STRIP_PAD, lines * T.Window.LineHeight() + 2 * Hud.STRIP_PAD
+end
+
+-- An arrow of the overlay line: steps to the next overlay (dir 1) or the one before (-1).
+local function stepButton(id, text, dir)
+  local s = pinSize()
+  return UI.Button{ id = id, text = text,
+    tooltip = dir > 0 and "Show the next overlay on this scene's map" or "Show the overlay before",
+    onClick = function() T.Overlays.Step(dir) end,
+    style = { marginLeft = LOC.PIN_GAP, marginRight = 0, marginTop = 0, marginBottom = 0, width = s, height = s,
+              minHeight = s, paddingLeft = 0, paddingRight = 0, fontSize = math.max(9, math.floor(s * 0.6)) } }
 end
 
 local function pinElement()
@@ -855,7 +871,13 @@ function LOC.BuildContent()
     facing = UI.Label{ id = "loc_facing", text = "", class = "text", visible = locPrefs.facing == true,
       style = locStyle() },
     water = UI.Label{ id = "loc_water", text = "", class = "text", visible = false, style = locStyle() },
+    overlay = UI.Label{ id = "loc_overlay", text = "", class = "text", style = locStyle(),
+      tooltip = "The overlay shown on this scene's map. The arrows step through them: yours, then Gathering and"
+        .. " its kinds, then Fights and its creatures, then none. The pin opens the Map overlays window" },
   }
+  built.ovRow = UI.Row{ id = "loc_ov_row", visible = false,
+    style = { alignItems = "center", marginLeft = 0, marginRight = 0 },
+    children = { built.overlay, stepButton("loc_ov_prev", "<", -1), stepButton("loc_ov_next", ">", 1) } }
   local top = built.scene
   if pinShown() then
     top = UI.Row{ style = { alignItems = "center", marginLeft = 0, marginRight = 0 },
@@ -865,9 +887,10 @@ function LOC.BuildContent()
     style = { paddingLeft = pad, paddingRight = pad, paddingTop = pad, paddingBottom = pad,
               marginLeft = 0, marginRight = 0, marginTop = 0, marginBottom = 0, borderRadius = 3,
               backgroundColor = T.ShadeColor(T.ShadeOf(locPrefs.shade)) },
-    children = { top, built.coords, built.facing, built.water } }
+    children = { top, built.coords, built.facing, built.water, built.ovRow } }
   locEl, locLast = built, {}
   locWater.line, locWater.scene = nil, nil
+  locOv.line, locOv.key = nil, nil
   return built.column
 end
 
@@ -880,11 +903,12 @@ function LOC.Update()
   t0 = T.PerfT()
   if scene ~= locScene then
     locScene = scene
-    for _, key in ipairs({ "scene", "coords", "facing", "water" }) do T.SetStyle(locEl[key], locStyle()) end
+    for _, key in ipairs(LOC_LABELS) do T.SetStyle(locEl[key], locStyle()) end
     Hud.Refresh()                      -- the strip's width follows the name
     locLast = {}
   end
   LOC.UpdateWater(scene)
+  LOC.UpdateOverlay()
   T.PerfAdd("location:water", t0)
   t0 = T.PerfT()
   T.SetText(locEl.scene, scene ~= "" and scene or "--")
@@ -929,8 +953,41 @@ function LOC.UpdateWater(scene)
   if line then T.SetText(locEl.water, line) end
   T.SetVisible(locEl.water, line ~= nil)
   if resized then
-    for _, key in ipairs({ "scene", "coords", "facing", "water" }) do T.SetStyle(locEl[key], locStyle()) end
+    for _, key in ipairs(LOC_LABELS) do T.SetStyle(locEl[key], locStyle()) end
     Hud.Refresh()                      -- the strip's size follows the line
+  end
+  return true
+end
+
+-- The overlay line's text: "Map: Iron Ore (4 places)", "Map: none (3 overlays)", or nil while the scene has none.
+function LOC.OverlayLine()
+  local OV = T.Overlays
+  local n = #OV.List()
+  if n == 0 then return nil end
+  local ov = OV.Shown()
+  if not ov then return "Map: none (" .. n .. " overlay" .. (n == 1 and "" or "s") .. ")" end
+  local k = #OV.Places(ov)
+  return "Map: " .. ov.name .. " (" .. k .. " place" .. (k == 1 and "" or "s") .. ")"
+end
+
+-- The overlay line, made again only when the overlays, the scene or the character changed.
+function LOC.UpdateOverlay()
+  local line = nil
+  if locPrefs.overlay ~= false then
+    local okRaw, raw = pcall(T.SceneRaw)
+    local key = T.Overlays.version .. ">" .. tostring(okRaw and raw) .. ">" .. tostring(T.CharacterName())
+    if key == locOv.key then return false end
+    locOv.key = key
+    line = LOC.OverlayLine()
+  end
+  if line == locOv.line then return false end
+  local resized = line == nil or locOv.line == nil or #line ~= #locOv.line
+  locOv.line = line
+  if line then T.SetText(locEl.overlay, line) end
+  T.SetVisible(locEl.ovRow, line ~= nil)
+  if resized then
+    for _, key in ipairs(LOC_LABELS) do T.SetStyle(locEl[key], locStyle()) end
+    Hud.Refresh()
   end
   return true
 end
@@ -950,6 +1007,14 @@ function LOC.GetWater() return locPrefs.water ~= false end
 function LOC.SetWater(on)
   locPrefs.water = on == true
   locWater.at = -math.huge             -- read again at once
+  locSave()
+  if locEl.column then LOC.Update() end
+end
+
+function LOC.GetOverlay() return locPrefs.overlay ~= false end
+function LOC.SetOverlay(on)
+  locPrefs.overlay = on == true
+  locOv.key = nil                      -- made again at once
   locSave()
   if locEl.column then LOC.Update() end
 end
@@ -994,7 +1059,7 @@ end
 -- Follows the text size and line spacing settings (Toolbox.Window.ApplyText).
 function LOC.ApplyText()
   if not locEl.column then return end
-  for _, key in ipairs({ "scene", "coords", "facing", "water" }) do T.SetStyle(locEl[key], locStyle()) end
+  for _, key in ipairs(LOC_LABELS) do T.SetStyle(locEl[key], locStyle()) end
   Hud.Refresh()
 end
 
@@ -1013,7 +1078,7 @@ LOC.GetPosition, LOC.MoveTo, LOC.Nudge, LOC.ResetPosition = locMover.Get, locMov
 -- Re-runnable (another character's settings): before Toolbox.Hud.Init builds the strips.
 function LOC.Init()
   local saved = T.ReadSaved("location")
-  locPrefs = { show = false, facing = true, water = true, pin = true, death = true }
+  locPrefs = { show = false, facing = true, water = true, pin = true, death = true, overlay = true }
   if type(saved) == "table" then
     locPrefs.death = saved.death ~= false
     locPrefs.show = saved.show == true
@@ -1021,6 +1086,7 @@ function LOC.Init()
     locPrefs.water = saved.water ~= false
     if type(saved.shade) == "number" then locPrefs.shade = T.ShadeOf(saved.shade) end
     locPrefs.pin = saved.pin ~= false
+    locPrefs.overlay = saved.overlay ~= false
     if type(saved.x) == "number" and type(saved.y) == "number" then locPrefs.x, locPrefs.y = saved.x, saved.y end
   end
   locEl, locLast = {}, {}
@@ -1035,7 +1101,8 @@ T.Backup.KEYS[#T.Backup.KEYS + 1] = "location"
 
 -- /toolbox location
 T.AddCommand("location", "the location strip: your scene, position, facing and its fishable water (on|off;"
-  .. " facing on|off; water on|off; pin on|off: its Map overlays button; move [x y])",
+  .. " facing on|off; water on|off; pin on|off: its Map overlays button; overlay on|off: the shown map overlay's"
+  .. " line; move [x y])",
   function(rest)
     local word, args = T.ParseArgs(rest)
     word = word:lower()
@@ -1049,11 +1116,14 @@ T.AddCommand("location", "the location strip: your scene, position, facing and i
       LOC.SetWater(args:lower() == "on")
     elseif word == "pin" and (args:lower() == "on" or args:lower() == "off") then
       LOC.SetPin(args:lower() == "on")
+    elseif word == "overlay" and (args:lower() == "on" or args:lower() == "off") then
+      LOC.SetOverlay(args:lower() == "on")
     elseif word == "move" then
       T.MoveCommand(LOC, "location", "The location strip", args)
       return
     else
-      T.Print("Use /" .. T.commands[1] .. " location [on|off], facing on|off, water on|off, pin on|off or move [x y].")
+      T.Print("Use /" .. T.commands[1] .. " location [on|off], facing on|off, water on|off, pin on|off, overlay"
+        .. " on|off or move [x y].")
       return
     end
     T.Print("Location strip: " .. (locPrefs.show and "on" or "off") .. "; facing "
@@ -1119,7 +1189,8 @@ local ovSaved = { scenes = {} }
 local ovPending = nil
 local ovWrite = nil                   -- (below)
 local ovOld = nil                     -- an older form's saved value, until a write has converted it
-local ovMarks = { raw = nil, who = nil, version = nil, retryAt = -math.huge }
+-- holdUntil: the location strip's arrows wait OV.STEP_SETTLE s after the last click before the markers follow
+local ovMarks = { raw = nil, who = nil, version = nil, retryAt = -math.huge, holdUntil = -math.huge }
 
 function OV.HasMarkers() return T.DailyDetail.HasMarkers() end
 
@@ -1425,6 +1496,7 @@ function OV.Init()
   ovFor = T.CharacterName()
   ovData = { scenes = {}, nextId = 1, nextKey = 1, ignore = {} }
   ovPending, ovSaved, ovOld = nil, { scenes = {} }, nil
+  ovMarks.holdUntil = -math.huge
   local saved = T.ReadSaved(OV.KEY)
   local old = type(saved) == "table" and (saved.v == 2 or saved.v == 1)
   if type(saved) == "table" and saved.v == 3 then
@@ -1660,6 +1732,53 @@ function OV.Show(ov)
   local snap = ovSnapshot()
   sc.shown = ov and ov.id or 0
   return ovSave(snap)
+end
+
+-- The order the location strip's arrows go through: your own overlays, then Gathering and its kinds, then Fights and
+-- its creatures, each in the order made.
+function OV.StepOrder(raw)
+  local groups = { {}, {}, {}, {}, {} }
+  for _, ov in ipairs(OV.List(raw)) do
+    local g = 1
+    if ov.auto == OV.AUTO_ALL then
+      g = 2
+    elseif ov.auto == OV.AUTO_FIGHTS then
+      g = 4
+    elseif ov.auto then
+      g = OV.AutoFight(ov.auto) and 5 or 3
+    end
+    local list = groups[g]
+    list[#list + 1] = ov
+  end
+  local order = {}
+  for _, list in ipairs(groups) do
+    for _, ov in ipairs(list) do order[#order + 1] = ov end
+  end
+  return order
+end
+
+-- Shows the next overlay of this scene (dir 1; -1 the one before), past the last none, then the first again. Clicked
+-- through quickly, so not saved at once (with the auto map's next batch, OV.SavePending, or at a scene unload) and
+-- the markers follow OV.STEP_SETTLE s after the last step (each switch moves up to 39 of them; the game allows 20 a
+-- minute after a burst). Returns the overlay shown (nil: none), or false and why.
+OV.STEP_SETTLE = 1.5
+function OV.Step(dir)
+  local order = OV.StepOrder()
+  local sc = ovData.scenes[hereRaw() or ""]
+  if not sc or #order == 0 then return false, "this scene has no overlays" end
+  local at = #order + 1                       -- none shown
+  for i, ov in ipairs(order) do
+    if ov.id == sc.shown then at = i end
+  end
+  at = (at - 1 + (dir < 0 and -1 or 1)) % (#order + 1) + 1
+  local ov = order[at]
+  sc.shown = ov and ov.id or 0
+  ovPending = ovPending or { bytes = 0, since = T.Now(), items = {} }
+  ovMarks.holdUntil = T.Now() + OV.STEP_SETTLE
+  OV.version = OV.version + 1
+  T.Config.Sync()
+  OV.SyncWindow()
+  return ov
 end
 
 -- Adds overlay `name` to the scene at `here` and shows it, unsaved (Create's and an implicit first mark's).
@@ -2087,8 +2206,12 @@ function OV.SavePending(now)
     for _, it in ipairs(pending.items) do
       if it.place then n = n + 1 end
     end
-    T.Print("Auto map: " .. n .. " new mark" .. (n == 1 and "" or "s") .. " couldn't be saved (" .. why
-      .. "), so they're taken off.")
+    if n > 0 then
+      T.Print("Auto map: " .. n .. " new mark" .. (n == 1 and "" or "s") .. " couldn't be saved (" .. why
+        .. "), so they're taken off.")
+    else
+      T.Print("Map overlays: the overlay shown couldn't be saved (" .. why .. ").")
+    end
   end
   OV.version = OV.version + 1
   ovMarks.retryAt = -math.huge
@@ -2427,7 +2550,7 @@ function OV.MarkerId(ov, p) return "ov" .. ov.id .. "-" .. p.id end
 function OV.Sync()
   if not OV.HasMarkers() then return end
   local raw = hereRaw()
-  if not raw then return end
+  if not raw or T.Now() < ovMarks.holdUntil then return end
   local who = T.CharacterName()
   if raw == ovMarks.raw and who == ovMarks.who and OV.version == ovMarks.version then return end
   if T.Now() < ovMarks.retryAt then return end
@@ -2506,7 +2629,7 @@ end
 function OV.SyncTitle()
   if not (OV.HasTitle() and OV.HasMarkers()) then return end
   local raw = hereRaw()
-  if not raw or T.Now() < ovTitle.retryAt then return end
+  if not raw or T.Now() < ovTitle.retryAt or T.Now() < ovMarks.holdUntil then return end
   local text = OV.TitleText(raw)
   if raw == ovTitle.raw and text == ovTitle.text then return end
   local ok, set, why = pcall(ShroudSetMapTitle, text)
@@ -2557,7 +2680,8 @@ end
 
 -- /toolbox overlay
 T.AddCommand("overlay", "map overlays, sets of places you mark in a scene, one shown at a time: <name> shows one;"
-  .. " off; new <name>; rename <old> = <new>; delete <name>; places; icon <shape>, color <name> (your next marks');"
+  .. " off; next, prev (step through them); new <name>; rename <old> = <new>; delete <name>; places; icon <shape>,"
+  .. " color <name> (your next marks');"
   .. " window (the Map overlays window); auto [on|off] (mark the nodes you gather here); auto fights [on|off]"
   .. " (mark the creatures you kill here); auto ignore [kind],"
   .. " auto unignore <kind> (kinds it skips); scenes (every scene's, and the room they take);"
@@ -2626,6 +2750,10 @@ T.AddCommand("overlay", "map overlays, sets of places you mark in a scene, one s
     elseif word == "off" then
       local ok, why = OV.Show(nil)
       T.Print(ok and "No overlay shown." or ("Couldn't hide it: " .. why .. "."))
+    elseif word == "next" or word == "prev" then
+      local shown, why = OV.Step(word == "next" and 1 or -1)
+      T.Print(shown == false and ("Nothing to show: " .. why .. ".")
+        or (shown and ("Showing " .. shown.name .. ".") or "No overlay shown."))
     elseif word == "new" then
       local made, why = OV.Create(args)
       T.Print(made and ("Made " .. made.name .. ", shown now. " .. c .. "mark <name> marks where you stand.")
