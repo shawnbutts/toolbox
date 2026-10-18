@@ -4373,6 +4373,7 @@ function ShroudOnCombatEvents(events, dropped)
   local list = T.ReadEvents(events)  -- plain tables, whatever the game hands over
   T.Daily.OnCombat(list)
   T.Combat.OnEvents(list, dropped)
+  T.Overlays.OnCombat(list)          -- the auto map's fights
   T.PerfAdd("callback:combat events", t0)
 end
 

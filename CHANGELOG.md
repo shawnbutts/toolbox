@@ -8,6 +8,11 @@ ones included).
 ## [Unreleased]
 
 ### Added
+- **Auto map, fights:** a second switch beside Gathering in the Map overlays window (or /toolbox overlay auto fights
+  on), per scene: each creature you or your pet kill there is marked where you stand, in an overlay of its name (Elf
+  Fighter, Reaper...) and in Fights, which holds them all, so the map shows where the fights are as well as the
+  nodes. One already marked within 20 m (the same camp) isn't marked again; fights have their own 10 automatic
+  overlays a scene, and the ignore list covers them too.
 - **Crafting Planner HUD:** a button at the bottom of the crafting planner (or /toolbox plan hud) opens a small
   strip to follow the plan with the planner closed: the shopping list first (what you have of each item against what
   the plan needs, ticked off as you gather), then, once you have it all, the build order, ticked off as you craft.

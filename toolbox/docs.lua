@@ -364,7 +364,7 @@ D.SECTIONS = {
       .. "yours); /toolbox death clear takes it off. Switch it off under Settings, Map & location: Show your last "
       .. "death on the map." },
   { "Auto map",
-    "Resource nodes don't move, though not all are up at once. Turn on Auto map this scene in the Map overlays "
+    "Resource nodes don't move, though not all are up at once. Turn on Auto map: Gathering in the Map overlays "
       .. "window (or /toolbox overlay auto on) and each node you gather there is marked where you stand: in an "
       .. "overlay of its kind (Iron Ore, made the first time, each kind in a look of its own) and in Gathering, "
       .. "which holds every kind so the map shows them all. A node already marked within 6 m (the same node, "
@@ -376,7 +376,12 @@ D.SECTIONS = {
     "Too many kinds? Ignore the ones you don't want, in every scene: show a kind's overlay (or pick one of its "
       .. "places in Gathering) and click Ignore kind twice, or type /toolbox overlay auto ignore and a kind or a "
       .. "word of one (Corpse skips Wolf Corpse, Bear Corpse...). Its overlay and its places in this scene go, and "
-      .. "it isn't marked again. /toolbox overlay auto ignore lists them; auto unignore <name> takes one off." },
+      .. "it isn't marked again. /toolbox overlay auto ignore lists them; auto unignore <name> takes one off.",
+    "Fights too: turn on Auto map: Fights (or /toolbox overlay auto fights on) and each creature you or your pet "
+      .. "kill in that scene is marked where you stand (the game doesn't say where the creature was, so a ranged "
+      .. "kill marks you): in an overlay of its name (Elf Fighter, Reaper...) and in Fights, which holds them all. "
+      .. "One already marked within 20 m (the same camp) isn't marked again. Fights have their own 10 automatic "
+      .. "overlays a scene, and the same ignore list." },
   { "Moving the HUD strips",
     "The buff bar, health & focus bars, combat stats, the consumables bar and the equipment bar are "
       .. "HUD strips. Drag the grip at a "

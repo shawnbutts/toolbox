@@ -19,7 +19,7 @@ notifications.
 - **Today:** gold, kills, XP, and every item looted, crafted or gathered, with optional values from shroudoftheavatar.net.
 - **Combat stats:** DPS, damage taken, healing, crits, each skill's share, per-target damage and a fight timeline.
 - **Crafting planner:** a recipe's materials, what you're short of and what to craft from scratch, with a shopping list and a build order by station.
-- **Map overlays:** mark places on your map, or let the auto map mark every resource node you gather; your last death shows there too.
+- **Map overlays:** mark places on your map, or let the auto map mark every resource node you gather and every creature you kill; your last death shows there too.
 - **Notifications:** guild message, mail, rewards, gear needing repair and friends coming online, in a window, on the HUD or in chat, with an optional sound.
 - **A one-click menu:** a column of gold buttons that opens any Toolbox window, lit while it's open.
 - **All set up in one settings window,** with a search to find any setting and a guide to every feature in the game. No files to edit.
@@ -168,7 +168,8 @@ overlays a scene, with room for thousands of places in all. Mark as you go in th
 small **Map overlays** window, where you also make, rename and delete them: the pin on the location strip opens it
 (or **Map & location** in the settings, or `/toolbox overlay window`); `/toolbox mark <name>` marks where you stand.
 Auto map, turned on in a scene, marks every resource node you gather there: in an overlay of its kind and in
-Gathering, which shows them all. Nodes don't move, so one visit maps a scene. Kinds you don't want go on an
+Gathering, which shows them all. Nodes don't move, so one visit maps a scene. Its Fights switch marks each
+creature you kill the same way, in an overlay of its name and in Fights. Kinds you don't want go on an
 ignore list: `/toolbox overlay auto ignore <kind or word>`, or Ignore kind in the window. Your last death shows on
 the map too, beside any overlay, and `/toolbox death compass` points you back to it; it clears itself once you're
 back there, or after an hour in another scene.

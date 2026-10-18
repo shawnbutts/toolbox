@@ -96,6 +96,77 @@ return function(t)
     t.eq(#OV().Places(byName("Iron Ore")), 2, "off again")
   end)
 
+  local function kill(target, pos, extra)
+    H.S.pos = pos
+    ShroudPlayerX, ShroudPlayerY, ShroudPlayerZ = pos[1], pos[2], pos[3]
+    local e = { kind = "death", fromYou = true, source = "shawn", target = target }
+    for k, v in pairs(extra or {}) do e[k] = v end
+    H.combat({ e })
+  end
+
+  t.test("auto map, fights: their own switch; each creature killed is marked by name and in Fights", function()
+    H.boot()
+    H.advance(1)
+    H.chat("/tbx overlay auto on")
+    kill("Elf Fighter", { 10, 0, 10 })
+    t.eq(#OV().List(), 0, "gathering on, fights off: nothing marked")
+    H.chat("/tbx overlay auto fights")
+    t.ok(H.logged("Auto map of fights is off in this scene"), H.lastLog())
+    H.chat("/tbx overlay auto fights on")
+    t.ok(H.logged("Auto map of fights on in this scene"), H.lastLog())
+    kill("Elf Fighter", { 10, 0, 10 })
+    t.ok(H.logged("Auto map: Elf Fighter 1 marked%.$"), H.lastLog())
+    kill("Elf Fighter", { 25, 0, 15 })                  -- the same camp
+    t.ok(H.logged("Elf Fighter 1 marked%.$"), "not marked again: " .. H.lastLog())
+    kill("Elf Fighter", { 60, 0, 10 })
+    t.ok(H.logged("Auto map: Elf Fighter 2 marked"), H.lastLog())
+    kill("Reaper", { 12, 0, 10 }, { fromYou = false, fromYourPet = true })   -- your pet's kill counts
+    kill("Wolf", { 200, 0, 0 }, { fromYou = false })                         -- someone else's doesn't
+    kill("shawn", { 300, 0, 0 }, { toYou = true })                           -- nor your own death
+    gather("Iron Ore", { 10, 0, 10 })
+    local elf, reaper, fights = byName("Elf Fighter"), byName("Reaper"), byName("Fights")
+    t.eq(#OV().Places(elf), 2)
+    t.eq(#OV().Places(reaper), 1)
+    t.eq(#OV().Places(fights), 3, "Fights has every creature")
+    t.no(byName("Wolf"))
+    t.eq(#OV().Places(byName("Gathering")), 1, "gathering apart")
+    t.eq(OV().Shown(), fights, "Fights shown, the scene showing none before")
+    t.ok(elf.icon ~= reaper.icon or elf.color ~= reaper.color, "each creature its own look")
+    H.chat("/tbx overlay auto ignore reaper")
+    t.no(byName("Reaper"), "ignored: its overlay goes")
+    t.eq(#OV().Places(fights), 2, "and its places in Fights")
+    kill("Reaper", { 400, 0, 0 })
+    t.no(byName("Reaper"), "not marked again")
+    H.chat("/tbx overlay window")
+    H.advance(1)
+    t.eq(H.S.windows.toolbox_marks:Find("mw_fights").value, true, "the window's switch follows")
+    H.change("toolbox_marks", "mw_fights", false)
+    t.no(OV().AutoOn(nil, true), "off from the window")
+    t.ok(OV().AutoOn(), "gathering still on")
+    H.change("toolbox_marks", "mw_fights", true)
+    H.advance(31)
+    H.restart()
+    H.advance(2)
+    t.ok(OV().AutoOn(nil, true), "kept on")
+    t.eq(#OV().Places(byName("Fights")), 2, "kept")
+    H.chat("/tbx overlay auto off")
+    kill("Troll", { 500, 0, 0 })
+    t.ok(byName("Troll"), "fights stay on with gathering off")
+  end)
+
+  t.test("auto map, fights: their own 10 automatic overlays, beside gathering's", function()
+    H.boot()
+    H.advance(1)
+    H.chat("/tbx overlay auto on")
+    H.chat("/tbx overlay auto fights on")
+    for i = 1, 10 do gather("Kind " .. i, { i * 20, 0, 0 }) end
+    for i = 1, 10 do kill("Beast " .. i, { i * 30, 0, 100 }) end
+    t.eq(#OV().List(), 2 * OV().AUTO_MAX, "10 each")
+    t.ok(OV().FindPlace(byName("Fights"), "Beast 10 1"), "the 10th in Fights only")
+    H.reload()
+    t.eq(#OV().List(), 2 * OV().AUTO_MAX, "read back whole")
+  end)
+
   t.test("auto map: at most 10 automatic overlays a scene, apart from your own; told once", function()
     H.boot()
     H.advance(1)
