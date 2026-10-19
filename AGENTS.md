@@ -872,7 +872,9 @@ What each newer API added and what Toolbox does with it (all feature-detected):
 writes itself (`ShroudWriteDataFile` / `ReadDataFile` / `DeleteDataFile` / `ListDataFiles`, JSON), in a folder beside the
 package (an update installs only the manifest's files), kept through updates, confined, written safely; for exports
 (runs, overlays, setups) and data past the 256 KB saved files (a recipe cache, long history). Until then there is no
-file write: saved vars only. A read-only game settings API (first use: the game's "stack buffs lasting
+file write: saved vars only. **34** (drafted 2026-10-19, not submitted): open the Skills window at a skill (a third
+`ShroudToggleWindow` argument or `ShroudShowSkill(keyOrId)`, on a gesture); until then the skill strip's click opens
+the window wherever the game left it (the owner asked, same day). A read-only game settings API (first use: the game's "stack buffs lasting
 longer than" option feeding `BB.GroupAfter()`). Submitted 2026-10-07 (`tmp/client-issues.md`): **18**, for the
 crafting planner (ingredient choices for slot categories, item stats, language-independent item keys, a `have`
 that counts containers, the recipe book in one call, the station a recipe needs), and **19**, the saved "/" data
