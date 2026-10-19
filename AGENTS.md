@@ -879,7 +879,12 @@ package (an update installs only the manifest's files), kept through updates, co
 (runs, overlays, setups) and data past the 256 KB saved files (a recipe cache, long history). Until then there is no
 file write: saved vars only. **34** (drafted 2026-10-19, not submitted): open the Skills window at a skill (a third
 `ShroudToggleWindow` argument or `ShroudShowSkill(keyOrId)`, on a gesture); until then the skill strip's click opens
-the window wherever the game left it (the owner asked, same day). A read-only game settings API (first use: the game's "stack buffs lasting
+the window wherever the game left it (the owner asked, same day). **35** (drafted 2026-10-19, not submitted; a player's request): the target's
+difficulty as the game shows it, its "con" tier and color (`ShroudGetTargetDifficulty()`); until then the target HUD
+shows its name only (`target.name`), no guessed color. **36** (drafted 2026-10-19, not submitted; a player's request):
+`ShroudCanDismissPetBuff` / `ShroudDismissPetBuff(runeIdOrName)` on a click, as the pet window's right-click; a pet
+strip (the pet's health and its effects at Toolbox's icon size, `ShroudGetPetBuff`, `ShroudGetPetInfo`) waits for it,
+since removing a pet buff is what players want the bigger icons for. A read-only game settings API (first use: the game's "stack buffs lasting
 longer than" option feeding `BB.GroupAfter()`). Submitted 2026-10-07 (`tmp/client-issues.md`): **18**, for the
 crafting planner (ingredient choices for slot categories, item stats, language-independent item keys, a `have`
 that counts containers, the recipe book in one call, the station a recipe needs), and **19**, the saved "/" data
