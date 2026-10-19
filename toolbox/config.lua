@@ -958,6 +958,10 @@ function C.ToolbeltSection()
   children[#children + 1] = UI.Toggle{ id = "target_show_text", text = "Show numbers", value = TG.GetShowText(),
     tooltip = "Health and focus as numbers beside the bars (large ones shortened: 12.5k; the tooltip has them all)",
     onChange = function(_, v) TG.SetShowText(v) end }
+  children[#children + 1] = UI.Toggle{ id = "target_show_name", text = "Show the target's name",
+    value = TG.GetShowName(), tooltip = "The name above the bars (with the bars or the numbers on), so you can see "
+      .. "which one you have targeted",
+    onChange = function(_, v) TG.SetShowName(v) end }
   children[#children + 1] = dropdownRow("Number background", { id = "target_bg", choices = T.Vitals.BackgroundNames(),
     value = TG.GetBackground(), tooltip = "A dark or light panel behind the target's numbers",
     onChange = function(_, value) TG.SetBackground(value) end })
@@ -1722,8 +1726,8 @@ local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "loc_overlay
   "nhud_hide", "notify_compact", "notify_font", "notify_font_value", "nhud_font", "nhud_font_value",
   "volume", "volume_value", "hud_summary", "toolbelt_show",
   "toolbelt_vitals", "toolbelt_consumables", "toolbelt_gear", "toolbelt_target", "target_place", "target_mirror",
-  "target_effects", "target_icons", "target_icons_value", "target_show_bars", "target_show_text", "target_bg",
-  "target_hide_pet", "target_flash_test", "nhud_spacing", "nhud_spacing_value",
+  "target_effects", "target_icons", "target_icons_value", "target_show_bars", "target_show_text", "target_show_name",
+  "target_bg", "target_hide_pet", "target_flash_test", "nhud_spacing", "nhud_spacing_value",
   "target_flash", "target_flash_below", "target_flash_below_value",
   "toolbelt_combat", "cons_combat", "cons_max", "cons_max_value", "buff_countdown", "buff_countdown_secs",
   "buff_countdown_secs_value", "backup_where", "backup_save", "bk_now", "bk_pick", "bk_restore", "settings_reset",
@@ -2477,6 +2481,7 @@ function C.Sync()
   setEnabled("target_mirror", T.Target.GetShow() and T.Target.CanMirror())
   setValue("target_show_bars", T.Target.GetShowBars())
   setValue("target_show_text", T.Target.GetShowText())
+  setValue("target_show_name", T.Target.GetShowName())
   setValue("target_bg", T.Target.GetBackground())
   sliderValue("target_shade", T.Target.GetShade())
   setEnabled("target_shade", T.Target.GetShow() and T.Target.GetShowText() and T.Target.GetBackground() == "Dark")
@@ -2487,6 +2492,7 @@ function C.Sync()
     setEnabled(id, T.Target.GetShow())
   end
   setEnabled("target_bg", T.Target.GetShow() and T.Target.GetShowText())
+  setEnabled("target_show_name", T.Target.GetShow() and T.Target.InfoShown())
   setEnabled("target_flash_below", T.Target.GetShow() and T.Target.GetFlash())
   setEnabled("target_flash_test", T.Target.GetShow())
   setText("hud_summary", C.HudSummary())

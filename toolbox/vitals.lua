@@ -668,7 +668,8 @@ function V.ApplyText() end
 -- Toolbox.Target: the target HUD (/toolbox target)
 -- ===========================================================================
 -- One row: the target's health and focus as bars the size of the player's (the name and numbers are in the
--- tooltip; owner, 2026-09-29), then its effects as icons with
+-- tooltip; owner, 2026-09-29; the name can also go above the bars, `name`, owner 2026-10-19 from a player's request:
+-- which mob you have targeted), then its effects as icons with
 -- the buff bar's clock sweep: debuffs (outlined) first, then the soonest to end. Its own strip, or the
 -- Toolbelt's last row (built by the buff bar, like the consumables and equipment rows: TG.BuildRow,
 -- TG.Glued, TG.GluedCount). Every value is what the game's own target frame shows: a creature hiding its
@@ -708,11 +709,13 @@ TG.FLASH_HALF = 0.5          -- seconds each half of a low-value flash (two poll
 
 local function defaultPrefs()
   return { show = false, glue = true, place = "top", mirror = false, effects = "all", bars = true, numbers = false,
-           bg = "None", flash = false, flashBelow = V.FLASH_DEFAULT, hidePet = true }
+           name = false, bg = "None", flash = false, flashBelow = V.FLASH_DEFAULT, hidePet = true }
 end
 local tprefs = defaultPrefs()
 local tContent, tInfo, tHealth, tFocus = nil, nil, nil, nil
 local tText = {}             -- [1] health, [2] focus: { wrap = Row, label = Label }
+local tName = nil            -- the name line above the bars (TG.NameShown)
+local tNameChars = 0         -- how many characters fit on it
 local tFlashing = {}         -- [1] / [2]: whether that bar is in its flash colours now
 local tSlots = {}
 local tShownCount = nil      -- cells the row takes (for the strip's size), when it last changed
@@ -790,6 +793,14 @@ end
 function TG.Name(name)
   if type(name) ~= "string" or name == "" or name == "None" then return "Unnamed" end
   return name
+end
+
+-- The name line's text (pure): its first line (another player's pet: "kitty\n<shawn>" reads "kitty <shawn>"), cut
+-- to `chars` characters with "..." when longer.
+function TG.FitName(name, chars)
+  local s = TG.Name(name):gsub("%s*\n%s*", " ")
+  if chars < 4 or #s <= chars then return s end
+  return T.Trim(s:sub(1, chars - 3)) .. "..."
 end
 
 -- Sorts effects for the row (pure): debuffs first, then the soonest to end (permanent ones, 0 left,
@@ -935,12 +946,14 @@ local function infoLayout(s)
     -- each bar's row: a text line high with numbers, else the bar (2 px apart, as before)
     L.rowH = tprefs.numbers and m.line or m.barH
     L.rowGapIn = tprefs.numbers and m.rowGap or 2
-    L.h = math.max(s, 2 * L.rowH + L.rowGapIn)   -- taller than an icon only at a large Size
+    -- the name line above the bars: a text line and a row gap (the bars block's width; at least 8 characters)
+    L.nameH = TG.NameShown() and (m.line + L.rowGapIn) or 0
+    L.h = math.max(s, L.nameH + 2 * L.rowH + L.rowGapIn)   -- taller than an icon only at a large Size
     if tLeft then
       -- a fixed block: the icons, then the bars (their rows as tall as the health bars' rows)
       L.w = L.contentW
       L.blockW = TG.SlotCount(true) * cell + L.contentW
-      L.blockH = math.max(s, 2 * (m.line + m.rowGap))
+      L.blockH = math.max(s, L.nameH + 2 * (m.line + m.rowGap))
       L.cells = 0
     elseif tBelow then
       L.w = math.max(L.contentW, (V.ContentSize()) + T.Hud.GAP - gap)
@@ -960,6 +973,7 @@ end
 -- Applies infoLayout to the built bars block (at build, and when a size changes).
 local tBlockW, tBlockH = 0, 0
 local tInfoH = 0             -- the bars block's height in the other forms (L.h)
+local tNameH = 0             -- the name line's share of it (L.nameH)
 
 -- Mirrored: copies the health bars' rows' laid-out heights to the target's two rows (their asked-for height
 -- isn't what the game lays out), so each target bar sits level with the player's. Returns true on a change.
@@ -975,7 +989,7 @@ local function syncRows(s)
     end
   end
   if changed then
-    tBlockH = math.max(s, (tRowH[1] or 0) + (tRowH[2] or 0) + 2 * gap)
+    tBlockH = math.max(s, tNameH + (tRowH[1] or 0) + (tRowH[2] or 0) + 2 * gap)
     tContent:SetStyle{ height = tBlockH, minHeight = tBlockH }
   end
   return changed
@@ -999,10 +1013,23 @@ local function styleNumbers(m)
   tFlashing = {}                                 -- colours were reset: the poll re-applies a flash
 end
 
+-- The name line's look: the numbers' font, a line high, as wide as the bars block (right-aligned when mirrored).
+local function styleName(L)
+  if not tName then return end
+  local w = math.max(L.w, 0)
+  tNameH = L.nameH
+  tNameChars = math.floor(w / math.max(1, L.m.font * 0.55))
+  tName:SetStyle{ fontSize = L.m.font, width = w, height = L.m.line, minHeight = L.m.line, maxHeight = L.m.line,
+    marginTop = 0, marginBottom = L.nameH > 0 and (L.nameH - L.m.line) or 0, marginLeft = 0, marginRight = 0,
+    paddingTop = 0, paddingBottom = 0, whiteSpace = "nowrap", textAlign = tLeft and "right" or "left" }
+  T.SetVisible(tName, L.nameH > 0)
+end
+
 local function styleInfo(s)
   local L = infoLayout(s)
   tInfoCells = L.cells
   styleNumbers(L.m)
+  styleName(L)
   T.SetVisible(tHealth, tprefs.bars)
   T.SetVisible(tText[1].wrap, tprefs.numbers)
   if tLeft then
@@ -1055,10 +1082,12 @@ function TG.BuildRow()
     tRows[i] = UI.Row{ style = { alignItems = "center", justifyContent = tLeft and "end" or "start" },
       children = kids }
   end
+  tName = UI.Label{ id = "target_name", text = "", class = "text", visible = false }
   if tLeft then
-    tInfo = UI.Column{ id = "target_info", children = { tRows[1], tRows[2] } }
+    tInfo = UI.Column{ id = "target_info", children = { tName, tRows[1], tRows[2] } }
   else
-    tInfo = UI.Column{ id = "target_info", style = { justifyContent = "center" }, children = { tRows[1], tRows[2] } }
+    tInfo = UI.Column{ id = "target_info", style = { justifyContent = "center" },
+      children = { tName, tRows[1], tRows[2] } }
   end
   styleInfo(s)
   local children = { tInfo }
@@ -1094,7 +1123,7 @@ end
 
 -- For Toolbox.Hud (and BB.Unbuilt when in the Toolbelt): the row was destroyed; the poll skips it.
 function TG.Unbuilt()
-  tContent, tInfo, tHealth, tFocus, tHint, TG.inBuffBar = nil, nil, nil, nil, nil, false
+  tContent, tInfo, tHealth, tFocus, tHint, tName, TG.inBuffBar = nil, nil, nil, nil, nil, nil, false
   tSlots, tRows, tText, tShownCount = {}, {}, {}, nil
 end
 
@@ -1252,6 +1281,7 @@ function TG.Poll(force)
       .. (hasFocus and string.format("\nFocus %s / %s", T.FormatNumber(fcur), T.FormatNumber(fmax)) or "")
       .. (dead and "\nDead" or "")
     T.SetTooltip(tInfo, tip)
+    if tName and tNameH > 0 then T.SetText(tName, TG.FitName(ShroudGetTargetName(), tNameChars)) end
   else
     for j = 1, #tList do tList[j] = nil end
     T.SetValue(tHealth, 0)
@@ -1261,6 +1291,7 @@ function TG.Poll(force)
     TG.Flash(1, T.Now() < tPreviewUntil and math.floor(T.Now() / TG.FLASH_HALF) % 2 == 1)   -- Test flash
     TG.Flash(2, false)
     T.SetTooltip(tInfo, "Your target's health and effects show here")
+    if tName then T.SetText(tName, "") end
     tId, tCount = nil, nil
   end
   fillSlots()
@@ -1377,6 +1408,13 @@ local function tSetPart(key, on)
   return true
 end
 function TG.SetShowBars(on) return tSetPart("bars", on) end
+-- The name line above the bars (shown with the bars or the numbers: it's part of their block).
+function TG.GetShowName() return tprefs.name == true end
+function TG.NameShown() return tprefs.name == true and TG.InfoShown() end
+function TG.SetShowName(on)
+  tprefs.name = on == true
+  applyLook()
+end
 function TG.SetShowText(on) return tSetPart("numbers", on) end
 
 function TG.GetBackground() return V.BackgroundNamed(tprefs.bg).name end
@@ -1473,6 +1511,7 @@ function TG.Init()
     if type(saved.x) == "number" and type(saved.y) == "number" then tprefs.x, tprefs.y = saved.x, saved.y end
     tprefs.bars = saved.bars ~= false
     tprefs.numbers = saved.numbers == true
+    tprefs.name = saved.name == true
     if not tprefs.bars and not tprefs.numbers and tprefs.effects == "none" then tprefs.bars = true end
     tprefs.bg = V.BackgroundNamed(saved.bg).name
     if type(saved.shade) == "number" then tprefs.shade = T.ShadeOf(saved.shade) end

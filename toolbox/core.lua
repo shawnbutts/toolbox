@@ -1949,7 +1949,7 @@ add("gear", "worn gear's durability, lowest first (bar on|off: the equipment bar
 end)
 
 add("target", "your target's health and effects (on|off; toolbelt on|off; place top|bottom: in the Toolbelt; "
-    .. "mirror on|off; effects all|debuffs|none; icons <1-8>; text|bars on|off; bg; flash <%>|on|off|test; "
+    .. "mirror on|off; effects all|debuffs|none; icons <1-8>; text|bars|name on|off; bg; flash <%>|on|off|test; "
     .. "pet on|off; move [x y]; debug)", function(rest)
   local TG = T.Target
   local word, args = T.ParseArgs(rest)
@@ -1983,6 +1983,16 @@ add("target", "your target's health and effects (on|off; toolbelt on|off; place 
       T.Print("Use /" .. T.commands[1] .. " target place top|bottom (where it goes in the Toolbelt).")
       return
     end
+  elseif word == "name" then
+    local a = args:lower()
+    if a ~= "on" and a ~= "off" then
+      T.Print("Use /" .. T.commands[1] .. " target name on|off (the target's name above its bars).")
+      return
+    end
+    TG.SetShowName(a == "on")
+    T.Print("Target's name above the bars: " .. (TG.GetShowName() and "on" or "off")
+      .. ((TG.GetShowName() and not TG.InfoShown()) and " (it shows with the bars or the numbers on)" or "") .. ".")
+    return
   elseif word == "text" or word == "bars" then
     local a = args:lower()
     if a ~= "on" and a ~= "off" then
