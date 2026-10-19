@@ -205,7 +205,9 @@ into one if a new file is ever needed).
   the planner's `pl_book`, `/toolbox plan book read`; a recipe learned keeps the book, `D.ForgetRecipes(keep)`,
   `D.bookStale`); `PL.StopBook` (`plBookStopped`: nothing auto until read); a read again keeps the old one in use,
   the planner not greyed;
-  `byKey` by item key), dropped on `ShroudOnRecipesChanged` and by `PL.Init` (a login or another character). Not saved: 1,764 recipes'
+  `byKey` by item key; `/toolbox recipe export [stop]`, `D.ExportRecipes`, writes it to chat for the game's chat
+  log, for tools/recipes_from_chatlog.py: HIDDEN on purpose, owner 2026-10-19, so no help line, guide, README or
+  CHANGELOG entry; unconfirmed that add-on lines reach the chat log file), dropped on `ShroudOnRecipesChanged` and by `PL.Init` (a login or another character). Not saved: 1,764 recipes'
   makers would take a large share of a 256 KB file. At the end, `Toolbox.Planner` (PL; owner, 2026-10-15,
   the 1.9.0 feature; header comment): the crafting planner, `/toolbox plan [recipe]`, the shared 8th window's fourth
   user (`T.TakeSharedWindow("planner")`). Pure model: `PL.Expand(rootId, crafts, ctx)` (rows, shopping list, build
@@ -555,8 +557,7 @@ into one if a new file is ever needed).
   constants; stamps `build = "<commit>[+]"` into dist), `beta.py` (`make beta`), `install.py`,
   `release_notes.py` (a version's CHANGELOG section, for the release workflow), `recipes_from_chatlog.py` (not shipped; owner, 2026-10-19: the
   recipe book exported through chat, `TBXR1` lines in the game's chat logs, into one JSON file for comparing with the
-  wiki; its docstring is the line format the in-game exporter must write, `--self-test` in the check; the exporter
-  isn't built yet, pending the owner's test that add-on lines reach the chat log).
+  wiki; its docstring is the line format `D.ExportRecipes` writes, `--self-test` in the check).
 - `.luacheckrc`: std `lua52` plus the documented globals (`api_functions`; newer ones in `api_probed`;
   callbacks in `api_callbacks`). Only names that are in the docs.
 - `tmp/`: a local working area (git-ignored, skipped by luacheck). Never reference it from the package,

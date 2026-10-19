@@ -1666,6 +1666,198 @@ function D.RecipeLines(text)
 end
 
 -- ---------------------------------------------------------------------------
+-- The recipe book exported through chat (owner, 2026-10-19: for comparing with the wiki; hidden on purpose, no UI,
+-- guide or help line): `/toolbox recipe export [stop]` writes the book read (D.recipeIndex) as chat lines the game's
+-- chat log keeps, which tools/recipes_from_chatlog.py turns into one JSON file. The line format is that script's
+-- docstring: "TBXR1 <run> <rec>/<recs> <part>/<parts> <payload>", record 0 the header, then one a recipe by id, its
+-- JSON escaped (D.ExportEscape) and cut into D.EXPORT_PIECE-character pieces. D.EXPORT_LINES lines a D.EXPORT_PERIOD
+-- step, a record encoded only when its turn comes. The counts a character has (have, carried...) are left out.
+-- ---------------------------------------------------------------------------
+D.EXPORT_PIECE, D.EXPORT_LINES, D.EXPORT_PERIOD = 200, 10, 0.1
+D.EXPORT_SKIP = { have = true, carried = true, favorite = true, chosenKey = true }
+local EXPORT_TIMER = "toolbox_recipe_export"
+local exporting = nil                     -- { run, ids, recipes, rec, queue = { lines }, lines }
+
+local EXPORT_KEEP = "[^0-9A-Za-z{}\":,%.%-_%+%(%)%*;=%?!@/']"
+local function exportChar(c)
+  local b = c:byte()
+  if b > 255 then return string.format("%%u%04X", b) end
+  return string.format("%%%02X", b)
+end
+-- A piece's text as the line carries it: letters, digits and a few signs as they are, the rest %XX / %uXXXX.
+function D.ExportEscape(s) return (s:gsub(EXPORT_KEEP, exportChar)) end
+
+local function jsonText(s)
+  return '"' .. s:gsub('[%c"\\]', function(c)
+    if c == '"' then return '\\"' elseif c == "\\" then return "\\\\" end
+    return string.format("\\u%04X", c:byte())
+  end) .. '"'
+end
+
+-- A value as JSON: keys sorted, a table 1..n a list (an empty one too), D.EXPORT_SKIP and anything not data left out.
+local function jsonOf(v, depth)
+  local kind = type(v)
+  if kind == "string" then return jsonText(v) end
+  if kind == "boolean" then return tostring(v) end
+  if kind == "number" then
+    if v ~= v or v == math.huge or v == -math.huge then return "null" end
+    if v == math.floor(v) and math.abs(v) < 1e15 then return string.format("%d", math.floor(v)) end
+    return string.format("%.14g", v)
+  end
+  if kind ~= "table" or depth > 12 then return "null" end
+  local n = #v
+  local keys = {}
+  for k in pairs(v) do
+    if not (type(k) == "number" and k >= 1 and k <= n and k == math.floor(k)) then keys[#keys + 1] = k end
+  end
+  if #keys == 0 then
+    local parts = {}
+    for i = 1, n do parts[i] = jsonOf(v[i], depth + 1) end
+    return "[" .. table.concat(parts, ",") .. "]"
+  end
+  for i = 1, n do keys[#keys + 1] = i end
+  local names = {}
+  for _, k in ipairs(keys) do
+    local t = type(v[k])
+    if (type(k) == "string" or type(k) == "number") and not D.EXPORT_SKIP[k]
+      and (t == "string" or t == "number" or t == "boolean" or t == "table") then
+      names[#names + 1] = tostring(k)
+    end
+  end
+  table.sort(names)
+  local parts = {}
+  for _, name in ipairs(names) do
+    local value = v[name]
+    if value == nil then value = v[tonumber(name)] end
+    parts[#parts + 1] = jsonText(name) .. ":" .. jsonOf(value, depth + 1)
+  end
+  return "{" .. table.concat(parts, ",") .. "}"
+end
+D.ExportJson = function(v) return jsonOf(v, 0) end
+
+-- The record's lines, queued: its JSON escaped and cut where no %XX / %uXXXX is split.
+local function queueRecord(e, rec, value)
+  local text = D.ExportEscape(jsonOf(value, 0))
+  local pieces, at = {}, 1
+  while at <= #text do
+    local cut = math.min(#text, at + D.EXPORT_PIECE - 1)
+    if cut < #text then
+      local pct = nil
+      for i = math.max(at, cut - 5), cut do if text:sub(i, i) == "%" then pct = i end end
+      if pct and pct > at then
+        local len = text:sub(pct + 1, pct + 1) == "u" and 6 or 3
+        if pct + len - 1 > cut then cut = pct - 1 end
+      end
+    end
+    pieces[#pieces + 1] = text:sub(at, cut)
+    at = cut + 1
+  end
+  if #pieces == 0 then pieces[1] = "" end
+  local head = "TBXR1 " .. e.run .. " " .. rec .. "/" .. #e.ids .. " "
+  for i, piece in ipairs(pieces) do
+    e.queue[#e.queue + 1] = head .. i .. "/" .. #pieces .. " " .. piece
+  end
+end
+
+local function exportStep()
+  local e = exporting
+  if not e then return end
+  local said = 0
+  while said < D.EXPORT_LINES do
+    if e.qAt > #e.queue then
+      e.queue, e.qAt = {}, 1
+      if e.rec >= #e.ids then break end
+      e.rec = e.rec + 1
+      local id = e.ids[e.rec]
+      local rec = e.recipes[id]
+      local value = rec
+      if type(rec) == "table" and rec.id == nil then
+        value = {}
+        for k, v in pairs(rec) do value[k] = v end
+        value.id = id
+      elseif type(rec) ~= "table" then
+        value = { id = id, name = T.Field(rec, "name") }
+      end
+      queueRecord(e, e.rec, value)
+    else
+      T.Print(e.queue[e.qAt])
+      e.qAt = e.qAt + 1
+      e.lines = e.lines + 1
+      said = said + 1
+    end
+  end
+  if e.rec >= #e.ids and e.qAt > #e.queue then
+    T.RemovePeriodic(EXPORT_TIMER)
+    exporting = nil
+    T.Print("Recipe export " .. e.run .. " done: " .. #e.ids .. " recipes, " .. e.lines .. " lines.")
+  end
+end
+
+local function exportRun()
+  local osTable = os                 -- nil in a sandbox without it (read plainly: see AGENTS.md)
+  local date = type(osTable) == "table" and osTable.date
+  if type(date) == "function" then
+    local ok, s = pcall(date, "%Y%m%d-%H%M%S")
+    if ok and type(s) == "string" and s:match("^%d+%-%d+$") then return s end
+  end
+  return "t" .. math.floor(T.Now())
+end
+
+local function exportStart()
+  local index = D.recipeIndex
+  if not index then return end
+  local ids = {}
+  for id in pairs(index.recipes) do ids[#ids + 1] = id end
+  table.sort(ids)
+  local info = nil
+  if type(ShroudGetClientInfo) == "function" then
+    local ok, got = pcall(ShroudGetClientInfo)
+    if ok then info = got end
+  end
+  local e = { run = exportRun(), ids = ids, recipes = index.recipes, rec = 0, queue = {}, qAt = 1, lines = 0 }
+  local _, day = T.Today()
+  local client, language = T.Field(info, "build"), T.Field(info, "languageCode")
+  queueRecord(e, 0, {
+    format = "toolbox-recipes-1", character = T.PlayerName() or "", date = day or "", time = T.ClockText(),
+    client = client ~= nil and tostring(client) or "", api = number(ShroudLuaApiVersion) or 0,
+    language = type(language) == "string" and language or "", toolbox = T.version, toolboxBuild = T.build or "",
+    count = #ids, stale = D.bookStale == true })
+  exporting = e
+  T.Print("Recipe export " .. e.run .. ": " .. #ids .. " recipes into the chat log, about "
+    .. math.ceil(#ids * 2 / D.EXPORT_LINES * D.EXPORT_PERIOD) .. " s. /toolbox recipe export stop ends it.")
+  T.RegisterPeriodic(EXPORT_TIMER, exportStep, D.EXPORT_PERIOD, true)
+end
+
+-- `/toolbox recipe export [stop]`: starts (reading the book first if needed) or stops the export.
+function D.ExportRecipes(stop)
+  if stop then
+    if not exporting then
+      T.Print("No recipe export is running.")
+      return
+    end
+    T.RemovePeriodic(EXPORT_TIMER)
+    T.Print("Recipe export " .. exporting.run .. " stopped after " .. exporting.rec .. " of " .. #exporting.ids
+      .. " recipes.")
+    exporting = nil
+    return
+  end
+  if exporting then
+    T.Print("A recipe export is already running (" .. exporting.rec .. " of " .. #exporting.ids .. ").")
+    return
+  end
+  local n = D.ReadRecipeBook(function(ok)
+    if ok and not exporting then exportStart() end
+  end)
+  if n == nil then
+    T.Print("No recipe book to export (no known recipes, or a client without the recipe calls).")
+  elseif n > 0 then
+    T.Print("Reading your recipe book (" .. n .. " recipes) first: the export starts when it's read.")
+  end
+end
+
+function D.Exporting() return exporting ~= nil end
+
+-- ---------------------------------------------------------------------------
 -- The crafting planner (Toolbox.Planner, PL; owner, 2026-10-15, the 1.9.0 feature): pick a known recipe and a
 -- number of crafts; each slot that takes a choice of material ("Metal Sheet", API 37) gets a dropdown, each choice
 -- with how many you have, starting on the first you have enough of (the game's order puts the ones you can craft with

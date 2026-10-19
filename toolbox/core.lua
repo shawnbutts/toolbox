@@ -1062,6 +1062,11 @@ end
 add("recipe", "a known recipe as the game reports it, and what it takes from raw materials (recipe <name>)",
     function(rest)
   local D = T.Daily
+  local word = T.Trim(rest or ""):lower()
+  if word == "export" or word == "export stop" then   -- hidden (owner, 2026-10-19): no help line, no guide
+    D.ExportRecipes(word == "export stop")
+    return
+  end
   local lines = D.RecipeLines(rest)
   if lines then                        -- answered without the whole book (a list of matches, none, ...)
     for _, line in ipairs(lines) do T.Print(line) end
