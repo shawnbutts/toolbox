@@ -8,8 +8,8 @@ Not part of the add-on: a helper for comparing the game's recipes with the wiki.
     python3 tools/recipes_from_chatlog.py ChatLogs/ --run 20261019-153200
     python3 tools/recipes_from_chatlog.py --self-test
 
-A folder means every .txt file in it. Files are read in name order (the game names chat logs by date), and the
-newest export is taken unless --run picks one. An export with pieces missing is refused unless --partial is given
+A folder means every .txt file in it. All the files are read in name order (the game names chat logs by date), and
+the newest export (the latest run id, a date and time) is taken unless --run picks one. An export with pieces missing is refused unless --partial is given
 (the missing recipe numbers are then listed in the output). Standard library only.
 
 The line format (version 1; the add-on's exporter must write exactly this). Each piece is one chat line holding
@@ -99,7 +99,12 @@ def log_files(paths: list[str]) -> list[Path]:
             files.append(p)
         else:
             raise FileNotFoundError(f"no such file or folder: {p}")
-    return files
+    return sorted(set(files), key=lambda f: (f.name, str(f)))
+
+
+def newest(runs: dict[str, "Run"]) -> "Run":
+    """The latest export: the highest run id (the exporter's YYYYMMDD-HHMMSS), then the last one read."""
+    return max(runs.values(), key=lambda r: (r.id, r.order))
 
 
 class Run:
@@ -214,13 +219,26 @@ def self_test() -> int:
         files = log_files([d])
         runs = collect(files)
         assert set(runs) == {"20261018-130000", "20261019-153200"}, runs
-        newest = max(runs.values(), key=lambda r: r.order)
-        out, missing, problems = build(newest, files)
+        out, missing, problems = build(newest(runs), files)
         assert not missing and not problems, (missing, problems)
         assert out["export"] == header, out["export"]
         assert out["recipes"] == sorted(recipes, key=sort_key), out["recipes"]
         stale_out, stale_missing, _ = build(runs["20261018-130000"], files)
         assert stale_missing == [1], stale_missing
+        old, new = Path(d, "a-old.txt"), Path(d, "z-new.txt")
+        old.write_text(stale.replace("0/1 1/1", "0/0 1/1") + "\n", encoding="utf-8")
+        new.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        for args in ([str(new), str(old)], [str(old), str(new)]):
+            files = log_files(args)
+            assert files == [old, new], files
+            assert newest(collect(files)).id == "20261019-153200", args
+        sub_a, sub_b = Path(d, "b"), Path(d, "a")
+        sub_a.mkdir()
+        sub_b.mkdir()
+        (sub_a / "SotAChatLog_alt_2026.10.18.txt").write_text(old.read_text(), encoding="utf-8")
+        (sub_b / "SotAChatLog_alt_2026.10.20.txt").write_text(new.read_text(), encoding="utf-8")
+        assert newest(collect(log_files([str(sub_b), str(sub_a)]))).id == "20261019-153200"
+        assert newest(collect(log_files([str(sub_a), str(sub_b)]))).id == "20261019-153200"
     print("self-test passed")
     return 0
 
@@ -257,7 +275,7 @@ def main(argv: list[str]) -> int:
             print(f"no export '{args.run}'; found: {', '.join(sorted(runs))}", file=sys.stderr)
             return 1
     else:
-        run = max(runs.values(), key=lambda r: r.order)
+        run = newest(runs)
     out, missing, problems = build(run, files)
     for p in problems:
         print(f"{run.id}: {p}", file=sys.stderr)
