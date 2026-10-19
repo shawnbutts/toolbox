@@ -164,8 +164,9 @@ D.SECTIONS = {
       .. "Every effect on it is listed (the game doesn't say who applied one). Hover for details.",
     "Its bars are the size of yours (Health bars: Size, Bar length). Settings, Toolbelt, Target bars give it "
       .. "the health bars' options: bars, numbers, background, flash when low (/toolbox target text|bars "
-      .. "on|off, bg, flash <%>|off); Show the target's name puts its name above the bars, under them when "
-      .. "mirrored (/toolbox target name on); Leave out your pet hides it when the game targets it. "
+      .. "on|off, bg, flash <%>|off); Show the target's name puts its name above the bars "
+      .. "(mirrored: right-aligned over its icons and bars, your bars moving down a line to stay level; /toolbox "
+      .. "target name on); Leave out your pet hides it when the game targets it. "
       .. "With your health bars in the "
       .. "Toolbelt too, it runs across the whole Toolbelt: its bars start where yours do and its icons line "
       .. "up with your buffs. It goes above the buffs (the default; its space is kept, see below) "

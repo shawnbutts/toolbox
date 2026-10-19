@@ -1960,8 +1960,10 @@ end
 function H.targetSlots()
   local out = {}
   local row = H.targetRow()
+  row = row and row:Find("target_body") or row          -- mirrored: the icons are under the name line
   for _, slot in ipairs(row and row.children or {}) do
-    if slot.id ~= "target_info" and slot.id ~= "target_hint" and slot.visible ~= false then out[#out + 1] = slot end
+    if slot.id ~= "target_info" and slot.id ~= "target_hint" and slot.id ~= "target_name" and slot.visible ~= false
+    then out[#out + 1] = slot end
   end
   return out
 end

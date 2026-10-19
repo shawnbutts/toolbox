@@ -715,7 +715,7 @@ local tprefs = defaultPrefs()
 local tContent, tInfo, tHealth, tFocus = nil, nil, nil, nil
 local tText = {}             -- [1] health, [2] focus: { wrap = Row, label = Label }
 local tName = nil            -- the name line above the bars (TG.NameShown)
-local tNameChars = 0         -- how many characters fit on it
+local tBody = nil            -- mirrored: the row under the name line (the icons and the bars)
 local tFlashing = {}         -- [1] / [2]: whether that bar is in its flash colours now
 local tSlots = {}
 local tShownCount = nil      -- cells the row takes (for the strip's size), when it last changed
@@ -795,12 +795,9 @@ function TG.Name(name)
   return name
 end
 
--- The name line's text (pure): its first line (another player's pet: "kitty\n<shawn>" reads "kitty <shawn>"), cut
--- to `chars` characters with "..." when longer.
-function TG.FitName(name, chars)
-  local s = TG.Name(name):gsub("%s*\n%s*", " ")
-  if chars < 4 or #s <= chars then return s end
-  return T.Trim(s:sub(1, chars - 3)) .. "..."
+-- The name line's text (pure): on one line (another player's pet, "kitty\n<shawn>", reads "kitty <shawn>").
+function TG.FitName(name)
+  return (TG.Name(name):gsub("%s*\n%s*", " "))
 end
 
 -- Sorts effects for the row (pure): debuffs first, then the soonest to end (permanent ones, 0 left,
@@ -953,7 +950,7 @@ local function infoLayout(s)
       -- a fixed block: the icons, then the bars (their rows as tall as the health bars' rows)
       L.w = L.contentW
       L.blockW = TG.SlotCount(true) * cell + L.contentW
-      L.blockH = math.max(s, L.nameH + 2 * (m.line + m.rowGap))
+      L.blockH = L.nameH + math.max(s, 2 * (m.line + m.rowGap))   -- the name on its own line over everything
       L.cells = 0
     elseif tBelow then
       L.w = math.max(L.contentW, (V.ContentSize()) + T.Hud.GAP - gap)
@@ -989,7 +986,7 @@ local function syncRows(s)
     end
   end
   if changed then
-    tBlockH = math.max(s, tNameH + (tRowH[1] or 0) + (tRowH[2] or 0) + 2 * gap)
+    tBlockH = tNameH + math.max(s, (tRowH[1] or 0) + (tRowH[2] or 0) + 2 * gap)
     tContent:SetStyle{ height = tBlockH, minHeight = tBlockH }
   end
   return changed
@@ -1013,21 +1010,27 @@ local function styleNumbers(m)
   tFlashing = {}                                 -- colours were reset: the poll re-applies a flash
 end
 
--- The name line's look: the numbers' font, a line high, held to the bars block's width (a label left to grow ran past
--- the strip and was clipped there, owner 2026-10-19), cut by TG.FitName at TG.NAME_CHAR_W of the font a character.
--- Above the bars, or under them when mirrored (owner, same day: above, it pushed the bars a row below yours).
-TG.NAME_CHAR_W = 0.62
+-- The name line's look: the numbers' font, a line high, held to its width (a label left to grow ran past the strip
+-- and was clipped there, owner 2026-10-19). Above the bars; mirrored, on its own line over the whole block (icons and
+-- bars), right-aligned so it ends over the bars, and in the Toolbelt the columns beside it start that much lower
+-- (TG.TopRoom, Hud.Refresh) so the bars stay level with yours (owner, same day). Not cut by Toolbox: the game's own
+-- "..." only past the line's width.
 local function styleName(L)
   if not tName then return end
-  local w = math.max(L.w, 0)
+  local w = math.max(tLeft and L.blockW or L.w, 0)
   tNameH = L.nameH
-  tNameChars = math.floor(w / math.max(1, L.m.font * TG.NAME_CHAR_W))
   local gap = L.nameH > 0 and (L.nameH - L.m.line) or 0
   tName:SetStyle{ fontSize = L.m.font, width = w, minWidth = w, maxWidth = w, height = L.m.line,
-    minHeight = L.m.line, maxHeight = L.m.line, marginTop = 0, marginBottom = tLeft and 0 or gap, marginLeft = 0,
+    minHeight = L.m.line, maxHeight = L.m.line, marginTop = 0, marginBottom = gap, marginLeft = 0,
     marginRight = 0, paddingTop = 0, paddingBottom = 0, paddingLeft = 0, paddingRight = 0, whiteSpace = "nowrap",
     textAlign = tLeft and "right" or "left" }
   T.SetVisible(tName, L.nameH > 0)
+end
+
+-- Mirrored with the name on: how far the Toolbelt's columns beside the block start lower (its name line), else 0.
+function TG.TopRoom()
+  if tLeft and tContent and tName then return tNameH end
+  return 0
 end
 
 local function styleInfo(s)
@@ -1048,6 +1051,7 @@ local function styleInfo(s)
     tHealth:SetStyle(bar)
     tFocus:SetStyle(bar)
     if tContent then tContent:SetStyle{ width = tBlockW, minWidth = tBlockW, height = tBlockH, minHeight = tBlockH } end
+    if tBody then tBody:SetStyle{ width = tBlockW, minWidth = tBlockW } end
     tRowH, tSyncUntil = {}, T.Now() + TG.SYNC_FOR  -- measure the health bars' rows again
     return
   end
@@ -1089,7 +1093,7 @@ function TG.BuildRow()
   end
   tName = UI.Label{ id = "target_name", text = "", class = "text", visible = false }
   if tLeft then
-    tInfo = UI.Column{ id = "target_info", children = { tRows[1], tRows[2], tName } }   -- the bars level with yours
+    tInfo = UI.Column{ id = "target_info", children = { tRows[1], tRows[2] } }   -- the name goes over the block
   else
     tInfo = UI.Column{ id = "target_info", style = { justifyContent = "center" },
       children = { tName, tRows[1], tRows[2] } }
@@ -1110,10 +1114,13 @@ function TG.BuildRow()
     if mirrored then table.insert(children, 1, row) else children[#children + 1] = row end   -- mirrored: outward
   end
   if tHint then table.insert(children, 1, tHint) end
-  if tLeft then       -- a fixed block, its contents against the health bars (right)
-    tContent = UI.Row{ id = "target", visible = false, style = { alignItems = "start", justifyContent = "end",
-      width = tBlockW, minWidth = tBlockW, height = tBlockH, minHeight = tBlockH }, children = children }
+  if tLeft then       -- a fixed block, its contents against the health bars (right), its name line on top
+    tBody = UI.Row{ id = "target_body", style = { alignItems = "start", justifyContent = "end", width = tBlockW,
+      minWidth = tBlockW }, children = children }
+    tContent = UI.Column{ id = "target", visible = false, style = { alignItems = "end", width = tBlockW,
+      minWidth = tBlockW, height = tBlockH, minHeight = tBlockH }, children = { tName, tBody } }
   else
+    tBody = nil
     tContent = UI.Row{ id = "target", visible = false, style = { alignItems = "center", height = tInfoH,
       minHeight = tInfoH }, children = children }
   end
@@ -1128,7 +1135,7 @@ end
 
 -- For Toolbox.Hud (and BB.Unbuilt when in the Toolbelt): the row was destroyed; the poll skips it.
 function TG.Unbuilt()
-  tContent, tInfo, tHealth, tFocus, tHint, tName, TG.inBuffBar = nil, nil, nil, nil, nil, nil, false
+  tContent, tInfo, tHealth, tFocus, tHint, tName, tBody, TG.inBuffBar = nil, nil, nil, nil, nil, nil, nil, false
   tSlots, tRows, tText, tShownCount = {}, {}, {}, nil
 end
 
@@ -1286,7 +1293,7 @@ function TG.Poll(force)
       .. (hasFocus and string.format("\nFocus %s / %s", T.FormatNumber(fcur), T.FormatNumber(fmax)) or "")
       .. (dead and "\nDead" or "")
     T.SetTooltip(tInfo, tip)
-    if tName and tNameH > 0 then T.SetText(tName, TG.FitName(ShroudGetTargetName(), tNameChars)) end
+    if tName and tNameH > 0 then T.SetText(tName, TG.FitName(ShroudGetTargetName())) end
   else
     for j = 1, #tList do tList[j] = nil end
     T.SetValue(tHealth, 0)

@@ -345,6 +345,14 @@ function Hud.Refresh()
   local frame = prefs.glued and frames[Hud.GLUED_ID]
   if frame then
     local w, h, any, hideAll = 0, 0, false, false
+    -- a part on the left with a line over it (the mirrored target's name, TG.TopRoom): the columns start that much
+    -- lower, so its bars stay level with the health bars
+    local top = 0
+    for _, key in ipairs(Hud.ORDER) do
+      if Hud.BELOW[key] and below(key) and contents[key] and placeOf(key) == "left" and modules[key].TopRoom then
+        top = math.max(top, modules[key].TopRoom())
+      end
+    end
     for _, key in ipairs(Hud.ORDER) do
       local content = Hud.GLUE[key] and contents[key]
       if content and modules[key].HidesGlued and modules[key].HidesGlued() then hideAll = true end
@@ -353,8 +361,8 @@ function Hud.Refresh()
         T.SetVisible(content, shown)
         if shown then
           local cw, ch = modules[key].ContentSize()
-          content:SetStyle{ marginLeft = any and Hud.GAP or 0 }
-          w, h, any = w + (any and Hud.GAP or 0) + cw, math.max(h, ch), true
+          content:SetStyle{ marginLeft = any and Hud.GAP or 0, marginTop = top }
+          w, h, any = w + (any and Hud.GAP or 0) + cw, math.max(h, ch + top), true
         end
       end
     end
