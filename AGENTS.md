@@ -553,7 +553,10 @@ into one if a new file is ever needed).
 - `tools/`: `check.py` (all checks), `build.py` (packaging rules, the source checks, the store README
   renderer's rules, the support URL's form, the root README's API line, the changelog section, the docs API
   constants; stamps `build = "<commit>[+]"` into dist), `beta.py` (`make beta`), `install.py`,
-  `release_notes.py` (a version's CHANGELOG section, for the release workflow).
+  `release_notes.py` (a version's CHANGELOG section, for the release workflow), `recipes_from_chatlog.py` (not shipped; owner, 2026-10-19: the
+  recipe book exported through chat, `TBXR1` lines in the game's chat logs, into one JSON file for comparing with the
+  wiki; its docstring is the line format the in-game exporter must write, `--self-test` in the check; the exporter
+  isn't built yet, pending the owner's test that add-on lines reach the chat log).
 - `.luacheckrc`: std `lua52` plus the documented globals (`api_functions`; newer ones in `api_probed`;
   callbacks in `api_callbacks`). Only names that are in the docs.
 - `tmp/`: a local working area (git-ignored, skipped by luacheck). Never reference it from the package,

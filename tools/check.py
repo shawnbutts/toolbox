@@ -10,6 +10,7 @@ On Windows use `py tools/check.py` (or `python`). Steps, in order, stopping at t
   2. luacheck .
   3. tests/run.lua under each interpreter found: lua (or lua5.4 ... lua5.2) and luajit
   4. tools/build.py (package checks, dist/)
+  5. tools/recipes_from_chatlog.py --self-test (the recipe export's chat line format)
 
 --container needs Docker or Podman and nothing else: the image (tools/container/Containerfile)
 brings Lua 5.4, LuaJIT, luacheck, Python, git, ffmpeg and rsvg-convert. It is built on first use
@@ -70,6 +71,8 @@ def local_checks(args: argparse.Namespace) -> int:
         if not run(f"tests ({lua})", [lua, "tests/run.lua"]):
             return 1
     if not run("build", [py, "tools/build.py"]):
+        return 1
+    if not run("recipe export", [py, "tools/recipes_from_chatlog.py", "--self-test"]):
         return 1
     print("\nAll checks passed.")
     return 0
