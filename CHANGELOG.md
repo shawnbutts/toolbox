@@ -9,8 +9,9 @@ ones included).
 
 ### Added
 - **The target's name on the target HUD:** Settings, Toolbelt, Target bars: Show the target's name (or /toolbox target
-  name on) puts its name above the target's bars, so you can see which one you have targeted (a player's request). Off
-  by default; a long name is cut short, and the tooltip still has it whole.
+  name on) puts its name above the target's bars (under them when mirrored, so they stay level with yours), so you can
+  see which one you have targeted (a player's request). Off by default; a long name is cut short, and the tooltip still
+  has it whole.
 - **The overlay shown, on the location strip:** a line names the map overlay this scene shows ("Map: Iron Ore (4
   places)"), and its arrows step through them: yours, then Gathering and its kinds, then Fights and
   its creatures, then none. Click through as fast as you like: the map follows a moment after the last click.

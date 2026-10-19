@@ -334,9 +334,9 @@ return function(t)
     H.advance(1)
     local info = H.targetRow():Find("target_info")
     local gap = Toolbox.Vitals.Metrics().rowGap
-    t.eq(info.children[2].style.height, 13, "the health row (after the name line)")
-    t.eq(info.children[3].style.height, 13, "the focus row")
-    t.eq(info.children[2].style.marginBottom, gap, "the same gap as yours")
+    t.eq(info.children[1].style.height, 13, "the health row")
+    t.eq(info.children[2].style.height, 13, "the focus row")
+    t.eq(info.children[1].style.marginBottom, gap, "the same gap as yours")
     local calls = 0
     local mt = getmetatable(glued)
     local get = mt.GetSize
@@ -785,7 +785,7 @@ return function(t)
     local name = row:Find("target_name")
     t.eq(TG().GetShowName(), false)
     t.eq(name.visible, false, "off by default")
-    t.eq(row:Find("target_info").children[1], name, "first in the bars block")
+    t.eq(row:Find("target_info").children[1], name, "first in the bars block (above the bars)")
     local h0 = H.targetFrame().height
     H.chat("/tbx config")
     H.change("toolbox_config", "target_show_name", true)
@@ -831,7 +831,17 @@ return function(t)
     local h0 = H.targetRow().style.height
     H.chat("/tbx target name on")
     local row = H.targetRow()
+    local info = row:Find("target_info")
+    t.eq(info.children[3], row:Find("target_name"), "under the bars, so they stay level with yours")
+    t.eq(info.children[1].id ~= "target_name", true)
     t.eq(row:Find("target_name").style.textAlign, "right")
+    t.eq(row:Find("target_name").style.maxWidth, row:Find("target_name").style.width, "held to its width")
+    local glued = H.hud()
+    glued:Find("health_row").laidOut = { 200, 13 }
+    glued:Find("focus_row").laidOut = { 200, 13 }
+    H.advance(1)
+    t.eq(info.children[1].style.height, 13, "the health row still copies yours")
+    t.eq(info.children[2].style.height, 13, "the focus row too")
     t.ok(row.style.height > h0, "the fixed block grows for it: " .. row.style.height)
     H.chat("/tbx target bars off")
     t.eq(row:Find("target_name").visible, false, "no bars or numbers: no block to put it on")
@@ -851,7 +861,7 @@ return function(t)
     H.chat("/tbx target text on")
     H.setTarget(copy(WOLF))
     local row = H.targetRow()
-    local healthRow = row:Find("target_info").children[2]
+    local healthRow = row:Find("target_info").children[1]
     t.eq(healthRow.children[1].id, "target_health_wrap", "the number first (outside)")
     t.eq(healthRow.children[2].id, "target_health", "the bar against yours")
     t.eq(row:Find("target_health_text").style.textAlign, "right")

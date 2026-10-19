@@ -1013,15 +1013,20 @@ local function styleNumbers(m)
   tFlashing = {}                                 -- colours were reset: the poll re-applies a flash
 end
 
--- The name line's look: the numbers' font, a line high, as wide as the bars block (right-aligned when mirrored).
+-- The name line's look: the numbers' font, a line high, held to the bars block's width (a label left to grow ran past
+-- the strip and was clipped there, owner 2026-10-19), cut by TG.FitName at TG.NAME_CHAR_W of the font a character.
+-- Above the bars, or under them when mirrored (owner, same day: above, it pushed the bars a row below yours).
+TG.NAME_CHAR_W = 0.62
 local function styleName(L)
   if not tName then return end
   local w = math.max(L.w, 0)
   tNameH = L.nameH
-  tNameChars = math.floor(w / math.max(1, L.m.font * 0.55))
-  tName:SetStyle{ fontSize = L.m.font, width = w, height = L.m.line, minHeight = L.m.line, maxHeight = L.m.line,
-    marginTop = 0, marginBottom = L.nameH > 0 and (L.nameH - L.m.line) or 0, marginLeft = 0, marginRight = 0,
-    paddingTop = 0, paddingBottom = 0, whiteSpace = "nowrap", textAlign = tLeft and "right" or "left" }
+  tNameChars = math.floor(w / math.max(1, L.m.font * TG.NAME_CHAR_W))
+  local gap = L.nameH > 0 and (L.nameH - L.m.line) or 0
+  tName:SetStyle{ fontSize = L.m.font, width = w, minWidth = w, maxWidth = w, height = L.m.line,
+    minHeight = L.m.line, maxHeight = L.m.line, marginTop = 0, marginBottom = tLeft and 0 or gap, marginLeft = 0,
+    marginRight = 0, paddingTop = 0, paddingBottom = 0, paddingLeft = 0, paddingRight = 0, whiteSpace = "nowrap",
+    textAlign = tLeft and "right" or "left" }
   T.SetVisible(tName, L.nameH > 0)
 end
 
@@ -1084,7 +1089,7 @@ function TG.BuildRow()
   end
   tName = UI.Label{ id = "target_name", text = "", class = "text", visible = false }
   if tLeft then
-    tInfo = UI.Column{ id = "target_info", children = { tName, tRows[1], tRows[2] } }
+    tInfo = UI.Column{ id = "target_info", children = { tRows[1], tRows[2], tName } }   -- the bars level with yours
   else
     tInfo = UI.Column{ id = "target_info", style = { justifyContent = "center" },
       children = { tName, tRows[1], tRows[2] } }
