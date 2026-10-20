@@ -695,8 +695,8 @@ scene change; offline shown only for a friend or guild member, from their lists)
 health level, a chosen debuff landing on one); (4) a Party view in Combat Detailed (damage, healing, damage taken per
 member from the combat events' `party` flag; the last hits before a member reached 0). Maybe: a party buff check
 (who lacks a chosen buff) and a "who's here" line. Not possible with today's API: targeting a member, positions or
-range, others' cooldowns, add-on messages, a member's death or online state; drafted as requests 30-32
-(`tmp/client-issues.md`, not submitted yet): a whole-party read with online / scene / dead / leader, who applied an
+range, others' cooldowns, add-on messages, a member's death or online state; asked as requests 30-32
+(`tmp/client-issues.md`, submitted by 2026-10-20): a whole-party read with online / scene / dead / leader, who applied an
 effect, and in range. Not asked: setting the target (owner, 2026-10-18: the developers could read it as automation).
 
 0. **Agree the version number with the owner first** (owner, 2026-10-02): before bumping anything, read the
@@ -875,15 +875,15 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   `[u]...[/u]` and color tags stripped; inventory and equipment names). Not in them: request 27's fix (client only),
   26 and 29.
 
-**Waiting on the developers:** **33** (drafted 2026-10-19, not submitted; `tmp/client-issues.md`): files an add-on
+**Waiting on the developers:** **33** (submitted by 2026-10-20; `tmp/client-issues.md`): files an add-on
 writes itself (`ShroudWriteDataFile` / `ReadDataFile` / `DeleteDataFile` / `ListDataFiles`, JSON), in a folder beside the
 package (an update installs only the manifest's files), kept through updates, confined, written safely; for exports
 (runs, overlays, setups) and data past the 256 KB saved files (a recipe cache, long history). Until then there is no
-file write: saved vars only. **34** (drafted 2026-10-19, not submitted): open the Skills window at a skill (a third
+file write: saved vars only. **34** (submitted by 2026-10-20): open the Skills window at a skill (a third
 `ShroudToggleWindow` argument or `ShroudShowSkill(keyOrId)`, on a gesture); until then the skill strip's click opens
-the window wherever the game left it (the owner asked, same day). **35** (drafted 2026-10-19, not submitted; a player's request): the target's
+the window wherever the game left it (the owner asked, same day). **35** (submitted by 2026-10-20; a player's request): the target's
 difficulty as the game shows it, its "con" tier and color (`ShroudGetTargetDifficulty()`); until then the target HUD
-shows its name only (`target.name`), no guessed color. **36** (drafted 2026-10-19, not submitted; a player's request):
+shows its name only (`target.name`), no guessed color. **36** (submitted by 2026-10-20; a player's request):
 `ShroudCanDismissPetBuff` / `ShroudDismissPetBuff(runeIdOrName)` on a click, as the pet window's right-click; a pet
 strip (the pet's health and its effects at Toolbox's icon size, `ShroudGetPetBuff`, `ShroudGetPetInfo`) waits for it,
 since removing a pet buff is what players want the bigger icons for. A read-only game settings API (first use: the game's "stack buffs lasting
