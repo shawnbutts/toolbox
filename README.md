@@ -17,46 +17,42 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
   debuff lands, an only-in-combat option, and (API 16) replacing the game's own buff bar and
   click-to-dismiss.
 - **Buff block**: every buff and debuff on a strip of its own, soonest to run out first, in rows as many
-  icons wide as you choose, nothing grouped (`/toolbox buffs block`).
+  icons wide as you choose, nothing grouped (Settings, Buffs: Show the buff block).
 - **Consumables bar**: food, potions, weapon poisons and combat items in effect, by the game's buff
   categories, long-lasting ones grouped (on its own strip or in the Toolbelt).
 - **Target HUD**: your target's health and focus (bars, numbers or both, with the health bars' options), its name
-  if you like, and its effects with the time left on each; its own strip or the Toolbelt's last row
-  (`/toolbox target`).
+  if you like, and its effects with the time left on each; its own strip or in the Toolbelt (Settings, Toolbelt).
 - **Health, focus & Vigor bars**: your own health, focus and (API 20) Vigor on a movable HUD strip.
 - **Combat stats**: DPS, damage taken and healing per second, crit and avoid rates, a fight timer and
   chosen character stats; hover it for **Combat Detailed** (damage by skill, the last minute as a
   chart, healing, targets, damage types, recent fights).
 - **Block, parry & dodge**: the word pops up over the Toolbelt when you avoid an attack, each with its own
-  colour and sound (`/toolbox combat shout`).
+  colour and sound (Settings, Combat).
 - **Equipment bar and repair alerts**: worn items that need repair, with a durability sweep.
 - **Notifications**: guild message of the day, new mail, expiring mail, ransoms, rewards, guild
   applications and gear needing repair, in a window or on a scrolling notification HUD.
 - **Skill activity**: your skills' icons pop up on a strip of their own as they level, with the level,
-  progress and training mode (`/toolbox skills`), and one-click train / maintain / unlearn markers on each icon
-  (Lua API 27), plus a Pause skills tile that sets every skill to Off (or Maintain) in one click and puts them
-  back in another (`/toolbox skills pause` / `resume`); skill level changes (up or down) can go to the
-  notification HUD too.
+  progress and training mode (Settings, Skill activity), and one-click train / maintain / unlearn markers on each
+  icon (Lua API 27), plus a Pause skills tile that sets every skill to Off (or Maintain) in one click and puts them
+  back in another; skill level changes (up or down) can go to the notification HUD too.
 - **Menu**: a column (or row) of gold buttons on a shaded panel, top left at first, opening Toolbox's windows (and
-  the location strip) with one click, bright while a window is open (`/toolbox menu`; settings under Menu, setups,
-  backup & reset).
-- **Crafting planner** (`/toolbox plan [recipe]`): a recipe's ingredients, what you have and what you're short of;
+  the location strip) with one click, bright while a window is open (settings under Menu, setups, backup & reset).
+- **Crafting planner** (the menu's Crafting planner button): a recipe's ingredients, what you have and what you're short of;
   each material slot (Metal Sheet...) lists the choices with how many you have and shows what the picked one adds
   (Lua API 37), with the result's stats; From scratch plans the crafts for what you lack (I'll craft), with a shopping list and a build order
   (both on the Crafting Planner HUD while you gather and craft) by station, ticked off as you craft. Its settings
   have their own Crafting page, including when the recipe book is read (when needed, at login, or only on ask).
-- **Map overlays**: sets of places you mark in a scene (`/toolbox mark <name>`), one set shown on its region map and
+- **Map overlays**: sets of places you mark in a scene, one set shown on its region map and
   minimap at a time (Lua API 30): one for loot, one for gathering... Each scene has its own (up to 10, 39 places each)
   and remembers the one it shows; each place in its own shape and color, with a Compass button; the window shows how
   full the map storage is (all scenes share part of the character's saved file); all in a small window the location
-  strip's pin opens, and the location strip names the overlay shown, with arrows to step through them
-  (`/toolbox overlay window`, or the button under Settings, Map & location). **Auto map** (on by default in adventure areas,
-  off in towns; per scene, `/toolbox overlay auto on|off`): each resource node you gather is marked in an overlay of its kind and in Gathering (every kind);
-  fights too, on their own switch (`/toolbox overlay auto fights on`): each creature you kill is marked where you stand,
-  in an overlay of its name and in Fights; kinds you don't want go on an ignore list (`/toolbox overlay auto ignore
-  <kind or word>`, or Ignore kind).
-  **Your last death** shows on the map in its scene, beside any overlay; `/toolbox death compass` points you back. It clears
-  itself once you're back there, or after an hour in another scene.
+  strip's pin opens (or the button under Settings, Map & location), and the location strip names the overlay shown,
+  with arrows to step through them. **Auto map** (on by default in adventure areas, off in towns; a switch per scene
+  in the window): each resource node you gather is marked in an overlay of its kind and in Gathering (every kind);
+  fights too, on their own switch: each creature you kill is marked where you stand, in an overlay of its name and in
+  Fights; kinds you don't want go on an ignore list (the window's Ignore kind).
+  **Your last death** shows on the map in its scene, beside any overlay; the window's Last death button points your
+  compass back. It clears itself once you're back there, or after an hour in another scene.
 
 ## Install
 
@@ -84,8 +80,10 @@ Built clean-room from the official docs only:
 
 ## Commands
 
-The settings window has a search box: type a word (sound, size, target...) and pick a result to open its page
-with that setting's section at the top and the setting blinking.
+Everything is in the menu (the gold buttons, top left at first) and the settings window (the menu's Settings
+button, or Ctrl+;). The settings window has a search box: type a word (sound, size, target...) and pick a result to
+open its page with that setting's section at the top and the setting blinking. The sections below give the way
+there; the commands in this table do the same from chat, for those who'd rather type.
 
 `/tbx` is the short form of `/toolbox`: every command below works with either (`/tbx help`, `/tbx target`...).
 
@@ -133,7 +131,7 @@ command), the add-on says why in chat, e.g. `Could not register /tbx: taken`.
 
 ## XP Detailed window
 
-`/toolbox xpdetailed` (or `/toolbox xpd`) opens **XP Detailed**, which also pops up when you hover
+The menu's **XP Detailed** button opens **XP Detailed**, which also pops up when you hover
 the XP window (below). It shows the session time, a Reset button and, for adventurer and producer:
 
 - XP gained this session
@@ -152,7 +150,7 @@ totals, so nothing depends on the callback.
 **Sessions.**
 
 - A session starts when the add-on starts for a character (login, or enabling it) and on
-  `/toolbox reset` or the window's Reset button.
+  the window's Reset button.
 - It survives `/lua reload`: the start time, baseline and last hour of samples are kept in
   character-scope saved vars and resumed.
 - A new login starts a new session. At logout (`ShroudOnLogOut`) the session is marked ended;
@@ -168,7 +166,8 @@ event: it holds up to an hour of samples) and flushes to disk at most every 30 s
 
 ## XP window
 
-`/toolbox xp` opens **XP**, a small window to keep on screen:
+The menu's **XP** button opens **XP**, a small window to keep on screen (Settings, XP & Loot: a window, a compact
+window or a HUD strip):
 
 ```
 Session 1h 02m 03s
@@ -188,18 +187,18 @@ It uses the same text size as XP Detailed and remembers its own open state and p
 **Hover for details.** Rest the pointer on the XP window for half a second and XP Detailed pops up
 (with the progress bars and Reset). It stays while the pointer is over either window and closes
 about ¾ s after it leaves both, so you can move over and click Reset. Passing over the XP window
-quickly does nothing. A popped-up window isn't remembered as open; use `/toolbox xpdetailed` to
-pin it (running it while the window is popped up keeps it open). Turn hover off with
-"Show XP Detailed on hover" in `/toolbox config`.
+quickly does nothing. A popped-up window isn't remembered as open; the menu's XP Detailed button
+pins it (pressed while the window is popped up, it keeps it open). Turn hover off with
+"Show XP Detailed on hover" under Settings, XP & Loot.
 
-`/toolbox config` opens a **Toolbox Settings** window with a text-size slider (applied as you
-drag), a line-spacing slider, and checkboxes to show each window and to turn each hover pop-up on or off.
+The text size and line spacing of every window and strip are on the settings' **General** page (applied as you
+drag).
 
 Shroud.UI has no line-height style, so every text line gets a fixed height of about
 1.15 × the text size plus the line spacing (pinned with `minHeight`/`maxHeight` so a theme's own
-minimum can't override it), with no margins above or below. `/toolbox spacing` with no number
-reports the height lines should be and the height the game actually laid them out at. Shrinking the text
-therefore shrinks the lines too, and both windows can then be dragged smaller. It writes the same settings as the chat commands.
+minimum can't override it), with no margins above or below (in chat, `/toolbox spacing` with no number
+reports the height lines should be and the height the game actually laid them out at). Shrinking the text
+therefore shrinks the lines too, and both windows can then be dragged smaller.
 
 The window remembers whether it is open, where it is and its text size (character-scope saved var
 `window`). Drag its corner to resize it. The game remembers the size you drag it to, so the
@@ -208,7 +207,7 @@ is smaller than it.
 
 ## Daily stats
 
-`/toolbox daily` opens a **Today** window:
+The menu's **Today** button opens a **Today** window:
 
 ```
 Today 2026-09-27
@@ -234,7 +233,7 @@ Deaths                     1
 ### Loot Tracker
 
 Rest the pointer on **Today** and the **Loot Tracker** pops up (same rules as XP Detailed: it stays
-while the pointer is over either window, and `/toolbox loot` or `dd` pins it). It shows
+while the pointer is over either window, and the menu's Loot Tracker button pins it). It shows
 the day's gold and kills and a list of every item gained today with its count, highest first.
 
 - Items come from `ShroudOnItemsGained`: anything that arrives in your bags from outside them.
@@ -246,12 +245,12 @@ the day's gold and kills and a list of every item gained today with its count, h
   created, so new items are appended as they arrive and the list is re-sorted only when the window
   opens (at most every 10 seconds). Up to 250 item names are kept per day; the rest are counted
   under "(other items)".
-- Hover can be turned off with "Show Loot Tracker on hover" in `/toolbox config`.
-- **Reset** (top right, or `/toolbox loot reset`) counts from now, for one run: gold, kills, items, crafts and
+- Hover can be turned off with "Show Loot Tracker on hover" under Settings, XP & Loot.
+- **Reset** (top right) counts from now, for one run: gold, kills, items, crafts and
   gathering since that moment, with "Since 14:32" at the top. Nothing is lost: the Today window keeps the
-  whole day, and **Show all of today** (or `/toolbox loot today`) brings the day back here too. A run ends at
+  whole day, and **Show all of today** brings the day back here too. A run ends at
   midnight with the day.
-- **Runs** (the Show dropdown, or `/toolbox loot view runs`): each run is kept when it ends (Reset again, Show
+- **Runs** (the Show dropdown): each run is kept when it ends (Reset again, Show
   all of today, midnight; at least a minute of play), the last 10 per character, newest first: start time, the
   scene you played most in, length, gold per hour and, with estimated values on, loot value per hour (from the
   prices when the run ended). Hover one for kills, items and nodes gathered. A bar chart above the list shows
@@ -264,7 +263,7 @@ the day's gold and kills and a list of every item gained today with its count, h
 
 ## Buff bar
 
-`/toolbox buffs` shows a HUD strip with
+Settings, **Buffs**: **Show buff bar** shows a HUD strip with
 your buffs on the top row and debuffs, outlined in red, below. Each icon is the skill's real icon
 with the game's own tooltip. Time left is shown as the game's own cooldown wedge (the one on its buff
 and hotbar icons), sweeping clockwise from 12 o'clock and run by the game (API 25), not as text;
@@ -272,8 +271,8 @@ permanent effects have no sweep.
 
 **Moving it.** Drag the small grip at its top-left corner. The game hides the grip while the HUD
 is locked: untick **Lock Status Movement** under **Nameplates & Chat Bubbles** on the game's
-**Interface** options page to see it. Or use the Position buttons in `/toolbox config`
-(10 px nudges and Reset), or type `/toolbox buffs move 600 40`. The bar remembers where it is.
+**Interface** options page to see it. Or use the Position buttons on the settings' **HUD layout** page
+(10 px nudges and Reset). The bar remembers where it is.
 
 The strip is sized to the icons showing and grows to the right as buffs arrive; the game keeps
 it on screen, so a bar parked at the far right is pushed left as it grows.
@@ -294,44 +293,39 @@ bar while this one is showing (the game restores it on reload, so it is applied 
 - **Muted effects**: no sound for the effects you pick, for the combat staples that come so often their
   sound is noise (their icons still flash). Settings, Buffs: pick one from the dropdown (recent alerts first,
   then what's on you, then every effect you've been seen to cast) and press Mute; the second dropdown and
-  Unmute bring one back. In chat, `/toolbox buffs quiet` lists the muted ones and recent alerts, and
-  `/toolbox buffs quiet add <name>` / `remove <name>` change the list.
+  Unmute bring one back.
 - **Effect sounds**: your own sound file for a buff or debuff, when you get it and / or when it's about to run
   out (record yourself saying its name, and you'll know which one it is). The file goes in your Lua folder or a
   folder in it, such as `Lua/toolbox_sounds/` (not `Lua/toolbox/`, which updates replace). Settings, Buffs: pick
   the effect in Muted effects' list, choose when, then **Choose a file...** and pick it from the game's file list
   (Lua API 33), or paste the path (`toolbox_sounds/atos.ogg`; a full path is cut to the part after `Lua`) and press
-  Set; Test and Remove are below it, and the Sounds page has a button to get there.
-  In chat: `/toolbox buffs sound get|end Blessing of Atos = toolbox_sounds/atos.ogg` (without get or end: a
-  debuff's when you get it, a buff's when it's about to run out), `/toolbox buffs sound test|remove [get|end]
-  <name>`, and `/toolbox buffs sound` to list them. Each replaces the usual debuff or expiry sound and plays even
+  Set; Test and Remove are below it, and the Sounds page has a button to get there. Each replaces the usual debuff or expiry sound and plays even
   with those alerts off; muting still silences it. A file that won't open (chat says so once) plays the usual
   sound.
 - **Don't repeat**: "Don't repeat a sound for the same effect within" (Off, 30 seconds, 1, 2, 5 or 10 minutes;
   off at first) keeps an effect's alert quiet when its previous one was less than that long ago. Each alert starts
   the time again, so a debuff that lands all fight sounds once, and again only after it has stayed away that long.
-  The expiry and debuff alerts are counted apart, and the icon still flashes. `/toolbox buffs repeat off|30s|<minutes>`.
+  The expiry and debuff alerts are counted apart, and the icon still flashes.
 
 **Sounds.** The default sounds live in the add-on's folder (`Lua/toolbox/buff_expiring.ogg`,
 `Lua/toolbox/debuff_landed.ogg`, `notify.ogg`, `ping.ogg`, `tap.ogg`, `mail.ogg` for notifications, and `skill_up.ogg`,
 `skill_down.ogg` for the skill activity strip); to use your own, put a replacement in the folder above it. Each
 alert takes the first that loads of:
 
-1. a custom path you set in `/toolbox config` (any `.ogg`/`.wav`/`.mp3` inside your Lua folder; typed, or picked
+1. a custom path you set on the settings' **Sounds** page (any `.ogg`/`.wav`/`.mp3` inside your Lua folder; typed, or picked
    with **Choose...** from the game's file list on Lua API 33);
 2. a replacement beside the add-on: `Lua/toolbox_buff_expiring.ogg` / `Lua/toolbox_debuff_landed.ogg` /
    `Lua/toolbox_notify.ogg` (or `.wav`), which store updates don't touch;
 3. the default in the add-on's folder, `Lua/toolbox/<name>.ogg`.
 
-A single buff or debuff can also have a sound of its own, say a recording of its name: see **Effect sounds** above
-(`/toolbox buffs sound <name> = <file>`).
+A single buff or debuff can also have a sound of its own, say a recording of its name: see **Effect sounds** above.
 
 The defaults ship in the package (API 15 allows sounds; the package needs `min_api_version` 25
 anyway); paths are relative to the Lua folder (`ShroudLuaPath`).
 
-Missing files are fine: that alert is just silent. `/toolbox sounds` says which file each alert
-uses; `/toolbox sounds test` (or the Test buttons in settings) plays them and reports whether the
-game is really playing them; `/toolbox sounds debug` lists every path tried. `art/alerts.py`
+Missing files are fine: that alert is just silent (it is tried again when it's wanted, at most every 30 s). The
+Sounds page names the file each alert uses, and its Test buttons play them and report in chat whether the game is
+really playing them; `/toolbox sounds debug` (chat only) lists every path tried. `art/alerts.py`
 generates `toolbox/*.ogg`. (Older macOS clients failed every sound load; fixed in the client
 2026-09-28.)
 
@@ -341,62 +335,60 @@ The sweep needs each buff's full duration: the game reports it (`TotalDuration` 
 `ShroudGetPlayerBuff()`). For effects without one (the
 moon timer) the bar learns it: a buff that appears while the add-on is running shows its full
 duration as its first time left, remembered per character. Without either there is **no sweep**
-rather than a wrong one; the expiry alert only needs the time left. `/toolbox buffs debug` says
+rather than a wrong one; the expiry alert only needs the time left. `/toolbox buffs debug` (chat only) says
 where each buff's duration came from.
 
 **Consumables bar.** Food (`RuneFood_...`) and Obsidian potions (`BlessingOf...`) move to their own
-bar, with the same sweep, flash and alert (`/toolbox consumables`; add
-more names in settings or with `/toolbox consumables add <name>`), or put it in the Toolbelt. Shrine blessings
+bar, with the same sweep, flash and alert (Settings, Consumables & gear, where you can add
+more names), or put it in the Toolbelt. Shrine blessings
 stay on the buff bar.
 
 **Equipment bar.** Worn items below the repair threshold (20% by default) show with a red sweep for
 the durability they've lost, lowest first. Durability counts against what a repair restores
 (`primaryDurability`); when that has worn below 95% of new, the tooltip says a crafting station repair
 is needed; a "Gear needs repair" notification comes when one drops
-below it and again when it breaks (`/toolbox gear`). It can go in the Toolbelt too.
+below it and again when it breaks. With the settings open it shows everything you wear. It can go in the Toolbelt
+too.
 
 ## Health & focus bars
 
-`/toolbox vitals` shows a red health bar and a blue focus bar with "current / max" on a HUD
-strip, moved like the buff bar (grip, Position buttons in `/toolbox config`, or
-`/toolbox vitals move x y`). Its **Size** (75-250%, `/toolbox vitals size 150` or the slider in
-settings) scales the text, bars, gap and strip together; **Bar length** sets the bars' length at
+Settings, **Health bars**: **Show health & focus bars** shows a red health bar and a blue focus bar with
+"current / max" on a HUD strip, moved like the buff bar (grip, or the Position buttons on the HUD layout page). Its
+**Size** (75-250%) scales the text, bars, gap and strip together; **Bar length** sets the bars' length at
 100%. The numbers sit just after the bars. The strip has its own size, so the global text size
 doesn't change it. The bars or the numbers can be hidden (not both; the numbers take the bars'
 red and blue when the bars are off), and the numbers can sit on a **Dark** or **Light** panel from
 your UI theme, so they follow your skin: Dark is the theme's `inset` look, Light a panel in the
 theme's text colour with dark numbers on it.
 
-**In the Toolbelt**: "In Toolbelt" for the health bars on the settings' Toolbelt page (or
-`/toolbox toolbelt vitals on`) puts the health, focus and Vigor bars and the buffs in a single HUD strip
+**In the Toolbelt**: "In Toolbelt" for the health bars on the settings' Toolbelt page puts the health, focus and Vigor bars and the buffs in a single HUD strip
 (health bars on the left, buffs on the right) with one grip and one position; either part's Position
-buttons or `move` command move it. The Toolbelt's position and the bars' own strip are remembered
+buttons move it. The Toolbelt's position and the bars' own strip are remembered
 separately.
 
 **Flash when low**: while health or focus is below a threshold (default 20%, 1-95%), its bar and
 number swap to the theme's bright text colour every 0.4 s. On by default; a checkbox and slider
-in settings, or `/toolbox vitals flash 30` / `off`. **Test flash** (in settings) or
-`/toolbox vitals flash test` flashes both bars for 5 s so you can see it. Current values and maximums
+in settings. **Test flash** flashes both bars for 5 s so you can see it. Current values and maximums
 come from `ShroudGetPlayerVitals()` (API 25), read once per update; the maximum is never shown below the
-current value (it is fractional: 950.36 with 951 current). `/toolbox vitals debug` shows what it gave.
+current value (it is fractional: 950.36 with 951 current). `/toolbox vitals debug` (chat only) shows what it
+gave.
 
 **Vigor** (API 20): a gold third bar with the percentage, from `ShroudGetVigor()` /
 `ShroudOnVigorChanged`; hover it for the regen and crit bonuses. It shows once you are past the level
-where Vigor applies; "Show Vigor" in settings or `/toolbox vitals vigor off` hides it.
+where Vigor applies; "Show Vigor" in settings hides it.
 
-**Replacing the game's bars** (API 28, opt-in): "Replace the game's health bars" (or
-`/toolbox vitals replace on`) hides the health, focus and Vigor bars on the game's own player frame while
+**Replacing the game's bars** (API 28, opt-in): "Replace the game's health bars" hides the health, focus and Vigor bars on the game's own player frame while
 these show, with `ShroudSetPlayerVitalBarsVisible`; the frame's name and buffs stay. The game gives the bars
 back when Toolbox reloads or stops, so Toolbox hides them again each update while the option is on.
 
 ## Combat stats
 
-`/toolbox combat` shows a HUD strip with:
+Settings, **Combat**: **Show combat stats** shows a HUD strip with:
 
 | Row | What |
 | --- | --- |
 | Fight | how long the current fight has run, or the last one ("ended") |
-| DPS | your damage per second over the last 5 s, and averaged over the fight (pet included; `/toolbox combat pet off` to leave it out) |
+| DPS | your damage per second over the last 5 s, and averaged over the fight (pet included; untick Count pet damage in DPS to leave it out) |
 | Taken /s | damage taken per second, the same two ways |
 | Healing /s | healing you did per second |
 | Crit | your critical hits as a share of your damaging hits this fight |
@@ -406,26 +398,24 @@ back when Toolbox reloads or stops, so Toolbox hides them again each update whil
 The numbers come from your combat chat lines (`ShroudOnCombatEvents`), so they cover what your
 combat chat shows. A fight starts when you enter combat or the first damage line arrives, and
 ends when combat ends (or after 12 quiet seconds); its numbers stay until the next fight.
-`/toolbox combat reset` (or the settings button) clears them.
+The Combat page's Reset fight button clears them.
 
 **Choosing the stats, on the fly.** The docs name few stats, so the list is the player's, and it can
 be changed at any time, mid-fight included, without a reload (up to 8, saved per character):
 
-1. Find a name: `/toolbox stats resist` (any word: `absorb`, `dodge`, `block`, `crit`, `regen`,
-   `speed` ...). Each line is `index Name (Display name) = value`; the name is the word after the index.
-2. Add it: `/toolbox combat stat add CombatHealthRegen`.
-3. Remove it: `/toolbox combat stat remove CombatHealthRegen`; list: `/toolbox combat stats`.
+1. On the Combat page, under **Character stats on the HUD**, type a word in the search field (`resist`, `absorb`,
+   `dodge`, `block`, `crit`, `regen`, `speed` ...).
+2. Pick one in the results dropdown (label, internal name and your value now; suggestions when the search is
+   empty) and press **Add**.
+3. Remove one with the Remove dropdown of the shown stats.
 
-Unreadable stats show "n/a". The settings window's Combat page does the same with a stat picker: a
-search field, a results dropdown (label, internal name and your value now; suggestions when the search
-is empty), Add, and a Remove dropdown of the shown stats. `/toolbox combat help` prints the chat way. The store readme
+Unreadable stats show "n/a". The store readme
 (`toolbox/README.md`) has the player-facing version. The strip has its own Size and
 position, and stays separate from the Toolbelt.
 
 **Background.** A panel behind the whole strip: Dark (the UI theme's `inset` look, the default) or
 Light (the theme's text colour, with dark text), or None, with its own opacity (10-100%, default
-70%) that doesn't fade the text. `/toolbox combat bg dark 70`, or the dropdown and slider in
-settings. The docs don't name a theme background colour, so these are the closest themed looks.
+70%) that doesn't fade the text: the dropdown and slider on the Combat page. The docs don't name a theme background colour, so these are the closest themed looks.
 
 ## Development
 

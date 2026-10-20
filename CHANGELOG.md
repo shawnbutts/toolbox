@@ -7,6 +7,10 @@ ones included).
 
 ## [Unreleased]
 
+### Changed
+- The Docs guide and the readmes give the way to each feature through the menu and the settings instead of chat
+  commands; the commands are still there, all of them in the Docs' Commands topic.
+
 ### Fixed
 - **Sounds silent until a reload:** a sound whose file didn't load when Toolbox started (seen once on a fresh install)
   stayed silent for the whole session. It's now loaded again when it's wanted (its Test button, an alert), at most

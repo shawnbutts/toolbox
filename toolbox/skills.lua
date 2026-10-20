@@ -1152,7 +1152,7 @@ function SK.ConfigSection(h)
       enabled = SK.HasModes(),
       tooltip = SK.HasModes() and ("A tile at the start of the strip: one click sets every skill to Off or Maintain"
         .. " (so the pool keeps what you earn), another puts them back as they were. Off: the"
-        .. " tile shows only while paused. /toolbox skills pause and resume work too")
+        .. " tile shows only while paused")
         or "Needs a newer game client (Lua API 27)",
       onChange = function(_, v) SK.SetPauseTile(v) end },
     h.dropdownRow("Pause skills sets skills to", { id = "skills_pause_how", choices = hows,
@@ -1244,7 +1244,7 @@ T.Notify.SOURCES[#T.Notify.SOURCES + 1] = {
 -- the guide topic, before "Moving the HUD strips"
 do
   local topic = { SK.PAGE,
-    "/toolbox skills shows a strip of the skills you're levelling, like the game's own along the right: "
+    "Settings, Skill activity shows a strip of the skills you're levelling, like the game's own along the right: "
       .. "each icon pops up as the skill levels (or changes mode, or with \"Any experience\", gains any), with"
       .. " its level on it (gold when new; the icon flashes for 4 seconds), a bar of its progress to the next "
       .. "(green while it rises, red while it falls) and its mode as the frame's colour: green training, blue "
@@ -1258,13 +1258,13 @@ do
       .. "pause bars while paused. Click it again and each skill goes back the way it was (training, maintaining or "
       .. "unlearning); one you changed yourself meanwhile stays as you set it. Settings, Skill activity: a "
       .. "pause sets skills to Off (nothing spent; skills may decay) or Maintain (only what keeps their "
-      .. "levels), and the tile can be hidden (it still shows while paused). /toolbox skills pause and "
-      .. "/toolbox skills resume do the same. The pause is remembered over a restart, per character.",
+      .. "levels), and the tile can be hidden (it still shows while paused). The pause is remembered over a "
+      .. "restart, per character.",
     "Settings, Skill activity: vertical or horizontal, what shows a skill, how long it stays, how many show, "
       .. "the icon size and whether the level shows on it. Notifications has \"Skill level changes\" for the "
       .. "notification HUD (off by default): levels gained and lost.",
     "A short celebration plays when a skill gains a level, a sad one when it loses one (each can be switched "
-      .. "off; /toolbox skills sound off for both). Any notification can use them too (Sounds page: Celebration, "
+      .. "off on the Skill activity page). Any notification can use them too (Sounds page: Celebration, "
       .. "Sad notes); Skill level changes uses Celebration (Sad notes for levels lost). Your own file: the "
       .. "Sounds page, or toolbox_skill_up.ogg / toolbox_skill_down.ogg (or .wav) in your Lua folder." }
   local at = #T.Docs.SECTIONS + 1

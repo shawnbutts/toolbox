@@ -34,427 +34,369 @@ local function take(which) T.TakeSharedWindow(which, function() drop(which) end)
 -- { heading, paragraph, paragraph, ... }. Plain text: markup is never interpreted.
 D.SECTIONS = {
   { "Getting started",
-    "Type /toolbox (or /tbx) to open the settings window and tick what you want on screen. Its Settings "
-      .. "dropdown picks a category: General (first: the text size and line spacing of every window and "
-      .. "strip), Toolbelt (the quickest start: your buffs, health bars, consumables and gear in one strip), "
-      .. "XP & Loot, Crafting, Buffs, Consumables & gear, Health bars, Combat, "
-      .. "Skill activity, Map & location, Notifications, Sounds, HUD layout (the strips' positions; the location "
-      .. "strip's is on Map & location) and Menu, "
-      .. "setups, backup & reset. "
-      .. "Can't find a setting? Type in the Search box under it (sound, size, target...) and pick a result: "
-      .. "its page opens with that part at the top (Show the whole page brings back the rest) and the setting "
-      .. "blinks. Options "
-      .. "that do nothing while their feature is off are greyed out. Everything is saved per character. "
-      .. "/toolbox help opens this guide; /toolbox commands lists the commands in chat.",
-    "Shortcut: Ctrl+; opens the settings (if the game isn't using it). Change it, or pick one, in the "
-      .. "add-on manager on Toolbox's row under Keys. /toolbox key shows the current one.",
     "The menu, the column of gold buttons at the top left, opens any Toolbox window with one click (see "
-      .. "Menu)." },
+      .. "Menu). Its Settings button (or Ctrl+;) opens the settings window: tick what you want on screen. Its "
+      .. "Settings dropdown picks a category: General (first: the text size and line spacing of every window "
+      .. "and strip), Toolbelt (the quickest start: your buffs, health bars, consumables and gear in one "
+      .. "strip), XP & Loot, Crafting, Buffs, Consumables & gear, Health bars, Combat, Skill activity, Map & "
+      .. "location, Notifications, Sounds, HUD layout (the strips' positions; the location strip's is on Map & "
+      .. "location) and Menu, setups, backup & reset.",
+    "Can't find a setting? Type in the Search box under it (sound, size, target...) and pick a result: "
+      .. "its page opens with that part at the top (Show the whole page brings back the rest) and the setting "
+      .. "blinks. Options that do nothing while their feature is off are greyed out. Everything is saved per "
+      .. "character.",
+    "The shortcut, Ctrl+; (if the game isn't using it), can be changed in the add-on manager on Toolbox's "
+      .. "row under Keys. With the menu switched off, /toolbox (or /tbx) in chat opens the settings. "
+      .. "Everything here has a chat command too, for those who'd rather type: the Commands topic lists them "
+      .. "all." },
   { "XP",
-    "XP (/toolbox xp): session time, your adventurer and producer pools, and the XP you earned "
+    "XP (the menu's XP button): session time, your adventurer and producer pools, and the XP you earned "
       .. "in the last hour. Rest the pointer on it and XP Detailed pops up.",
-    "XP Detailed (/toolbox xpdetailed): skill levels gained and deaths this session, then per track, XP "
+    "XP Detailed (its own menu button): skill levels gained and deaths this session, then per track, XP "
       .. "gained, XP per hour (session and last 10 minutes), level, progress, XP needed and time to the next "
-      .. "level, and a Reset button. "
-      .. "A session starts when you log in or press Reset, and survives /lua reload.",
-    "Smaller: /toolbox xp hud (or XP window: HUD strip in settings) shows the XP window as a HUD strip, "
-      .. "with no title bar or frame. Move it by its grip or /toolbox xp move <x> <y>; hovering still "
-      .. "pops up XP Detailed. /toolbox xp window turns it back into a window.",
-    "Or a compact window (XP window: Compact window in settings, or /toolbox xp compact): a window whose "
-      .. "title bar only shows while the pointer is on it, over the top of the text, so it looks like a "
-      .. "strip but can be resized and faded like any window (right-click it for opacity). Unlike a HUD "
-      .. "strip it doesn't use up one of the game's HUD strips." },
+      .. "level, and a Reset button. A session starts when you log in or press Reset, and survives /lua "
+      .. "reload.",
+    "Smaller: Settings, XP & Loot, XP window: HUD strip shows it as a HUD strip, with no title bar or "
+      .. "frame. Move it by its grip or under HUD layout; hovering still pops up XP Detailed.",
+    "Or Compact window there: a window whose title bar only shows while the pointer is on it, over the "
+      .. "top of the text, so it looks like a strip but can be resized and faded like any window (right-click "
+      .. "it for opacity). Unlike a HUD strip it doesn't use up one of the game's HUD strips." },
   { "XP over the last hour",
     "XP Detailed shows the last hour under each track as columns: XP gained in each 2-minute slice, "
       .. "tallest for your best stretch, with that best rate per hour beneath." },
   { "Today and the Loot Tracker",
-    "Today (/toolbox daily): gold picked up, kills by you or your pet, adventurer and producer XP, skill "
-      .. "levels gained and deaths since midnight. A skill level counts when a skill's trained level passes "
-      .. "the highest it has been (so unlearning and relearning doesn't count twice). Rest the pointer on "
-      .. "it for the Loot Tracker (/toolbox loot): every item that arrived in your bags today, with counts. "
-      .. "Its Reset button counts from now instead, for one run (gold, kills, items, crafts and gathering); "
-      .. "the Today window keeps the whole day, and Show all of today brings it back (or /toolbox loot "
-      .. "reset, loot today). A run ends at midnight. During a run, gold, kills and the estimated value "
-      .. "show their rate per hour of play (the time you were logged in since the reset, after its first "
-      .. "minute), and the top line says how long it has been: Since 14:32 (47m). Each run is kept when it "
-      .. "ends (Reset again, Show all of today, or midnight): Show, Runs lists your last 10 with where, how "
-      .. "long, and gold and loot value per hour, to compare farming spots, under a bar chart of them (the best "
-      .. "bar green); hover a run or a bar for its numbers. A run also keeps where you played most in it: "
-      .. "its Compass button points your compass at that spot (it's the game's beacon, the one /beacon "
-      .. "sets, so it replaces yours) when you're in that run's scene. On a newer game client each run also "
-      .. "shows as a gold flag on your map and minimap in its scene (hover it for what the run brought in); "
-      .. "switch that off with Show runs on the map (Settings, Map & location).",
-    "Loot Tracker's Show dropdown: Looted (what you picked up; what you crafted or gathered is left "
-      .. "out unless you tick Include crafted and gathered items in settings, or /toolbox dd include on), "
-      .. "Crafted (/toolbox crafted: the items you took off crafting stations, your crafts per recipe with "
-      .. "exceptional and failed, and crafting XP) and Gathered (/toolbox gathered: what the nodes you "
-      .. "harvested held, the nodes, failed harvests and gathering XP). What you make is counted as it "
-      .. "reaches your bags from a station and is named like a recipe you crafted; other things you take "
-      .. "off a station (materials back, salvage returns) are listed apart. Crafted also lists the "
+    "Today (the menu's Today button): gold picked up, kills by you or your pet, adventurer and producer "
+      .. "XP, skill levels gained and deaths since midnight. A skill level counts when a skill's trained level "
+      .. "passes the highest it has been (so unlearning and relearning doesn't count twice). Rest the pointer "
+      .. "on it for the Loot Tracker (or the menu's Loot Tracker button): every item that arrived in your bags "
+      .. "today, with counts. Its Reset button counts from now instead, for one run (gold, kills, items, "
+      .. "crafts and gathering); the Today window keeps the whole day, and Show all of today brings it back. A "
+      .. "run ends at midnight. During a run, gold, kills and the estimated value show their rate per hour of "
+      .. "play (the time you were logged in since the reset, after its first minute), and the top line says "
+      .. "how long it has been: Since 14:32 (47m). Each run is kept when it ends (Reset again, Show all of "
+      .. "today, or midnight): Show, Runs lists your last 10 with where, how long, and gold and loot value per "
+      .. "hour, to compare farming spots, under a bar chart of them (the best bar green); hover a run or a bar "
+      .. "for its numbers. A run also keeps where you played most in it: its Compass button points your "
+      .. "compass at that spot (it's the game's beacon, so it replaces yours) when you're in that run's scene. "
+      .. "On a newer game client each run also shows as a gold flag on your map and minimap in its scene "
+      .. "(hover it for what the run brought in); switch that off with Show runs on the map (Settings, Map & "
+      .. "location).",
+    "Loot Tracker's Show dropdown: Looted (what you picked up; what you crafted or gathered is left out "
+      .. "unless you tick Include crafted and gathered items in settings), Crafted (the items you took off "
+      .. "crafting stations, your crafts per recipe with exceptional and failed, and crafting XP) and Gathered "
+      .. "(what the nodes you harvested held, the nodes, failed harvests and gathering XP). What you make is "
+      .. "counted as it reaches your bags from a station and is named like a recipe you crafted; other things "
+      .. "you take off a station (materials back, salvage returns) are listed apart. Crafted also lists the "
       .. "materials your crafts used (from each recipe's ingredients; tools and optional ones left out).",
-    "Estimated values (optional): switch on Estimated values (SotANET) in settings, or /toolbox dd "
-      .. "values on, and switch Internet on for Toolbox in the add-on manager. The Loot Tracker then shows "
-      .. "each item's count times its 90-day average sale price from shroudoftheavatar.net (player-uploaded "
-      .. "receipts) and a total; hover a value for the price each (or switch on Show the price each: \"40 x "
-      .. "5g\"). Items with no recent sales show --, and ... while their price is looked up. Only item names"
-      .. " are sent, and each price is kept for 24 hours; /toolbox dd values refresh looks them up again, "
-      .. "and Test connection in settings (or /toolbox dd values test [item]) checks the connection. SotANET "
-      .. "lists items by their English names: with the game in another language most items show --, and "
-      .. "Toolbox says so.",
-    "All price estimates come from receipt data retrieved from shroudoftheavatar.net. Submit your receipts "
-      .. "today.",
-    "Like XP, it can be a compact window or a HUD strip: /toolbox daily compact, daily hud (and daily "
-      .. "window, daily move <x> <y>)." },
+    "Estimated values (optional): switch on Estimated values (SotANET) under Settings, XP & Loot, and "
+      .. "switch Internet on for Toolbox in the add-on manager. The Loot Tracker then shows each item's count "
+      .. "times its 90-day average sale price from shroudoftheavatar.net (player-uploaded receipts) and a "
+      .. "total; hover a value for the price each (or switch on Show the price each: \"40 x 5g\"). Items with no "
+      .. "recent sales show --, and ... while their price is looked up. Only item names are sent, and each "
+      .. "price is kept for 24 hours. Test connection, beside it, checks the connection. SotANET lists items "
+      .. "by their English names: with the game in another language most items show --, and Toolbox says so.",
+    "All price estimates come from receipt data retrieved from shroudoftheavatar.net. Submit your "
+      .. "receipts today.",
+    "Like XP, it can be a compact window or a HUD strip: Settings, XP & Loot, Today window." },
   { "Crafting planner",
-    "Plan a craft from the recipes you know: the menu's hammer button, Settings, Crafting, or /toolbox plan "
-      .. "opens the planner (/toolbox plan plate chest finds one too). Type part of a recipe's name: the Recipe "
-      .. "list fills as you type (Find plans the first). Pick one there, and how many Crafts. Each ingredient "
-      .. "gets a line: how many you need, how many you have and how many you're short.",
-    "A slot that takes a choice of material (Metal Sheet, Metal Binding, a strap...; a newer game client) gets a "
-      .. "list of them, each with how many you have, starting on the first you have enough of. Under each slot, "
-      .. "a line shows what the picked material adds to the item (a slot that doesn't pass its bonus on: only "
-      .. "its weight), so you can pick for your build. Pick a material yourself and that slot keeps it, for this "
-      .. "recipe, until you pick another. The Result line adds what your picks give to the item's base stats "
-      .. "(an exceptional craft adds more). Reset starts over: no recipe, 1 craft, nothing ticked, and this "
-      .. "recipe's materials back to the first you have enough of (your recipe book stays read).",
-    "From scratch: tick it and anything you're short of that one of your recipes makes gets I'll craft (in the "
-      .. "Plan). Tick that to plan crafting the shortfall yourself: its own ingredients are planned under it, as "
-      .. "deep as it goes, instead of it going on the shopping list. Toolbox never crafts anything. When two "
-      .. "recipes make it (Iron Ingot, Iron Ingot from Metal Scraps), the one named like the item is used, and "
-      .. "made by changes it. For that your recipe book is read in the background, a recipe at a time so the game "
-      .. "doesn't stall (it may stutter): the bar at the bottom shows how far (about a minute and a half), and the "
-      .. "planner's controls are greyed out until it's done.",
-    "When the book is read is up to you (Settings, Crafting, or /toolbox plan book need|login|manual): when the "
-      .. "planner needs it (the default), at login (in the background a minute after you log in, and after you "
-      .. "learn a recipe), or only when you ask: Read it now there, the planner's own button, or /toolbox plan "
-      .. "book read. Then a recipe you learn leaves the book you read in use until you read it again. Stop (or "
-      .. "/toolbox plan book stop) stops a read, a fight coming say, and nothing starts another on its own until "
-      .. "you read it.",
+    "Plan a craft from the recipes you know: the menu's hammer button (Crafting planner) opens the "
+      .. "planner, or the button under Settings, Crafting. Type part of a recipe's name: the Recipe list fills "
+      .. "as you type (Find plans the first). Pick one there, and how many Crafts. Each ingredient gets a "
+      .. "line: how many you need, how many you have and how many you're short.",
+    "A slot that takes a choice of material (Metal Sheet, Metal Binding, a strap...; a newer game client) "
+      .. "gets a list of them, each with how many you have, starting on the first you have enough of. Under "
+      .. "each slot, a line shows what the picked material adds to the item (a slot that doesn't pass its "
+      .. "bonus on: only its weight), so you can pick for your build. Pick a material yourself and that slot "
+      .. "keeps it, for this recipe, until you pick another. The Result line adds what your picks give to the "
+      .. "item's base stats (an exceptional craft adds more). Reset starts over: no recipe, 1 craft, nothing "
+      .. "ticked, and this recipe's materials back to the first you have enough of (your recipe book stays "
+      .. "read).",
+    "From scratch: tick it and anything you're short of that one of your recipes makes gets I'll craft "
+      .. "(in the Plan). Tick that to plan crafting the shortfall yourself: its own ingredients are planned "
+      .. "under it, as deep as it goes, instead of it going on the shopping list. Toolbox never crafts "
+      .. "anything. When two recipes make it (Iron Ingot, Iron Ingot from Metal Scraps), the one named like "
+      .. "the item is used, and made by changes it. For that your recipe book is read in the background, a "
+      .. "recipe at a time so the game doesn't stall (it may stutter): the bar at the bottom shows how far "
+      .. "(about a minute and a half), and the planner's controls are greyed out until it's done.",
+    "When the book is read is up to you (Settings, Crafting): when the planner needs it (the default), at "
+      .. "login (in the background a minute after you log in, and after you learn a recipe), or only when you "
+      .. "ask: Read it now there, or the planner's own button. Then a recipe you learn leaves the book you "
+      .. "read in use until you read it again. Stop stops a read, a fight coming say, and nothing starts "
+      .. "another on its own until you read it.",
     "Show switches between the Shopping list (everything to buy or gather, added up; shown first), the "
       .. "Plan and the Build order: the crafts grouped by station, the ones that make materials first. Each is "
       .. "ticked off as you craft (what's on the crafting table counts), with how many you made. The planner "
       .. "follows your bags as they change, every few seconds. It shares a window with the Docs and Map "
       .. "overlays: opening one closes the other. Your plan and picks are this character's own." },
   { "Crafting Planner HUD",
-    "The planner's button at the bottom opens the Crafting Planner HUD (or /toolbox plan hud), a small strip to "
-      .. "follow the "
-      .. "plan with the planner closed: the shopping list first, what you have of each item against what's needed, "
+    "The planner's button at the bottom opens the Crafting Planner HUD, a small strip to follow the plan "
+      .. "with the planner closed: the shopping list first, what you have of each item against what's needed, "
       .. "ticked off as you gather; once you have it all, the build order, ticked off as you craft. Its button "
       .. "skips to the build order (crafting from your lot's containers) and back. A step stays done once its "
       .. "crafts are, though crafting the item uses it up; Start over goes back to the start for another "
-      .. "batch. When every craft is done it "
-      .. "plays a fanfare (Crafting plan done, on the Sounds page) and closes after 30 seconds (or never).",
-    "Settings, Crafting: show it, open it on the build order instead (Start over goes back there too; /toolbox "
-      .. "plan hud start shop|build), keep the shopping list until you switch (/toolbox plan hud auto off), the "
-      .. "close delay (/toolbox plan hud close <seconds>), its background shade (/toolbox plan hud shade "
-      .. "<0-90>) and its position." },
+      .. "batch. When every craft is done it plays a fanfare (Crafting plan done, on the Sounds page) and "
+      .. "closes after 30 seconds (or never).",
+    "Settings, Crafting: show it, open it on the build order instead (Start over goes back there too), "
+      .. "keep the shopping list until you switch, the close delay, its background shade and its position." },
   { "Toolbelt",
     "The Toolbelt is your buff bar with your health, focus and Vigor bars beside it and your consumables, "
       .. "gear repair and target under it: one strip with everything you watch in a fight, moved as one. Build "
       .. "it on the settings window's Toolbelt page: Show the Toolbelt, then put each bar Off, on its Own "
-      .. "strip or In Toolbelt. Or use /toolbox toolbelt vitals|consumables|gear|target on.",
-    "Only during combat (settings, or /toolbox toolbelt combat on) shows the whole Toolbelt only in combat "
-      .. "and a few seconds after, and while the settings window is open so you can place it. Move it by its "
-      .. "grip, with HUD layout's Buff bar buttons, or /toolbox toolbelt move <x> <y>. The buff bar is its "
-      .. "base: with the buff bar off, the other bars use their own strips. /toolbox toolbelt says what's in it." },
+      .. "strip or In Toolbelt.",
+    "Only during combat (on the same page) shows the whole Toolbelt only in combat and a few seconds "
+      .. "after, and while the settings window is open so you can place it. Move it by its grip, or with HUD "
+      .. "layout's Buff bar buttons. The buff bar is its base: with the buff bar off, the other bars use their "
+      .. "own strips. The Toolbelt page's summary says what's in it." },
   { "Target",
-    "/toolbox target on shows your target: its health (a thin red bar, and a blue one for focus "
-      .. "when it has some), then its effects as icons with the time left as a sweep, debuffs (outlined) first. "
-      .. "A creature hiding its health shows a full bar, as in the game's target frame. "
-      .. "Every effect on it is listed (the game doesn't say who applied one). Hover for details.",
-    "Its bars are the size of yours (Health bars: Size, Bar length). Settings, Toolbelt, Target bars give it "
-      .. "the health bars' options: bars, numbers, background, flash when low (/toolbox target text|bars "
-      .. "on|off, bg, flash <%>|off); Show the target's name puts its name above the bars "
-      .. "(mirrored: right-aligned over its icons and bars, your bars moving down a line to stay level; /toolbox "
-      .. "target name on); Leave out your pet hides it when the game targets it. "
-      .. "With your health bars in the "
-      .. "Toolbelt too, it runs across the whole Toolbelt: its bars start where yours do and its icons line "
-      .. "up with your buffs. It goes above the buffs (the default; its space is kept, see below) "
-      .. "or under everything (hidden with no target): settings, Toolbelt, Target row, or "
-      .. "/toolbox target place top|bottom.",
-    "Mirrored (settings, Toolbelt, Mirrored; or /toolbox target mirror on): its bars fill from the right "
-      .. "and up to 5 icons run to the left, most urgent nearest, at a fixed width. In the Toolbelt, with your "
-      .. "health bars there too, it goes to the LEFT of your bars, each target bar level with yours (without "
-      .. "them in the Toolbelt, the checkbox is greyed out). On its own strip, the whole strip is mirrored.",
-    "Target effects (settings, Toolbelt): All, Debuffs only, or None (just the bars); Most target icons "
-      .. "sets how many show at once (8 by default, 5 mirrored). Or /toolbox target effects "
-      .. "all|debuffs|none and /toolbox target icons <1-8>.",
+    "Settings, Toolbelt, Target: In Toolbelt (or Own strip) shows your target: its health (a thin red "
+      .. "bar, and a blue one for focus when it has some), then its effects as icons with the time left as a "
+      .. "sweep, debuffs (outlined) first. A creature hiding its health shows a full bar, as in the game's "
+      .. "target frame. Every effect on it is listed (the game doesn't say who applied one). Hover for "
+      .. "details.",
+    "Its bars are the size of yours (Health bars: Size, Bar length). Settings, Toolbelt, Target bars give "
+      .. "it the health bars' options: bars, numbers, background, flash when low; Show the target's name puts "
+      .. "its name above the bars (mirrored: right-aligned over its icons and bars, your bars moving down a "
+      .. "line to stay level); Leave out your pet hides it when the game targets it. With your health bars in "
+      .. "the Toolbelt too, it runs across the whole Toolbelt: its bars start where yours do and its icons "
+      .. "line up with your buffs. It goes above the buffs (the default; its space is kept, see below) or "
+      .. "under everything (hidden with no target): Target row, on the same page.",
+    "Mirrored (on the same page): its bars fill from the right and up to 5 icons run to the left, most "
+      .. "urgent nearest, at a fixed width. In the Toolbelt, with your health bars there too, it goes to the "
+      .. "LEFT of your bars, each target bar level with yours (without them in the Toolbelt, the checkbox is "
+      .. "greyed out). On its own strip, the whole strip is mirrored.",
+    "Target effects (same page): All, Debuffs only, or None (just the bars); Most target icons sets how "
+      .. "many show at once (8 by default, 5 mirrored).",
     "The blank area: above the buffs and on the left, the target's space is always kept, even with no "
       .. "target, so your bars and buffs never jump when you pick one up (the Toolbelt is anchored at its "
-      .. "grip, top left). On the left that leaves an empty area between the grip and your bars, as wide as "
-      .. "5 icons plus a bar. It's transparent and clicks pass through it; while the settings window is open "
-      .. "it says \"Target\" so you can see it when placing the Toolbelt. Drag by the grip as usual: your "
-      .. "bars sit that far to the right of it.",
-    "It joins the Toolbelt as its last row, or has its own strip (settings: Toolbelt, Target; or /toolbox "
-      .. "target toolbelt on|off). With no target it hides, except while the settings window is open, so you "
-      .. "can place it (/toolbox target move <x> <y>). /toolbox target debug shows what the game reports." },
+      .. "grip, top left). On the left that leaves an empty area between the grip and your bars, as wide as 5 "
+      .. "icons plus a bar. It's transparent and clicks pass through it; while the settings window is open it "
+      .. "says \"Target\" so you can see it when placing the Toolbelt. Drag by the grip as usual: your bars sit "
+      .. "that far to the right of it.",
+    "On its own strip, with no target it hides, except while the settings window is open, so you can "
+      .. "place it (or use HUD layout). /toolbox target debug (chat only) shows what the game reports." },
   { "Buff bar",
-    "/toolbox buffs: your buffs and debuffs (outlined red) as their skill icons, the one that runs out "
-      .. "soonest on the left. A darkening "
-      .. "sweep shows the time left; it turns red when a buff is about to run out. Hover an icon "
-      .. "for its tooltip; a buff with several effects lists them all, one ending sooner with its time. "
-      .. "Change the icon size in settings, Buffs. Its sounds are in Buff alerts and sounds.",
-    "Without relying on colour: debuffs have their own row (the second); a buff about to run out blinks "
+    "Settings, Buffs, Show buff bar: your buffs and debuffs (outlined red) as their skill icons, the one "
+      .. "that runs out soonest on the left. A darkening sweep shows the time left; it turns red when a buff "
+      .. "is about to run out. Hover an icon for its tooltip; a buff with several effects lists them all, one "
+      .. "ending sooner with its time. Change the icon size on the same page. Its sounds are in Buff alerts "
+      .. "and sounds.",
+    "Without relying on color: debuffs have their own row (the second); a buff about to run out blinks "
       .. "its border (Flash, on by default) and sounds its alert; Show seconds left near the end adds the "
-      .. "number; and a sweep's size shows the time left whatever its colour. The same goes for the "
-      .. "consumables and equipment bars (a broken item's sweep covers the whole icon).",
+      .. "number; and a sweep's size shows the time left whatever its color. The same goes for the consumables "
+      .. "and equipment bars (a broken item's sweep covers the whole icon).",
     "Buffs with more than 15 minutes left (Obsidian potions, for example) share one slot at the end of "
-      .. "the row, showing how many there are; hover it for each one and its time left. A buff moves back "
-      .. "onto the bar once it has less than that left. Change the time in settings (Group buffs lasting "
-      .. "longer than) or with /toolbox buffs group after 30 (minutes; off turns it off). To always group "
-      .. "a buff, add part of its name in settings (Buffs, Always group by name) or with /toolbox buffs "
-      .. "group add <name> (remove <name> takes it off; "
-      .. "/toolbox buffs debug shows buffs' names).",
-    "Show seconds left near the end (settings, or /toolbox buffs countdown on) puts the whole seconds "
-      .. "over an icon in its last 30 seconds (or what you choose, /toolbox buffs countdown 10), on the "
-      .. "buff, debuff and consumable icons.",
-    "Only during combat (settings, or /toolbox buffs combat on|off) shows the bar only while you're "
-      .. "in combat and for a few seconds after, so it can sit in your line of sight without being in "
-      .. "the way. It also shows while the settings window is open, so you can place it. It's the "
-      .. "Toolbelt's base, so the whole Toolbelt hides and shows with it.",
-    "Two settings on newer game clients: Replace the game's buff bar hides the game's own bar while "
-      .. "this one is showing (it comes back whenever this one is off), and Click a buff to dismiss it "
-      .. "works like the game's right-click Dismiss. Chat: /toolbox buffs replace on|off, "
-      .. "/toolbox buffs dismiss on|off." },
+      .. "the row, showing how many there are; hover it for each one and its time left. A buff moves back onto "
+      .. "the bar once it has less than that left. Change the time with Group buffs lasting longer than (Off "
+      .. "turns it off). To always group a buff, add part of its name under Always group by name; Always group "
+      .. "these kinds groups whole kinds, such as every Blessing.",
+    "Show seconds left near the end puts the whole seconds over an icon in its last 30 seconds (or what "
+      .. "you choose), on the buff, debuff and consumable icons.",
+    "Only during combat shows the bar only while you're in combat and for a few seconds after, so it can "
+      .. "sit in your line of sight without being in the way. It also shows while the settings window is open, "
+      .. "so you can place it. It's the Toolbelt's base, so the whole Toolbelt hides and shows with it.",
+    "Two settings on newer game clients: Replace the game's buff bar hides the game's own bar while this "
+      .. "one is showing (it comes back whenever this one is off), and Click a buff to dismiss it works like "
+      .. "the game's right-click Dismiss. /toolbox buffs debug (chat only) shows the buffs' names and where "
+      .. "each duration came from." },
   { "Buff alerts and sounds",
-    "A sound before a buff runs out (/toolbox buffalert 10 = ten seconds "
-      .. "before); a sound when a debuff lands (/toolbox debuffalert on/off). Effects that come so often "
-      .. "their sound is noise can be muted: settings, Buffs, Muted effects (pick one from your recent "
-      .. "alerts, what's on you or anything you've cast, then Mute), or /toolbox buffs quiet. A muted "
-      .. "effect's icon still flashes. Or let Toolbox quiet them: Don't repeat a sound for the same effect "
-      .. "within (off at first; try 2 minutes) keeps an effect quiet while it keeps coming: each alert starts "
-      .. "the time again, so a debuff that lands all fight sounds once (the expiry and debuff sounds are "
-      .. "counted apart). /toolbox buffs repeat 2 sets it.",
-    "Your own sound for an effect, when you get it and / or when it's about to run out: record yourself saying "
-      .. "its name, say, and you'll know which one it is. Put the file (.ogg, .wav or .mp3) in your Lua folder "
-      .. "or a folder in it, such as Lua/toolbox_sounds (not the toolbox folder: updates replace it). Settings, "
-      .. "Buffs: pick the effect in Muted effects' list, choose when, then Choose a file... and pick it from "
-      .. "the game's list (a newer game client), or paste the file's path "
-      .. "(toolbox_sounds/atos.ogg; a full path is cut to the part after Lua; give each file a name of its "
-      .. "own) and press Set; the list below it has Test and Remove (the Sounds page has a button to get "
-      .. "there). Or /toolbox buffs sound get "
-      .. "Blessing of Atos = toolbox_sounds/atos.ogg (get: when you get it; end: when it's about to run out). "
-      .. "It replaces the usual debuff or expiry sound, at that sound's volume, and plays even with those "
-      .. "alerts off (muting still silences it); a file that can't be opened (chat says so) plays the usual "
-      .. "sound." },
+    "On the Buffs page: a sound before a buff runs out (Sound when a buff is about to run out, and how "
+      .. "many seconds before); a sound when a debuff lands. Effects that come so often their sound is noise "
+      .. "can be muted: Muted effects (pick one from your recent alerts, what's on you or anything you've "
+      .. "cast, then Mute). A muted effect's icon still flashes. Or let Toolbox quiet them: Don't repeat a "
+      .. "sound for the same effect within (off at first; try 2 minutes) keeps an effect quiet while it keeps "
+      .. "coming: each alert starts the time again, so a debuff that lands all fight sounds once (the expiry "
+      .. "and debuff sounds are counted apart).",
+    "Your own sound for an effect, when you get it and / or when it's about to run out: record yourself "
+      .. "saying its name, say, and you'll know which one it is. Put the file (.ogg, .wav or .mp3) in your Lua "
+      .. "folder or a folder in it, such as Lua/toolbox_sounds (not the toolbox folder: updates replace it). "
+      .. "Settings, Buffs: pick the effect in Muted effects' list, choose when, then Choose a file... and pick "
+      .. "it from the game's list (a newer game client), or paste the file's path (toolbox_sounds/atos.ogg; a "
+      .. "full path is cut to the part after Lua; give each file a name of its own) and press Set; the list "
+      .. "below it has Test and Remove (the Sounds page has a button to get there). It replaces the usual "
+      .. "debuff or expiry sound, at that sound's volume, and plays even with those alerts off (muting still "
+      .. "silences it); a file that can't be opened (chat says so) plays the usual sound." },
   { "Buff block",
-    "The buff block (settings, Buffs, Buff block; or /toolbox buffs block on): every buff and debuff on a "
-      .. "strip of its own, soonest to run out first, row after row, nothing grouped. Not part of the Toolbelt. "
-      .. "Choose how many icons a row (/toolbox buffs block width 12), its icon size and only during combat; "
-      .. "move it by its grip or under HUD layout. Its tooltips are short (name and time left): the buff bar "
-      .. "has the game's full ones. The sweeps, flash, countdown, Replace and Click to dismiss apply to it too." },
+    "The buff block (Settings, Buffs, Show the buff block): every buff and debuff on a strip of its own, "
+      .. "soonest to run out first, row after row, nothing grouped. Not part of the Toolbelt. Choose how many "
+      .. "icons a row, its icon size and only during combat; move it by its grip or under HUD layout. Its "
+      .. "tooltips are short (name and time left): the buff bar has the game's full ones. The sweeps, flash, "
+      .. "countdown, Replace and Click to dismiss apply to it too." },
   { "Health, focus & Vigor bars",
-    "/toolbox vitals: your health and focus with \"current / max\", and a gold Vigor bar with its "
-      .. "percentage (hover it for what Vigor adds to health regen, focus regen and critical chance). The "
-      .. "Vigor bar shows once you are past the level where Vigor applies; Show Vigor in settings, or "
-      .. "/toolbox vitals vigor off, hides it.",
-    "Options: size (75-250%), bar length, show bars and/or numbers, a dark or light panel "
-      .. "behind the numbers, and a flash when a value drops below a percentage (Test flash "
-      .. "shows it). They can join the Toolbelt, beside the buffs (Toolbelt in settings). Replace the "
-      .. "game's health bars (newer game clients) hides the health, focus and Vigor bars on the game's own "
-      .. "player frame while these show, or /toolbox vitals replace on." },
+    "Settings, Health bars, Show health & focus bars: your health and focus with \"current / max\", and a "
+      .. "gold Vigor bar with its percentage (hover it for what Vigor adds to health regen, focus regen and "
+      .. "critical chance). The Vigor bar shows once you are past the level where Vigor applies; Show Vigor "
+      .. "hides it.",
+    "Options: size (75-250%), bar length, show bars and/or numbers, a dark or light panel behind the "
+      .. "numbers, and a flash when a value drops below a percentage (Test flash shows it). They can join the "
+      .. "Toolbelt, beside the buffs (the Toolbelt page). Replace the game's health bars (newer game clients) "
+      .. "hides the health, focus and Vigor bars on the game's own player frame while these show." },
   { "Combat stats",
-    "/toolbox combat: fight timer, DPS (last 5 seconds and fight average), damage taken and "
-      .. "healing per second, crit % and avoided %, plus character stats you choose.",
-    "Choose the stats in settings (Combat: Character stats on the HUD): type part of a name (resist, "
-      .. "dodge, crit, regen...) and Search, pick one from the list (it shows your value now) and Add; "
-      .. "pick a shown one and Remove. With an empty search it suggests a few. Up to 8, changed at any "
-      .. "time, mid-fight too. In chat: /toolbox stats resist finds names, /toolbox combat stat add "
-      .. "CombatHealthRegen adds one, stat remove takes it off. /toolbox combat help has more.",
-    "Combat Detailed (hover the combat HUD, or /toolbox combat detail): your damage by skill as "
-      .. "bars, longest first (hover one for hits, crits and over-time ticks); the last minute as a "
-      .. "chart, damage done up and damage taken down; and healing with how much was wasted as "
-      .. "overheal; your targets (damage to each creature and how long each took to kill); and damage "
-      .. "types, a bar split by element for damage done and one for damage taken. Switch between this "
-      .. "fight and the whole session with the dropdown (or /toolbox combat detail session). /toolbox "
-      .. "combat reset clears both.",
-    "Block, parry & dodge (settings, Combat; or /toolbox combat shout on): when you block, parry or dodge an "
-      .. "attack, the word pops up over the middle of the Toolbelt for a moment, with its own sound. Choose the "
-      .. "text size, each word's colour, and each word and sound on or off; Test shows one now. Your own "
-      .. "sounds: the Sounds page, or toolbox_block.ogg / toolbox_parry.ogg / toolbox_dodge.ogg in your Lua "
-      .. "folder. The words need the Toolbelt showing; the sounds play either way." },
+    "Settings, Combat, Show combat stats: fight timer, DPS (last 5 seconds and fight average), damage "
+      .. "taken and healing per second, crit % and avoided %, plus character stats you choose.",
+    "Choose the stats on the same page (Character stats on the HUD): type part of a name (resist, dodge, "
+      .. "crit, regen...) and Search, pick one from the list (it shows your value now) and Add; pick a shown "
+      .. "one and Remove. With an empty search it suggests a few. Up to 8, changed at any time, mid-fight too.",
+    "Combat Detailed (hover the combat HUD, or the menu's Combat Detailed button): your damage by skill "
+      .. "as bars, longest first (hover one for hits, crits and over-time ticks); the last minute as a chart, "
+      .. "damage done up and damage taken down; and healing with how much was wasted as overheal; your targets "
+      .. "(damage to each creature and how long each took to kill); and damage types, a bar split by element "
+      .. "for damage done and one for damage taken. Switch between this fight and the whole session with the "
+      .. "dropdown. Reset fight (Combat page) clears both.",
+    "Block, parry & dodge (Settings, Combat, Shout blocks, parries and dodges): when you block, parry or "
+      .. "dodge an attack, the word pops up over the middle of the Toolbelt for a moment, with its own sound. "
+      .. "Choose the text size, each word's color, and each word and sound on or off; Test shows one now. Your "
+      .. "own sounds: the Sounds page, or toolbox_block.ogg / toolbox_parry.ogg / toolbox_dodge.ogg in your "
+      .. "Lua folder. The words need the Toolbelt showing; the sounds play either way." },
   { "Consumables bar",
-    "Food, potions (Obsidian ones included), weapon poisons and combat consumables like caltrops get their "
-      .. "own bar, by the kind the game gives each buff. Pick the kinds in settings (Consumables & gear, one "
-      .. "checkbox each) or with /toolbox consumables cat <Kind> on|off; names containing Scroll, Torch or "
-      .. "Bait are left out (settings: Left out by name, or /toolbox consumables exclude add|remove <name>).",
-    "They show as icons with the sweep, soonest to run out first, and leave the buff bar. "
-      .. "When one is about to run out it flashes red and the buff "
-      .. "alert sounds (the buff bar's alert settings), and once it has run out it goes. Long-lasting ones "
-      .. "(the buff bar's Group buffs lasting longer than) and any past Most icons share one slot with a "
-      .. "count; hover it for the list. On its own strip it can show only during combat. It can join the "
-      .. "Toolbelt as a row under the debuffs (/toolbox toolbelt consumables on).",
-    "Other buffs can go on it too: add a name or part of one in settings (Always on it by name) or "
-      .. "with /toolbox consumables add <name> (remove to undo). "
-      .. "/toolbox consumables lists what is in effect; /toolbox consumables bar off puts food and potions "
-      .. "back on the buff bar. On a game client without buff categories only food and potions are "
-      .. "recognised (by name)." },
+    "Food, potions (Obsidian ones included), weapon poisons and combat consumables like caltrops get "
+      .. "their own bar, by the kind the game gives each buff. Pick the kinds under Settings, Consumables & "
+      .. "gear (one checkbox each); names containing Scroll, Torch or Bait are left out (Left out by name).",
+    "They show as icons with the sweep, soonest to run out first, and leave the buff bar. When one is "
+      .. "about to run out it flashes red and the buff alert sounds (the buff bar's alert settings), and once "
+      .. "it has run out it goes. Long-lasting ones (the buff bar's Group buffs lasting longer than) and any "
+      .. "past Most icons share one slot with a count; hover it for the list. On its own strip it can show "
+      .. "only during combat. It can join the Toolbelt as a row under the debuffs (the Toolbelt page).",
+    "Other buffs can go on it too: add a name or part of one under Always on it by name. Switch the bar "
+      .. "off there to put food and potions back on the buff bar. On a game client without buff categories "
+      .. "only food and potions are recognized (by name)." },
   { "Gear repair",
     "The equipment bar shows worn items that need repair: each item's icon with a red sweep for the "
-      .. "durability it has lost, lowest first; hover one for its durability. Durability counts against what "
-      .. "a repair brings the item back to, so 100% means an ordinary repair has nothing to fix; when that "
-      .. "has worn well below new, the tooltip says it needs a crafting station repair. It shows only items "
-      .. "below the repair threshold (20% unless you change it), and hides when nothing needs repair. While the "
-      .. "settings window is open it shows every worn item, so you can place it. Its icons are the buff bar's "
-      .. "size. It can join the Toolbelt as its last row (/toolbox toolbelt gear on); it then moves and hides "
-      .. "with it.",
-    "The Gear needs repair notification says when an item drops below the threshold, and again when "
-      .. "it breaks; a repaired item warns again next time. Settings (Equipment bar) sets the threshold and "
-      .. "switches the bar off; the notification has its own switch under Notifications. /toolbox gear "
-      .. "lists your worn items and their durability; /toolbox gear repair 30 sets the threshold; "
-      .. "/toolbox gear bar off hides the bar; /toolbox gear move <x> <y> places it." },
+      .. "durability it has lost, lowest first; hover one for its durability. Durability counts against what a "
+      .. "repair brings the item back to, so 100% means an ordinary repair has nothing to fix; when that has "
+      .. "worn well below new, the tooltip says it needs a crafting station repair. It shows only items below "
+      .. "the repair threshold (20% unless you change it), and hides when nothing needs repair. While the "
+      .. "settings window is open it shows every worn item, so you can place it and see them all. Its icons "
+      .. "are the buff bar's size. It can join the Toolbelt as its last row (the Toolbelt page); it then moves "
+      .. "and hides with it.",
+    "The Gear needs repair notification says when an item drops below the threshold, and again when it "
+      .. "breaks; a repaired item warns again next time. Settings, Consumables & gear (Equipment bar) sets the "
+      .. "threshold and switches the bar off; the notification has its own switch under Notifications." },
   { "Menu",
-    "A column of buttons (gold at first), at the top left at first, that opens Toolbox's windows with one click: XP, "
-      .. "XP Detailed, Today, Loot Tracker, Crafting planner, Combat Detailed, Notifications (the news now, "
-      .. "whatever each usually shows in), Location (shows or hides the location strip), Docs and Settings. "
-      .. "A button is bright while its window is open; click it again to close it. Hover one for its name and "
-      .. "its chat command. "
-      .. "Move it by its grip, or with the Position buttons under HUD layout.",
+    "A column of buttons (gold at first), at the top left at first, that opens Toolbox's windows with one "
+      .. "click: XP, XP Detailed, Today, Loot Tracker, Crafting planner, Combat Detailed, Notifications (the "
+      .. "news now, whatever each usually shows in), Location (shows or hides the location strip), Docs and "
+      .. "Settings. A button is bright while its window is open; click it again to close it. Hover one for its "
+      .. "name. Move it by its grip, or with the Position buttons under HUD layout.",
     "Settings, Menu, setups, backup & reset: Show the menu (off: open the windows from the settings, as "
       .. "before), Vertical (off: a row), Hide during combat (it comes back a few seconds after a fight, and "
-      .. "shows while the settings are open so you can place it), Icon size, Icon color (Gold, Red, Green, Blue, "
-      .. "White or Text, from your UI skin), Background shade (how dark the "
-      .. "panel behind the buttons is; 0 for none), and which buttons it has (at least one). Every HUD strip "
-      .. "has a Background shade slider in its own settings (XP, Today, notifications, location, the health bars' "
-      .. "and target's Dark numbers, combat stats), all 60% at first.",
-    "In chat: /toolbox menu (on, off, vertical, horizontal, size <n>, shade <n>, color <name>, "
-      .. "combat hide|show, move <x> <y>); /toolbox launcher works too." },
+      .. "shows while the settings are open so you can place it), Icon size, Icon color (Gold, Red, Green, "
+      .. "Blue, White or Text, from your UI skin), Background shade (how dark the panel behind the buttons is; "
+      .. "0 for none), and which buttons it has (at least one). Every HUD strip has a Background shade slider "
+      .. "in its own settings (XP, Today, notifications, location, the health bars' and target's Dark numbers, "
+      .. "combat stats), all 60% at first." },
   { "Location strip",
-    "A small strip showing where you are: the scene, your position (x, height, z, in whole numbers, as /loc "
-      .. "gives them) and which way you face (the compass direction and degrees, 0 north, 90 east). It follows "
-      .. "you as you move. Hover it for the whole /loc line. On a newer game client it also names the kinds "
-      .. "of water you can fish in this scene (Fishable water: salt, fresh), so you know what to expect on your "
-      .. "line. Switch it on with the menu's Location button or under Settings, Map & location "
-      .. "(Show "
-      .. "where you are), where you can also hide the facing and water lines and place it, or type /toolbox "
-      .. "location (on, off, facing on|off, water on|off, pin on|off, overlay on|off, move <x> <y>). It's off by "
-      .. "default. The pin beside the scene's name opens the Map overlays window (Map overlays button in "
-      .. "settings). A line names the map overlay shown in this scene (Map: Iron Ore, 4 places), "
-      .. "and its arrows step through them: yours, then Gathering and its kinds, then Fights and its creatures, "
-      .. "then none (The overlay shown on the map in settings)." },
+    "A small strip showing where you are: the scene, your position (x, height, z, in whole numbers, as "
+      .. "/loc gives them) and which way you face (the compass direction and degrees, 0 north, 90 east). It "
+      .. "follows you as you move. Hover it for the whole /loc line. On a newer game client it also names the "
+      .. "kinds of water you can fish in this scene (Fishable water: salt, fresh), so you know what to expect "
+      .. "on your line. It's off by default: switch it on with the menu's Location button or under Settings, "
+      .. "Map & location (Show where you are), where you can also hide the facing and water lines and place "
+      .. "it.",
+    "The pin beside the scene's name opens the Map overlays window. A line names the map overlay shown in "
+      .. "this scene (Map: Iron Ore, 4 places), and its arrows step through them: yours, then Gathering and "
+      .. "its kinds, then Fights and its creatures, then none (The overlay shown on the map, in settings)." },
   { "Map overlays",
-    "Sets of places you mark in a scene, shown on its map one set at a time: one for loot, one for gathering, "
-      .. "one for vendors... Each scene has its own overlays (a place is only good on its own map), and remembers "
-      .. "which one it shows: a Loot overlay in every scene you farm, say. Each place is a mark on the region map "
-      .. "and minimap (a newer game client), in the shape and color you picked for it, named as you named it. Up "
-      .. "to 10 overlays a scene, 39 places each. They're this character's own. The Loot Tracker's run flags stay "
-      .. "their own setting and show beside any overlay. On the newest game client the full map's corner names "
-      .. "what Toolbox shows there (Toolbox: Gathering, loot runs, last death).",
-    "Room: the game keeps at most 256 KB in each of an add-on's saved files, so the overlays of all your scenes "
-      .. "share a part of this character's file (thousands of places). The window shows how full it is. A mark "
-      .. "that won't fit is refused and named, and nothing is saved; /toolbox overlay scenes lists what each scene "
-      .. "takes, and /toolbox overlay forget <scene> (typed twice) deletes a scene's overlays.",
-    "The Map overlays window (the pin on the location strip, /toolbox overlay window, or the button in "
-      .. "Settings, Map & location) holds it all. Pick the overlay shown (or None); type a name and press New "
-      .. "(shown at once), or Rename or Delete (click twice) the shown one. Pick a shape and color under New "
-      .. "marks, then stand where you want a place, name it and press Mark here "
-      .. "(no name: Place 1, Place 2...; a name used: Wolf 2); "
-      .. "marks made before keep their look. The list holds the shown overlay's places: Compass "
-      .. "points the game's compass at one (it's the game's beacon, so it replaces any you set), Set look gives it "
-      .. "the shape and color above, Remove takes it out.",
-    "In chat: /toolbox mark Iron vein marks where you stand (your first mark makes an overlay called Places); "
-      .. "/toolbox mark remove takes out the nearest place within 15 m (or one by name) and /toolbox mark compass "
-      .. "<name> points your compass at one. /toolbox overlay lists this scene's overlays; /toolbox overlay "
-      .. "Gathering shows one, overlay next and overlay prev step through them (as the location strip's "
-      .. "arrows do), "
-      .. "overlay off none, and overlay new, rename <old> = <new>, delete and places (each with its /loc) do the "
-      .. "rest; overlay icon star and overlay color Red set the next marks' look, mark look <name> gives it to a "
-      .. "place." },
+    "Sets of places you mark in a scene, shown on its map one set at a time: one for loot, one for "
+      .. "gathering, one for vendors... Each scene has its own overlays (a place is only good on its own map), "
+      .. "and remembers which one it shows: a Loot overlay in every scene you farm, say. Each place is a mark "
+      .. "on the region map and minimap (a newer game client), in the shape and color you picked for it, named "
+      .. "as you named it. Up to 10 overlays a scene, 39 places each. They're this character's own. The Loot "
+      .. "Tracker's run flags stay their own setting and show beside any overlay. On the newest game client "
+      .. "the full map's corner names what Toolbox shows there (Toolbox: Gathering, loot runs, last death).",
+    "The Map overlays window (the pin on the location strip, or the button under Settings, Map & "
+      .. "location) holds it all. Pick the overlay shown (or None); type a name and press New (shown at once), "
+      .. "or Rename or Delete (click twice) the shown one. Pick a shape and color under New marks, then stand "
+      .. "where you want a place, name it and press Mark here (no name: Place 1, Place 2...; a name used: Wolf "
+      .. "2); marks made before keep their look. The list holds the shown overlay's places: Compass points the "
+      .. "game's compass at one (it's the game's beacon, so it replaces any you set), Set look gives it the "
+      .. "shape and color above, Remove takes it out.",
+    "Room: the game keeps at most 256 KB in each of an add-on's saved files, so the overlays of all your "
+      .. "scenes share a part of this character's file (thousands of places). The window shows how full it is. "
+      .. "A mark that won't fit is refused and named, and nothing is saved. To make room, delete overlays you "
+      .. "no longer use; in chat only, /toolbox overlay scenes lists what each scene takes, and /toolbox "
+      .. "overlay forget <scene> (typed twice) deletes a scene's overlays." },
   { "Last death",
-    "When you die, Toolbox keeps where you stood, and on a newer game client your last death shows on the map "
-      .. "and minimap in its scene: a magenta diamond named Last death (hover it for when), beside any overlay. "
-      .. "Only the last one: the next death moves it. It clears itself when you come back to the spot (once "
-      .. "you've been 30 m away), or once it's an hour old and you're in another scene. /toolbox death says "
-      .. "where it is; /toolbox death compass, or Last death in the Map overlays window, "
-      .. "points your compass back to it (the game's beacon, so it replaces "
-      .. "yours); /toolbox death clear takes it off. Switch it off under Settings, Map & location: Show your last "
-      .. "death on the map." },
+    "When you die, Toolbox keeps where you stood, and on a newer game client your last death shows on the "
+      .. "map and minimap in its scene: a magenta diamond named Last death (hover it for when), beside any "
+      .. "overlay. Only the last one: the next death moves it. It clears itself when you come back to the spot "
+      .. "(once you've been 30 m away), or once it's an hour old and you're in another scene. Last death in "
+      .. "the Map overlays window points your compass back to it (the game's beacon, so it replaces yours). "
+      .. "Switch it off under Settings, Map & location: Show your last death on the map. In chat, /toolbox "
+      .. "death clear takes it off." },
   { "Auto map",
     "Resource nodes don't move, though not all are up at once. In an adventure area the auto map is on by "
-      .. "default (Auto map: Gathering in the Map overlays window, or /toolbox overlay auto on|off), and each node "
-      .. "you gather there is marked where you stand: in an "
-      .. "overlay of its kind (Iron Ore, made the first time, each kind in a look of its own) and in Gathering, "
-      .. "which holds every kind so the map shows them all. A node already marked within 6 m (the same node, "
-      .. "gathered from another side) isn't marked again. One chat line says what was marked.",
-    "In towns, player towns and basements it's off (their trunks and crafting stations would be marked), unless "
-      .. "you turn it on there; a switch you flip in a scene stays for that scene only. The window's line over the "
-      .. "switches names the scene (Auto map (Crossroads):); hover it, or type /toolbox overlay auto, for what the "
-      .. "scene counts as. Settings, Map & location: Auto map adventure areas off, and it waits to be "
-      .. "turned on in each scene. Up to 10 automatic overlays a scene (Gathering and 9 kinds), "
-      .. "apart from your own 10; past that, a new kind is marked in Gathering only, and chat says so once. "
-      .. "They're ordinary overlays: show, rename, restyle or delete them like your own.",
-    "Too many kinds? Ignore the ones you don't want, in every scene: show a kind's overlay (or pick one of its "
-      .. "places in Gathering) and click Ignore kind twice, or type /toolbox overlay auto ignore and a kind or a "
-      .. "word of one (Corpse skips Wolf Corpse, Bear Corpse...). Its overlay and its places in this scene go, and "
-      .. "it isn't marked again. /toolbox overlay auto ignore lists them; auto unignore <name> takes one off.",
-    "Fights too, on their own switch with the same defaults (Auto map: Fights, /toolbox overlay auto fights "
-      .. "on|off): each creature you or your pet "
-      .. "kill in that scene is marked where you stand (the game doesn't say where the creature was, so a ranged "
-      .. "kill marks you): in an overlay of its name (Elf Fighter, Reaper...) and in Fights, which holds them all. "
-      .. "One already marked within 20 m (the same camp) isn't marked again. Fights have their own 10 automatic "
-      .. "overlays a scene, and the same ignore list." },
+      .. "default (Auto map: Gathering in the Map overlays window), and each node you gather there is marked "
+      .. "where you stand: in an overlay of its kind (Iron Ore, made the first time, each kind in a look of "
+      .. "its own) and in Gathering, which holds every kind so the map shows them all. A node already marked "
+      .. "within 6 m (the same node, gathered from another side) isn't marked again. One chat line says what "
+      .. "was marked.",
+    "In towns, player towns and basements it's off (their trunks and crafting stations would be marked), "
+      .. "unless you turn it on there; a switch you flip in a scene stays for that scene only. The window's "
+      .. "line over the switches names the scene (Auto map (Crossroads):); hover it for what the scene counts "
+      .. "as. Settings, Map & location: Auto map adventure areas off, and it waits to be turned on in each "
+      .. "scene. Up to 10 automatic overlays a scene (Gathering and 9 kinds), apart from your own 10; past "
+      .. "that, a new kind is marked in Gathering only, and chat says so once. They're ordinary overlays: "
+      .. "show, rename, restyle or delete them like your own.",
+    "Too many kinds? Ignore the ones you don't want, in every scene: show a kind's overlay (or pick one "
+      .. "of its places in Gathering) and click Ignore kind twice. Its overlay and its places in this scene "
+      .. "go, and it isn't marked again. In chat, /toolbox overlay auto ignore <word> skips every kind with "
+      .. "that word (Corpse: Wolf Corpse, Bear Corpse...), lists them without a word, and auto unignore <name> "
+      .. "takes one off.",
+    "Fights too, on their own switch with the same defaults (Auto map: Fights): each creature you or your "
+      .. "pet kill in that scene is marked where you stand (the game doesn't say where the creature was, so a "
+      .. "ranged kill marks you): in an overlay of its name (Elf Fighter, Reaper...) and in Fights, which "
+      .. "holds them all. One already marked within 20 m (the same camp) isn't marked again. Fights have their "
+      .. "own 10 automatic overlays a scene, and the same ignore list." },
   { "Moving the HUD strips",
-    "The buff bar, health & focus bars, combat stats, the consumables bar and the equipment bar are "
-      .. "HUD strips. Drag the grip at a "
-      .. "strip's top-left corner (untick Options > Interface > Nameplates & Chat Bubbles > "
-      .. "Lock Status Movement to see it), use the Position buttons in settings (HUD layout), or type e.g. "
-      .. "/toolbox buffs move 600 40." },
+    "The buff bar, health & focus bars, combat stats, the consumables bar and the equipment bar are HUD "
+      .. "strips. Drag the grip at a strip's top-left corner (untick Options > Interface > Nameplates & Chat "
+      .. "Bubbles > Lock Status Movement to see it), or use the Position buttons in settings (HUD layout)." },
   { "Notifications",
-    "A Notifications window tells you what's new since you last saw it: your guild's message of the "
-      .. "day, new mail, mail about to expire, ransoms, new rewards, guild applications and gear needing "
-      .. "repair. It opens at "
-      .. "login, after /lua reload, or when something changes, showing everything new at once. "
-      .. "Nothing already seen shows again.",
-    "Switch each one on or off in settings (Notifications), or with /toolbox notify <name> on|off "
-      .. "(names: motd, mail, expiring, ransoms, rewards, applications, durability, friends, guild, events). "
-      .. "Friends and guild members coming online arrive as chat lines by default (guild: off). /toolbox notify "
-      .. "lists them; /toolbox notify show shows everything current; /toolbox motd shows the guild message.",
-    "World events (a newer game client): from the game's calendar, a chat line 15 minutes before a Call to "
-      .. "Arms or an official event starts, or when one is on as you log in, and for featured community "
-      .. "events; each date once. /toolbox events says what's on now and next and whether the Cabalist "
-      .. "Stronghold is open; the game's /calendar has every date and your reminders.",
+    "A Notifications window tells you what's new since you last saw it: your guild's message of the day, "
+      .. "new mail, mail about to expire, ransoms, new rewards, guild applications and gear needing repair. It "
+      .. "opens at login, after /lua reload, or when something changes, showing everything new at once (or the "
+      .. "menu's Notifications button shows the news now). Nothing already seen shows again.",
+    "Switch each one on or off under Settings, Notifications. Friends and guild members coming online "
+      .. "arrive as chat lines by default (guild: off).",
+    "World events (a newer game client): from the game's calendar, a chat line 15 minutes before a Call "
+      .. "to Arms or an official event starts, or when one is on as you log in, and for featured community "
+      .. "events; each date once. In chat, /toolbox events says what's on now and next and whether the "
+      .. "Cabalist Stronghold is open; the game's /calendar has every date and your reminders.",
     "Each can show in the Notifications window, on the notification HUD or as a chat line, with or "
-      .. "without a sound (the dropdown next to it in settings, e.g. HUD + sound; or /toolbox notify <name> "
-      .. "via window|hud|chat and /toolbox notify <name> sound on|off, or leave out the name for all). The "
-      .. "sound is a rising chime by default, and a doorbell for mail; each source can have its own (Sounds "
-      .. "page: Notification sounds: Chime, Ping, Tap, Doorbell, Bell or Low notes; or /toolbox notify friends "
-      .. "sound ping). Several "
-      .. "together play each sound once. The window can be compact (settings: "
-      .. "Compact Notifications window, or /toolbox notify compact on): its title bar shows only on hover. "
-      .. "Both have a text size slider in settings. The HUD lists "
-      .. "the latest 20, newest on top, new ones bright and older ones dimmed (hover a line for all of it). "
-      .. "It shows when something arrives and hides after 10 seconds, or never (HUD: hide after, or "
-      .. "/toolbox notify hud hide 30); it stays while hovered. Move it like the other HUD "
-      .. "strips (settings, or /toolbox notify hud move <x> <y>); /toolbox notify hud clear deletes its history." },
+      .. "without a sound (the dropdown next to it in settings, e.g. HUD + sound). The sound is a rising chime "
+      .. "by default, and a doorbell for mail; each source can have its own (Sounds page: Notification sounds: "
+      .. "Chime, Ping, Tap, Doorbell, Bell or Low notes). Several together play each sound once. The window "
+      .. "can be compact (Compact Notifications window): its title bar shows only on hover. Both have a text "
+      .. "size slider in settings. The HUD lists the latest 20, newest on top, new ones bright and older ones "
+      .. "dimmed (hover a line for all of it). It shows when something arrives and hides after 10 seconds, or "
+      .. "never (HUD: hide after); it stays while hovered. Move it like the other HUD strips (HUD layout)." },
   { "Sounds",
-    "The alert sounds live in the add-on's folder. To use your own, put "
-      .. "toolbox_buff_expiring.ogg, toolbox_debuff_landed.ogg, toolbox_notify.ogg, toolbox_ping.ogg, "
-      .. "toolbox_tap.ogg or toolbox_mail.ogg (or .wav) in your Lua folder, "
-      .. "beside the toolbox folder, or pick any file in settings. /toolbox sounds shows what "
-      .. "each alert uses; /toolbox sounds 50 sets the volume. A single buff or debuff can have its own sound "
-      .. "too (a recording of its name, say): see Buffs.",
-    "Volume (settings, Sounds): one alert volume for all, and under each sound its own volume, a share of "
+    "The alert sounds live in the add-on's folder. To use your own, put toolbox_buff_expiring.ogg, "
+      .. "toolbox_debuff_landed.ogg, toolbox_notify.ogg, toolbox_ping.ogg, toolbox_tap.ogg or toolbox_mail.ogg "
+      .. "(or .wav) in your Lua folder, beside the toolbox folder, or pick any file on the Sounds page "
+      .. "(Choose..., or type its path and press Set). Each sound's line there says which file it uses, and "
+      .. "Test plays it. A single buff or debuff can have its own sound too (a recording of its name, say): "
+      .. "see Buff alerts and sounds.",
+    "Volume (Settings, Sounds): one alert volume for all, and under each sound its own volume, a share of "
       .. "the alert volume (0 silences just that one). The add-on's sounds are loud enough that 50% is about "
       .. "what 100% used to be; your own files play at twice the setting, so they keep their old loudness." },
   { "Setups, backup & reset",
     "Each character has its own settings and positions. To copy another character's, yours or someone "
-      .. "else's on this computer, pick it under Setups (Settings, Menu, setups, backup & reset) and press Import "
-      .. "twice. A character's setup is listed once its player ticks List this character's setup (off at first); "
-      .. "Export saves yours under a name (Raid layout). An import is a copy: later changes stay each "
-      .. "character's own. In chat: /toolbox settings setups, import <name>, export <name>, delete <name>, "
-      .. "share on|off.",
-    "Your settings are in the game's files in Lua/SavedVariables: toolbox.<character>.character.json "
-      .. "for each character, and toolbox.account.json (the setups). To back up, press Save now and copy "
-      .. "them. To restore or move computers, quit the game and copy them back.",
-    "On the newest game client (Lua API 39), the game keeps dated copies too: press Back up now, and Toolbox "
-      .. "has one made before a reset, an import and the first start of a new version (chat names it). To go "
-      .. "back, pick a copy under Back up now and press Restore twice: this character's settings and positions "
-      .. "come back at once, and the file as it was is kept as a copy too. Today's counts and the XP session "
-      .. "carry on. The game keeps the last five copies of each file. In chat: /toolbox settings backup, "
-      .. "backups, restore <number>.",
-    "On an older client, Toolbox keeps its own copy of each character's settings, positions and run history in "
-      .. "toolbox.account.json instead. If the game ever can't read a character's file (it then starts Toolbox "
-      .. "with nothing), Toolbox puts them back from that copy at once and says so in chat.",
+      .. "else's on this computer, pick it under Setups (Settings, Menu, setups, backup & reset) and press "
+      .. "Import twice. A character's setup is listed once its player ticks List this character's setup (off "
+      .. "at first); Export saves yours under a name (Raid layout). An import is a copy: later changes stay "
+      .. "each character's own.",
+    "Your settings are in the game's files in Lua/SavedVariables: toolbox.<character>.character.json for "
+      .. "each character, and toolbox.account.json (the setups). To back up, press Save now and copy them. To "
+      .. "restore or move computers, quit the game and copy them back.",
+    "On the newest game client (Lua API 39), the game keeps dated copies too: press Back up now, and "
+      .. "Toolbox has one made before a reset, an import and the first start of a new version (chat names it). "
+      .. "To go back, pick a copy under Back up now and press Restore twice: this character's settings and "
+      .. "positions come back at once, and the file as it was is kept as a copy too. Today's counts and the XP "
+      .. "session carry on. The game keeps the last five copies of each file.",
+    "On an older client, Toolbox keeps its own copy of each character's settings, positions and run "
+      .. "history in toolbox.account.json instead. If the game ever can't read a character's file (it then "
+      .. "starts Toolbox with nothing), Toolbox puts them back from that copy at once and says so in chat.",
     "Reset all settings applies at the next /lua reload; stats are kept." },
 }
 

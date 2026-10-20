@@ -25,17 +25,17 @@ notifications.
 - **All set up in one settings window,** with a search to find any setting and a guide to every feature in the game. No files to edit.
 - **Back up your setup** by copying its settings files (the settings window shows where), or reset everything to the defaults.
 
-**Getting started:** type `/toolbox` (or `/tbx`, or press **Ctrl+;**) to open the settings window and
-tick what you want on screen. Its **Docs** button opens a guide to every feature, option and command.
-Change the key in the add-on manager, on Toolbox's row under **Keys**. The **menu**, a column of gold
-buttons at the top left, opens any Toolbox window with one click (change it or switch it off under **Menu,
-setups, backup & reset** in the settings).
+**Getting started:** the **menu**, a column of gold buttons at the top left, opens any Toolbox window with one
+click. Its **Settings** button (or **Ctrl+;**) opens the settings window: tick what you want on screen, or type a
+word in its search box to find any setting. The menu's **Docs** button opens a guide to every feature and option.
+Change the key in the add-on manager, on Toolbox's row under **Keys**, and the menu itself under **Menu, setups,
+backup & reset** in the settings. If you switch the menu off, `/toolbox` (or `/tbx`) opens the settings.
 
 ## The Toolbelt
 
 Your buff bar with your health, focus and Vigor bars beside it and your consumables bar, equipment bar
 and target under it: one strip, moved as one, with everything you watch in a fight. Pick what joins it in the
-settings window (**Toolbelt**) or with `/toolbox toolbelt`, and tick **Only during combat** to have it
+settings window (**Toolbelt**), and tick **Only during combat** to have it
 appear only when you're fighting. Each bar also works on its own strip, and the game's own buff bar and
 health bars can be hidden while Toolbox's show.
 
@@ -46,7 +46,7 @@ like, the seconds counting down at the end. It can sound an alert a set number o
 runs out (the icon flashes red) and when a debuff lands; effects that come so often their sound is noise can be
 muted, picked from your recent alerts, or kept from repeating within a time you choose, and any buff or debuff can play
 your own sound file when you get it or when it's about to run out (record yourself saying its name, put it in
-your Lua folder, then Settings, Buffs, or `/toolbox buffs sound get|end <name> = <file>`). Buffs lasting longer than you choose, and whole
+your Lua folder, then pick it for the effect under Settings, Buffs, Muted effects). Buffs lasting longer than you choose, and whole
 kinds such as blessings, fold into one icon with a count; hover it for the list. It can replace the
 game's own buff bar, and a click can dismiss a buff. To use your own sounds, put
 `toolbox_buff_expiring.ogg` / `toolbox_debuff_landed.ogg` / `toolbox_notify.ogg` / `toolbox_ping.ogg` /
@@ -54,7 +54,7 @@ game's own buff bar, and a click can dismiss a buff. To use your own sounds, put
 `toolbox` folder, or choose any file in the settings.
 
 The **buff block** shows every buff and debuff on a strip of its own instead, soonest to run out first, in
-rows as many icons wide as you choose, nothing grouped (`/toolbox buffs block`).
+rows as many icons wide as you choose, nothing grouped (Settings, Buffs: Show the buff block).
 
 ## Consumables bar
 
@@ -116,8 +116,8 @@ Toolbox says so.
 
 A small HUD with your fight timer, DPS, damage taken and healing per second, crit and avoid rates, and up
 to 8 character stats you choose in settings (search, pick, Add), such as magic resistance. **Combat Detailed** adds each skill's damage,
-per-target damage, damage types, a timeline and your recent fights. `/toolbox combat help` lists every
-option.
+per-target damage, damage types, a timeline and your recent fights (rest the pointer on the HUD, or the menu's
+Combat Detailed button). Its options are under **Combat** in the settings.
 
 **Block, parry & dodge:** when you block, parry or dodge an attack, the word pops up over the middle of the
 Toolbelt for a moment, with its own sound. You choose the text size and each word's colour, and switch each
@@ -142,7 +142,8 @@ choice) at once, so your experience pool keeps what you earn while farming; clic
 again to put each skill back as it was. Vertical or horizontal; click
 one to open the Skills window. A short celebration plays when a skill gains a level and a sad one when it
 loses one (each can be switched off; your own `toolbox_skill_up.ogg` / `toolbox_skill_down.ogg` in the Lua
-folder replaces them). Skill level changes (gained or lost) can also be listed on the notification HUD (`/toolbox skills`).
+folder replaces them). Skill level changes (gained or lost) can also be listed on the notification HUD (Settings, Notifications: Skill level changes). Its options are
+under **Skill activity** in the settings.
 
 ## Menu
 
@@ -150,14 +151,14 @@ A column of gold buttons on a shaded panel, at the top left at first: one click 
 the Loot Tracker, the crafting planner, Combat Detailed, Notifications, the Docs or the settings, and a second click closes it. A
 button is bright while its window is open. Move it by its grip. Under **Menu, setups, backup & reset** in the
 settings make it a row, change its icon size and shade (every HUD strip has a Background shade slider too), hide it during combat, pick its buttons, or switch it
-off to open windows from the settings as before (`/toolbox menu`).
+off to open windows from the settings as before.
 
 ## Location
 
 A small strip showing where you are: the scene, your position (as `/loc` gives it, in whole numbers) and
 which way you face, and on a newer game client the kinds of water you can fish in this scene ("Fishable water:
-salt, fresh"). Hover it for the whole `/loc` line. Off by default: switch it on with the menu's Location button, under
-**Map & location** in the settings, or type `/toolbox location`.
+salt, fresh"). Hover it for the whole `/loc` line. Off by default: switch it on with the menu's Location button, or under
+**Map & location** in the settings.
 
 ## Map overlays
 
@@ -166,29 +167,31 @@ vendors. Each scene has its own overlays and remembers which one it shows. Each 
 minimap (a newer game client), in a shape and color of its own, and Compass points the game's compass at one; on the
 newest client the full map's corner names what Toolbox shows there ("Toolbox: Gathering, loot runs"). Up to 10
 overlays a scene, with room for thousands of places in all. Mark as you go in the
-small **Map overlays** window, where you also make, rename and delete them: the pin on the location strip opens it
-(or **Map & location** in the settings, or `/toolbox overlay window`); `/toolbox mark <name>` marks where you stand.
+small **Map overlays** window, where you also make, rename and delete them, and **Mark here** marks where you stand:
+the pin on the location strip opens it (or the button under **Map & location** in the settings).
 The location strip names the overlay the map shows, and its arrows step through them.
 Auto map, on by default in adventure areas and off in towns (a switch per scene), marks every resource node you
 gather there: in an overlay of its kind and in
 Gathering, which shows them all. Nodes don't move, so one visit maps a scene. Its Fights switch marks each
 creature you kill the same way, in an overlay of its name and in Fights. Kinds you don't want go on an
-ignore list: `/toolbox overlay auto ignore <kind or word>`, or Ignore kind in the window. Your last death shows on
-the map too, beside any overlay, and `/toolbox death compass` points you back to it; it clears itself once you're
-back there, or after an hour in another scene.
+ignore list with the window's **Ignore kind**. Your last death shows on the map too, beside any overlay, and
+the window's **Last death** button points your compass back to it; it clears itself once you're back there, or
+after an hour in another scene.
 
 ## Crafting planner
 
-Plan a craft from the recipes you know: `/toolbox plan` (or `/toolbox plan plate chest`). Every ingredient shows what
+Plan a craft from the recipes you know: open the planner with the menu's **Crafting planner** button and type part
+of a recipe's name. Every ingredient shows what
 you need, have and are short of. A slot that takes a choice of material, like Metal Sheet, lists them with how many
 you have, starting on the first you have enough of; a line under it shows what the picked one adds to the item, for
 crafting a build. A material you pick yourself stays picked. The result line shows the item's stats with your picks.
 With From scratch on, tick I'll craft to plan the crafts for what you're short of, as deep as your recipes go. The Shopping list adds up what to buy or gather, and the Build order lists the crafts by
-station, materials first, ticked off as you craft. The Crafting Planner HUD follows the plan with the planner closed: the shopping list (what you have against what's needed) while you gather, then the build order, with a fanfare when every craft is done. Settings, Crafting holds it all, including when your recipe book is read (it can stutter the game): when the planner needs it, at login, or only when you ask.
+station, materials first, ticked off as you craft. The Crafting Planner HUD (the button at the bottom of the planner) follows the plan with the planner closed: the shopping list (what you have against what's needed) while you gather, then the build order, with a fanfare when every craft is done. Settings, Crafting holds it all, including when your recipe book is read (it can stutter the game): when the planner needs it, at login, or only when you ask.
 
 ## Commands
 
-`/toolbox` and `/tbx` do the same thing; `/toolbox commands` lists them all in chat.
+Everything above is in the menu and the settings. If you'd rather type, these do the same in chat (`/toolbox` and
+`/tbx` alike); the Docs window's Commands topic lists them all.
 
 - `/toolbox`: open the settings window
 - `/toolbox help`: open the Docs window, a guide to everything
@@ -222,5 +225,6 @@ the defaults at the next `/lua reload`. On the newest game client (Lua API 39) t
 **Back up now** makes one, and Toolbox has one made before a reset, an import and the first start of a new version.
 To go back, pick a copy and press **Restore** twice: this character's settings and positions come back at once.
 
-Toolbox also keeps a copy of each character's settings, positions and run history in `toolbox.account.json`.
-If the game ever can't read a character's file, Toolbox puts them back from that copy and says so in chat.
+On an older game client, without those copies, Toolbox keeps its own copy of each character's settings, positions
+and run history in `toolbox.account.json`: if the game ever can't read a character's file, Toolbox puts them back
+from that copy and says so in chat.
