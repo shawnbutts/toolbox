@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Fixed" },
+  { "item", "Sounds silent until a reload: a sound whose file didn't load when Toolbox started (seen once on a fresh install) stayed silent for the whole session. It's now loaded again when it's wanted (its Test button, an alert), at most every 30 seconds." },
   { "version", "1.9.0 - 2026-10-20" },
   { "section", "Added" },
   { "item", "Crafting planner (/toolbox plan [recipe]): find one of your recipes as you type, pick how many crafts, and see every ingredient you need, have and are short of. A slot that takes a choice of material (Metal Sheet, Metal Binding...; Lua API 37) lists them with how many you have, starting on the first you have enough of, and under it what the picked material adds to the item. A material you pick yourself is kept for that recipe; Reset starts the plan over. The result line adds your picks' stats to the item's base stats. From scratch offers an I'll craft tick for what you're short of and one of your recipes makes: its ingredients are planned under it, as deep as it goes (your recipe book is read in the background once a login, with a progress bar; the planner's controls wait until it's done). Views: a Shopping list (what to buy or gather, added up; the first), the plan and a Build order (the crafts by station, materials first, ticked off as you craft). It shares a window with the Docs and Map overlays; the menu has a button for it (and Settings, Crafting)." },

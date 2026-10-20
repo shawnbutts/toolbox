@@ -23,6 +23,10 @@ Toolbox.Sounds = S
 
 S.LOAD_TIMEOUT = 2          -- seconds to wait for a candidate to appear (local files load fast)
 S.HANDLE_TIMEOUT = 20       -- with a handle (API 34) the game says when a load failed: this is only a backstop
+-- A sound none of whose files loaded is tried again when it's wanted (Test, an alert), at most every S.RETRY_GAP s: on
+-- a fresh install every sound stayed silent until /lua reload, owner 2026-10-20; the cause unknown: a first start
+-- before the files or the game's audio were ready, perhaps.
+S.RETRY_GAP = 30
 S.VOLUME_DEFAULT = 70
 -- Volumes, format 2 (owner, 2026-10-07: some found 100% too quiet; and a volume per sound). The shipped sounds
 -- were made twice as loud (art/alerts.py: +7.5 dB into a limiter), so a saved volume from before is halved once
@@ -385,6 +389,11 @@ end
 
 function S.Play(key, levelKey)
   local st = state[key]
+  if st and st.status == "missing" and st.def and T.Now() >= (st.retryAt or 0) then
+    startLoading(st.def)                  -- a fresh state: the files are tried again
+    state[key].retryAt = T.Now() + S.RETRY_GAP
+    if state[key].status == "loading" then return false, { reason = "retrying" } end
+  end
   if not st or st.status ~= "ready" then return false, { reason = "notLoaded" } end
   if prefs.volume <= 0 then return false, { reason = "muted" } end
   local volume = S.EffectiveVolume(key, levelKey)
@@ -420,6 +429,7 @@ end
 function S.WhyNot(info)
   local why = {
     notLoaded = "no sound loaded (see /toolbox sounds)",
+    retrying = "it hadn't loaded, so it's being loaded again: test it again in a few seconds",
     muted = "the alert volume is 0",
     soundMuted = "its own volume is 0 (Sounds settings)",
     cleared = "the game's sound list was cleared; reloading, try again in a few seconds",

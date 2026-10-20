@@ -7,6 +7,11 @@ ones included).
 
 ## [Unreleased]
 
+### Fixed
+- **Sounds silent until a reload:** a sound whose file didn't load when Toolbox started (seen once on a fresh install)
+  stayed silent for the whole session. It's now loaded again when it's wanted (its Test button, an alert), at most
+  every 30 seconds.
+
 ## [1.9.0] - 2026-10-20
 
 ### Added

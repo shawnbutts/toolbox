@@ -534,6 +534,36 @@ return function(t)
     end
   end)
 
+  t.test("sound test: a sound none of whose files loaded is tried again when tested (fresh install)", function()
+    H.boot()                                          -- the shipped files absent at start: every sound missing
+    H.advance(5)
+    t.eq(Toolbox.Sounds.Status("buff_expiring"), "missing")
+    H.S.files["toolbox/buff_expiring.ogg"] = true     -- there now
+    local before = #H.S.played
+    H.clearLogs()
+    Toolbox.Sounds.Test("buff_expiring")
+    t.ok(H.logged("being loaded again"), H.lastLog())
+    H.advance(1)
+    t.eq(Toolbox.Sounds.Status("buff_expiring"), "ready")
+    t.eq(select(2, Toolbox.Sounds.Status("buff_expiring")), "toolbox/buff_expiring.ogg")
+    t.ok(Toolbox.Sounds.Test("buff_expiring"), "plays once loaded")
+    t.eq(#H.S.played, before + 1)
+    -- still missing: tried again at most every RETRY_GAP seconds
+    H.clearLogs()
+    Toolbox.Sounds.Test("debuff_landed")
+    t.ok(H.logged("no sound loaded"), "tried again, nothing found: " .. tostring(H.lastLog()))
+    H.clearLogs()
+    Toolbox.Sounds.Test("debuff_landed")
+    t.ok(H.logged("no sound loaded"), H.lastLog())
+    H.S.files["toolbox/debuff_landed.ogg"] = true
+    Toolbox.Sounds.Test("debuff_landed")
+    t.eq(Toolbox.Sounds.Status("debuff_landed"), "missing", "not tried again before the gap")
+    H.advance(Toolbox.Sounds.RETRY_GAP)
+    H.clearLogs()
+    Toolbox.Sounds.Test("debuff_landed")
+    t.ok(H.logged("being loaded again"), H.lastLog())
+  end)
+
   t.test("sound test: reports a clip that plays", function()
     bootWithSounds()
     H.clearLogs()
