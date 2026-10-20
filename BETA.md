@@ -20,16 +20,21 @@ To install it, follow INSTALL.txt (in the same zip): the "Installing by hand" pa
 /toolbox works everywhere /tbx does.
 
 The settings window's "Settings" dropdown picks a part to set up. It opens on the first:
+  * General: the text size and line spacing every window and strip uses.
   * Toolbelt: show it, and put the health bars, consumables bar and equipment bar Off, on their own
     strip, or In Toolbelt. The quickest way to get started.
   * XP & Loot: session time, pools, XP in the last hour; gold, kills and XP since midnight. Each
     can be hidden, a window or a HUD strip. Hover them for XP Detailed / Loot Tracker.
-  * Buffs, Consumables & gear, Health bars, Combat: the HUD strips.
+  * Crafting: the crafting planner, when your recipe book is read, and the Crafting Planner HUD.
+  * Buffs, Consumables & gear, Health bars, Combat, Skill activity: the HUD strips.
+  * Map & location: the location strip, map overlays, the auto map, loot runs and your last death.
   * Notifications: what's new since you last looked (guild message, mail, rewards, gear to repair...).
   * Sounds: alert volume and sound files.
   * HUD layout: every strip's position.
   * Menu, setups, backup & reset: the menu's options (below); copy another character's setup (Import),
-    save yours under a name (Export); where your settings files are, to copy them; and Reset all settings.
+    save yours under a name (Export); backups of your settings (Back up now, Restore); and Reset all
+    settings.
+The search box at the top finds any setting by a word in it.
 Options that do nothing while their part is off are greyed out.
 
 Moving the HUD strips: drag the small grip at a strip's top-left corner. If you can't see the grip,
@@ -40,14 +45,30 @@ Shortcut: Ctrl+; opens the settings. You can change it in the add-on manager, on
 row under "Keys".
 
 The menu: the column of gold buttons at the top left opens any Toolbox window with one click (XP,
-XP Detailed, Today, Loot Tracker, Combat Detailed, Notifications, Docs, Settings); a button is bright
+XP Detailed, Today, Loot Tracker, Crafting planner, Combat Detailed, Notifications, Location, Docs,
+Settings); a button is bright
 while its window is open. Change it or switch it off under Menu, setups, backup & reset, or /tbx menu.
 
 
 2. What to try
 --------------
 
-Anything you like, but especially what's new in this beta (/tbx version lists it all):
+Anything you like, but especially what's new in this version (/tbx version lists it all):
+In 1.9.0:
+  * The crafting planner (/tbx plan, or the menu's Plan button): find a recipe, pick how many crafts,
+    and check the shopping list against your bags. Try a recipe with a material choice (Metal Sheet...)
+    and From scratch's "I'll craft" ticks (Settings, Crafting). The first use reads your recipe book in
+    the background (about a minute and a half): does the game stutter meanwhile?
+  * The Crafting Planner HUD (the planner's bottom button, or /tbx plan hud): gather what's listed, then
+    craft through the build order. Does every line tick off, and does it play the fanfare at the end?
+  * The location strip's overlay line (Map: ...): step through the overlays with its arrows.
+  * Auto map, fights: kill a few creatures in an adventure area. Do they show on the map by name and in
+    Fights? Towns shouldn't mark anything unless you switch it on there.
+  * Back up now and Restore (Settings, Menu, setups, backup & reset), on a game client with backups.
+  * Background shade: every HUD strip has its own slider now.
+  * The target's name (Settings, Toolbelt: Show the target's name), mirrored too: do the target's bars
+    stay level with yours?
+Earlier betas:
   * Beta 9 could be switched off by the game a few seconds after start when an effect longer than a day
     was up (Obsidian potions: 7 days). With one up now: no errors in chat, and a still sweep about the
     right size for the time left?
@@ -177,6 +198,8 @@ From beta 3:
     and it doesn't turn red at the end (the red flashing border and the sound still do).
   * Reset all settings and restoring copied files both need a restart of Toolbox (/lua reload, or for
     copied files, quit the game first): the game writes the settings files as it closes.
+  * Map title: the game puts Toolbox's full store name, cut short, before its text ("Toolbox: Toolbelt,
+    HUDs, Trackers, and mo: ..."); a game bug, fixed in a coming game update.
   * "Gold picked up" counts every gold increase, including vendor sales and trades.
   * Kills come from your combat chat lines; if Kills stays at 0 while you're clearly killing
     things, please report it.

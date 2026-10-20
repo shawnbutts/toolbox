@@ -206,7 +206,7 @@ station, materials first, ticked off as you craft. The Crafting Planner HUD foll
 - `/toolbox overlay`: this scene's map overlays (`<name>`, `off`, `new`, `rename`, `delete`, `places`, `icon`, `color`, `auto`, `scenes`, `forget`)
 - `/toolbox plan`: the crafting planner (`/toolbox plan <recipe>` finds one; `/toolbox plan hud`: the Crafting Planner HUD; `/toolbox plan book read`: read your recipe book now)
 - `/toolbox mark`: mark where you stand in the shown overlay (`<name>`, `remove`, `compass`, `look`)
-- `/toolbox menu`: the menu (`on|off`, `vertical|horizontal`, `size <n>`, `shade <n>`, `combat hide|show`)
+- `/toolbox menu`: the menu (`on|off`, `vertical|horizontal`, `size <n>`, `shade <n>`, `color <name>`, `combat hide|show`)
 - `/toolbox settings`: settings files and setups (`save`, `reset`, `cancel`, `setups`, `import`, `export`)
 
 Settings are saved per character. To copy another character's setup, yours or someone else's on the same
