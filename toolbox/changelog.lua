@@ -7,6 +7,7 @@ Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "section", "Changed" },
   { "item", "The Docs guide and the readmes give the way to each feature through the menu and the settings instead of chat commands; the commands are still there, all of them in the Docs' Commands topic." },
+  { "item", "/toolbox perf says when the game ran at under 30 frames a second on average: each frame is then long enough for Toolbox's timers to fall in most of them, so \"Toolbox was working near\" says little. It gives the time the timers' own work took and suggests comparing with perf quiet." },
   { "section", "Fixed" },
   { "item", "Sounds silent until a reload: a sound whose file didn't load when Toolbox started (seen once on a fresh install) stayed silent for the whole session. It's now loaded again when it's wanted (its Test button, an alert), at most every 30 seconds." },
   { "version", "1.9.0 - 2026-10-20" },

@@ -2453,6 +2453,10 @@ end
 T.PERF_ID = "toolbox_perf"
 T.PERF_SLOW = 0.05                    -- s: a frame this long is a hitch you notice (three at 60 a second)
 T.PERF_BAD = 0.1
+-- Below this many frames a second on average every frame is long and Toolbox's timers land in most of them, so
+-- "near" says little (a player's run, 2026-10-22: 21 a second, 543 of 1,249 frames over 50 ms, Toolbox "near" 426):
+-- the report says so, with the timers' timed share, and points to perf quiet (not after a quiet / only run).
+T.PERF_LOW_RATE = 30
 T.PERF_DEFAULT, T.PERF_MIN, T.PERF_MAX = 60, 10, 600
 -- The sampler's period: the documented shortest first; the live client refused 0.01 (owner, 2026-10-14: "The game
 -- refused the measuring timer"), perhaps as a single-precision 0.01 just under its limit, so a little longer next.
@@ -2653,8 +2657,27 @@ local function perfReport()
     T.Print("Toolbox's " .. #p.paused .. " timers were paused while it measured (they run again now): hitches"
       .. " counted then weren't Toolbox's timers. Compare the count with a normal /" .. T.commands[1] .. " perf.")
   end
+  local rate = p.frames / secs
+  local lowRate = nil
+  if rate < T.PERF_LOW_RATE and not p.paused then
+    local spent = nil
+    if timed then
+      spent = 0
+      for label, e in pairs(timed.parts) do
+        if not label:find(":", 1, true) then spent = spent + e.sum end
+      end
+    end
+    lowRate = string.format("Your game ran at about %d frames a second on average, so its frames were long and"
+      .. " Toolbox's timers fell in most of them: \"near\" says little here.", math.floor(rate + 0.5))
+      .. (spent and string.format(" Its timers' own work took %d ms of the %d s (%s%%), but the game's drawing after"
+      .. " them isn't timed.", math.floor(spent * 1000 + 0.5), math.floor(secs + 0.5),
+      string.format("%.1f", spent * 100 / secs)) or "")
+      .. " Compare with /" .. T.commands[1] .. " perf quiet: if the frame rate rises with Toolbox's timers paused,"
+      .. " they're the cause."
+  end
   if p.slow == 0 then
     T.Print("No hitches while it measured.")
+    if lowRate then T.Print(lowRate) end
     return
   end
   local names = {}
@@ -2663,6 +2686,7 @@ local function perfReport()
   T.Print(string.format("Toolbox was working near %d%% of all samples, and near %d of the %d hitches%s. Hitches with"
     .. " no Toolbox work near them point to the game or another add-on.", share(p.ours, p.frames), p.slowOurs, p.slow,
     #names > 0 and (" (" .. table.concat(names, ", ") .. ")") or ""))
+  if lowRate then T.Print(lowRate) end
 end
 
 local function perfSample()
