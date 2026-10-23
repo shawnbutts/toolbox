@@ -196,7 +196,11 @@ into one if a new file is ever needed).
   the highest `trainedLevel` seen per skill (`skill_levels`); deaths from `ShroudOnDeathChanged(true)`.
   The recipe book (`D.ReadRecipeBook`, for `/toolbox recipe` and the planner): `D.BOOK_STEP` (1) recipe by id a
   `D.BOOK_PERIOD` (0.05 s) step, about 90 s for a big book (the whole book at once ran past the game's time limit,
-  2026-10-05; paused in a fight and `BB.COMBAT_LINGER` s after it, `D.BookPaused`, review 67; API 37's `ShroudGetRecipeBook`, one station a step, hitched in game, owner 2026-10-15: not used;
+  2026-10-05; paused in a fight and `BB.COMBAT_LINGER` s after it, and while the planner is closed unless the read is
+  `anywhere` (`/toolbox recipe`, "login"), `D.BookPaused` ("combat" / "closed"; review 67, owner 2026-10-23: the reads
+  were 1.9.0's hitching); only what each recipe makes is kept (`indexRecipe`; `/toolbox recipe` reads its chain's
+  makers itself); before the first read of a session the planner's notice asks (`pl_ask`, `PL.ASK_TEXT`, Read it now
+  / Not now, `plBookOk` / `plAsk`; its text set only while shown: the text budget); API 37's `ShroudGetRecipeBook`, one station a step, hitched in game, owner 2026-10-15: not used;
   `D.BookProgress` for the planner's bar, with a once-a-login note, `PL.BOOK_NOTE`; meanwhile the planner's
   controls are greyed out, `plLock` from `PL.ShowProgress`: owner, 2026-10-16); kept for the session in
   `D.recipeIndex` (`recipes`, `byResult` by name,

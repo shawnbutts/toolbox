@@ -257,7 +257,7 @@ return function(t)
         quantity = 1 } } }
     end
     H.advance(3, 0.05)
-    Toolbox.Daily.ReadRecipeBook(function() end)
+    Toolbox.Daily.ReadRecipeBook(function() end, false, true)   -- (read with the planner closed)
     t.ok(H.S.periodics.toolbox_recipe_book and Toolbox.Daily.ReadingRecipes(), "reading")
     H.chat("/tbx perf quiet 10")
     t.no(H.S.periodics.toolbox_recipe_book, "paused")
@@ -278,7 +278,7 @@ return function(t)
     H.chat("/tbx perf only recipe 10")
     t.ok(H.logged("No timer matches recipe yet: Toolbox's others are paused, and one that starts meanwhile"),
       H.logs()[1])
-    Toolbox.Daily.ReadRecipeBook(function() end)
+    Toolbox.Daily.ReadRecipeBook(function() end, false, true)
     t.ok(H.S.periodics.toolbox_recipe_book, "the book's timer runs")
     H.advance(11, 0.05)
     t.ok(Toolbox.Daily.recipeIndex, "read")

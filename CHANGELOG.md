@@ -15,9 +15,12 @@ ones included).
 - `/toolbox perf` says when the game ran at under 30 frames a second on average: each frame is then long enough
   for Toolbox's timers to fall in most of them, so "Toolbox was working near" says little. It gives the time the
   timers' own work took and suggests comparing with `perf quiet`.
-- The crafting planner leans less on the game's slow recipe calls: reading the recipe book waits during a fight
-  (and a few seconds after it), the Crafting Planner HUD isn't worked out again in a fight, and a plan with more
-  recipes is worked out again less often after your bags change (your own changes still show at once).
+- The crafting planner leans less on the game's slow recipe calls, which caused 1.9.0's hitching: the recipe book is
+  read only while the planner is open (unless you chose "At login" in Settings, Crafting), waits during a fight (and
+  a few seconds after it), and keeps only what each recipe makes instead of every whole recipe. Before it's first
+  read, the planner says why the game may stutter and asks (Read it now, or Not now). The Crafting Planner HUD isn't
+  worked out again in a fight, and a plan with more recipes is worked out again less often after your bags change
+  (your own changes still show at once).
 
 ### Fixed
 - **"Could not save" at the login screen:** after logging out, Toolbox said in chat that it couldn't save things like

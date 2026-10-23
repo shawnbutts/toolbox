@@ -341,8 +341,9 @@ function C.CraftingSection()
       onChange = function(_, on) PL.SetScratch(on == true) end },
     heading("Recipe book"),
     UI.Label{ text = "From scratch needs every recipe you know, read one at a time (about a minute and a half for a"
-      .. " big book), and the game may stutter meanwhile. Until it's read, I'll craft knows only the recipes named"
-      .. " like the item.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
+      .. " big book), and the game may stutter meanwhile: it's read only while the crafting planner is open (At"
+      .. " login: in the background). Until it's read, I'll craft knows only the recipes named like the item.",
+      class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
     dropdownRow("Read it", { id = "pl_book_when", choices = names(PL.BOOK_WHEN),
       value = PL.BookWhenName(PL.GetBookWhen()), enabled = has,
       tooltip = "When the planner needs it: as From scratch asks. At login: in the background a minute after you log"
