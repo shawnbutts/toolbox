@@ -1456,7 +1456,7 @@ function H.makeUI()
         for id, w in pairs(S.windows) do
           if id ~= spec.id and not w.destroyed then live = live + 1 end
         end
-        local most = ShroudLuaApiVersion >= 41 and 30 or H.MAX_WINDOWS     -- API 41: 30 windows an add-on
+        local most = S.windowCap or (ShroudLuaApiVersion >= 41 and 30 or H.MAX_WINDOWS)   -- API 41: 30 an add-on
         if live >= most then error("Shroud.UI: too many windows (" .. most .. " per add-on)", 2) end
         -- Docs (API 19): a compact window can't hold a TextField or a Dropdown.
         if spec.compact then

@@ -203,8 +203,10 @@ into one if a new file is ever needed).
   2026-10-23: "a completely new popup window ... clear and obvious ... not do the load unless the user hits ok";
   a panel in the planner went unseen): `PL.Confirm(background, ok)` (`PL.ASK_ID` "toolbox_book_confirm", `PL.ASK_*`
   texts; its own window from API 41, `PL.OwnNoticeWindow`, Toolbox's 9th of the 30 allowed; before, the shared 8th,
-  `T.TakeSharedWindow`, the planner reopened on Cancel), centred by `Hud.screen`; Cancel, Esc or a close =
-  `plBookStopped` (nothing asks again on its own; `plConfirmClosed` from `PL.Tick`); the planner's buttons, Settings'
+  `T.TakeSharedWindow`, the planner reopened on Cancel; also when the game refuses the own window: `plAskBuild`, Show
+  taken as shown unless it answers false, chat naming why when neither shows, `/toolbox plan debug` printing each try;
+  owner, 2026-10-23: in game the button did nothing), centred by `Hud.screen`; Cancel, Esc or a close (`onClose`) =
+  `plBookStopped` (nothing asks again on its own); the planner's buttons, Settings'
   `pl_book_read` and `plan book read` go through `PL.AskBook` (OK opens the planner, where the book is read); "need"
   asks from `PL.Tick` (`plNeedAsk`: not mid-refresh, the shared window would close the planner); "login" and
   `/toolbox recipe` ask too, then read in the background (harness `H.apiVersion`, 30 windows from 41); API 37's `ShroudGetRecipeBook`, one station a step, hitched in game, owner 2026-10-15: not used;

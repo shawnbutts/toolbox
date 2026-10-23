@@ -570,6 +570,38 @@ return function(t)
     t.ok(PL.IsShown(), "Cancel: the planner back")
   end)
 
+  -- Owner, 2026-10-23: on the live client (API 44) the button did nothing. Whatever the game refuses, the shared
+  -- window is tried, and chat says why if nothing shows.
+  t.test("the book: the confirmation falls back to the shared window, and says why when nothing shows", function()
+    H.apiVersion = 44
+    local ok, err = pcall(function()
+      open()
+      local D, PL = Toolbox.Daily, Toolbox.Planner
+      local live = 0
+      for _, w in pairs(H.S.windows) do if not w.destroyed then live = live + 1 end end
+      H.S.windowCap = live                              -- the game refusing one more window
+      H.change(W, "pl_scratch", true)
+      H.click(W, "pl_book")
+      t.ok(confirmWin(), "in the shared window instead")
+      t.no(PL.IsShown(), "the planner closed meanwhile")
+      okRead()
+      t.ok(PL.IsShown(), "OK: the planner back")
+      t.ok(D.ReadingRecipes(), "and reading")
+      H.chat("/tbx plan book stop")
+      H.S.windowCap = nil
+      H.S.showRefused = true                            -- the game not showing any window
+      H.clearLogs()
+      H.click(W, "pl_book")
+      H.S.showRefused = nil
+      t.no(confirmWin())
+      t.ok(H.logged("couldn't open the window asking to read your recipe book, so nothing is read: the game didn't"
+        .. " show the window"), tostring(H.lastLog()))
+      t.no(D.ReadingRecipes(), "nothing read")
+    end)
+    H.apiVersion = nil
+    if not ok then error(err, 0) end
+  end)
+
   t.test("the book: /toolbox recipe and the At login setting ask, then read with the planner closed", function()
     H.boot()
     book()

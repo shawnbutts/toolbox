@@ -3203,23 +3203,22 @@ local function plCancel()
   T.Config.Sync()
 end
 
--- Asks before a read: `background` = read with the planner closed too (the text says which); `ok()` starts it.
--- True when the window showed; else (it couldn't be made now) nothing is read and chat says why.
-function PL.Confirm(background, ok)
-  plConfirm = ok
+-- Builds and shows the confirmation (`shared`: in the shared 8th window). True, or false and why.
+local function plAskBuild(background, shared)
   plAskDrop()
   plConfirmReopen = false
-  if not PL.OwnNoticeWindow() then
+  if shared then
     plConfirmReopen = PL.IsShown()
     T.TakeSharedWindow("bookconfirm", plAskDrop)
   end
   local sw = T.Hud and T.Hud.screen
   local x = sw and math.max(0, math.floor((sw.w - PL.ASK_W) / 2)) or T.Window.DEFAULT_X + 60
   local y = sw and math.max(0, math.floor((sw.h - PL.ASK_H) / 3)) or T.Window.DEFAULT_Y + 60
-  local built = pcall(function()
+  local built, err = pcall(function()
     plAskWin = UI.Window{
       id = PL.ASK_ID, title = PL.ASK_TITLE, width = PL.ASK_W, height = PL.ASK_H, minWidth = 320, minHeight = 200,
       x = x, y = y, escCloses = true,
+      onClose = function() if plConfirm then plCancel() end end,   -- the player closed it (Esc, its X): Cancel
       style = { paddingLeft = 10, paddingRight = 10, paddingTop = 8, paddingBottom = 8 },
       children = {
         UI.Label{ id = "pl_confirm_heading", text = PL.ASK_HEADING, class = "heading",
@@ -3242,22 +3241,48 @@ function PL.Confirm(background, ok)
       },
     }
   end)
-  if built and plAskWin and (plAskWin:IsShown() or plAskWin:Show() == true) then
+  if not built or not plAskWin then
+    plAskDrop()
+    return false, "the game didn't make the window (" .. tostring(err) .. ")"
+  end
+  -- a new window starts closed; Show() answers false when the game refuses (the other windows' test: not false)
+  local shown = plAskWin:IsShown() or plAskWin:Show() ~= false
+  if PL.debug then
+    T.Print("[plan debug] the confirmation" .. (shared and " (shared window)" or "") .. ": shown " .. tostring(shown)
+      .. ", IsShown " .. tostring(plAskWin:IsShown()))
+  end
+  if not shown then
+    plAskDrop()
+    return false, "the game didn't show the window"
+  end
+  return true
+end
+
+-- Asks before a read: `background` = read with the planner closed too (the text says which); `ok()` starts it.
+-- Its own window from API 41, else (or if the game refuses that one) the shared 8th. True when it showed; else
+-- nothing is read and chat says why.
+function PL.Confirm(background, ok)
+  plConfirm = ok
+  local shown, why = false, nil
+  if PL.OwnNoticeWindow() then shown, why = plAskBuild(background, false) end
+  if not shown then
+    local why2 = nil
+    shown, why2 = plAskBuild(background, true)
+    why = why2 or why
+  end
+  if shown then
     if plWin then PL.ShowProgress() end
     T.Config.Sync()
     return true
   end
-  plAskDrop()
   plConfirm = nil
-  T.Print("Toolbox couldn't open the window asking to read your recipe book, so nothing is read. Try again in a"
-    .. " moment.")
+  if plConfirmReopen and not PL.IsShown() then PL.Open() end
+  plConfirmReopen = false
+  T.Print("Toolbox couldn't open the window asking to read your recipe book, so nothing is read: " .. tostring(why)
+    .. ". Try again in a few seconds.")
   return false
 end
 
--- The confirmation closed without OK or Cancel (Esc, its close button): taken as Cancel. From T.ViewsTick.
-local function plConfirmClosed()
-  if plConfirm and not (plAskWin and plAskWin:IsShown()) then plCancel() end
-end
 function PL.Confirming() return plConfirm ~= nil end
 
 -- The bar at the bottom while the recipe book is read: how far, and about how long is left; the controls wait.
@@ -3288,7 +3313,6 @@ end
 
 -- T.ViewsTick: a change since the last refresh shows (at most every PL.REFRESH_GAP s); the reading bar moves.
 function PL.Tick()
-  plConfirmClosed()
   plAskNeeded()
   local shown = PL.IsShown()
   if not (shown or PL.GetHud()) then return end
