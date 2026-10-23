@@ -872,7 +872,7 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   window's right-click "Remember Size and Position" makes its `SetSize` / `SetPosition` change nothing and return false
   (Toolbox calls neither on a window). 42, the helmet: `ShroudIsHelmetVisible`, `ShroudSetHelmetVisible(b)`,
   `ShroudToggleHelmet` (a gesture; saved, seen by others; unused). 43, request 28: `ShroudOnBeforeLogOut` and
-  character-scope writes refused with no character (above; adopted in 1.9.1). 44, item names as plain text (#13710:
+  character-scope writes refused with no character (above; used from 1.9.1). 44, item names as plain text (#13710:
   `[u]...[/u]` and color tags stripped; inventory and equipment names). Not in them: request 27's fix (client only),
   26 and 29.
 
@@ -914,11 +914,16 @@ is named and skips character writes without one (`T.NoCharacter`). Done (the dev
 Exit to Menu / Quit with the character still in, the saved vars flushed right after; a logout not chosen (lost
 connection, kick, idle) runs it late at the login screen, before the logout flush, still keyed to that character, but
 `ShroudGetPlayerName` and such may be nil there. With no character, character-scope `ShroudSetSavedVar` /
-`ShroudDeleteSavedVar` return false (one console line an add-on) and `ShroudGetSavedVar` nil. Plan, for 1.9.1 (owner,
-2026-10-18), once the reference is live: the full save in the callback (session, day, timers, places, `ovPending`, then
-`T.SavePrefs`), feature-detected, keeping `ShroudOnSceneUnloaded`'s for older clients; and a game refusal with no
-character treated as `T.NoCharacter`'s (quiet: no "Could not save" line, no `autoUndo` of the auto map's marks). Check a
-logout and a character switch in game. **26** (submitted): the known recipes that make an item
+`ShroudDeleteSavedVar` return false (one console line an add-on) and `ShroudGetSavedVar` nil. In the reference since
+2026-10-23 and BUILT for 1.9.1: `ShroudOnBeforeLogOut` (core.lua) saves the session, the day, the timers and
+`T.SavePrefs` (only `OV.SavePending` when the name reads nil: the late case, places would be the corners), `T.leaving`
+naming whose file it is meanwhile, `T.logoutSaved` so `ShroudOnSceneUnloaded` doesn't save it all again (cleared at the
+next login); older clients keep `ShroudOnSceneUnloaded`'s. A game refusal of a character write with no character in
+the world is `T.SetSavedVar`'s "no character" too, and `T.Save` says nothing for that why (a player's "Could not save
+'daily'", 2026-10-22), nor `OV.SavePending` (the batch kept, no `autoUndo`); `LN.Init` neither prints the menu's line nor
+saves at the login screen. Harness: `H.S.api43` (set after `H.boot`: the refusals and `ShroudOnBeforeLogOut` in
+`H.logout`), `H.lostConnection(stay)` (the late call, `S.char.leaving`). Check a logout, a lost connection and a
+character switch in game. **26** (submitted): the known recipes that make an item
 (`ShroudGetRecipesMaking(itemKey)`, or a light recipe book), so the planner needn't read the whole book (`D.ReadRecipeBook`,
 about 90 s a login; near 22 of 23 hitches in the owner's perf run, 2026-10-16, single `ShroudGetRecipe` calls of 260 and
 519 ms). **29** (submitted 2026-10-16, after 26): item counts without reading recipes

@@ -10,6 +10,8 @@ Toolbox.CHANGELOG = {
   { "item", "/toolbox perf says when the game ran at under 30 frames a second on average: each frame is then long enough for Toolbox's timers to fall in most of them, so \"Toolbox was working near\" says little. It gives the time the timers' own work took and suggests comparing with perf quiet." },
   { "item", "The crafting planner leans less on the game's slow recipe calls: reading the recipe book waits during a fight (and a few seconds after it), the Crafting Planner HUD isn't worked out again in a fight, and a plan with more recipes is worked out again less often after your bags change (your own changes still show at once)." },
   { "section", "Fixed" },
+  { "item", "\"Could not save\" at the login screen: after logging out, Toolbox said in chat that it couldn't save things like 'daily' or 'buff_timers'. Nothing was lost: with no character in the game there's nothing to save them to, and they were saved before the logout. It no longer says so, and reloading add-ons at the login screen no longer announces the menu as new." },
+  { "item", "Saving at logout (game clients with Lua API 43): your session, today's stats, buff timers, window places and the auto map's new marks are saved just before you log out, with your character still in the game. After a lost connection, a kick or an idle logout they're now saved too; before, the last few minutes could be lost." },
   { "item", "Sounds silent until a reload: a sound whose file didn't load when Toolbox started (seen once on a fresh install) stayed silent for the whole session. It's now loaded again when it's wanted (its Test button, an alert), at most every 30 seconds." },
   { "version", "1.9.0 - 2026-10-20" },
   { "section", "Added" },

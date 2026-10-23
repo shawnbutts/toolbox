@@ -633,6 +633,11 @@ function T.SetSavedVar(key, value, scope)
   local stored = ShroudSetSavedVar(key, value, scope) == true
   T.PerfAdd("save " .. key .. ":the game's store", t0)
   if stored then noteSize(scope, key, size) end
+  -- API 43: with no character in the world the game refuses a character-scope write (before it, the write went into
+  -- a "nochar" file): as quiet as T.NoCharacter's skip; the leaving character's own save is T.leaving's
+  if not stored and characterScope(scope) and not T.CharacterName() and not T.leaving then
+    return false, "no character"
+  end
   return stored
 end
 
@@ -646,7 +651,7 @@ function T.Save(key, value)
   local saving = T.ForSaving(value)
   T.PerfAdd("save " .. key .. ":copy", t0)
   local ok, why, kind = T.SetSavedVar(key, saving, SCOPE)
-  if not ok then T.Print("Could not save '" .. key .. "'.") end
+  if not ok and why ~= "no character" then T.Print("Could not save '" .. key .. "'.") end   -- the login screen
   if T.Backup.IsSetting(key) then T.setupDirty = true end    -- this character's setup copy is behind
   return ok, why, kind
 end
@@ -4368,6 +4373,7 @@ function T.FollowCharacter()
   if T.loggedOut then                  -- back from the login screen: read from the files, whoever it is
     T.loggedOut = false
     T.settingsFor = false
+    T.logoutSaved = nil
   end
   if name == T.settingsFor then return false end
   T.settingsFor = name                 -- (false: started with no character, so read no settings yet)
@@ -4463,7 +4469,7 @@ function ShroudOnSceneUnloaded()
   T.SceneChanged()
   T.Daily.SaveIfChanged()              -- the day is otherwise stored with the flush
   -- the last save with the character still in when this is a logout (ShroudOnLogOut comes after it has left)
-  if T.CharacterName() and not T.NoCharacter() then
+  if T.CharacterName() and not T.NoCharacter() and not T.logoutSaved then   -- (API 43 saved it just before)
     if T.session then T.SaveSession(false) end
     T.BuffBar.SaveTimers()
     pcall(T.SavePrefs)
@@ -4582,6 +4588,26 @@ function ShroudOnCraftingStateChanged(state)
   T.Daily.OnCraftingState(state)
   T.Planner.Changed()
   T.ProbeEvent("state", state)
+end
+
+-- API 43 (request 28): once before a logout, the character still in (Exit to Menu, Quit), the game flushing right
+-- after; for a logout not chosen (lost connection, kick, idle) late, at the login screen, its saves still going to
+-- that character but its name and such maybe nil (T.leaving: whose they are). The full save then; older clients
+-- keep ShroudOnSceneUnloaded's. Window and strip places only with the character in the world (the login screen
+-- would give the corners).
+function ShroudOnBeforeLogOut()
+  T.Ran("logout")
+  if T.NoCharacter() then return end
+  T.leaving, T.logoutSaved = T.settingsFor, true
+  if T.session then T.SaveSession(false) end
+  T.Daily.Save()
+  T.BuffBar.SaveTimers()
+  if T.CharacterName() then
+    pcall(T.SavePrefs)
+  else
+    pcall(T.Overlays.SavePending, true)
+  end
+  T.leaving = nil
 end
 
 -- The reference: it fires once the login scene loads, the character gone and its file flushed by the game: a

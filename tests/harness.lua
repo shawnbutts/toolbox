@@ -16,7 +16,7 @@ H.PACKAGE = ROOT .. "/toolbox"
 
 local CALLBACKS = {
   "ShroudOnStart", "ShroudOnUpdate", "ShroudOnExperienceGain", "ShroudOnExperienceChanged",
-  "ShroudOnLogOut", "ShroudOnDisableScript", "ShroudOnSceneLoaded", "ShroudOnSceneUnloaded",
+  "ShroudOnLogOut", "ShroudOnBeforeLogOut", "ShroudOnDisableScript", "ShroudOnSceneLoaded", "ShroudOnSceneUnloaded",
   "ShroudOnSocialChanged", "ShroudOnHttpResponse", "ShroudOnGuildMotdChanged", "ShroudOnTargetChanged",
   "ShroudOnSkillsChanged", "ShroudOnDeathChanged", "ShroudOnFriendStatusChanged", "ShroudOnGuildMemberStatusChanged",
 }
@@ -138,7 +138,8 @@ end
 
 local function scopeOf(scope)
   if type(scope) == "string" and scope:lower() == "account" then return "account" end
-  if not S.char.present then return "character:nochar" end      -- the login screen: the game's "no character"
+  -- the login screen: the game's "no character" (a late ShroudOnBeforeLogOut's writes still go to the character)
+  if not S.char.present and not S.char.leaving then return "character:nochar" end
   return "character:" .. S.char.name
 end
 
@@ -767,7 +768,17 @@ local function install_api()
     return copy(S.char.progress)
   end
 
+  -- H.S.api43: the client refuses a character-scope write with no character (one console line an add-on).
+  local function noCharRefused(scope)
+    if not (S.api43 and scopeOf(scope) == "character:nochar") then return false end
+    if not S.noCharLogged then
+      S.noCharLogged = true
+      S.logs[#S.logs + 1] = "[game] no character: character-scope saved variable not written"
+    end
+    return true
+  end
   ShroudSetSavedVar = function(key, value, scope)
+    if noCharRefused(scope) then return false end
     if S.saveRefused then return false end      -- H.S.saveRefused: the game refuses to store anything
     if S.refuseKeys and S.refuseKeys[key] then return false end   -- H.S.refuseKeys = { [key] = true }: just those
     if type(key) ~= "string" or key == "" or #key > 128 or key:find("[/\\%c]") then return false end
@@ -805,10 +816,12 @@ local function install_api()
     return true
   end
   ShroudGetSavedVar = function(key, scope)
+    if S.api43 and scopeOf(scope) == "character:nochar" then return nil end
     local t = S.memory[scopeOf(scope)]
     return t and t[key]      -- by reference, as documented
   end
   ShroudDeleteSavedVar = function(key, scope)
+    if noCharRefused(scope) then return false end
     if S.deleteRefuse and S.deleteRefuse[key] then return false end   -- H.S.deleteRefuse = { [key] = true }
     local t = S.memory[scopeOf(scope)]
     if not t or t[key] == nil then return false end
@@ -1600,10 +1613,30 @@ end
 -- flushes, the character leaves (the character scope is then "nochar"), then ShroudOnLogOut. `stay`: still at the
 -- login screen afterwards (H.S.char.present = true logs in again); else back in the world at once, as
 -- H.S.char.name (set it first, or after: the next tick follows).
+-- H.S.api43: ShroudOnBeforeLogOut first, the character still in, and the game's flush right after.
 function H.logout(stay)
+  if S.api43 then
+    H.callback("ShroudOnBeforeLogOut")
+    ShroudFlushSavedVars()
+  end
   H.callback("ShroudOnSceneUnloaded")
   ShroudFlushSavedVars()
   S.char.present = false
+  H.callback("ShroudOnLogOut")
+  ShroudFlushSavedVars()
+  if not stay then S.char.present = true end
+end
+
+-- A logout not chosen (lost connection, kick, idle) on an API 43 client: the character gone at the login screen,
+-- then ShroudOnBeforeLogOut late, its writes still keyed to that character (S.char.leaving) though its name reads
+-- nil, the flush, then ShroudOnLogOut.
+function H.lostConnection(stay)
+  S.char.present = false
+  H.callback("ShroudOnSceneUnloaded")
+  S.char.leaving = true
+  H.callback("ShroudOnBeforeLogOut")
+  ShroudFlushSavedVars()
+  S.char.leaving = nil
   H.callback("ShroudOnLogOut")
   ShroudFlushSavedVars()
   if not stay then S.char.present = true end

@@ -1622,7 +1622,10 @@ end
 -- when it changed, then the keys of scenes gone are deleted. Refused part way, the scenes written are put back as
 -- they were. An older form being converted (ovOld; past the budget too): the index goes over it FIRST, so the file
 -- never holds both (it could pass 256 KB), and it's put back if a scene is refused. Returns true, or false and why.
-local function refusedWhy(kind) return kind == "full" and "this character's save file is full" or OV.REFUSED end
+local function refusedWhy(kind, why)
+  if why == "no character" then return why end         -- the login screen (API 43's refusal): nothing lost
+  return kind == "full" and "this character's save file is full" or OV.REFUSED
+end
 
 ovWrite = function()
   local convert = ovOld                       -- (until a write converts it)
@@ -1659,8 +1662,8 @@ ovWrite = function()
   end
   if not convert and size > OV.BUDGET and size > ovSize then return false, OV.FULL end
   if convert then
-    local ok, _, kind = T.SetSavedVar(OV.KEY, indexEnc or T.ForSaving(index))
-    if not ok then return false, refusedWhy(kind) end
+    local ok, why, kind = T.SetSavedVar(OV.KEY, indexEnc or T.ForSaving(index))
+    if not ok then return false, refusedWhy(kind, why) end
   end
   -- What's been done, undone newest first when a step is refused (the file as it was before: a converted one's new
   -- scene keys out BEFORE the old value goes back, review 60, or both could pass 256 KB). Each undo is checked.
@@ -1684,10 +1687,10 @@ ovWrite = function()
     end
   end
   for _, e in ipairs(changed) do
-    local ok, _, kind = T.SetSavedVar(sceneKey(e.key), e.enc)
+    local ok, why, kind = T.SetSavedVar(sceneKey(e.key), e.enc)
     if not ok then
       undo()
-      return false, refusedWhy(kind)
+      return false, refusedWhy(kind, why)
     end
     done[#done + 1] = { key = e.key, was = e.was, wrote = true }
   end
@@ -1704,10 +1707,10 @@ ovWrite = function()
     end
   end
   if indexEnc and not convert then
-    local ok, _, kind = T.SetSavedVar(OV.KEY, indexEnc)
+    local ok, why, kind = T.SetSavedVar(OV.KEY, indexEnc)
     if not ok then
       undo()
-      return false, refusedWhy(kind)
+      return false, refusedWhy(kind, why)
     end
   end
   if indexEnc or convert then ovSaved.index = { form = index, size = indexSize } end
@@ -2322,9 +2325,10 @@ OV.SAVE_AFTER = 30                    -- s: the auto map's marks saved together 
 function OV.SavePending(now)
   if not ovPending then return true end
   if not now and (T.Now() - ovPending.since < OV.SAVE_AFTER or T.BuffBar.InCombatWindow()) then return true end
-  if ovFor ~= T.CharacterName() or T.NoCharacter() then return true end   -- not this character's file to write
+  if ovFor ~= (T.CharacterName() or T.leaving) or T.NoCharacter() then return true end   -- not this file to write
   local pending = ovPending
   local ok, why = ovWrite()
+  if not ok and why == "no character" then return false, why end   -- the login screen: kept for the next save
   if not ok then
     ovPending = nil
     autoUndo(pending.items)
@@ -3658,7 +3662,7 @@ function LN.Init()
       if lnCount() == 0 then lnPrefs.hide = {} end
     end
     if type(saved.x) == "number" and type(saved.y) == "number" then lnPrefs.x, lnPrefs.y = saved.x, saved.y end
-  else
+  elseif not T.NoCharacter() then      -- at the login screen nothing is read: no line, nothing to save yet
     if not (T.settingsFor and T.Backup.resetApplied == T.settingsFor) then   -- not after this character's reset,
       -- which cleared it (owner, 2026-10-16); another character in the same run still gets it (review 55)
       T.Print("New: the menu, top left: one click opens a Toolbox window. Move it by its grip; change or switch it"

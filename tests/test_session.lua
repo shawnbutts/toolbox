@@ -95,6 +95,90 @@ return function(t)
     t.eq(next(Toolbox.saveRefused), nil, "and no refusal said in chat")
   end)
 
+  -- A player's "Could not save 'daily'" (2026-10-22): the skipped write at the login screen was said in chat, and
+  -- a reload there said the menu was new.
+  t.test("the login screen: no \"Could not save\" line, and a reload there doesn't call the menu new", function()
+    H.boot()
+    H.gain(100, 0)
+    H.clearLogs()                                   -- (the first start's menu line)
+    H.logout(true)
+    H.advance(Toolbox.flushSeconds + 40)
+    H.reload()
+    H.advance(5)
+    t.no(H.logged("Could not save"), "nothing said: " .. tostring(H.lastLog()))
+    t.no(H.logged("New: the menu"), "the menu isn't new")
+    t.eq(H.S.disk["character:nochar"], nil)
+    H.S.char.present = true
+    H.advance(1)
+    t.no(H.logged("New: the menu"), "nor back in the world: it was saved")
+  end)
+
+  local function lastSample(who)
+    local file = H.S.disk["character:" .. (who or "Tester")]
+    local samples = file and file.session and file.session.samples
+    return samples and samples[#samples].a
+  end
+  local function autoMark()
+    H.S.pos = { 10, 0, 10 }
+    ShroudPlayerX, ShroudPlayerY, ShroudPlayerZ = 10, 0, 10
+    H.gatherResults({ { node = "Iron Ore", failed = false, experience = 5, items = {} } })
+  end
+  local function savedPlaces()
+    local n = 0
+    for key, v in pairs(H.S.disk["character:Tester"] or {}) do
+      if key:find("^map_scene:") and type(v) == "table" then
+        for _, ov in ipairs(v.list or {}) do
+          if type(ov.places) == "string" and ov.places ~= "" then n = n + 1 end
+        end
+      end
+    end
+    return n
+  end
+
+  -- API 43 (request 28): the full save in ShroudOnBeforeLogOut, the character still in; at the login screen the
+  -- game refuses a character write, quietly for Toolbox too.
+  t.test("API 43: the logout save before the character leaves; the game's refusals after it said nothing", function()
+    H.boot()
+    H.S.api43 = true                                -- (after the boot, which starts the switches afresh)
+    H.gain(250, 0)
+    autoMark()                                      -- the auto map's mark, waiting for its batch
+    t.eq(savedPlaces(), 0, "not saved yet")
+    H.clearLogs()
+    H.logout(true)
+    t.eq(lastSample(), H.S.char.adv, "the session saved with the character in")
+    t.ok(savedPlaces() > 0, "the auto map's mark saved")
+    t.eq(H.S.disk["character:nochar"], nil, "nothing for no character")
+    H.S.char.present = true                         -- back in, and out again: saved again
+    H.advance(1)
+    H.gain(50, 0)
+    H.logout(true)
+    t.eq(lastSample(), H.S.char.adv, "the next logout's save too")
+    H.advance(Toolbox.flushSeconds + 40)
+    H.reload()
+    H.advance(5)
+    t.no(H.logged("Could not save"), "nothing said in chat: " .. tostring(H.lastLog()))
+    t.no(H.logged("couldn't be saved"))
+    t.no(H.logged("New: the menu"))
+    t.eq(next(Toolbox.saveRefused), nil)
+  end)
+
+  t.test("API 43: a lost connection saves late, at the login screen, into the character's file", function()
+    H.boot()
+    H.S.api43 = true                                -- (after the boot, which starts the switches afresh)
+    H.advance(Toolbox.flushSeconds + 5)
+    H.gain(300, 0)
+    autoMark()
+    H.lostConnection(true)
+    t.eq(lastSample(), H.S.char.adv, "the session saved late, still the character's")
+    t.ok(savedPlaces() > 0, "the auto map's mark too")
+    t.eq(H.S.disk["character:nochar"], nil)
+    t.no(H.logged("Could not save"), tostring(H.lastLog()))
+    t.ok(Toolbox.session.ended, "the session ended")
+    H.S.char.present = true
+    H.advance(2)
+    t.eq(Toolbox.Overlays.Places(Toolbox.Overlays.Shown())[1].name, "Iron Ore 1", "the mark back after logging in")
+  end)
+
   t.test("an ended session is not resumed on the next start", function()
     H.boot(nil, 100)
     H.gain(4000, 0)
