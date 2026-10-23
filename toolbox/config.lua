@@ -354,9 +354,9 @@ function C.CraftingSection()
     UI.Row{ style = { marginTop = 4 }, children = {
       UI.Button{ id = "pl_book_read", text = T.Daily.recipeIndex and "Read it again" or "Read it now",
         enabled = has and not reading,
-        tooltip = has and ("Reads your recipe book now, in the background (or /" .. T.commands[1]
-          .. " plan book read)") or needs,
-        onClick = function() PL.ReadBook() end },
+        tooltip = has and ("Opens the crafting planner, which says what to expect and reads your recipe book while"
+          .. " it's open (or /" .. T.commands[1] .. " plan book read)") or needs,
+        onClick = function() PL.AskBook() end },
       UI.Button{ id = "pl_book_stop", text = "Stop", enabled = reading, style = { marginLeft = 4 },
         tooltip = "Stops the read (a fight coming, say); nothing starts another on its own until you read it",
         onClick = function() PL.StopBook() end },

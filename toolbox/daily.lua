@@ -1774,6 +1774,7 @@ local plWaitKnown = false             -- a refresh is due once the known recipes
 local plBookStopped = false           -- the player stopped a read: nothing starts one on its own until they read it
 local plBookOk = false                -- the player said yes to reading the book this session (the notice, PL.ASK_TEXT)
 local plAsk = false                   -- the planner wants the book: the notice shows, nothing read until Read it now
+local plDeclined = false              -- the player saw the notice and said Not now (this session)
 local plLocked = nil                  -- whether the controls were last set greyed out (nil: not set since a build)
 
 local function plNum(v) if type(v) == "number" and v == v then return v end return nil end
@@ -2173,16 +2174,39 @@ function PL.ReadBook(quiet)
     local mins = math.max(1, math.floor(n / D.BOOK_STEP * D.BOOK_PERIOD / 60 + 0.5))
     T.Print("Reading your recipe book" .. (again and " again" or "") .. " (" .. T.FormatNumber(n) .. " recipes):"
       .. " about " .. mins .. " min" .. (anywhere and ", in the background" or " with the crafting planner open")
-      .. ". /" .. T.commands[1] .. " plan book stop stops it.")
+      .. ". The game may stutter meanwhile: it takes a moment over each recipe. /" .. T.commands[1]
+      .. " plan book stop stops it.")
   end
   if plWin then PL.ShowProgress() end
   T.Config.Sync()
   return n
 end
 
+-- The player's Read it now / Read the recipe book / plan book read (owner, 2026-10-23: a click read at once, with
+-- nothing said about the stutter, and from Settings with the planner closed it waited unseen). The planner opens
+-- (the book is read only while it is), with the notice first unless it was seen this session; "At login" reads in
+-- the background, the stutter said in chat. Returns true, or nil without the recipe calls.
+function PL.AskBook()
+  if type(ShroudGetRecipe) ~= "function" or type(ShroudGetKnownRecipes) ~= "function" then return nil end
+  if PL.GetBookWhen() == "login" and not PL.IsShown() then
+    PL.ReadBook()
+    return true
+  end
+  if not PL.IsShown() and not PL.Open() then return true end
+  if D.ReadingRecipes() then return true end
+  if plBookOk or plDeclined then
+    PL.ReadBook()                        -- (its chat line says the stutter too)
+  else
+    plAsk, plBookStopped = true, false
+    PL.ShowProgress()
+    T.Config.Sync()
+  end
+  return true
+end
+
 -- The notice's Not now: nothing read on its own until the player reads it (the planner's Read the recipe book).
 function PL.NotNow()
-  plAsk, plBookStopped = false, true
+  plAsk, plBookStopped, plDeclined = false, true, true
   if plWin then PL.ShowProgress() end
   T.Config.Sync()
 end
@@ -3082,7 +3106,7 @@ local function plBuild()
         onClick = function() PL.NotNow() end } } } } }
   plEl.barNote = UI.Label{ id = "pl_bar_note", text = PL.BOOK_NOTE, class = "dim", style = { whiteSpace = "wrap" } }
   plEl.book = UI.Button{ id = "pl_book", text = "Read the recipe book", visible = false, style = { marginLeft = 4 },
-    onClick = function() PL.ReadBook() end }
+    onClick = function() PL.AskBook() end }
   plEl.barRow = UI.Column{ id = "pl_progress", visible = false, style = { marginTop = 2 },
     tooltip = "Your recipe book is read a recipe at a time while this window is open: then I'll craft knows every"
       .. " recipe making an item (until then, the ones named like it)",
@@ -3239,7 +3263,7 @@ function PL.Init()
   D.ForgetRecipes()                    -- another character knows other recipes
   local saved = T.ReadSaved(PL.KEY)
   plPrefs = type(saved) == "table" and saved or {}
-  plBookStopped, plBookOk, plAsk = false, false, false
+  plBookStopped, plBookOk, plAsk, plDeclined = false, false, false, false
   plBookLater()
   plPrefs.v, plPrefs.mode, plPrefs.watch = 1, nil, nil
   plFresh, plBuilt, plMade, plDone, plPlan, plQuick, plWaitKnown = {}, {}, {}, {}, nil, {}, false

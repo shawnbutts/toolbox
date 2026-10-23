@@ -496,6 +496,34 @@ return function(t)
     t.ok(D.ReadingRecipes() or D.recipeIndex, "read again")
   end)
 
+  -- Owner, 2026-10-23: Settings' Read it now read at once with nothing said about the stutter, and with the planner
+  -- closed it waited unseen.
+  t.test("the book: Read it now in Settings opens the planner with the notice; read once the player says so",
+      function()
+    H.boot()
+    book()
+    local D, PL = Toolbox.Daily, Toolbox.Planner
+    H.chat("/tbx config")
+    H.config():Find("pl_book_read")
+    t.no(PL.IsShown(), "the planner closed")
+    H.click("toolbox_config", "pl_book_read")
+    t.ok(PL.IsShown(), "the planner opens: the book is read only while it's open")
+    t.ok(find("pl_ask").visible ~= false, "the notice first")
+    t.ok(text("pl_ask_text"):find("may stutter", 1, true), text("pl_ask_text"))
+    t.no(D.ReadingRecipes(), "nothing read yet")
+    H.click(W, "pl_ask_go")
+    H.advance(2, 0.05)
+    t.ok(D.recipeIndex, "read")
+    H.callback("ShroudOnRecipesChanged")              -- learned one: Read it again
+    H.chat("/tbx plan")                                -- closed
+    H.clearLogs()
+    H.click("toolbox_config", "pl_book_read")
+    t.ok(PL.IsShown(), "opened again")
+    t.eq(find("pl_ask").visible, false, "no second notice this session")
+    t.ok(D.ReadingRecipes(), "read again at once")
+    t.ok(H.logged("may stutter"), "chat says the stutter: " .. tostring(H.lastLog()))
+  end)
+
   t.test("the book: /toolbox recipe and the At login setting read it with the planner closed", function()
     H.boot()
     book()
@@ -516,6 +544,7 @@ return function(t)
     H.callback("ShroudOnRecipesChanged")
     H.advance(1)
     H.chat("/tbx plan book read")
+    H.click(W, "pl_ask_go")                             -- the notice first
     H.advance(0.5, 0.05)
     local done = Toolbox.Daily.BookProgress()
     t.ok(done and done > 0, "reading")

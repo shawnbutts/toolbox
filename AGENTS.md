@@ -200,7 +200,9 @@ into one if a new file is ever needed).
   `anywhere` (`/toolbox recipe`, "login"), `D.BookPaused` ("combat" / "closed"; review 67, owner 2026-10-23: the reads
   were 1.9.0's hitching); only what each recipe makes is kept (`indexRecipe`; `/toolbox recipe` reads its chain's
   makers itself); before the first read of a session the planner's notice asks (`pl_ask`, `PL.ASK_TEXT`, Read it now
-  / Not now, `plBookOk` / `plAsk`; its text set only while shown: the text budget); API 37's `ShroudGetRecipeBook`, one station a step, hitched in game, owner 2026-10-15: not used;
+  / Not now, `plBookOk` / `plAsk`; its text set only while shown: the text budget); every read button and `plan book
+  read` go through `PL.AskBook` (the planner opened, the notice unless seen this session, `plDeclined`; "login"
+  reads in the background, chat saying the stutter: owner, 2026-10-23, a click had read with nothing said); API 37's `ShroudGetRecipeBook`, one station a step, hitched in game, owner 2026-10-15: not used;
   `D.BookProgress` for the planner's bar, with a once-a-login note, `PL.BOOK_NOTE`; meanwhile the planner's
   controls are greyed out, `plLock` from `PL.ShowProgress`: owner, 2026-10-16); kept for the session in
   `D.recipeIndex` (`recipes`, `byResult` by name,

@@ -1104,7 +1104,7 @@ add("plan", "the crafting planner: a recipe's materials, what to get and what to
     local book = word == "book" and "" or word:match("^book%s+(.+)$")   -- not "bookcase"
     if book then
       if book == "read" then
-        if not PL.ReadBook() and not T.Daily.ReadingRecipes() then
+        if not PL.AskBook() then
           T.Print("This game client has no recipe book for add-ons.")
         end
       elseif book == "stop" then
