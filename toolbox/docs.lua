@@ -116,11 +116,11 @@ D.SECTIONS = {
       .. "under it, as deep as it goes, instead of it going on the shopping list. Toolbox never crafts "
       .. "anything. When two recipes make it (Iron Ingot, Iron Ingot from Metal Scraps), the one named like "
       .. "the item is used, and made by changes it. For that your recipe book is read, a recipe at a time, "
-      .. "and the game may stutter meanwhile: the planner says so and asks first. It's read only while the "
+      .. "and the game may stutter meanwhile: a window says so and asks first (OK or Cancel). It's read only while the "
       .. "planner is open (about a minute and a half; it waits during a fight), the bar at the bottom shows "
       .. "how far, and the planner's controls are greyed out until it's done.",
     "When the book is read is up to you (Settings, Crafting): only when you ask (the default: Read it "
-      .. "now there opens the planner, which says what to expect first, or its own button; a recipe you "
+      .. "now there, or the planner's own button: each asks first; a recipe you "
       .. "learn leaves the book you read in use until you read it again), when the planner needs it (after "
       .. "the first time, read again on its own when you learn a recipe), or at login (in the background a "
       .. "minute after you log in, and after you learn a recipe, even with the planner closed). Stop stops a "

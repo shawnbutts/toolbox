@@ -199,18 +199,20 @@ into one if a new file is ever needed).
   2026-10-05; paused in a fight and `BB.COMBAT_LINGER` s after it, and while the planner is closed unless the read is
   `anywhere` (`/toolbox recipe`, "login"), `D.BookPaused` ("combat" / "closed"; review 67, owner 2026-10-23: the reads
   were 1.9.0's hitching); only what each recipe makes is kept (`indexRecipe`; `/toolbox recipe` reads its chain's
-  makers itself); before the first read of a session the planner's notice asks (`pl_ask`, `PL.ASK_TEXT`, Read it now
-  / Not now, `plBookOk` / `plAsk`; its text set only while shown: the text budget); every read button and `plan book
-  read` go through `PL.AskBook` (the planner opened, the notice unless seen this session, `plDeclined`; "login"
-  reads in the background, chat saying the stutter: owner, 2026-10-23, a click had read with nothing said); from API 41
-  the notice is its own window (`PL.ASK_ID` "toolbox_book_notice", `PL.OwnNoticeWindow`, `plAskShow`: Toolbox's 9th,
-  the client allowing 30; owner, same day: the panel's text didn't show in game), closed with Esc = not asked again on
-  its own (`plBookStopped`); older clients keep the panel (harness `H.apiVersion`, 30 windows from 41); API 37's `ShroudGetRecipeBook`, one station a step, hitched in game, owner 2026-10-15: not used;
+  makers itself); EVERY read asks first in a confirmation window, OK / Cancel, nothing read without OK (owner,
+  2026-10-23: "a completely new popup window ... clear and obvious ... not do the load unless the user hits ok";
+  a panel in the planner went unseen): `PL.Confirm(background, ok)` (`PL.ASK_ID` "toolbox_book_confirm", `PL.ASK_*`
+  texts; its own window from API 41, `PL.OwnNoticeWindow`, Toolbox's 9th of the 30 allowed; before, the shared 8th,
+  `T.TakeSharedWindow`, the planner reopened on Cancel), centred by `Hud.screen`; Cancel, Esc or a close =
+  `plBookStopped` (nothing asks again on its own; `plConfirmClosed` from `PL.Tick`); the planner's buttons, Settings'
+  `pl_book_read` and `plan book read` go through `PL.AskBook` (OK opens the planner, where the book is read); "need"
+  asks from `PL.Tick` (`plNeedAsk`: not mid-refresh, the shared window would close the planner); "login" and
+  `/toolbox recipe` ask too, then read in the background (harness `H.apiVersion`, 30 windows from 41); API 37's `ShroudGetRecipeBook`, one station a step, hitched in game, owner 2026-10-15: not used;
   `D.BookProgress` for the planner's bar, with a once-a-login note, `PL.BOOK_NOTE`; meanwhile the planner's
   controls are greyed out, `plLock` from `PL.ShowProgress`: owner, 2026-10-16); kept for the session in
   `D.recipeIndex` (`recipes`, `byResult` by name,
   `count`; when it's read is the player's, owner 2026-10-17 (default `PL.BOOK_WHEN_DEFAULT` "manual", a player's
-  request 2026-10-23; "need" before 1.9.1; the notice offers it in both): `PL.BOOK_WHEN` "need" (`PL.NeedBook`), "login"
+  request 2026-10-23; "need" before 1.9.1; Only when I ask: From scratch asks nothing, the planner's button does): `PL.BOOK_WHEN` "need" (`PL.NeedBook`), "login"
   (`PL.BOOK_LOGIN_DELAY` s after `PL.Init` and a recipe learned) or "manual" (`PL.ReadBook` only: Settings' `pl_book_read`,
   the planner's `pl_book`, `/toolbox plan book read`; a recipe learned keeps the book, `D.ForgetRecipes(keep)`,
   `D.bookStale`); `PL.StopBook` (`plBookStopped`: nothing auto until read); a read again keeps the old one in use,

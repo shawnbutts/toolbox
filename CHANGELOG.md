@@ -20,9 +20,9 @@ ones included).
   needs it" and "At login" are still in Settings, Crafting; a choice you made is kept.
 - The crafting planner leans less on the game's slow recipe calls, which caused 1.9.0's hitching: the recipe book is
   read only while the planner is open (unless you chose "At login" in Settings, Crafting), waits during a fight (and
-  a few seconds after it), and keeps only what each recipe makes instead of every whole recipe. Before it's first
-  read each login, a window says why the game may stutter and asks (Read it now, or Not now); on older game clients
-  it's a panel in the planner. Read it now in Settings, Crafting opens the planner, where the book is read. The Crafting Planner HUD isn't
+  a few seconds after it), and keeps only what each recipe makes instead of every whole recipe. Before every read, a
+  window says why the game may stutter and asks: nothing is read unless you press OK (Cancel reads nothing). OK
+  opens the planner, where the book is read. The Crafting Planner HUD isn't
   worked out again in a fight, and a plan with more recipes is worked out again less often after your bags change
   (your own changes still show at once).
 

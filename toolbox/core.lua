@@ -1072,13 +1072,16 @@ add("recipe", "a known recipe as the game reports it, and what it takes from raw
     for _, line in ipairs(lines) do T.Print(line) end
     return
   end
-  local n = D.ReadRecipeBook(function(ok)
-    if not ok then return end
-    for _, line in ipairs(D.RecipeLines(rest) or {}) do T.Print(line) end
-  end, false, true)                    -- asked for in chat: read with the planner closed too
-  if n and n > 0 then
-    T.Print("Reading your recipe book (" .. n .. " recipes): the answer follows in a few seconds.")
+  local function read()
+    local n = D.ReadRecipeBook(function(ok)
+      if not ok then return end
+      for _, line in ipairs(D.RecipeLines(rest) or {}) do T.Print(line) end
+    end, false, true)                  -- asked for in chat: read with the planner closed too
+    if n and n > 0 then
+      T.Print("Reading your recipe book (" .. n .. " recipes): the answer follows when it's read.")
+    end
   end
+  if D.ReadingRecipes() then read() else T.Planner.Confirm(true, read) end   -- asked first (owner, 2026-10-23)
 end)
 
 -- You learned a recipe (or marked a favorite): /toolbox recipe reads the book again.

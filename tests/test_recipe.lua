@@ -3,6 +3,12 @@
 local H = require("harness")
 
 return function(t)
+  -- /toolbox recipe reads the book only after OK in the confirmation (owner, 2026-10-23).
+  local function ask(cmd)
+    H.chat(cmd)
+    local w = H.S.windows[Toolbox.Planner.ASK_ID]
+    if w and not w.destroyed and w:IsShown() then H.click(Toolbox.Planner.ASK_ID, "pl_confirm_ok") end
+  end
   -- A plate piece made from plates, plates from ingots, ingots from ore; a strap from leather (not a known
   -- recipe: raw); a hammer (a tool) and an optional oil left out of the raw materials.
   local function book()
@@ -29,7 +35,7 @@ return function(t)
     H.boot()
     book()
     H.clearLogs()
-    H.chat("/tbx recipe iron plate chest")
+    ask("/tbx recipe iron plate chest")
     t.ok(all():find("Reading your recipe book %(4 recipes%)"), all())
     H.advance(5)
     local out = all()
@@ -60,7 +66,7 @@ return function(t)
     r.results[1].key, r.results[1].carried = "item:" .. string.rep("c", 32), 0
     r.results[1].stats = { { key = "durability", value = 100 } }
     H.clearLogs()
-    H.chat("/tbx recipe iron plate chest")
+    ask("/tbx recipe iron plate chest")
     H.advance(5)
     local out = all()
     t.ok(out:find("Made at: Blacksmithing Station (Crafting_Blacksmithing), where: any, a favorite", 1, true), out)
@@ -81,14 +87,14 @@ return function(t)
     H.S.recipes[1].ingredients[1] = { name = "Metal Sheet", quantity = 6, have = 0, group = true, groupKey = "group:33",
       choosable = true, choiceCount = 2, choices = { sheet("Copper Plate", "item:c"), sheet("Iron Plate", "item:i") } }
     H.clearLogs()
-    H.chat("/tbx recipe iron plate chest")
+    ask("/tbx recipe iron plate chest")
     H.advance(5)
     local out = all()
     t.ok(out:find("6 x Copper Plate  (for Metal Sheet: the first choice; pick one in the crafting window)", 1, true),
       out)
     H.S.recipes[1].ingredients[1].chosenKey = "item:i"
     H.clearLogs()
-    H.chat("/tbx recipe iron plate chest")
+    ask("/tbx recipe iron plate chest")
     H.advance(5)
     out = all()
     t.ok(out:find("6 x Iron Plate  <- 2 x Iron Plate (Blacksmithy, makes 4)  (for Metal Sheet: picked)", 1, true), out)
@@ -99,23 +105,23 @@ return function(t)
     H.boot()
     book()
     H.clearLogs()
-    H.chat("/tbx recipe iron plate")
+    ask("/tbx recipe iron plate")
     H.advance(5)
     t.ok(all():find("Iron Plate Chest %(Blacksmithy%)") == nil and all():find("Recipe 'Iron Plate'"),
       "an exact name wins: " .. all())
     H.clearLogs()
-    H.chat("/tbx recipe helm")
+    ask("/tbx recipe helm")
     H.advance(5)
     t.ok(all():find("no fixed yield"), all())
     H.clearLogs()
-    H.chat("/tbx recipe iron")
+    ask("/tbx recipe iron")
     t.ok(all():find("4 known recipes match 'iron'"), all())
     H.clearLogs()
-    H.chat("/tbx recipe mithril")
+    ask("/tbx recipe mithril")
     t.ok(all():find("No known recipe has 'mithril'"), all())
     H.S.recipes = nil
     H.clearLogs()
-    H.chat("/tbx recipe")
+    ask("/tbx recipe")
     t.ok(all():find("0 known recipes") or all():find("No known recipes yet"), all())
   end)
 
@@ -131,20 +137,20 @@ return function(t)
     local get = ShroudGetRecipe
     ShroudGetRecipe = function(id) calls = calls + 1 return get(id) end
     H.clearLogs()
-    H.chat("/tbx recipe iron plate chest")
+    ask("/tbx recipe iron plate chest")
     t.ok(calls <= Toolbox.Daily.BOOK_STEP, "not all at once: " .. calls)
     H.advance(21, 0.05)                                  -- 404 recipes, one each 0.05 s
     t.ok(all():find("Raw materials in all", 1, true), "answered once read")
     local after = calls
     H.clearLogs()
-    H.chat("/tbx recipe iron plate chest")
+    ask("/tbx recipe iron plate chest")
     t.ok(all():find("Raw materials in all", 1, true), "at once the second time")
     -- the recipe itself (current counts) and its chain's makers (the book keeps only what each makes): not 404
     t.ok(calls - after <= 10, "the book isn't read again: " .. (calls - after))
     H.chat("/tbx plan book need")                       -- (Only when I ask, the default, keeps the old book)
     H.callback("ShroudOnRecipesChanged")
     H.clearLogs()
-    H.chat("/tbx recipe iron plate chest")
+    ask("/tbx recipe iron plate chest")
     t.ok(all():find("Reading your recipe book", 1, true), "read again after learning a recipe")
     ShroudGetRecipe = get
   end)
@@ -160,7 +166,7 @@ return function(t)
     H.S.recipes[3].id, H.S.recipes[9] = 9, H.S.recipes[3]   -- the usual one read after the scrap one
     H.S.recipes[3] = nil
     H.clearLogs()
-    H.chat("/tbx recipe iron plate chest")
+    ask("/tbx recipe iron plate chest")
     H.advance(5)
     local out = all()
     t.ok(out:find("4 x Iron Ingot  <%- 4 x Iron Ingot %(Smelting, makes 1%)  %[also made by: Iron Ingot from Metal"),

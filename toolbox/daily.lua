@@ -1738,13 +1738,17 @@ PL.MIN_TYPED = 3
 PL.debug = false                        -- /toolbox plan debug: the search box's events in chat
 PL.BOOK_NOTE = "Reading your recipe book: the planner waits until it's done (the game may stutter meanwhile; it"
   .. " reads only while this window is open, and not in a fight). Settings > Crafting sets when it's read."
--- Before the planner first reads the book in a session (owner, 2026-10-23: say why the game may stutter, before it
--- does): the notice at the top of the planner, with Read it now and Not now.
-PL.ASK_TEXT = "From scratch needs to know which of your recipes make each ingredient, so the planner reads your"
-  .. " recipe book, one recipe at a time: about a minute and a half for a big book. The game takes a moment over"
-  .. " each recipe, so it may stutter while the book is read. It's read only while this window is open, and it"
-  .. " waits during a fight; close the window to pause it. Until then, I'll craft offers the recipes named like the"
-  .. " item."
+-- Before ANY read of the book (owner, 2026-10-23: "a completely new popup window... clear and obvious... an ok and
+-- cancel button and not do the load unless the user hits ok"): the confirmation window, PL.Confirm.
+PL.ASK_TITLE = "Toolbox: read your recipe book?"
+PL.ASK_HEADING = "Read your recipe book now? The game may stutter while it's read."
+PL.ASK_TEXT = "The crafting planner's From scratch needs to know which of your recipes make each ingredient. To"
+  .. " find out, Toolbox reads your recipe book one recipe at a time: about a minute and a half for a big book."
+  .. " The game takes a moment over each recipe, so you may see the game stutter or hitch until it's done."
+PL.ASK_WHERE = "It's read only while the crafting planner is open (close the planner to pause it), and it waits"
+  .. " during fights. Until it's read, I'll craft offers only the recipes named like the item."
+PL.ASK_WHERE_BG = "It's read in the background, the planner open or not, and it waits during fights."
+PL.ASK_BUTTONS = "OK reads it now. Cancel reads nothing."
 PL.BOOK_AGAIN_NOTE = "Reading your recipe book again: the planner uses the one read before until it's done."
 -- When the book is read on its own (owner, 2026-10-17: the read stutters the game, so the player picks; the default
 -- PL.BOOK_WHEN_DEFAULT):
@@ -1772,9 +1776,9 @@ local plMade = {}                     -- recipe id -> crafts made since the plan
 local plQuick = {}                    -- item key -> the recipes named like it that make it ({ { id, yield } })
 local plWaitKnown = false             -- a refresh is due once the known recipes are indexed
 local plBookStopped = false           -- the player stopped a read: nothing starts one on its own until they read it
-local plBookOk = false                -- the player said yes to reading the book this session (the notice, PL.ASK_TEXT)
-local plAsk = false                   -- the planner wants the book: the notice shows, nothing read until Read it now
-local plDeclined = false              -- the player saw the notice and said Not now (this session)
+local plConfirm = nil                 -- what the confirmation's OK does (PL.Confirm), while it shows
+local plConfirmReopen = false         -- the planner it closed (the shared window, before API 41): Cancel reopens it
+local plNeedAsk = false               -- From scratch wants the book: asked at the next tick (not mid-refresh)
 local plLocked = nil                  -- whether the controls were last set greyed out (nil: not set since a build)
 
 local function plNum(v) if type(v) == "number" and v == v then return v end return nil end
@@ -2101,18 +2105,21 @@ end
 
 -- The recipe book (for I'll craft), read once a session in the background (D.ReadRecipeBook), unless the player
 -- reads it only when they ask (PL.BOOK_WHEN) or stopped a read.
--- Only when I ask: the notice offers it (nothing is read on its own); else the notice before the first read.
+-- "When the planner needs it": the confirmation, then the read (Only when I ask: the planner's button reads it).
 function PL.NeedBook()
-  if D.recipeIndex or D.ReadingRecipes() or plBookStopped then return end
-  if PL.GetBookWhen() == "manual" or not plBookOk then   -- the notice: the player starts it
-    if not plAsk then
-      plAsk = true
-      if plWin then PL.ShowProgress() end
-    end
-    return
-  end
-  D.ReadRecipeBook(function(ok)
-    if ok then PL.Refresh(true) end
+  if D.recipeIndex or D.ReadingRecipes() or plBookStopped or plConfirm or PL.GetBookWhen() ~= "need" then return end
+  plNeedAsk = true
+end
+local function plAskNeeded()
+  if not plNeedAsk then return end
+  plNeedAsk = false
+  if D.recipeIndex or D.ReadingRecipes() or plBookStopped or plConfirm or PL.GetBookWhen() ~= "need" then return end
+  PL.Confirm(false, function()
+    if not PL.IsShown() then PL.Open() end
+    D.ReadRecipeBook(function(ok)
+      if ok then PL.Refresh(true) end
+    end)
+    if plWin then PL.ShowProgress() end
   end)
 end
 
@@ -2133,10 +2140,14 @@ local BOOK_LOGIN_TIMER = "toolbox_book_login"
 local function plBookLater()
   if PL.GetBookWhen() ~= "login" or type(ShroudGetKnownRecipes) ~= "function" then return end
   T.RegisterPeriodic(BOOK_LOGIN_TIMER, function()
-    if PL.GetBookWhen() ~= "login" or plBookStopped or D.recipeIndex or D.ReadingRecipes() then return end
-    D.ReadRecipeBook(function(ok)
-      if ok then PL.Changed() end
-    end, false, true)                  -- the player chose it in the background: the planner closed too
+    if PL.GetBookWhen() ~= "login" or plBookStopped or D.recipeIndex or D.ReadingRecipes() or plConfirm then
+      return
+    end
+    PL.Confirm(true, function()
+      D.ReadRecipeBook(function(ok)
+        if ok then PL.Changed() end
+      end, false, true)                -- the player chose it in the background: the planner closed too
+    end)
   end, PL.BOOK_LOGIN_DELAY, false)
 end
 
@@ -2148,7 +2159,7 @@ function PL.SetBookWhen(v)
       plPrefs.book = w[1]
       plSave()
       if w[1] == "login" and not D.recipeIndex and not D.ReadingRecipes() and not plBookStopped then
-        PL.ReadBook(true)                  -- chosen now: no login to wait for
+        PL.AskBook()                       -- chosen now: no login to wait for (asked first)
       end
       T.Config.Sync()
       return true
@@ -2161,7 +2172,7 @@ end
 -- Returns how many recipes it reads, or nil (no recipe calls, or reading already).
 function PL.ReadBook(quiet)
   if D.ReadingRecipes() then return nil end
-  plBookStopped, plBookOk, plAsk = false, true, false   -- asked for: the notice's yes
+  plBookStopped = false
   local again = D.recipeIndex ~= nil
   local anywhere = PL.GetBookWhen() == "login"
   local n = D.ReadRecipeBook(function(ok)
@@ -2182,35 +2193,22 @@ function PL.ReadBook(quiet)
   return n
 end
 
--- The player's Read it now / Read the recipe book / plan book read (owner, 2026-10-23: a click read at once, with
--- nothing said about the stutter, and from Settings with the planner closed it waited unseen). The planner opens
--- (the book is read only while it is), with the notice first unless it was seen this session; "At login" reads in
--- the background, the stutter said in chat. Returns true, or nil without the recipe calls.
+-- The player's Read it now / Read the recipe book / plan book read (owner, 2026-10-23): the confirmation first; OK
+-- opens the planner (the book is read only while it is) and reads it; "At login" reads in the background. Returns
+-- true, or nil without the recipe calls.
 function PL.AskBook()
   if type(ShroudGetRecipe) ~= "function" or type(ShroudGetKnownRecipes) ~= "function" then return nil end
-  if PL.GetBookWhen() == "login" and not PL.IsShown() then
-    PL.ReadBook()
+  if D.ReadingRecipes() then
+    if PL.GetBookWhen() ~= "login" and not PL.IsShown() then PL.Open() end
     return true
   end
-  if not PL.IsShown() and not PL.Open() then return true end
-  if D.ReadingRecipes() then return true end
-  if plBookOk or plDeclined then
-    PL.ReadBook()                        -- (its chat line says the stutter too)
-  else
-    plAsk, plBookStopped = true, false
-    PL.ShowProgress()
-    T.Config.Sync()
-  end
+  local bg = PL.GetBookWhen() == "login"
+  PL.Confirm(bg, function()
+    if not bg and not PL.IsShown() then PL.Open() end
+    PL.ReadBook()
+  end)
   return true
 end
-
--- The notice's Not now: nothing read on its own until the player reads it (the planner's Read the recipe book).
-function PL.NotNow()
-  plAsk, plBookStopped, plDeclined = false, true, true
-  if plWin then PL.ShowProgress() end
-  T.Config.Sync()
-end
-function PL.Asking() return plAsk end
 
 -- Stops a read (the game stuttering in a fight, say); nothing starts another on its own until the player reads it.
 function PL.StopBook()
@@ -2238,7 +2236,7 @@ function PL.BookStatus()
     return "Read this session: " .. n .. " recipes"
   end
   if plBookStopped then return "Stopped: not read (Read it now when you're ready)" end
-  if plAsk and PL.GetBookWhen() ~= "manual" then return "Not read yet: the crafting planner asks before it reads it" end
+  if plConfirm then return "Not read yet: waiting for your OK" end
   local when = PL.GetBookWhen()
   if when == "login" then return "Not read yet: it starts about a minute after you log in" end
   if when == "manual" then return "Not read yet: Read it now when you need it (the default)" end
@@ -3102,16 +3100,6 @@ local function plBuild()
       tooltip = "Start over: no recipe, 1 craft, no I'll craft ticks, and this recipe's materials back to the"
         .. " first you have enough of (your recipe book stays read)", onClick = function() PL.Reset() end },
   }
-  plEl.askText = UI.Label{ id = "pl_ask_text", text = "", class = "text", style = { whiteSpace = "wrap",
-    flexShrink = 0 } }
-  plEl.ask = UI.Column{ id = "pl_ask", visible = false, style = { marginTop = 4, flexShrink = 0 }, children = {
-    plEl.askText,
-    UI.Row{ style = { marginTop = 4 }, children = {
-      UI.Button{ id = "pl_ask_go", text = "Read it now", tooltip = "Read the recipe book now, while this window is"
-        .. " open", onClick = function() PL.ReadBook(true) end },
-      UI.Button{ id = "pl_ask_later", text = "Not now", style = { marginLeft = 4 }, tooltip = "Nothing is read;"
-        .. " the Read the recipe book button at the bottom reads it when you're ready",
-        onClick = function() PL.NotNow() end } } } } }
   plEl.barNote = UI.Label{ id = "pl_bar_note", text = PL.BOOK_NOTE, class = "dim", style = { whiteSpace = "wrap" } }
   plEl.book = UI.Button{ id = "pl_book", text = "Read the recipe book", visible = false, style = { marginLeft = 4 },
     onClick = function() PL.AskBook() end }
@@ -3132,7 +3120,6 @@ local function plBuild()
       line({ UI.Label{ text = "Crafts", class = "text", style = { marginRight = 6 } }, plEl.crafts, plEl.title }),
       line({ UI.Label{ text = "Show", class = "text", style = { marginRight = 6 } }, plEl.view,
         UI.Label{ text = "", style = { flexGrow = 1 } }, plEl.scratch }),
-      plEl.ask,
       UI.Scroll{ style = { flexGrow = 1, marginTop = 4 }, children = { plBody } },
       plEl.result,
       plEl.msg,
@@ -3198,43 +3185,80 @@ function PL.Open(text)
   return true
 end
 
--- The notice in its own window where the client allows more than 8 (API 41: 30 an add-on; owner, 2026-10-23: the
--- panel in the planner didn't show its text in game, and a popup is what he expected); older clients keep the panel.
-PL.ASK_ID, PL.ASK_TITLE = "toolbox_book_notice", "Reading your recipe book"
+-- The confirmation before a read (PL.Confirm): its own window from API 41 (30 an add-on: Toolbox's 9th), else the
+-- shared 8th (T.TakeSharedWindow: the planner closes meanwhile; OK opens it again). Centred on the screen when its
+-- size is known. OK runs the read; Cancel, Esc or the window closing read nothing, and nothing asks again on its own
+-- until the player reads it (plBookStopped).
+PL.ASK_ID = "toolbox_book_confirm"
+PL.ASK_W, PL.ASK_H = 460, 300
 function PL.OwnNoticeWindow() return type(ShroudLuaApiVersion) == "number" and ShroudLuaApiVersion >= 41 end
-local function plAskShow()
-  if plAskWin and plAskWin:IsShown() then return true end
+
+local function plCancel()
+  plConfirm = nil
   plAskDrop()
-  local ok = pcall(function()
+  plBookStopped = true
+  if plConfirmReopen and not PL.IsShown() then PL.Open() end
+  plConfirmReopen = false
+  if plWin then PL.ShowProgress() end
+  T.Config.Sync()
+end
+
+-- Asks before a read: `background` = read with the planner closed too (the text says which); `ok()` starts it.
+-- True when the window showed; else (it couldn't be made now) nothing is read and chat says why.
+function PL.Confirm(background, ok)
+  plConfirm = ok
+  plAskDrop()
+  plConfirmReopen = false
+  if not PL.OwnNoticeWindow() then
+    plConfirmReopen = PL.IsShown()
+    T.TakeSharedWindow("bookconfirm", plAskDrop)
+  end
+  local sw = T.Hud and T.Hud.screen
+  local x = sw and math.max(0, math.floor((sw.w - PL.ASK_W) / 2)) or T.Window.DEFAULT_X + 60
+  local y = sw and math.max(0, math.floor((sw.h - PL.ASK_H) / 3)) or T.Window.DEFAULT_Y + 60
+  local built = pcall(function()
     plAskWin = UI.Window{
-      id = PL.ASK_ID, title = PL.ASK_TITLE, width = 420, height = 220, minWidth = 300, minHeight = 160,
-      x = T.Window.DEFAULT_X + 60, y = T.Window.DEFAULT_Y + 60, escCloses = true,
-      style = { paddingLeft = 8, paddingRight = 8, paddingTop = 6, paddingBottom = 6 },
+      id = PL.ASK_ID, title = PL.ASK_TITLE, width = PL.ASK_W, height = PL.ASK_H, minWidth = 320, minHeight = 200,
+      x = x, y = y, escCloses = true,
+      style = { paddingLeft = 10, paddingRight = 10, paddingTop = 8, paddingBottom = 8 },
       children = {
-        UI.Scroll{ style = { flexGrow = 1 }, children = {
-          UI.Label{ id = "pl_notice_text", text = PL.ASK_TEXT, class = "text", style = { whiteSpace = "wrap" } } } },
-        UI.Row{ style = { justifyContent = "flex-end", marginTop = 6 }, children = {
-          UI.Button{ id = "pl_notice_go", text = "Read it now", tooltip = "Read the recipe book now, while the"
-            .. " crafting planner is open", onClick = function()
+        UI.Label{ id = "pl_confirm_heading", text = PL.ASK_HEADING, class = "heading",
+          style = { whiteSpace = "wrap", flexShrink = 0 } },
+        UI.Scroll{ style = { flexGrow = 1, marginTop = 6 }, children = { UI.Column{ children = {
+          UI.Label{ id = "pl_confirm_text", text = PL.ASK_TEXT, class = "text", style = { whiteSpace = "wrap" } },
+          UI.Label{ id = "pl_confirm_where", text = background and PL.ASK_WHERE_BG or PL.ASK_WHERE, class = "text",
+            style = { whiteSpace = "wrap", marginTop = 6 } },
+          UI.Label{ text = PL.ASK_BUTTONS, class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } } } } } },
+        UI.Row{ style = { justifyContent = "flex-end", marginTop = 8, flexShrink = 0 }, children = {
+          UI.Button{ id = "pl_confirm_ok", text = "OK", style = { minWidth = 80 },
+            tooltip = "Read your recipe book now", onClick = function()
+              local fn = plConfirm
+              plConfirm, plConfirmReopen = nil, false
               plAskDrop()
-              if not PL.IsShown() then PL.Open() end
-              PL.ReadBook(true)
+              if fn then fn() end
             end },
-          UI.Button{ id = "pl_notice_later", text = "Not now", style = { marginLeft = 4 }, tooltip = "Nothing is"
-            .. " read; the planner's Read the recipe book button reads it when you're ready",
-            onClick = function()
-              plAskDrop()
-              PL.NotNow()
-            end } } },
+          UI.Button{ id = "pl_confirm_cancel", text = "Cancel", style = { minWidth = 80, marginLeft = 6 },
+            tooltip = "Read nothing", onClick = function() plCancel() end } } },
       },
     }
   end)
-  if not ok or not plAskWin then
-    plAskWin = nil
-    return false
+  if built and plAskWin and (plAskWin:IsShown() or plAskWin:Show() == true) then
+    if plWin then PL.ShowProgress() end
+    T.Config.Sync()
+    return true
   end
-  return plAskWin:IsShown() or plAskWin:Show() == true
+  plAskDrop()
+  plConfirm = nil
+  T.Print("Toolbox couldn't open the window asking to read your recipe book, so nothing is read. Try again in a"
+    .. " moment.")
+  return false
 end
+
+-- The confirmation closed without OK or Cancel (Esc, its close button): taken as Cancel. From T.ViewsTick.
+local function plConfirmClosed()
+  if plConfirm and not (plAskWin and plAskWin:IsShown()) then plCancel() end
+end
+function PL.Confirming() return plConfirm ~= nil end
 
 -- The bar at the bottom while the recipe book is read: how far, and about how long is left; the controls wait.
 function PL.ShowProgress()
@@ -3242,18 +3266,8 @@ function PL.ShowProgress()
   plLock()
   local done, total, left = D.BookProgress()
   T.SetVisible(plEl.barRow, done ~= nil)
-  if plAskWin and not plAskWin:IsShown() then   -- the notice closed (Esc): nothing read, the bottom button stays
-    plAskDrop()
-    plAsk, plBookStopped = false, true      -- not asked again on its own (the notice again from the button)
-  end
-  local asking = plAsk and done == nil
-  local panel = asking and not (PL.OwnNoticeWindow() and plAskShow())   -- its own window, else the panel
-  if not asking then plAskDrop() end
-  T.SetText(plEl.askText, panel and PL.ASK_TEXT or "")   -- (no text while hidden: the planner's text budget)
-  T.SetVisible(plEl.ask, panel)
   -- From scratch with no book read (only on ask, or stopped): the player's way to read it from here
-  local noticeUp = panel or (plAskWin ~= nil and plAskWin:IsShown())
-  T.SetVisible(plEl.book, done == nil and not noticeUp and PL.GetScratch() and (not D.recipeIndex or D.bookStale))
+  T.SetVisible(plEl.book, done == nil and not plConfirm and PL.GetScratch() and (not D.recipeIndex or D.bookStale))
   if D.recipeIndex then
     T.SetText(plEl.book, "Read the recipe book again")
     T.SetTooltip(plEl.book, "A recipe was learned since the book was read: read it again (in the background) so"
@@ -3274,6 +3288,8 @@ end
 
 -- T.ViewsTick: a change since the last refresh shows (at most every PL.REFRESH_GAP s); the reading bar moves.
 function PL.Tick()
+  plConfirmClosed()
+  plAskNeeded()
   local shown = PL.IsShown()
   if not (shown or PL.GetHud()) then return end
   if plDirty then PL.Refresh(false) end
@@ -3316,7 +3332,7 @@ function PL.Init()
   D.ForgetRecipes()                    -- another character knows other recipes
   local saved = T.ReadSaved(PL.KEY)
   plPrefs = type(saved) == "table" and saved or {}
-  plBookStopped, plBookOk, plAsk, plDeclined = false, false, false, false
+  plBookStopped, plConfirm, plConfirmReopen, plNeedAsk = false, nil, false, false
   plBookLater()
   plPrefs.v, plPrefs.mode, plPrefs.watch = 1, nil, nil
   plFresh, plBuilt, plMade, plDone, plPlan, plQuick, plWaitKnown = {}, {}, {}, {}, nil, {}, false
