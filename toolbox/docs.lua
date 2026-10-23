@@ -119,11 +119,11 @@ D.SECTIONS = {
       .. "and the game may stutter meanwhile: the planner says so and asks first. It's read only while the "
       .. "planner is open (about a minute and a half; it waits during a fight), the bar at the bottom shows "
       .. "how far, and the planner's controls are greyed out until it's done.",
-    "When the book is read is up to you (Settings, Crafting): when the planner needs it (the default), at "
-      .. "login (in the background a minute after you log in, and after you learn a recipe, even with the "
-      .. "planner closed), or only when you "
-      .. "ask: Read it now there, or the planner's own button. Then a recipe you learn leaves the book you "
-      .. "read in use until you read it again. Stop stops a read, a fight coming say, and nothing starts "
+    "When the book is read is up to you (Settings, Crafting): only when you ask (the default: Read it now "
+      .. "there, or in the planner; a recipe you learn leaves the book you read in use until you read it "
+      .. "again), when the planner needs it (after the first time, read again on its own when you learn a "
+      .. "recipe), or at login (in the background a minute after you log in, and after you learn a recipe, "
+      .. "even with the planner closed). Stop stops a read, a fight coming say, and nothing starts "
       .. "another on its own until you read it.",
     "Show switches between the Shopping list (everything to buy or gather, added up; shown first), the "
       .. "Plan and the Build order: the crafts grouped by station, the ones that make materials first. Each is "

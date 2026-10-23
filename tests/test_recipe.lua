@@ -141,6 +141,7 @@ return function(t)
     t.ok(all():find("Raw materials in all", 1, true), "at once the second time")
     -- the recipe itself (current counts) and its chain's makers (the book keeps only what each makes): not 404
     t.ok(calls - after <= 10, "the book isn't read again: " .. (calls - after))
+    H.chat("/tbx plan book need")                       -- (Only when I ask, the default, keeps the old book)
     H.callback("ShroudOnRecipesChanged")
     H.clearLogs()
     H.chat("/tbx recipe iron plate chest")

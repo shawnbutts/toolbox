@@ -60,8 +60,8 @@ In 1.9.1:
     Type /lua reload at the login screen too: no "Could not save" lines and no "New: the menu" line.
   * Switch to another character without quitting: each keeps its own settings and places.
   * The crafting planner: open its Show and Crafts lists. Are they wide enough, with no stray "Vertical"?
-  * The planner's recipe book: tick From scratch. Before reading, the planner explains the stutter and asks
-    (Read it now / Not now). It reads only while the planner is open (close it: the read pauses), and waits
+  * The planner's recipe book: now read only when you ask, by default. Tick From scratch: the planner explains
+    the stutter and offers it (Read it now / Not now). It reads only while the planner is open (close it: the read pauses), and waits
     in a fight ("paused during combat"). Does the game stutter less than in 1.9.0?
   * Sounds on a fresh install: do the alerts play without a /lua reload?
   * /tbx perf at a busy spot: below 30 frames a second it adds a line saying what the numbers mean.

@@ -1746,7 +1746,8 @@ PL.ASK_TEXT = "From scratch needs to know which of your recipes make each ingred
   .. " waits during a fight; close the window to pause it. Until then, I'll craft offers the recipes named like the"
   .. " item."
 PL.BOOK_AGAIN_NOTE = "Reading your recipe book again: the planner uses the one read before until it's done."
--- When the book is read on its own (owner, 2026-10-17: the read stutters the game, so the player picks):
+-- When the book is read on its own (owner, 2026-10-17: the read stutters the game, so the player picks; the default
+-- PL.BOOK_WHEN_DEFAULT):
 -- "need" (the planner's From scratch asks for it), "login" (in the background PL.BOOK_LOGIN_DELAY s after a login
 -- and after learning a recipe) or "manual" (only Read it now; a recipe learned leaves the old book in use, stale).
 PL.BOOK_WHEN = { { "need", "When the planner needs it" }, { "login", "At login, in the background" },
@@ -2099,9 +2100,10 @@ end
 
 -- The recipe book (for I'll craft), read once a session in the background (D.ReadRecipeBook), unless the player
 -- reads it only when they ask (PL.BOOK_WHEN) or stopped a read.
+-- Only when I ask: the notice offers it (nothing is read on its own); else the notice before the first read.
 function PL.NeedBook()
-  if D.recipeIndex or D.ReadingRecipes() or plBookStopped or PL.GetBookWhen() == "manual" then return end
-  if not plBookOk then                 -- the notice first: the player starts it
+  if D.recipeIndex or D.ReadingRecipes() or plBookStopped then return end
+  if PL.GetBookWhen() == "manual" or not plBookOk then   -- the notice: the player starts it
     if not plAsk then
       plAsk = true
       if plWin then PL.ShowProgress() end
@@ -2113,9 +2115,11 @@ function PL.NeedBook()
   end)
 end
 
+-- The default is "manual" (a player's request, 2026-10-23: the read stutters the game; "need" before 1.9.1).
+PL.BOOK_WHEN_DEFAULT = "manual"
 function PL.GetBookWhen()
   for _, w in ipairs(PL.BOOK_WHEN) do if w[1] == plPrefs.book then return w[1] end end
-  return "need"
+  return PL.BOOK_WHEN_DEFAULT
 end
 function PL.BookWhenName(key)
   for _, w in ipairs(PL.BOOK_WHEN) do if w[1] == key then return w[2] end end
@@ -2210,10 +2214,10 @@ function PL.BookStatus()
     return "Read this session: " .. n .. " recipes"
   end
   if plBookStopped then return "Stopped: not read (Read it now when you're ready)" end
-  if plAsk then return "Not read yet: the crafting planner asks before it reads it" end
+  if plAsk and PL.GetBookWhen() ~= "manual" then return "Not read yet: the crafting planner asks before it reads it" end
   local when = PL.GetBookWhen()
   if when == "login" then return "Not read yet: it starts about a minute after you log in" end
-  if when == "manual" then return "Not read yet: Read it now when you need it" end
+  if when == "manual" then return "Not read yet: Read it now when you need it (the default)" end
   return "Not read yet: read when the planner needs it (From scratch)"
 end
 

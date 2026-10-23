@@ -347,8 +347,8 @@ function C.CraftingSection()
     dropdownRow("Read it", { id = "pl_book_when", choices = names(PL.BOOK_WHEN),
       value = PL.BookWhenName(PL.GetBookWhen()), enabled = has,
       tooltip = "When the planner needs it: as From scratch asks. At login: in the background a minute after you log"
-        .. " in, and after learning a recipe. Only when I ask: never on its own (Read it now); a recipe learned"
-        .. " leaves the book you read in use.",
+        .. " in, and after learning a recipe. Only when I ask (the default): never on its own (Read it now); a"
+        .. " recipe learned leaves the book you read in use.",
       onChange = function(_, v) PL.SetBookWhen(v) end }),
     UI.Label{ id = "pl_book_status", text = PL.BookStatus(), class = "dim", style = { whiteSpace = "wrap" } },
     UI.Row{ style = { marginTop = 4 }, children = {

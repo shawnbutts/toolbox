@@ -395,6 +395,7 @@ return function(t)
   t.test("the book: a recipe at a time, with a bar while it's read; I'll craft knows every maker once it's done",
       function()
     open()
+    H.chat("/tbx plan book need")                -- (read again on its own after learning a recipe)
     H.S.recipes[15] = { id = 15, name = "Smelt Scrap Iron", category = "Smelting", categoryKey = "Crafting_Smelting",
       station = "Smelter", ingredients = { { name = "Metal Scraps", key = key("k"), quantity = 3, have = 0 } },
       results = { { name = "Iron Ingot", key = key("i"), quantity = 2 } } }   -- named unlike what it makes
@@ -455,6 +456,7 @@ return function(t)
   t.test("the book: a notice before it's read, read only with the planner open, only what each recipe makes kept",
       function()
     open()
+    H.chat("/tbx plan book need")
     local D, PL = Toolbox.Daily, Toolbox.Planner
     for i = 20, 80 do H.S.recipes[i] = { id = i, name = "Filler " .. i, ingredients = {}, results = {} } end
     H.callback("ShroudOnRecipesChanged")
@@ -752,15 +754,18 @@ return function(t)
     local D = Toolbox.Daily
     local function status() return H.config():Find("pl_book_status").text end
     H.chat("/tbx config")
-    H.change("toolbox_config", "pl_book_when", "Only when I ask")
-    t.eq(Toolbox.Planner.GetBookWhen(), "manual")
+    t.eq(Toolbox.Planner.GetBookWhen(), "manual", "the default (a player's request, 2026-10-23)")
+    t.eq(H.config():Find("pl_book_when").value, "Only when I ask")
     H.chat("/tbx plan augmented plate chest")
     H.change(W, "pl_scratch", true)
     H.advance(3)
     t.no(D.ReadingRecipes(), "From scratch doesn't read it on its own")
     t.eq(D.recipeIndex, nil)
     t.ok(status():find("Not read yet: Read it now", 1, true), status())
-    t.ok(find("pl_book").visible ~= false, "the planner's own button")
+    t.ok(find("pl_ask").visible ~= false, "the notice offers it")
+    t.eq(find("pl_book").visible, false, "in place of the bottom button")
+    H.click(W, "pl_ask_later")
+    t.ok(find("pl_book").visible ~= false, "Not now: the planner's own button")
     t.eq(find("pl_book").text, "Read the recipe book")
     H.click(W, "pl_book")
     t.ok(D.ReadingRecipes(), "read now")

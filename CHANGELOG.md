@@ -15,6 +15,9 @@ ones included).
 - `/toolbox perf` says when the game ran at under 30 frames a second on average: each frame is then long enough
   for Toolbox's timers to fall in most of them, so "Toolbox was working near" says little. It gives the time the
   timers' own work took and suggests comparing with `perf quiet`.
+- **The recipe book is now read only when you ask by default** (a player's request): From scratch offers it in the
+  planner (Read it now), and learning a recipe keeps the book you read until you read it again. "When the planner
+  needs it" and "At login" are still in Settings, Crafting; a choice you made is kept.
 - The crafting planner leans less on the game's slow recipe calls, which caused 1.9.0's hitching: the recipe book is
   read only while the planner is open (unless you chose "At login" in Settings, Crafting), waits during a fight (and
   a few seconds after it), and keeps only what each recipe makes instead of every whole recipe. Before it's first
