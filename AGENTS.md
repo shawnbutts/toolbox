@@ -1033,7 +1033,8 @@ Rules learned the hard way; keep to them.
   retries quietly, and HUD strip builds are atomic.
 - **Layout:** there is no absolute positioning; an overlay is a negative left margin (an Image over another
   draws on top). Margins clamp to -64..256 and paddings to 0..256, so overlap per icon, not per strip.
-  Labels carry theme side margins: set `marginLeft`/`marginRight` = 0 where widths must add up. Before API
+  `justifyContent` takes "start", "center", "end", "space-between" or "space-around", not CSS's "flex-end" (the game
+  refused a window over it, 2026-10-23; the harness checks it). Labels carry theme side margins: set `marginLeft`/`marginRight` = 0 where widths must add up. Before API
   25 `height` alone didn't size a label (a theme minimum won), so labels and bars pin `minHeight`/`maxHeight`
   (`Toolbox.Window.LineStyle` / `TextStyle`); harmless now. Rows can lay out taller than asked: measure with `GetSize` when
   things must line up. Hidden elements take no space. A colour's alpha doesn't fade children (`opacity`

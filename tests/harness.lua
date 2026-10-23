@@ -1220,9 +1220,17 @@ for k in ("width height minWidth minHeight maxWidth maxHeight flexDirection flex
     .. "alignSelf justifyContent margin marginLeft marginRight marginTop marginBottom padding paddingLeft "
     .. "paddingRight paddingTop paddingBottom color backgroundColor borderColor tint rotate opacity borderWidth "
     .. "borderRadius fontSize fontStyle textAlign whiteSpace"):gmatch("%S+") do STYLE_KEYS[k] = true end
+-- Values the game checks (its own error, 2026-10-23: "flex-end" refused, so the planner's confirmation window wasn't
+-- made): the reference lists none, so only the ones seen.
+local STYLE_VALUES = { justifyContent = { start = true, center = true, ["end"] = true, ["space-between"] = true,
+                                          ["space-around"] = true } }
 local function clampStyle(style)
-  for k in pairs(style) do
+  for k, v in pairs(style) do
     if not STYLE_KEYS[k] then error("Shroud.UI: unknown style property '" .. tostring(k) .. "'", 3) end
+    if STYLE_VALUES[k] and not STYLE_VALUES[k][v] then
+      error("Shroud.UI: style " .. k .. ": expected \"start\", \"center\", \"end\", \"space-between\" or"
+        .. " \"space-around\" (got " .. tostring(v) .. ")", 3)
+    end
   end
   for k, range in pairs(CLAMP) do
     local v = style[k]

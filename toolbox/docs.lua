@@ -739,7 +739,7 @@ function D.Warn(title, text)
         UI.Scroll{ style = { flexGrow = 1 }, children = {
           UI.Label{ id = "warning_text", text = text, class = "text", style = { whiteSpace = "wrap" } },
         } },
-        UI.Row{ style = { justifyContent = "flex-end", marginTop = 6 }, children = {
+        UI.Row{ style = { justifyContent = "end", marginTop = 6 }, children = {
           UI.Button{ id = "warning_ok", text = "OK", onClick = function() drop("warning") end },
         } },
       },

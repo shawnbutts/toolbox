@@ -3228,7 +3228,7 @@ local function plAskBuild(background, shared)
           UI.Label{ id = "pl_confirm_where", text = background and PL.ASK_WHERE_BG or PL.ASK_WHERE, class = "text",
             style = { whiteSpace = "wrap", marginTop = 6 } },
           UI.Label{ text = PL.ASK_BUTTONS, class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } } } } } },
-        UI.Row{ style = { justifyContent = "flex-end", marginTop = 8, flexShrink = 0 }, children = {
+        UI.Row{ style = { justifyContent = "end", marginTop = 8, flexShrink = 0 }, children = {
           UI.Button{ id = "pl_confirm_ok", text = "OK", style = { minWidth = 80 },
             tooltip = "Read your recipe book now", onClick = function()
               local fn = plConfirm

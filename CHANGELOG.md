@@ -36,6 +36,8 @@ ones included).
   connection, a kick or an idle logout they're now saved too; before, the last few minutes could be lost.
 - **The crafting planner's Show list** was only as wide as the view picked, so with "Plan" the open list was too
   narrow and showed a stray "Vertical". It and the Crafts list are now as wide as their longest choice.
+- **Warning windows:** the window Toolbox opens for a serious settings-file problem couldn't be made (a layout value
+  the game refuses); only its chat line showed.
 - **Sounds silent until a reload:** a sound whose file didn't load when Toolbox started (seen once on a fresh install)
   stayed silent for the whole session. It's now loaded again when it's wanted (its Test button, an alert), at most
   every 30 seconds.
