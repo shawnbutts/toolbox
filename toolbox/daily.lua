@@ -2951,6 +2951,16 @@ local function plFind(text, pick)
     or (#found > 1 and (#found .. " recipes match: pick one in the Recipe list.") or nil))
 end
 
+-- A dropdown left to size itself is as wide as its value: "Plan" made the Show list too narrow when open, the
+-- game's scroll bar showing its name, "Vertical" (owner, 2026-10-23). So it's as wide as its longest choice
+-- (PL.CHOICE_CHAR of the text size a character, plus PL.CHOICE_ARROW for the arrow).
+PL.CHOICE_CHAR, PL.CHOICE_ARROW = 0.7, 28
+function PL.ChoicesWidth(choices)
+  local longest = 0
+  for _, c in ipairs(choices) do longest = math.max(longest, #c) end
+  return math.ceil(longest * T.Window.GetFont() * PL.CHOICE_CHAR) + PL.CHOICE_ARROW
+end
+
 local function plBuild()
   local crafts = {}
   for i, n in ipairs(PL.CRAFTS) do crafts[i] = tostring(n) end
@@ -2982,13 +2992,15 @@ local function plBuild()
         if rid and rid ~= plRecipeId() then PL.SetRecipe(rid) end
       end },
     crafts = UI.Dropdown{ id = "pl_crafts", choices = crafts, value = tostring(PL.GetCrafts()),
-      tooltip = "How many times to craft it", onChange = function(_, v) PL.SetCrafts(tonumber(v)) end },
+      style = { minWidth = PL.ChoicesWidth(crafts) }, tooltip = "How many times to craft it",
+      onChange = function(_, v) PL.SetCrafts(tonumber(v)) end },
     title = UI.Label{ id = "pl_title", text = "", class = "text", style = { flexGrow = 1, flexShrink = 1,
       whiteSpace = "wrap", marginLeft = 6 } },
     scratch = UI.Toggle{ id = "pl_scratch", text = "From scratch", value = PL.GetScratch(),
       tooltip = "Offer I'll craft for what you're short of and one of your recipes makes",
       onChange = function(_, on) PL.SetScratch(on == true) end },
     view = UI.Dropdown{ id = "pl_view", choices = PL.VIEWS, value = PL.GetView(),
+      style = { minWidth = PL.ChoicesWidth(PL.VIEWS) },
       tooltip = "The slots, what to buy or gather, or the crafts in order by station",
       onChange = function(_, v) PL.SetView(v) end },
     result = UI.Label{ id = "pl_result", text = "", class = "text", style = { whiteSpace = "wrap" },

@@ -25,6 +25,8 @@ ones included).
 - **Saving at logout** (game clients with Lua API 43): your session, today's stats, buff timers, window places and
   the auto map's new marks are saved just before you log out, with your character still in the game. After a lost
   connection, a kick or an idle logout they're now saved too; before, the last few minutes could be lost.
+- **The crafting planner's Show list** was only as wide as the view picked, so with "Plan" the open list was too
+  narrow and showed a stray "Vertical". It and the Crafts list are now as wide as their longest choice.
 - **Sounds silent until a reload:** a sound whose file didn't load when Toolbox started (seen once on a fresh install)
   stayed silent for the whole session. It's now loaded again when it's wanted (its Test button, an alert), at most
   every 30 seconds.

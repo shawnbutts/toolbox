@@ -110,6 +110,19 @@ return function(t)
       "Bronze Sheet", "the first with enough")
   end)
 
+  -- Owner, 2026-10-23: sized to "Plan", the open Show list was too narrow (the game's scroll bar showed "Vertical").
+  t.test("the Show and Crafts dropdowns are as wide as their longest choice, not their value", function()
+    open()
+    local PL = Toolbox.Planner
+    local view, crafts = find("pl_view"), find("pl_crafts")
+    t.ok(view.style and view.style.minWidth, "the Show list has a width")
+    t.eq(view.style.minWidth, PL.ChoicesWidth(PL.VIEWS))
+    t.ok(view.style.minWidth > PL.ChoicesWidth({ "Plan" }), "wider than its value")
+    t.ok(view.style.minWidth >= math.ceil(#"Shopping list" * Toolbox.Window.GetFont() * PL.CHOICE_CHAR),
+      "Shopping list fits")
+    t.ok(crafts.style and crafts.style.minWidth, "the Crafts list too")
+  end)
+
   t.test("Reset: the plan's fields cleared, the recipe book kept", function()
     open()
     H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
