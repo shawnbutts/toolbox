@@ -2483,10 +2483,11 @@ function T.PerfT()
   local ok, now = pcall(timing.clock)
   return ok and type(now) == "number" and now or nil
 end
+-- Returns the label's entry (nil when nothing was timed).
 function T.PerfAdd(label, t0)
-  if not (timing and t0) then return end
+  if not (timing and t0) then return nil end
   local ok, now = pcall(timing.clock)
-  if not ok or type(now) ~= "number" then return end
+  if not ok or type(now) ~= "number" then return nil end
   local d = now - t0
   local e = timing.parts[label]
   if not e then
@@ -2496,6 +2497,7 @@ function T.PerfAdd(label, t0)
   e.n, e.sum = e.n + 1, e.sum + d
   if d > e.max then e.max = d end
   if d > T.PERF_PART_SLOW then e.over = e.over + 1 end
+  return e
 end
 
 -- Toolbox is working now: noted for /toolbox perf (the same work twice in a frame once).
@@ -2544,7 +2546,8 @@ function T.RegisterPeriodic(name, fn, period, repeating)
     T.Ran(name)
     local t0 = T.PerfT()
     fn()
-    T.PerfAdd(name, t0)
+    local e = T.PerfAdd(name, t0)
+    if e then e.timer = true end       -- a whole timer's run; the parts timed inside it are in it (review 65)
   end
   if repeating then periodicRuns[name] = { run = run, period = period } end
   if repeating and T.PerfHolds(name) then return true end   -- a quiet / only run: started at its report (review 47)
@@ -2578,13 +2581,14 @@ function T.RemovePeriodic(name)
   return pcall(ShroudRemovePeriodic, name)
 end
 
--- The timing's lines: the timers, then the parts, the longest first (at most T.PERF_LINES of each).
+-- The timing's lines: the timers (entries marked `timer` by T.RegisterPeriodic), then the parts timed inside them,
+-- the longest first (at most T.PERF_LINES of each).
 T.PERF_LINES = 6
 function T.PerfTimingLines(parts)
   local timers, inner = {}, {}
   for label, e in pairs(parts) do
     local row = { label = label, e = e }
-    if label:find(":", 1, true) then inner[#inner + 1] = row else timers[#timers + 1] = row end
+    if e.timer then timers[#timers + 1] = row else inner[#inner + 1] = row end
   end
   local function byMax(a, b) return a.e.max > b.e.max end
   table.sort(timers, byMax)
@@ -2663,8 +2667,8 @@ local function perfReport()
     local spent = nil
     if timed then
       spent = 0
-      for label, e in pairs(timed.parts) do
-        if not label:find(":", 1, true) then spent = spent + e.sum end
+      for _, e in pairs(timed.parts) do
+        if e.timer then spent = spent + e.sum end           -- whole timers only: a part is inside one (review 65)
       end
     end
     lowRate = string.format("Your game ran at about %d frames a second on average, so its frames were long and"

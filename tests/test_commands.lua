@@ -303,6 +303,30 @@ return function(t)
     t.no(H.logged("Your game ran at about"), "a quiet run is the comparison itself")
   end)
 
+  t.test("perf: the low frame rate line counts each timer's time once, not its parts again (review 65)", function()
+    H.boot()
+    H.advance(3, 0.05)
+    local clock, fake = os.clock, 0
+    os.clock = function() return fake end              -- luacheck: ignore (a clock the test moves)
+    H.chat("/tbx perf 10")
+    Toolbox.RegisterPeriodic("toolbox_testwork", function()
+      fake = fake + 0.01
+      local t0 = Toolbox.PerfT()
+      fake = fake + 0.005
+      Toolbox.PerfAdd("nested work", t0)
+    end, 1, true)
+    H.clearLogs()
+    H.advance(11, 0.05)
+    os.clock = clock                                   -- luacheck: ignore
+    Toolbox.RemovePeriodic("toolbox_testwork")
+    local all = table.concat(H.logs(), "\n")
+    local runs = tonumber(all:match("toolbox_testwork 15%.0 ms at most, 15%.0 on average, 0 over 16 ms in (%d+)"))
+    t.ok(runs and runs >= 9, all)
+    t.ok(all:find("Their parts: [^\n]*nested work 5%.0 ms at most"), "a part, not a timer: " .. all)
+    t.no(all:find("timers: [^\n]*nested work"), all)
+    t.ok(all:find("Its timers' own work took " .. (runs or 0) * 15 .. " ms of the 10 s", 1, true), all)
+  end)
+
   t.test("perf: a client refusing the 0.01 s timer gets a longer one; refusing every one is said", function()
     H.boot()
     H.S.periodMin = 0.011
