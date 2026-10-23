@@ -864,7 +864,7 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   "Toolbox: Toolbelt, HUDs, Trackers, and mo: <text>", not "Toolbox: <text>"; a client bug, reported to the developers
   (nothing to change on our side). The location strip no longer asks `ShroudGetNearestWaterType` (owner, same day: the
   scene's kinds instead).
-- **API 41-44** (docs 2026-10-18; `T.DOCS_API` = 44, `min_api_version` stays 25; `/toolbox api` tells each, by version
+- **API 41-44** (docs 2026-10-18; the live client reports API 44, owner 2026-10-23; `T.DOCS_API` = 44, `min_api_version` stays 25; `/toolbox api` tells each, by version
   where there's no function to look up): 41, **30 windows per add-on** (8 before; the owner asked for 12): the shared
   8th window's users (Docs, version, Map overlays, the crafting planner) can have their own, planned with 1.10.0, and
   `T.TakeSharedWindow` kept for older clients; `ShroudGetInventoryItems` / `ShroudGetEquipmentItems` `weight` and
@@ -910,7 +910,7 @@ describes water today (a caught fish's name, "(Saltwater Fish)", is the only hin
 the logout while the character is still in (`ShroudOnBeforeLogOut`), and a character-scope write with no character
 refused instead of stored in a "nochar" file; until then Toolbox saves at `ShroudOnSceneUnloaded` while a character
 is named and skips character writes without one (`T.NoCharacter`). Done (the developers, 2026-10-18: build
-094495886b, API 43; not on chaos or live yet, the reference with the next deploy): `ShroudOnBeforeLogOut` runs once on
+094495886b, API 43; on the live client by 2026-10-23, API 44): `ShroudOnBeforeLogOut` runs once on
 Exit to Menu / Quit with the character still in, the saved vars flushed right after; a logout not chosen (lost
 connection, kick, idle) runs it late at the login screen, before the logout flush, still keyed to that character, but
 `ShroudGetPlayerName` and such may be nil there. With no character, character-scope `ShroudSetSavedVar` /
