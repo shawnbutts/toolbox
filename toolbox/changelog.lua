@@ -7,6 +7,7 @@ Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
   { "version", "1.9.1 - 2026-10-23" },
   { "section", "Changed" },
+  { "item", "Sounds start off for new characters: every sound's own volume begins at 0%, so a new player hears nothing until they raise the sounds they want (Settings, Sounds; Test plays each). Characters that already used Toolbox keep their sounds as they were. A buff's or debuff's own sound file plays as before." },
   { "item", "The Docs guide and the readmes give the way to each feature through the menu and the settings instead of chat commands; the commands are still there, all of them in the Docs' Commands topic." },
   { "item", "/toolbox perf says when the game ran at under 30 frames a second on average: each frame is then long enough for Toolbox's timers to fall in most of them, so \"Toolbox was working near\" says little. It gives the time the timers' own work took and suggests comparing with perf quiet." },
   { "item", "The recipe book is now read only when you ask by default (a player's request): From scratch offers it in the planner (Read it now), and learning a recipe keeps the book you read until you read it again. \"When the planner needs it\" and \"At login\" are still in Settings, Crafting; a choice you made is kept." },

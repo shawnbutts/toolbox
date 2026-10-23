@@ -31,11 +31,14 @@ S.VOLUME_DEFAULT = 70
 -- Volumes, format 2 (owner, 2026-10-07: some found 100% too quiet; and a volume per sound). The shipped sounds
 -- were made twice as loud (art/alerts.py: +7.5 dB into a limiter), so a saved volume from before is halved once
 -- (the old 100% is the new 50%: nothing changes for whoever chose it), while the default (70) is now twice as
--- loud. Each sound also has its own level (S.LEVEL_DEFAULT %), applied on top: played at volume x level / 100.
+-- loud. Each sound also has its own level (unset: `base`, below), applied on top: played at volume x level / 100.
 -- A player's own file can't be made louder, so it plays at twice that (capped at the game's 100): as loud as it
 -- was before.
-S.VOLUME_FORMAT = 2
-S.LEVEL_DEFAULT = 100
+-- Format 3 (owner, 2026-10-23: "turn all the sounds to 0% (off) by default. let the users discover what they need"):
+-- `base` = the level of a sound not set on its own, S.LEVEL_NEW (0) for a new character, S.LEVEL_OLD (100) for one
+-- that ran Toolbox before (T.knownCharacter; a format 2 file): nobody's alerts go quiet with an update.
+S.VOLUME_FORMAT = 3
+S.LEVEL_OLD, S.LEVEL_NEW = 100, 0
 S.DEFS = {
   { key = "buff_expiring", file = "buff_expiring.ogg", label = "Buff expiring" },
   { key = "debuff_landed", file = "debuff_landed.ogg", label = "Debuff landed" },
@@ -49,7 +52,7 @@ S.DEFS = {
 -- state[key] = { candidates = {...}, at = index, since = t, before = n, clip = name|nil,
 --               path = path|nil, status = "loading"|"ready"|"missing" }
 local state = {}
-local prefs = { v = S.VOLUME_FORMAT, volume = S.VOLUME_DEFAULT, paths = {}, levels = {} }
+local prefs = { v = S.VOLUME_FORMAT, volume = S.VOLUME_DEFAULT, paths = {}, levels = {}, base = S.LEVEL_NEW }
 
 -- The game's loaded clips as a list of names (the file's base name), in clip-id order: the id
 -- is the 1-based position. Confirmed in game 2026-09-28: plain strings, as documented.
@@ -180,15 +183,20 @@ end
 
 function S.Init()
   local saved = T.ReadSaved("sounds")
-  prefs = { v = S.VOLUME_FORMAT, volume = S.VOLUME_DEFAULT, paths = {}, levels = {} }
-  local migrate = false
+  prefs = { v = S.VOLUME_FORMAT, volume = S.VOLUME_DEFAULT, paths = {}, levels = {},
+            base = T.knownCharacter and S.LEVEL_OLD or S.LEVEL_NEW }
+  local migrate = type(saved) ~= "table" or saved.v ~= S.VOLUME_FORMAT   -- the base decided once, then kept
   if type(saved) == "table" then
     if type(saved.volume) == "number" and saved.volume >= 0 and saved.volume <= 100 then
       prefs.volume = math.floor(saved.volume)
-      if saved.v ~= S.VOLUME_FORMAT then        -- saved before the louder sounds: the same loudness now
+      if saved.v ~= 2 and saved.v ~= S.VOLUME_FORMAT then   -- saved before the louder sounds: the same loudness now
         prefs.volume = math.floor(prefs.volume / 2 + 0.5)
-        migrate = true
       end
+    end
+    if saved.v == S.VOLUME_FORMAT and (saved.base == S.LEVEL_OLD or saved.base == S.LEVEL_NEW) then
+      prefs.base = saved.base
+    elseif saved.v ~= S.VOLUME_FORMAT then
+      prefs.base = S.LEVEL_OLD                 -- saved by an older Toolbox: its sounds as they were
     end
     if type(saved.levels) == "table" then
       for k, n in pairs(saved.levels) do
@@ -346,12 +354,14 @@ end
 function S.GetLevel(key)
   local n = prefs.levels[key]
   if type(n) == "number" then return n end
-  return S.LEVEL_DEFAULT
+  return prefs.base
 end
+-- The level a sound not set on its own has (S.LEVEL_NEW for a new character).
+function S.BaseLevel() return prefs.base end
 
 function S.SetLevel(key, n)
   if type(n) ~= "number" or n ~= math.floor(n) or n < 0 or n > 100 then return false end
-  prefs.levels[key] = n ~= S.LEVEL_DEFAULT and n or nil
+  prefs.levels[key] = n ~= prefs.base and n or nil
   save()
   T.Config.Sync()
   return true
@@ -360,7 +370,11 @@ end
 -- The volume a sound plays at (0..100 for the game): the alert volume x its own level, twice that for a file of
 -- the player's (the shipped ones were made twice as loud), at most 100.
 function S.EffectiveVolume(key, levelKey)
-  local v = prefs.volume * S.GetLevel(levelKey or key) / 100
+  local lk = levelKey or key
+  local level = S.GetLevel(lk)
+  -- a player's own effect file was chosen to be heard: the alert's level only once they set it themselves
+  if key:sub(1, 5) == "file:" and prefs.levels[lk] == nil then level = S.LEVEL_OLD end
+  local v = prefs.volume * level / 100
   local st = state[key]
   local def = defFor(key)
   if st and st.path and def and st.path ~= "toolbox/" .. def.file then v = v * 2 end

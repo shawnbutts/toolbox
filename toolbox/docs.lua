@@ -215,7 +215,8 @@ D.SECTIONS = {
       .. "it from the game's list (a newer game client), or paste the file's path (toolbox_sounds/atos.ogg; a "
       .. "full path is cut to the part after Lua; give each file a name of its own) and press Set; the list "
       .. "below it has Test and Remove (the Sounds page has a button to get there). It replaces the usual "
-      .. "debuff or expiry sound, at that sound's volume, and plays even with those alerts off (muting still "
+      .. "debuff or expiry sound, at that sound's volume once you set one, and plays even with those alerts "
+      .. "off (muting still "
       .. "silences it); a file that can't be opened (chat says so) plays the usual sound." },
   { "Buff block",
     "The buff block (Settings, Buffs, Show the buff block): every buff and debuff on a strip of its own, "
@@ -380,7 +381,8 @@ D.SECTIONS = {
       .. "Test plays it. A single buff or debuff can have its own sound too (a recording of its name, say): "
       .. "see Buff alerts and sounds.",
     "Volume (Settings, Sounds): one alert volume for all, and under each sound its own volume, a share of "
-      .. "the alert volume (0 silences just that one). The add-on's sounds are loud enough that 50% is about "
+      .. "the alert volume (0 silences just that one). A new character starts with every sound at 0%, off: "
+      .. "raise the ones you want, and Test plays it. The add-on's sounds are loud enough that 50% is about "
       .. "what 100% used to be; your own files play at twice the setting, so they keep their old loudness." },
   { "Setups, backup & reset",
     "Each character has its own settings and positions. To copy another character's, yours or someone "

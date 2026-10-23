@@ -64,7 +64,8 @@ In 1.9.1:
     Read the recipe book (or Settings, Crafting: Read it now): a window explains the stutter and asks, OK or
     Cancel. Nothing should be read unless you press OK. It reads only while the planner is open (close it: the read pauses), and waits
     in a fight ("paused during combat"). Does the game stutter less than in 1.9.0?
-  * Sounds on a fresh install: do the alerts play without a /lua reload?
+  * Sounds: a new character starts with every sound at 0% (Settings, Sounds). Raise one and Test it; on a
+    fresh install, does it play without a /lua reload? Your existing characters should sound as before.
   * /tbx perf at a busy spot: below 30 frames a second it adds a line saying what the numbers mean.
 Earlier:
 In 1.9.0:

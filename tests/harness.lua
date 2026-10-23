@@ -1676,6 +1676,13 @@ function H.boot(disk, time, firstRun)
     disk.account = disk.account or {}
     if disk.account.welcomed == nil then disk.account.welcomed = true end
     if disk.account.version_seen == nil then disk.account.version_seen = H.VERSION end
+    -- a returning player's character ran Toolbox before: its sounds at their old full level (sounds.lua's `base`;
+    -- new characters start at 0). A test of a new character's defaults uses H.firstBoot or its own disk.
+    local who = "character:" .. (H.BOOT_NAME or "Tester")
+    disk[who] = disk[who] or {}
+    if disk[who].sounds == nil and not H.newCharacter then
+      disk[who].sounds = { v = 3, volume = 70, base = 100, paths = {}, levels = {} }
+    end
   end
   fresh(disk)
   S.time = time or 100

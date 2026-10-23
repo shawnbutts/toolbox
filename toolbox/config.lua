@@ -823,7 +823,8 @@ function C.SoundsSection()
   local children = {
     heading("Alert sounds", true),
     slider("volume", "Volume", 0, 100, 5, S.GetVolume(), "0 mutes the alerts", function(n) S.SetVolume(n) end),
-    UI.Label{ text = "Each alert plays the add-on's own sound unless you pick a file:", class = "dim",
+    UI.Label{ text = "A new character starts with every sound at 0% (off): raise the ones you want under each"
+      .. " sound, and Test plays it. Each alert plays the add-on's own sound unless you pick a file:", class = "dim",
       style = { whiteSpace = "wrap", marginTop = 6 } },
   }
   for _, def in ipairs(S.DEFS) do children[#children + 1] = soundRows(def) end

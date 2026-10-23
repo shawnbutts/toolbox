@@ -4314,7 +4314,15 @@ end
 
 -- Every module's start: reads its settings and builds its windows and strips. Run again for another character
 -- (T.FollowCharacter): each Init drops what it built before.
+-- Whether this character ran Toolbox before (any of these settings saved), read before any module saves: a new
+-- default can be for new characters only (the sounds' levels, owner 2026-10-23). A reset clears them: new defaults.
+T.KNOWN_KEYS = { "launcher", "window", "compact", "daily_window", "buffbar", "sounds", "hud", "vitals" }
+T.knownCharacter = false
 local function startModules(places)
+  T.knownCharacter = false
+  for _, key in ipairs(T.KNOWN_KEYS) do
+    if ShroudGetSavedVar(key, SCOPE) ~= nil then T.knownCharacter = true end
+  end
   step("the Notifications window", T.Notify.DropWindow)
   step("XP Detailed", T.Window.Init)
   step("the XP window", T.Compact.Init)

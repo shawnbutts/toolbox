@@ -1919,6 +1919,48 @@ return function(t)
     t.eq(S.GetLevel("buff_expiring"), 0, "kept")
   end)
 
+  -- Owner, 2026-10-23: "turn all the sounds to 0% (off) by default. let the users discover what they need". New
+  -- characters only: one that ran Toolbox before keeps its sounds.
+  t.test("sounds: a new character's start at 0% (each raised on its own); a returning one's kept", function()
+    H.newCharacter = true
+    H.boot()
+    H.newCharacter = nil
+    H.S.files["toolbox/buff_expiring.ogg"] = true
+    H.reload()
+    H.advance(Toolbox.BuffBar.SETTLE)                 -- (loaded)
+    local S = Toolbox.Sounds
+    t.eq(S.BaseLevel(), S.LEVEL_NEW, "a new character")
+    for _, def in ipairs(S.DEFS) do t.eq(S.GetLevel(def.key), 0, def.key .. " starts at 0%") end
+    t.eq(S.GetVolume(), S.VOLUME_DEFAULT, "the alert volume as before")
+    local ok, info = S.Play("buff_expiring")
+    t.no(ok, "nothing plays")
+    t.eq(info.reason, "soundMuted")
+    H.chat("/tbx config")
+    t.eq(H.config():Find("snd_buff_expiring_vol").value, 0, "its slider at 0")
+    t.eq(S.EffectiveVolume("file:own.ogg", "buff_expiring"), S.VOLUME_DEFAULT,
+      "a player's own effect file was chosen to be heard: it plays")
+    H.change("toolbox_config", "snd_buff_expiring_vol", 80)
+    t.ok(S.Play("buff_expiring"), "raised: it plays")
+    t.eq(S.GetLevel("debuff_landed"), 0, "the others still off")
+    H.reload()
+    t.eq(S.BaseLevel(), S.LEVEL_NEW, "kept: saved once decided")
+    t.eq(S.GetLevel("buff_expiring"), 80)
+    t.eq(H.S.memory["character:Tester"].sounds.v, S.VOLUME_FORMAT)
+
+    H.boot()                                          -- a returning character (format 3, base 100)
+    t.eq(Toolbox.Sounds.GetLevel("buff_expiring"), 100, "a returning character's sounds as they were")
+    H.boot({ ["character:Tester"] = { sounds = { v = 2, volume = 40, paths = {}, levels = { ping = 30 } } } })
+    S = Toolbox.Sounds
+    t.eq(S.BaseLevel(), S.LEVEL_OLD, "saved by 1.9.0: full")
+    t.eq(S.GetVolume(), 40, "not halved again")
+    t.eq(S.GetLevel("ping"), 30, "its own levels kept")
+    t.eq(S.GetLevel("notify"), 100)
+    H.newCharacter = true
+    H.boot({ ["character:Tester"] = { launcher = { show = true } } })   -- ran Toolbox, never saved a sound
+    H.newCharacter = nil
+    t.eq(Toolbox.Sounds.BaseLevel(), Toolbox.Sounds.LEVEL_OLD, "a character that ran Toolbox before: full")
+  end)
+
   t.test("volume: one saved before the louder sounds is halved once (the same loudness)", function()
     H.boot({ ["character:Tester"] = { sounds = { volume = 100, paths = {} } } })
     t.eq(Toolbox.Sounds.GetVolume(), 50, "the old 100% is the new 50%")

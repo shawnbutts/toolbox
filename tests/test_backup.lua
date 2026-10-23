@@ -129,7 +129,9 @@ return function(t)
     H.firstBoot()
     t.eq(H.S.backups.account, nil, "a new install: nothing to keep")
 
+    H.newCharacter = true                        -- (no character file yet: only the account's copied at the update)
     H.boot({ account = { version_seen = "1.7.0", welcomed = true } })
+    H.newCharacter = nil
     H.clearLogs()
     H.S.backupAt[CH] = ShroudTime                -- the game copied the file a moment ago (its minute)
     H.chat("/tbx settings reset")
