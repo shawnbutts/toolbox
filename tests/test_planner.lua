@@ -268,6 +268,30 @@ return function(t)
     t.no(Toolbox.Planner.GetHud())
   end)
 
+  t.test("the Crafting Planner HUD: not worked out again in a fight; a plan reading more recipes waits longer"
+      .. " (review 67)", function()
+    hudOpen()
+    local PL = Toolbox.Planner
+    t.eq(PL.Gap(false), PL.HUD_GAP + PL.GAP_PER_READ, "one recipe read: half a second more")
+    t.eq(PL.Gap(true), PL.REFRESH_GAP + PL.GAP_PER_READ, "the window's too")
+    H.setCombat(true)
+    bags(3)
+    H.advance(10)
+    t.eq(hudLine("sh_1").text, "[ ] 0 / 4 Leather Strap", "not during the fight")
+    H.setCombat(false)
+    H.advance(Toolbox.BuffBar.COMBAT_LINGER + 1)
+    t.eq(hudLine("sh_1").text, "[ ] 3 / 4 Leather Strap", "caught up after it")
+    H.chat("/tbx plan")
+    H.change(W, "pl_scratch", true)
+    for _, r in ipairs(PL.LastPlan().rows) do        -- I'll craft every shortfall: their recipes read too
+      H.call(PL.SetMaking, r.path, true)
+    end
+    t.ok(PL.Gap(true) >= PL.REFRESH_GAP + 2 * PL.GAP_PER_READ, "two recipes: " .. PL.Gap(true))
+    PL.GAP_PER_READ = 100
+    t.eq(PL.Gap(true), PL.GAP_MAX, "at most PL.GAP_MAX")
+    PL.GAP_PER_READ = 0.5
+  end)
+
   t.test("the Crafting Planner HUD: a step stays done as the recipe uses it up; Start over for the next batch",
       function()
     hudOpen()
@@ -407,6 +431,29 @@ return function(t)
     H.callback("ShroudOnSceneLoaded", "Novia")
     H.advance(1)
     t.eq(Toolbox.Daily.recipeIndex, nil, "another character: its own book, read again")
+  end)
+
+  t.test("the book's read pauses in a fight and just after it, and goes on after (review 67)", function()
+    open()
+    for i = 20, 80 do H.S.recipes[i] = { id = i, name = "Filler " .. i, ingredients = {}, results = {} } end
+    H.callback("ShroudOnRecipesChanged")
+    H.advance(1)
+    H.chat("/tbx plan book read")
+    H.advance(0.5, 0.05)
+    local done = Toolbox.Daily.BookProgress()
+    t.ok(done and done > 0, "reading")
+    H.setCombat(true)
+    H.advance(0.1, 0.05)
+    done = Toolbox.Daily.BookProgress()
+    H.advance(3, 0.05)
+    t.eq(Toolbox.Daily.BookProgress(), done, "nothing read in the fight")
+    t.ok(text("pl_bar_text"):find("paused during combat", 1, true), text("pl_bar_text"))
+    H.setCombat(false)
+    H.advance(Toolbox.BuffBar.COMBAT_LINGER - 1, 0.05)
+    t.eq(Toolbox.Daily.BookProgress(), done, "nor just after it")
+    H.advance(10, 0.05)
+    t.ok(Toolbox.Daily.recipeIndex, "read once the fight is over")
+    t.eq(Toolbox.Daily.recipeIndex.count, 66)
   end)
 
   t.test("the known recipes are read once a session: search, the names, the book read share them", function()

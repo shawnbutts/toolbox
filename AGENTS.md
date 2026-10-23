@@ -196,7 +196,7 @@ into one if a new file is ever needed).
   the highest `trainedLevel` seen per skill (`skill_levels`); deaths from `ShroudOnDeathChanged(true)`.
   The recipe book (`D.ReadRecipeBook`, for `/toolbox recipe` and the planner): `D.BOOK_STEP` (1) recipe by id a
   `D.BOOK_PERIOD` (0.05 s) step, about 90 s for a big book (the whole book at once ran past the game's time limit,
-  2026-10-05; API 37's `ShroudGetRecipeBook`, one station a step, hitched in game, owner 2026-10-15: not used;
+  2026-10-05; paused in a fight and `BB.COMBAT_LINGER` s after it, `D.BookPaused`, review 67; API 37's `ShroudGetRecipeBook`, one station a step, hitched in game, owner 2026-10-15: not used;
   `D.BookProgress` for the planner's bar, with a once-a-login note, `PL.BOOK_NOTE`; meanwhile the planner's
   controls are greyed out, `plLock` from `PL.ShowProgress`: owner, 2026-10-16); kept for the session in
   `D.recipeIndex` (`recipes`, `byResult` by name,
@@ -215,7 +215,8 @@ into one if a new file is ever needed).
   owner: the counts and the "Adds ..." line under each slot, `PL.AddsText`, show it; `PL.Reset` clears the plan, not
   the book), `PL.PickMaker`, `PL.Preview` (base + the
   root's picks, weight left out). Refreshed on `ShroudOnInventoryChanged` / craft results / the crafting state at most
-  every `PL.REFRESH_GAP` s while shown (`PL.Tick` from `T.ViewsTick`), the plan's recipes read fresh; before the
+  every `PL.Gap` s while shown (`PL.REFRESH_GAP`, or `PL.HUD_GAP` with only the HUD, plus `PL.GAP_PER_READ` for
+  each recipe the last refresh read, to `PL.GAP_MAX`; with only the HUD, not in a fight: review 67) (`PL.Tick` from `T.ViewsTick`), the plan's recipes read fresh; before the
   book is read, the makers are the known recipes named like the item (`plQuickMakers`, a few calls, over
   `D.KnownRecipes`: the game's list once a session, 4.5 ms, indexed by first word `D.KNOWN_STEP` a step from the
   planner opening, `D.PrepareKnown`, since one frame took 24 ms; a search finishes it at once); the shortfall's
@@ -231,7 +232,7 @@ into one if a new file is ever needed).
   it up, owner 2026-10-17; `sh_again`, Start over, `PL.StartOver`: the same recipe, nothing made, the shopping list), then at the end the `craft_done` sound (sounds.lua's `S.DEFS`, art/alerts.py) and a close after
   `hudClose` s (`PL.HUD_CLOSE`, default 30, settings `pl_hud_close`); what it opens on and Start over goes back to
   (`hudStart`), the move on once gathered (`hudAuto`), its shade and Position row (`plhud`, POSITIONED's "crafting"
-  page); planned again every `PL.HUD_GAP` s on a change
+  page); planned again every `PL.Gap` s on a change
   with the window closed, counts in place, rebuilt when lines come or go. Text budget (the
   stress test's four 30-choice slots: 46,703 at the peak): `PL.CHOICES_SHOWN` (10) choices a slot.
 - `dailydetail.lua`: `Toolbox.DailyDetail`, **Loot Tracker** (views Looted / Crafted / Gathered). Refreshes

@@ -117,7 +117,8 @@ D.SECTIONS = {
       .. "anything. When two recipes make it (Iron Ingot, Iron Ingot from Metal Scraps), the one named like "
       .. "the item is used, and made by changes it. For that your recipe book is read in the background, a "
       .. "recipe at a time so the game doesn't stall (it may stutter): the bar at the bottom shows how far "
-      .. "(about a minute and a half), and the planner's controls are greyed out until it's done.",
+      .. "(about a minute and a half; it waits during a fight), and the planner's controls are greyed out "
+      .. "until it's done.",
     "When the book is read is up to you (Settings, Crafting): when the planner needs it (the default), at "
       .. "login (in the background a minute after you log in, and after you learn a recipe), or only when you "
       .. "ask: Read it now there, or the planner's own button. Then a recipe you learn leaves the book you "

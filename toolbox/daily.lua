@@ -1386,10 +1386,13 @@ local function indexRecipe(r, id, rec)
   end
 end
 
--- One step: D.BOOK_STEP recipes, by id.
+-- One step: D.BOOK_STEP recipes, by id. Paused in combat and just after it (review 67: a single ShroudGetRecipe took
+-- up to 519 ms in game, a hitch a fight can't afford): the timer goes on, reading nothing until it's over.
+function D.BookPaused() return T.BuffBar ~= nil and T.BuffBar.InCombatWindow() end
 local function readSome()
   local r = reading
   if not r then return end
+  if D.BookPaused() then return end
   local t0 = T.PerfT()
   local stop = math.min(#r.list, r.at + D.BOOK_STEP - 1)
   for i = r.at, stop do
@@ -1702,6 +1705,11 @@ PL.ROWS_MAX = 60
 PL.PICKS_MAX = 60
 PL.RESULT_STATS = 8                   -- stats on the result line
 PL.REFRESH_GAP = 2
+-- A plan refreshed on a change reads each of its recipes again (their `have` counts; requests 26 and 29 would make
+-- it cheaper), each a slow call in game (review 67): the gap grows by PL.GAP_PER_READ s for each recipe the last
+-- refresh read, to PL.GAP_MAX at most. A player's own change still refreshes at once.
+PL.GAP_PER_READ = 0.5
+PL.GAP_MAX = 20
 PL.INDENT = 14
 PL.CRAFTS = { 1, 2, 3, 4, 5, 10, 20, 50, 100 }
 PL.VIEWS = { "Shopping list", "Plan", "Build order" }   -- the shopping list first, and by default (owner)
@@ -1958,8 +1966,11 @@ end
 
 local function plRecipeId() return plNum(plPrefs.recipe) end
 
+local plReads = 0                       -- ShroudGetRecipe calls the planner made (the refresh gap grows with a plan's)
+local plLastReads = 0                   -- how many the last refresh made
 local function plRecipe(id)
   if plFresh[id] == nil then
+    plReads = plReads + 1
     local t0 = T.PerfT()
     local ok, rec = pcall(ShroudGetRecipe, id)
     T.PerfAdd("planner:a recipe read", t0)
@@ -2820,17 +2831,30 @@ local function plUpdateRows(plan)
   end
 end
 
+-- How long a change waits before the plan is worked out again: the window's or the HUD's gap, longer for a plan
+-- whose last refresh read more recipes.
+function PL.Gap(shown)
+  return math.min(PL.GAP_MAX, (shown and PL.REFRESH_GAP or PL.HUD_GAP) + PL.GAP_PER_READ * plLastReads)
+end
+
 -- Fills the window from a new plan. `now`: at once (a player's change), else only when something changed and at
 -- most every PL.REFRESH_GAP s (PL.Tick).
 function PL.Refresh(now)
   plDirty = true
   local inWin = plWin ~= nil and plBody ~= nil
   if not (inWin or PL.GetHud()) then return end
-  if not now and T.Now() - plAt < ((inWin and PL.IsShown()) and PL.REFRESH_GAP or PL.HUD_GAP) then return end
+  if not now then
+    local shown = inWin and PL.IsShown()
+    -- only the HUD shows: not in a fight (the counts catch up after it; review 67)
+    if not shown and T.BuffBar and T.BuffBar.InCombatWindow() then return end
+    if T.Now() - plAt < PL.Gap(shown) then return end
+  end
   plDirty, plAt = false, T.Now()
   plFresh = {}
   local t0 = T.PerfT()
+  local reads = plReads
   local plan = PL.Plan()
+  plLastReads = plReads - reads
   T.PerfAdd("planner:the plan", t0)
   plPlan = plan
   shUpdate(plan)
@@ -3089,7 +3113,8 @@ function PL.ShowProgress()
   T.SetValue(plEl.bar, total > 0 and done / total or 0)
   local mins = math.floor(left / 60 + 0.5)
   T.SetText(plEl.barText, "Reading recipes: " .. T.FormatNumber(done) .. " of " .. T.FormatNumber(total)
-    .. (mins >= 1 and (", about " .. mins .. " min left") or ", nearly done"))
+    .. (D.BookPaused() and ", paused during combat" or mins >= 1 and (", about " .. mins .. " min left")
+    or ", nearly done"))
 end
 
 -- T.ViewsTick: a change since the last refresh shows (at most every PL.REFRESH_GAP s); the reading bar moves.
