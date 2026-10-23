@@ -7,6 +7,8 @@ ones included).
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-10-23
+
 ### Changed
 - The Docs guide and the readmes give the way to each feature through the menu and the settings instead of chat
   commands; the commands are still there, all of them in the Docs' Commands topic.

@@ -54,6 +54,17 @@ while its window is open. Change it or switch it off under Menu, setups, backup 
 --------------
 
 Anything you like, but especially what's new in this version (/tbx version lists it all):
+In 1.9.1:
+  * Log out (Exit to Menu) and back in: nothing in chat at the login screen about "Could not save", and
+    your XP session, Today's stats, buff timers and the auto map's newest marks are all still there.
+    Type /lua reload at the login screen too: no "Could not save" lines and no "New: the menu" line.
+  * Switch to another character without quitting: each keeps its own settings and places.
+  * The crafting planner: open its Show and Crafts lists. Are they wide enough, with no stray "Vertical"?
+  * The planner in a fight: while your recipe book is being read, start a fight. The bar should say
+    "paused during combat" and carry on a few seconds after. Does the game stutter less?
+  * Sounds on a fresh install: do the alerts play without a /lua reload?
+  * /tbx perf at a busy spot: below 30 frames a second it adds a line saying what the numbers mean.
+Earlier:
 In 1.9.0:
   * The crafting planner (/tbx plan, or the menu's Plan button): find a recipe, pick how many crafts,
     and check the shopping list against your bags. Try a recipe with a material choice (Metal Sheet...)

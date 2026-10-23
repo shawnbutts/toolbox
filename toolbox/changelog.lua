@@ -5,6 +5,7 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "version", "1.9.1 - 2026-10-23" },
   { "section", "Changed" },
   { "item", "The Docs guide and the readmes give the way to each feature through the menu and the settings instead of chat commands; the commands are still there, all of them in the Docs' Commands topic." },
   { "item", "/toolbox perf says when the game ran at under 30 frames a second on average: each frame is then long enough for Toolbox's timers to fall in most of them, so \"Toolbox was working near\" says little. It gives the time the timers' own work took and suggests comparing with perf quiet." },
