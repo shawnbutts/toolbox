@@ -602,6 +602,46 @@ return function(t)
     if not ok then error(err, 0) end
   end)
 
+  -- Review 69: a confirmation shown with the planner closed ("At login", /toolbox recipe) stayed up for the next
+  -- character, its OK doing nothing.
+  t.test("the book: a confirmation doesn't cross a character switch (its own window, or the shared one)", function()
+    for _, api in ipairs({ 44, 25 }) do
+      H.apiVersion = api
+      local ok, err = pcall(function()
+        H.boot()
+        book()
+        H.chat("/tbx plan book login")
+        t.ok(confirmWin(), "API " .. api .. ": asked with the planner closed")
+        H.logout()
+        H.S.char.name = "Alt"
+        H.callback("ShroudOnSceneLoaded", "Novia")
+        H.advance(1)
+        t.no(confirmWin(), "API " .. api .. ": gone for the next character")
+        t.no(Toolbox.Planner.Confirming())
+        t.no(Toolbox.Daily.ReadingRecipes(), "no read crossed over")
+      end)
+      H.apiVersion = nil
+      if not ok then error(err, 0) end
+    end
+  end)
+
+  -- Review 68: the dropdowns draw in the theme's font, not the General size; their width follows a change.
+  t.test("the Show and Crafts widths: never under the theme font's, and set again when the General size changes",
+      function()
+    open()
+    local PL, Wn = Toolbox.Planner, Toolbox.Window
+    local themeWidth = math.ceil(#"Shopping list" * Wn.FONT_DEFAULT * PL.CHOICE_CHAR) + PL.CHOICE_ARROW
+    Wn.SetFont(Wn.FONT_MIN)
+    t.eq(find("pl_view").style.minWidth, themeWidth, "a small General size: still the theme font's width")
+    Wn.SetFont(20)
+    t.eq(find("pl_view").style.minWidth, PL.ChoicesWidth(PL.VIEWS), "set again with the planner open")
+    t.ok(find("pl_view").style.minWidth > themeWidth)
+    local crafts = {}
+    for i, n in ipairs(PL.CRAFTS) do crafts[i] = tostring(n) end
+    t.eq(find("pl_crafts").style.minWidth, PL.ChoicesWidth(crafts), "the Crafts list too")
+    Wn.SetFont(Wn.FONT_DEFAULT)
+  end)
+
   t.test("the book: /toolbox recipe and the At login setting ask, then read with the planner closed", function()
     H.boot()
     book()

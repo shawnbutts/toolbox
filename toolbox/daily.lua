@@ -2853,6 +2853,12 @@ end
 
 -- Follows the text size and line spacing settings (Toolbox.Window.ApplyText).
 function PL.ApplyText()
+  if plEl.view then T.SetStyle(plEl.view, { minWidth = PL.ChoicesWidth(PL.VIEWS) }) end
+  if plEl.crafts then
+    local crafts = {}
+    for i, n in ipairs(PL.CRAFTS) do crafts[i] = tostring(n) end
+    T.SetStyle(plEl.crafts, { minWidth = PL.ChoicesWidth(crafts) })
+  end
   if not shEl.column then return end
   T.SetStyle(shEl.title, shStyle())
   if shEl.note then T.SetStyle(shEl.note, shStyle()) end
@@ -3035,12 +3041,15 @@ end
 
 -- A dropdown left to size itself is as wide as its value: "Plan" made the Show list too narrow when open, the
 -- game's scroll bar showing its name, "Vertical" (owner, 2026-10-23). So it's as wide as its longest choice
--- (PL.CHOICE_CHAR of the text size a character, plus PL.CHOICE_ARROW for the arrow).
+-- (PL.CHOICE_CHAR of the text size a character, plus PL.CHOICE_ARROW for the arrow). The dropdown draws in the
+-- theme's font, not the General text size (review 68): measured at the larger of the two, never narrower than the
+-- theme's, and set again when the General size changes (PL.ApplyText).
 PL.CHOICE_CHAR, PL.CHOICE_ARROW = 0.7, 28
 function PL.ChoicesWidth(choices)
   local longest = 0
   for _, c in ipairs(choices) do longest = math.max(longest, #c) end
-  return math.ceil(longest * T.Window.GetFont() * PL.CHOICE_CHAR) + PL.CHOICE_ARROW
+  local font = math.max(T.Window.GetFont(), T.Window.FONT_DEFAULT)
+  return math.ceil(longest * font * PL.CHOICE_CHAR) + PL.CHOICE_ARROW
 end
 
 local function plBuild()
@@ -3352,6 +3361,7 @@ end
 -- Re-runnable (another character, or a login after the login screen): its own plan and picks, and its own
 -- recipe book, read again; the window, built for the last one, goes.
 function PL.Init()
+  plAskDrop()                          -- the last character's confirmation too, shown without the planner (review 69)
   if plWin then plDrop() end
   D.ForgetRecipes()                    -- another character knows other recipes
   local saved = T.ReadSaved(PL.KEY)

@@ -212,7 +212,7 @@ into one if a new file is ever needed).
   `/toolbox recipe` ask too, then read in the background (harness `H.apiVersion`, 30 windows from 41); API 37's `ShroudGetRecipeBook`, one station a step, hitched in game, owner 2026-10-15: not used;
   `D.BookProgress` for the planner's bar, with a once-a-login note, `PL.BOOK_NOTE`; meanwhile the planner's
   controls are greyed out, `plLock` from `PL.ShowProgress`: owner, 2026-10-16); kept for the session in
-  `D.recipeIndex` (`recipes`, `byResult` by name,
+  `D.recipeIndex` (`byResult` by name,
   `count`; when it's read is the player's, owner 2026-10-17 (default `PL.BOOK_WHEN_DEFAULT` "manual", a player's
   request 2026-10-23; "need" before 1.9.1; Only when I ask: From scratch asks nothing, the planner's button does): `PL.BOOK_WHEN` "need" (`PL.NeedBook`), "login"
   (`PL.BOOK_LOGIN_DELAY` s after `PL.Init` and a recipe learned) or "manual" (`PL.ReadBook` only: Settings' `pl_book_read`,
