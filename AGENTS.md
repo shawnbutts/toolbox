@@ -1135,6 +1135,10 @@ Rules learned the hard way; keep to them.
   read finishes, then usable again.
 - **The menu's icon color** (confirmed 2026-10-16, the owner in game): the theme tokens tint launcher.png, changed in
   place by `SetTint`.
+- **The recipe reads hitch** (confirmed 2026-10-23, the owner in game): the hitching in 1.9.0 was the recipe loading
+  (`ShroudGetRecipe`: the book's read, one a `D.BOOK_PERIOD` step, and the planner's re-reads of its recipes), gone
+  with 1.9.1's `95837d5` (the read paused in a fight, the HUD not planned in one, `PL.Gap`). One recipe each 0.05 s
+  does NOT run without hitching: keep recipe calls out of fights and few; requests 26 and 29 are the real fix.
 - **1.9.0 work** (confirmed 2026-10-18, the owner in game): 1.8.0's map overlays converted to one key a scene (the
   counts and storage as before, places drawn, a mark kept across a reload, Forget), the auto map's fights (overlays by
   creature name and Fights, the window row), the Crafting Planner HUD (the shopping list, the build order and its "(N
@@ -1167,8 +1171,7 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
   255 (written `%uXXXX`) and `string.char` of it reading back.
 - Recovery: that a character's own saved vars are loaded when `B.Recover` runs (ShroudOnStart with a character, and
   `T.FollowCharacter`): read too early, a missing `save_mark` would put the copy back needlessly (same data, a chat line).
-- The crafting planner on the live client: one recipe each 0.05 s without hitching (`/toolbox perf` names "recipe
-  book"); `ShroudOnInventoryChanged` firing for the crafting table and trunks
+- The crafting planner on the live client: `ShroudOnInventoryChanged` firing for the crafting table and trunks
   (`have`); a material's stats applying as the result line adds them (the owner's two-sheet test).
 - The auto map's town test (`OV.SceneKind`): `isPot` for a player town (Crossroads' id starts "POT_"), and every NPC
   town's scene id holding "City", "Town" or "Village" (only Ardoris's, `Novia_R4_City_Ardoris`, seen);
