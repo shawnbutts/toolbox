@@ -2309,7 +2309,14 @@ end
 
 local function plMsg(text) if plEl.msg then T.SetText(plEl.msg, text or "") end end
 
+local plAskWin = nil                  -- the notice's own window (API 41+), while it shows
+local function plAskDrop()
+  if plAskWin then pcall(function() plAskWin:Destroy() end) end
+  plAskWin = nil
+end
+
 local function plDrop()
+  plAskDrop()
   if plWin then pcall(function() plWin:Destroy() end) end
   plWin, plEl, plRows, plBodySig, plBody, plCol, plLocked = nil, {}, {}, nil, nil, nil, nil
 end
@@ -3095,8 +3102,9 @@ local function plBuild()
       tooltip = "Start over: no recipe, 1 craft, no I'll craft ticks, and this recipe's materials back to the"
         .. " first you have enough of (your recipe book stays read)", onClick = function() PL.Reset() end },
   }
-  plEl.askText = UI.Label{ id = "pl_ask_text", text = "", class = "text", style = { whiteSpace = "wrap" } }
-  plEl.ask = UI.Column{ id = "pl_ask", visible = false, style = { marginTop = 4 }, children = {
+  plEl.askText = UI.Label{ id = "pl_ask_text", text = "", class = "text", style = { whiteSpace = "wrap",
+    flexShrink = 0 } }
+  plEl.ask = UI.Column{ id = "pl_ask", visible = false, style = { marginTop = 4, flexShrink = 0 }, children = {
     plEl.askText,
     UI.Row{ style = { marginTop = 4 }, children = {
       UI.Button{ id = "pl_ask_go", text = "Read it now", tooltip = "Read the recipe book now, while this window is"
@@ -3190,17 +3198,62 @@ function PL.Open(text)
   return true
 end
 
+-- The notice in its own window where the client allows more than 8 (API 41: 30 an add-on; owner, 2026-10-23: the
+-- panel in the planner didn't show its text in game, and a popup is what he expected); older clients keep the panel.
+PL.ASK_ID, PL.ASK_TITLE = "toolbox_book_notice", "Reading your recipe book"
+function PL.OwnNoticeWindow() return type(ShroudLuaApiVersion) == "number" and ShroudLuaApiVersion >= 41 end
+local function plAskShow()
+  if plAskWin and plAskWin:IsShown() then return true end
+  plAskDrop()
+  local ok = pcall(function()
+    plAskWin = UI.Window{
+      id = PL.ASK_ID, title = PL.ASK_TITLE, width = 420, height = 220, minWidth = 300, minHeight = 160,
+      x = T.Window.DEFAULT_X + 60, y = T.Window.DEFAULT_Y + 60, escCloses = true,
+      style = { paddingLeft = 8, paddingRight = 8, paddingTop = 6, paddingBottom = 6 },
+      children = {
+        UI.Scroll{ style = { flexGrow = 1 }, children = {
+          UI.Label{ id = "pl_notice_text", text = PL.ASK_TEXT, class = "text", style = { whiteSpace = "wrap" } } } },
+        UI.Row{ style = { justifyContent = "flex-end", marginTop = 6 }, children = {
+          UI.Button{ id = "pl_notice_go", text = "Read it now", tooltip = "Read the recipe book now, while the"
+            .. " crafting planner is open", onClick = function()
+              plAskDrop()
+              if not PL.IsShown() then PL.Open() end
+              PL.ReadBook(true)
+            end },
+          UI.Button{ id = "pl_notice_later", text = "Not now", style = { marginLeft = 4 }, tooltip = "Nothing is"
+            .. " read; the planner's Read the recipe book button reads it when you're ready",
+            onClick = function()
+              plAskDrop()
+              PL.NotNow()
+            end } } },
+      },
+    }
+  end)
+  if not ok or not plAskWin then
+    plAskWin = nil
+    return false
+  end
+  return plAskWin:IsShown() or plAskWin:Show() == true
+end
+
 -- The bar at the bottom while the recipe book is read: how far, and about how long is left; the controls wait.
 function PL.ShowProgress()
   if not plEl.barRow then return end
   plLock()
   local done, total, left = D.BookProgress()
   T.SetVisible(plEl.barRow, done ~= nil)
+  if plAskWin and not plAskWin:IsShown() then   -- the notice closed (Esc): nothing read, the bottom button stays
+    plAskDrop()
+    plAsk, plBookStopped = false, true      -- not asked again on its own (the notice again from the button)
+  end
   local asking = plAsk and done == nil
-  T.SetText(plEl.askText, asking and PL.ASK_TEXT or "")   -- (no text while hidden: the planner's text budget)
-  T.SetVisible(plEl.ask, asking)
+  local panel = asking and not (PL.OwnNoticeWindow() and plAskShow())   -- its own window, else the panel
+  if not asking then plAskDrop() end
+  T.SetText(plEl.askText, panel and PL.ASK_TEXT or "")   -- (no text while hidden: the planner's text budget)
+  T.SetVisible(plEl.ask, panel)
   -- From scratch with no book read (only on ask, or stopped): the player's way to read it from here
-  T.SetVisible(plEl.book, done == nil and not asking and PL.GetScratch() and (not D.recipeIndex or D.bookStale))
+  local noticeUp = panel or (plAskWin ~= nil and plAskWin:IsShown())
+  T.SetVisible(plEl.book, done == nil and not noticeUp and PL.GetScratch() and (not D.recipeIndex or D.bookStale))
   if D.recipeIndex then
     T.SetText(plEl.book, "Read the recipe book again")
     T.SetTooltip(plEl.book, "A recipe was learned since the book was read: read it again (in the background) so"

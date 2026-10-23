@@ -202,7 +202,10 @@ into one if a new file is ever needed).
   makers itself); before the first read of a session the planner's notice asks (`pl_ask`, `PL.ASK_TEXT`, Read it now
   / Not now, `plBookOk` / `plAsk`; its text set only while shown: the text budget); every read button and `plan book
   read` go through `PL.AskBook` (the planner opened, the notice unless seen this session, `plDeclined`; "login"
-  reads in the background, chat saying the stutter: owner, 2026-10-23, a click had read with nothing said); API 37's `ShroudGetRecipeBook`, one station a step, hitched in game, owner 2026-10-15: not used;
+  reads in the background, chat saying the stutter: owner, 2026-10-23, a click had read with nothing said); from API 41
+  the notice is its own window (`PL.ASK_ID` "toolbox_book_notice", `PL.OwnNoticeWindow`, `plAskShow`: Toolbox's 9th,
+  the client allowing 30; owner, same day: the panel's text didn't show in game), closed with Esc = not asked again on
+  its own (`plBookStopped`); older clients keep the panel (harness `H.apiVersion`, 30 windows from 41); API 37's `ShroudGetRecipeBook`, one station a step, hitched in game, owner 2026-10-15: not used;
   `D.BookProgress` for the planner's bar, with a once-a-login note, `PL.BOOK_NOTE`; meanwhile the planner's
   controls are greyed out, `plLock` from `PL.ShowProgress`: owner, 2026-10-16); kept for the session in
   `D.recipeIndex` (`recipes`, `byResult` by name,
@@ -1015,7 +1018,7 @@ Rules learned the hard way; keep to them.
   it is always taken. The account file holds the prices, every setup and every character's recovery copy; a full one
   (600 prices, 20 setups, nine characters) measures about 98 KB estimated (`test_stress.lua`). The harness raises at a
   flush for a file past 256 KB (`H.JsonSize`).
-- **Limits** (per add-on): 8 windows (Toolbox has 7 lasting ones; Docs, version and Map overlays share the 8th: `T.TakeSharedWindow`), HUD
+- **Limits** (per add-on): 8 windows, 30 from API 41 (Toolbox has 7 lasting ones; Docs, version and Map overlays share the 8th: `T.TakeSharedWindow`; the planner's book notice is a 9th from API 41), HUD
   frames covering <= 35% of the screen (8 by the reference; 25 by the work log of 2026-10-01, unconfirmed in
   game: `Hud.MAX_FRAMES` is 25 and `Hud.FrameCap()` learns the real limit from the game's refusal,
   `Hud.OutOfRoom`), 2,000 elements, 65,536 characters of text in all (one element's text is cut at 4,096, a

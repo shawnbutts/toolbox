@@ -524,6 +524,52 @@ return function(t)
     t.ok(H.logged("may stutter"), "chat says the stutter: " .. tostring(H.lastLog()))
   end)
 
+  -- Owner, 2026-10-23: the notice's text didn't show in the planner in game (its two buttons did), and a popup was
+  -- what he expected. From API 41 (30 windows an add-on) it has its own window; older clients keep the panel.
+  t.test("the book: from API 41 the notice is its own window (Read it now, Not now, closed with Esc)", function()
+    H.apiVersion = 44
+    local ok, err = pcall(function()
+      H.boot()
+      book()
+      local D, PL = Toolbox.Daily, Toolbox.Planner
+      local N = PL.ASK_ID
+      local function notice() return H.S.windows[N] and not H.S.windows[N].destroyed and H.S.windows[N] end
+      H.chat("/tbx plan augmented plate chest")
+      H.change(W, "pl_scratch", true)
+      t.ok(notice() and notice():IsShown(), "From scratch: the notice in its own window")
+      t.eq(notice().title, PL.ASK_TITLE)
+      t.ok(notice():Find("pl_notice_text").text:find("may stutter", 1, true))
+      t.eq(find("pl_ask").visible, false, "not the panel")
+      t.eq(find("pl_book").visible, false, "nor the bottom button while it shows")
+      t.no(D.ReadingRecipes(), "nothing read yet")
+      H.closeWindow(N)                                  -- Esc: nothing read
+      H.advance(3)
+      t.no(D.ReadingRecipes())
+      t.no(notice() and notice():IsShown(), "and not asked again on its own")
+      t.ok(find("pl_book").visible ~= false, "the bottom button is the way back")
+      H.click(W, "pl_book")
+      t.ok(notice() and notice():IsShown(), "which shows the notice again")
+      H.click(N, "pl_notice_later")
+      t.no(notice(), "Not now: gone")
+      t.no(D.ReadingRecipes())
+      H.click(W, "pl_book")
+      t.ok(D.ReadingRecipes(), "seen: the button reads now")
+      H.advance(2, 0.05)
+      t.ok(D.recipeIndex)
+      PL.Init()                                         -- (a new session)
+      t.no(PL.IsShown())
+      H.chat("/tbx config")
+      H.click("toolbox_config", "pl_book_read")
+      t.ok(PL.IsShown(), "Settings' Read it now opens the planner")
+      t.ok(notice() and notice():IsShown(), "and the notice, in a new session")
+      H.click(N, "pl_notice_go")
+      t.no(notice(), "Read it now: gone")
+      t.ok(D.ReadingRecipes(), "and reading")
+    end)
+    H.apiVersion = nil
+    if not ok then error(err, 0) end
+  end)
+
   t.test("the book: /toolbox recipe and the At login setting read it with the planner closed", function()
     H.boot()
     book()

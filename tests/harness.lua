@@ -48,7 +48,8 @@ H.copy = copy
 local S   -- current host state
 
 H.CREATE_BURST, H.CREATE_RATE = 500, 200
-H.MAX_WINDOWS = 8
+H.MAX_WINDOWS = 8                     -- (30 from API 41: H.apiVersion)
+H.apiVersion = nil                    -- the client's ShroudLuaApiVersion for every boot and reload (25 when nil)
 H.MAX_HUD_FRAMES = 8          -- docs: HUD frames per add-on
 H.MAX_ELEMENTS = 2000         -- docs: elements per add-on (live: made and not destroyed; S.live counts them)
 -- Docs: "65,536 characters of text in total (labels, buttons, toggle labels, tooltips, placeholders and
@@ -161,7 +162,7 @@ local realDate = os.date
 local realTime = os.time
 
 local function install_api()
-  ShroudLuaApiVersion = 25
+  ShroudLuaApiVersion = H.apiVersion or 25
   ShroudLuaPath = S.luaPath or "/Users/tester/SotA/Lua"
   InvalidStatResult = -999
   ShroudTime = S.time or 100
@@ -1455,7 +1456,8 @@ function H.makeUI()
         for id, w in pairs(S.windows) do
           if id ~= spec.id and not w.destroyed then live = live + 1 end
         end
-        if live >= H.MAX_WINDOWS then error("Shroud.UI: too many windows (" .. H.MAX_WINDOWS .. " per add-on)", 2) end
+        local most = ShroudLuaApiVersion >= 41 and 30 or H.MAX_WINDOWS     -- API 41: 30 windows an add-on
+        if live >= most then error("Shroud.UI: too many windows (" .. most .. " per add-on)", 2) end
         -- Docs (API 19): a compact window can't hold a TextField or a Dropdown.
         if spec.compact then
           local function scan(x)
