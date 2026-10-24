@@ -890,13 +890,21 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   `[u]...[/u]` and color tags stripped; inventory and equipment names). Not in them: request 27's fix (client only),
   26 and 29.
 
-**In the work log, not the reference yet** (catnipgames.net, 2026-10-24; no build or patch named; the reference is
-still API 44): API 45 `ShroudGetParty` (every member in one call: online, scene, leader, dead, vitals in your scene; the
-party listeners hear a death / resurrection in your scene; request 30), API 46 `ShroudGetPartyMemberRange` (near / far by
-a range the add-on picks, never a position; request 32), API 47 who applied each effect on the buff lists (you, pet,
-target, party; request 31: the Party Toolbelt's "only mine"), API 48 `ShroudGetTargetDifficulty` (the con tier and name
-color; request 35). For 1.10.0: build on them once the reference has their shapes, feature-detected. Not in it: 26, 29,
-33, 34, 36.
+**In the work log, not the reference yet** (catnipgames.net, 2026-10-24, "ten new abilities", API 45-54; no build or
+patch named; the reference is still API 44, so no shapes yet): 45 `ShroudGetParty` (every member in one call: online,
+scene, leader, dead, vitals in your scene; the party listeners hear a death / resurrection in your scene; request 30);
+46 `ShroudGetPartyMemberRange` (near / far by a range the add-on picks, never a position; 32); 47 who applied each effect
+on the buff lists (you, pet, target, party; 31); 48 `ShroudGetTargetDifficulty` (con tier and name color; 35); 49 dismiss
+one of your pet's COMMANDS on a click, as right-clicking its icon on the pet's buff bar (36, for the pet strip; check it
+covers the buffs players want gone); 50 `ShroudGetRecipesMaking` (your known recipes making an item) and
+`ShroudGetRecipeIndex` (the known recipes in short form), so a planner needn't read the whole book (26; no cost given:
+measure with `/toolbox perf`; 29's counts not mentioned); 51 an add-on's own JSON data files, write / read / list /
+delete, a folder kept through updates and reinstalls, 16 files of 1 MB (33); 52 item lists (bags, worn, gained) give each
+item's kind in words the same in every language, and quest / tool / artifact / locked / equipped flags; 53 turning and
+resizing a decoration taken from the bags while placing it; 54 `ShroudGetTargetAggro`, the target's threat list highest
+first, as `/verbose aggro` (another player's request). Plan: 50 for the planner (a 1.9.x: the book read goes), 45-48 for
+1.10.0's party manager, 51 for exports / caches; each feature-detected, built once the reference has its shapes.
+Not in it: 34 (the Skills window at a skill) and the game settings API.
 
 **Waiting on the developers:** **33** (submitted by 2026-10-20; `tmp/client-issues.md`): files an add-on
 writes itself (`ShroudWriteDataFile` / `ReadDataFile` / `DeleteDataFile` / `ListDataFiles`, JSON), in a folder beside the
