@@ -693,11 +693,11 @@ you read back and fall back to defaults.
 
 ## Releasing
 
-**Last release: 1.9.0** (2026-10-20, the owner's go; the hold for requests 26, 28 and 29 moved to 1.9.1).
-**Next: 1.9.1** (owner, 2026-10-18): 26 and 29 (the recipe calls) and 28 (API 43's `ShroudOnBeforeLogOut`, the plan
-under "Waiting on the developers") once they reach the live client: use the new calls (feature-detected), check them
-in game, then release. The map title's long name is fixed in build 323 (catnipgames.net, 2026-10-16), 27 (one Enter)
-in build 2da431775a (2026-10-18): check both when they're live.
+**Last release: 1.9.1** (2026-10-24, the owner's go): API 43's `ShroudOnBeforeLogOut` (request 28), the recipe
+reads' hitching (paused in a fight and with the planner closed, every read asked first), the book read only when asked
+by default, new characters' sounds at 0%. Requests 26 and 29 (the recipe calls) aren't in the reference yet: they go to
+a later 1.9.x or 1.10.0, whichever comes once they reach the live client. The map title's long name is fixed in build
+323 (catnipgames.net, 2026-10-16), 27 (one Enter) in build 2da431775a (2026-10-18): check both when they're live.
 
 **After it: 1.10.0, the party manager** (owner, 2026-10-18; 1.9.x waits on client fixes meanwhile). In scope: (1) the
 Party Toolbelt, its own strip, never joined to the player's Toolbelt (the idea below): a row per member, health and

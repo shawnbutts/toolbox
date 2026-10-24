@@ -7,7 +7,7 @@ ones included).
 
 ## [Unreleased]
 
-## [1.9.1] - 2026-10-23
+## [1.9.1] - 2026-10-24
 
 ### Changed
 - **Sounds start off for new characters:** every sound's own volume begins at 0%, so a new player hears nothing until

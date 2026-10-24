@@ -5,7 +5,7 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
-  { "version", "1.9.1 - 2026-10-23" },
+  { "version", "1.9.1 - 2026-10-24" },
   { "section", "Changed" },
   { "item", "Sounds start off for new characters: every sound's own volume begins at 0%, so a new player hears nothing until they raise the sounds they want (Settings, Sounds; Test plays each). Characters that already used Toolbox keep their sounds as they were. A buff's or debuff's own sound file plays as before." },
   { "item", "The Docs guide and the readmes give the way to each feature through the menu and the settings instead of chat commands; the commands are still there, all of them in the Docs' Commands topic." },
