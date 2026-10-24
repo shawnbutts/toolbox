@@ -890,6 +890,14 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   `[u]...[/u]` and color tags stripped; inventory and equipment names). Not in them: request 27's fix (client only),
   26 and 29.
 
+**In the work log, not the reference yet** (catnipgames.net, 2026-10-24; no build or patch named; the reference is
+still API 44): API 45 `ShroudGetParty` (every member in one call: online, scene, leader, dead, vitals in your scene; the
+party listeners hear a death / resurrection in your scene; request 30), API 46 `ShroudGetPartyMemberRange` (near / far by
+a range the add-on picks, never a position; request 32), API 47 who applied each effect on the buff lists (you, pet,
+target, party; request 31: the Party Toolbelt's "only mine"), API 48 `ShroudGetTargetDifficulty` (the con tier and name
+color; request 35). For 1.10.0: build on them once the reference has their shapes, feature-detected. Not in it: 26, 29,
+33, 34, 36.
+
 **Waiting on the developers:** **33** (submitted by 2026-10-20; `tmp/client-issues.md`): files an add-on
 writes itself (`ShroudWriteDataFile` / `ReadDataFile` / `DeleteDataFile` / `ListDataFiles`, JSON), in a folder beside the
 package (an update installs only the manifest's files), kept through updates, confined, written safely; for exports
