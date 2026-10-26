@@ -904,7 +904,9 @@ item's kind in words the same in every language, and quest / tool / artifact / l
 resizing a decoration taken from the bags while placing it; 54 `ShroudGetTargetAggro`, the target's threat list highest
 first, as `/verbose aggro` (another player's request). Plan: 50 for the planner (a 1.9.x: the book read goes), 45-48 for
 1.10.0's party manager, 51 for exports / caches; each feature-detected, built once the reference has its shapes.
-Not in it: 34 (the Skills window at a skill) and the game settings API.
+Not in it: 34 (the Skills window at a skill) and the game settings API. A preview of the docs for the QA build is to be at
+https://catnipgames.net/lua/qa/ (owner, 2026-10-24: with the next QA build; 404 on 2026-10-26): read its shapes from
+there, but build against what the live client reports (`/toolbox api`).
 
 **Waiting on the developers:** **33** (submitted by 2026-10-20; `tmp/client-issues.md`): files an add-on
 writes itself (`ShroudWriteDataFile` / `ReadDataFile` / `DeleteDataFile` / `ListDataFiles`, JSON), in a folder beside the
