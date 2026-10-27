@@ -1267,13 +1267,39 @@ function D.FirstWord(lower)
   return lower
 end
 
+-- /toolbox plan trace (owner, 2026-10-27: opening the planner after a login paused the game, then the QA client's
+-- watchdog): while on, the planner's open says in chat how far it got (ms since the open began) and names each game
+-- call over D.TRACE_SLOW. Chat lines go out as they're printed, so the last one before the watchdog's says where.
+D.trace = false
+D.TRACE_SLOW = 0.002
+local traceAt = nil
+local function traceClock()
+  local clock = D.trace and T.PerfClock()
+  if not clock then return nil end
+  local ok, now = pcall(clock)
+  return ok and type(now) == "number" and now or nil
+end
+function D.TraceStart() traceAt = traceClock() end
+function D.TraceMark(what)
+  local now = traceClock()
+  if not now then return end
+  traceAt = traceAt or now
+  T.Print(string.format("[plan trace] %.1f ms: %s", (now - traceAt) * 1000, what))
+end
+function D.TraceT() return traceClock() end
+function D.TraceCall(what, t0)
+  local now = t0 and traceClock()
+  if now and now - t0 >= D.TRACE_SLOW then D.TraceMark(string.format("%s took %.1f ms", what, (now - t0) * 1000)) end
+end
+
 -- The game's list of known recipes (one call a session).
 function D.KnownSource()
   if knownSrc then return knownSrc end
   if type(ShroudGetKnownRecipes) ~= "function" then return {} end
-  local t0 = T.PerfT()
+  local t0, tt = T.PerfT(), D.TraceT()
   local ok, book = pcall(ShroudGetKnownRecipes)
   T.PerfAdd("known recipes:the game's list", t0)
+  D.TraceCall("ShroudGetKnownRecipes", tt)
   knownSrc = ok and T.List(book) or {}
   return knownSrc
 end
@@ -1283,7 +1309,7 @@ end
 local function knownSome(all)
   local b = knownBuild
   if not b then return end
-  local t0 = T.PerfT()
+  local t0, tt = T.PerfT(), D.TraceT()
   local stop = all and #b.src or math.min(#b.src, b.at + D.KNOWN_STEP - 1)
   for i = b.at, stop do
     local r = b.src[i]
@@ -1307,6 +1333,7 @@ local function knownSome(all)
   end
   b.at = stop + 1
   T.PerfAdd("known recipes:indexing", t0)
+  D.TraceCall("indexing the known recipes (" .. (all and "all at once" or "a step") .. ")", tt)
   if b.at > #b.src then
     T.RemovePeriodic(KNOWN_TIMER)
     knownList, knownByWord, knownBuild = b.list, b.byWord, nil
@@ -1362,9 +1389,10 @@ function D.HasMakers() return type(ShroudGetRecipesMaking) == "function" end
 function D.MakersOf(keyOrName)
   local cached = D.makers[keyOrName]
   if cached then return cached end
-  local t0 = T.PerfT()
+  local t0, tt = T.PerfT(), D.TraceT()
   local ok, list = pcall(ShroudGetRecipesMaking, keyOrName)
   T.PerfAdd("planner:makers (API 50)", t0)
+  D.TraceCall("ShroudGetRecipesMaking " .. tostring(keyOrName), tt)
   if not ok or list == nil then return nil end
   local out = {}
   for _, m in ipairs(T.List(list)) do
@@ -2051,9 +2079,10 @@ local function plRecipe(id)
       plBudget = plBudget - 1
     end
     plReads = plReads + 1
-    local t0 = T.PerfT()
+    local t0, tt = T.PerfT(), D.TraceT()
     local ok, rec = pcall(ShroudGetRecipe, id)
     T.PerfAdd("planner:a recipe read", t0)
+    D.TraceCall("ShroudGetRecipe " .. tostring(id), tt)
     plFresh[id] = (ok and rec) or false
   end
   return plFresh[id] or nil
@@ -3126,8 +3155,10 @@ function PL.Refresh(now)
   local plan = PL.Plan()
   plLastReads = plReads - reads
   T.PerfAdd("planner:the plan", t0)
+  D.TraceMark("the plan worked out (" .. plLastReads .. " recipes read)")
   plPlan = plan
   shUpdate(plan)
+  D.TraceMark("the Crafting Planner HUD updated")
   if not inWin then
     if plan and PL.GetScratch() and type(plPrefs.makes) == "table" and next(plPrefs.makes) ~= nil
       and not D.recipeIndex then PL.NeedBook() end
@@ -3156,6 +3187,7 @@ function PL.Refresh(now)
   T.SetText(plEl.title, tostring(T.Field(rec, "name")) .. " at " .. tostring(T.Field(rec, "station")
     or T.Field(rec, "category")) .. (yield > 0 and (": makes " .. T.FormatNumber(yield * PL.GetCrafts())) or ""))
   T.SetText(plEl.result, PL.PreviewText(PL.Preview(rec, plan.rows)))
+  D.TraceMark("the title and the preview set")
   if PL.GetScratch() and not D.recipeIndex then PL.NeedBook() end
   local sigParts = { view, tostring(id) }
   if view == "Plan" then
@@ -3186,6 +3218,7 @@ function PL.Refresh(now)
     end
   end
   T.PerfAdd(same and "planner:rows set" or "planner:rows built", tRows)
+  D.TraceMark(same and "the rows set" or ("the " .. view .. " rows built"))
   PL.ShowProgress()
   T.PerfAdd("planner", t0)
 end
@@ -3339,10 +3372,15 @@ function PL.Open(text)
     T.Print("This game client has no recipe calls for add-ons (the planner needs Lua API 18; material choices 37).")
     return false
   end
+  D.TraceStart()
+  D.TraceMark("opening the planner")
   if not plWin then
     T.TakeSharedWindow("planner", plDrop)
+    D.TraceMark("the shared window taken")
     D.PrepareKnown()                    -- the known recipes, indexed in the background (under a second)
+    D.TraceMark("the known recipes' indexing started")
     local ok, err = pcall(plBuild)
+    D.TraceMark("the window built")
     if not ok then
       plDrop()
       T.Print("The crafting planner can't open right now; try again in a moment. (" .. tostring(err) .. ")")
@@ -3353,12 +3391,14 @@ function PL.Open(text)
     T.Print("The crafting planner can't reopen right now; try again in a few seconds.")
     return false
   end
+  D.TraceMark("the window shown")
   plBodySig = nil
   if text ~= "" then
     plFind(text, true)
   else
     PL.Refresh(true)
   end
+  D.TraceMark("open")
   return true
 end
 

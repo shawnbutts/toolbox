@@ -1099,7 +1099,7 @@ end
 
 add("plan", "the crafting planner: a recipe's materials, what to get and what to craft (plan [recipe]; plan hud"
   .. " [close <seconds>|start shop|build|auto on|off|shade <0-90>]; plan book [read|stop|need|login|manual];"
-  .. " plan debug)",
+  .. " plan debug; plan trace)",
   function(rest)
     local word = T.Trim(rest or ""):lower()
     local PL = T.Planner
@@ -1165,6 +1165,12 @@ add("plan", "the crafting planner: a recipe's materials, what to get and what to
       PL.SetHud(on)
       T.Print(PL.HUD_NAME .. (on and " on: the shopping list, then the build order (/toolbox plan hud again"
         .. " hides it)." or " hidden."))
+      return
+    end
+    if word == "trace" then
+      T.Daily.trace = not T.Daily.trace
+      T.Print("Planner trace " .. (T.Daily.trace and "on: opening the planner says in chat how far it got (ms) and"
+        .. " names each slow game call. " .. cmd .. "trace again turns it off." or "off."))
       return
     end
     if word == "debug" then
