@@ -206,7 +206,9 @@ into one if a new file is ever needed).
   (`D.HasCounts`) a refresh away from a station (`D.AtStation`: the crafting window) keeps the plan's recipes and reads
   only `carried` counts (`plCountMode`, `PL.HaveOf`; at a station the recipes are read fresh: their `have` counts the
   table and trunks). `/toolbox perf recipes` (`PL.PerfStart`, `T.PerfClock`) times each kind of call for the plan set, ONE recipe call
-  a `PL.PERF_STEP` s step, the report in chat at the end (owner, 2026-10-27, the QA client: all at once, the game's
+  a `PL.PERF_STEP` s step, the plan itself worked out a recipe a step first (`plBudget`, `perfPlanStep`, its own cache:
+  the start makes no game call; with the planner closed the start's whole read paused the game seconds), each line as
+  its kind finishes (owner, 2026-10-27, the QA client: all at once, the game's
   watchdog stopped Toolbox, "exceeded its execution time budget"; one watchdog deadline a call chain, length not
   documented: a refresh at a station still reads every plan recipe in one go).
   Harness: `H.apiVersion >= 50` / `55` installs them (`H.S.makingCalls`, `H.S.countCalls`, `H.S.recipeCalls`,

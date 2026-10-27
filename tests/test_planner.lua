@@ -1098,22 +1098,25 @@ return function(t)
         open()
         H.clearLogs()
         H.chat("/tbx perf recipes")
-        t.ok(H.logged("^Timing the crafting planner's game calls for"), H.lastLog())
+        local calls = H.S.recipeCalls
+        t.ok(H.logged("^Timing the crafting planner's game calls, one at a time"), H.lastLog())
+        t.eq(H.S.recipeCalls, calls, "the command itself reads nothing")
         t.ok(Toolbox.Planner.PerfRunning(), "timing, a call a step")
         H.chat("/tbx perf recipes")
         t.ok(H.logged("^Already timing"), H.lastLog())
-        -- one recipe call a step (the QA client's watchdog stopped Toolbox when they all ran in one go; the counts-only
-        -- refresh's cheap count reads are one step)
-        for _ = 1, 60 do
+        -- one recipe read a step, the plan's working out too (the QA client's watchdog stopped Toolbox when they all
+        -- ran in one go)
+        for _ = 1, 200 do
           if not Toolbox.Planner.PerfRunning() then break end
-          local calls = H.S.recipeCalls + (H.S.makingCalls or 0) + (H.S.indexCalls or 0)
+          local before = H.S.recipeCalls
           local step = H.S.periodics[Toolbox.Planner.PERF_ID]
           t.ok(step, "its timer")
           H.call(step.fn)
-          local now = H.S.recipeCalls + (H.S.makingCalls or 0) + (H.S.indexCalls or 0)
-          t.ok(now - calls <= 1, "at most one call a step, " .. (now - calls))
+          local now = H.S.recipeCalls
+          t.ok(now - before <= 1, "at most one call a step, " .. (now - before))
         end
         t.ok(not Toolbox.Planner.PerfRunning(), "done")
+        t.ok(H.logged("^Done timing the crafting planner's calls"), H.lastLog())
         local all = table.concat(H.logs(), "\n")
         t.ok(all:find("ShroudGetRecipe, each recipe", 1, true), all)
         if api >= 55 then

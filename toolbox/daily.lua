@@ -2058,8 +2058,18 @@ local function plRecipeId() return plNum(plPrefs.recipe) end
 
 local plReads = 0                       -- ShroudGetRecipe calls the planner made (the refresh gap grows with a plan's)
 local plLastReads = 0                   -- how many the last refresh made
+-- A read budget (nil: none): /toolbox perf recipes works its plan out a recipe a step. A read past it returns nil
+-- and counts in plShortN, so the caller knows the plan was cut short.
+local plBudget, plShortN = nil, 0
 local function plRecipe(id)
   if plFresh[id] == nil then
+    if plBudget then
+      if plBudget <= 0 then
+        plShortN = plShortN + 1
+        return nil
+      end
+      plBudget = plBudget - 1
+    end
     plReads = plReads + 1
     local t0 = T.PerfT()
     local ok, rec = pcall(ShroudGetRecipe, id)
@@ -2325,7 +2335,7 @@ local function plQuickMakers(key, name)
     return {}
   end
   local t0 = T.PerfT()
-  local want, out = name:lower(), {}
+  local want, out, short = name:lower(), {}, plShortN
   for _, k in ipairs(byWord[D.FirstWord(want)] or {}) do
     if k.lower == want or k.lower:sub(1, #want + 1) == want .. " " then
       local rec = plRecipe(k.id)
@@ -2338,7 +2348,7 @@ local function plQuickMakers(key, name)
       end
     end
   end
-  plQuick[key] = out
+  if plShortN == short then plQuick[key] = out end   -- not kept when a read budget cut it short
   T.PerfAdd("planner:makers by name", t0)
   return out
 end
@@ -2996,57 +3006,26 @@ function PL.Gap(shown)
 end
 
 -- /toolbox perf recipes (owner, 2026-10-27: performance testing around API 50 and 55): times the planner's game calls
--- for the plan set, the way before those APIs and the way after, so the change can be measured in game. ONE call a
--- step, PL.PERF_STEP s apart (the QA client's watchdog stopped Toolbox when every call ran in one go, owner
--- 2026-10-27: "exceeded its execution time budget"), the report in chat at the end. `clock`: os.clock
--- (T.PerfClock), nil when the sandbox has none. Returns false and why when it can't start.
+-- for the plan set, the way before those APIs and the way after, so the change can be measured in game. ONE recipe
+-- call a step, PL.PERF_STEP s apart, the plan itself worked out a recipe a step too (`plBudget`, in its own cache)
+-- before the timing: all at once, the QA client's watchdog stopped Toolbox ("exceeded its execution time budget",
+-- owner 2026-10-27, twice: the second time the start's plan, read whole with the planner closed). Each kind's line
+-- is printed as it finishes. `clock`: os.clock (T.PerfClock), nil when the sandbox has none. Returns false and why
+-- when it can't start; the command itself makes no game call.
 PL.PERF_STEP = 0.25
 PL.PERF_ID = "toolbox_perf_recipes"
+PL.PERF_STEPS_MAX = 400                 -- the plan's working out: a stop for a plan that never settles
 local plPerf = nil
-local function perfStep()
-  local run = plPerf
-  if not run then return T.RemovePeriodic(PL.PERF_ID) end
-  local step = run.steps[run.at]
-  if not step then
-    T.RemovePeriodic(PL.PERF_ID)
-    plPerf = nil
-    for _, sec in ipairs(run.sections) do
-      if sec.note then
-        T.Print("  " .. sec.note)
-      else
-        T.Print(string.format("  %s: %d calls, %.1f in all, the longest %.1f", sec.label, sec.n, sec.total * 1000,
-          sec.longest * 1000))
-      end
-    end
-    return
-  end
-  run.at = run.at + 1
-  local sec = run.sections[step.sec]
-  local t0 = run.clock()
-  pcall(step.fn, step.x)
-  local d = run.clock() - t0
-  sec.n, sec.total, sec.longest = sec.n + 1, sec.total + d, math.max(sec.longest, d)
-end
 local function perfRefresh() plStartRefresh(); PL.Plan() end
 local function perfKnown() return ShroudGetKnownRecipes() end
-local function perfIndex() return ShroudGetRecipeIndex() end
 
-function PL.PerfRunning() return plPerf ~= nil end
+local function perfStop()
+  plPerf = nil
+  T.RemovePeriodic(PL.PERF_ID)
+end
 
-function PL.PerfStart(clock)
-  if plPerf then return false, "Already timing the crafting planner's calls: the report comes in chat." end
-  if not clock then return false, "This game client doesn't let add-ons time anything (no os.clock)." end
-  local id = plRecipeId()
-  if not id or type(ShroudGetRecipe) ~= "function" then
-    return false, "Plan a recipe in the crafting planner first (From scratch on, some I'll craft ticked): the timing"
-      .. " uses its recipes and ingredients."
-  end
-  local plan = plPlan
-  if not plan then
-    plStartRefresh()
-    plan = PL.Plan()
-  end
-  if not plan then return false, "The recipe planned isn't in your book any more: plan another." end
+-- The timing's steps once the plan is known.
+local function perfQueue(run, plan)
   local ids, keys, seenKey = {}, {}, {}
   for _, b in ipairs(plan.build) do ids[#ids + 1] = b.id end
   for _, r in ipairs(plan.rows) do
@@ -3055,13 +3034,11 @@ function PL.PerfStart(clock)
       keys[#keys + 1] = r.key
     end
   end
-  local run = { clock = clock, sections = {}, steps = {}, at = 1 }
   local function section(label, list, fn)
-    local sec = { label = label, n = 0, total = 0, longest = 0 }
-    run.sections[#run.sections + 1] = sec
-    for _, x in ipairs(list) do run.steps[#run.steps + 1] = { sec = #run.sections, fn = fn, x = x } end
+    local sec = { label = label, n = 0, total = 0, longest = 0, left = #list }
+    for _, x in ipairs(list) do run.steps[#run.steps + 1] = { sec = sec, fn = fn, x = x } end
   end
-  local function note(text) run.sections[#run.sections + 1] = { note = text } end
+  local function note(text) run.steps[#run.steps + 1] = { note = text } end
   local once = { false }
   section("ShroudGetRecipe, each recipe (a refresh read them all before API 55)", ids, ShroudGetRecipe)
   section("ShroudGetKnownRecipes, the list (once a session)", once, perfKnown)
@@ -3069,9 +3046,6 @@ function PL.PerfStart(clock)
     section("ShroudGetRecipesMaking, each ingredient (API 50; kept for the session)", keys, ShroudGetRecipesMaking)
   else
     note("ShroudGetRecipesMaking: not on this client (API 50): the makers come from the book's read")
-  end
-  if type(ShroudGetRecipeIndex) == "function" then
-    section("ShroudGetRecipeIndex, the whole book in short (API 50; Toolbox doesn't need it)", once, perfIndex)
   end
   if D.HasCounts() then
     section("ShroudGetOwnedCounts, each ingredient (API 55; each refresh away from a station)", keys,
@@ -3084,12 +3058,86 @@ function PL.PerfStart(clock)
   else
     note("A refresh of the plan here reads every recipe: about the ShroudGetRecipe line's total, in one go")
   end
+  T.Print(string.format("Timing %d recipes and %d ingredients, a call every %.2f s (ms; about %d s more):", #ids,
+    #keys, PL.PERF_STEP, math.floor(#run.steps * PL.PERF_STEP + 0.99)))
+end
+
+-- One step of the plan's working out: at most one recipe read, in the run's own cache (the planner's refreshes
+-- meanwhile keep theirs). True when the plan is whole.
+local function perfPlanStep(run)
+  local fresh, mode, kept = plFresh, plCountMode, plCounts
+  plFresh, plCountMode, plCounts = run.fresh, run.counting, {}
+  plBudget = 1
+  local short = plShortN
+  local ok, plan = pcall(PL.Plan)
+  plBudget = nil
+  local whole = plShortN == short
+  plFresh, plCountMode, plCounts = fresh, mode, kept
+  if not ok then plan = nil end
+  return whole, plan
+end
+
+local function perfStep()
+  local run = plPerf
+  if not run then return T.RemovePeriodic(PL.PERF_ID) end
+  if not run.steps then
+    run.planSteps = run.planSteps + 1
+    local t0 = run.clock()
+    local whole, plan = perfPlanStep(run)
+    local d = run.clock() - t0
+    run.planTotal, run.planLongest = run.planTotal + d, math.max(run.planLongest, d)
+    if not whole and run.planSteps < PL.PERF_STEPS_MAX then return end
+    if not plan then
+      perfStop()
+      T.Print("The recipe planned isn't in your book any more: plan another.")
+      return
+    end
+    run.steps = {}
+    T.Print(string.format("  Working the plan out (a recipe read and the plan's Lua each step; the first reads"
+      .. " since the planner's): %d steps, %.1f in all, the longest %.1f", run.planSteps, run.planTotal * 1000,
+      run.planLongest * 1000))
+    perfQueue(run, plan)
+    return
+  end
+  local step = run.steps[run.at]
+  if not step then
+    perfStop()
+    T.Print("Done timing the crafting planner's calls.")
+    return
+  end
+  run.at = run.at + 1
+  if step.note then
+    T.Print("  " .. step.note)
+    return
+  end
+  local sec = step.sec
+  local t0 = run.clock()
+  pcall(step.fn, step.x)
+  local d = run.clock() - t0
+  sec.n, sec.total, sec.longest, sec.left = sec.n + 1, sec.total + d, math.max(sec.longest, d), sec.left - 1
+  if sec.left == 0 then
+    T.Print(string.format("  %s: %d calls, %.1f in all, the longest %.1f", sec.label, sec.n, sec.total * 1000,
+      sec.longest * 1000))
+  end
+end
+
+function PL.PerfRunning() return plPerf ~= nil end
+
+function PL.PerfStart(clock)
+  if plPerf then return false, "Already timing the crafting planner's calls: the lines come in chat." end
+  if not clock then return false, "This game client doesn't let add-ons time anything (no os.clock)." end
+  if not plRecipeId() or type(ShroudGetRecipe) ~= "function" then
+    return false, "Plan a recipe in the crafting planner first (From scratch on, some I'll craft ticked): the timing"
+      .. " uses its recipes and ingredients."
+  end
+  local run = { clock = clock, at = 1, planSteps = 0, planTotal = 0, planLongest = 0, fresh = {},
+                counting = D.HasCounts() and not D.AtStation() }
   if not T.RegisterPeriodic(PL.PERF_ID, perfStep, PL.PERF_STEP, true) then
     return false, "The game refused the timing's timer: try again in a moment."
   end
   plPerf = run
-  return true, string.format("Timing the crafting planner's game calls for %d recipes and %d ingredients, one call"
-    .. " every %.2f s (ms; about %d s):", #ids, #keys, PL.PERF_STEP, math.floor(#run.steps * PL.PERF_STEP + 0.99))
+  return true, "Timing the crafting planner's game calls, one at a time: working the plan out first, a recipe"
+    .. " every " .. string.format("%.2f", PL.PERF_STEP) .. " s. The lines come in chat."
 end
 
 -- Fills the window from a new plan. `now`: at once (a player's change), else only when something changed and at
@@ -3518,10 +3566,7 @@ function PL.Init()
   plAskDrop()                          -- the last character's confirmation too, shown without the planner (review 69)
   if plWin then plDrop() end
   D.ForgetRecipes()                    -- another character knows other recipes
-  if plPerf then                       -- /toolbox perf recipes: the last character's plan
-    plPerf = nil
-    T.RemovePeriodic(PL.PERF_ID)
-  end
+  if plPerf then perfStop() end       -- /toolbox perf recipes: the last character's plan
   local saved = T.ReadSaved(PL.KEY)
   plPrefs = type(saved) == "table" and saved or {}
   plBookStopped, plConfirm, plConfirmReopen, plNeedAsk = false, nil, false, false
