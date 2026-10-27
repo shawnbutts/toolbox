@@ -507,11 +507,11 @@ local function build()
           UI.Row{ id = "view_row", visible = T.Daily.HasResults(), style = { alignItems = "center", marginTop = 3 },
             children = {
               UI.Label{ text = "Show", class = "text", style = T.Window.TextStyle{ flexGrow = 1 } },
-              UI.Dropdown{ id = "dd_view", choices = DD.ViewLabels(), value = DD.ViewLabel(DD.View()),
+              T.Window.Dropdown(UI, { id = "dd_view", choices = DD.ViewLabels(), value = DD.ViewLabel(DD.View()),
                 tooltip = "Looted: items gained today (crafted and gathered ones left out, unless you include"
                   .. " them in settings). Crafted: items taken off crafting stations. Gathered: what you harvested."
                   .. " Runs: your last runs (Reset), to compare spots.",
-                onChange = function(_, label) DD.SetView(DD.ViewKey(label)) end },
+                onChange = function(_, label) DD.SetView(DD.ViewKey(label)) end }),
             } },
           runsChart(),
           text("runs_chart_note", "text", { whiteSpace = "wrap" }),

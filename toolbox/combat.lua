@@ -959,9 +959,9 @@ local function buildDetail()
       children = { UI.Column{ style = { paddingLeft = 10, paddingRight = 10 }, children = {
         UI.Row{ style = { alignItems = "center" }, children = {
           UI.Label{ id = "cd_summary", text = "", class = "text", style = { flexGrow = 1, whiteSpace = "wrap" } },
-          UI.Dropdown{ id = "cd_scope", choices = choices, value = scopeLabel(cdPrefs.scope),
+          T.Window.Dropdown(UI, { id = "cd_scope", choices = choices, value = scopeLabel(cdPrefs.scope),
             tooltip = "This fight, or every fight since you logged in (or reset)",
-            onChange = function(_, label) CD.OnScope(label) end },
+            onChange = function(_, label) CD.OnScope(label) end }),
         } },
         heading("Damage by skill"),
         UI.Column{ children = skills },

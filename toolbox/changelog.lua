@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Fixed" },
+  { "item", "Dropdowns too narrow for their choices: a dropdown was only as wide as the choice shown, so its open list cut longer ones short (the Loot Tracker's Show list, for one). Every dropdown, in every window and on every settings page, is now as wide as its longest choice, and follows a text size change." },
   { "version", "1.9.1 - 2026-10-24" },
   { "section", "Changed" },
   { "item", "Sounds start off for new characters: every sound's own volume begins at 0%, so a new player hears nothing until they raise the sounds they want (Settings, Sounds; Test plays each). Characters that already used Toolbox keep their sounds as they were. A buff's or debuff's own sound file plays as before." },

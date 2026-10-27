@@ -3110,10 +3110,10 @@ function OV.SyncWindow()
   local any = #places > 0
   if not any then places[1] = OV.MW_NO_PLACES end
   pcall(function()
-    mwEl.pick:SetChoices(names)
+    T.Window.SetChoices(mwEl.pick, names)
     mwEl.pick:SetValue(shown and shown.name or OV.MW_NONE)
     local keep = mwEl.places:GetValue()
-    mwEl.places:SetChoices(places)
+    T.Window.SetChoices(mwEl.places, places)
     mwEl.places:SetValue(mwPlaces[keep] and keep or places[1])
     mwEl.icon:SetValue(shown and shown.icon or OV.ICONS[1])
     mwEl.color:SetValue(shown and shown.color or OV.COLORS[1][1])
@@ -3210,13 +3210,13 @@ local function mwBuild()
     return UI.Row{ style = { alignItems = "center", marginTop = top or 4 }, children = children }
   end
   mwEl = {
-    pick = UI.Dropdown{ id = "mw_pick", choices = { OV.MW_NONE }, value = OV.MW_NONE,
+    pick = T.Window.Dropdown(UI, { id = "mw_pick", choices = { OV.MW_NONE }, value = OV.MW_NONE,
       style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The overlay shown on your map (only one at a time)",
       onChange = function(_, name)
         mwDisarm()
         local ok, why = OV.Show(mwPicks[name])
         mwMsg(ok and "" or ("Couldn't show it: " .. why .. "."))
-      end },
+      end }),
     ovname = T.TextField{ id = "mw_ovname", text = "", placeholder = "An overlay's name: Gathering, XP farming...",
       maxLength = OV.NAME_MAX, style = { flexGrow = 1, flexShrink = 1 },
       tooltip = "A name for a new overlay (New), or the shown one's new name (Rename)",
@@ -3225,33 +3225,33 @@ local function mwBuild()
       tooltip = "Give the shown overlay this name", onClick = function() mwRename() end },
     delete = UI.Button{ id = "mw_delete", text = "Delete", style = { marginLeft = 2 },
       tooltip = "Delete the shown overlay and its places (click twice)", onClick = function() mwDelete() end },
-    icon = UI.Dropdown{ id = "mw_icon", choices = OV.ICONS, value = OV.ICONS[1],
+    icon = T.Window.Dropdown(UI, { id = "mw_icon", choices = OV.ICONS, value = OV.ICONS[1],
       tooltip = "The shape of the marks you make next (marks made before keep theirs: Set look changes one)",
       onChange = function(_, v)
         local ov = OV.Shown()
         local ok, why = true, nil
         if ov then ok, why = OV.SetIcon(ov, v) end
         mwMsg(ok and "" or ("Couldn't change it: " .. why .. "."))
-      end },
-    color = UI.Dropdown{ id = "mw_color", choices = colors, value = colors[1], style = { marginLeft = 4 },
+      end }),
+    color = T.Window.Dropdown(UI, { id = "mw_color", choices = colors, value = colors[1], style = { marginLeft = 4 },
       tooltip = "The color of the marks you make next (Gold is the Loot Tracker runs')",
       onChange = function(_, v)
         local ov = OV.Shown()
         local ok, why = true, nil
         if ov then ok, why = OV.SetColor(ov, v) end
         mwMsg(ok and "" or ("Couldn't change it: " .. why .. "."))
-      end },
+      end }),
     name = T.TextField{ id = "mw_name", text = "", placeholder = "Name this spot: Iron vein, Bank...",
       maxLength = OV.NAME_MAX, style = { flexGrow = 1, flexShrink = 1 },
       tooltip = "Empty: Place 1, Place 2... (a name used: Wolf 2)",
       onSubmit = function(_, text) mwMark(text) end },
-    places = UI.Dropdown{ id = "mw_places", choices = { OV.MW_NO_PLACES }, value = OV.MW_NO_PLACES,
+    places = T.Window.Dropdown(UI, { id = "mw_places", choices = { OV.MW_NO_PLACES }, value = OV.MW_NO_PLACES,
       style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The shown overlay's places in this scene",
       onChange = function()
         mwMsg("")
         mwDisarm()
         pcall(function() mwEl.ignore:SetEnabled(mwKind() ~= nil) end)
-      end },
+      end }),
     beacon = UI.Button{ id = "mw_beacon", text = "Compass", style = { marginLeft = 4 },
       tooltip = "Point the game's compass at this place (it's the game's beacon: it replaces your own /beacon)",
       onClick = function()

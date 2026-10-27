@@ -38,6 +38,12 @@ This file holds current facts and rules; the history behind them is in git (`git
   handler, the spec field's and `OnSubmit`'s alike, with the typed text; the box keeps the keyboard and chat doesn't
   open. `T.TextField` needs no change (if both ways fire for one press, `once` runs it once); check a single Enter in
   the planner's search once the build is out, then the "Don't rely on Enter alone" note can go.
+- **Make dropdowns with `T.Window.Dropdown(UI, spec[, cap])` and refill them with `T.Window.SetChoices`** (ui.lua): a
+  dropdown left to size itself is as wide as its value, and its open list cut a longer choice off (the planner's Show
+  list, owner 2026-10-23; the Loot Tracker's, 2026-10-27). They set `minWidth` from the longest choice
+  (`W.ChoicesWidth`: `W.CHOICE_CHAR` of the larger of the General and theme text sizes a character, plus
+  `W.CHOICE_ARROW`, at most `W.CHOICES_MAX`, 300), again on a text size change (`W.RefitChoices`). test_config walks
+  every window's dropdowns.
 - **Read a UI element's state with its getters** (`GetText`, `GetValue`, `IsVisible`, `IsEnabled`...), never its
   fields: in game an element is a game object ("cannot access field text of userdata<Shroud.UI.Label>",
   2026-09-30). The harness's elements are plain tables, so tests can't catch it; `tools/build.py` refuses a field

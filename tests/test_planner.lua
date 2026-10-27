@@ -122,9 +122,9 @@ return function(t)
     local PL = Toolbox.Planner
     local view, crafts = find("pl_view"), find("pl_crafts")
     t.ok(view.style and view.style.minWidth, "the Show list has a width")
-    t.eq(view.style.minWidth, PL.ChoicesWidth(PL.VIEWS))
-    t.ok(view.style.minWidth > PL.ChoicesWidth({ "Plan" }), "wider than its value")
-    t.ok(view.style.minWidth >= math.ceil(#"Shopping list" * Toolbox.Window.GetFont() * PL.CHOICE_CHAR),
+    t.eq(view.style.minWidth, Toolbox.Window.ChoicesWidth(PL.VIEWS))
+    t.ok(view.style.minWidth > Toolbox.Window.ChoicesWidth({ "Plan" }), "wider than its value")
+    t.ok(view.style.minWidth >= math.ceil(#"Shopping list" * Toolbox.Window.GetFont() * Toolbox.Window.CHOICE_CHAR),
       "Shopping list fits")
     t.ok(crafts.style and crafts.style.minWidth, "the Crafts list too")
   end)
@@ -630,15 +630,15 @@ return function(t)
       function()
     open()
     local PL, Wn = Toolbox.Planner, Toolbox.Window
-    local themeWidth = math.ceil(#"Shopping list" * Wn.FONT_DEFAULT * PL.CHOICE_CHAR) + PL.CHOICE_ARROW
+    local themeWidth = math.ceil(#"Shopping list" * Wn.FONT_DEFAULT * Wn.CHOICE_CHAR) + Wn.CHOICE_ARROW
     Wn.SetFont(Wn.FONT_MIN)
     t.eq(find("pl_view").style.minWidth, themeWidth, "a small General size: still the theme font's width")
     Wn.SetFont(20)
-    t.eq(find("pl_view").style.minWidth, PL.ChoicesWidth(PL.VIEWS), "set again with the planner open")
+    t.eq(find("pl_view").style.minWidth, Toolbox.Window.ChoicesWidth(PL.VIEWS), "set again with the planner open")
     t.ok(find("pl_view").style.minWidth > themeWidth)
     local crafts = {}
     for i, n in ipairs(PL.CRAFTS) do crafts[i] = tostring(n) end
-    t.eq(find("pl_crafts").style.minWidth, PL.ChoicesWidth(crafts), "the Crafts list too")
+    t.eq(find("pl_crafts").style.minWidth, Toolbox.Window.ChoicesWidth(crafts), "the Crafts list too")
     Wn.SetFont(Wn.FONT_DEFAULT)
   end)
 

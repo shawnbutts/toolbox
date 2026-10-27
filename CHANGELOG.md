@@ -7,6 +7,11 @@ ones included).
 
 ## [Unreleased]
 
+### Fixed
+- **Dropdowns too narrow for their choices:** a dropdown was only as wide as the choice shown, so its open list cut
+  longer ones short (the Loot Tracker's Show list, for one). Every dropdown, in every window and on every settings
+  page, is now as wide as its longest choice, and follows a text size change.
+
 ## [1.9.1] - 2026-10-24
 
 ### Changed

@@ -253,6 +253,55 @@ function W.MeasureLine()
   return nil
 end
 
+-- A dropdown left to size itself is as wide as its value, and its open list no wider: a longer choice was cut off
+-- (the planner's Show list, owner 2026-10-23; the Loot Tracker's, 2026-10-27). So every dropdown is made through
+-- W.Dropdown and refilled through W.SetChoices: at least as wide as its longest choice (W.CHOICE_CHAR of the text
+-- size a character, plus W.CHOICE_ARROW for the arrow), at most `cap` (W.CHOICES_MAX: a long recipe or effect name
+-- mustn't push a window's buttons out). The dropdown draws in the theme's font, not the General text size (review
+-- 68): measured at the larger of the two, and set again when the General size changes (W.ApplyText, W.RefitChoices).
+W.CHOICE_CHAR, W.CHOICE_ARROW, W.CHOICES_MAX = 0.7, 28, 300
+function W.ChoicesWidth(choices, cap)
+  local longest = 0
+  for _, c in ipairs(choices) do longest = math.max(longest, #tostring(c)) end
+  local font = math.max(W.GetFont(), W.FONT_DEFAULT)
+  return math.min(math.ceil(longest * font * W.CHOICE_CHAR) + W.CHOICE_ARROW, cap or W.CHOICES_MAX)
+end
+
+local fitted = setmetatable({}, { __mode = "k" })   -- dropdown -> { choices, cap }, for W.RefitChoices
+
+-- `ui` is Shroud.UI or config's stand-in (C.Helpers' UI), which records the spec for the settings search.
+function W.Dropdown(ui, spec, cap)
+  local style = {}
+  for k, v in pairs(spec.style or {}) do style[k] = v end
+  style.minWidth = math.max(style.minWidth or 0, W.ChoicesWidth(spec.choices, cap))
+  spec.style = style
+  local drop = ui.Dropdown(spec)
+  fitted[drop] = { choices = spec.choices, cap = cap }
+  return drop
+end
+
+function W.SetChoices(drop, choices, cap)
+  drop:SetChoices(choices)
+  local f = fitted[drop]
+  if f then f.choices = choices; cap = cap or f.cap; f.cap = cap
+  else fitted[drop] = { choices = choices, cap = cap } end
+  T.SetStyle(drop, { minWidth = W.ChoicesWidth(choices, cap) })
+end
+
+local function refit(drop, f)
+  T.SetStyle(drop, { minWidth = W.ChoicesWidth(f.choices, f.cap) })
+end
+
+-- After a text size change; a dropdown whose window is gone raises, and is forgotten (so is a settings search
+-- record, which has no methods).
+function W.RefitChoices()
+  local gone = nil
+  for drop, f in pairs(fitted) do
+    if not pcall(refit, drop, f) then gone = gone or {}; gone[#gone + 1] = drop end
+  end
+  for _, drop in ipairs(gone or {}) do fitted[drop] = nil end
+end
+
 -- Re-applies text size and line height to both XP windows and syncs the settings window.
 function W.ApplyText()
   if win then
@@ -269,6 +318,7 @@ function W.ApplyText()
   T.Location.ApplyText()
   T.Combat.ApplyText()            -- Size is a share of the text size
   T.Planner.ApplyText()           -- the shopping list strip
+  W.RefitChoices()
   T.Config.Sync()
 end
 

@@ -82,7 +82,7 @@ end
 local function dropdownRow(label, spec)
   return UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
     UI.Label{ text = label, class = "text", style = { flexGrow = 1, whiteSpace = "wrap" } },
-    UI.Dropdown(spec),
+    T.Window.Dropdown(UI, spec),
   } }
 end
 
@@ -607,16 +607,16 @@ function C.CombatSection()
         onClick = function() C.FindStats() end },
     } },
     UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
-      UI.Dropdown{ id = "stat_results", choices = { C.STAT_NONE }, value = C.STAT_NONE,
+      T.Window.Dropdown(UI, { id = "stat_results", choices = { C.STAT_NONE }, value = C.STAT_NONE,
         style = { flexGrow = 1, flexShrink = 1 }, tooltip = "Matching stats: label (internal name) = your value now",
-        onChange = function() setText("stat_msg", "") end },
+        onChange = function() setText("stat_msg", "") end }),
       UI.Button{ id = "stat_add", text = "Add", style = { marginLeft = 4 },
         onClick = function() C.AddPickedStat() end },
     } },
     UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
-      UI.Dropdown{ id = "stat_shown", choices = { C.STAT_NONE }, value = C.STAT_NONE,
+      T.Window.Dropdown(UI, { id = "stat_shown", choices = { C.STAT_NONE }, value = C.STAT_NONE,
         style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The stats the combat HUD shows",
-        onChange = function() setText("stat_msg", "") end },
+        onChange = function() setText("stat_msg", "") end }),
       UI.Button{ id = "stat_remove", text = "Remove", style = { marginLeft = 4 },
         onClick = function() C.RemovePickedStat() end },
     } },
@@ -650,9 +650,9 @@ function C.ShoutSection()
       UI.Toggle{ id = "shout_" .. kind .. "_text", text = "Show " .. word, value = CS.GetText(kind),
         style = { flexGrow = 1 }, tooltip = "\"" .. word .. "\" over the Toolbelt when you " .. kind,
         onChange = function(_, v) CS.SetText(kind, v) end },
-      UI.Dropdown{ id = "shout_" .. kind .. "_color", choices = CS.ColorLabels(),
+      T.Window.Dropdown(UI, { id = "shout_" .. kind .. "_color", choices = CS.ColorLabels(),
         value = CS.ColorLabel(CS.GetColor(kind)), tooltip = "Its colour (your UI theme's)",
-        onChange = function(_, label) CS.SetColor(kind, label) end },
+        onChange = function(_, label) CS.SetColor(kind, label) end }),
     } }
     children[#children + 1] = UI.Row{ style = { alignItems = "center", marginLeft = 16 }, children = {
       UI.Toggle{ id = "shout_" .. kind .. "_sound", text = CS.LABELS[kind] .. " sound", value = CS.GetSound(kind),
@@ -715,7 +715,7 @@ function C.FindStats(filter)
   if #labels == 0 then labels[1] = C.STAT_NONE end
   local drop = el.stat_results
   if drop then
-    drop:SetChoices(labels)
+    T.Window.SetChoices(drop, labels)
     drop:SetValue(labels[1])
   end
   setEnabled("stat_add", statPicks[labels[1]] ~= nil)
@@ -755,7 +755,7 @@ local function syncShownStats(list)
   if sig == C.statShownSig then return end
   C.statShownSig = sig
   local choices = #list > 0 and list or { C.STAT_NONE }
-  drop:SetChoices(choices)
+  T.Window.SetChoices(drop, choices)
   drop:SetValue(choices[1])
   setEnabled("stat_remove", #list > 0)
 end
@@ -780,11 +780,11 @@ function C.NotifySection()
     children[#children + 1] = UI.Row{ style = { alignItems = "center" }, children = {
       UI.Toggle{ id = "notify_" .. key, text = src.label, value = T.Notify.IsOn(key), style = { flexGrow = 1 },
         tooltip = src.tip, onChange = function(_, v) T.Notify.SetOn(key, v) end },
-      UI.Dropdown{ id = "notify_" .. key .. "_via", choices = vias,
+      T.Window.Dropdown(UI, { id = "notify_" .. key .. "_via", choices = vias,
         value = T.Notify.ChoiceLabel(key),
         tooltip = "Where it shows: the Notifications window, the notification HUD or a chat line; \"+ sound\""
           .. " also plays the notification sound (Sounds)",
-        onChange = function(_, label) C.OnNotifyVia(key, label) end },
+        onChange = function(_, label) C.OnNotifyVia(key, label) end }),
     } }
   end
   -- The sound itself is picked on the Sounds page (this window is too narrow for a third column per row):
@@ -1156,7 +1156,7 @@ local function syncRestore()
     restorePicks[label] = b
     labels[#labels + 1] = label
   end
-  drop:SetChoices(#labels > 0 and labels or { C.RESTORE_NONE })
+  T.Window.SetChoices(drop, #labels > 0 and labels or { C.RESTORE_NONE })
   drop:SetValue(labels[1] or C.RESTORE_NONE)
   setEnabled("bk_restore", #labels > 0)
 end
@@ -1232,11 +1232,11 @@ local function syncQuiet()
   for _, c in ipairs(mchoices) do mutedPicks[c.label] = c.name end
   local keep = pick:GetValue()
   local shown = #labels > 0 and labels or { C.QUIET_NONE }
-  pick:SetChoices(shown)
+  T.Window.SetChoices(pick, shown)
   pick:SetValue(quietPicks[keep] and keep or shown[1])
   local keepMuted = muted:GetValue()
   local mshown = #list > 0 and list or { C.MUTED_NONE }
-  muted:SetChoices(mshown)
+  T.Window.SetChoices(muted, mshown)
   local still = false
   for _, n in ipairs(list) do if n == keepMuted then still = true end end
   muted:SetValue(still and keepMuted or mshown[1])
@@ -1264,17 +1264,17 @@ function C.QuietRows()
     UI.Label{ text = "Muted effects: no sound for these, though their icons still flash. Pick from recent alerts,"
       .. " what's on you, or anything you've cast.", class = "dim", style = { whiteSpace = "wrap" } },
     UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
-      UI.Dropdown{ id = "quiet_pick", choices = { C.QUIET_NONE }, value = C.QUIET_NONE,
+      T.Window.Dropdown(UI, { id = "quiet_pick", choices = { C.QUIET_NONE }, value = C.QUIET_NONE,
         style = { flexGrow = 1, flexShrink = 1 },
         tooltip = "Recent alerts first (alerted), then your effects now (on you), then every effect seen cast",
-        onChange = function() setText("quiet_msg", "") end },
+        onChange = function() setText("quiet_msg", "") end }),
       UI.Button{ id = "quiet_mute", text = "Mute", style = { marginLeft = 4 },
         tooltip = "No expiry or debuff sound for this effect", onClick = function() C.MutePicked() end },
     } },
     UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
-      UI.Dropdown{ id = "quiet_list", choices = { C.MUTED_NONE }, value = C.MUTED_NONE,
+      T.Window.Dropdown(UI, { id = "quiet_list", choices = { C.MUTED_NONE }, value = C.MUTED_NONE,
         style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The muted effects",
-        onChange = function() setText("quiet_msg", "") end },
+        onChange = function() setText("quiet_msg", "") end }),
       UI.Button{ id = "quiet_unmute", text = "Unmute", style = { marginLeft = 4 },
         tooltip = "Its sounds come back", onClick = function() C.UnmutePicked() end },
     } },
@@ -1303,7 +1303,7 @@ local function syncEffectSounds()
   for _, c in ipairs(set) do fxSet[c.label] = c end
   local keepSet = list:GetValue()
   local sshown = #setLabels > 0 and setLabels or { C.FX_NONE }
-  list:SetChoices(sshown)
+  T.Window.SetChoices(list, sshown)
   list:SetValue(fxSet[keepSet] and keepSet or sshown[1])
   setEnabled("fx_test", #setLabels > 0)
   setEnabled("fx_remove", #setLabels > 0)
@@ -1381,9 +1381,9 @@ function C.EffectSoundRows()
       .. " it's about to run out: a file inside your Lua folder, not the toolbox folder.", class = "dim",
       style = { whiteSpace = "wrap" } },
     UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
-      UI.Dropdown{ id = "fx_when", choices = whenLabels(), value = T.BuffBar.WhenLabel("end"),
+      T.Window.Dropdown(UI, { id = "fx_when", choices = whenLabels(), value = T.BuffBar.WhenLabel("end"),
         style = { flexGrow = 1, flexShrink = 1 }, tooltip = "When this file plays",
-        onChange = function() setText("fx_msg", "") end },
+        onChange = function() setText("fx_msg", "") end }),
     } },
     UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
       UI.TextField{ id = "fx_path", text = "", placeholder = "toolbox_sounds/atos.ogg", maxLength = 200,
@@ -1395,9 +1395,9 @@ function C.EffectSoundRows()
         onClick = function() C.SetEffectSound() end },
     } },
     UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
-      UI.Dropdown{ id = "fx_list", choices = { C.FX_NONE }, value = C.FX_NONE,
+      T.Window.Dropdown(UI, { id = "fx_list", choices = { C.FX_NONE }, value = C.FX_NONE,
         style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The effects with a sound of their own",
-        onChange = function() setText("fx_msg", "") end },
+        onChange = function() setText("fx_msg", "") end }),
       UI.Button{ id = "fx_test", text = "Test", style = { marginLeft = 4 },
         tooltip = "Play it now", onClick = function() C.TestEffectSound() end },
       UI.Button{ id = "fx_remove", text = "Remove", style = { marginLeft = 4 },
@@ -1462,7 +1462,7 @@ local function syncSetups()
   local choices = #labels > 0 and labels or { C.SETUP_NONE }
   local keep = drop:GetValue()
   disarmSetups()
-  drop:SetChoices(choices)
+  T.Window.SetChoices(drop, choices)
   drop:SetValue(setupPicks[keep] and keep or choices[1])
   setEnabled("setup_import", #labels > 0)
   setEnabled("setup_delete", #labels > 0)
@@ -1544,12 +1544,12 @@ function C.SetupSection()
         setText("setup_msg", ok and "" or (fail .. tostring(why) .. "."))
       end },
     UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
-      UI.Dropdown{ id = "setup_pick", choices = { C.SETUP_NONE }, value = C.SETUP_NONE,
+      T.Window.Dropdown(UI, { id = "setup_pick", choices = { C.SETUP_NONE }, value = C.SETUP_NONE,
         style = { flexGrow = 1, flexShrink = 1 }, tooltip = "Named setups, then other characters' setups",
         onChange = function()
           disarmSetups()
           setText("setup_msg", "")
-        end },
+        end }),
       UI.Button{ id = "setup_import", text = "Import", style = { marginLeft = 4 },
         tooltip = "Replace this character's settings and positions with a copy of this setup",
         onClick = function() C.ImportSetup() end },
@@ -1640,9 +1640,9 @@ function C.BackupSection()
       .. " the last five, made by Back up now and before a reset, an import or a new version.", class = "dim",
       style = { whiteSpace = "wrap", marginTop = 6 } }
     children[#children + 1] = UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
-      UI.Dropdown{ id = "bk_pick", choices = { C.RESTORE_NONE }, value = C.RESTORE_NONE,
+      T.Window.Dropdown(UI, { id = "bk_pick", choices = { C.RESTORE_NONE }, value = C.RESTORE_NONE,
         style = { flexGrow = 1, flexShrink = 1 }, tooltip = "The copy to put back",
-        onChange = function() disarmRestore() end },
+        onChange = function() disarmRestore() end }),
       UI.Button{ id = "bk_restore", text = RESTORE_TEXT, style = { marginLeft = 4 },
         tooltip = "Put this character's settings and positions back as they were in this copy",
         onClick = function() C.RestoreBackup() end },
@@ -2029,7 +2029,7 @@ function C.Search(query)
   elseif total > #list then
     labels[#labels + 1] = "(" .. (total - #list) .. " more: add a word)"
   end
-  searchDrop:SetChoices(labels)
+  T.Window.SetChoices(searchDrop, labels)
   searchDrop:SetValue(labels[1])
 end
 
@@ -2180,9 +2180,9 @@ local function build()
             if first then C.SearchGo(first.show) end
           end },
         UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
-          UI.Dropdown{ id = "search_results", choices = { C.SEARCH_PROMPT }, value = C.SEARCH_PROMPT,
+          T.Window.Dropdown(UI, { id = "search_results", choices = { C.SEARCH_PROMPT }, value = C.SEARCH_PROMPT,
             style = { flexGrow = 1, flexShrink = 1 }, tooltip = "Settings matching the search: pick one to go to it",
-            onChange = function(_, label) C.SearchGo(label) end },
+            onChange = function(_, label) C.SearchGo(label) end }),
           UI.Button{ id = "search_go", text = "Go", style = { marginLeft = 4 },
             tooltip = "Show the setting picked above", onClick = function() C.SearchGo() end },
         } },

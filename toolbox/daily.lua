@@ -2429,13 +2429,13 @@ local function plPlanRows(plan)
       local names, values, picked = plShownChoices(r)
       if #names == 0 then names = { "No choices given" } end
       e.values, e.names = values, table.concat(names, "\n")
-      e.pick = UI.Dropdown{ id = "pl_pick_" .. i, choices = names, value = picked or names[1],
+      e.pick = T.Window.Dropdown(UI, { id = "pl_pick_" .. i, choices = names, value = picked or names[1],
         style = { flexGrow = 1, flexShrink = 1, marginLeft = 4 },
         tooltip = "The material for this slot (the game lists up to 30; the first " .. PL.CHOICES_SHOWN .. " here)",
         onChange = function(_, text)
           local key = e.values[text]
           if key then PL.SetPick(r.recipe, r.slot, key) end
-        end }
+        end })
       parts[#parts + 1] = e.pick
       e.status = UI.Label{ text = plGroupStatus(r), class = "dim", style = { marginLeft = 4 } }
       parts[#parts + 1] = e.status
@@ -2458,12 +2458,12 @@ local function plPlanRows(plan)
     if r.making and #r.makers > 1 then
       local names, values, chosen = plMakerNames(r)
       e.makerValues = values
-      e.via = UI.Dropdown{ id = "pl_via_" .. i, choices = names, value = chosen or names[1],
+      e.via = T.Window.Dropdown(UI, { id = "pl_via_" .. i, choices = names, value = chosen or names[1],
         style = { flexGrow = 1, flexShrink = 1 }, tooltip = "Which of your recipes makes it",
         onChange = function(_, name)
           local mid = e.makerValues[name]
           if mid then PL.SetMaker(r.key, mid) end
-        end }
+        end })
       children[#children + 1] = UI.Row{ style = { alignItems = "center", marginLeft = (r.depth + 1) * PL.INDENT },
         children = { UI.Label{ text = "made by", class = "dim", style = { marginRight = 4 } }, e.via } }
     end
@@ -2853,12 +2853,6 @@ end
 
 -- Follows the text size and line spacing settings (Toolbox.Window.ApplyText).
 function PL.ApplyText()
-  if plEl.view then T.SetStyle(plEl.view, { minWidth = PL.ChoicesWidth(PL.VIEWS) }) end
-  if plEl.crafts then
-    local crafts = {}
-    for i, n in ipairs(PL.CRAFTS) do crafts[i] = tostring(n) end
-    T.SetStyle(plEl.crafts, { minWidth = PL.ChoicesWidth(crafts) })
-  end
   if not shEl.column then return end
   T.SetStyle(shEl.title, shStyle())
   if shEl.note then T.SetStyle(shEl.note, shStyle()) end
@@ -2911,7 +2905,7 @@ local function plUpdateRows(plan)
         local joined = table.concat(names, "\n")
         if #names > 0 and joined ~= e.names then
           e.values, e.names = values, joined
-          pcall(function() e.pick:SetChoices(names) end)
+          pcall(T.Window.SetChoices, e.pick, names)
         end
         if picked then pcall(function() e.pick:SetValue(picked) end) end
       end
@@ -3031,25 +3025,12 @@ local function plFind(text, pick)
     plMatches[name] = f.id
   end
   pcall(function()
-    plEl.recipe:SetChoices(names)
+    T.Window.SetChoices(plEl.recipe, names)
     plEl.recipe:SetValue(names[1])
   end)
   if auto then PL.SetRecipe(found[1].id) end
   plMsg(n > #found and (n .. " recipes match: the first " .. #found .. " are listed; type more of the name.")
     or (#found > 1 and (#found .. " recipes match: pick one in the Recipe list.") or nil))
-end
-
--- A dropdown left to size itself is as wide as its value: "Plan" made the Show list too narrow when open, the
--- game's scroll bar showing its name, "Vertical" (owner, 2026-10-23). So it's as wide as its longest choice
--- (PL.CHOICE_CHAR of the text size a character, plus PL.CHOICE_ARROW for the arrow). The dropdown draws in the
--- theme's font, not the General text size (review 68): measured at the larger of the two, never narrower than the
--- theme's, and set again when the General size changes (PL.ApplyText).
-PL.CHOICE_CHAR, PL.CHOICE_ARROW = 0.7, 28
-function PL.ChoicesWidth(choices)
-  local longest = 0
-  for _, c in ipairs(choices) do longest = math.max(longest, #c) end
-  local font = math.max(T.Window.GetFont(), T.Window.FONT_DEFAULT)
-  return math.ceil(longest * font * PL.CHOICE_CHAR) + PL.CHOICE_ARROW
 end
 
 local function plBuild()
@@ -3075,25 +3056,24 @@ local function plBuild()
         if PL.debug then T.Print("[plan debug] Enter in the search box: '" .. tostring(text) .. "'") end
         plFind(text, true)
       end },
-    recipe = UI.Dropdown{ id = "pl_recipe", choices = { first }, value = first,
+    recipe = T.Window.Dropdown(UI, { id = "pl_recipe", choices = { first }, value = first,
       style = { flexGrow = 1, flexShrink = 1 },
       tooltip = "The recipe planned (Find lists the ones matching)",
       onChange = function(_, name)
         local rid = plMatches[name]
         if rid and rid ~= plRecipeId() then PL.SetRecipe(rid) end
-      end },
-    crafts = UI.Dropdown{ id = "pl_crafts", choices = crafts, value = tostring(PL.GetCrafts()),
-      style = { minWidth = PL.ChoicesWidth(crafts) }, tooltip = "How many times to craft it",
-      onChange = function(_, v) PL.SetCrafts(tonumber(v)) end },
+      end }),
+    crafts = T.Window.Dropdown(UI, { id = "pl_crafts", choices = crafts, value = tostring(PL.GetCrafts()),
+      tooltip = "How many times to craft it",
+      onChange = function(_, v) PL.SetCrafts(tonumber(v)) end }),
     title = UI.Label{ id = "pl_title", text = "", class = "text", style = { flexGrow = 1, flexShrink = 1,
       whiteSpace = "wrap", marginLeft = 6 } },
     scratch = UI.Toggle{ id = "pl_scratch", text = "From scratch", value = PL.GetScratch(),
       tooltip = "Offer I'll craft for what you're short of and one of your recipes makes",
       onChange = function(_, on) PL.SetScratch(on == true) end },
-    view = UI.Dropdown{ id = "pl_view", choices = PL.VIEWS, value = PL.GetView(),
-      style = { minWidth = PL.ChoicesWidth(PL.VIEWS) },
+    view = T.Window.Dropdown(UI, { id = "pl_view", choices = PL.VIEWS, value = PL.GetView(),
       tooltip = "The slots, what to buy or gather, or the crafts in order by station",
-      onChange = function(_, v) PL.SetView(v) end },
+      onChange = function(_, v) PL.SetView(v) end }),
     result = UI.Label{ id = "pl_result", text = "", class = "text", style = { whiteSpace = "wrap" },
       tooltip = "The result's base stats, plus what the picked materials add (an exceptional craft adds more)" },
     msg = UI.Label{ id = "pl_msg", text = "", class = "dim", style = { whiteSpace = "wrap" } },
@@ -3149,7 +3129,7 @@ function PL.Reset()
   if plEl.find then
     pcall(function()
       plEl.find:SetText("")
-      plEl.recipe:SetChoices({ PL.NO_RECIPE })
+      T.Window.SetChoices(plEl.recipe, { PL.NO_RECIPE })
       plEl.recipe:SetValue(PL.NO_RECIPE)
     end)
   end

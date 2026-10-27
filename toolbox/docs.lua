@@ -535,9 +535,9 @@ local function build()
       UI.Row{ style = { alignItems = "center", paddingLeft = GUTTER, paddingRight = GUTTER, marginBottom = 4 },
         children = {
           UI.Label{ text = "Topic", class = "text", style = { flexGrow = 1 } },
-          UI.Dropdown{ id = "docs_pick", choices = topics, value = topics[1],
+          T.Window.Dropdown(UI, { id = "docs_pick", choices = topics, value = topics[1],
             tooltip = "Which part of the guide to show; Commands lists every command",
-            onChange = function(_, title) D.ShowTopic(title) end },
+            onChange = function(_, title) D.ShowTopic(title) end }),
         } },
       UI.Scroll{ style = { flexGrow = 1 }, children = { dbody } },
     },
@@ -696,9 +696,9 @@ local function buildVersion()
         UI.Label{ id = "version_line", text = T.VersionLine(), class = "text", style = { whiteSpace = "wrap" } },
         UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
           UI.Label{ text = "Changes in", class = "text", style = { flexGrow = 1 } },
-          UI.Dropdown{ id = "version_pick", choices = titles, value = titles[1],
+          T.Window.Dropdown(UI, { id = "version_pick", choices = titles, value = titles[1],
             tooltip = "Which version's changes to show",
-            onChange = function(_, title) D.ShowChangelogVersion(title) end },
+            onChange = function(_, title) D.ShowChangelogVersion(title) end }),
         } },
       } },
       UI.Scroll{ style = { flexGrow = 1 }, children = { vbody } },

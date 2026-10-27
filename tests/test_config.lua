@@ -581,4 +581,49 @@ return function(t)
     t.eq(table.concat(keys, " "), "general toolbelt xp crafting buffs gear vitals combat skills map notify sounds hud"
       .. " backup", "Skill activity right after Combat")
   end)
+
+  -- Owner, 2026-10-27: the Loot Tracker's Show list was narrower than its choices. Every dropdown in every window is
+  -- at least as wide as its longest choice (T.Window.Dropdown / SetChoices), up to the cap, at any text size.
+  t.test("every dropdown is as wide as its longest choice", function()
+    local W = nil                                   -- each boot makes the modules again
+    local seen, short = {}, {}
+    local function walk(e)
+      if type(e) ~= "table" then return end
+      if e.kind == "Dropdown" then
+        seen[#seen + 1] = e.id
+        local want = W.ChoicesWidth(e.choices or {})
+        local got = e.style and e.style.minWidth or 0
+        if got < want then short[#short + 1] = tostring(e.id) .. " " .. got .. " < " .. want end
+      end
+      for _, c in ipairs(e.children or {}) do walk(c) end
+    end
+    local function walkAll()
+      for _, w in pairs(H.S.windows) do walk(w) end
+    end
+    for _, size in ipairs({ 12, 20 }) do
+      H.boot()
+      W = Toolbox.Window
+      W.SetFont(size)
+      H.chat("/tbx config")
+      for _, c in ipairs(Toolbox.Config.CATEGORIES) do
+        H.change("toolbox_config", "category", c.label)
+        walkAll()
+      end
+      for _, cmd in ipairs({ "/tbx loot", "/tbx combat detail", "/tbx docs", "/tbx version", "/tbx overlay window",
+          "/tbx plan" }) do
+        H.chat(cmd)
+        walkAll()
+      end
+      H.chat("/tbx loot")
+      W.SetFont(size == 20 and W.FONT_DEFAULT or 24)    -- a text size change with the windows open
+      walkAll()
+    end
+    for _, id in ipairs({ "dd_view", "cd_scope", "docs_pick", "mw_icon", "mw_color", "pl_view", "category",
+        "buff_group_after", "notify_mail_via" }) do
+      local found = false
+      for _, s in ipairs(seen) do if s == id then found = true end end
+      t.ok(found, "walked " .. id)
+    end
+    t.eq(table.concat(short, "; "), "", "no dropdown narrower than its longest choice")
+  end)
 end
