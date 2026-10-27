@@ -429,4 +429,42 @@ return function(t)
     for i = before + 1, #H.logs() do t.ok(not H.logs()[i]:find("joined", 1, true), H.logs()[i]) end
     done()
   end)
+
+  t.test("alerts: a member under the health level (once, the bar flashing), a named debuff landing", function()
+    boot()
+    H.advance(30)
+    H.chat("/tbx notify party_alerts via chat")
+    H.chat("/tbx party on")
+    H.chat("/tbx party alert 40")
+    t.ok(H.logged("Party alert below 40%% health"))
+    H.chat("/tbx party alert add poison")
+    local p = party()
+    p[2].buffs = { rune("Deadly Poison", true, 8, 10, 6) }      -- there at the first read: not told
+    H.setParty(p)
+    H.advance(2)
+    t.ok(H.logged("Bob is at 25%% health."), "Bob is under 40%")
+    t.no(H.logged("Ann: Deadly Poison"), "there at Ann's first read")
+    local colors = {}
+    for _ = 1, 4 do
+      H.advance(0.5, 0.5)
+      colors[frame():Find("pt_hp_2").color or "@red"] = true
+    end
+    t.ok(colors[PT().FLASH_COLOR] and colors["@red"], "Bob's health bar flashes")
+    H.clearLogs()
+    p[3].hp = 300
+    H.advance(2)
+    t.no(H.logged("Bob is at"), "told once while under it")
+    p[3].hp, p[2].buffs = 900, {}
+    H.advance(2)
+    p[3].hp = 100
+    p[2].buffs = { rune("Deadly Poison", true, 8, 10, 6) }
+    H.advance(4)
+    t.ok(H.logged("Bob is at 10%% health."), "again after recovering")
+    t.ok(H.logged("Ann: Deadly Poison."), "a poison landing")
+    H.chat("/tbx party alert off")
+    t.eq(PT().GetAlertBelow(), 0)
+    H.chat("/tbx party alert 3")
+    t.ok(H.logged("from 5 to 90"))
+    done()
+  end)
 end

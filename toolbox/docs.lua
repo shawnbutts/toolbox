@@ -249,6 +249,10 @@ D.SECTIONS = {
       .. "a heal over time you keep up; Only the watched buffs you cast leaves out another healer's copy. Choose how "
       .. "many show (0: none) and their size. Settings, Notifications has Party comings and goings (joins, "
       .. "leaves, scene changes), with or without the strip.",
+    "Alerts (Settings, Party, Alerts): a Party alert when a member drops below the health level you set (their "
+      .. "health bar flashes while under it; told again once they're back above it), or when a debuff you name "
+      .. "lands on one. They show on the notification HUD with a ping by default (Settings, Notifications, Party "
+      .. "alerts) and need the Party Toolbelt on.",
     "Options: party order (as the game's party frame) or the lowest health first, only during combat, include "
       .. "yourself (off: your Toolbelt has your bars), the percent, the bar length and the background shade. The "
       .. "names follow the General text size. It shows while Settings is open, to place it; move it there or by "
@@ -1073,6 +1077,12 @@ N.SOURCES = {
     tip = "Members joining or leaving your party, or leaving and coming back to your scene; a friend or guild member"
       .. " going offline (newer game clients, Lua API 55)",
     Check = function(seen) return T.Party.EventsCheck(seen) end },
+  { key = "party_alerts", label = "Party alerts", default = true, via = "hud", sound = true, soundKey = "ping",
+    transient = true,
+    tip = "A party member dropping below the health level you set, or a debuff you name landing on one (Settings,"
+      .. " Party; the Party Toolbelt on; newer game clients, Lua API 55)",
+    Active = function() return T.Party.AlertsSet() end,
+    Check = function(seen) return T.Party.AlertsCheck(seen) end },
   { key = "events", label = "World events starting", default = true, via = "chat",
     tip = "Calls to Arms and official events from the game's calendar, " .. N.EVENT_LEAD .. " minutes ahead",
     Check = function(seen) return N.EventsCheck(seen) end },
@@ -1251,12 +1261,16 @@ local function saveHistory()
 end
 local function saveHud() T.Save("notify_hud", hprefs) end
 
--- True when any source is delivered here (otherwise the HUD never shows, even in settings).
+-- True when any source is delivered here (otherwise the HUD never shows, even in settings). A source with `Active`
+-- counts only while that says it can send anything (the party alerts: set, and the Party Toolbelt on).
 local function inUse()
   local p = nprefs
   if not p then return false end
-  for _, sp in pairs(p.sources) do
-    if sp.on and sp.via == "hud" then return true end
+  for key, sp in pairs(p.sources) do
+    if sp.on and sp.via == "hud" then
+      local src = sourceFor(key)
+      if not (src and src.Active) or src.Active() then return true end
+    end
   end
   return false
 end
@@ -1549,11 +1563,12 @@ local function prefsNow()
   if type(f) == "number" and f >= T.Window.FONT_MIN and f <= T.Window.FONT_MAX then nprefs.font = math.floor(f) end
   for _, src in ipairs(N.SOURCES) do
     local s = type(stored[src.key]) == "table" and stored[src.key] or {}
-    -- a source may pick its own default sound (skill level changes: skills.lua's celebration)
-    local sp = { on = src.default, via = src.via or N.DELIVERY_DEFAULT, sound = false,
+    -- a source may pick its own default sound (skill level changes: skills.lua's celebration), and have it on
+    -- (`sound`: the party alerts)
+    local sp = { on = src.default, via = src.via or N.DELIVERY_DEFAULT, sound = src.sound == true,
                  soundKey = src.soundKey or "notify" }
     if type(s.on) == "boolean" then sp.on = s.on end
-    if s.sound == true then sp.sound = true end
+    if type(s.sound) == "boolean" then sp.sound = s.sound end
     -- a saved choice, unless it's the chime with the sound off: the default before the source had its own (mail,
     -- 2026-10-08), never heard, so it gets the new one
     if N.SoundLabel(s.soundKey) and not (s.soundKey == "notify" and s.sound ~= true and src.soundKey) then

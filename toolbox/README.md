@@ -70,7 +70,8 @@ member with their name, health and focus bars and health in percent. The lowest 
 another scene is dimmed, and one beyond your reach a little. Each row shows the member's debuffs and the buffs you
 watch (only yours, if you like), with the time left. Party order or lowest health first, only during combat,
 and yourself left out unless you want your row (Settings, Party). A notification tells who joins or leaves the party
-or your scene. Needs a newer game client (Lua API 55).
+or your scene, and an alert when a member drops below a health level or a debuff you name lands on one. Needs a newer
+game client (Lua API 55).
 
 ## Target HUD
 

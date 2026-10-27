@@ -1704,6 +1704,8 @@ local builtRows = 0
 local wasWanted, wasShown = false, false
 local effBy = {}               -- plain name -> { n, list = { { name, icon, debuff, left, total, mine } }, at }
 local effCursor = 0            -- the next member (in `order`) whose effects are read
+local flashPhase = false       -- a low member's health bar: bright every other poll
+local lowNow = {}              -- plain name -> true while below the alert level (told once; PT.CheckLow)
 
 local function pSave() T.Save("party", pprefs) end
 local function pWidth() return pprefs.width or PT.WIDTH_DEFAULT end
@@ -1930,7 +1932,7 @@ end
 
 -- Reads the effects of the next PT.BUFF_READS members shown (in your scene), in turn.
 local function readEffects()
-  if not effectsOn() then return end
+  if not effectsOn() and #(pprefs.alertDebuffs or {}) == 0 then return end
   local reads, tries = 0, 0
   while reads < PT.BUFF_READS and tries < shownCount do
     tries = tries + 1
@@ -1938,15 +1940,22 @@ local function readEffects()
     local mem = order[effCursor]
     local cache = effBy[mem.plain]
     if not cache then
-      cache = { n = 0, list = {}, at = 0 }
+      cache = { n = 0, list = {}, at = 0, had = {}, read = false }
       effBy[mem.plain] = cache
     end
     if mem.inScene then
       reads = reads + 1
       local ok, runes = pcall(ShroudGetPartyMemberBuffs, mem.slot)
       if ok and runes ~= nil then
-        cache.n = PT.CollectEffects(runes, cache.list, pprefs.debuffs ~= false, pprefs.watch, pprefs.mine == true,
-          pIcons())
+        cache.n = 0
+        if effectsOn() then
+          cache.n = PT.CollectEffects(runes, cache.list, pprefs.debuffs ~= false, pprefs.watch, pprefs.mine == true,
+            pIcons())
+        end
+        if mem.slot ~= 0 and PT.CheckDebuffs(mem.plain, runes, cache.had, not cache.read) > 0 then
+          T.Notify.Check()
+        end
+        cache.read = true
       else
         cache.n = 0
       end
@@ -2045,6 +2054,11 @@ local function setRow(i, mem, lowest)
     last.hpV = hpV
     r.hp:SetValue(hpV)
   end
+  local flash = flashPhase and lowNow[mem.plain] == true
+  if last.flash ~= flash then
+    last.flash = flash
+    r.hp:SetColor(flash and PT.FLASH_COLOR or "@red")
+  end
   local foV = 0
   if mem.inScene and mem.focus and mem.maxFocus and mem.maxFocus > 0 then
     foV = math.max(0, math.min(1, mem.focus / mem.maxFocus))
@@ -2138,13 +2152,22 @@ function PT.Poll()
   memberCount = PT.ReadParty(members)
   local before = shownCount
   shownCount = PT.Order(members, memberCount, pprefs.self == true, pSort(), order)
-  if shownCount ~= before then                 -- someone left: their effects go
-    for name in pairs(effBy) do
-      local still = false
-      for i = 1, shownCount do if order[i].plain == name then still = true end end
-      if not still then effBy[name] = nil end
+  if shownCount ~= before then                 -- someone left: their effects and alert state go
+    for _, by in ipairs({ effBy, lowNow }) do
+      for name in pairs(by) do
+        local still = false
+        for i = 1, shownCount do if order[i].plain == name then still = true end end
+        if not still then by[name] = nil end
+      end
     end
   end
+  local told = false
+  for i = 1, shownCount do
+    local _, new = PT.CheckLow(order[i])
+    if new then told = true end
+  end
+  if told then T.Notify.Check() end
+  flashPhase = not flashPhase
   local wanted = PT.Wanted()
   if wanted ~= wasWanted then
     wasWanted = wanted
@@ -2275,6 +2298,84 @@ function PT.EventsCheck(seen)
   end
   if #lines == 0 then return nil end
   return { title = "Party", text = table.concat(lines, " "), seen = partyEvents.n }
+end
+
+-- Watch alerts (owner, 2026-10-18): a member in your scene dropping below `alertBelow` % health (the row's health bar
+-- flashing while under it; told again once back above it by PT.REARM points), or a debuff named in `alertDebuffs`
+-- landing on one (each member's effects read in turn, so within a couple of seconds; one there at the member's first
+-- read isn't told). The "Party alerts" notification (docs.lua, key "party_alerts": the notification HUD with a ping by
+-- default). The strip does the reading: alerts need it on. `alertBelow` = 0 (off) or PT.ALERT_MIN..PT.ALERT_MAX;
+-- `alertDebuffs` = { name parts, <= PT.WATCH_MAX }.
+PT.ALERT_MIN, PT.ALERT_MAX = 5, 90
+PT.REARM = 10
+PT.FLASH_COLOR = "@text-bright"
+local partyAlerts = { n = 0, list = {} }
+
+local function queueAlert(text)
+  partyAlerts.n = partyAlerts.n + 1
+  partyAlerts.list[#partyAlerts.list + 1] = { id = partyAlerts.n, text = text }
+  if #partyAlerts.list > PT.EVENTS_KEEP then table.remove(partyAlerts.list, 1) end
+end
+
+-- Whether an alert can come: one set, and the strip (which reads the party) on.
+function PT.AlertsSet()
+  return PT.Has() and pprefs.show == true and ((pprefs.alertBelow or 0) > 0 or #(pprefs.alertDebuffs or {}) > 0)
+end
+
+function PT.AlertsCheck(seen)
+  local last = type(seen) == "number" and seen or 0
+  if partyAlerts.n <= last then return nil end
+  local lines = {}
+  for _, e in ipairs(partyAlerts.list) do
+    if e.id > last then lines[#lines + 1] = e.text end
+  end
+  if #lines == 0 then return nil end
+  return { title = "Party alert", text = table.concat(lines, " "), seen = partyAlerts.n }
+end
+
+-- Health below the alert level: a member crossing under it is told once (pure but for the queue and `lowNow`).
+-- Returns whether the member is under it now (the row flashes).
+function PT.CheckLow(m)
+  local below = pprefs.alertBelow or 0
+  local share = PT.Share(m)
+  if below <= 0 or m.slot == 0 or not share or m.dead then
+    lowNow[m.plain] = nil
+    return false
+  end
+  local pct = share * 100
+  if pct < below then
+    if not lowNow[m.plain] then
+      lowNow[m.plain] = true
+      queueAlert(m.plain .. " is at " .. math.floor(pct + 0.5) .. "% health.")
+      return true, true
+    end
+    return true
+  end
+  if pct >= below + PT.REARM then lowNow[m.plain] = nil end
+  return false
+end
+
+-- The alert debuffs on a member's runes: new ones (not in `had`, the names present at the last read) are told,
+-- unless `first`. `had` is updated in place. Returns how many were told.
+function PT.CheckDebuffs(plain, runes, had, first)
+  local list = pprefs.alertDebuffs
+  if not list or #list == 0 then return 0 end
+  local told = 0
+  for name in pairs(had) do had[name] = false end
+  for _, r in ipairs(T.List(runes)) do
+    local name = T.Field(r, "RuneName")
+    if T.Field(r, "IsDebuff") == true and PT.Watched(name, list) then
+      if had[name] == nil and not first then
+        queueAlert(plain .. ": " .. name .. ".")
+        told = told + 1
+      end
+      had[name] = true
+    end
+  end
+  for name, here in pairs(had) do
+    if not here then had[name] = nil end
+  end
+  return told
 end
 
 -- ShroudOnSceneLoaded (core.lua): the members' scene changes go untold for a moment.
@@ -2411,6 +2512,49 @@ function PT.RemoveWatch(text)
   return true, "No longer watching \"" .. gone .. "\"."
 end
 
+-- Watch alerts: the health level (0: off) and the debuffs to tell.
+function PT.GetAlertBelow() return pprefs.alertBelow or 0 end
+function PT.SetAlertBelow(n)
+  if type(n) ~= "number" or n ~= math.floor(n) or (n ~= 0 and (n < PT.ALERT_MIN or n > PT.ALERT_MAX)) then
+    return false
+  end
+  pprefs.alertBelow = n
+  pSave()
+  lowNow = {}
+  T.Config.Sync()
+  return true
+end
+
+function PT.GetAlertDebuffs() return pprefs.alertDebuffs or {} end
+function PT.AddAlertDebuff(text)
+  local part = T.Trim(text or "")
+  if part == "" then return false, "Type a debuff's name, or part of one." end
+  local list = PT.GetAlertDebuffs()
+  for _, p in ipairs(list) do
+    if p:lower() == part:lower() then return false, "\"" .. p .. "\" is on the list already." end
+  end
+  if #list >= PT.WATCH_MAX then return false, "At most " .. PT.WATCH_MAX .. " debuffs." end
+  local copy = {}
+  for i, p in ipairs(list) do copy[i] = p end
+  copy[#copy + 1] = part
+  pprefs.alertDebuffs = copy
+  pSave()
+  T.Config.Sync()
+  return true, "An alert when \"" .. part .. "\" lands on a party member."
+end
+function PT.RemoveAlertDebuff(text)
+  local part = T.Trim(text or ""):lower()
+  local copy, gone = {}, nil
+  for _, p in ipairs(PT.GetAlertDebuffs()) do
+    if p:lower() == part then gone = p else copy[#copy + 1] = p end
+  end
+  if not gone then return false, "\"" .. tostring(text) .. "\" isn't on the list." end
+  pprefs.alertDebuffs = copy
+  pSave()
+  T.Config.Sync()
+  return true, "No alert for \"" .. gone .. "\" any more."
+end
+
 function PT.GetMine() return pprefs.mine == true end
 function PT.SetMine(on)
   pprefs.mine = on == true
@@ -2479,14 +2623,20 @@ function PT.Init()
     pprefs.numbers = saved.numbers ~= false
     for _, c in ipairs(PT.REACH_CHOICES) do if saved.reach == c[1] then pprefs.reach = c[1] end end
     pprefs.debuffs = saved.debuffs ~= false
-    pprefs.mine = saved.mine == true
-    if type(saved.watch) == "table" then
-      local list = {}
-      for _, p in ipairs(saved.watch) do
-        if type(p) == "string" and p ~= "" and #list < PT.WATCH_MAX then list[#list + 1] = p end
-      end
-      pprefs.watch = list
+    local below = saved.alertBelow
+    if type(below) == "number" and below >= PT.ALERT_MIN and below <= PT.ALERT_MAX then
+      pprefs.alertBelow = math.floor(below)
     end
+    for _, key in ipairs({ "watch", "alertDebuffs" }) do
+      if type(saved[key]) == "table" then
+        local list = {}
+        for _, p in ipairs(saved[key]) do
+          if type(p) == "string" and p ~= "" and #list < PT.WATCH_MAX then list[#list + 1] = p end
+        end
+        pprefs[key] = list
+      end
+    end
+    pprefs.mine = saved.mine == true
     local ic = saved.icons
     if type(ic) == "number" and ic >= 0 and ic <= PT.ICONS_MAX then pprefs.icons = math.floor(ic) end
     local sz = saved.iconSize
@@ -2495,7 +2645,7 @@ function PT.Init()
     if type(saved.x) == "number" and type(saved.y) == "number" then pprefs.x, pprefs.y = saved.x, saved.y end
   end
   members, order, memberCount, shownCount = {}, {}, 0, 0
-  effBy, effCursor = {}, 0
+  effBy, effCursor, lowNow = {}, 0, {}
   known, quietUntil = nil, -math.huge
   if PT.Has() and T.Notify.IsOn("party") then          -- the baseline: nothing told for who's there at a start
     memberCount = PT.ReadParty(members)
@@ -2539,7 +2689,9 @@ T.Backup.KEYS[#T.Backup.KEYS + 1] = "party"
 PT.CONFIG_IDS = { "pt_show", "pt_combat", "pt_self", "pt_sort", "pt_width", "pt_width_value", "pt_numbers",
                   "pt_reach", "pt_shade", "pt_shade_value", "pt_debuffs", "pt_watch", "pt_watch_field",
                   "pt_watch_msg", "pt_watch_add", "pt_watch_remove", "pt_mine", "pt_icons", "pt_icons_value",
-                  "pt_icon_size", "pt_icon_size_value" }
+                  "pt_icon_size", "pt_icon_size_value", "pt_alert_below", "pt_alert_below_value", "pt_alert_debuffs",
+                  "pt_alert_debuffs_field", "pt_alert_debuffs_msg", "pt_alert_debuffs_add",
+                  "pt_alert_debuffs_remove" }
 
 function PT.ConfigSection(h)
   local ui = h.UI
@@ -2596,6 +2748,19 @@ function PT.ConfigSection(h)
       function(n) PT.SetIcons(n) end),
     h.slider("pt_icon_size", "Effect icon size", PT.ICON_MIN, PT.ICON_MAX, 2, PT.GetIconSize(),
       "The effect icons' size in pixels", function(n) PT.SetIconSize(n) end),
+    h.heading("Alerts"),
+    ui.Label{ text = "A Party alert (Settings, Notifications: the notification HUD with a ping by default) when a"
+      .. " member drops below a health level, their health bar flashing meanwhile, or a debuff you name lands on"
+      .. " one. They need the Party Toolbelt on.", class = "dim", style = { whiteSpace = "wrap" } },
+    h.slider("pt_alert_below", "Alert below this health (%)", 0, PT.ALERT_MAX, 5, PT.GetAlertBelow(),
+      "Once each time a member goes under it (" .. PT.ALERT_MIN .. "-" .. PT.ALERT_MAX .. "); 0: off",
+      function(n)
+        if n > 0 and n < PT.ALERT_MIN then n = PT.ALERT_MIN end
+        PT.SetAlertBelow(n)
+      end),
+    ui.Label{ text = "Alert when these debuffs land:", class = "text", style = { marginTop = 4 } },
+    h.nameList("pt_alert_debuffs", "Debuffs whose names contain these give an alert as they land on a member",
+      PT.AddAlertDebuff, PT.RemoveAlertDebuff),
     h.positionRows("party", PT, "Position"),
     ui.Label{ text = "The names follow the General text size. Move the strip here, by its grip or with /toolbox party"
       .. " move.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
@@ -2613,6 +2778,9 @@ function PT.ConfigSync(h)
   h.setValue("pt_mine", PT.GetMine())
   h.sliderValue("pt_icons", PT.GetIcons())
   h.sliderValue("pt_icon_size", PT.GetIconSize())
+  h.sliderValue("pt_alert_below", PT.GetAlertBelow())
+  local alerts = PT.GetAlertDebuffs()
+  h.setText("pt_alert_debuffs", #alerts > 0 and ("Alerts for: " .. table.concat(alerts, ", ")) or "Alerts for: none")
   local watch = PT.GetWatch()
   h.setText("pt_watch", #watch > 0 and ("Watched: " .. table.concat(watch, ", ")) or "Watched: none")
   h.setEnabled("pt_show", PT.Has())
@@ -2620,7 +2788,8 @@ function PT.ConfigSync(h)
   h.sliderValue("pt_shade", PT.GetShade())
   for _, id in ipairs({ "pt_combat", "pt_self", "pt_sort", "pt_numbers", "pt_reach", "pt_width", "pt_shade",
                         "pt_debuffs", "pt_watch_field", "pt_watch_add", "pt_watch_remove", "pt_mine", "pt_icons",
-                        "pt_icon_size" }) do
+                        "pt_icon_size", "pt_alert_below", "pt_alert_debuffs_field", "pt_alert_debuffs_add",
+                        "pt_alert_debuffs_remove" }) do
     h.setEnabled(id, PT.GetShow() and PT.Has())
   end
 end

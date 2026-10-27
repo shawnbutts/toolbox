@@ -14,6 +14,9 @@ ones included).
   dimmed, and one beyond your reach (30 m by default) a little. After the bars come each member's debuffs and the
   buffs you watch (only the ones you cast, if you like), with the time left as a sweep. Choose party order or lowest
   health first, only during combat, and whether your own row shows (Settings, Party).
+- **Party alerts** (Lua API 55): a ping and a line on the notification HUD when a party member drops below the
+  health level you set (their health bar flashes meanwhile), or when a debuff you name lands on one (Settings,
+  Party, Alerts).
 - **Party comings and goings** (Lua API 55), a notification (a chat line by default; Settings, Notifications): who
   joins or leaves your party, who leaves your scene (and for where) or comes back, and a friend or guild member
   going offline or back online.
