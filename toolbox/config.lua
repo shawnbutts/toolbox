@@ -323,6 +323,7 @@ function C.CraftingSection()
   local needs = "Needs a newer game client (Lua API 18)"
   local function names(list) local out = {} for i, c in ipairs(list) do out[i] = c[2] end return out end
   local reading = T.Daily.ReadingRecipes()
+  local book = has and not T.Daily.HasMakers()   -- API 50: the game names the recipes making an item, nothing read
   return UI.Column{ children = {
     heading("Crafting planner", true),
     UI.Label{ text = "Plan a craft from your recipes: each ingredient you need, have and are short of, the"
@@ -342,10 +343,11 @@ function C.CraftingSection()
     heading("Recipe book"),
     UI.Label{ text = "From scratch needs every recipe you know, read one at a time (about a minute and a half for a"
       .. " big book), and the game may stutter meanwhile: it's read only while the crafting planner is open (At"
-      .. " login: in the background). Until it's read, I'll craft knows only the recipes named like the item.",
+      .. " login: in the background). Until it's read, I'll craft knows only the recipes named like the item. A"
+      .. " newer game client tells Toolbox which recipes make each item instead, and then nothing is read.",
       class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
     dropdownRow("Read it", { id = "pl_book_when", choices = names(PL.BOOK_WHEN),
-      value = PL.BookWhenName(PL.GetBookWhen()), enabled = has,
+      value = PL.BookWhenName(PL.GetBookWhen()), enabled = book,
       tooltip = "When the planner needs it: as From scratch asks. At login: in the background a minute after you log"
         .. " in, and after learning a recipe. Only when I ask (the default): never on its own (Read it now); a"
         .. " recipe learned leaves the book you read in use.",
@@ -353,7 +355,7 @@ function C.CraftingSection()
     UI.Label{ id = "pl_book_status", text = PL.BookStatus(), class = "dim", style = { whiteSpace = "wrap" } },
     UI.Row{ style = { marginTop = 4 }, children = {
       UI.Button{ id = "pl_book_read", text = T.Daily.recipeIndex and "Read it again" or "Read it now",
-        enabled = has and not reading,
+        enabled = book and not reading,
         tooltip = has and ("Asks first (the game may stutter while it's read); OK opens the crafting planner and"
           .. " reads your recipe book while it's open (or /" .. T.commands[1] .. " plan book read)") or needs,
         onClick = function() PL.AskBook() end },
@@ -2560,7 +2562,8 @@ function C.SyncBook()
   local reading = T.Daily.ReadingRecipes()
   setText("pl_book_status", T.Planner.BookStatus())
   setText("pl_book_read", T.Daily.recipeIndex and "Read it again" or "Read it now")
-  setEnabled("pl_book_read", T.Daily.HasResults() and not reading)
+  setEnabled("pl_book_read", T.Daily.HasResults() and not T.Daily.HasMakers() and not reading)
+  setEnabled("pl_book_when", T.Daily.HasResults() and not T.Daily.HasMakers())
   setEnabled("pl_book_stop", reading)
 end
 

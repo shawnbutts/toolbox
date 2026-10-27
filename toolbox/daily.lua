@@ -943,6 +943,9 @@ function D.OnCraftingState(state)
   D.stationOpen = T.Field(state, "open") == true
 end
 
+-- The crafting window is open (the planner's counts then come from the recipes: API 55's count is your bags only).
+function D.AtStation() return D.stationOpen == true end
+
 -- At start: whether a crafting window is already open (a /lua reload at a station).
 function D.ReadCraftingState()
   if not D.HasResults() then return end
@@ -1353,10 +1356,35 @@ function D.StopRecipeBook()
   return true
 end
 
+-- API 50 (request 26): the game says which of your known recipes make an item, "a dictionary lookup, cheap enough
+-- to call for every ingredient of a plan" (the reference), so no book is read (D.HasMakers: the book's read, its
+-- confirmation and its settings stand aside). Each item's answer is kept for the session, dropped when the recipes
+-- change (D.ForgetRecipes). Returns { { id, yield, name } }, or nil (no character: ask again later).
+D.makers = {}
+function D.HasMakers() return type(ShroudGetRecipesMaking) == "function" end
+function D.MakersOf(keyOrName)
+  local cached = D.makers[keyOrName]
+  if cached then return cached end
+  local t0 = T.PerfT()
+  local ok, list = pcall(ShroudGetRecipesMaking, keyOrName)
+  T.PerfAdd("planner:makers (API 50)", t0)
+  if not ok or list == nil then return nil end
+  local out = {}
+  for _, m in ipairs(T.List(list)) do
+    local id, q = T.Field(m, "id"), T.Field(m, "quantity")
+    if type(id) == "number" then
+      out[#out + 1] = { id = id, yield = type(q) == "number" and q or 0, name = tostring(T.Field(m, "name")) }
+    end
+  end
+  D.makers[keyOrName] = out
+  return out
+end
+
 -- The known recipes and the book dropped (a recipe learned, another character). `keepBook`: the book read stays in
 -- use, marked stale (D.bookStale), and a read under way goes on: the player reads it again when they choose.
 function D.ForgetRecipes(keepBook)
   knownList, knownByWord, knownSrc = nil, nil, nil
+  D.makers = {}
   if knownBuild then
     T.RemovePeriodic(KNOWN_TIMER)
     knownBuild = nil
@@ -1548,8 +1576,14 @@ function D.RecipeLines(text)
   end
   local pick = exact or matches[1]
   local index = D.recipeIndex
-  if not index then return nil end         -- the caller reads the book first (D.ReadRecipeBook)
-  local byResult = index.byResult
+  if not index and not D.HasMakers() then return nil end   -- the caller reads the book first (D.ReadRecipeBook)
+  local function makersOf(name)
+    if D.HasMakers() then
+      local list = D.MakersOf(name)
+      return list and #list > 0 and list or nil
+    end
+    return index.byResult[name]
+  end
 
   local lines = {}
   local function say(s)
@@ -1636,7 +1670,7 @@ function D.RecipeLines(text)
   end
   local function expand(name, qty, depth, seen, note)
     local pad = string.rep("  ", depth)
-    local makers = byResult[name]
+    local makers = makersOf(name)
     if not makers or depth >= D.PROBE_DEPTH or seen[name] then
       say(pad .. qty .. " x " .. name .. note .. (seen[name] and "  (made from itself: stops here)" or ""))
       raw[name] = (raw[name] or 0) + qty
@@ -1645,11 +1679,11 @@ function D.RecipeLines(text)
     -- the recipe named like the item first ("Iron Ingot", not "Iron Ingot from Metal Scraps"): the usual way
     local m = makers[1]
     for _, mk in ipairs(makers) do
-      if T.Field(recipes(mk.id), "name") == name then m = mk end
+      if (mk.name or T.Field(recipes(mk.id), "name")) == name then m = mk end
     end
     local also = {}
     for _, mk in ipairs(makers) do
-      if mk ~= m then also[#also + 1] = tostring(T.Field(recipes(mk.id), "name")) end
+      if mk ~= m then also[#also + 1] = tostring(mk.name or T.Field(recipes(mk.id), "name")) end
     end
     local mrec = recipes(m.id)
     if m.yield <= 0 then
@@ -1765,6 +1799,8 @@ local plPrefs = {}
 local plWin, plEl = nil, {}
 local plMatches = {}                  -- the recipe dropdown's names -> recipe ids
 local plFresh = {}                    -- recipe id -> ShroudGetRecipe's table, read for this plan
+local plCountMode = false             -- API 55, away from a station: counts from ShroudGetOwnedCounts (PL.HaveOf)
+local plCounts = {}                   -- item key -> carried (false: the game didn't know it), for one refresh
 local plPlan = nil                    -- the last PL.Expand result
 local plDirty, plAt = false, -math.huge
 local plRows = {}                     -- the Plan view's rows as built: { sig, label, pick, make, via, values }
@@ -1792,8 +1828,28 @@ function PL.KeyOf(item)
   return tostring(T.Field(item, "name"))
 end
 
+-- API 55 (part of request 29): what you carry of an item, without reading a recipe ("fine to call for a whole
+-- ingredient list", the reference). Nil for an item without a key or one the game doesn't know.
+function D.HasCounts() return type(ShroudGetOwnedCounts) == "function" end
+local function plOwned(item)
+  local key = T.Field(item, "key")
+  if type(key) ~= "string" or key:sub(1, 5) ~= "item:" then return nil end
+  if plCounts[key] == nil then
+    local t0 = T.PerfT()
+    local ok, c = pcall(ShroudGetOwnedCounts, key)
+    T.PerfAdd("planner:counts (API 55)", t0)
+    plCounts[key] = ok and plNum(T.Field(c, "carried")) or false
+  end
+  return plCounts[key] or nil
+end
+
 -- How many of an item the craft can reach: `have` (a choice has it only when choosable), else `carried`, else 0.
+-- Away from a crafting station on API 55 (plCountMode): what you carry, read fresh, the recipe kept from before.
 function PL.HaveOf(item)
+  if plCountMode then
+    local n = plOwned(item)
+    if n then return n end
+  end
   return plNum(T.Field(item, "have")) or plNum(T.Field(item, "carried")) or 0
 end
 
@@ -1835,7 +1891,7 @@ function PL.PickMaker(makers, itemName, picked, nameOf)
   local named = nil
   for _, m in ipairs(makers) do
     if picked and m.id == picked then return m end
-    if not named and nameOf(m.id) == itemName then named = m end
+    if not named and (m.name or nameOf(m.id)) == itemName then named = m end
   end
   return named or makers[1]
 end
@@ -2107,13 +2163,15 @@ end
 -- reads it only when they ask (PL.BOOK_WHEN) or stopped a read.
 -- "When the planner needs it": the confirmation, then the read (Only when I ask: the planner's button reads it).
 function PL.NeedBook()
-  if D.recipeIndex or D.ReadingRecipes() or plBookStopped or plConfirm or PL.GetBookWhen() ~= "need" then return end
+  if D.HasMakers() or D.recipeIndex or D.ReadingRecipes() or plBookStopped or plConfirm
+    or PL.GetBookWhen() ~= "need" then return end
   plNeedAsk = true
 end
 local function plAskNeeded()
   if not plNeedAsk then return end
   plNeedAsk = false
-  if D.recipeIndex or D.ReadingRecipes() or plBookStopped or plConfirm or PL.GetBookWhen() ~= "need" then return end
+  if D.HasMakers() or D.recipeIndex or D.ReadingRecipes() or plBookStopped or plConfirm
+    or PL.GetBookWhen() ~= "need" then return end
   PL.Confirm(false, function()
     if not PL.IsShown() then PL.Open() end
     D.ReadRecipeBook(function(ok)
@@ -2138,7 +2196,7 @@ local BOOK_LOGIN_TIMER = "toolbox_book_login"
 
 -- "At login": the read starts PL.BOOK_LOGIN_DELAY s from now (a login settling, a recipe just learned).
 local function plBookLater()
-  if PL.GetBookWhen() ~= "login" or type(ShroudGetKnownRecipes) ~= "function" then return end
+  if PL.GetBookWhen() ~= "login" or type(ShroudGetKnownRecipes) ~= "function" or D.HasMakers() then return end
   T.RegisterPeriodic(BOOK_LOGIN_TIMER, function()
     if PL.GetBookWhen() ~= "login" or plBookStopped or D.recipeIndex or D.ReadingRecipes() or plConfirm then
       return
@@ -2158,7 +2216,8 @@ function PL.SetBookWhen(v)
     if w[1] == want or w[2]:lower() == want then
       plPrefs.book = w[1]
       plSave()
-      if w[1] == "login" and not D.recipeIndex and not D.ReadingRecipes() and not plBookStopped then
+      if w[1] == "login" and not D.HasMakers() and not D.recipeIndex and not D.ReadingRecipes()
+        and not plBookStopped then
         PL.AskBook()                       -- chosen now: no login to wait for (asked first)
       end
       T.Config.Sync()
@@ -2171,7 +2230,7 @@ end
 -- Reads the book now (again when read; Settings > Crafting, the planner, /toolbox plan book read). `quiet`: no chat.
 -- Returns how many recipes it reads, or nil (no recipe calls, or reading already).
 function PL.ReadBook(quiet)
-  if D.ReadingRecipes() then return nil end
+  if D.HasMakers() or D.ReadingRecipes() then return nil end
   plBookStopped = false
   local again = D.recipeIndex ~= nil
   local anywhere = PL.GetBookWhen() == "login"
@@ -2196,8 +2255,14 @@ end
 -- The player's Read it now / Read the recipe book / plan book read (owner, 2026-10-23): the confirmation first; OK
 -- opens the planner (the book is read only while it is) and reads it; "At login" reads in the background. Returns
 -- true, or nil without the recipe calls.
+PL.NO_BOOK = "Not needed: your game client tells Toolbox which of your recipes make each item, so there's no book"
+  .. " to read"
 function PL.AskBook()
   if type(ShroudGetRecipe) ~= "function" or type(ShroudGetKnownRecipes) ~= "function" then return nil end
+  if D.HasMakers() then
+    T.Print("Recipe book: " .. PL.NO_BOOK .. ".")
+    return true
+  end
   if D.ReadingRecipes() then
     if PL.GetBookWhen() ~= "login" and not PL.IsShown() then PL.Open() end
     return true
@@ -2221,6 +2286,7 @@ end
 
 -- One line on the book: read, being read, stale or not yet.
 function PL.BookStatus()
+  if D.HasMakers() then return PL.NO_BOOK end
   local done, total, left = D.BookProgress()
   if done then
     local mins = math.floor(left / 60 + 0.5)
@@ -2278,6 +2344,7 @@ local function plQuickMakers(key, name)
 end
 
 local function plMakers(key, name)
+  if D.HasMakers() then return D.MakersOf(key or name) or {} end   -- API 50: no book
   local index = D.recipeIndex
   if not index then return plQuickMakers(key, name) end
   if index.byKey and key and index.byKey[key] then return index.byKey[key] end
@@ -2289,6 +2356,15 @@ end
 function PL.Remaining()
   local id = plRecipeId()
   return math.max(0, PL.GetCrafts() - (id and plMade[id] or 0))
+end
+
+-- Before a plan is worked out again. API 55 away from a station: the plan's recipes are kept (what they take
+-- doesn't change) and only the counts are read (ShroudGetOwnedCounts); at a station, `have` counts the table and the
+-- crafting trunks, which only the recipe gives: read fresh, as before API 55 (review 67: each a slow call in game).
+local function plStartRefresh()
+  local counting = D.HasCounts() and not D.AtStation()
+  if not counting or not plCountMode then plFresh = {} end
+  plCountMode, plCounts = counting, {}
 end
 
 -- Works the plan out again (nil without a recipe or a game client with the recipe calls).
@@ -2919,6 +2995,64 @@ function PL.Gap(shown)
   return math.min(PL.GAP_MAX, (shown and PL.REFRESH_GAP or PL.HUD_GAP) + PL.GAP_PER_READ * plLastReads)
 end
 
+-- /toolbox perf recipes (owner, 2026-10-27: performance testing around API 50 and 55): times the planner's game calls
+-- for the plan set, the way before those APIs and the way after, so the change can be measured in game. `clock`:
+-- os.clock (T.PerfClock), nil when the sandbox has none. Every call runs at once: expect one hitch.
+function PL.PerfLines(clock)
+  if not clock then return { "This game client doesn't let add-ons time anything (no os.clock)." } end
+  local id = plRecipeId()
+  if not id or type(ShroudGetRecipe) ~= "function" then
+    return { "Plan a recipe in the crafting planner first (From scratch on, some I'll craft ticked): the timing"
+      .. " uses its recipes and ingredients." }
+  end
+  plStartRefresh()
+  local plan = PL.Plan()
+  if not plan then return { "The recipe planned isn't in your book any more: plan another." } end
+  local ids, keys, seenKey = {}, {}, {}
+  for _, b in ipairs(plan.build) do ids[#ids + 1] = b.id end
+  for _, r in ipairs(plan.rows) do
+    if type(r.key) == "string" and r.key:sub(1, 5) == "item:" and not seenKey[r.key] then
+      seenKey[r.key] = true
+      keys[#keys + 1] = r.key
+    end
+  end
+  local lines = { "Timing the crafting planner's game calls for " .. #ids .. " recipes and " .. #keys
+    .. " ingredients (ms):" }
+  local once = { false }
+  local function time(label, list, fn)
+    local total, longest = 0, 0
+    for _, x in ipairs(list) do
+      local t0 = clock()
+      pcall(fn, x)
+      local d = clock() - t0
+      total, longest = total + d, math.max(longest, d)
+    end
+    lines[#lines + 1] = string.format("  %s: %d calls, %.1f in all, the longest %.1f", label, #list, total * 1000,
+      longest * 1000)
+  end
+  time("ShroudGetRecipe, each recipe (a refresh read them all before API 55)", ids, ShroudGetRecipe)
+  time("ShroudGetKnownRecipes, the list (once a session)", once, function() return ShroudGetKnownRecipes() end)
+  if D.HasMakers() then
+    time("ShroudGetRecipesMaking, each ingredient (API 50; kept for the session)", keys, ShroudGetRecipesMaking)
+  else
+    lines[#lines + 1] = "  ShroudGetRecipesMaking: not on this client (API 50): the makers come from the book's read"
+  end
+  if type(ShroudGetRecipeIndex) == "function" then
+    time("ShroudGetRecipeIndex, the whole book in short (API 50; Toolbox doesn't need it)", once,
+      function() return ShroudGetRecipeIndex() end)
+  end
+  if D.HasCounts() then
+    time("ShroudGetOwnedCounts, each ingredient (API 55; each refresh away from a station)", keys,
+      ShroudGetOwnedCounts)
+  else
+    lines[#lines + 1] = "  ShroudGetOwnedCounts: not on this client (API 55): each refresh reads the recipes"
+  end
+  local function refresh() plStartRefresh(); PL.Plan() end
+  time("A refresh of the plan as Toolbox does it here" .. (D.HasCounts() and (D.AtStation()
+    and " (at a crafting station: the recipes read)" or " (counts only)") or " (the recipes read)"), once, refresh)
+  return lines
+end
+
 -- Fills the window from a new plan. `now`: at once (a player's change), else only when something changed and at
 -- most every PL.REFRESH_GAP s (PL.Tick).
 function PL.Refresh(now)
@@ -2932,7 +3066,7 @@ function PL.Refresh(now)
     if T.Now() - plAt < PL.Gap(shown) then return end
   end
   plDirty, plAt = false, T.Now()
-  plFresh = {}
+  plStartRefresh()
   local t0 = T.PerfT()
   local reads = plReads
   local plan = PL.Plan()
@@ -3281,7 +3415,8 @@ function PL.ShowProgress()
   local done, total, left = D.BookProgress()
   T.SetVisible(plEl.barRow, done ~= nil)
   -- From scratch with no book read (only on ask, or stopped): the player's way to read it from here
-  T.SetVisible(plEl.book, done == nil and not plConfirm and PL.GetScratch() and (not D.recipeIndex or D.bookStale))
+  T.SetVisible(plEl.book, done == nil and not plConfirm and not D.HasMakers() and PL.GetScratch()
+    and (not D.recipeIndex or D.bookStale))
   if D.recipeIndex then
     T.SetText(plEl.book, "Read the recipe book again")
     T.SetTooltip(plEl.book, "A recipe was learned since the book was read: read it again (in the background) so"

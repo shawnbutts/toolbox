@@ -2282,6 +2282,29 @@ function T.ApiLines()
       { "ShroudToggleHelmet", has(ShroudToggleHelmet) } } },
     { "Save before logout, no nochar file (API 43)", { { "API 43", since(43) } } },
     { "Plain item names (API 44)", { { "API 44", since(44) } } },
+    { "Whole party (API 45)", { { "ShroudGetParty", has(ShroudGetParty) } } },
+    { "Party range (API 46)", { { "ShroudGetPartyMemberRange", has(ShroudGetPartyMemberRange) } } },
+    { "Who applied an effect (API 47)", { { "API 47", since(47) } } },
+    { "Target difficulty (API 48)", { { "ShroudGetTargetDifficulty", has(ShroudGetTargetDifficulty) } } },
+    { "Pet buffs dismissed (API 49)", {
+      { "ShroudCanDismissPetBuff", has(ShroudCanDismissPetBuff) },
+      { "ShroudDismissPetBuff", has(ShroudDismissPetBuff) } } },
+    { "Recipes making an item (API 50)", {
+      { "ShroudGetRecipesMaking", has(ShroudGetRecipesMaking) },
+      { "ShroudGetRecipeIndex", has(ShroudGetRecipeIndex) } } },
+    { "Add-on data files (API 51)", {
+      { "ShroudWriteDataFile", has(ShroudWriteDataFile) },
+      { "ShroudReadDataFile", has(ShroudReadDataFile) },
+      { "ShroudDeleteDataFile", has(ShroudDeleteDataFile) },
+      { "ShroudListDataFiles", has(ShroudListDataFiles) },
+      { "ShroudOpenDataFolder", has(ShroudOpenDataFolder) } } },
+    { "Item kinds (API 52)", { { "API 52", since(52) } } },
+    { "Decoration pose (API 53)", { { "API 53", since(53) } } },
+    { "Target threat list (API 54)", { { "ShroudGetTargetAggro", has(ShroudGetTargetAggro) } } },
+    { "All skills, owned counts, item search (API 55)", {
+      { "ShroudGetAllSkills", has(ShroudGetAllSkills) },
+      { "ShroudGetOwnedCounts", has(ShroudGetOwnedCounts) },
+      { "ShroudSearchOwnedItems", has(ShroudSearchOwnedItems) } } },
   }
   local lines = { "Lua API " .. tostring(ShroudLuaApiVersion) .. " (the docs described " .. T.DOCS_API
     .. " when this build was made)." }
@@ -2486,6 +2509,9 @@ local function clockFn()
   if type(clock) ~= "function" then return nil end
   return clock
 end
+-- os.clock for a one-off timing a command asks for (/toolbox perf recipes), nil when the sandbox has none.
+function T.PerfClock() return clockFn() end
+
 function T.PerfT()
   if not timing then return nil end
   local ok, now = pcall(timing.clock)
@@ -2771,8 +2797,13 @@ end
 function T.PerfRunning() return perf ~= nil end
 
 add("perf", "measure hitches for a minute (perf <seconds>; perf stop): slow frames, and whether Toolbox worked in"
-  .. " them; perf quiet: the same with Toolbox's timers paused", function(rest)
+  .. " them; perf quiet: the same with Toolbox's timers paused; perf recipes: time the crafting planner's game calls"
+  .. " for the plan set", function(rest)
   local word = rest:lower()
+  if T.Trim(word) == "recipes" then
+    for _, line in ipairs(T.Planner.PerfLines(T.PerfClock())) do T.Print(line) end
+    return
+  end
   local quiet = (" " .. word .. " "):find(" quiet ", 1, true) ~= nil      -- "quiet", "quiet 30", "30 quiet"
   if quiet then word = T.Trim((word:gsub("quiet", ""))) end
   local first, more = T.ParseArgs(word)                                     -- "only tick location [30]"

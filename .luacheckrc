@@ -104,6 +104,16 @@ local api_probed = {
   "ShroudBackupSavedVars", "ShroudListSavedVarBackups", "ShroudRestoreSavedVarBackup",            -- API 39
   "ShroudSetMapTitle", "ShroudGetMapTitle",                                                        -- API 40
   "ShroudIsHelmetVisible", "ShroudSetHelmetVisible", "ShroudToggleHelmet",                         -- API 42
+  -- API 45-55: the QA docs preview (catnipgames.net/lua/qa/, 2026-10-27), not yet the live reference
+  "ShroudGetParty",                                                                                -- API 45
+  "ShroudGetPartyMemberRange",                                                                     -- API 46
+  "ShroudGetTargetDifficulty",                                                                     -- API 48
+  "ShroudCanDismissPetBuff", "ShroudDismissPetBuff",                                               -- API 49
+  "ShroudGetRecipesMaking", "ShroudGetRecipeIndex",                                                -- API 50
+  "ShroudWriteDataFile", "ShroudReadDataFile", "ShroudDeleteDataFile", "ShroudListDataFiles",
+  "ShroudOpenDataFolder",                                                                          -- API 51
+  "ShroudGetTargetAggro",                                                                          -- API 54
+  "ShroudGetAllSkills", "ShroudGetOwnedCounts", "ShroudSearchOwnedItems",                          -- API 55
 }
 
 -- Callbacks an add-on may define. Listed as writable globals.

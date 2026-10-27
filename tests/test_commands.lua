@@ -697,7 +697,22 @@ return function(t)
     H.chat("/tbx api")
     t.ok(H.logged("one item's weight and value %(API 41%): all 1 present"))
     t.ok(H.logged("Plain item names %(API 44%): all 1 present"))
+    t.ok(H.logged("Recipes making an item %(API 50%): none present"))
     ShroudLuaApiVersion = 25
+  end)
+
+  t.test("api tells the API 45-55 groups on a client that has them (the QA preview's)", function()
+    H.apiVersion = 55
+    local ok, err = pcall(function()
+      H.boot()
+      H.clearLogs()
+      H.chat("/tbx api")
+      t.ok(H.logged("Recipes making an item %(API 50%): all 2 present"), table.concat(H.logs(), " | "))
+      t.ok(H.logged("owned counts, item search %(API 55%): 1 of 3 present"), "the harness has the counts only")
+      t.ok(H.logged("Item kinds %(API 52%): all 1 present"), "told by the version")
+    end)
+    H.apiVersion = nil
+    if not ok then error(err, 0) end
   end)
 
   t.test("Trim and ParseArgs, on short and very long text", function()

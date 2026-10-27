@@ -5,6 +5,10 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Changed" },
+  { "item", "The crafting planner without the recipe book (newer game clients, Lua API 50): the game now tells add-ons which of your recipes make an item, so From scratch's I'll craft knows every recipe at once. No recipe book is read, no window asks first, and the game no longer stutters for it. Older clients read the book as before." },
+  { "item", "Lighter planner refreshes (Lua API 55): when your bags change, the planner reads just the counts of what you carry instead of reading each recipe again (the slow call behind 1.9.0's hitching). At a crafting station it still reads the recipes, which count the crafting table and its trunks." },
+  { "item", "/toolbox api lists the API 45 to 55 additions, and /toolbox perf recipes times the crafting planner's game calls for the plan set, to compare the old way with the new." },
   { "section", "Fixed" },
   { "item", "Dropdowns too narrow for their choices: a dropdown was only as wide as the choice shown, so its open list cut longer ones short (the Loot Tracker's Show list, for one). Every dropdown, in every window and on every settings page, is now as wide as its longest choice, and follows a text size change." },
   { "version", "1.9.1 - 2026-10-24" },

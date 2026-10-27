@@ -200,6 +200,14 @@ into one if a new file is ever needed).
   their result; without `made`, items gained at a station count as made by name (`D.IsProduct`), the rest
   as `station`. Looted = items - crafted - station - gathered + pending. Skill levels: `D.SkillGains` over
   the highest `trainedLevel` seen per skill (`skill_levels`); deaths from `ShroudOnDeathChanged(true)`.
+  API 50 / 55 (the QA preview, 2026-10-27; 1.10.0): with `ShroudGetRecipesMaking` (`D.HasMakers`) the makers come
+  from the game, `D.MakersOf(keyOrName)` (kept a session in `D.makers`, dropped by `D.ForgetRecipes`), and the book
+  below is never read (its confirmation, settings and buttons stand aside, `PL.NO_BOOK`); with `ShroudGetOwnedCounts`
+  (`D.HasCounts`) a refresh away from a station (`D.AtStation`: the crafting window) keeps the plan's recipes and reads
+  only `carried` counts (`plCountMode`, `PL.HaveOf`; at a station the recipes are read fresh: their `have` counts the
+  table and trunks). `/toolbox perf recipes` (`PL.PerfLines`, `T.PerfClock`) times each kind of call for the plan set.
+  Harness: `H.apiVersion >= 50` / `55` installs them (`H.S.makingCalls`, `H.S.countCalls`, `H.S.recipeCalls`,
+  `H.S.owned[key] = { carried, bank, bankKnown }`).
   The recipe book (`D.ReadRecipeBook`, for `/toolbox recipe` and the planner): `D.BOOK_STEP` (1) recipe by id a
   `D.BOOK_PERIOD` (0.05 s) step, about 90 s for a big book (the whole book at once ran past the game's time limit,
   2026-10-05; paused in a fight and `BB.COMBAT_LINGER` s after it, and while the planner is closed unless the read is

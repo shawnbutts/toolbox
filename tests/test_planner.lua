@@ -989,4 +989,127 @@ return function(t)
     t.no(win())
     H.S.noCrafting = nil
   end)
+
+  -- API 50 and 55 (the QA preview, 2026-10-27; owner: "update the existing stuff to the new APIs"). `api` for the
+  -- whole test, put back after it whatever happens.
+  local function onApi(api, fn)
+    return function()
+      H.apiVersion = api
+      local ok, err = pcall(fn)
+      H.apiVersion = nil
+      if not ok then error(err, 0) end
+    end
+  end
+
+  t.test("API 50: I'll craft knows every maker at once, from the game: no book, no confirmation", onApi(50, function()
+    open()
+    local D, PL = Toolbox.Daily, Toolbox.Planner
+    t.ok(D.HasMakers())
+    H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
+    H.change(W, "pl_scratch", true)
+    H.advance(2)
+    t.no(confirmWin(), "nothing to read, nothing asked")
+    t.no(find("pl_book"):IsVisible(), "no Read the recipe book button")
+    t.ok(find("pl_make_1"):IsEnabled())
+    H.change(W, "pl_make_1", true)
+    H.change(W, "pl_make_2", true)
+    t.eq(find("pl_via_2").value, "Iron Ingot", "both makers known, the one named like the item picked")
+    t.eq(#find("pl_via_2").choices, 2, "the scraps recipe too, with no book read")
+    t.no(D.recipeIndex or D.ReadingRecipes(), "the book never read")
+    t.ok(PL.BookStatus():find("^Not needed"), PL.BookStatus())
+    local calls = H.S.makingCalls
+    H.inventoryChanged()
+    H.advance(5)
+    t.eq(H.S.makingCalls, calls, "each item asked once a session")
+    H.callback("ShroudOnRecipesChanged")
+    H.advance(5)
+    t.ok(H.S.makingCalls > calls, "asked again after learning a recipe")
+    H.clearLogs()
+    H.chat("/tbx plan book read")
+    t.ok(H.logged("^Recipe book: Not needed"), H.lastLog())
+    t.no(confirmWin())
+    H.chat("/tbx config")
+    t.no(H.config():Find("pl_book_read"):IsEnabled(), "Read it now greyed out")
+    t.no(H.config():Find("pl_book_when"):IsEnabled(), "and when to read it")
+    t.ok(H.config():Find("pl_book_status").text:find("^Not needed"))
+  end))
+
+  t.test("API 50: /toolbox recipe answers from scratch at once, without the book", onApi(50, function()
+    H.boot()
+    book()
+    H.clearLogs()
+    H.chat("/tbx recipe iron sheet")
+    t.no(confirmWin(), "nothing asked")
+    t.ok(H.logged("From scratch"), H.logs()[1])
+    t.ok(H.logged("<%- 2 x Iron Ingot"), "the ingot's maker: " .. table.concat(H.logs(), " | "))
+    t.ok(H.logged("also made by: Iron Ingot from Metal Scraps"), "both makers, from the game")
+    t.eq(H.S.bookCalls or 0, 0, "no book read")
+  end))
+
+  t.test("API 55: away from a station a change reads only the counts; at one, the recipes as before",
+      onApi(55, function()
+    open()
+    local reads = H.S.recipeCalls
+    H.S.owned = { [key("f")] = { carried = 3 } }        -- 3 straps in your bags
+    H.inventoryChanged()
+    H.advance(3)
+    t.ok(body():find("4 x Leather Strap: have 3, 1 short", 1, true), body())
+    t.eq(H.S.recipeCalls, reads, "no recipe read again: the counts from ShroudGetOwnedCounts")
+    t.ok((H.S.countCalls or 0) > 0)
+    H.S.owned = { [key("f")] = { carried = 4 } }
+    H.inventoryChanged()
+    H.advance(3)
+    t.ok(body():find("4 x Leather Strap: have them", 1, true) or body():find("have 4", 1, true), body())
+    t.eq(H.S.recipeCalls, reads, "still none")
+    -- at a crafting station the recipes count the table and the trunks: read fresh
+    H.S.craftingState = { open = true, station = "Blacksmithing Station", busy = false }
+    H.callback("ShroudOnCraftingStateChanged", H.S.craftingState)
+    H.S.recipes[10].ingredients[3].have = 2
+    H.inventoryChanged()
+    H.advance(3)
+    t.ok(H.S.recipeCalls > reads, "the recipes read at a station")
+    t.ok(body():find("4 x Leather Strap: have 2, 2 short", 1, true), "the recipe's count: " .. body())
+  end))
+
+  t.test("API 55: a plan with From scratch makes no recipe call on a change once it's planned", onApi(55, function()
+    open()
+    H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
+    H.change(W, "pl_scratch", true)
+    H.change(W, "pl_make_1", true)
+    H.change(W, "pl_make_2", true)
+    H.advance(5)
+    local reads = H.S.recipeCalls
+    for _ = 1, 5 do
+      H.inventoryChanged()
+      H.advance(3)
+    end
+    t.eq(H.S.recipeCalls, reads, "five changes, no recipe read")
+    t.eq(Toolbox.Planner.Gap(true), Toolbox.Planner.REFRESH_GAP, "so the refresh gap stays short")
+  end))
+
+  t.test("/toolbox perf recipes times the planner's calls, before and with API 50 and 55", function()
+    for _, api in ipairs({ 44, 55 }) do
+      onApi(api, function()
+        H.boot()
+        book()
+        H.clearLogs()
+        H.chat("/tbx perf recipes")
+        t.ok(H.logged("^Plan a recipe in the crafting planner first"), H.lastLog())
+        open()
+        H.clearLogs()
+        H.chat("/tbx perf recipes")
+        local all = table.concat(H.logs(), "\n")
+        t.ok(all:find("Timing the crafting planner's game calls for", 1, true), all)
+        t.ok(all:find("ShroudGetRecipe, each recipe", 1, true), all)
+        if api >= 55 then
+          t.ok(all:find("ShroudGetRecipesMaking, each ingredient", 1, true), all)
+          t.ok(all:find("ShroudGetOwnedCounts, each ingredient", 1, true), all)
+          t.ok(all:find("(counts only)", 1, true), all)
+        else
+          t.ok(all:find("ShroudGetRecipesMaking: not on this client", 1, true), all)
+          t.ok(all:find("(the recipes read)", 1, true), all)
+        end
+      end)()
+    end
+  end)
 end

@@ -603,6 +603,7 @@ local function install_api()
     end
     -- A known recipe by id (H.S.recipes[id] = { name, ingredients = { { name, quantity, tool, optional } } }).
     ShroudGetRecipe = function(id)
+      S.recipeCalls = (S.recipeCalls or 0) + 1
       local r = S.recipes and S.recipes[id]
       return r and copy(r) or nil
     end
@@ -644,8 +645,94 @@ local function install_api()
     else
       ShroudGetRecipeBook = nil
     end
+    -- API 50 (H.apiVersion >= 50): the known recipes making an item, by key or name (case ignored), and the index.
+    -- H.S.makingCalls / H.S.indexCalls count the calls.
+    if (H.apiVersion or 25) >= 50 then
+      local function sortedIds()
+        local ids = {}
+        for id in pairs(S.recipes or {}) do ids[#ids + 1] = id end
+        table.sort(ids)
+        return ids
+      end
+      ShroudGetRecipesMaking = function(keyOrName)
+        if not S.char.present then return nil end
+        S.makingCalls = (S.makingCalls or 0) + 1
+        local want, out = tostring(keyOrName):lower(), {}
+        for _, id in ipairs(sortedIds()) do
+          local r = S.recipes[id]
+          for _, res in ipairs(r.results or {}) do
+            if (res.key and res.key:lower() == want) or (res.name and res.name:lower() == want) then
+              out[#out + 1] = { id = id, name = r.name, quantity = res.quantity or 1, station = r.station or "",
+                                stationKey = r.categoryKey or "" }
+              break
+            end
+          end
+        end
+        return out
+      end
+      ShroudGetRecipeIndex = function(categoryKey)
+        if not S.char.present then return nil end
+        S.indexCalls = (S.indexCalls or 0) + 1
+        local out = {}
+        for _, id in ipairs(sortedIds()) do
+          local r = S.recipes[id]
+          if categoryKey == nil or (r.categoryKey or "Blacksmithy") == categoryKey then
+            local results = {}
+            for i, res in ipairs(r.results or {}) do
+              results[i] = { key = res.key, name = res.name, quantity = res.quantity or 1 }
+            end
+            out[#out + 1] = { id = id, name = r.name, station = r.station or "", stationKey = r.categoryKey or "",
+                              results = results }
+          end
+        end
+        return out
+      end
+    else
+      ShroudGetRecipesMaking, ShroudGetRecipeIndex = nil, nil
+    end
   else
     ShroudGetCraftingState, ShroudGetRecipe, ShroudGetRecipeBook = nil, nil, nil
+    ShroudGetRecipesMaking, ShroudGetRecipeIndex = nil, nil
+  end
+  -- API 55 (H.apiVersion >= 55): what you own of an item, by key or exact name (case ignored). H.S.owned[key or
+  -- name] = { carried, bank, bankInContainers, bankKnown } wins; else an item the recipes list counts its `carried`
+  -- (first seen), bank 0; nil for an unknown item or no character. H.S.countCalls counts the calls.
+  if (H.apiVersion or 25) >= 55 then
+    ShroudGetOwnedCounts = function(keyOrName)
+      if not S.char.present then return nil end
+      S.countCalls = (S.countCalls or 0) + 1
+      local want = tostring(keyOrName):lower()
+      for k, o in pairs(S.owned or {}) do
+        if k:lower() == want then
+          local bankKnown = o.bankKnown ~= false
+          local bank = bankKnown and (o.bank or 0) or 0
+          return { key = o.key or k, name = o.name or k, carried = o.carried or 0, bank = bank,
+                   bankInContainers = o.bankInContainers or 0, bankKnown = bankKnown,
+                   total = (o.carried or 0) + bank }
+        end
+      end
+      local found = nil                 -- an entry with a count wins over one without (a result): any order of pairs
+      local function look(item)
+        if type(item) ~= "table" then return end
+        if (item.key and item.key:lower() == want) or (item.name and item.name:lower() == want and item.key) then
+          local counted = item.carried ~= nil or item.have ~= nil
+          if not found or (counted and found.carried == nil and found.have == nil) then found = item end
+        end
+      end
+      for _, r in pairs(S.recipes or {}) do
+        for _, ing in ipairs(r.ingredients or {}) do
+          look(ing)
+          for _, c in ipairs(ing.choices or {}) do look(c) end
+        end
+        for _, res in ipairs(r.results or {}) do look(res) end
+      end
+      if not found then return nil end
+      local carried = found.carried or found.have or 0
+      return { key = found.key, name = found.name, carried = carried, bank = 0, bankInContainers = 0,
+               bankKnown = true, total = carried }
+    end
+  else
+    ShroudGetOwnedCounts = nil
   end
   -- Worn items (documented fields; empty slots skipped). Game objects when H.S.buffObjects is set.
   ShroudGetEquipmentItems = function()
