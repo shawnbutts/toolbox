@@ -943,9 +943,6 @@ function D.OnCraftingState(state)
   D.stationOpen = T.Field(state, "open") == true
 end
 
--- The crafting window is open (the planner's counts then come from the recipes: API 55's count is your bags only).
-function D.AtStation() return D.stationOpen == true end
-
 -- At start: whether a crafting window is already open (a /lua reload at a station).
 function D.ReadCraftingState()
   if not D.HasResults() then return end
@@ -1799,8 +1796,6 @@ local plPrefs = {}
 local plWin, plEl = nil, {}
 local plMatches = {}                  -- the recipe dropdown's names -> recipe ids
 local plFresh = {}                    -- recipe id -> ShroudGetRecipe's table, read for this plan
-local plCountMode = false             -- API 55, away from a station: counts from ShroudGetOwnedCounts (PL.HaveOf)
-local plCounts = {}                   -- item key -> carried (false: the game didn't know it), for one refresh
 local plPlan = nil                    -- the last PL.Expand result
 local plDirty, plAt = false, -math.huge
 local plRows = {}                     -- the Plan view's rows as built: { sig, label, pick, make, via, values }
@@ -1828,28 +1823,13 @@ function PL.KeyOf(item)
   return tostring(T.Field(item, "name"))
 end
 
--- API 55 (part of request 29): what you carry of an item, without reading a recipe ("fine to call for a whole
--- ingredient list", the reference). Nil for an item without a key or one the game doesn't know.
+-- API 55 (part of request 29): ShroudGetOwnedCounts, only timed by /toolbox perf recipes. Not used for the plan's
+-- counts: on the QA client it took 2.3 ms an item against 0.4 ms for a whole recipe read again (owner, 2026-10-27:
+-- 12 counts 27 ms, 6 recipes 2.5 ms), and a recipe's `have` also counts the crafting table and trunks.
 function D.HasCounts() return type(ShroudGetOwnedCounts) == "function" end
-local function plOwned(item)
-  local key = T.Field(item, "key")
-  if type(key) ~= "string" or key:sub(1, 5) ~= "item:" then return nil end
-  if plCounts[key] == nil then
-    local t0 = T.PerfT()
-    local ok, c = pcall(ShroudGetOwnedCounts, key)
-    T.PerfAdd("planner:counts (API 55)", t0)
-    plCounts[key] = ok and plNum(T.Field(c, "carried")) or false
-  end
-  return plCounts[key] or nil
-end
 
 -- How many of an item the craft can reach: `have` (a choice has it only when choosable), else `carried`, else 0.
--- Away from a crafting station on API 55 (plCountMode): what you carry, read fresh, the recipe kept from before.
 function PL.HaveOf(item)
-  if plCountMode then
-    local n = plOwned(item)
-    if n then return n end
-  end
   return plNum(T.Field(item, "have")) or plNum(T.Field(item, "carried")) or 0
 end
 
@@ -2368,14 +2348,8 @@ function PL.Remaining()
   return math.max(0, PL.GetCrafts() - (id and plMade[id] or 0))
 end
 
--- Before a plan is worked out again. API 55 away from a station: the plan's recipes are kept (what they take
--- doesn't change) and only the counts are read (ShroudGetOwnedCounts); at a station, `have` counts the table and the
--- crafting trunks, which only the recipe gives: read fresh, as before API 55 (review 67: each a slow call in game).
-local function plStartRefresh()
-  local counting = D.HasCounts() and not D.AtStation()
-  if not counting or not plCountMode then plFresh = {} end
-  plCountMode, plCounts = counting, {}
-end
+-- Before a plan is worked out again: its recipes read fresh, for their counts.
+local function plStartRefresh() plFresh = {} end
 
 -- Works the plan out again (nil without a recipe or a game client with the recipe calls).
 function PL.Plan()
@@ -3040,7 +3014,7 @@ local function perfQueue(run, plan)
   end
   local function note(text) run.steps[#run.steps + 1] = { note = text } end
   local once = { false }
-  section("ShroudGetRecipe, each recipe (a refresh read them all before API 55)", ids, ShroudGetRecipe)
+  section("ShroudGetRecipe, each recipe (a refresh reads them all)", ids, ShroudGetRecipe)
   section("ShroudGetKnownRecipes, the list (once a session)", once, perfKnown)
   if D.HasMakers() then
     section("ShroudGetRecipesMaking, each ingredient (API 50; kept for the session)", keys, ShroudGetRecipesMaking)
@@ -3048,16 +3022,10 @@ local function perfQueue(run, plan)
     note("ShroudGetRecipesMaking: not on this client (API 50): the makers come from the book's read")
   end
   if D.HasCounts() then
-    section("ShroudGetOwnedCounts, each ingredient (API 55; each refresh away from a station)", keys,
+    section("ShroudGetOwnedCounts, each ingredient (API 55; Toolbox doesn't use it: the recipes are cheaper)", keys,
       ShroudGetOwnedCounts)
-  else
-    note("ShroudGetOwnedCounts: not on this client (API 55): each refresh reads the recipes")
   end
-  if D.HasCounts() and not D.AtStation() then
-    section("A refresh of the plan as Toolbox does it here (counts only)", once, perfRefresh)
-  else
-    note("A refresh of the plan here reads every recipe: about the ShroudGetRecipe line's total, in one go")
-  end
+  section("A refresh of the plan as Toolbox does it (every recipe read again)", once, perfRefresh)
   T.Print(string.format("Timing %d recipes and %d ingredients, a call every %.2f s (ms; about %d s more):", #ids,
     #keys, PL.PERF_STEP, math.floor(#run.steps * PL.PERF_STEP + 0.99)))
 end
@@ -3065,14 +3033,14 @@ end
 -- One step of the plan's working out: at most one recipe read, in the run's own cache (the planner's refreshes
 -- meanwhile keep theirs). True when the plan is whole.
 local function perfPlanStep(run)
-  local fresh, mode, kept = plFresh, plCountMode, plCounts
-  plFresh, plCountMode, plCounts = run.fresh, run.counting, {}
+  local fresh = plFresh
+  plFresh = run.fresh
   plBudget = 1
   local short = plShortN
   local ok, plan = pcall(PL.Plan)
   plBudget = nil
   local whole = plShortN == short
-  plFresh, plCountMode, plCounts = fresh, mode, kept
+  plFresh = fresh
   if not ok then plan = nil end
   return whole, plan
 end
@@ -3130,8 +3098,7 @@ function PL.PerfStart(clock)
     return false, "Plan a recipe in the crafting planner first (From scratch on, some I'll craft ticked): the timing"
       .. " uses its recipes and ingredients."
   end
-  local run = { clock = clock, at = 1, planSteps = 0, planTotal = 0, planLongest = 0, fresh = {},
-                counting = D.HasCounts() and not D.AtStation() }
+  local run = { clock = clock, at = 1, planSteps = 0, planTotal = 0, planLongest = 0, fresh = {} }
   if not T.RegisterPeriodic(PL.PERF_ID, perfStep, PL.PERF_STEP, true) then
     return false, "The game refused the timing's timer: try again in a moment."
   end

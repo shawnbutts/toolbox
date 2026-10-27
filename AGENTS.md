@@ -202,17 +202,17 @@ into one if a new file is ever needed).
   the highest `trainedLevel` seen per skill (`skill_levels`); deaths from `ShroudOnDeathChanged(true)`.
   API 50 / 55 (the QA preview, 2026-10-27; 1.10.0): with `ShroudGetRecipesMaking` (`D.HasMakers`) the makers come
   from the game, `D.MakersOf(keyOrName)` (kept a session in `D.makers`, dropped by `D.ForgetRecipes`), and the book
-  below is never read (its confirmation, settings and buttons stand aside, `PL.NO_BOOK`); with `ShroudGetOwnedCounts`
-  (`D.HasCounts`) a refresh away from a station (`D.AtStation`: the crafting window) keeps the plan's recipes and reads
-  only `carried` counts (`plCountMode`, `PL.HaveOf`; at a station the recipes are read fresh: their `have` counts the
-  table and trunks). `/toolbox perf recipes` (`PL.PerfStart`, `T.PerfClock`) times each kind of call for the plan set, ONE recipe call
+  below is never read (its confirmation, settings and buttons stand aside, `PL.NO_BOOK`). `ShroudGetOwnedCounts`
+  (`D.HasCounts`) is NOT used for the plan's counts: built, then taken out on the owner's QA timing (2026-10-27): 2.3 ms
+  an item against 0.4 ms a recipe read again (12 counts 27 ms, 6 recipes 2.5 ms; a first read of a recipe as cheap),
+  and a recipe's `have` counts the table and trunks too. 1.9.0's 260-519 ms recipe reads were the live API 44 client. `/toolbox perf recipes` (`PL.PerfStart`, `T.PerfClock`) times each kind of call for the plan set, ONE recipe call
   a `PL.PERF_STEP` s step, the plan itself worked out a recipe a step first (`plBudget`, `perfPlanStep`, its own cache:
   the start makes no game call; with the planner closed the start's whole read paused the game seconds), each line as
   its kind finishes (owner, 2026-10-27, the QA client: all at once, the game's
   watchdog stopped Toolbox, "exceeded its execution time budget"; one watchdog deadline a call chain, length not
   documented: a refresh at a station still reads every plan recipe in one go).
   Harness: `H.apiVersion >= 50` / `55` installs them (`H.S.makingCalls`, `H.S.countCalls`, `H.S.recipeCalls`,
-  `H.S.owned[key] = { carried, bank, bankKnown }`).
+  `H.S.owned[key] = { carried, bank, bankKnown }`, for the timing).
   The recipe book (`D.ReadRecipeBook`, for `/toolbox recipe` and the planner): `D.BOOK_STEP` (1) recipe by id a
   `D.BOOK_PERIOD` (0.05 s) step, about 90 s for a big book (the whole book at once ran past the game's time limit,
   2026-10-05; paused in a fight and `BB.COMBAT_LINGER` s after it, and while the planner is closed unless the read is
@@ -940,7 +940,7 @@ feature-detected; the shapes as previewed:
   `{ key, name, carried, bank, bankInContainers, bankKnown, total }` (part of request 29: counts without reading
   recipes; bank from the login preload); `ShroudSearchOwnedItems(keyOrName, cb)` (the "Search All My Stuff" count: one
   in flight, a 5 s cooldown).
-Plan: 50 and 55's counts for the planner (a 1.9.x), 45-49 for 1.10.0's party manager and pet strip, 51 for exports and
+Plan: 50 for the planner (55's counts timed slower than recipe reads on QA, 2026-10-27: not used), 45-49 for 1.10.0's party manager and pet strip, 51 for exports and
 caches, 52 for the consumables bar's and Loot Tracker's kinds on other-language clients. Still not in it: 34 (the Skills
 window at a skill) and the game settings API.
 

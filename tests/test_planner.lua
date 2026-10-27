@@ -1046,45 +1046,15 @@ return function(t)
     t.eq(H.S.bookCalls or 0, 0, "no book read")
   end))
 
-  t.test("API 55: away from a station a change reads only the counts; at one, the recipes as before",
-      onApi(55, function()
+  t.test("API 55: a change reads the recipes again, not ShroudGetOwnedCounts (slower in game)", onApi(55, function()
     open()
     local reads = H.S.recipeCalls
-    H.S.owned = { [key("f")] = { carried = 3 } }        -- 3 straps in your bags
-    H.inventoryChanged()
-    H.advance(3)
-    t.ok(body():find("4 x Leather Strap: have 3, 1 short", 1, true), body())
-    t.eq(H.S.recipeCalls, reads, "no recipe read again: the counts from ShroudGetOwnedCounts")
-    t.ok((H.S.countCalls or 0) > 0)
-    H.S.owned = { [key("f")] = { carried = 4 } }
-    H.inventoryChanged()
-    H.advance(3)
-    t.ok(body():find("4 x Leather Strap: have them", 1, true) or body():find("have 4", 1, true), body())
-    t.eq(H.S.recipeCalls, reads, "still none")
-    -- at a crafting station the recipes count the table and the trunks: read fresh
-    H.S.craftingState = { open = true, station = "Blacksmithing Station", busy = false }
-    H.callback("ShroudOnCraftingStateChanged", H.S.craftingState)
     H.S.recipes[10].ingredients[3].have = 2
     H.inventoryChanged()
     H.advance(3)
-    t.ok(H.S.recipeCalls > reads, "the recipes read at a station")
+    t.ok(H.S.recipeCalls > reads, "the recipes read")
+    t.eq(H.S.countCalls or 0, 0, "no count read")
     t.ok(body():find("4 x Leather Strap: have 2, 2 short", 1, true), "the recipe's count: " .. body())
-  end))
-
-  t.test("API 55: a plan with From scratch makes no recipe call on a change once it's planned", onApi(55, function()
-    open()
-    H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
-    H.change(W, "pl_scratch", true)
-    H.change(W, "pl_make_1", true)
-    H.change(W, "pl_make_2", true)
-    H.advance(5)
-    local reads = H.S.recipeCalls
-    for _ = 1, 5 do
-      H.inventoryChanged()
-      H.advance(3)
-    end
-    t.eq(H.S.recipeCalls, reads, "five changes, no recipe read")
-    t.eq(Toolbox.Planner.Gap(true), Toolbox.Planner.REFRESH_GAP, "so the refresh gap stays short")
   end))
 
   t.test("/toolbox perf recipes times the planner's calls, before and with API 50 and 55", function()
@@ -1122,10 +1092,9 @@ return function(t)
         if api >= 55 then
           t.ok(all:find("ShroudGetRecipesMaking, each ingredient", 1, true), all)
           t.ok(all:find("ShroudGetOwnedCounts, each ingredient", 1, true), all)
-          t.ok(all:find("(counts only)", 1, true), all)
         else
           t.ok(all:find("ShroudGetRecipesMaking: not on this client", 1, true), all)
-          t.ok(all:find("reads every recipe", 1, true), all)
+          t.no(all:find("ShroudGetOwnedCounts", 1, true), all)
         end
       end)()
     end
