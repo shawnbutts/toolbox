@@ -2801,7 +2801,8 @@ add("perf", "measure hitches for a minute (perf <seconds>; perf stop): slow fram
   .. " for the plan set", function(rest)
   local word = rest:lower()
   if T.Trim(word) == "recipes" then
-    for _, line in ipairs(T.Planner.PerfLines(T.PerfClock())) do T.Print(line) end
+    local _, says = T.Planner.PerfStart(T.PerfClock())
+    T.Print(says)
     return
   end
   local quiet = (" " .. word .. " "):find(" quiet ", 1, true) ~= nil      -- "quiet", "quiet 30", "30 quiet"

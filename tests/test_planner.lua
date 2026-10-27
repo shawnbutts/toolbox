@@ -1098,8 +1098,23 @@ return function(t)
         open()
         H.clearLogs()
         H.chat("/tbx perf recipes")
+        t.ok(H.logged("^Timing the crafting planner's game calls for"), H.lastLog())
+        t.ok(Toolbox.Planner.PerfRunning(), "timing, a call a step")
+        H.chat("/tbx perf recipes")
+        t.ok(H.logged("^Already timing"), H.lastLog())
+        -- one recipe call a step (the QA client's watchdog stopped Toolbox when they all ran in one go; the counts-only
+        -- refresh's cheap count reads are one step)
+        for _ = 1, 60 do
+          if not Toolbox.Planner.PerfRunning() then break end
+          local calls = H.S.recipeCalls + (H.S.makingCalls or 0) + (H.S.indexCalls or 0)
+          local step = H.S.periodics[Toolbox.Planner.PERF_ID]
+          t.ok(step, "its timer")
+          H.call(step.fn)
+          local now = H.S.recipeCalls + (H.S.makingCalls or 0) + (H.S.indexCalls or 0)
+          t.ok(now - calls <= 1, "at most one call a step, " .. (now - calls))
+        end
+        t.ok(not Toolbox.Planner.PerfRunning(), "done")
         local all = table.concat(H.logs(), "\n")
-        t.ok(all:find("Timing the crafting planner's game calls for", 1, true), all)
         t.ok(all:find("ShroudGetRecipe, each recipe", 1, true), all)
         if api >= 55 then
           t.ok(all:find("ShroudGetRecipesMaking, each ingredient", 1, true), all)
@@ -1107,7 +1122,7 @@ return function(t)
           t.ok(all:find("(counts only)", 1, true), all)
         else
           t.ok(all:find("ShroudGetRecipesMaking: not on this client", 1, true), all)
-          t.ok(all:find("(the recipes read)", 1, true), all)
+          t.ok(all:find("reads every recipe", 1, true), all)
         end
       end)()
     end

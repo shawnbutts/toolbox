@@ -205,7 +205,10 @@ into one if a new file is ever needed).
   below is never read (its confirmation, settings and buttons stand aside, `PL.NO_BOOK`); with `ShroudGetOwnedCounts`
   (`D.HasCounts`) a refresh away from a station (`D.AtStation`: the crafting window) keeps the plan's recipes and reads
   only `carried` counts (`plCountMode`, `PL.HaveOf`; at a station the recipes are read fresh: their `have` counts the
-  table and trunks). `/toolbox perf recipes` (`PL.PerfLines`, `T.PerfClock`) times each kind of call for the plan set.
+  table and trunks). `/toolbox perf recipes` (`PL.PerfStart`, `T.PerfClock`) times each kind of call for the plan set, ONE recipe call
+  a `PL.PERF_STEP` s step, the report in chat at the end (owner, 2026-10-27, the QA client: all at once, the game's
+  watchdog stopped Toolbox, "exceeded its execution time budget"; one watchdog deadline a call chain, length not
+  documented: a refresh at a station still reads every plan recipe in one go).
   Harness: `H.apiVersion >= 50` / `55` installs them (`H.S.makingCalls`, `H.S.countCalls`, `H.S.recipeCalls`,
   `H.S.owned[key] = { carried, bank, bankKnown }`).
   The recipe book (`D.ReadRecipeBook`, for `/toolbox recipe` and the planner): `D.BOOK_STEP` (1) recipe by id a
