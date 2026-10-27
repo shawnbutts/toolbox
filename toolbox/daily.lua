@@ -1385,12 +1385,15 @@ end
 -- confirmation and its settings stand aside). Each item's answer is kept for the session, dropped when the recipes
 -- change (D.ForgetRecipes). Returns { { id, yield, name } }, or nil (no character: ask again later).
 D.makers = {}
--- Off until the game builds its makers' index without a stall (owner, 2026-10-27, `/toolbox plan trace` on the QA
--- client: the session's first ShroudGetRecipesMaking took 4,449 ms for 1,764 known recipes, the game building its
--- index on that call as the reference says, and the watchdog stopped Toolbox; one call can't be spread out). Until
--- then the planner finds makers as on API 44 (by name, the book when asked). True turns API 50 on.
-D.USE_MAKERS = false
-function D.HasMakers() return D.USE_MAKERS == true and type(ShroudGetRecipesMaking) == "function" end
+-- From API 56 (owner, 2026-10-27): on the QA client's API 55 the session's first call took 4,449 ms for 1,764 known
+-- recipes, the game building its index on that call, and the watchdog stopped Toolbox (`/toolbox plan trace`; bug
+-- report 37). The owner expects the fix in 56 or later, and no release until it's there; check it with the trace.
+-- Below it the planner finds makers as on API 44 (by name, the book when asked).
+D.MAKERS_API = 56
+function D.HasMakers()
+  return type(ShroudGetRecipesMaking) == "function" and type(ShroudLuaApiVersion) == "number"
+    and ShroudLuaApiVersion >= D.MAKERS_API
+end
 function D.MakersOf(keyOrName)
   local cached = D.makers[keyOrName]
   if cached then return cached end
@@ -3053,7 +3056,8 @@ local function perfQueue(run, plan)
   if D.HasMakers() then
     section("ShroudGetRecipesMaking, each ingredient (API 50; kept for the session)", keys, ShroudGetRecipesMaking)
   elseif type(ShroudGetRecipesMaking) == "function" then
-    note("ShroudGetRecipesMaking: not called (API 50; its first call a session builds the game's index: seconds)")
+    note("ShroudGetRecipesMaking: not called before API " .. D.MAKERS_API .. " (its first call a session built the"
+      .. " game's index: seconds)")
   else
     note("ShroudGetRecipesMaking: not on this client (API 50): the makers come from the book's read")
   end

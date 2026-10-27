@@ -118,7 +118,8 @@ D.SECTIONS = {
       .. "the item is used, and made by changes it. For that your recipe book is read, a recipe at a time, "
       .. "and the game may stutter meanwhile: a window says so and asks first (OK or Cancel). It's read only while the "
       .. "planner is open (about a minute and a half; it waits during a fight), the bar at the bottom shows "
-      .. "how far, and the planner's controls are greyed out until it's done.",
+      .. "how far, and the planner's controls are greyed out until it's done. On a newer game client the "
+      .. "game tells Toolbox which recipes make each item, so no book is read and nothing is asked.",
     "When the book is read is up to you (Settings, Crafting): only when you ask (the default: Read it "
       .. "now there, or the planner's own button: each asks first; a recipe you "
       .. "learn leaves the book you read in use until you read it again), when the planner needs it (after "

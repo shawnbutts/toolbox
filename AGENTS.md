@@ -200,9 +200,9 @@ into one if a new file is ever needed).
   their result; without `made`, items gained at a station count as made by name (`D.IsProduct`), the rest
   as `station`. Looted = items - crafted - station - gathered + pending. Skill levels: `D.SkillGains` over
   the highest `trainedLevel` seen per skill (`skill_levels`); deaths from `ShroudOnDeathChanged(true)`.
-  API 50 / 55 (the QA preview, 2026-10-27; 1.10.0): OFF (`D.USE_MAKERS = false`, owner 2026-10-27, `/toolbox plan
-  trace`: the session's first `ShroudGetRecipesMaking` took 4,449 ms, the game building its index on that call, and the
-  watchdog stopped Toolbox; bug report 37; tests turn it on with `onApi(api, fn, true)`, harness `H.beforeStart`). On,
+  API 50 / 55 (the QA preview, 2026-10-27; 1.10.0): from API 56 only (`D.MAKERS_API`; owner 2026-10-27: on QA's 55 the
+  session's first `ShroudGetRecipesMaking` took 4,449 ms, the game building its index on that call, and the watchdog
+  stopped Toolbox, `/toolbox plan trace`; bug report 37; the owner expects the fix in 56+ and no release before it),
   with `ShroudGetRecipesMaking` (`D.HasMakers`) the makers come
   from the game, `D.MakersOf(keyOrName)` (kept a session in `D.makers`, dropped by `D.ForgetRecipes`), and the book
   below is never read (its confirmation, settings and buttons stand aside, `PL.NO_BOOK`). `ShroudGetOwnedCounts`
@@ -943,8 +943,8 @@ feature-detected; the shapes as previewed:
   `{ key, name, carried, bank, bankInContainers, bankKnown, total }` (part of request 29: counts without reading
   recipes; bank from the login preload); `ShroudSearchOwnedItems(keyOrName, cb)` (the "Search All My Stuff" count: one
   in flight, a 5 s cooldown).
-Plan: 50 for the planner once report 37 is fixed (55's counts timed slower than recipe reads on QA, 2026-10-27: not
-used), 45-49 for 1.10.0's party manager and pet strip, 51 for exports and
+Plan: 50 for the planner from API 56 (report 37: the first call's index build; no release before the fix; 55's
+counts timed slower than recipe reads on QA, 2026-10-27: not used), 45-49 for 1.10.0's party manager and pet strip, 51 for exports and
 caches, 52 for the consumables bar's and Loot Tracker's kinds on other-language clients. Still not in it: 34 (the Skills
 window at a skill) and the game settings API.
 
