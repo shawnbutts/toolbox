@@ -11,8 +11,9 @@ ones included).
 - **The Party Toolbelt** (newer game clients, Lua API 55): your party on a strip of its own, apart from your
   Toolbelt, so a healer keeps the Toolbelt for themselves. Each member has a row with their name, health and focus
   bars and health in percent (or dead, away, offline). The lowest health's name is red, a member in another scene is
-  dimmed, and one beyond your reach (30 m by default) a little. Choose party order or lowest health first, only
-  during combat, and whether your own row shows (Settings, Party).
+  dimmed, and one beyond your reach (30 m by default) a little. After the bars come each member's debuffs and the
+  buffs you watch (only the ones you cast, if you like), with the time left as a sweep. Choose party order or lowest
+  health first, only during combat, and whether your own row shows (Settings, Party).
 
 ### Changed
 - **The crafting planner without the recipe book** (newer game clients, Lua API 56): the game now tells add-ons which

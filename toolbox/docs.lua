@@ -244,6 +244,10 @@ D.SECTIONS = {
       .. "red. A member in another scene is dimmed (the game only knows the health of members in your scene), and one "
       .. "farther than your reach a little (Dim members farther than: 30 m, or off). Hover a row for the numbers, or "
       .. "where the member is.",
+    "Effects: after the bars, each member's debuffs (outlined red) and the buffs you watch, with the time left as "
+      .. "a sweep, the soonest to end first. Settings, Party, Watched buffs: add a buff's name (or part of one), say "
+      .. "a heal over time you keep up; Only the watched buffs you cast leaves out another healer's copy. Choose how "
+      .. "many show (0: none) and their size.",
     "Options: party order (as the game's party frame) or the lowest health first, only during combat, include "
       .. "yourself (off: your Toolbelt has your bars), the percent, the bar length and the background shade. The "
       .. "names follow the General text size. It shows while Settings is open, to place it; move it there or by "

@@ -2070,10 +2070,13 @@ add("target", "your target's health and effects (on|off; toolbelt on|off; place 
 end)
 
 add("party", "the Party Toolbelt: your party's health and focus on a strip of its own (on|off; combat on|off: only"
-    .. " during combat; self on|off; sort party|health; reach off|<m>; move [x y]; debug)", function(rest)
+    .. " during combat; self on|off; sort party|health; reach off|<m>; debuffs on|off; watch [add|remove <name>]; mine"
+    .. " on|off; move [x y]; debug)", function(rest)
   local PT = T.Party
   local word, args = T.ParseArgs(rest)
-  word, args = word:lower(), args:lower()
+  word = word:lower()
+  local typed = args
+  args = args:lower()
   if not PT.Has() and word ~= "debug" then
     T.Print("Party Toolbelt: " .. PT.NEEDS .. ".")
     return
@@ -2088,6 +2091,20 @@ add("party", "the Party Toolbelt: your party's health and focus on a strip of it
     PT.SetSort(args)
   elseif word == "reach" and (args == "off" or PT.ReachLabel(tonumber(args))) then
     PT.SetReach(tonumber(args) or 0)
+  elseif (word == "debuffs" or word == "mine") and (args == "on" or args == "off") then
+    if word == "debuffs" then PT.SetDebuffs(args == "on") else PT.SetMine(args == "on") end
+  elseif word == "watch" then
+    local how, name = T.ParseArgs(typed)
+    how = how:lower()
+    if how == "add" or how == "remove" then
+      local _, says = (how == "add" and PT.AddWatch or PT.RemoveWatch)(name)
+      T.Print(says)
+    else
+      local list = PT.GetWatch()
+      T.Print("Watched buffs on your party: " .. (#list > 0 and table.concat(list, ", ") or "none")
+        .. ". Use /" .. T.commands[1] .. " party watch add|remove <name>.")
+    end
+    return
   elseif word == "move" then
     T.MoveCommand(PT, "party", PT.PAGE .. " Toolbelt", args)
     return
@@ -2096,7 +2113,8 @@ add("party", "the Party Toolbelt: your party's health and focus on a strip of it
     return
   else
     T.Print("Use /" .. T.commands[1] .. " party [on|off], combat on|off, self on|off, sort party|health, reach"
-      .. " off|20|25|30|40|50, move [x y] or debug. Or Settings, Party.")
+      .. " off|20|25|30|40|50, debuffs on|off, watch [add|remove <name>], mine on|off, move [x y] or debug. Or"
+      .. " Settings, Party.")
     return
   end
   T.Print("Party Toolbelt: " .. (PT.GetShow() and "on" or "off") .. "; " .. PT.SORT_LABELS[PT.GetSort()]:lower()

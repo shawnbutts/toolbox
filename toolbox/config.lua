@@ -201,6 +201,8 @@ function C.PositionRows(prefix, m, label)
 end
 C.Helpers.positionRows = C.PositionRows
 C.Helpers.shadeSlider = shadeSlider
+C.Helpers.nameList = C.NameList
+C.Helpers.setText = setText
 
 -- ---------------------------------------------------------------------------
 -- XP and Today: Hidden / Window / HUD strip

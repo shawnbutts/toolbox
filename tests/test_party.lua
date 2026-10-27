@@ -30,7 +30,7 @@ return function(t)
       if r and r.visible ~= false then
         out[#out + 1] = { name = f:Find("pt_name_" .. i).text, text = f:Find("pt_text_" .. i).text,
                           hp = f:Find("pt_hp_" .. i).value, color = f:Find("pt_name_" .. i).style.color,
-                          opacity = r.style.opacity, tip = f:Find("pt_name_" .. i).tooltip }
+                          opacity = r.style.opacity, tip = f:Find("pt_hp_" .. i).tooltip }
       end
     end
     return out
@@ -225,6 +225,136 @@ return function(t)
     H.advance(1)
     t.eq(frame(), nil, "closed, no party: no strip at the next poll")
     t.eq(H.saved("party").sort, "health")
+    done()
+  end)
+
+  -- a member's effects as ShroudGetPartyMemberBuffs gives them (RuneEffects, API 47's FromYou)
+  local function rune(name, debuff, left, total, icon, fromYou, others)
+    local effects = { { Description = "", Value = 0, CurrentDuration = left, TotalDuration = total, TotalTick = 0,
+                        FromYou = fromYou == true, SourceKey = fromYou and 1 or 9 } }
+    if others then
+      effects[2] = { Description = "", Value = 0, CurrentDuration = others, TotalDuration = total, TotalTick = 0,
+                     FromYou = false, SourceKey = 9 }
+    end
+    return { RuneName = name, RuneId = icon, IsDebuff = debuff, IconId = icon, Category = "Other",
+             StackCount = #effects, Effects = effects, FromYou = fromYou == true, FromYouCount = fromYou and 1 or 0 }
+  end
+  local function fx(i)
+    local out = {}
+    for j = 1, PT().ICONS_MAX do
+      local r = frame():Find("pt_fx_" .. i .. "_" .. j)
+      if r and r.visible ~= false then
+        out[#out + 1] = (frame():Find("pt_fxi_" .. i .. "_" .. j).tooltip:gsub(" %(yours%)$", ""))
+      end
+    end
+    return table.concat(out, ",")
+  end
+
+  t.test("CollectEffects: debuffs first, then watched buffs, soonest first; only yours with mine; capped", function()
+    boot()
+    local runes = { rune("Regeneration", false, 20, 30, 5, false, 25), rune("Poison", true, 8, 10, 6),
+                    rune("Bleed", true, 3, 10, 7), rune("Strength", false, 100, 600, 8),
+                    rune("Shield", false, 5, 30, 9) }
+    local out = {}
+    t.eq(PT().CollectEffects(runes, out, true, { "regen", "SHIELD" }, false, 6), 4)
+    t.eq(out[1].name .. "," .. out[2].name .. "," .. out[3].name .. "," .. out[4].name,
+      "Bleed,Poison,Shield,Regeneration")
+    t.eq(out[4].left, 25, "the longest copy")
+    t.eq(PT().CollectEffects(runes, out, true, { "regen", "shield" }, true, 6), 2, "mine: nobody's are yours")
+    runes[1] = rune("Regeneration", false, 12, 30, 5, true, 25)
+    t.eq(PT().CollectEffects(runes, out, false, { "regen" }, true, 6), 1)
+    t.eq(out[1].left, 12, "your own copy's time")
+    t.eq(PT().CollectEffects(runes, out, true, {}, false, 1), 1, "capped")
+    t.eq(out[1].name, "Bleed")
+    done()
+  end)
+
+  t.test("effects on the rows: debuffs outlined, watched buffs, a wedge; read in turn; settings", function()
+    boot()
+    H.chat("/tbx party on")
+    local p = party()
+    p[2].buffs = { rune("Poison", true, 8, 10, 6), rune("Regeneration", false, 20, 30, 5, true) }
+    p[3].buffs = { rune("Regeneration", false, 20, 30, 5) }
+    p[4].buffs = { rune("Bleed", true, 8, 10, 7) }      -- elsewhere: the game gives none; nothing shown
+    H.setParty(p)
+    H.advance(1)
+    t.eq(fx(1), "Poison", "only debuffs until a buff is watched")
+    t.eq(frame():Find("pt_fx_1_1").style.borderWidth, 2, "a debuff is outlined")
+    t.eq(fx(3), "")
+    H.chat("/tbx party watch add regen")
+    t.ok(H.logged('Watching "regen"'))
+    H.advance(2)
+    t.eq(fx(1), "Poison,Regeneration")
+    t.eq(fx(2), "Regeneration")
+    local covered = frame():Find("pt_fx_1_1").children[2]:SweepNow()
+    t.ok(covered and covered > 0, "the wedge: " .. tostring(covered))
+    H.chat("/tbx party mine on")
+    H.advance(2)
+    t.eq(fx(2), "", "mine: Bob's Regeneration isn't yours")
+    t.eq(fx(1), "Poison,Regeneration")
+    H.chat("/tbx party debuffs off")
+    H.advance(2)
+    t.eq(fx(1), "Regeneration")
+    H.chat("/tbx config")
+    H.change("toolbox_config", "pt_icons", 0)
+    t.eq(frame():Find("pt_fx_1_1"), nil, "no effects: no icons built")
+    H.change("toolbox_config", "pt_icons", 2)
+    H.change("toolbox_config", "pt_icon_size", 30)
+    t.eq(frame():Find("pt_fx_1_1").style.width, 30)
+    t.eq(frame():Find("pt_fx_1_3"), nil)
+    H.reload()
+    t.eq(PT().GetWatch()[1], "regen", "kept")
+    t.eq(PT().GetMine(), true)
+    t.eq(PT().GetIcons(), 2)
+    done()
+  end)
+
+  t.test("effects: a full party's reads are spread over the polls", function()
+    boot()
+    H.chat("/tbx party on")
+    local p = party()
+    for i = 5, 13 do p[i] = { name = "M" .. i, hp = 500, maxHp = 1000, buffs = { rune("Poison", true, 8, 10, 6) } } end
+    local calls = 0
+    H.setParty(p)
+    local real = ShroudGetPartyMemberBuffs
+    ShroudGetPartyMemberBuffs = function(x)
+      calls = calls + 1
+      return real(x)
+    end
+    Toolbox.Party.Poll()
+    t.ok(calls <= PT().BUFF_READS, "at most " .. PT().BUFF_READS .. " a poll: " .. calls)
+    H.advance(3)
+    t.eq(fx(12), "Poison", "everyone read within a few seconds")
+    ShroudGetPartyMemberBuffs = real
+    done()
+  end)
+
+  -- Its share of the add-on's elements (2,000, the game counting more than the harness) and on-screen text: a full
+  -- party (PT.MAX) with every effect slot filled and long names, measured alone (test_stress has the rest at its
+  -- worst).
+  t.test("budget: sixteen members with six effects each", function()
+    boot()
+    local text, live = H.S.text, H.S.live
+    H.chat("/tbx party on")
+    H.chat("/tbx party watch add Regeneration")
+    Toolbox.Party.SetIcons(PT().ICONS_MAX)
+    local members = { { name = "Tester", hp = 900, maxHp = 1000 } }
+    for i = 2, PT().MAX + 1 do
+      local buffs = {}
+      for k = 1, 8 do buffs[k] = rune("A Long Debuff Name Number " .. k, k < 8, 20, 30, k) end
+      buffs[8].RuneName = "Regeneration"
+      members[i] = { name = "A Long Party Member Name " .. i, hp = 500 + i, maxHp = 1000, focus = 300, maxFocus = 400,
+                     buffs = buffs }
+    end
+    H.setParty(members)
+    H.advance(8)
+    local chars, els = H.S.text - text, H.S.live - live
+    if os.getenv("STRESS_PRINT") then print(string.format("  party of 16: %d characters, %d elements", chars, els)) end
+    t.eq(#rows(), PT().MAX)
+    t.eq(fx(PT().MAX), "A Long Debuff Name Number 1,A Long Debuff Name Number 2,A Long Debuff Name Number 3,"
+      .. "A Long Debuff Name Number 4,A Long Debuff Name Number 5,A Long Debuff Name Number 6")
+    t.ok(els <= 420, "at most 420 elements: " .. els)
+    t.ok(chars <= 4200, "at most 4,200 characters of text: " .. chars)
     done()
   end)
 end

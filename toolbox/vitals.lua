@@ -1659,6 +1659,12 @@ end
 -- Saved var "party": { show = bool (default false), combatOnly = bool, self = bool (yourself shown; default false),
 -- sort = "party" / "health", width = PT.WIDTH_MIN..PT.WIDTH_MAX (bar length), numbers = bool (default true),
 -- reach = a PT.REACH_CHOICES value (0: off), shade = 0..90, x, y }.
+-- Effects (owner, 2026-10-18): after the bars, icons with the game's wedge: every debuff (`debuffs`, default on), then
+-- the buffs the player watches (`watch`: name parts; the API 47 `mine`: only the copies you cast, FromYou), debuffs
+-- first, then the soonest to end, at most `icons` a row. ShroudGetPartyMemberBuffs (a table per rune a call) is read
+-- for PT.BUFF_READS members a poll in turn (every member about every 2 s in a party of 12), the time left counted down
+-- between reads. Saved too: debuffs = bool, watch = { name parts, <= PT.WATCH_MAX }, mine = bool,
+-- icons = 0..PT.ICONS_MAX, iconSize = PT.ICON_MIN..PT.ICON_MAX.
 
 local PT = {}
 Toolbox.Party = PT
@@ -1679,6 +1685,11 @@ PT.REACH_DEFAULT = 30
 PT.SORTS = { "party", "health" }
 PT.SORT_LABELS = { party = "Party order", health = "Lowest health first" }
 PT.NAME_COLOR, PT.LOW_COLOR, PT.DEAD_COLOR = "@text", "@red", "@text-bright"
+PT.ICONS_MAX, PT.ICONS_DEFAULT = 6, 4
+PT.ICON_MIN, PT.ICON_MAX, PT.ICON_DEFAULT = 14, 40, 20
+PT.ICON_GAP = 2
+PT.WATCH_MAX = 12
+PT.BUFF_READS = 3               -- members whose effects are read a poll
 PT.HINT = "Not in a party"     -- the first row while settings are open and there's no party
 
 local PPERIODIC = "toolbox_party"
@@ -1691,10 +1702,15 @@ local pContent = nil
 local rowEls = {}              -- i -> { row, name, hp, focus, text, last = { ... } }
 local builtRows = 0
 local wasWanted, wasShown = false, false
+local effBy = {}               -- plain name -> { n, list = { { name, icon, debuff, left, total, mine } }, at }
+local effCursor = 0            -- the next member (in `order`) whose effects are read
 
 local function pSave() T.Save("party", pprefs) end
 local function pWidth() return pprefs.width or PT.WIDTH_DEFAULT end
 local function pSort() return pprefs.sort or "party" end
+local function pIcons() return pprefs.icons or PT.ICONS_DEFAULT end
+local function pIconSize() return pprefs.iconSize or PT.ICON_DEFAULT end
+local function effectsOn() return pIcons() > 0 and (pprefs.debuffs ~= false or #(pprefs.watch or {}) > 0) end
 
 -- The sizes, from the General text size (pure but for it).
 function PT.Metrics()
@@ -1705,6 +1721,14 @@ function PT.Metrics()
               nameW = math.ceil(font * 0.6 * PT.NAME_CHARS), textW = pprefs.numbers ~= false and math.ceil(font * 3.6)
                 or 0, rowGap = 2 }
   m.rowW = m.nameW + m.gap + m.barW + (m.textW > 0 and (m.gap + m.textW) or 0)
+  m.icons, m.icon = 0, pIconSize()
+  if effectsOn() then m.icons = pIcons() end
+  if m.icons > 0 then
+    m.rowW = m.rowW + m.gap + m.icons * (m.icon + PT.ICON_GAP)
+    m.rowH = math.max(line, m.icon)
+  else
+    m.rowH = line
+  end
   return m
 end
 
@@ -1846,16 +1870,99 @@ function PT.RowsFor(n)
 end
 
 local function rowStyle(m, i)
-  return { alignItems = "center", height = m.line, minHeight = m.line, maxHeight = m.line,
+  return { alignItems = "center", height = m.rowH, minHeight = m.rowH, maxHeight = m.rowH,
            marginTop = i > 1 and m.rowGap or 0 }
+end
+
+-- A name matches a watched part (any case, anywhere in it). Pure.
+function PT.Watched(name, watch)
+  if type(name) ~= "string" then return false end
+  local lower = name:lower()
+  for _, part in ipairs(watch or {}) do
+    if lower:find(part:lower(), 1, true) then return true end
+  end
+  return false
+end
+
+local function effectBefore(a, b)
+  if a.debuff ~= b.debuff then return a.debuff end
+  local la, lb = a.left > 0 and a.left or math.huge, b.left > 0 and b.left or math.huge
+  if la ~= lb then return la < lb end
+  return a.name < b.name
+end
+
+-- A member's runes (ShroudGetPartyMemberBuffs' list) into `out` (its tables reused), the ones shown: every debuff
+-- (with `debuffs`), and buffs matching `watch` (with `mine`, only those you applied: API 47's FromYou, the time left
+-- your own copy's), sorted (debuffs first, then the soonest to end), at most `max`. Returns how many. Pure.
+function PT.CollectEffects(runes, out, debuffs, watch, mine, max)
+  local n = 0
+  for _, r in ipairs(T.List(runes)) do
+    local name, debuff = T.Field(r, "RuneName"), T.Field(r, "IsDebuff") == true
+    local want = false
+    if type(name) == "string" and name ~= "" then
+      if debuff then want = debuffs else want = PT.Watched(name, watch) end
+    end
+    local own = not debuff and mine
+    if want and own and T.Field(r, "FromYou") ~= true then want = false end
+    if want then
+      local left, total = 0, 0
+      for _, e in ipairs(T.List(T.Field(r, "Effects"))) do
+        if not own or T.Field(e, "FromYou") == true then
+          local cur = num(T.Field(e, "CurrentDuration")) or 0
+          if cur > left then left, total = cur, num(T.Field(e, "TotalDuration")) or 0 end
+        end
+      end
+      n = n + 1
+      local x = out[n]
+      if not x then
+        x = {}
+        out[n] = x
+      end
+      x.name, x.debuff, x.left, x.total = name, debuff, left, total
+      x.icon, x.mine = num(T.Field(r, "IconId")) or -1, T.Field(r, "FromYou") == true
+    end
+  end
+  for i = #out, n + 1, -1 do out[i] = nil end
+  if n > 1 then table.sort(out, effectBefore) end
+  for i = #out, max + 1, -1 do out[i] = nil end
+  return math.min(n, max)
+end
+
+-- Reads the effects of the next PT.BUFF_READS members shown (in your scene), in turn.
+local function readEffects()
+  if not effectsOn() then return end
+  local reads, tries = 0, 0
+  while reads < PT.BUFF_READS and tries < shownCount do
+    tries = tries + 1
+    effCursor = effCursor % shownCount + 1
+    local mem = order[effCursor]
+    local cache = effBy[mem.plain]
+    if not cache then
+      cache = { n = 0, list = {}, at = 0 }
+      effBy[mem.plain] = cache
+    end
+    if mem.inScene then
+      reads = reads + 1
+      local ok, runes = pcall(ShroudGetPartyMemberBuffs, mem.slot)
+      if ok and runes ~= nil then
+        cache.n = PT.CollectEffects(runes, cache.list, pprefs.debuffs ~= false, pprefs.watch, pprefs.mine == true,
+          pIcons())
+      else
+        cache.n = 0
+      end
+      cache.at = T.Now()
+    else
+      cache.n = 0
+    end
+  end
 end
 
 function PT.BuildContent()
   local m = PT.Metrics()
   builtRows = PT.RowsFor(shownCount)
-  local rows = {}
+  local rows, fxs = {}, {}
   for i = 1, builtRows do
-    rows[i] = UI.Row{ id = "pt_row_" .. i, visible = false, style = rowStyle(m, i), children = {
+    local kids = {
       UI.Label{ id = "pt_name_" .. i, text = "", class = "text", style = T.Window.TextStyle({ width = m.nameW,
         marginLeft = 0, marginRight = 0, whiteSpace = "nowrap", color = PT.NAME_COLOR }, m.font, 1) },
       UI.Column{ id = "pt_bars_" .. i, style = { marginLeft = m.gap, justifyContent = "center" }, children = {
@@ -1866,7 +1973,20 @@ function PT.BuildContent()
       UI.Label{ id = "pt_text_" .. i, text = "", class = "text", visible = m.textW > 0,
         style = T.Window.TextStyle({ width = math.max(m.textW, 1), marginLeft = m.gap, marginRight = 0,
           whiteSpace = "nowrap" }, m.font, 1) },
-    } }
+    }
+    local fx = {}
+    for j = 1, m.icons do        -- an effect: its icon (a click handler, so its tooltip shows) and the game's wedge
+      local icon = UI.Image{ id = "pt_fxi_" .. i .. "_" .. j, width = m.icon, height = m.icon,
+        onClick = function() end }
+      local wedge = T.BuffBar.WedgeCarrier(m.icon)
+      local row = UI.Row{ id = "pt_fx_" .. i .. "_" .. j, visible = false, style = { width = m.icon,
+        height = m.icon, marginLeft = j == 1 and m.gap or PT.ICON_GAP, backgroundColor = "#00000066", borderWidth = 0,
+        borderColor = "@red" }, children = { icon, wedge } }
+      fx[j] = { row = row, icon = icon, wedge = wedge }
+      kids[#kids + 1] = row
+    end
+    fxs[i] = fx
+    rows[i] = UI.Row{ id = "pt_row_" .. i, visible = false, style = rowStyle(m, i), children = kids }
   end
   pContent = UI.Column{ id = "party", style = { backgroundColor = T.ShadeColor(T.ShadeOf(pprefs.shade)),
     borderRadius = 3, padding = 3 }, children = rows }
@@ -1874,7 +1994,7 @@ function PT.BuildContent()
   for i = 1, builtRows do
     rowEls[i] = { row = pContent:Find("pt_row_" .. i), name = pContent:Find("pt_name_" .. i),
                   hp = pContent:Find("pt_hp_" .. i), focus = pContent:Find("pt_fo_" .. i),
-                  text = pContent:Find("pt_text_" .. i), last = {} }
+                  text = pContent:Find("pt_text_" .. i), fx = fxs[i], last = {} }
   end
   PT.Fill()
   return pContent
@@ -1890,7 +2010,7 @@ local function rowsShown() return math.max(math.min(shownCount, builtRows), PT.W
 function PT.ContentSize()
   local m = PT.Metrics()
   local n = rowsShown()
-  return m.rowW + 6, math.max(1, n * m.line + math.max(0, n - 1) * m.rowGap) + 6
+  return m.rowW + 6, math.max(1, n * m.rowH + math.max(0, n - 1) * m.rowGap) + 6
 end
 
 -- Sets row i from member mem (nil: hidden), touching only what changed.
@@ -1948,9 +2068,45 @@ local function setRow(i, mem, lowest)
     last.tipFor, last.near = mem.plain, mem.near
     r.text:SetText(PT.StateText(mem))
     local tip = PT.Tooltip(mem)
-    r.name:SetTooltip(tip)
-    r.hp:SetTooltip(tip)
-    r.text:SetTooltip(tip)
+    r.hp:SetTooltip(tip)              -- one a row, on the health bar: every tooltip counts against the text budget
+  end
+end
+
+-- Row i's effect icons from the member's last read (none for the hint or a member elsewhere), the time left counted
+-- down since the read; touched only on a change (the wedge: BB.SetTimer's own slack).
+local function fillEffects(i, mem)
+  local r = rowEls[i]
+  if not r or #r.fx == 0 then return end
+  local cache = mem and mem.inScene and effBy[mem.plain]
+  local n = cache and cache.n or 0
+  local since = cache and (T.Now() - cache.at) or 0
+  for j, slot in ipairs(r.fx) do
+    local e = j <= n and cache.list[j] or nil
+    if e then
+      if e.icon ~= slot.tex then
+        slot.tex = e.icon
+        if e.icon >= 0 then slot.icon:SetTexture(e.icon) end
+      end
+      T.SetVisible(slot.icon, e.icon >= 0)
+      if e.debuff ~= slot.debuff then
+        slot.debuff = e.debuff
+        slot.row:SetStyle{ borderWidth = e.debuff and 2 or 0 }
+      end
+      if e.name ~= slot.name then
+        slot.name = e.name
+        T.BuffBar.SetTimer(slot, nil)                -- another effect in this slot: its own wedge
+      end
+      if e.name ~= slot.tipName or e.mine ~= slot.mine then
+        slot.tipName, slot.mine = e.name, e.mine
+        slot.icon:SetTooltip(e.mine and not e.debuff and (e.name .. " (yours)") or e.name)   -- debuffs: the outline
+      end
+      local left = e.left > 0 and math.max(0.01, e.left - since) or 0
+      T.BuffBar.SetTimer(slot, left, e.total)
+    elseif slot.name then
+      slot.name = nil
+      T.BuffBar.SetTimer(slot, nil)
+    end
+    T.SetVisible(slot.row, e ~= nil)
   end
 end
 
@@ -1966,6 +2122,7 @@ function PT.Fill()
     if i > shownCount then mem = nil end
     if not mem and i == 1 and shownCount == 0 and PT.Wanted() then mem = HINT_MEMBER end
     setRow(i, mem, lowest)
+    fillEffects(i, mem)
   end
 end
 
@@ -1981,6 +2138,13 @@ function PT.Poll()
   memberCount = PT.ReadParty(members)
   local before = shownCount
   shownCount = PT.Order(members, memberCount, pprefs.self == true, pSort(), order)
+  if shownCount ~= before then                 -- someone left: their effects go
+    for name in pairs(effBy) do
+      local still = false
+      for i = 1, shownCount do if order[i].plain == name then still = true end end
+      if not still then effBy[name] = nil end
+    end
+  end
   local wanted = PT.Wanted()
   if wanted ~= wasWanted then
     wasWanted = wanted
@@ -1989,6 +2153,7 @@ function PT.Poll()
     return
   end
   if not wanted then return end
+  readEffects()
   if pContent and PT.RowsFor(shownCount) > builtRows then
     T.Hud.Rebuild("party")
     return
@@ -2080,6 +2245,82 @@ function PT.SetReach(m)
   return true
 end
 
+-- Effects: debuffs on or off, the watched buffs (name parts), only your own copies of them, how many and how big.
+function PT.GetDebuffs() return pprefs.debuffs ~= false end
+function PT.SetDebuffs(on)
+  local was = effectsOn()
+  pprefs.debuffs = on == true
+  pSave()
+  if was ~= effectsOn() then resize() else PT.Poll() end
+  T.Config.Sync()
+end
+
+function PT.GetWatch() return pprefs.watch or {} end
+-- Adds a watched name part. Returns ok, message (as the settings' name list wants).
+function PT.AddWatch(text)
+  local part = T.Trim(text or "")
+  if part == "" then return false, "Type a buff's name, or part of one." end
+  local list = PT.GetWatch()
+  for _, p in ipairs(list) do
+    if p:lower() == part:lower() then return false, "\"" .. p .. "\" is watched already." end
+  end
+  if #list >= PT.WATCH_MAX then return false, "At most " .. PT.WATCH_MAX .. " watched buffs." end
+  local was = effectsOn()
+  local copy = {}
+  for i, p in ipairs(list) do copy[i] = p end
+  copy[#copy + 1] = part
+  pprefs.watch = copy
+  pSave()
+  if was ~= effectsOn() then resize() end
+  T.Config.Sync()
+  return true, "Watching \"" .. part .. "\" on your party."
+end
+function PT.RemoveWatch(text)
+  local part = T.Trim(text or ""):lower()
+  local copy, gone = {}, nil
+  for _, p in ipairs(PT.GetWatch()) do
+    if p:lower() == part then gone = p else copy[#copy + 1] = p end
+  end
+  if not gone then return false, "\"" .. tostring(text) .. "\" isn't watched." end
+  local was = effectsOn()
+  pprefs.watch = copy
+  pSave()
+  if was ~= effectsOn() then resize() end
+  T.Config.Sync()
+  return true, "No longer watching \"" .. gone .. "\"."
+end
+
+function PT.GetMine() return pprefs.mine == true end
+function PT.SetMine(on)
+  pprefs.mine = on == true
+  pSave()
+  effBy = {}
+  PT.Poll()
+  T.Config.Sync()
+end
+
+function PT.GetIcons() return pIcons() end
+function PT.SetIcons(n)
+  if type(n) ~= "number" or n ~= math.floor(n) or n < 0 or n > PT.ICONS_MAX then return false end
+  pprefs.icons = n
+  pSave()
+  effBy = {}
+  resize()
+  T.Config.Sync()
+  return true
+end
+
+function PT.GetIconSize() return pIconSize() end
+function PT.SetIconSize(n)
+  if type(n) ~= "number" or n ~= math.floor(n) or n < PT.ICON_MIN or n > PT.ICON_MAX then return false end
+  if n == pIconSize() then return true end
+  pprefs.iconSize = n
+  pSave()
+  resize()
+  T.Config.Sync()
+  return true
+end
+
 function PT.GetShade() return T.ShadeOf(pprefs.shade) end
 function PT.SetShade(n)
   pprefs.shade = T.ShadeOf(n)
@@ -2116,10 +2357,24 @@ function PT.Init()
     if type(w) == "number" and w >= PT.WIDTH_MIN and w <= PT.WIDTH_MAX then pprefs.width = math.floor(w) end
     pprefs.numbers = saved.numbers ~= false
     for _, c in ipairs(PT.REACH_CHOICES) do if saved.reach == c[1] then pprefs.reach = c[1] end end
+    pprefs.debuffs = saved.debuffs ~= false
+    pprefs.mine = saved.mine == true
+    if type(saved.watch) == "table" then
+      local list = {}
+      for _, p in ipairs(saved.watch) do
+        if type(p) == "string" and p ~= "" and #list < PT.WATCH_MAX then list[#list + 1] = p end
+      end
+      pprefs.watch = list
+    end
+    local ic = saved.icons
+    if type(ic) == "number" and ic >= 0 and ic <= PT.ICONS_MAX then pprefs.icons = math.floor(ic) end
+    local sz = saved.iconSize
+    if type(sz) == "number" and sz >= PT.ICON_MIN and sz <= PT.ICON_MAX then pprefs.iconSize = math.floor(sz) end
     if type(saved.shade) == "number" then pprefs.shade = T.ShadeOf(saved.shade) end
     if type(saved.x) == "number" and type(saved.y) == "number" then pprefs.x, pprefs.y = saved.x, saved.y end
   end
   members, order, memberCount, shownCount = {}, {}, 0, 0
+  effBy, effCursor = {}, 0
   wasWanted, wasShown = false, false
   T.Hud.Register("party", PT)
   if pprefs.show then
@@ -2156,7 +2411,9 @@ T.Backup.KEYS[#T.Backup.KEYS + 1] = "party"
 
 -- The settings page (config.lua builds it with its helpers `h`, after Health bars): the controls' ids in CONFIG_IDS.
 PT.CONFIG_IDS = { "pt_show", "pt_combat", "pt_self", "pt_sort", "pt_width", "pt_width_value", "pt_numbers",
-                  "pt_reach", "pt_shade", "pt_shade_value" }
+                  "pt_reach", "pt_shade", "pt_shade_value", "pt_debuffs", "pt_watch", "pt_watch_field",
+                  "pt_watch_msg", "pt_watch_add", "pt_watch_remove", "pt_mine", "pt_icons", "pt_icons_value",
+                  "pt_icon_size", "pt_icon_size_value" }
 
 function PT.ConfigSection(h)
   local ui = h.UI
@@ -2196,6 +2453,23 @@ function PT.ConfigSection(h)
     h.slider("pt_width", "Bar length", PT.WIDTH_MIN, PT.WIDTH_MAX, 10, PT.GetWidth(), "The bars' length in pixels",
       function(n) PT.SetWidth(n) end),
     h.shadeSlider("pt_shade", PT.GetShade(), "the party rows", function(n) PT.SetShade(n) end),
+    h.heading("Effects on the party"),
+    ui.Label{ text = "After each member's bars: their debuffs, then the buffs you watch, with the time left as a"
+      .. " sweep; debuffs outlined red, the soonest to end first.", class = "dim", style = { whiteSpace = "wrap" } },
+    ui.Toggle{ id = "pt_debuffs", text = "Show every debuff", value = PT.GetDebuffs(),
+      onChange = function(_, v) PT.SetDebuffs(v) end },
+    ui.Label{ text = "Watched buffs (a heal over time you keep up, say):", class = "text",
+      style = { marginTop = 4 } },
+    h.nameList("pt_watch", "Buffs whose names contain these show on your party's rows", PT.AddWatch,
+      PT.RemoveWatch),
+    ui.Toggle{ id = "pt_mine", text = "Only the watched buffs you cast", value = PT.GetMine(),
+      tooltip = "A watched buff shows only when it's yours (another healer's copy doesn't count), with your copy's"
+        .. " time left",
+      onChange = function(_, v) PT.SetMine(v) end },
+    h.slider("pt_icons", "Most effects a member", 0, PT.ICONS_MAX, 1, PT.GetIcons(), "0: no effects",
+      function(n) PT.SetIcons(n) end),
+    h.slider("pt_icon_size", "Effect icon size", PT.ICON_MIN, PT.ICON_MAX, 2, PT.GetIconSize(),
+      "The effect icons' size in pixels", function(n) PT.SetIconSize(n) end),
     h.positionRows("party", PT, "Position"),
     ui.Label{ text = "The names follow the General text size. Move the strip here, by its grip or with /toolbox party"
       .. " move.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
@@ -2209,10 +2483,18 @@ function PT.ConfigSync(h)
   h.setValue("pt_sort", PT.SORT_LABELS[PT.GetSort()])
   h.setValue("pt_numbers", PT.GetNumbers())
   h.setValue("pt_reach", PT.ReachLabel(PT.GetReach()))
+  h.setValue("pt_debuffs", PT.GetDebuffs())
+  h.setValue("pt_mine", PT.GetMine())
+  h.sliderValue("pt_icons", PT.GetIcons())
+  h.sliderValue("pt_icon_size", PT.GetIconSize())
+  local watch = PT.GetWatch()
+  h.setText("pt_watch", #watch > 0 and ("Watched: " .. table.concat(watch, ", ")) or "Watched: none")
   h.setEnabled("pt_show", PT.Has())
   h.sliderValue("pt_width", PT.GetWidth())
   h.sliderValue("pt_shade", PT.GetShade())
-  for _, id in ipairs({ "pt_combat", "pt_self", "pt_sort", "pt_numbers", "pt_reach", "pt_width", "pt_shade" }) do
+  for _, id in ipairs({ "pt_combat", "pt_self", "pt_sort", "pt_numbers", "pt_reach", "pt_width", "pt_shade",
+                        "pt_debuffs", "pt_watch_field", "pt_watch_add", "pt_watch_remove", "pt_mine", "pt_icons",
+                        "pt_icon_size" }) do
     h.setEnabled(id, PT.GetShow() and PT.Has())
   end
 end

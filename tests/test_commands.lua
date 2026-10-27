@@ -402,8 +402,13 @@ return function(t)
     local all = table.concat(texts, "\n")
     for _, heading in ipairs({ "Getting started", "XP", "Today and the Loot Tracker", "Buff bar",
                                "Buff alerts and sounds", "Buff block", "Health, focus & Vigor bars", "Combat stats",
-                               "Moving the HUD strips", "Sounds", "Commands (1 of 2)", "Commands (2 of 2)" }) do
+                               "Moving the HUD strips", "Sounds" }) do
       t.ok(all:find("\n" .. heading .. "\n", 1, true) or all:find("^" .. heading .. "\n"), "section " .. heading)
+    end
+    local parts = #Toolbox.Docs.CommandPages()
+    t.ok(parts >= 2, "the commands split into parts")
+    for i = 1, parts do
+      t.ok(all:find("\nCommands (" .. i .. " of " .. parts .. ")\n", 1, true), "section Commands " .. i)
     end
     for _, cmd in ipairs(Toolbox.CommandList()) do
       t.ok(all:find("/toolbox " .. cmd.name, 1, true), "command " .. cmd.name .. " is listed")
