@@ -4585,6 +4585,7 @@ function ShroudOnSceneLoaded(_)
   T.SceneChanged()
   T.FollowCharacter()
   T.BuffBar.SceneChange()
+  T.Party.OnSceneLoaded()
 end
 
 -- Guild or friends changed (twice a second at most): maybe a new guild message of the day.

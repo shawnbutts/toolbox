@@ -14,6 +14,9 @@ ones included).
   dimmed, and one beyond your reach (30 m by default) a little. After the bars come each member's debuffs and the
   buffs you watch (only the ones you cast, if you like), with the time left as a sweep. Choose party order or lowest
   health first, only during combat, and whether your own row shows (Settings, Party).
+- **Party comings and goings** (Lua API 55), a notification (a chat line by default; Settings, Notifications): who
+  joins or leaves your party, who leaves your scene (and for where) or comes back, and a friend or guild member
+  going offline or back online.
 
 ### Changed
 - **The crafting planner without the recipe book** (newer game clients, Lua API 56): the game now tells add-ons which

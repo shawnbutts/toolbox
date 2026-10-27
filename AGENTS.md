@@ -492,6 +492,12 @@ into one if a new file is ever needed).
   for `PT.BUFF_READS` members a poll in turn (`readEffects`, `effBy` by plain name). One tooltip a row (the health
   bar) and the name alone on an icon: 16 members with 6 effects measured 387 elements and 4,048 characters
   (test_party's budget test; test_stress's worst case doesn't include it, at its margins already).
+  Comings and goings: docs.lua's source "party" (transient, chat by default) over `PT.EventsCheck`; `PT.Changes`
+  (pure: joins, leaves, scene moves unless quiet, offline / online only for a friend or guild member,
+  `ShroudGetFriends` / `ShroudGetGuildMembers` read only then; your own joining / leaving a party in one line)
+  compares with `known` on `ShroudOnPartyChanged` only (`PT.OnPartyChanged`: every such change comes with it), the
+  first reading a baseline (`PT.Init`); `PT.SCENE_QUIET` s after `ShroudOnSceneLoaded` (`PT.OnSceneLoaded`).
+  Harness `H.S.friends`, `H.S.guildMembers`.
 - `combat.lua`: `Toolbox.Combat`, the combat stats HUD (pure fight model: rates, crit, avoid, per skill,
   per target, per damage type, a timeline, fight history) and **Combat Detailed** (`C.Detail`, fixed pools).
   Fed by `ShroudOnCombatEvents` (through `T.ReadEvents`) and `ShroudOnCombatModeChanged`.
@@ -509,7 +515,7 @@ into one if a new file is ever needed).
   the commands, `D.CommandPages`, and a version's notes in the version window, `splitVersion`, split themselves into
   "(1 of 2)" parts), each label < 4,096 (the game's cut-off); update it with every user-facing change), the version window, and `Toolbox.Notify` (N): `N.SOURCES` (each with
   `Check(seen, ctx)` -> notice or nil, plus an optional quiet value; motd, mail, expiring, ransoms, rewards,
-  applications, durability, friends, guild, and skills from skills.lua; a source's `vias` limits where it can
+  applications, durability, friends, guild, party (vitals.lua's `PT.EventsCheck`), and skills from skills.lua; a source's `vias` limits where it can
   go: `N.Allows`, `N.Choices(key)`), `N.DELIVERY` ("window", "hud" = `Toolbox.Notify.Hud`, "chat")
   plus a per-source `sound` (the notify chime once per check), and `N.Check` (tick, start, the social /
   notification / guild / friend events), which marks a notice seen only once delivered. `events` (API 35, the world

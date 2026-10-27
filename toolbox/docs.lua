@@ -247,7 +247,8 @@ D.SECTIONS = {
     "Effects: after the bars, each member's debuffs (outlined red) and the buffs you watch, with the time left as "
       .. "a sweep, the soonest to end first. Settings, Party, Watched buffs: add a buff's name (or part of one), say "
       .. "a heal over time you keep up; Only the watched buffs you cast leaves out another healer's copy. Choose how "
-      .. "many show (0: none) and their size.",
+      .. "many show (0: none) and their size. Settings, Notifications has Party comings and goings (joins, "
+      .. "leaves, scene changes), with or without the strip.",
     "Options: party order (as the game's party frame) or the lowest health first, only during combat, include "
       .. "yourself (off: your Toolbelt has your bars), the percent, the bar length and the background shade. The "
       .. "names follow the General text size. It shows while Settings is open, to place it; move it there or by "
@@ -380,6 +381,9 @@ D.SECTIONS = {
       .. "menu's Notifications button shows the news now). Nothing already seen shows again.",
     "Switch each one on or off under Settings, Notifications. Friends and guild members coming online "
       .. "arrive as chat lines by default (guild: off).",
+    "Party comings and goings (newer game clients, Lua API 55), a chat line by default: who joins or leaves your "
+      .. "party, who leaves your scene (and for where) or comes into it, and a friend or guild member going offline "
+      .. "or back online. Members' scene changes aren't told for a few seconds after you change scenes yourself.",
     "World events (a newer game client): from the game's calendar, a chat line 15 minutes before a Call "
       .. "to Arms or an official event starts, or when one is on as you log in, and for featured community "
       .. "events; each date once. In chat, /toolbox events says what's on now and next and whether the "
@@ -1065,6 +1069,10 @@ N.SOURCES = {
   { key = "guild", label = "Guild members coming online", default = false, via = "chat", transient = true,
     tip = "When a member of your guild logs in (off by default: a big guild is busy)",
     Check = onlineCheck("guild", "Guild members online") },
+  { key = "party", label = "Party comings and goings", default = true, via = "chat", transient = true,
+    tip = "Members joining or leaving your party, or leaving and coming back to your scene; a friend or guild member"
+      .. " going offline (newer game clients, Lua API 55)",
+    Check = function(seen) return T.Party.EventsCheck(seen) end },
   { key = "events", label = "World events starting", default = true, via = "chat",
     tip = "Calls to Arms and official events from the game's calendar, " .. N.EVENT_LEAD .. " minutes ahead",
     Check = function(seen) return N.EventsCheck(seen) end },

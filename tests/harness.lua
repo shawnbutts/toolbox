@@ -747,6 +747,9 @@ local function install_api()
     end
     return out
   end
+  -- API 18: H.S.friends / H.S.guildMembers = { { name, online }, ... } (nil: empty lists).
+  ShroudGetFriends = function() return S.char.present and copy(S.friends or {}) or nil end
+  ShroudGetGuildMembers = function() return S.char.present and copy(S.guildMembers or {}) or nil end
   -- The party (H.S.party, set by H.setParty): { { name, hp, maxHp, focus, maxFocus, online (default true),
   -- inScene (default true), scene, dead, leader, buffs }, ... } in slot order, slot 0 (the first) you; nil = no party.
   -- Sentinels as documented: -1 for a member out of your scene, "None" past the end. H.S.partyReads counts

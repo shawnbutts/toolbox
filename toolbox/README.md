@@ -69,7 +69,8 @@ Your party on a strip of its own, apart from your Toolbelt, so a healer keeps th
 member with their name, health and focus bars and health in percent. The lowest health's name is red, a member in
 another scene is dimmed, and one beyond your reach a little. Each row shows the member's debuffs and the buffs you
 watch (only yours, if you like), with the time left. Party order or lowest health first, only during combat,
-and yourself left out unless you want your row (Settings, Party). Needs a newer game client (Lua API 55).
+and yourself left out unless you want your row (Settings, Party). A notification tells who joins or leaves the party
+or your scene. Needs a newer game client (Lua API 55).
 
 ## Target HUD
 

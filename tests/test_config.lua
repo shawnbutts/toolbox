@@ -367,8 +367,9 @@ return function(t)
     end
     -- 1,058 in the harness (1,393 while every page stayed built, which hit the game's 2,000 in game: the game
     -- counts more than the harness, so keep a wide margin); 1,201 with the launcher's 9 (2026-10-10); 1,234 with the
-    -- Sounds page's Set buttons and the planner's settings row (2026-10-15)
-    t.ok(peak < 1250, "live elements at the most: " .. peak .. " (the game's cap is 2,000)")
+    -- Sounds page's Set buttons and the planner's settings row (2026-10-15); 1,250 with the Party page (2026-10-27:
+    -- its watched-buffs list and effect sliders)
+    t.ok(peak < 1275, "live elements at the most: " .. peak .. " (the game's cap is 2,000)")
   end)
 
   t.test("picking a category from the dropdown builds just that one", function()

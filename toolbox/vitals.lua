@@ -2166,8 +2166,129 @@ function PT.Poll()
   end
 end
 
+-- Comings and goings (owner, 2026-10-18): the "Party comings and goings" notification (docs.lua's N.SOURCES, key
+-- "party"; transient like friends coming online: each change gets a running number, `seen` the last delivered).
+-- Each reading is compared with the last (`known`, by plain name): a member joining or leaving the party, leaving
+-- your scene (and where to) or coming into it, and going offline or back online only for a friend or guild member
+-- (owner: their lists, read only for such a change). Your own scene change isn't the members': their scene changes
+-- are left untold for PT.SCENE_QUIET s after a scene loads. The first reading (a start, a login) only sets the
+-- baseline. Compared on ShroudOnPartyChanged only (every change told comes with it), while the source is on.
+PT.SCENE_QUIET = 5
+PT.EVENTS_KEEP = 20
+local known = nil              -- plain name -> { online, inScene, scene }; nil: no baseline yet
+local partyEvents = { n = 0, list = {} }
+local quietUntil = -math.huge
+
+-- The changes between `prev` (known's shape; nil = no baseline) and the members read (pure). `quiet`: leave scene
+-- changes out; `isFriend(plain)`: a friend or guild member. Returns a list of lines (empty: none).
+function PT.Changes(prev, list, n, quiet, isFriend)
+  local lines = {}
+  if prev == nil then return lines end
+  local had = next(prev) ~= nil
+  if n == 0 then
+    if had then lines[1] = "You're no longer in a party." end
+    return lines
+  end
+  if not had then
+    local names = {}
+    for i = 1, n do if list[i].slot ~= 0 then names[#names + 1] = list[i].plain end end
+    lines[1] = "You're in a party" .. (#names > 0 and (" with " .. table.concat(names, ", ")) or "") .. "."
+    return lines
+  end
+  local now = {}
+  for i = 1, n do
+    local m = list[i]
+    now[m.plain] = true
+    local p = prev[m.plain]
+    if m.slot ~= 0 then
+      if not p then
+        lines[#lines + 1] = m.plain .. " joined the party."
+      elseif p.online ~= m.online and isFriend(m.plain) then
+        lines[#lines + 1] = m.plain .. (m.online and " is back online." or " went offline.")
+      elseif not quiet and m.online and p.online and p.inScene ~= m.inScene then
+        if m.inScene then
+          lines[#lines + 1] = m.plain .. " is here."
+        else
+          lines[#lines + 1] = m.plain .. " left this scene" .. (m.scene and (" for " .. m.scene) or "") .. "."
+        end
+      end
+    end
+  end
+  local gone = {}
+  for name in pairs(prev) do
+    if not now[name] then gone[#gone + 1] = name end
+  end
+  table.sort(gone)
+  for _, name in ipairs(gone) do lines[#lines + 1] = name .. " left the party." end
+  return lines
+end
+
+-- Whether a name is on your friends list or in your guild (read now: only for an online change).
+local function friendOrGuild(plain)
+  local lower = plain:lower()
+  for _, fn in ipairs({ ShroudGetFriends, ShroudGetGuildMembers }) do
+    if type(fn) == "function" then
+      local ok, list = pcall(fn)
+      if ok then
+        for _, f in ipairs(T.List(list)) do
+          local name = T.Field(f, "name")
+          if type(name) == "string" and T.PlainName(name):lower() == lower then return true end
+        end
+      end
+    end
+  end
+  return false
+end
+
+-- Compares the members just read with the last reading and queues what changed.
+local function noteChanges()
+  if not T.Notify.IsOn("party") then
+    known = nil
+    return
+  end
+  local lines = PT.Changes(known, members, memberCount, T.Now() < quietUntil, friendOrGuild)
+  local was = known or {}
+  known = {}
+  for i = 1, memberCount do
+    local m = members[i]
+    local k = was[m.plain] or {}
+    k.online, k.inScene, k.scene = m.online, m.inScene, m.scene
+    known[m.plain] = k
+  end
+  if #lines == 0 then return end
+  for _, line in ipairs(lines) do
+    partyEvents.n = partyEvents.n + 1
+    partyEvents.list[#partyEvents.list + 1] = { id = partyEvents.n, text = line }
+    if #partyEvents.list > PT.EVENTS_KEEP then table.remove(partyEvents.list, 1) end
+  end
+  T.Notify.Check()
+end
+PT.NoteChanges = noteChanges
+
+-- The notification source's Check (docs.lua): the changes not yet delivered, one line each.
+function PT.EventsCheck(seen)
+  local last = type(seen) == "number" and seen or 0
+  if partyEvents.n <= last then return nil end
+  local lines = {}
+  for _, e in ipairs(partyEvents.list) do
+    if e.id > last then lines[#lines + 1] = e.text end
+  end
+  if #lines == 0 then return nil end
+  return { title = "Party", text = table.concat(lines, " "), seen = partyEvents.n }
+end
+
+-- ShroudOnSceneLoaded (core.lua): the members' scene changes go untold for a moment.
+function PT.OnSceneLoaded() quietUntil = T.Now() + PT.SCENE_QUIET end
+
 -- ShroudOnPartyChanged (core.lua): someone joined, left, moved, went elsewhere or (API 45) died.
-function PT.OnPartyChanged() PT.Poll() end
+-- Every kind of change told comes with this call, so the comparison is made only here.
+function PT.OnPartyChanged()
+  if pprefs.show then PT.Poll() end
+  if PT.Has() and T.Notify.IsOn("party") then
+    if not pprefs.show then memberCount = PT.ReadParty(members) end
+    noteChanges()
+  end
+end
 
 -- Settings ------------------------------------------------------------------
 
@@ -2375,6 +2496,11 @@ function PT.Init()
   end
   members, order, memberCount, shownCount = {}, {}, 0, 0
   effBy, effCursor = {}, 0
+  known, quietUntil = nil, -math.huge
+  if PT.Has() and T.Notify.IsOn("party") then          -- the baseline: nothing told for who's there at a start
+    memberCount = PT.ReadParty(members)
+    noteChanges()
+  end
   wasWanted, wasShown = false, false
   T.Hud.Register("party", PT)
   if pprefs.show then

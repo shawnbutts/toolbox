@@ -672,6 +672,7 @@ return function(t)
     H.boot()
     H.S.noApi16, H.S.noMapTitle, H.S.noBackups = true, true, true   -- an older client
     H.reload()
+    ShroudGetFriends, ShroudGetGuildMembers = nil, nil
     H.clearLogs()
     H.chat("/tbx api")
     t.ok(H.logged("Lua API 25"))

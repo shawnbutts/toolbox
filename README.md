@@ -25,7 +25,8 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
 - **Party Toolbelt**: your party's health and focus on a strip of its own, apart from your Toolbelt, a row per
   member with their debuffs and the buffs you watch: the lowest health flagged, members in another scene or out of
   reach dimmed, party order or lowest health
-  first, only during combat if you like (Settings, Party; API 55).
+  first, only during combat if you like (Settings, Party; API 55); and a notification when members join, leave or
+  change scenes.
 - **Health, focus & Vigor bars**: your own health, focus and (API 20) Vigor on a movable HUD strip.
 - **Combat stats**: DPS, damage taken and healing per second, crit and avoid rates, a fight timer and
   chosen character stats; hover it for **Combat Detailed** (damage by skill, the last minute as a

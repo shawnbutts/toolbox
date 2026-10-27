@@ -357,4 +357,76 @@ return function(t)
     t.ok(chars <= 4200, "at most 4,200 characters of text: " .. chars)
     done()
   end)
+
+  t.test("Changes: joins, leaves, scenes (not while quiet), offline only for a friend or guild member", function()
+    boot()
+    local function m(slot, plain, online, inScene, scene)
+      return { slot = slot, plain = plain, online = online, inScene = inScene, scene = scene }
+    end
+    local friends = { Ann = true }
+    local isFriend = function(name) return friends[name] == true end
+    local prev = { Me = { online = true, inScene = true }, Ann = { online = true, inScene = true },
+                   Bob = { online = true, inScene = true }, Cy = { online = true, inScene = true } }
+    local list = { m(0, "Me", true, true), m(1, "Ann", false, false), m(2, "Bob", false, false),
+                   m(3, "Cy", true, false, "Ardoris"), m(4, "Dee", true, true) }
+    local lines = PT().Changes(prev, list, 5, false, isFriend)
+    t.eq(table.concat(lines, " | "), "Ann went offline. | Cy left this scene for Ardoris. | Dee joined the party.",
+      "Bob isn't a friend: his going offline isn't told")
+    t.eq(#PT().Changes(prev, list, 5, true, isFriend), 2, "quiet: no scene changes")
+    t.eq(PT().Changes(prev, { m(0, "Me", true, true) }, 1, false, isFriend)[3], "Cy left the party.")
+    t.eq(PT().Changes(prev, {}, 0, false, isFriend)[1], "You're no longer in a party.")
+    t.eq(PT().Changes({}, list, 5, false, isFriend)[1], "You're in a party with Ann, Bob, Cy, Dee.")
+    t.eq(#PT().Changes(nil, list, 5, false, isFriend), 0, "no baseline: nothing")
+    done()
+  end)
+
+  t.test("comings and goings in chat, the strip on or off; a scene change of yours tells nothing", function()
+    boot()
+    H.advance(30)
+    local p = party()
+    H.setParty(p)
+    t.ok(H.logged("You're in a party with Ann, Bob, Cy."), "the strip off: the source alone")
+    p[5] = { name = "Dee[AFK]", hp = 100, maxHp = 100 }
+    H.setParty(p)
+    t.ok(H.logged("Dee joined the party."))
+    p[2].inScene, p[2].scene = false, "Brittany"
+    H.setParty(p)
+    t.ok(H.logged("Ann left this scene for Brittany."))
+    H.callback("ShroudOnSceneLoaded", "Ardoris")
+    p[2].inScene, p[3].inScene = true, false
+    H.setParty(p)
+    t.ok(not H.logged("Bob left this scene"), "your own scene change: quiet")
+    H.advance(10)
+    H.chat("/tbx party on")
+    p[3].inScene = true
+    H.setParty(p)
+    t.ok(H.logged("Bob is here."), "after the quiet, with the strip on")
+    H.S.friends = { { name = "Bob", online = true } }
+    p[3].online, p[2].online = false, false
+    H.setParty(p)
+    t.ok(H.logged("Bob went offline."))
+    t.ok(not H.logged("Ann went offline."), "not a friend")
+    p[5] = nil
+    H.setParty(p)
+    t.ok(H.logged("Dee left the party."))
+    H.setParty(nil)
+    t.ok(H.logged("You're no longer in a party."))
+    H.chat("/tbx notify party off")
+    local before = #H.logs()
+    H.setParty(party())
+    for i = before + 1, #H.logs() do t.ok(not H.logs()[i]:find("in a party", 1, true), "off: " .. H.logs()[i]) end
+    done()
+  end)
+
+  t.test("comings and goings: a start in a party tells nothing for those already there", function()
+    boot()
+    H.setParty(party())
+    H.advance(30)
+    H.reload()
+    H.advance(30)
+    local before = #H.logs()
+    H.setParty(party())
+    for i = before + 1, #H.logs() do t.ok(not H.logs()[i]:find("joined", 1, true), H.logs()[i]) end
+    done()
+  end)
 end
