@@ -766,7 +766,10 @@ by default, new characters' sounds at 0%. Requests 26 and 29 (the recipe calls) 
 a later 1.9.x or 1.10.0, whichever comes once they reach the live client. The map title's long name is fixed in build
 323 (catnipgames.net, 2026-10-16), 27 (one Enter) in build 2da431775a (2026-10-18): check both when they're live.
 
-**After it: 1.10.0, the party manager** (owner, 2026-10-18; 1.9.x waits on client fixes meanwhile). In scope: (1) the
+**After it: 1.10.0, the party manager** (owner, 2026-10-18; 1.9.x waits on client fixes meanwhile). BUILT 2026-10-27
+for API 55 clients only (owner, same day: no support below API 55), all four parts (vitals.lua's `Toolbox.Party`, the
+"party" and "party_alerts" notification sources, Combat Detailed's Party section; not tried in game yet); the "maybe"
+items (a party buff check, a "who's here" line) not built. In scope: (1) the
 Party Toolbelt, its own strip, never joined to the player's Toolbelt (the idea below): a row per member, health and
 focus bars, their debuffs, members elsewhere dimmed, the lowest flagged, sort by party order (default) or lowest health,
 combat-only, yourself hidden by default (owner, 2026-10-18); effects: every debuff, plus the buffs the player names (a
