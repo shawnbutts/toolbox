@@ -503,6 +503,14 @@ into one if a new file is ever needed).
   past `PT.REARM` points above; `lowNow`, the health bar flashing `PT.FLASH_COLOR` every other poll),
   `PT.CheckDebuffs` from each member's effects read (`alertDebuffs`, new names only, not at the first read; the reads
   run for it with the icons off). The strip does the reading: alerts need it on.
+  Combat Detailed's Party section (combat.lua, `CD.FillParty`, `CD.PARTY_ROWS` 12, built only when `PT.Has()`: its
+  text counts hidden too; the stress test's peak sat 6 characters past 48,000 with it built): `C.AddParty` (pure)
+  over your lines and the `party` ones, members told apart by the names the lines print (`PT.Names()`: lower plain
+  name -> name, and your key for fromYou / toYou), damage done, healing done, damage taken and the last
+  `C.PARTY_LAST` hits taken; a member's fight alone starts none of yours (the session's numbers, the fight's only
+  while one runs). Deaths from API 45's dead flag (`afterRead` after every party read: `ShroudOnPartyChanged` now
+  always reads, it fires on a death in your scene) -> `C.PartyDied` -> `C.PartyDeath` keeps the hits as
+  `lastDeath` (`C.DeathText` in the tooltip).
 - `combat.lua`: `Toolbox.Combat`, the combat stats HUD (pure fight model: rates, crit, avoid, per skill,
   per target, per damage type, a timeline, fight history) and **Combat Detailed** (`C.Detail`, fixed pools).
   Fed by `ShroudOnCombatEvents` (through `T.ReadEvents`) and `ShroudOnCombatModeChanged`.

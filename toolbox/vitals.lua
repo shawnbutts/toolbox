@@ -1706,6 +1706,8 @@ local effBy = {}               -- plain name -> { n, list = { { name, icon, debu
 local effCursor = 0            -- the next member (in `order`) whose effects are read
 local flashPhase = false       -- a low member's health bar: bright every other poll
 local lowNow = {}              -- plain name -> true while below the alert level (told once; PT.CheckLow)
+local nameSet, selfKey = {}, nil   -- combat.lua's party view: lower plain name -> plain name, and yours
+local wasDead = {}             -- plain name -> true while the game says dead (a death told once to combat.lua)
 
 local function pSave() T.Save("party", pprefs) end
 local function pWidth() return pprefs.width or PT.WIDTH_DEFAULT end
@@ -1775,6 +1777,45 @@ function PT.ReadParty(out)
     end
   end
   return n
+end
+
+
+-- After every read: the names for combat.lua's party view (kept until the party changes), and a member newly dead
+-- (API 45's flag) handed to it, which keeps their last hits.
+local function afterRead()
+  local changed = false
+  for i = 1, memberCount do
+    local m = members[i]
+    if nameSet[m.plain:lower()] ~= m.plain then changed = true end
+    if m.dead and m.inScene and not wasDead[m.plain] then
+      wasDead[m.plain] = true
+      T.Combat.PartyDied(m.plain:lower(), m.plain)
+    elseif not m.dead and wasDead[m.plain] then
+      wasDead[m.plain] = nil
+    end
+  end
+  local count = 0
+  for _ in pairs(nameSet) do count = count + 1 end
+  if changed or count ~= memberCount then
+    nameSet, selfKey = {}, nil
+    for i = 1, memberCount do
+      local m = members[i]
+      nameSet[m.plain:lower()] = m.plain
+      if m.slot == 0 then selfKey = m.plain:lower() end
+    end
+  end
+end
+
+-- Reads the party into `members` and keeps what follows from it (combat.lua's names and deaths).
+local function readMembers()
+  memberCount = PT.ReadParty(members)
+  afterRead()
+end
+
+-- For combat.lua: the members by lower plain name (empty: no party; nil before API 55) and your own key.
+function PT.Names()
+  if not PT.Has() or memberCount == 0 then return nil, nil end
+  return nameSet, selfKey
 end
 
 -- A member's health as a share (0..1), or nil when not known (away, offline). Pure.
@@ -2149,7 +2190,7 @@ function PT.Poll()
     end
     return
   end
-  memberCount = PT.ReadParty(members)
+  readMembers()
   local before = shownCount
   shownCount = PT.Order(members, memberCount, pprefs.self == true, pSort(), order)
   if shownCount ~= before then                 -- someone left: their effects and alert state go
@@ -2384,11 +2425,9 @@ function PT.OnSceneLoaded() quietUntil = T.Now() + PT.SCENE_QUIET end
 -- ShroudOnPartyChanged (core.lua): someone joined, left, moved, went elsewhere or (API 45) died.
 -- Every kind of change told comes with this call, so the comparison is made only here.
 function PT.OnPartyChanged()
-  if pprefs.show then PT.Poll() end
-  if PT.Has() and T.Notify.IsOn("party") then
-    if not pprefs.show then memberCount = PT.ReadParty(members) end
-    noteChanges()
-  end
+  if not PT.Has() then return end
+  if pprefs.show then PT.Poll() else readMembers() end   -- read anyway: combat.lua's names and deaths
+  if T.Notify.IsOn("party") then noteChanges() end
 end
 
 -- Settings ------------------------------------------------------------------
@@ -2647,14 +2686,14 @@ function PT.Init()
   members, order, memberCount, shownCount = {}, {}, 0, 0
   effBy, effCursor, lowNow = {}, 0, {}
   known, quietUntil = nil, -math.huge
-  if PT.Has() and T.Notify.IsOn("party") then          -- the baseline: nothing told for who's there at a start
-    memberCount = PT.ReadParty(members)
-    noteChanges()
+  nameSet, selfKey, wasDead = {}, nil, {}
+  if PT.Has() then
+    readMembers()
+    if T.Notify.IsOn("party") then noteChanges() end    -- the baseline: nothing told for who's there at a start
   end
   wasWanted, wasShown = false, false
   T.Hud.Register("party", PT)
   if pprefs.show then
-    memberCount = PT.ReadParty(members)
     shownCount = PT.Order(members, memberCount, pprefs.self == true, pSort(), order)
     wasWanted = PT.Wanted()
     wasShown = PT.IsShown()

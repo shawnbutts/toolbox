@@ -26,7 +26,8 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
   member with their debuffs and the buffs you watch: the lowest health flagged, members in another scene or out of
   reach dimmed, party order or lowest health
   first, only during combat if you like (Settings, Party; API 55); a notification when members join, leave or
-  change scenes, and alerts for a member under a health level or a named debuff landing.
+  change scenes, alerts for a member under a health level or a named debuff landing, and a Party section in
+  Combat Detailed (each member's damage and healing, and the last hits before a death).
 - **Health, focus & Vigor bars**: your own health, focus and (API 20) Vigor on a movable HUD strip.
 - **Combat stats**: DPS, damage taken and healing per second, crit and avoid rates, a fight timer and
   chosen character stats; hover it for **Combat Detailed** (damage by skill, the last minute as a

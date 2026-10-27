@@ -128,8 +128,8 @@ Toolbox says so.
 
 A small HUD with your fight timer, DPS, damage taken and healing per second, crit and avoid rates, and up
 to 8 character stats you choose in settings (search, pick, Add), such as magic resistance. **Combat Detailed** adds each skill's damage,
-per-target damage, damage types, a timeline and your recent fights (rest the pointer on the HUD, or the menu's
-Combat Detailed button). Its options are under **Combat** in the settings.
+per-target damage, damage types, a timeline, your recent fights and, in a party on a newer game client, each
+member's damage and healing (rest the pointer on the HUD, or the menu's Combat Detailed button). Its options are under **Combat** in the settings.
 
 **Block, parry & dodge:** when you block, parry or dodge an attack, the word pops up over the middle of the
 Toolbelt for a moment, with its own sound. You choose the text size and each word's colour, and switch each

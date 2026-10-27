@@ -17,6 +17,9 @@ ones included).
 - **Party alerts** (Lua API 55): a ping and a line on the notification HUD when a party member drops below the
   health level you set (their health bar flashes meanwhile), or when a debuff you name lands on one (Settings,
   Party, Alerts).
+- **The party in Combat Detailed** (Lua API 55): a Party section with each member's damage and healing done, for
+  this fight or the session; hover one for the rates, the damage they took, their deaths and the last hits before
+  their last death.
 - **Party comings and goings** (Lua API 55), a notification (a chat line by default; Settings, Notifications): who
   joins or leaves your party, who leaves your scene (and for where) or comes back, and a friend or guild member
   going offline or back online.

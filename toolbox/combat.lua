@@ -57,7 +57,89 @@ C.HISTORY = 10                 -- finished fights the session remembers
 function C.NewFight(now)
   return { start = now, last = now, ended = nil, out = 0, taken = 0, healed = 0, hits = 0, crits = 0,
            attacksIn = 0, avoided = 0, dropped = 0, recent = {}, overheal = 0, runes = {}, targets = {},
-           types = { out = {}, taken = {} } }
+           types = { out = {}, taken = {} }, party = {} }
+end
+
+-- The party (owner, 2026-10-18; 1.10.0, Lua API 55): per member, by the names the lines print (the combat events'
+-- `party` lines, and yours), damage done, healing done and damage taken, deaths, and the last C.PARTY_LAST hits taken
+-- (kept as they come; copied as `lastDeath` when the member dies: C.PartyDied). `members` = { [lower plain name] =
+-- the name shown }, `self` = your entry's key (fromYou / toYou lines), from Toolbox.Party.
+C.PARTY_LAST = 5
+local function partyMember(stats, key, name)
+  local p = stats.party[key]
+  if not p then
+    p = { name = name, dmg = 0, heal = 0, taken = 0, deaths = 0, hits = {} }
+    stats.party[key] = p
+  end
+  return p
+end
+
+local function lineMember(members, you, self, name)
+  if you and self then return self end
+  if type(name) ~= "string" or name == "" then return nil end
+  local key = T.PlainName(name):lower()
+  if members[key] then return key end
+  return nil
+end
+
+-- Adds one line to `stats`' party numbers (pure but for T.PlainName). Returns whether it was a member's.
+function C.AddParty(stats, e, amount, members, self, t)
+  if not members or not next(members) then return false end
+  local src = lineMember(members, e.fromYou == true, self, e.source)
+  local dst = lineMember(members, e.toYou == true, self, e.target)
+  local used = false
+  if C.DAMAGE_KINDS[e.kind] then
+    if src and src ~= dst then
+      local p = partyMember(stats, src, members[src])
+      p.dmg, used = p.dmg + amount, true
+    end
+    if dst and src ~= dst then
+      local p = partyMember(stats, dst, members[dst])
+      p.taken, used = p.taken + amount, true
+      local h = p.hits
+      h[#h + 1] = { t = t, source = type(e.source) == "string" and e.source or "", amount = amount,
+                    rune = type(e.rune) == "string" and e.rune or "" }
+      if #h > C.PARTY_LAST then table.remove(h, 1) end
+    end
+  elseif C.HEAL_KINDS[e.kind] and src then
+    local p = partyMember(stats, src, members[src])
+    p.heal, used = p.heal + amount, true
+  end
+  return used
+end
+
+-- A member died (Toolbox.Party, from API 45's dead flag): counted, and their last hits kept as `lastDeath`.
+function C.PartyDeath(stats, key, name, t)
+  local p = partyMember(stats, key, name)
+  p.deaths = p.deaths + 1
+  local hits = {}
+  for i, h in ipairs(p.hits) do hits[i] = h end
+  p.lastDeath, p.hits = { t = t, hits = hits }, {}
+end
+
+-- The last death's hits as text (pure): "Wolf 230 (Bite) 2.1 s before, ..." newest first, or nil.
+function C.DeathText(p)
+  local d = p.lastDeath
+  if not d or #d.hits == 0 then return nil end
+  local parts = {}
+  for i = #d.hits, 1, -1 do
+    local h = d.hits[i]
+    parts[#parts + 1] = string.format("%s %s%s, %.1f s before", h.source ~= "" and h.source or "?",
+      T.FormatNumber(h.amount), h.rune ~= "" and (" (" .. h.rune .. ")") or "", math.max(0, d.t - h.t))
+  end
+  return table.concat(parts, "; ")
+end
+
+-- The members sorted by damage done, then healing (pure; a new list).
+function C.PartyRows(stats)
+  local out = {}
+  for _, p in pairs(stats.party or {}) do out[#out + 1] = p end
+  table.sort(out, function(a, b)
+    if a.dmg ~= b.dmg then return a.dmg > b.dmg end
+    if a.heal ~= b.heal then return a.heal > b.heal end
+    return a.name < b.name
+  end)
+  return out
 end
 
 -- The whole session: the same numbers summed over every fight (API 17 per-skill details too),
@@ -394,6 +476,7 @@ end
 function C.OnEvents(events, dropped)
   if type(events) ~= "table" then return end
   local now = T.Now()
+  local members, self = T.Party.Names()
   -- your blocks / parries / dodges in these lines (the game sends a frame's lines at once): each kind's sound,
   -- the last one's word (review, 2026-10-03: a mixed batch played only the last kind's sound)
   local shoutAt = nil
@@ -415,6 +498,16 @@ function C.OnEvents(events, dropped)
     elseif type(e) == "table" and e.kind == "death" and fight then
       C.Add(fight, e, now, prefs.pet ~= false, session)   -- marks a target killed; starts nothing
     end
+    -- the party's numbers (API 55): yours and the members' lines; a member's fight alone starts none of yours
+    if members and type(e) == "table" and (C.DAMAGE_KINDS[e.kind] or C.HEAL_KINDS[e.kind])
+        and (e.party or e.fromYou or e.toYou) then
+      local amount = type(e.amount) == "number" and e.amount > 0 and e.amount or 0
+      local t = type(e.time) == "number" and e.time or now
+      session = session or C.NewSession(now)
+      if C.AddParty(session, e, amount, members, self, t) and fight and not fight.ended then
+        C.AddParty(fight, e, amount, members, self, t)
+      end
+    end
   end
   if fight and type(dropped) == "number" and dropped > 0 then fight.dropped = fight.dropped + dropped end
   if shoutAt then
@@ -423,6 +516,13 @@ function C.OnEvents(events, dropped)
     table.sort(order, function(a, b) return a[2] < b[2] end)
     for _, k in ipairs(order) do C.Shout.Shout(k[1]) end
   end
+end
+
+-- Toolbox.Party: a member's dead flag went on.
+function C.PartyDied(key, name)
+  local now = T.Now()
+  if session then C.PartyDeath(session, key, name, now) end
+  if fight and not fight.ended then C.PartyDeath(fight, key, name, now) end
 end
 
 function C.Reset()
@@ -828,6 +928,7 @@ CD.SCOPES = { { "fight", "This fight" }, { "session", "Session" } }
 CD.OPEN_DELAY = 3                      -- seconds after start-up before a pinned window is rebuilt
 CD.TARGET_ROWS = 6
 CD.HISTORY_ROWS = 10
+CD.PARTY_ROWS = 12                     -- the game's party (Lua API 55: Toolbox.Party)
 CD.TYPE_W, CD.TYPE_H = 330, 10         -- the damage-type bars
 -- Damage types in the docs' order, and a colour for each: the theme has no colours for them, so
 -- these are fixed (weapons in greys and browns, elements in their usual colours).
@@ -902,7 +1003,7 @@ end
 
 local function buildDetail()
   local skills = {}
-  cdEl = { skills = {}, outCols = {}, inCols = {}, targets = {}, history = {} }
+  cdEl = { skills = {}, outCols = {}, inCols = {}, targets = {}, history = {}, party = {} }
   for i = 1, CD.SKILL_ROWS do
     local name = UI.Label{ text = "", class = "text",
       style = { width = CD.NAME_W, whiteSpace = "nowrap", marginLeft = 0, marginRight = 4 } }
@@ -933,6 +1034,11 @@ local function buildDetail()
   for i = 1, CD.TARGET_ROWS do
     cdEl.targets[i] = barRow()
     targetRows[i] = cdEl.targets[i].row
+  end
+  local partyRows = {}                -- only on a client with the party manager (its text counts, shown or not)
+  for i = 1, T.Party.Has() and CD.PARTY_ROWS or 0 do
+    cdEl.party[i] = barRow()
+    partyRows[i] = cdEl.party[i].row
   end
   local historyRows = {}
   for i = 1, CD.HISTORY_ROWS do
@@ -973,6 +1079,11 @@ local function buildDetail()
         UI.Label{ id = "cd_peak", text = "", class = "dim", style = { marginTop = 2 } },
         heading("Healing"),
         UI.Label{ id = "cd_heal", text = "", class = "text", style = { whiteSpace = "wrap" } },
+        UI.Column{ id = "cd_party", visible = T.Party.Has(), children = T.Party.Has() and {
+          heading("Party: damage / healing done"),
+          UI.Column{ children = partyRows },
+          UI.Label{ id = "cd_noparty", text = "No party lines yet.", class = "dim", visible = false },
+        } or {} },
         heading("Targets"),
         UI.Column{ children = targetRows },
         UI.Label{ id = "cd_notargets", text = "Nothing hit yet.", class = "dim", visible = false },
@@ -987,7 +1098,7 @@ local function buildDetail()
       } } } } },
   }
   for _, id in ipairs({ "cd_summary", "cd_scope", "cd_noskills", "cd_peak", "cd_heal", "cd_notargets",
-                        "cd_types_out", "cd_types_taken", "cd_nohistory" }) do
+                        "cd_types_out", "cd_types_taken", "cd_nohistory", "cd_party", "cd_noparty" }) do
     cdEl[id] = cdWin:Find(id)
   end
 end
@@ -1041,6 +1152,34 @@ end
 
 local lastRefresh = -math.huge
 CD.REFRESH = 1                        -- seconds between refreshes while shown
+
+-- The party section (API 55): each member's damage and healing done, the bar the share of the most damage; the
+-- tooltip adds the rates, damage taken, deaths and the last death's hits.
+function CD.FillParty(s, span)
+  if not cdEl.cd_noparty then return end       -- not built: a client before the party manager
+  local rows = s and C.PartyRows(s) or {}
+  local most = rows[1] and math.max(rows[1].dmg, 1) or 1
+  for i, slot in ipairs(cdEl.party) do
+    local p = rows[i]
+    if p then
+      fillRow(slot, p.name, p.dmg / most, short(p.dmg) .. " / " .. short(p.heal),
+        p.name .. p.dmg .. ":" .. p.heal .. ":" .. p.taken .. ":" .. p.deaths .. ":" .. math.floor(span), function()
+          local tip = string.format("%s: %s damage (%s/s), %s healing (%s/s), %s taken", p.name,
+            T.FormatNumber(p.dmg), short(p.dmg / span), T.FormatNumber(p.heal), short(p.heal / span),
+            T.FormatNumber(p.taken))
+          if p.deaths > 0 then
+            tip = tip .. "\nDied " .. (p.deaths == 1 and "once" or (p.deaths .. " times"))
+            local last = C.DeathText(p)
+            if last then tip = tip .. "; the last hits: " .. last end
+          end
+          return tip
+        end)
+    else
+      T.SetVisible(slot.row, false)
+    end
+  end
+  T.SetVisible(cdEl.cd_noparty, #rows == 0)
+end
 
 -- `force`: now, not on the 1 s pace (opened, scope changed).
 function CD.Refresh(force)
@@ -1112,6 +1251,7 @@ function CD.Refresh(force)
     end
   end
   T.SetVisible(cdEl.cd_notargets, #tops == 0)
+  CD.FillParty(s, span)
   for _, which in ipairs({ "out", "taken" }) do
     local list = s and C.Types(s, which) or {}
     local widths, parts, used = {}, {}, 0

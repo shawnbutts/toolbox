@@ -623,12 +623,12 @@ return function(t)
     H.advance(1)
     local w = H.S.windows.toolbox_combat_detail
     local body = w.children[1].children[1].children
-    local target = body[13].children[1]
+    local target = body[14].children[1]          -- (after the party section)
     t.eq(target.children[1].text, "Large Grizzly Bear")
     t.ok(target.children[3].text:find("^144  killed 20s$"), target.children[3].text)
     t.eq(w:Find("cd_types_out").text, "Blade 69%, Hand to hand 31%")
     t.eq(w:Find("cd_types_taken").text, "Hand to hand 100%")
-    local done = body[17]
+    local done = body[18]
     local shownW = 0
     for _, seg in ipairs(done.children) do
       if seg.visible ~= false then shownW = shownW + seg.style.width end

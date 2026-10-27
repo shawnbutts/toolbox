@@ -467,4 +467,69 @@ return function(t)
     t.ok(H.logged("from 5 to 90"))
     done()
   end)
+
+  t.test("combat model: the party's damage, healing and damage taken by name; the last hits at a death", function()
+    boot()
+    local C = Toolbox.Combat
+    local stats = C.NewFight(0)
+    local members = { tester = "Tester", ann = "Ann", bob = "Bob" }
+    local function add(e) return C.AddParty(stats, e, e.amount or 0, members, "tester", e.time or 0) end
+    t.ok(add({ kind = "hit", party = true, source = "Ann[PVP]", target = "Wolf", amount = 100 }))
+    t.ok(add({ kind = "critical", fromYou = true, source = "Tester", target = "Wolf", amount = 50 }))
+    t.ok(add({ kind = "heal", party = true, source = "Ann", target = "Bob", amount = 30 }))
+    for k = 1, 7 do
+      add({ kind = "hit", party = true, source = "Wolf", target = "Bob", amount = 10 * k, rune = "Bite", time = k })
+    end
+    t.no(add({ kind = "hit", party = true, source = "Wolf", target = "Stranger", amount = 5 }), "not a member")
+    t.no(add({ kind = "dodge", party = true, source = "Wolf", target = "Bob" }))
+    local list = C.PartyRows(stats)
+    t.eq(list[1].name .. list[2].name .. list[3].name, "AnnTesterBob", "by damage done")
+    t.eq(list[1].heal, 30)
+    t.eq(list[3].taken, 280)
+    t.eq(#list[3].hits, C.PARTY_LAST)
+    C.PartyDeath(stats, "bob", "Bob", 8)
+    t.eq(list[3].deaths, 1)
+    t.eq(C.DeathText(list[3]), "Wolf 70 (Bite), 1.0 s before; Wolf 60 (Bite), 2.0 s before; Wolf 50 (Bite), 3.0 s"
+      .. " before; Wolf 40 (Bite), 4.0 s before; Wolf 30 (Bite), 5.0 s before")
+    t.eq(#list[3].hits, 0, "the next death's hits start over")
+    done()
+  end)
+
+  t.test("Combat Detailed: a Party section from API 55, its rows and a death's last hits", function()
+    boot()
+    local p = party()
+    H.setParty(p)
+    H.chat("/tbx combat detail")
+    H.setCombat(true)
+    local now = ShroudTime
+    H.combat({ { kind = "hit", party = true, source = "Ann", target = "Wolf", amount = 300, time = now },
+               { kind = "hit", fromYou = true, source = "Tester", target = "Wolf", amount = 100, time = now },
+               { kind = "heal", party = true, source = "Ann", target = "Bob", amount = 40, time = now },
+               { kind = "hit", party = true, source = "Wolf", target = "Bob", amount = 90, rune = "Bite",
+                 time = now } })
+    p[3].dead, p[3].hp = true, 0
+    H.setParty(p)
+    H.advance(2)
+    local w = H.S.windows.toolbox_combat_detail
+    t.eq(w:Find("cd_party").visible, true)
+    local shown = {}
+    for _, r in ipairs(w:Find("cd_party").children[2].children) do
+      if r.visible ~= false then shown[#shown + 1] = r.children[1].text .. "=" .. r.children[3].text end
+    end
+    t.eq(table.concat(shown, ","), "Ann=300 / 40,Tester=100 / 0,Bob=0 / 0")
+    local bob = w:Find("cd_party").children[2].children[3].children[1].tooltip
+    t.ok(bob:find("90 taken", 1, true) and bob:find("Died once; the last hits: Wolf 90 (Bite)", 1, true), bob)
+    done()
+  end)
+
+  t.test("Combat Detailed: no Party section before API 55", function()
+    H.apiVersion = 54
+    H.boot()
+    H.chat("/tbx combat detail")
+    H.advance(1)
+    local section = H.S.windows.toolbox_combat_detail:Find("cd_party")
+    t.eq(section.visible, false)
+    t.eq(#section.children, 0, "not built: its text would count")
+    done()
+  end)
 end

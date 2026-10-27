@@ -268,7 +268,9 @@ D.SECTIONS = {
       .. "damage done up and damage taken down; and healing with how much was wasted as overheal; your targets "
       .. "(damage to each creature and how long each took to kill); and damage types, a bar split by element "
       .. "for damage done and one for damage taken. Switch between this fight and the whole session with the "
-      .. "dropdown. Reset fight (Combat page) clears both.",
+      .. "dropdown. Reset fight (Combat page) clears both. In a party (newer game clients, Lua API 55) a Party "
+      .. "section lists each member's damage and healing done; hover one for the rates, the damage they took, "
+      .. "their deaths and the last hits before their last death.",
     "Block, parry & dodge (Settings, Combat, Shout blocks, parries and dodges): when you block, parry or "
       .. "dodge an attack, the word pops up over the middle of the Toolbelt for a moment, with its own sound. "
       .. "Choose the text size, each word's color, and each word and sound on or off; Test shows one now. Your "
