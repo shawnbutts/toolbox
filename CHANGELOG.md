@@ -8,9 +8,6 @@ ones included).
 ## [Unreleased]
 
 ### Changed
-- **The crafting planner without the recipe book** (newer game clients, Lua API 50): the game now tells add-ons which
-  of your recipes make an item, so From scratch's I'll craft knows every recipe at once. No recipe book is read, no
-  window asks first, and the game no longer stutters for it. Older clients read the book as before.
 - **The target's name in its difficulty color** (Lua API 48; a player's request): with Show the target's name on, a
   hostile creature's name takes the color the game gives its difficulty (your Options and theme included), and the
   target's tooltip names the tier (easy, even, hard or deadly).

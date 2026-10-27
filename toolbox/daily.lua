@@ -1385,7 +1385,12 @@ end
 -- confirmation and its settings stand aside). Each item's answer is kept for the session, dropped when the recipes
 -- change (D.ForgetRecipes). Returns { { id, yield, name } }, or nil (no character: ask again later).
 D.makers = {}
-function D.HasMakers() return type(ShroudGetRecipesMaking) == "function" end
+-- Off until the game builds its makers' index without a stall (owner, 2026-10-27, `/toolbox plan trace` on the QA
+-- client: the session's first ShroudGetRecipesMaking took 4,449 ms for 1,764 known recipes, the game building its
+-- index on that call as the reference says, and the watchdog stopped Toolbox; one call can't be spread out). Until
+-- then the planner finds makers as on API 44 (by name, the book when asked). True turns API 50 on.
+D.USE_MAKERS = false
+function D.HasMakers() return D.USE_MAKERS == true and type(ShroudGetRecipesMaking) == "function" end
 function D.MakersOf(keyOrName)
   local cached = D.makers[keyOrName]
   if cached then return cached end
@@ -3047,6 +3052,8 @@ local function perfQueue(run, plan)
   section("ShroudGetKnownRecipes, the list (once a session)", once, perfKnown)
   if D.HasMakers() then
     section("ShroudGetRecipesMaking, each ingredient (API 50; kept for the session)", keys, ShroudGetRecipesMaking)
+  elseif type(ShroudGetRecipesMaking) == "function" then
+    note("ShroudGetRecipesMaking: not called (API 50; its first call a session builds the game's index: seconds)")
   else
     note("ShroudGetRecipesMaking: not on this client (API 50): the makers come from the book's read")
   end

@@ -992,14 +992,28 @@ return function(t)
 
   -- API 50 and 55 (the QA preview, 2026-10-27; owner: "update the existing stuff to the new APIs"). `api` for the
   -- whole test, put back after it whatever happens.
-  local function onApi(api, fn)
+  -- `makers`: API 50's ShroudGetRecipesMaking used (D.USE_MAKERS, off while the game's first call stalls)
+  local function onApi(api, fn, makers)
     return function()
       H.apiVersion = api
+      if makers then H.beforeStart = function() Toolbox.Daily.USE_MAKERS = true end end
       local ok, err = pcall(fn)
-      H.apiVersion = nil
+      H.apiVersion, H.beforeStart = nil, nil
       if not ok then error(err, 0) end
     end
   end
+
+  t.test("API 50: ShroudGetRecipesMaking isn't called while D.USE_MAKERS is off (its first call stalled 4.4 s)",
+      onApi(55, function()
+    open()
+    H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
+    H.change(W, "pl_scratch", true)
+    H.advance(5)
+    t.no(Toolbox.Daily.HasMakers())
+    t.eq(H.S.makingCalls or 0, 0, "never called")
+    H.chat("/tbx recipe iron sheet")
+    t.eq(H.S.makingCalls or 0, 0, "nor by /toolbox recipe")
+  end))
 
   t.test("API 50: I'll craft knows every maker at once, from the game: no book, no confirmation", onApi(50, function()
     open()
@@ -1032,7 +1046,7 @@ return function(t)
     t.no(H.config():Find("pl_book_read"):IsEnabled(), "Read it now greyed out")
     t.no(H.config():Find("pl_book_when"):IsEnabled(), "and when to read it")
     t.ok(H.config():Find("pl_book_status").text:find("^Not needed"))
-  end))
+  end, true))
 
   t.test("API 50: /toolbox recipe answers from scratch at once, without the book", onApi(50, function()
     H.boot()
@@ -1044,7 +1058,7 @@ return function(t)
     t.ok(H.logged("<%- 2 x Iron Ingot"), "the ingot's maker: " .. table.concat(H.logs(), " | "))
     t.ok(H.logged("also made by: Iron Ingot from Metal Scraps"), "both makers, from the game")
     t.eq(H.S.bookCalls or 0, 0, "no book read")
-  end))
+  end, true))
 
   t.test("API 55: a change reads the recipes again, not ShroudGetOwnedCounts (slower in game)", onApi(55, function()
     open()
@@ -1109,7 +1123,8 @@ return function(t)
         local all = table.concat(H.logs(), "\n")
         t.ok(all:find("ShroudGetRecipe, each recipe", 1, true), all)
         if api >= 55 then
-          t.ok(all:find("ShroudGetRecipesMaking, each ingredient", 1, true), all)
+          t.ok(all:find("ShroudGetRecipesMaking: not called", 1, true), all)
+          t.eq(H.S.makingCalls or 0, 0, "the stalling call isn't timed")
           t.ok(all:find("ShroudGetOwnedCounts, each ingredient", 1, true), all)
         else
           t.ok(all:find("ShroudGetRecipesMaking: not on this client", 1, true), all)

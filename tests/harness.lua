@@ -1718,6 +1718,7 @@ function H.load()
     local chunk = assert(loadfile(H.PACKAGE .. "/" .. file))
     chunk()   -- top level: not in a callback
   end
+  if H.beforeStart then H.beforeStart() end   -- a test's change to a module's constants, at every (re)load
   H.callback("ShroudOnStart")
 end
 
