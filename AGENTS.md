@@ -896,23 +896,40 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   `[u]...[/u]` and color tags stripped; inventory and equipment names). Not in them: request 27's fix (client only),
   26 and 29.
 
-**In the work log, not the reference yet** (catnipgames.net, 2026-10-24, "ten new abilities", API 45-54; no build or
-patch named; the reference is still API 44, so no shapes yet): 45 `ShroudGetParty` (every member in one call: online,
-scene, leader, dead, vitals in your scene; the party listeners hear a death / resurrection in your scene; request 30);
-46 `ShroudGetPartyMemberRange` (near / far by a range the add-on picks, never a position; 32); 47 who applied each effect
-on the buff lists (you, pet, target, party; 31); 48 `ShroudGetTargetDifficulty` (con tier and name color; 35); 49 dismiss
-one of your pet's COMMANDS on a click, as right-clicking its icon on the pet's buff bar (36, for the pet strip; check it
-covers the buffs players want gone); 50 `ShroudGetRecipesMaking` (your known recipes making an item) and
-`ShroudGetRecipeIndex` (the known recipes in short form), so a planner needn't read the whole book (26; no cost given:
-measure with `/toolbox perf`; 29's counts not mentioned); 51 an add-on's own JSON data files, write / read / list /
-delete, a folder kept through updates and reinstalls, 16 files of 1 MB (33); 52 item lists (bags, worn, gained) give each
-item's kind in words the same in every language, and quest / tool / artifact / locked / equipped flags; 53 turning and
-resizing a decoration taken from the bags while placing it; 54 `ShroudGetTargetAggro`, the target's threat list highest
-first, as `/verbose aggro` (another player's request). Plan: 50 for the planner (a 1.9.x: the book read goes), 45-48 for
-1.10.0's party manager, 51 for exports / caches; each feature-detected, built once the reference has its shapes.
-Not in it: 34 (the Skills window at a skill) and the game settings API. A preview of the docs for the QA build is to be at
-https://catnipgames.net/lua/qa/ (owner, 2026-10-24: with the next QA build; 404 on 2026-10-26): read its shapes from
-there, but build against what the live client reports (`/toolbox api`).
+**API 45-55 on the QA server** (the QA docs preview, https://catnipgames.net/lua/qa/, read 2026-10-27: "can still change
+before it reaches the live game"; the live reference is still API 44). Build against the live client's `/toolbox api`,
+feature-detected; the shapes as previewed:
+- 45 (request 30): `ShroudGetParty()` -> rows in slot order `{ slot, name, online, inScene, scene?, role
+  "leader"/"member"/"invited", leader, dead?, health?, maxHealth?, focus?, maxFocus? }` (vitals and dead in your scene
+  only; scene nil offline / unknown); `ShroudOnPartyChanged` also fires for a death / resurrection in your scene.
+- 46 (32): `ShroudGetPartyMemberRange(slot | name, meters = 30)` -> "near" / "far" / nil (1..200 m; no positions).
+- 47 (31): each effect on the buff lists gains `FromYou` and `SourceKey` (the combat events' sourceKey, 0 none / area);
+  a rune `FromYou` (any effect yours) and `FromYouCount`.
+- 48 (35): `ShroudGetTargetDifficulty()` -> `{ tier = "easy"/"even"/"hard"/"deadly", rank 1..4, color "#rrggbb" }` or
+  nil (no target, a player, friendly, neutral, a corpse).
+- 49 (36): `ShroudCanDismissPetBuff(runeId | name)`, `ShroudDismissPetBuff(...)` -> ok, reason (a GESTURE; the pet
+  bar's rule: your primary pet's dismissable effects; ok / noPet / notFound / notDismissable / notNow).
+- 50 (26): `ShroudGetRecipesMaking(itemKey | name)` -> `{ id, name, quantity, station, stationKey }` list or nil, and
+  `ShroudGetRecipeIndex([categoryKey])` -> `{ id, name, station, stationKey, results = { key, name, quantity } }`
+  (known recipes' FIXED results, bundle rolls absent; built lazily, dirtied by learning / loading recipes; no bag walk):
+  the planner's book read can go. Measure in game (`/toolbox perf`).
+- 51 (33): `ShroudWriteDataFile(name, table)`, `ShroudReadDataFile(name)` -> table | nil, reason,
+  `ShroudDeleteDataFile`, `ShroudListDataFiles()` -> `{ name, size, time }`, `ShroudOpenDataFolder()` (a gesture);
+  `Lua/AddonData/<AddonKey>/`, kept through update, reinstall, disable AND uninstall; names `^[A-Za-z0-9_-]{1,64}%.json$`,
+  1 MB a file, 16 files, one write a file per 10 s, written whole or not at all; callbacks only. Check whether the
+  game's loader has the saved vars' "/" and negative-number problems (Toolbox's escaping, `T.ForSaving`, would apply).
+- 52: item rows (inventory, equipment, `ShroudOnItemsGained`) gain `itemType` (weapon / armor / ... / food / potion /
+  consumable / ..., the same in every language), `itemClass`, `isQuest`, `isTool`, `isArtifact`, `isLocked`, `isEquipped`.
+- 53: `ShroudOnDecoPlacementStarted(info)` and `ShroudSetPlacingDecoPose(rotation, scale)` (decorating; unused).
+- 54: `ShroudGetTargetAggro()` -> `{ target?, entries = { name, value, share, unreachable, you } }` (the top 6, as
+  `/verbose aggro`; nil until the first snapshot, refreshed once a second).
+- 55: `ShroudGetAllSkills()` (every skill, trained or not, with `xpMultiplier`); `ShroudGetOwnedCounts(keyOrName)` ->
+  `{ key, name, carried, bank, bankInContainers, bankKnown, total }` (part of request 29: counts without reading
+  recipes; bank from the login preload); `ShroudSearchOwnedItems(keyOrName, cb)` (the "Search All My Stuff" count: one
+  in flight, a 5 s cooldown).
+Plan: 50 and 55's counts for the planner (a 1.9.x), 45-49 for 1.10.0's party manager and pet strip, 51 for exports and
+caches, 52 for the consumables bar's and Loot Tracker's kinds on other-language clients. Still not in it: 34 (the Skills
+window at a skill) and the game settings API.
 
 **Waiting on the developers:** **33** (submitted by 2026-10-20; `tmp/client-issues.md`): files an add-on
 writes itself (`ShroudWriteDataFile` / `ReadDataFile` / `DeleteDataFile` / `ListDataFiles`, JSON), in a folder beside the
