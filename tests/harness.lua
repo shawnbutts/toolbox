@@ -812,8 +812,14 @@ local function install_api()
         out[#out + 1] = r
       end
       r.StackCount = r.StackCount + 1
-      r.Effects[#r.Effects + 1] = { Description = "", Value = 0, CurrentDuration = e.remaining or 0,
-                                    TotalDuration = e.total or 0, TotalTick = 0 }
+      local eff = { Description = "", Value = 0, CurrentDuration = e.remaining or 0,
+                    TotalDuration = e.total or 0, TotalTick = 0 }
+      if (H.apiVersion or 25) >= 47 then          -- API 47: who applied it (an effect's `fromYou` in H.setTarget)
+        eff.FromYou, eff.SourceKey = e.fromYou == true, e.fromYou and 1 or (e.source or 0)
+        r.FromYou = r.FromYou == true or e.fromYou == true
+        r.FromYouCount = (r.FromYouCount or 0) + (e.fromYou and 1 or 0)
+      end
+      r.Effects[#r.Effects + 1] = eff
     end
     return out
   end

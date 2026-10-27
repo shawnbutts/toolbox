@@ -1971,7 +1971,7 @@ add("target", "your target's health and effects (on|off; toolbelt on|off; place 
     return
   elseif word == "effects" then
     if not TG.SetEffects(args:lower()) then
-      T.Print("Use /" .. T.commands[1] .. " target effects all|debuffs|none.")
+      T.Print("Use /" .. T.commands[1] .. " target effects " .. table.concat(TG.EffectChoices(), "|") .. ".")
       return
     end
   elseif word == "icons" then

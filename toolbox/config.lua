@@ -943,10 +943,11 @@ function C.ToolbeltSection()
       .. " between the grip and your bars); on its own strip, the strip is mirrored",
     onChange = function(_, v) T.Target.SetMirror(v) end }
   local effectLabels = {}
-  for i, key in ipairs(T.Target.EFFECTS) do effectLabels[i] = T.Target.EFFECT_LABELS[key] end
+  for i, key in ipairs(T.Target.EffectChoices()) do effectLabels[i] = T.Target.EFFECT_LABELS[key] end
   children[#children + 1] = dropdownRow("Target effects", { id = "target_effects", choices = effectLabels,
     value = T.Target.EFFECT_LABELS[T.Target.GetEffects()],
-    tooltip = "Which of your target's effects show as icons: all, debuffs only, or none (just the bars)",
+    tooltip = "Which of your target's effects show as icons: all, debuffs only, only the ones you cast (newer game"
+      .. " clients), or none (just the bars)",
     onChange = function(_, label)
       for key, l in pairs(T.Target.EFFECT_LABELS) do if l == label then T.Target.SetEffects(key) end end
     end })

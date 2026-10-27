@@ -700,8 +700,19 @@ TG.PLACE_ORDER = { "top", "bottom" }  -- the Target row choices; "left" comes fr
 TG.LEFT_SLOTS = 5            -- icons when mirrored on the left (its width is always kept: keep it small)
 -- Options (owner, 2026-09-29): which effects show ("all", "debuffs" only, or "none": just the bars) and
 -- how many icons at most (1..TG.SLOTS; unset = TG.SLOTS, or TG.LEFT_SLOTS mirrored).
-TG.EFFECTS = { "all", "debuffs", "none" }
-TG.EFFECT_LABELS = { all = "All", debuffs = "Debuffs only", none = "None (just the bars)" }
+-- "mine" (API 47, request 31; the QA preview, 2026-10-27): only the effects you put on it (the rune's FromYou).
+TG.EFFECTS = { "all", "debuffs", "mine", "none" }
+TG.EFFECT_LABELS = { all = "All", debuffs = "Debuffs only", mine = "Only mine (what you cast)",
+                     none = "None (just the bars)" }
+function TG.HasMine() return type(ShroudLuaApiVersion) == "number" and ShroudLuaApiVersion >= 47 end
+-- The choices this game client offers (Only mine needs API 47's FromYou).
+function TG.EffectChoices()
+  local out = {}
+  for _, key in ipairs(TG.EFFECTS) do
+    if key ~= "mine" or TG.HasMine() then out[#out + 1] = key end
+  end
+  return out
+end
 TG.HINT = "Target"           -- shown in its kept space while settings are open and there's no target
 local TPERIODIC = "toolbox_target"
 
@@ -814,17 +825,18 @@ end
 -- Groups the flat effects (`raw`, entries { name, remaining, index }) by name, keeping every index (`indices`,
 -- for the tooltip) and the longest time left, fills in debuff and full duration from `infoBy`, sorts them
 -- (TG.Before) and writes at most `max` into `out` (reused entries). Returns how many. Pure.
-function TG.Collect(raw, n, infoBy, out, max, debuffsOnly)
+function TG.Collect(raw, n, infoBy, out, max, debuffsOnly, mineOnly)
   local count = 0
   for i = 1, n do
     local r = raw[i]
     local found = nil
     local info = infoBy[r.name]
-    local skip = debuffsOnly == true and not (info ~= nil and info.debuff == true)
+    local skip = (debuffsOnly == true and not (info ~= nil and info.debuff == true))
+      or (mineOnly == true and not (info ~= nil and info.mine == true))
     for j = 1, count do
       if out[j].name == r.name then found = out[j] end
     end
-    if skip then                                     -- a buff, with debuffs only: left out
+    if skip then                                     -- a buff with debuffs only, another's with only mine: out
       found = nil
     elseif found then
       found.indices[#found.indices + 1] = r.index      -- every effect's index, for its tooltip
@@ -860,7 +872,8 @@ local function readGroups()
         local td = T.Field(e, "TotalDuration")
         if type(td) == "number" and td > total then total = td end
       end
-      tInfoBy[name] = { debuff = T.Field(rune, "IsDebuff") == true, total = total }
+      tInfoBy[name] = { debuff = T.Field(rune, "IsDebuff") == true, total = total,
+                        mine = T.Field(rune, "FromYou") == true }   -- API 47: any of its effects yours
     end
   end
 end
@@ -1284,7 +1297,8 @@ function TG.Poll(force)
       local left = ShroudGetTargetBuffTimeRemaining(i - 1)
       r.remaining = (type(left) == "number" and left > 0) and left or 0
     end
-    TG.Collect(tRaw, n, tInfoBy, tList, #tSlots, tprefs.effects == "debuffs")
+    TG.Collect(tRaw, n, tInfoBy, tList, #tSlots, tprefs.effects == "debuffs",
+      tprefs.effects == "mine" and TG.HasMine())
     local cur, max = ShroudGetTargetCurrentHealth(), ShroudGetTargetMaxHealth()
     local hidden, dead = ShroudIsTargetHealthHidden() == true, ShroudIsTargetDead() == true
     local pct = TG.HealthText(cur, max, hidden, dead)
@@ -1376,7 +1390,10 @@ function TG.SlotCount(mirrored)
   return mirrored and TG.LEFT_SLOTS or TG.SLOTS
 end
 
-function TG.GetEffects() return tprefs.effects end
+function TG.GetEffects()
+  if tprefs.effects == "mine" and not TG.HasMine() then return "all" end   -- saved on a newer client
+  return tprefs.effects
+end
 function TG.GetIcons() return tprefs.icons or (TG.Mirrored() and TG.LEFT_SLOTS or TG.SLOTS) end
 
 -- A slot count change means other elements: rebuilt (rare; player actions only).
@@ -1390,9 +1407,11 @@ end
 -- Said when a change would leave the target HUD showing nothing (see tSetPart).
 local NOTHING = "The target HUD would show nothing (no bars, no numbers, no effects); switch it off instead."
 
--- "all", "debuffs" or "none". Returns false for anything else.
+-- "all", "debuffs", "mine" (API 47) or "none". Returns false for anything else.
 function TG.SetEffects(which)
-  if which ~= "all" and which ~= "debuffs" and which ~= "none" then return false end
+  local valid = false
+  for _, key in ipairs(TG.EffectChoices()) do if key == which then valid = true end end
+  if not valid then return false end
   if which == "none" and not TG.InfoShown() then
     T.Print(NOTHING)
     T.Config.Sync()
@@ -1541,7 +1560,9 @@ function TG.Init()
     tprefs.glue = saved.glue ~= false
     if saved.place == "bottom" then tprefs.place = "bottom" end
     tprefs.mirror = saved.mirror == true or saved.place == "left"   -- beta 7 saved the mirror as place "left"
-    if saved.effects == "debuffs" or saved.effects == "none" then tprefs.effects = saved.effects end
+    if saved.effects == "debuffs" or saved.effects == "none" or saved.effects == "mine" then
+      tprefs.effects = saved.effects             -- "mine" on an older client shows them all (TG.Poll)
+    end
     if type(saved.icons) == "number" and saved.icons >= 1 and saved.icons <= TG.SLOTS then
       tprefs.icons = math.floor(saved.icons)
     end

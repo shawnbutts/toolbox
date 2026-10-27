@@ -1060,4 +1060,36 @@ return function(t)
     H.apiVersion = nil
     if not ok then error(err, 0) end
   end)
+
+  -- API 47 (request 31; the QA preview, 2026-10-27): only the effects you cast.
+  t.test("API 47: Only mine shows the effects you put on the target; offered only from API 47", function()
+    H.boot()
+    H.chat("/tbx target on")
+    H.chat("/tbx config")
+    local labels = table.concat(H.config():Find("target_effects").choices, "; ")
+    t.no(labels:find("Only mine", 1, true), "not before API 47: " .. labels)
+    H.clearLogs()
+    H.chat("/tbx target effects mine")
+    t.ok(H.logged("target effects all|debuffs|none"), H.lastLog())
+    H.apiVersion = 47
+    local ok, err = pcall(function()
+      H.boot()
+      H.chat("/tbx target on")
+      local wolf = copy(WOLF)
+      wolf.effects[2].fromYou = true                  -- your Bleed
+      H.setTarget(wolf)
+      H.chat("/tbx config")
+      t.ok(table.concat(H.config():Find("target_effects").choices, "; "):find("Only mine (what you cast)", 1, true))
+      H.change("toolbox_config", "target_effects", "Only mine (what you cast)")
+      H.advance(1)
+      t.eq(slotNames(), "Bleed", "the others' left out")
+      t.eq(H.saved("target").effects, "mine")
+    end)
+    H.apiVersion = nil
+    if not ok then error(err, 0) end
+    H.reload()                                          -- an older client with "mine" saved: every effect
+    H.setTarget(copy(WOLF))
+    H.advance(1)
+    t.eq(slotNames(), "Bleed,Poisoned,Enraged", "all of them")
+  end)
 end

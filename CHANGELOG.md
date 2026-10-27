@@ -17,6 +17,8 @@ ones included).
 - **The target's name in its difficulty color** (Lua API 48; a player's request): with Show the target's name on, a
   hostile creature's name takes the color the game gives its difficulty (your Options and theme included), and the
   target's tooltip names the tier (easy, even, hard or deadly).
+- **Only your effects on the target** (Lua API 47): Settings, Toolbelt, Target effects has "Only mine (what you
+  cast)", so a healer or a damage dealer sees just their own effects on the target.
 - `/toolbox api` lists the API 45 to 55 additions, and `/toolbox perf recipes` times the crafting planner's game calls
   for the plan set, to compare the old way with the new.
 

@@ -157,7 +157,8 @@ D.SECTIONS = {
       .. "target frame. Every effect on it is listed (the game doesn't say who applied one). Hover for "
       .. "details.",
     "Its bars are the size of yours (Health bars: Size, Bar length). Settings, Toolbelt, Target bars give "
-      .. "it the health bars' options: bars, numbers, background, flash when low; Show the target's name puts "
+      .. "it the health bars' options: bars, numbers, background, flash when low; Target effects picks all, "
+      .. "debuffs only, only the ones you cast (a newer game client) or none; Show the target's name puts "
       .. "its name above the bars (mirrored: right-aligned over its icons and bars, your bars moving down a "
       .. "line to stay level), on a newer game client in the color the game gives a hostile creature's "
       .. "difficulty (the tier in the tooltip); Leave out your pet hides it when the game targets it. With "
