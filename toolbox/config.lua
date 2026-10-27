@@ -199,6 +199,8 @@ function C.PositionRows(prefix, m, label)
     } },
   } }
 end
+C.Helpers.positionRows = C.PositionRows
+C.Helpers.shadeSlider = shadeSlider
 
 -- ---------------------------------------------------------------------------
 -- XP and Today: Hidden / Window / HUD strip
@@ -865,6 +867,7 @@ local POSITIONED = {
   { "plhud", T.Planner.Strip, T.Planner.HUD_NAME, "crafting" },
 }
 if T.SkillBar then POSITIONED[#POSITIONED + 1] = { "skills", T.SkillBar, T.SkillBar.PAGE } end
+POSITIONED[#POSITIONED + 1] = { "party", T.Party, "Party Toolbelt", "party" }
 
 -- The "Toolbelt" category: the buff bar with the health bars, consumables and gear repair joined to it,
 -- one strip moved as one (owner, 2026-09-29: "this combined bar will be the main selling point").
@@ -1074,7 +1077,7 @@ function C.HudSection()
       .. " (untick Options > Interface > Nameplates & Chat Bubbles > Lock Status Movement to see it) or"
       .. " use the buttons.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
     UI.Label{ text = "The location strip is placed on the Map & location page, the " .. T.Planner.HUD_NAME
-      .. " on the Crafting page.", class = "dim",
+      .. " on the Crafting page, the Party Toolbelt on the Party page.", class = "dim",
       style = { whiteSpace = "wrap", marginTop = 4 } },
   }
   for _, p in ipairs(POSITIONED) do
@@ -1686,6 +1689,13 @@ C.CATEGORIES = {
   { key = "hud", label = "HUD layout", build = function() return C.HudSection() end },
   { key = "backup", label = "Menu, setups, backup & reset", build = function() return C.BackupSection() end },
 }
+-- the Party Toolbelt's page after Health bars (vitals.lua builds it with C.Helpers)
+do
+  local at = #C.CATEGORIES + 1
+  for i, c in ipairs(C.CATEGORIES) do if c.key == "vitals" then at = i + 1 end end
+  table.insert(C.CATEGORIES, at, { key = "party", label = T.Party.PAGE,
+                                  build = function() return T.Party.ConfigSection(C.Helpers) end })
+end
 -- skills.lua, when present: its page after Combat
 if T.SkillBar then
   local at = #C.CATEGORIES + 1
@@ -1762,6 +1772,7 @@ end
 if T.SkillBar then
   for _, id in ipairs(T.SkillBar.CONFIG_IDS) do ALL_IDS[#ALL_IDS + 1] = id end
 end
+for _, id in ipairs(T.Party.CONFIG_IDS) do ALL_IDS[#ALL_IDS + 1] = id end
 for _, key in ipairs(T.Consumables.Categories()) do
   ALL_IDS[#ALL_IDS + 1] = "cons_cat_" .. key
   ALL_IDS[#ALL_IDS + 1] = "buff_cat_" .. key
@@ -2551,6 +2562,7 @@ function C.Sync()
   sliderValue("daily_shade", T.Daily.GetShade())
   setEnabled("daily_shade", T.Daily.GetHud())
   if T.SkillBar then T.SkillBar.ConfigSync(C.Helpers) end   -- skills.lua, when present
+  T.Party.ConfigSync(C.Helpers)
   C.SyncLive()
 end
 

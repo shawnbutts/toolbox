@@ -1641,3 +1641,557 @@ function TG.DebugLines()
   end
   return lines
 end
+
+-- ===========================================================================
+-- Toolbox.Party: the Party Toolbelt (/toolbox party)
+-- ===========================================================================
+-- Owner, 2026-10-18 (1.10.0's party manager): a strip of its own, never joined to the player's Toolbelt, so a healer
+-- keeps their Toolbelt for themselves and watches the party here. A row per member: the name (the lowest health's in
+-- red), a health and a focus bar, and "73%" (or "dead", "away", "offline"); a member out of your scene is dimmed
+-- (the game knows vitals only in your scene). Party order (default) or lowest health first, only during combat, and
+-- yourself left out by default. Rows for PT.MAX members (the game's party is 12 today; the owner expects a raise).
+--
+-- Read every PT.POLL s and on ShroudOnPartyChanged (core.lua): API 45's ShroudGetParty (one call: online, scene,
+-- dead, leader), else the slot getters (API 26: slot 0 is you, then party-frame order; an online member elsewhere
+-- reads as away, an offline one can't be told apart). Out of a party only the member count is read. The rows are a
+-- pool grown PT.ROWS_STEP at a time (a rebuild), shown or hidden as members come and go; values set only on a change.
+-- Saved var "party": { show = bool (default false), combatOnly = bool, self = bool (yourself shown; default false),
+-- sort = "party" / "health", width = PT.WIDTH_MIN..PT.WIDTH_MAX (bar length), numbers = bool (default true),
+-- shade = 0..90, x, y }.
+
+local PT = {}
+Toolbox.Party = PT
+
+PT.PAGE = "Party"
+PT.FRAME_ID = "toolbox_party"
+PT.HOME = { 40, 560 }
+PT.POLL = 0.5
+PT.MAX = 16                    -- members at most (12 in the game's party today)
+PT.ROWS_STEP = 4               -- the row pool grows this many at a time
+PT.WIDTH_MIN, PT.WIDTH_MAX, PT.WIDTH_DEFAULT = 40, 300, 120
+PT.NAME_CHARS = 13             -- the name column, in characters of the text size
+PT.DIM = 0.45                  -- a member out of your scene
+PT.SORTS = { "party", "health" }
+PT.SORT_LABELS = { party = "Party order", health = "Lowest health first" }
+PT.NAME_COLOR, PT.LOW_COLOR, PT.DEAD_COLOR = "@text", "@red", "@text-bright"
+PT.HINT = "Not in a party"     -- the first row while settings are open and there's no party
+
+local PPERIODIC = "toolbox_party"
+local pprefs = { show = false }
+local members = {}             -- the party as last read: reused tables, PT.ReadParty's shape
+local memberCount = 0
+local order = {}               -- members shown, in the strip's order
+local shownCount = 0
+local pContent = nil
+local rowEls = {}              -- i -> { row, name, hp, focus, text, last = { ... } }
+local builtRows = 0
+local wasWanted, wasShown = false, false
+
+local function pSave() T.Save("party", pprefs) end
+local function pWidth() return pprefs.width or PT.WIDTH_DEFAULT end
+local function pSort() return pprefs.sort or "party" end
+
+-- The sizes, from the General text size (pure but for it).
+function PT.Metrics()
+  local font = T.Window.GetFont()
+  local line = math.ceil(font * 1.15) + 1
+  local m = { font = font, line = line, gap = math.max(3, math.floor(font / 3)), barW = pWidth(),
+              hpH = math.max(4, math.floor(line * 0.55 + 0.5)), foH = math.max(3, math.floor(line * 0.3 + 0.5)),
+              nameW = math.ceil(font * 0.6 * PT.NAME_CHARS), textW = pprefs.numbers ~= false and math.ceil(font * 3.6)
+                or 0, rowGap = 2 }
+  m.rowW = m.nameW + m.gap + m.barW + (m.textW > 0 and (m.gap + m.textW) or 0)
+  return m
+end
+
+local function num(v)
+  if type(v) == "number" and v == v then return v end
+  return nil
+end
+
+-- Reads the party into `out` (its tables reused): { slot, name (as the game gives it), plain (T.PlainName), online
+-- (nil: unknown), inScene, scene, leader, dead, hp, maxHp, focus, maxFocus }. Returns how many.
+function PT.ReadParty(out)
+  local n = 0
+  local okC, count = pcall(ShroudGetPartyMemberCount)
+  if not okC or type(count) ~= "number" or count < 1 then return 0 end
+  local function slotOf(i)
+    local m = out[i]
+    if not m then
+      m = {}
+      out[i] = m
+    end
+    return m
+  end
+  if type(ShroudGetParty) == "function" then
+    local ok, rows = pcall(ShroudGetParty)
+    if ok and rows ~= nil then
+      for _, r in ipairs(T.List(rows)) do
+        if n >= PT.MAX + 1 then break end
+        local name = T.Field(r, "name")
+        if type(name) == "string" and name ~= "" then
+          n = n + 1
+          local m = slotOf(n)
+          m.slot, m.name, m.plain = num(T.Field(r, "slot")) or (n - 1), name, T.PlainName(name)
+          m.online, m.inScene = T.Field(r, "online") ~= false, T.Field(r, "inScene") == true
+          m.scene, m.leader, m.dead = T.Field(r, "scene"), T.Field(r, "leader") == true, T.Field(r, "dead") == true
+          m.hp, m.maxHp = num(T.Field(r, "health")), num(T.Field(r, "maxHealth"))
+          m.focus, m.maxFocus = num(T.Field(r, "focus")), num(T.Field(r, "maxFocus"))
+          if type(m.scene) ~= "string" then m.scene = nil end
+        end
+      end
+      return n
+    end
+  end
+  for slot = 0, math.min(count, PT.MAX + 1) - 1 do
+    local okN, name = pcall(ShroudGetPartyMemberName, slot)
+    if okN and type(name) == "string" and name ~= "" and name ~= "None" then
+      n = n + 1
+      local m = slotOf(n)
+      m.slot, m.name, m.plain = slot, name, T.PlainName(name)
+      local _, hp = pcall(ShroudGetPartyMemberCurrentHealth, slot)
+      local _, maxHp = pcall(ShroudGetPartyMemberMaxHealth, slot)
+      local _, focus = pcall(ShroudGetPartyMemberCurrentFocus, slot)
+      local _, maxFocus = pcall(ShroudGetPartyMemberMaxFocus, slot)
+      hp, maxHp, focus, maxFocus = num(hp), num(maxHp), num(focus), num(maxFocus)
+      m.inScene = maxHp ~= nil and maxHp > 0 and hp ~= nil and hp >= 0
+      if not m.inScene then hp, maxHp, focus, maxFocus = nil, nil, nil, nil end
+      m.hp, m.maxHp, m.focus, m.maxFocus = hp, maxHp, focus, maxFocus
+      m.online, m.scene, m.leader, m.dead = nil, nil, false, m.inScene and hp <= 0
+    end
+  end
+  return n
+end
+
+-- A member's health as a share (0..1), or nil when not known (away, offline). Pure.
+function PT.Share(m)
+  if not m.inScene or not m.hp or not m.maxHp or m.maxHp <= 0 then return nil end
+  if m.dead then return 0 end
+  return math.max(0, math.min(1, m.hp / m.maxHp))
+end
+
+local function sortByHealth(a, b)
+  local sa, sb = PT.Share(a), PT.Share(b)
+  local la, lb = sa ~= nil and not a.dead, sb ~= nil and not b.dead
+  if la ~= lb then return la end                  -- the living in your scene first
+  if la and sa ~= sb then return sa < sb end
+  return a.slot < b.slot
+end
+
+-- The members shown, in order, into `out` (pure): yourself (slot 0) only with `self`; by `sort` ("health": the
+-- living in your scene lowest first, then the rest in party order). Returns how many.
+function PT.Order(list, n, self, sort, out)
+  local k = 0
+  for i = 1, n do
+    local m = list[i]
+    if self or m.slot ~= 0 then
+      k = k + 1
+      out[k] = m
+    end
+  end
+  for i = #out, k + 1, -1 do out[i] = nil end
+  if sort == "health" then table.sort(out, sortByHealth) end
+  return k
+end
+
+-- The lowest-health member shown (alive, in your scene, below full), or nil. Pure.
+function PT.Lowest(list, n)
+  local low, lowShare = nil, 1
+  for i = 1, n do
+    local m = list[i]
+    local s = PT.Share(m)
+    if s and not m.dead and s < lowShare then low, lowShare = m, s end
+  end
+  return low
+end
+
+-- The text after the bars (pure): "73%", "dead", "away" (online, elsewhere), "offline", or "away" when the client
+-- can't tell (before API 45).
+function PT.StateText(m)
+  if m.dead then return "dead" end
+  local s = PT.Share(m)
+  if s then return math.floor(s * 100 + 0.5) .. "%" end
+  if m.online == false then return "offline" end
+  return "away"
+end
+
+local function whole(n) return T.FormatNumber(math.floor(n + 0.5)) end
+
+-- The row's tooltip (pure): the name, leader, health and focus or where the member is.
+function PT.Tooltip(m)
+  local lines = { m.plain .. (m.leader and " (party leader)" or "") .. (m.slot == 0 and " (you)" or "") }
+  if m.dead then
+    lines[#lines + 1] = "Dead"
+  elseif m.inScene and m.hp and m.maxHp then
+    lines[#lines + 1] = "Health " .. whole(m.hp) .. " / " .. whole(m.maxHp)
+    if m.focus and m.maxFocus and m.maxFocus > 0 then
+      lines[#lines + 1] = "Focus " .. whole(m.focus) .. " / " .. whole(m.maxFocus)
+    end
+  elseif m.online == false then
+    lines[#lines + 1] = "Offline"
+  else
+    lines[#lines + 1] = m.scene and ("In " .. m.scene) or "Not in this scene"
+  end
+  return table.concat(lines, "\n")
+end
+
+function PT.InParty() return memberCount > 0 end
+function PT.GetShow() return pprefs.show == true end
+
+-- For Toolbox.Hud: a strip while switched on and in a party (or the settings window open, to place it).
+function PT.Wanted() return pprefs.show == true and (memberCount > 0 or T.Config.IsShown()) end
+function PT.IsShown()
+  if not PT.Wanted() then return false end
+  if pprefs.combatOnly and not T.BuffBar.InCombatWindow() and not T.Config.IsShown() then return false end
+  return true
+end
+
+-- Rows the pool needs for n members shown.
+function PT.RowsFor(n)
+  local rows = math.ceil(math.max(n, 1) / PT.ROWS_STEP) * PT.ROWS_STEP
+  return math.min(PT.MAX, rows)
+end
+
+local function rowStyle(m, i)
+  return { alignItems = "center", height = m.line, minHeight = m.line, maxHeight = m.line,
+           marginTop = i > 1 and m.rowGap or 0 }
+end
+
+function PT.BuildContent()
+  local m = PT.Metrics()
+  builtRows = PT.RowsFor(shownCount)
+  local rows = {}
+  for i = 1, builtRows do
+    rows[i] = UI.Row{ id = "pt_row_" .. i, visible = false, style = rowStyle(m, i), children = {
+      UI.Label{ id = "pt_name_" .. i, text = "", class = "text", style = T.Window.TextStyle({ width = m.nameW,
+        marginLeft = 0, marginRight = 0, whiteSpace = "nowrap", color = PT.NAME_COLOR }, m.font, 1) },
+      UI.Column{ id = "pt_bars_" .. i, style = { marginLeft = m.gap, justifyContent = "center" }, children = {
+        UI.Bar{ id = "pt_hp_" .. i, value = 0, color = "@red", style = { width = m.barW, height = m.hpH } },
+        UI.Bar{ id = "pt_fo_" .. i, value = 0, color = "@blue", style = { width = m.barW, height = m.foH,
+          marginTop = 1 } },
+      } },
+      UI.Label{ id = "pt_text_" .. i, text = "", class = "text", visible = m.textW > 0,
+        style = T.Window.TextStyle({ width = math.max(m.textW, 1), marginLeft = m.gap, marginRight = 0,
+          whiteSpace = "nowrap" }, m.font, 1) },
+    } }
+  end
+  pContent = UI.Column{ id = "party", style = { backgroundColor = T.ShadeColor(T.ShadeOf(pprefs.shade)),
+    borderRadius = 3, padding = 3 }, children = rows }
+  rowEls = {}
+  for i = 1, builtRows do
+    rowEls[i] = { row = pContent:Find("pt_row_" .. i), name = pContent:Find("pt_name_" .. i),
+                  hp = pContent:Find("pt_hp_" .. i), focus = pContent:Find("pt_fo_" .. i),
+                  text = pContent:Find("pt_text_" .. i), last = {} }
+  end
+  PT.Fill()
+  return pContent
+end
+
+function PT.Unbuilt()
+  pContent, rowEls, builtRows = nil, {}, 0
+end
+
+-- Rows shown (the hint's while settings are open with no party).
+local function rowsShown() return math.max(math.min(shownCount, builtRows), PT.Wanted() and 1 or 0) end
+
+function PT.ContentSize()
+  local m = PT.Metrics()
+  local n = rowsShown()
+  return m.rowW + 6, math.max(1, n * m.line + math.max(0, n - 1) * m.rowGap) + 6
+end
+
+-- Sets row i from member mem (nil: hidden), touching only what changed.
+local function setRow(i, mem, lowest)
+  local r = rowEls[i]
+  if not r then return end
+  local last = r.last
+  if not mem then
+    if last.shown ~= false then
+      last.shown = false
+      r.row:SetVisible(false)
+    end
+    return
+  end
+  if last.shown ~= true then
+    last.shown = true
+    r.row:SetVisible(true)
+  end
+  local share = PT.Share(mem)
+  local color = PT.NAME_COLOR
+  if mem.dead then color = PT.DEAD_COLOR elseif mem == lowest then color = PT.LOW_COLOR end
+  if last.plain ~= mem.plain then
+    last.plain = mem.plain
+    r.name:SetText(mem.plain)
+  end
+  if last.color ~= color then
+    last.color = color
+    r.name:SetStyle{ color = color }
+  end
+  local hpV = share or 0
+  if last.hpV ~= hpV then
+    last.hpV = hpV
+    r.hp:SetValue(hpV)
+  end
+  local foV = 0
+  if mem.inScene and mem.focus and mem.maxFocus and mem.maxFocus > 0 then
+    foV = math.max(0, math.min(1, mem.focus / mem.maxFocus))
+  end
+  if last.foV ~= foV then
+    last.foV = foV
+    r.focus:SetValue(foV)
+  end
+  local here = mem.inScene == true
+  if last.here ~= here then
+    last.here = here
+    r.row:SetStyle{ opacity = here and 1 or PT.DIM }
+  end
+  -- text and tooltip only when what they say changed
+  if last.hp ~= mem.hp or last.maxHp ~= mem.maxHp or last.focus ~= mem.focus or last.maxFocus ~= mem.maxFocus
+      or last.dead ~= mem.dead or last.online ~= mem.online or last.scene ~= mem.scene or last.leader ~= mem.leader
+      or last.slot ~= mem.slot or last.tipFor ~= mem.plain then
+    last.hp, last.maxHp, last.focus, last.maxFocus = mem.hp, mem.maxHp, mem.focus, mem.maxFocus
+    last.dead, last.online, last.scene, last.leader, last.slot = mem.dead, mem.online, mem.scene, mem.leader, mem.slot
+    last.tipFor = mem.plain
+    r.text:SetText(PT.StateText(mem))
+    local tip = PT.Tooltip(mem)
+    r.name:SetTooltip(tip)
+    r.hp:SetTooltip(tip)
+    r.text:SetTooltip(tip)
+  end
+end
+
+local HINT_MEMBER = { slot = -1, name = PT.HINT, plain = PT.HINT, inScene = false, online = true, leader = false,
+                      dead = false, scene = "Shown while Settings is open, to place it" }
+
+-- Puts the members in the rows (and the hint with no party while settings are open).
+function PT.Fill()
+  if not pContent then return end
+  local lowest = PT.Lowest(order, shownCount)
+  for i = 1, builtRows do
+    local mem = order[i]
+    if i > shownCount then mem = nil end
+    if not mem and i == 1 and shownCount == 0 and PT.Wanted() then mem = HINT_MEMBER end
+    setRow(i, mem, lowest)
+  end
+end
+
+-- Reads the party and updates the strip. From the periodic and ShroudOnPartyChanged.
+function PT.Poll()
+  if not pprefs.show then
+    if wasWanted then
+      wasWanted, wasShown = false, false
+      T.Hud.Build(true)
+    end
+    return
+  end
+  memberCount = PT.ReadParty(members)
+  local before = shownCount
+  shownCount = PT.Order(members, memberCount, pprefs.self == true, pSort(), order)
+  local wanted = PT.Wanted()
+  if wanted ~= wasWanted then
+    wasWanted = wanted
+    wasShown = PT.IsShown()
+    T.Hud.Build(true)                  -- built (or taken down) with the rows it needs
+    return
+  end
+  if not wanted then return end
+  if pContent and PT.RowsFor(shownCount) > builtRows then
+    T.Hud.Rebuild("party")
+    return
+  end
+  PT.Fill()
+  local isShown = PT.IsShown()
+  if before ~= shownCount or isShown ~= wasShown then
+    wasShown = isShown
+    T.Hud.Refresh()
+  end
+end
+
+-- ShroudOnPartyChanged (core.lua): someone joined, left, moved, went elsewhere or (API 45) died.
+function PT.OnPartyChanged() PT.Poll() end
+
+-- Settings ------------------------------------------------------------------
+
+function PT.SetShow(on)
+  pprefs.show = on == true
+  pSave()
+  PT.Poll()
+  T.Config.Sync()
+end
+
+function PT.GetCombatOnly() return pprefs.combatOnly == true end
+function PT.SetCombatOnly(on)
+  pprefs.combatOnly = on == true
+  pSave()
+  PT.Poll()
+  T.Hud.Refresh()
+  T.Config.Sync()
+end
+
+function PT.GetSelf() return pprefs.self == true end
+function PT.SetSelf(on)
+  pprefs.self = on == true
+  pSave()
+  PT.Poll()
+  T.Config.Sync()
+end
+
+function PT.GetSort() return pSort() end
+-- "party" or "health". Returns false for anything else.
+function PT.SetSort(which)
+  if not PT.SORT_LABELS[which] then return false end
+  pprefs.sort = which
+  pSave()
+  PT.Poll()
+  T.Config.Sync()
+  return true
+end
+
+-- A size change: the rows' elements are restyled by a rebuild of the strip (a player's action; at most 16 rows).
+local function resize()
+  if pContent then T.Hud.Rebuild("party") end
+end
+
+function PT.GetWidth() return pWidth() end
+function PT.SetWidth(n)
+  if type(n) ~= "number" or n ~= math.floor(n) or n < PT.WIDTH_MIN or n > PT.WIDTH_MAX then return false end
+  if n == pWidth() then return true end
+  pprefs.width = n
+  pSave()
+  resize()
+  T.Config.Sync()
+  return true
+end
+
+function PT.GetNumbers() return pprefs.numbers ~= false end
+function PT.SetNumbers(on)
+  pprefs.numbers = on == true
+  pSave()
+  resize()
+  T.Config.Sync()
+end
+
+function PT.GetShade() return T.ShadeOf(pprefs.shade) end
+function PT.SetShade(n)
+  pprefs.shade = T.ShadeOf(n)
+  pSave()
+  if pContent then pContent:SetStyle{ backgroundColor = T.ShadeColor(pprefs.shade) } end
+  T.Config.Sync()
+end
+
+-- The General text size changed (T.Window.ApplyText).
+function PT.ApplyText() resize() end
+
+function PT.GetSavedPosition() return pprefs.x, pprefs.y end
+function PT.SavePosition(x, y)
+  if x ~= pprefs.x or y ~= pprefs.y then
+    pprefs.x, pprefs.y = x, y
+    pSave()
+  end
+end
+
+local partyMover = T.Hud.MoverFor("party", PT.HOME)
+PT.GetPosition, PT.MoveTo, PT.Nudge, PT.ResetPosition = partyMover.Get, partyMover.MoveTo, partyMover.Nudge,
+  partyMover.Reset
+PT.NUDGE = 10
+
+function PT.Init()
+  local saved = T.ReadSaved("party")
+  pprefs = { show = false }
+  if type(saved) == "table" then
+    pprefs.show = saved.show == true
+    pprefs.combatOnly = saved.combatOnly == true
+    pprefs.self = saved.self == true
+    if PT.SORT_LABELS[saved.sort] then pprefs.sort = saved.sort end
+    local w = saved.width
+    if type(w) == "number" and w >= PT.WIDTH_MIN and w <= PT.WIDTH_MAX then pprefs.width = math.floor(w) end
+    pprefs.numbers = saved.numbers ~= false
+    if type(saved.shade) == "number" then pprefs.shade = T.ShadeOf(saved.shade) end
+    if type(saved.x) == "number" and type(saved.y) == "number" then pprefs.x, pprefs.y = saved.x, saved.y end
+  end
+  members, order, memberCount, shownCount = {}, {}, 0, 0
+  wasWanted, wasShown = false, false
+  T.Hud.Register("party", PT)
+  if pprefs.show then
+    memberCount = PT.ReadParty(members)
+    shownCount = PT.Order(members, memberCount, pprefs.self == true, pSort(), order)
+    wasWanted = PT.Wanted()
+    wasShown = PT.IsShown()
+  end
+  T.RegisterPeriodic(PPERIODIC, PT.Poll, PT.POLL, true)
+end
+
+-- /toolbox party debug: what the game reports.
+function PT.DebugLines()
+  local lines = {}
+  local okC, count = pcall(ShroudGetPartyMemberCount)
+  lines[1] = string.format("Party: %s members (ShroudGetPartyMemberCount), read %s%s; setting %s; %s",
+    okC and tostring(count) or "?", tostring(PT.ReadParty(members)),
+    type(ShroudGetParty) == "function" and " by ShroudGetParty (API 45)" or " by the slot getters",
+    pprefs.show and "on" or "off", T.Hud.Debug("party"))
+  for i = 1, math.min(memberCount, PT.MAX) do
+    local m = members[i]
+    lines[#lines + 1] = string.format("  slot %s %s: %s, online %s, scene %s, health %s / %s, focus %s / %s%s%s",
+      tostring(m.slot), tostring(m.name), m.inScene and "here" or "elsewhere", tostring(m.online), tostring(m.scene),
+      tostring(m.hp), tostring(m.maxHp), tostring(m.focus), tostring(m.maxFocus), m.dead and ", dead" or "",
+      m.leader and ", leader" or "")
+  end
+  return lines
+end
+
+-- the strip: built after the others, before the target (which goes last)
+table.insert(T.Hud.ORDER, #T.Hud.ORDER, "party")
+T.Hud.NAMES.party = "party"
+-- its settings are cleared by Backup & reset
+T.Backup.KEYS[#T.Backup.KEYS + 1] = "party"
+
+-- The settings page (config.lua builds it with its helpers `h`, after Health bars): the controls' ids in CONFIG_IDS.
+PT.CONFIG_IDS = { "pt_show", "pt_combat", "pt_self", "pt_sort", "pt_width", "pt_width_value", "pt_numbers",
+                  "pt_shade", "pt_shade_value" }
+
+function PT.ConfigSection(h)
+  local ui = h.UI
+  local sorts = {}
+  for i, key in ipairs(PT.SORTS) do sorts[i] = PT.SORT_LABELS[key] end
+  return ui.Column{ children = {
+    h.heading("Party Toolbelt", true),
+    ui.Label{ text = "Your party on a strip of its own, apart from your Toolbelt: a row per member with their health"
+      .. " and focus. The lowest health's name is red; a member out of your scene is dimmed. It shows while you're"
+      .. " in a party (and while this window is open, to place it).", class = "dim",
+      style = { whiteSpace = "wrap" } },
+    ui.Toggle{ id = "pt_show", text = "Show the Party Toolbelt", value = PT.GetShow(),
+      onChange = function(_, v) PT.SetShow(v) end },
+    ui.Toggle{ id = "pt_combat", text = "Only during combat", value = PT.GetCombatOnly(),
+      tooltip = "Hidden out of combat (and shown a little after it, as the Toolbelt)",
+      onChange = function(_, v) PT.SetCombatOnly(v) end },
+    ui.Toggle{ id = "pt_self", text = "Include yourself", value = PT.GetSelf(),
+      tooltip = "Your own row too (your Toolbelt has your bars already)",
+      onChange = function(_, v) PT.SetSelf(v) end },
+    h.dropdownRow("Order", { id = "pt_sort", choices = sorts, value = PT.SORT_LABELS[PT.GetSort()],
+      tooltip = "Party order (as the game's party frame), or the lowest health first (for healing)",
+      onChange = function(_, label)
+        for key, l in pairs(PT.SORT_LABELS) do if l == label then PT.SetSort(key) end end
+      end }),
+    ui.Toggle{ id = "pt_numbers", text = "Show the health percent", value = PT.GetNumbers(),
+      tooltip = "\"73%\" after the bars (or dead, away, offline); hover a row for the numbers",
+      onChange = function(_, v) PT.SetNumbers(v) end },
+    h.slider("pt_width", "Bar length", PT.WIDTH_MIN, PT.WIDTH_MAX, 10, PT.GetWidth(), "The bars' length in pixels",
+      function(n) PT.SetWidth(n) end),
+    h.shadeSlider("pt_shade", PT.GetShade(), "the party rows", function(n) PT.SetShade(n) end),
+    h.positionRows("party", PT, "Position"),
+    ui.Label{ text = "The names follow the General text size. Move the strip here, by its grip or with /toolbox party"
+      .. " move.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
+  } }
+end
+
+function PT.ConfigSync(h)
+  h.setValue("pt_show", PT.GetShow())
+  h.setValue("pt_combat", PT.GetCombatOnly())
+  h.setValue("pt_self", PT.GetSelf())
+  h.setValue("pt_sort", PT.SORT_LABELS[PT.GetSort()])
+  h.setValue("pt_numbers", PT.GetNumbers())
+  h.sliderValue("pt_width", PT.GetWidth())
+  h.sliderValue("pt_shade", PT.GetShade())
+  for _, id in ipairs({ "pt_combat", "pt_self", "pt_sort", "pt_numbers", "pt_width", "pt_shade" }) do
+    h.setEnabled(id, PT.GetShow())
+  end
+end

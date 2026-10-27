@@ -19,6 +19,7 @@ local CALLBACKS = {
   "ShroudOnLogOut", "ShroudOnBeforeLogOut", "ShroudOnDisableScript", "ShroudOnSceneLoaded", "ShroudOnSceneUnloaded",
   "ShroudOnSocialChanged", "ShroudOnHttpResponse", "ShroudOnGuildMotdChanged", "ShroudOnTargetChanged",
   "ShroudOnSkillsChanged", "ShroudOnDeathChanged", "ShroudOnFriendStatusChanged", "ShroudOnGuildMemberStatusChanged",
+  "ShroudOnPartyChanged",
 }
 
 -- About the JSON the game writes for `v` (its text is escaped ASCII: no escapes in the JSON).
@@ -745,6 +746,63 @@ local function install_api()
       out[i] = item
     end
     return out
+  end
+  -- The party (H.S.party, set by H.setParty): { { name, hp, maxHp, focus, maxFocus, online (default true),
+  -- inScene (default true), scene, dead, leader, buffs }, ... } in slot order, slot 0 (the first) you; nil = no party.
+  -- Sentinels as documented: -1 for a member out of your scene, "None" past the end. H.S.partyReads counts
+  -- ShroudGetParty calls.
+  local function pm(slot) local p = S.char.present and S.party; return p and type(slot) == "number" and p[slot + 1] end
+  local function here(m) return m and m.inScene ~= false and m.online ~= false end
+  local function byName(name)
+    for _, m in ipairs(S.char.present and S.party or {}) do
+      if type(name) == "string" and m.name:lower() == name:lower() then return m end
+    end
+    return nil
+  end
+  local function vital(m, k) if here(m) then return m[k] or -1 end return -1 end
+  ShroudGetPartyMemberCount = function() return S.char.present and S.party and #S.party or 0 end
+  ShroudGetPartyMemberCountInScene = function()
+    local n = 0
+    for _, m in ipairs(S.char.present and S.party or {}) do if here(m) then n = n + 1 end end
+    return n
+  end
+  ShroudGetPartyMemberName = function(slot) local m = pm(slot); return m and m.name or "None" end
+  ShroudGetPartyMemberCurrentHealth = function(slot) return vital(pm(slot), "hp") end
+  ShroudGetPartyMemberMaxHealth = function(slot) return vital(pm(slot), "maxHp") end
+  ShroudGetPartyMemberCurrentFocus = function(slot) return vital(pm(slot), "focus") end
+  ShroudGetPartyMemberMaxFocus = function(slot) return vital(pm(slot), "maxFocus") end
+  ShroudGetPartyMemberNamesInScene = function()
+    local out = {}
+    for _, m in ipairs(S.char.present and S.party or {}) do if here(m) then out[#out + 1] = m.name end end
+    return out
+  end
+  ShroudGetPartyMemberCurrentHealthInScene = function(name) local m = byName(name); return vital(m, "hp") end
+  ShroudGetPartyMemberMaxHealthInScene = function(name) local m = byName(name); return vital(m, "maxHp") end
+  ShroudGetPartyMemberCurrentFocusInScene = function(name) local m = byName(name); return vital(m, "focus") end
+  ShroudGetPartyMemberMaxFocusInScene = function(name) local m = byName(name); return vital(m, "maxFocus") end
+  ShroudGetPartyMemberBuffs = function(slotOrName)
+    local m = type(slotOrName) == "number" and pm(slotOrName) or byName(slotOrName)
+    if not here(m) then return nil end
+    return copy(m.buffs or {})
+  end
+  if (H.apiVersion or 25) >= 45 then              -- API 45: the whole party in one call
+    ShroudGetParty = function()
+      S.partyReads = (S.partyReads or 0) + 1
+      local out = {}
+      for i, m in ipairs(S.char.present and S.party or {}) do
+        local row = { slot = i - 1, name = m.name, online = m.online ~= false, inScene = here(m),
+                      role = m.leader and "leader" or "member", leader = m.leader == true }
+        if m.online ~= false then row.scene = m.scene or (here(m) and "Here" or nil) end
+        if here(m) then
+          row.dead, row.health, row.maxHealth, row.focus, row.maxFocus = m.dead == true, m.hp, m.maxHp, m.focus,
+            m.maxFocus
+        end
+        out[i] = row
+      end
+      return out
+    end
+  else
+    ShroudGetParty = nil
   end
   -- The target (H.S.target, set by H.setTarget): { id, name, hp, maxHp, focus, maxFocus, dead, hidden,
   -- effects = { { name, remaining, total, icon, debuff, category, tooltip } } }. Sentinels as documented.
@@ -2018,6 +2076,12 @@ end
 -- The equipment bar's strip, and its visible slots (the icon's tooltip is slot.children[1].tooltip).
 -- The player targets something (a table as H.S.target describes) or nothing (nil), and the game fires
 -- ShroudOnTargetChanged. H.S.target can also be changed without the callback (health going down).
+-- The party (see install_api), then ShroudOnPartyChanged as the game sends it. nil: no party.
+function H.setParty(list)
+  S.party = list
+  return H.callback("ShroudOnPartyChanged")
+end
+
 function H.setTarget(t)
   S.target = t
   return H.callback("ShroudOnTargetChanged", t and t.id or -1, t and t.name or "")

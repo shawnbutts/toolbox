@@ -11,6 +11,7 @@ notifications.
 
 - **The Toolbelt:** buffs, debuffs, health, focus, Vigor, food, potions, worn-out gear and your target in one strip, moved as one.
 - **Target HUD:** your target's health and focus, and its effects with the time left on each.
+- **Party Toolbelt:** your party's health and focus on a strip of its own, the lowest flagged.
 - **Never let a buff drop:** a sound and a red flash before a buff runs out, and a sound when a debuff lands.
 - **A tidier buff bar:** long buffs and blessings fold into one icon with a count; it can replace the game's own bar.
 - **Food and potions on their own bar,** combat items too, with the same sweeps and warnings.
@@ -61,6 +62,13 @@ rows as many icons wide as you choose, nothing grouped (Settings, Buffs: Show th
 Food, potions and combat items such as caltrops move to their own bar, soonest to run
 out first, with the same sweep, flash and alert. Pick the kinds in the settings, cap the number of icons,
 and add or leave out buffs by name.
+
+## Party Toolbelt
+
+Your party on a strip of its own, apart from your Toolbelt, so a healer keeps the Toolbelt for themselves: a row per
+member with their name, health and focus bars and health in percent. The lowest health's name is red, and a member
+in another scene is dimmed. Party order or lowest health first, only during combat, and yourself left out unless you
+want your row (Settings, Party).
 
 ## Target HUD
 
@@ -198,6 +206,7 @@ Everything above is in the menu and the settings. If you'd rather type, these do
 - `/toolbox help`: open the Docs window, a guide to everything
 - `/toolbox toolbelt`: what's in your Toolbelt (`vitals|consumables|gear|target on|off`, `combat on|off`)
 - `/toolbox target`: the target HUD (`on|off`, `toolbelt on|off`)
+- `/toolbox party`: the Party Toolbelt (`on|off`, `sort party|health`, `combat on|off`, `self on|off`)
 - `/toolbox buffs`: show or hide the buff bar
 - `/toolbox consumables`: the consumables bar and what goes on it
 - `/toolbox gear`: your worn items' durability, lowest first

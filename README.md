@@ -22,6 +22,9 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
   categories, long-lasting ones grouped (on its own strip or in the Toolbelt).
 - **Target HUD**: your target's health and focus (bars, numbers or both, with the health bars' options), its name
   if you like, and its effects with the time left on each; its own strip or in the Toolbelt (Settings, Toolbelt).
+- **Party Toolbelt**: your party's health and focus on a strip of its own, apart from your Toolbelt, a row per
+  member: the lowest health flagged, members in another scene dimmed, party order or lowest health first, only
+  during combat if you like (Settings, Party).
 - **Health, focus & Vigor bars**: your own health, focus and (API 20) Vigor on a movable HUD strip.
 - **Combat stats**: DPS, damage taken and healing per second, crit and avoid rates, a fight timer and
   chosen character stats; hover it for **Combat Detailed** (damage by skill, the last minute as a

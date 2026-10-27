@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Added" },
+  { "item", "The Party Toolbelt: your party on a strip of its own, apart from your Toolbelt, so a healer keeps the Toolbelt for themselves. Each member has a row with their name, health and focus bars and health in percent. The lowest health's name is red, and a member in another scene is dimmed. Choose party order or lowest health first, only during combat, and whether your own row shows (Settings, Party). Newer game clients (Lua API 45) also tell who is offline, who is dead and where the others are." },
   { "section", "Changed" },
   { "item", "The crafting planner without the recipe book (newer game clients, Lua API 56): the game now tells add-ons which of your recipes make an item, so From scratch's I'll craft knows every recipe at once. No recipe book is read, no window asks first, and the game no longer stutters for it. Older clients read the book as before." },
   { "item", "The target's name in its difficulty color (Lua API 48; a player's request): with Show the target's name on, a hostile creature's name takes the color the game gives its difficulty (your Options and theme included), and the target's tooltip names the tier (easy, even, hard or deadly)." },

@@ -578,8 +578,8 @@ return function(t)
     t.eq(Toolbox.Config.PageOf("spacing"), "general")
     local keys = {}
     for _, c in ipairs(Toolbox.Config.CATEGORIES) do keys[#keys + 1] = c.key end
-    t.eq(table.concat(keys, " "), "general toolbelt xp crafting buffs gear vitals combat skills map notify sounds hud"
-      .. " backup", "Skill activity right after Combat")
+    t.eq(table.concat(keys, " "), "general toolbelt xp crafting buffs gear vitals party combat skills map notify sounds"
+      .. " hud backup", "Party after Health bars, Skill activity right after Combat")
   end)
 
   -- Owner, 2026-10-27: the Loot Tracker's Show list was narrower than its choices. Every dropdown in every window is

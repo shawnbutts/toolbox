@@ -237,6 +237,16 @@ D.SECTIONS = {
       .. "numbers, and a flash when a value drops below a percentage (Test flash shows it). They can join the "
       .. "Toolbelt, beside the buffs (the Toolbelt page). Replace the game's health bars (newer game clients) "
       .. "hides the health, focus and Vigor bars on the game's own player frame while these show." },
+  { "Party Toolbelt",
+    "Settings, Party, Show the Party Toolbelt: your party on a strip of its own, apart from your Toolbelt, while "
+      .. "you're in a party. Each member has a row: the name, a red health bar, a blue focus bar and their health "
+      .. "in percent (dead, away or offline otherwise). The lowest health's name is red. A member in another "
+      .. "scene is dimmed: the game only knows the health of members in your scene. Hover a row for the numbers, "
+      .. "or where the member is.",
+    "Options: party order (as the game's party frame) or the lowest health first, only during combat, include "
+      .. "yourself (off: your Toolbelt has your bars), the percent, the bar length and the background shade. The "
+      .. "names follow the General text size. It shows while Settings is open, to place it; move it there or by "
+      .. "its grip." },
   { "Combat stats",
     "Settings, Combat, Show combat stats: fight timer, DPS (last 5 seconds and fight average), damage "
       .. "taken and healing per second, crit % and avoided %, plus character stats you choose.",

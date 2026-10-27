@@ -7,6 +7,13 @@ ones included).
 
 ## [Unreleased]
 
+### Added
+- **The Party Toolbelt:** your party on a strip of its own, apart from your Toolbelt, so a healer keeps the Toolbelt
+  for themselves. Each member has a row with their name, health and focus bars and health in percent. The lowest
+  health's name is red, and a member in another scene is dimmed. Choose party order or lowest health first, only
+  during combat, and whether your own row shows (Settings, Party). Newer game clients (Lua API 45) also tell who is
+  offline, who is dead and where the others are.
+
 ### Changed
 - **The crafting planner without the recipe book** (newer game clients, Lua API 56): the game now tells add-ons which
   of your recipes make an item, so From scratch's I'll craft knows every recipe at once. No recipe book is read, no

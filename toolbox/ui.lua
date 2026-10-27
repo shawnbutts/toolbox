@@ -318,6 +318,7 @@ function W.ApplyText()
   T.Location.ApplyText()
   T.Combat.ApplyText()            -- Size is a share of the text size
   T.Planner.ApplyText()           -- the shopping list strip
+  T.Party.ApplyText()             -- the Party Toolbelt's rows
   W.RefitChoices()
   T.Config.Sync()
 end

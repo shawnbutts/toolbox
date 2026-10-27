@@ -2069,6 +2069,35 @@ add("target", "your target's health and effects (on|off; toolbelt on|off; place 
       .. (TG.GetEffects() ~= "none" and (", up to " .. TG.GetIcons()) or "")) or "") .. ".")
 end)
 
+add("party", "the Party Toolbelt: your party's health and focus on a strip of its own (on|off; combat on|off: only"
+    .. " during combat; self on|off; sort party|health; move [x y]; debug)", function(rest)
+  local PT = T.Party
+  local word, args = T.ParseArgs(rest)
+  word, args = word:lower(), args:lower()
+  if word == "" then
+    PT.SetShow(not PT.GetShow())
+  elseif word == "on" or word == "off" then
+    PT.SetShow(word == "on")
+  elseif (word == "combat" or word == "self") and (args == "on" or args == "off") then
+    if word == "combat" then PT.SetCombatOnly(args == "on") else PT.SetSelf(args == "on") end
+  elseif word == "sort" and PT.SORT_LABELS[args] then
+    PT.SetSort(args)
+  elseif word == "move" then
+    T.MoveCommand(PT, "party", PT.PAGE .. " Toolbelt", args)
+    return
+  elseif word == "debug" then
+    for _, line in ipairs(PT.DebugLines()) do T.Print(line) end
+    return
+  else
+    T.Print("Use /" .. T.commands[1] .. " party [on|off], combat on|off, self on|off, sort party|health, move [x y]"
+      .. " or debug. Or Settings, Party.")
+    return
+  end
+  T.Print("Party Toolbelt: " .. (PT.GetShow() and "on" or "off") .. "; " .. PT.SORT_LABELS[PT.GetSort()]:lower()
+    .. (PT.GetCombatOnly() and ", only during combat" or "") .. (PT.GetSelf() and ", you included" or "")
+    .. (PT.GetShow() and not PT.InParty() and " (it shows once you're in a party)" or "") .. ".")
+end)
+
 add("welcome", "show the first-run welcome again (reset: show it at the next /lua reload)", function(rest)
   if rest:lower() == "reset" then
     T.DeleteSaved("welcomed", "account")
@@ -4372,6 +4401,7 @@ local function startModules(places)
   step("combat stats", T.Combat.Init)
   step("the equipment bar", T.Gear.Init)
   step("the target HUD", T.Target.Init)
+  step("the Party Toolbelt", T.Party.Init)
   step("the consumables bar", T.Consumables.Init)
   step("the notification HUD", T.Notify.Hud.Init)
   if T.SkillBar then step("the skill activity strip", T.SkillBar.Init) end   -- skills.lua, when present
@@ -4581,6 +4611,12 @@ end
 function ShroudOnTargetChanged()
   T.Ran("target")
   T.Target.OnTargetChanged()
+end
+
+-- API 25 (the game looks four times a second while this is defined; a burst arrives as one call).
+function ShroudOnPartyChanged()
+  T.Ran("party")
+  T.Party.OnPartyChanged()
 end
 
 function ShroudOnSocialChanged()
