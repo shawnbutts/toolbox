@@ -721,6 +721,7 @@ local tSlots = {}
 local tShownCount = nil      -- cells the row takes (for the strip's size), when it last changed
 local tHas = nil             -- whether the last poll had a target
 local tId, tCount, tGroupAt = nil, nil, -math.huge
+local diffFor, diff = nil, nil    -- the target whose difficulty was read (TG.Difficulty), and it
 local tInfoBy = {}           -- rune name -> { debuff = bool, total = seconds }, from the grouped list
 local tRaw = {}              -- reused: one entry per effect this poll
 local tList = {}             -- reused: what the slots show, sorted
@@ -1125,6 +1126,7 @@ function TG.BuildRow()
       minHeight = tInfoH }, children = children }
   end
   tShownCount, tHas, tId, tCount, tGroupAt = nil, nil, nil, nil, -math.huge
+  diffFor = nil
   return tContent
 end
 
@@ -1226,6 +1228,24 @@ local function fillSlots()
   end
 end
 
+-- API 48 (request 35): the difficulty the game shows by the color of a hostile creature's name ({ tier, rank, color
+-- "#rrggbb" }, nil for a player, a friendly or neutral one, a corpse), read once a target as the reference asks. The
+-- name line takes its color (the game's own, Options and theme included), else the theme's text color.
+TG.NAME_COLOR = "@text"
+function TG.Difficulty(id)
+  if type(ShroudGetTargetDifficulty) ~= "function" then return nil end
+  if id ~= diffFor then
+    diffFor = id
+    local ok, d = pcall(ShroudGetTargetDifficulty)
+    local tier, color = ok and T.Field(d, "tier"), ok and T.Field(d, "color")
+    diff = nil
+    if type(tier) == "string" and type(color) == "string" and color:find("^#%x%x%x%x%x%x$") then
+      diff = { tier = tier, color = color }
+    end
+  end
+  return diff
+end
+
 -- With "Leave out your pet": whether the target is your pet, checked when the target changes and every
 -- TG.GROUP_EVERY s (ShroudGetPetInfo makes a table per call: not every poll).
 local petFor, petAt, petIs = nil, -math.huge, false
@@ -1292,8 +1312,13 @@ function TG.Poll(force)
       and max > 0) and string.format("\nHealth %s / %s (%s)", T.FormatNumber(cur), T.FormatNumber(max), pct) or ""))
       .. (hasFocus and string.format("\nFocus %s / %s", T.FormatNumber(fcur), T.FormatNumber(fmax)) or "")
       .. (dead and "\nDead" or "")
+    local d = TG.Difficulty(ShroudGetTargetId())
+    if d then tip = tip .. "\nDifficulty: " .. d.tier end
     T.SetTooltip(tInfo, tip)
-    if tName and tNameH > 0 then T.SetText(tName, TG.FitName(ShroudGetTargetName())) end
+    if tName and tNameH > 0 then
+      T.SetText(tName, TG.FitName(ShroudGetTargetName()))
+      T.SetStyle(tName, { color = d and d.color or TG.NAME_COLOR })
+    end
   else
     for j = 1, #tList do tList[j] = nil end
     T.SetValue(tHealth, 0)

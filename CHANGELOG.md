@@ -14,6 +14,9 @@ ones included).
 - **Lighter planner refreshes** (Lua API 55): when your bags change, the planner reads just the counts of what you
   carry instead of reading each recipe again (the slow call behind 1.9.0's hitching). At a crafting station it still
   reads the recipes, which count the crafting table and its trunks.
+- **The target's name in its difficulty color** (Lua API 48; a player's request): with Show the target's name on, a
+  hostile creature's name takes the color the game gives its difficulty (your Options and theme included), and the
+  target's tooltip names the tier (easy, even, hard or deadly).
 - `/toolbox api` lists the API 45 to 55 additions, and `/toolbox perf recipes` times the crafting planner's game calls
   for the plan set, to compare the old way with the new.
 

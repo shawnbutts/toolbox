@@ -1032,4 +1032,32 @@ return function(t)
     H.chat("/tbx target flash test")
     t.ok(H.logged("Show the target HUD first"), H.lastLog())
   end)
+
+  -- API 48 (request 35; the QA preview, 2026-10-27): the name in the game's difficulty color, read once a target.
+  t.test("API 48: the target's name in the game's difficulty color, and the tier in the tooltip", function()
+    H.apiVersion = 48
+    local ok, err = pcall(function()
+      H.boot()
+      H.chat("/tbx target on")
+      H.chat("/tbx config")
+      H.change("toolbox_config", "target_show_name", true)
+      local wolf = copy(WOLF)
+      wolf.difficulty = { tier = "hard", rank = 3, color = "#ff8800" }
+      H.setTarget(wolf)
+      H.advance(1)
+      local row = H.targetRow()
+      local name = row:Find("target_name")
+      t.eq(name.style.color, "#ff8800", "the game's color for it")
+      t.ok(row:Find("target_info").tooltip:find("Difficulty: hard", 1, true), row:Find("target_info").tooltip)
+      local calls = H.S.difficultyCalls
+      H.advance(3)
+      t.eq(H.S.difficultyCalls, calls, "read once a target")
+      H.setTarget({ id = 77, name = "Avatar Friend", hp = 10, maxHp = 10, effects = {} })   -- a player: none
+      H.advance(1)
+      t.eq(name.style.color, "@text", "back to the theme's text color")
+      t.no(row:Find("target_info").tooltip:find("Difficulty", 1, true))
+    end)
+    H.apiVersion = nil
+    if not ok then error(err, 0) end
+  end)
 end

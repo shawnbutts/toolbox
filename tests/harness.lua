@@ -758,6 +758,17 @@ local function install_api()
   ShroudHasTarget = function() return tg() ~= nil end
   ShroudGetTargetName = function() local t = tg(); return t and t.name or "None" end
   ShroudGetTargetId = function() local t = tg(); return t and t.id or -1 end
+  -- API 48 (H.apiVersion >= 48): H.setTarget{ ..., difficulty = { tier, rank, color } } (nil: a player, friendly...).
+  -- H.S.difficultyCalls counts the calls.
+  if (H.apiVersion or 25) >= 48 then
+    ShroudGetTargetDifficulty = function()
+      S.difficultyCalls = (S.difficultyCalls or 0) + 1
+      local t = tg()
+      return t and t.difficulty and copy(t.difficulty) or nil
+    end
+  else
+    ShroudGetTargetDifficulty = nil
+  end
   ShroudIsTargetDead = function() local t = tg(); return t ~= nil and t.dead == true end
   ShroudIsTargetHealthHidden = function() local t = tg(); return t ~= nil and t.hidden == true end
   ShroudGetTargetCurrentHealth = function()

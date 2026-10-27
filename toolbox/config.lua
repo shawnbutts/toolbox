@@ -964,7 +964,7 @@ function C.ToolbeltSection()
     onChange = function(_, v) TG.SetShowText(v) end }
   children[#children + 1] = UI.Toggle{ id = "target_show_name", text = "Show the target's name",
     value = TG.GetShowName(), tooltip = "The name above the bars (with the bars or the numbers on), so you can see "
-      .. "which one you have targeted",
+      .. "which one you have targeted; on a newer game client in its difficulty's color, as the game shows it",
     onChange = function(_, v) TG.SetShowName(v) end }
   children[#children + 1] = dropdownRow("Number background", { id = "target_bg", choices = T.Vitals.BackgroundNames(),
     value = TG.GetBackground(), tooltip = "A dark or light panel behind the target's numbers",

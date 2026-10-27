@@ -71,7 +71,8 @@ the Toolbelt above your buffs, under everything, or mirrored to the left of your
 fill from the right, level with yours), with bars sized like yours, or has its own strip. Like your health
 bars, it can show numbers beside its bars, a background behind them, and flash when low, or just its effect
 icons (settings, Toolbelt, Target bars). "Show the target's name" puts its name above the bars (mirrored, over
-its icons and bars, right-aligned), so you can see which one you have targeted. "Leave out your pet" keeps it empty when the game targets your pet
+its icons and bars, right-aligned), so you can see which one you have targeted; on a newer game client it takes
+the color the game gives a hostile creature's difficulty. "Leave out your pet" keeps it empty when the game targets your pet
 after a fight. Above the buffs and on the left its space is always kept, so nothing jumps when you pick up a
 target; on the left that leaves a transparent blank area between the Toolbelt's grip and your bars
 (labelled "Target" while settings are open, to help you place it). Its own strip can be mirrored too.

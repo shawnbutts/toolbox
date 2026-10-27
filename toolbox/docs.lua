@@ -159,7 +159,9 @@ D.SECTIONS = {
     "Its bars are the size of yours (Health bars: Size, Bar length). Settings, Toolbelt, Target bars give "
       .. "it the health bars' options: bars, numbers, background, flash when low; Show the target's name puts "
       .. "its name above the bars (mirrored: right-aligned over its icons and bars, your bars moving down a "
-      .. "line to stay level); Leave out your pet hides it when the game targets it. With your health bars in "
+      .. "line to stay level), on a newer game client in the color the game gives a hostile creature's "
+      .. "difficulty (the tier in the tooltip); Leave out your pet hides it when the game targets it. With "
+      .. "your health bars in "
       .. "the Toolbelt too, it runs across the whole Toolbelt: its bars start where yours do and its icons "
       .. "line up with your buffs. It goes above the buffs (the default; its space is kept, see below) or "
       .. "under everything (hidden with no target): Target row, on the same page.",
