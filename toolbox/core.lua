@@ -2070,10 +2070,14 @@ add("target", "your target's health and effects (on|off; toolbelt on|off; place 
 end)
 
 add("party", "the Party Toolbelt: your party's health and focus on a strip of its own (on|off; combat on|off: only"
-    .. " during combat; self on|off; sort party|health; move [x y]; debug)", function(rest)
+    .. " during combat; self on|off; sort party|health; reach off|<m>; move [x y]; debug)", function(rest)
   local PT = T.Party
   local word, args = T.ParseArgs(rest)
   word, args = word:lower(), args:lower()
+  if not PT.Has() and word ~= "debug" then
+    T.Print("Party Toolbelt: " .. PT.NEEDS .. ".")
+    return
+  end
   if word == "" then
     PT.SetShow(not PT.GetShow())
   elseif word == "on" or word == "off" then
@@ -2082,6 +2086,8 @@ add("party", "the Party Toolbelt: your party's health and focus on a strip of it
     if word == "combat" then PT.SetCombatOnly(args == "on") else PT.SetSelf(args == "on") end
   elseif word == "sort" and PT.SORT_LABELS[args] then
     PT.SetSort(args)
+  elseif word == "reach" and (args == "off" or PT.ReachLabel(tonumber(args))) then
+    PT.SetReach(tonumber(args) or 0)
   elseif word == "move" then
     T.MoveCommand(PT, "party", PT.PAGE .. " Toolbelt", args)
     return
@@ -2089,8 +2095,8 @@ add("party", "the Party Toolbelt: your party's health and focus on a strip of it
     for _, line in ipairs(PT.DebugLines()) do T.Print(line) end
     return
   else
-    T.Print("Use /" .. T.commands[1] .. " party [on|off], combat on|off, self on|off, sort party|health, move [x y]"
-      .. " or debug. Or Settings, Party.")
+    T.Print("Use /" .. T.commands[1] .. " party [on|off], combat on|off, self on|off, sort party|health, reach"
+      .. " off|20|25|30|40|50, move [x y] or debug. Or Settings, Party.")
     return
   end
   T.Print("Party Toolbelt: " .. (PT.GetShow() and "on" or "off") .. "; " .. PT.SORT_LABELS[PT.GetSort()]:lower()

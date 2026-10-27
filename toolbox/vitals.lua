@@ -1651,13 +1651,14 @@ end
 -- (the game knows vitals only in your scene). Party order (default) or lowest health first, only during combat, and
 -- yourself left out by default. Rows for PT.MAX members (the game's party is 12 today; the owner expects a raise).
 --
--- Read every PT.POLL s and on ShroudOnPartyChanged (core.lua): API 45's ShroudGetParty (one call: online, scene,
--- dead, leader), else the slot getters (API 26: slot 0 is you, then party-frame order; an online member elsewhere
--- reads as away, an offline one can't be told apart). Out of a party only the member count is read. The rows are a
--- pool grown PT.ROWS_STEP at a time (a rebuild), shown or hidden as members come and go; values set only on a change.
+-- Only from Lua API 55 (PT.API; owner, 2026-10-27: the party manager isn't for older clients): read every PT.POLL s
+-- and on ShroudOnPartyChanged (core.lua) with API 45's ShroudGetParty (one call: online, scene, dead, leader), and
+-- API 46's ShroudGetPartyMemberRange for a member within the reach set (`reach` m, a heal's; out of it the row is
+-- dimmed less, PT.FAR). Out of a party only the member count is read. The rows are a pool grown PT.ROWS_STEP at a time
+-- (a rebuild), shown or hidden as members come and go; values set only on a change.
 -- Saved var "party": { show = bool (default false), combatOnly = bool, self = bool (yourself shown; default false),
 -- sort = "party" / "health", width = PT.WIDTH_MIN..PT.WIDTH_MAX (bar length), numbers = bool (default true),
--- shade = 0..90, x, y }.
+-- reach = a PT.REACH_CHOICES value (0: off), shade = 0..90, x, y }.
 
 local PT = {}
 Toolbox.Party = PT
@@ -1670,7 +1671,11 @@ PT.MAX = 16                    -- members at most (12 in the game's party today)
 PT.ROWS_STEP = 4               -- the row pool grows this many at a time
 PT.WIDTH_MIN, PT.WIDTH_MAX, PT.WIDTH_DEFAULT = 40, 300, 120
 PT.NAME_CHARS = 13             -- the name column, in characters of the text size
-PT.DIM = 0.45                  -- a member out of your scene
+PT.API = 55                    -- the party manager's client (ShroudGetParty is API 45, its range 46)
+PT.DIM = 0.4                   -- a member out of your scene
+PT.FAR = 0.7                   -- ... in it but out of reach
+PT.REACH_CHOICES = { { 0, "Off" }, { 20, "20 m" }, { 25, "25 m" }, { 30, "30 m" }, { 40, "40 m" }, { 50, "50 m" } }
+PT.REACH_DEFAULT = 30
 PT.SORTS = { "party", "health" }
 PT.SORT_LABELS = { party = "Party order", health = "Lowest health first" }
 PT.NAME_COLOR, PT.LOW_COLOR, PT.DEAD_COLOR = "@text", "@red", "@text-bright"
@@ -1708,55 +1713,39 @@ local function num(v)
   return nil
 end
 
--- Reads the party into `out` (its tables reused): { slot, name (as the game gives it), plain (T.PlainName), online
--- (nil: unknown), inScene, scene, leader, dead, hp, maxHp, focus, maxFocus }. Returns how many.
+-- Reads the party into `out` (its tables reused): { slot, name (as the game gives it), plain (T.PlainName), online,
+-- inScene, scene, leader, dead, hp, maxHp, focus, maxFocus, near (API 46 with a reach set: true / false; nil not asked
+-- or not known) }. Returns how many. Out of a party (or on a client before PT.API) nothing but the member count.
 function PT.ReadParty(out)
-  local n = 0
+  if not PT.Has() then return 0 end
   local okC, count = pcall(ShroudGetPartyMemberCount)
   if not okC or type(count) ~= "number" or count < 1 then return 0 end
-  local function slotOf(i)
-    local m = out[i]
-    if not m then
-      m = {}
-      out[i] = m
-    end
-    return m
-  end
-  if type(ShroudGetParty) == "function" then
-    local ok, rows = pcall(ShroudGetParty)
-    if ok and rows ~= nil then
-      for _, r in ipairs(T.List(rows)) do
-        if n >= PT.MAX + 1 then break end
-        local name = T.Field(r, "name")
-        if type(name) == "string" and name ~= "" then
-          n = n + 1
-          local m = slotOf(n)
-          m.slot, m.name, m.plain = num(T.Field(r, "slot")) or (n - 1), name, T.PlainName(name)
-          m.online, m.inScene = T.Field(r, "online") ~= false, T.Field(r, "inScene") == true
-          m.scene, m.leader, m.dead = T.Field(r, "scene"), T.Field(r, "leader") == true, T.Field(r, "dead") == true
-          m.hp, m.maxHp = num(T.Field(r, "health")), num(T.Field(r, "maxHealth"))
-          m.focus, m.maxFocus = num(T.Field(r, "focus")), num(T.Field(r, "maxFocus"))
-          if type(m.scene) ~= "string" then m.scene = nil end
-        end
-      end
-      return n
-    end
-  end
-  for slot = 0, math.min(count, PT.MAX + 1) - 1 do
-    local okN, name = pcall(ShroudGetPartyMemberName, slot)
-    if okN and type(name) == "string" and name ~= "" and name ~= "None" then
+  local ok, rows = pcall(ShroudGetParty)
+  if not ok or rows == nil then return 0 end
+  local n = 0
+  local reach = pprefs.reach or PT.REACH_DEFAULT
+  local ranged = reach > 0 and type(ShroudGetPartyMemberRange) == "function"
+  for _, r in ipairs(T.List(rows)) do
+    if n >= PT.MAX + 1 then break end
+    local name = T.Field(r, "name")
+    if type(name) == "string" and name ~= "" then
       n = n + 1
-      local m = slotOf(n)
-      m.slot, m.name, m.plain = slot, name, T.PlainName(name)
-      local _, hp = pcall(ShroudGetPartyMemberCurrentHealth, slot)
-      local _, maxHp = pcall(ShroudGetPartyMemberMaxHealth, slot)
-      local _, focus = pcall(ShroudGetPartyMemberCurrentFocus, slot)
-      local _, maxFocus = pcall(ShroudGetPartyMemberMaxFocus, slot)
-      hp, maxHp, focus, maxFocus = num(hp), num(maxHp), num(focus), num(maxFocus)
-      m.inScene = maxHp ~= nil and maxHp > 0 and hp ~= nil and hp >= 0
-      if not m.inScene then hp, maxHp, focus, maxFocus = nil, nil, nil, nil end
-      m.hp, m.maxHp, m.focus, m.maxFocus = hp, maxHp, focus, maxFocus
-      m.online, m.scene, m.leader, m.dead = nil, nil, false, m.inScene and hp <= 0
+      local m = out[n]
+      if not m then
+        m = {}
+        out[n] = m
+      end
+      m.slot, m.name, m.plain = num(T.Field(r, "slot")) or (n - 1), name, T.PlainName(name)
+      m.online, m.inScene = T.Field(r, "online") ~= false, T.Field(r, "inScene") == true
+      m.scene, m.leader, m.dead = T.Field(r, "scene"), T.Field(r, "leader") == true, T.Field(r, "dead") == true
+      m.hp, m.maxHp = num(T.Field(r, "health")), num(T.Field(r, "maxHealth"))
+      m.focus, m.maxFocus = num(T.Field(r, "focus")), num(T.Field(r, "maxFocus"))
+      if type(m.scene) ~= "string" then m.scene = nil end
+      m.near = nil
+      if ranged and m.inScene and m.slot ~= 0 then
+        local okR, range = pcall(ShroudGetPartyMemberRange, m.slot, reach)
+        if okR and range == "near" then m.near = true elseif okR and range == "far" then m.near = false end
+      end
     end
   end
   return n
@@ -1804,8 +1793,7 @@ function PT.Lowest(list, n)
   return low
 end
 
--- The text after the bars (pure): "73%", "dead", "away" (online, elsewhere), "offline", or "away" when the client
--- can't tell (before API 45).
+-- The text after the bars (pure): "73%", "dead", "away" (online, elsewhere) or "offline".
 function PT.StateText(m)
   if m.dead then return "dead" end
   local s = PT.Share(m)
@@ -1826,6 +1814,7 @@ function PT.Tooltip(m)
     if m.focus and m.maxFocus and m.maxFocus > 0 then
       lines[#lines + 1] = "Focus " .. whole(m.focus) .. " / " .. whole(m.maxFocus)
     end
+    if m.near == false then lines[#lines + 1] = "Out of reach (" .. (pprefs.reach or PT.REACH_DEFAULT) .. " m)" end
   elseif m.online == false then
     lines[#lines + 1] = "Offline"
   else
@@ -1834,11 +1823,16 @@ function PT.Tooltip(m)
   return table.concat(lines, "\n")
 end
 
+function PT.Has()
+  return type(ShroudGetParty) == "function" and type(ShroudLuaApiVersion) == "number" and ShroudLuaApiVersion >= PT.API
+end
+PT.NEEDS = "Needs a newer game client (Lua API " .. PT.API .. ")"
+
 function PT.InParty() return memberCount > 0 end
 function PT.GetShow() return pprefs.show == true end
 
 -- For Toolbox.Hud: a strip while switched on and in a party (or the settings window open, to place it).
-function PT.Wanted() return pprefs.show == true and (memberCount > 0 or T.Config.IsShown()) end
+function PT.Wanted() return pprefs.show == true and PT.Has() and (memberCount > 0 or T.Config.IsShown()) end
 function PT.IsShown()
   if not PT.Wanted() then return false end
   if pprefs.combatOnly and not T.BuffBar.InCombatWindow() and not T.Config.IsShown() then return false end
@@ -1939,18 +1933,19 @@ local function setRow(i, mem, lowest)
     last.foV = foV
     r.focus:SetValue(foV)
   end
-  local here = mem.inScene == true
-  if last.here ~= here then
-    last.here = here
-    r.row:SetStyle{ opacity = here and 1 or PT.DIM }
+  local opacity = 1
+  if not mem.inScene then opacity = PT.DIM elseif mem.near == false then opacity = PT.FAR end
+  if last.opacity ~= opacity then
+    last.opacity = opacity
+    r.row:SetStyle{ opacity = opacity }
   end
   -- text and tooltip only when what they say changed
   if last.hp ~= mem.hp or last.maxHp ~= mem.maxHp or last.focus ~= mem.focus or last.maxFocus ~= mem.maxFocus
       or last.dead ~= mem.dead or last.online ~= mem.online or last.scene ~= mem.scene or last.leader ~= mem.leader
-      or last.slot ~= mem.slot or last.tipFor ~= mem.plain then
+      or last.slot ~= mem.slot or last.tipFor ~= mem.plain or last.near ~= mem.near then
     last.hp, last.maxHp, last.focus, last.maxFocus = mem.hp, mem.maxHp, mem.focus, mem.maxFocus
     last.dead, last.online, last.scene, last.leader, last.slot = mem.dead, mem.online, mem.scene, mem.leader, mem.slot
-    last.tipFor = mem.plain
+    last.tipFor, last.near = mem.plain, mem.near
     r.text:SetText(PT.StateText(mem))
     local tip = PT.Tooltip(mem)
     r.name:SetTooltip(tip)
@@ -2070,6 +2065,21 @@ function PT.SetNumbers(on)
   T.Config.Sync()
 end
 
+function PT.GetReach() return pprefs.reach or PT.REACH_DEFAULT end
+function PT.ReachLabel(m)
+  for _, c in ipairs(PT.REACH_CHOICES) do if c[1] == m then return c[2] end end
+  return nil
+end
+-- Members in your scene farther than this are dimmed (0: off). Returns false for a value not in PT.REACH_CHOICES.
+function PT.SetReach(m)
+  if not PT.ReachLabel(m) then return false end
+  pprefs.reach = m
+  pSave()
+  PT.Poll()
+  T.Config.Sync()
+  return true
+end
+
 function PT.GetShade() return T.ShadeOf(pprefs.shade) end
 function PT.SetShade(n)
   pprefs.shade = T.ShadeOf(n)
@@ -2105,6 +2115,7 @@ function PT.Init()
     local w = saved.width
     if type(w) == "number" and w >= PT.WIDTH_MIN and w <= PT.WIDTH_MAX then pprefs.width = math.floor(w) end
     pprefs.numbers = saved.numbers ~= false
+    for _, c in ipairs(PT.REACH_CHOICES) do if saved.reach == c[1] then pprefs.reach = c[1] end end
     if type(saved.shade) == "number" then pprefs.shade = T.ShadeOf(saved.shade) end
     if type(saved.x) == "number" and type(saved.y) == "number" then pprefs.x, pprefs.y = saved.x, saved.y end
   end
@@ -2126,14 +2137,13 @@ function PT.DebugLines()
   local okC, count = pcall(ShroudGetPartyMemberCount)
   lines[1] = string.format("Party: %s members (ShroudGetPartyMemberCount), read %s%s; setting %s; %s",
     okC and tostring(count) or "?", tostring(PT.ReadParty(members)),
-    type(ShroudGetParty) == "function" and " by ShroudGetParty (API 45)" or " by the slot getters",
-    pprefs.show and "on" or "off", T.Hud.Debug("party"))
+    PT.Has() and "" or (" (" .. PT.NEEDS .. ")"), pprefs.show and "on" or "off", T.Hud.Debug("party"))
   for i = 1, math.min(memberCount, PT.MAX) do
     local m = members[i]
-    lines[#lines + 1] = string.format("  slot %s %s: %s, online %s, scene %s, health %s / %s, focus %s / %s%s%s",
-      tostring(m.slot), tostring(m.name), m.inScene and "here" or "elsewhere", tostring(m.online), tostring(m.scene),
-      tostring(m.hp), tostring(m.maxHp), tostring(m.focus), tostring(m.maxFocus), m.dead and ", dead" or "",
-      m.leader and ", leader" or "")
+    lines[#lines + 1] = string.format("  slot %s %s: %s, online %s, scene %s, health %s / %s, focus %s / %s, near"
+      .. " %s%s%s", tostring(m.slot), tostring(m.name), m.inScene and "here" or "elsewhere", tostring(m.online),
+      tostring(m.scene), tostring(m.hp), tostring(m.maxHp), tostring(m.focus), tostring(m.maxFocus), tostring(m.near),
+      m.dead and ", dead" or "", m.leader and ", leader" or "")
   end
   return lines
 end
@@ -2146,19 +2156,21 @@ T.Backup.KEYS[#T.Backup.KEYS + 1] = "party"
 
 -- The settings page (config.lua builds it with its helpers `h`, after Health bars): the controls' ids in CONFIG_IDS.
 PT.CONFIG_IDS = { "pt_show", "pt_combat", "pt_self", "pt_sort", "pt_width", "pt_width_value", "pt_numbers",
-                  "pt_shade", "pt_shade_value" }
+                  "pt_reach", "pt_shade", "pt_shade_value" }
 
 function PT.ConfigSection(h)
   local ui = h.UI
-  local sorts = {}
+  local sorts, reaches = {}, {}
   for i, key in ipairs(PT.SORTS) do sorts[i] = PT.SORT_LABELS[key] end
+  for i, c in ipairs(PT.REACH_CHOICES) do reaches[i] = c[2] end
   return ui.Column{ children = {
     h.heading("Party Toolbelt", true),
     ui.Label{ text = "Your party on a strip of its own, apart from your Toolbelt: a row per member with their health"
       .. " and focus. The lowest health's name is red; a member out of your scene is dimmed. It shows while you're"
       .. " in a party (and while this window is open, to place it).", class = "dim",
       style = { whiteSpace = "wrap" } },
-    ui.Toggle{ id = "pt_show", text = "Show the Party Toolbelt", value = PT.GetShow(),
+    ui.Toggle{ id = "pt_show", text = "Show the Party Toolbelt", value = PT.GetShow(), enabled = PT.Has(),
+      tooltip = PT.Has() and "Shows while you're in a party" or PT.NEEDS,
       onChange = function(_, v) PT.SetShow(v) end },
     ui.Toggle{ id = "pt_combat", text = "Only during combat", value = PT.GetCombatOnly(),
       tooltip = "Hidden out of combat (and shown a little after it, as the Toolbelt)",
@@ -2174,6 +2186,13 @@ function PT.ConfigSection(h)
     ui.Toggle{ id = "pt_numbers", text = "Show the health percent", value = PT.GetNumbers(),
       tooltip = "\"73%\" after the bars (or dead, away, offline); hover a row for the numbers",
       onChange = function(_, v) PT.SetNumbers(v) end },
+    h.dropdownRow("Dim members farther than", { id = "pt_reach", choices = reaches,
+      value = PT.ReachLabel(PT.GetReach()),
+      tooltip = "Members in your scene out of this reach (a heal's, say) are dimmed a little; those elsewhere more."
+        .. " Off: only those elsewhere",
+      onChange = function(_, label)
+        for _, c in ipairs(PT.REACH_CHOICES) do if c[2] == label then PT.SetReach(c[1]) end end
+      end }),
     h.slider("pt_width", "Bar length", PT.WIDTH_MIN, PT.WIDTH_MAX, 10, PT.GetWidth(), "The bars' length in pixels",
       function(n) PT.SetWidth(n) end),
     h.shadeSlider("pt_shade", PT.GetShade(), "the party rows", function(n) PT.SetShade(n) end),
@@ -2189,9 +2208,11 @@ function PT.ConfigSync(h)
   h.setValue("pt_self", PT.GetSelf())
   h.setValue("pt_sort", PT.SORT_LABELS[PT.GetSort()])
   h.setValue("pt_numbers", PT.GetNumbers())
+  h.setValue("pt_reach", PT.ReachLabel(PT.GetReach()))
+  h.setEnabled("pt_show", PT.Has())
   h.sliderValue("pt_width", PT.GetWidth())
   h.sliderValue("pt_shade", PT.GetShade())
-  for _, id in ipairs({ "pt_combat", "pt_self", "pt_sort", "pt_numbers", "pt_width", "pt_shade" }) do
-    h.setEnabled(id, PT.GetShow())
+  for _, id in ipairs({ "pt_combat", "pt_self", "pt_sort", "pt_numbers", "pt_reach", "pt_width", "pt_shade" }) do
+    h.setEnabled(id, PT.GetShow() and PT.Has())
   end
 end

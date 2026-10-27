@@ -804,6 +804,19 @@ local function install_api()
   else
     ShroudGetParty = nil
   end
+  -- API 46: near or far within `meters` (a member's `distance` in metres; none: near).
+  if (H.apiVersion or 25) >= 46 then
+    ShroudGetPartyMemberRange = function(slotOrName, meters)
+      local m = type(slotOrName) == "number" and pm(slotOrName) or byName(slotOrName)
+      if not here(m) then return nil end
+      if slotOrName == 0 or m == (S.party or {})[1] then return "near" end
+      meters = math.max(1, math.min(200, meters or 30))
+      if m.distance and m.distance > meters then return "far" end
+      return "near"
+    end
+  else
+    ShroudGetPartyMemberRange = nil
+  end
   -- The target (H.S.target, set by H.setTarget): { id, name, hp, maxHp, focus, maxFocus, dead, hidden,
   -- effects = { { name, remaining, total, icon, debuff, category, tooltip } } }. Sentinels as documented.
   local function tg() return S.char.present and S.target or nil end
