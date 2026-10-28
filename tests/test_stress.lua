@@ -287,11 +287,33 @@ return function(t)
   -- now held to Docs.TOPIC_MAX (3,500): 46,641, the Sounds settings page the biggest addition (Today and the Loot
   -- Tracker the guide's, 46,307). 2026-10-15: 46,703 with the crafting planner's Plan (four 30-choice slots,
   -- each with what its pick adds). The limit leaves room for the game counting more than the harness.
+  -- 2026-10-28 (review 66): at the client's 25 HUD frames (the harness's documented 8 had left strips unbuilt) and
+  -- API 55 with a 12-member party, 4 effects each (the Party Toolbelt's defaults): 1,659 elements and 48,719
+  -- characters at first, so the Loot Tracker shows 30 item rows (60), Combat Detailed 6 skills and 6 fights (8, 10)
+  -- in 20 timeline columns (30): 1,495 and 44,099. A full 16-member party with 6 effects each is test_party's.
   LIMITS.text = 48000
   t.test("on-screen text at its worst stays well inside the game's 65,536 characters", function()
+    local frames = H.MAX_HUD_FRAMES
+    H.MAX_HUD_FRAMES = 25
+    H.apiVersion = 55
+    local ok, err = pcall(function()
     H.boot(veteranDisk(false))
     H.advance(70)
     openEverything()
+    H.chat("/tbx party on")
+    H.chat("/tbx party watch add Buff")
+    local members = {}
+    for i = 1, 12 do
+      local runes = {}
+      for k = 1, 4 do
+        runes[k] = { RuneName = (k % 2 == 0 and "Bane" or "Buff") .. k, RuneId = k, IsDebuff = k % 2 == 0,
+          IconId = k, Category = "Other", StackCount = 1, Effects = { { Description = "", Value = 0,
+          CurrentDuration = 30, TotalDuration = 60, TotalTick = 0 } } }
+      end
+      members[i] = { name = i == 1 and "Tester" or ("A Party Member " .. i), hp = 500, maxHp = 1000, focus = 50,
+                     maxFocus = 100, buffs = runes }
+    end
+    H.setParty(members)
     if not Toolbox.BuffBar.IsEnabled() then H.chat("/tbx buffs") end   -- the veteran's was on: the toggle hid it
     H.chat("/tbx buffs block on")                                     -- every effect again, short tooltips
     H.chat("/tbx skills on")                                          -- the skill activity strip
@@ -363,8 +385,8 @@ return function(t)
     H.advance(2)
     noErrors("settings, the guide, the version, Map overlays and planner windows")
     if os.getenv("STRESS_PRINT") then
-      print(string.format("  text: %d characters with everything open, %d at the peak (limit %d); %d elements",
-        base, H.S.textPeak, LIMITS.text, H.S.live))
+      print(string.format("  text: %d characters with everything open, %d at the peak (limit %d); %d elements, %d at"
+        .. " the peak", base, H.S.textPeak, LIMITS.text, H.S.live, H.S.livePeak))
     end
     t.ok(H.S.textPeak <= LIMITS.text, string.format("at most %d characters of text on screen: %d",
       LIMITS.text, H.S.textPeak))
@@ -372,6 +394,13 @@ return function(t)
     -- markers; the block has 40 slots since (the game counts MORE than the harness, against its 2,000: keep a
     -- margin)
     t.ok(H.S.live <= 1500, "at most 1,500 live elements with everything open: " .. H.S.live)
+    t.ok(H.S.frames.toolbox_party ~= nil, "the party strip built")
+    t.ok(next(Toolbox.Hud.errors) == nil, "no strip left out")
+    -- a page or topic switch builds the next before the last is gone: 1,590 measured 2026-10-28
+    t.ok(H.S.livePeak <= 1650, "at most 1,650 elements at any moment: " .. H.S.livePeak)
+    end)
+    H.MAX_HUD_FRAMES, H.apiVersion = frames, nil
+    if not ok then error(err, 0) end
   end)
 
   -- The account file holds the prices, every setup and every character's recovery copy: 256 KB in all (the game's

@@ -33,6 +33,10 @@ ones included).
   target's tooltip names the tier (easy, even, hard or deadly).
 - **Only your effects on the target** (Lua API 47): Settings, Toolbelt, Target effects has "Only mine (what you
   cast)", so a healer or a damage dealer sees just their own effects on the target.
+- **Fewer rows in two windows, to leave room for the Party Toolbelt:** the Loot Tracker lists the 30 kinds of item you
+  have most of (60 before; the rest are summed up in one line), and Combat Detailed shows your top 6 skills and last 6
+  fights (8 and 10), its last-minute chart in 3-second columns (2). The game limits how many screen elements an
+  add-on has, and with every window open and a full party Toolbox came too close to it.
 - **Notification sounds have their own settings page** (Settings, Notification sounds, after Sounds): which sound each
   notification plays moved off the Sounds page, which had grown too big with the party's notifications.
 - `/toolbox api` lists the API 45 to 55 additions, and `/toolbox perf recipes` times the crafting planner's game calls

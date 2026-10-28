@@ -13,7 +13,7 @@ local T = Toolbox
 local C = {}
 Toolbox.Compact = C
 
-local UI = Shroud.UI
+local UI = T.UI
 local WINDOW_ID = "toolbox_compact"
 local GUTTER = 8
 

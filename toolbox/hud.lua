@@ -36,7 +36,7 @@ Hud.BELOW = { target = true }
 Hud.GAP = 6                           -- between the parts of the glued strip
 Hud.PAD = 8                           -- the strip's own padding
 
-local UI = Shroud.UI
+local UI = T.UI
 local modules = {}                    -- key -> module
 local frames = {}                     -- key -> HudFrame (unglued), or [GLUED_ID] -> the shared one
 local contents = {}                   -- key -> content element
@@ -117,9 +117,9 @@ end
 -- A module's content, or nil when building it raised (so one broken strip doesn't stop the others
 -- from being built and shown).
 local function build(key)
-  local ok, result = pcall(modules[key].BuildContent)
+  local ok, result = pcall(T.BuildOrDrop, modules[key].BuildContent)
   if ok then return result end
-  unbuilt(key)                        -- a half-built content (the creation cap) isn't used either
+  unbuilt(key)                        -- a half-built content (the creation cap) is destroyed and not used
   failed(key, result)
   return nil
 end

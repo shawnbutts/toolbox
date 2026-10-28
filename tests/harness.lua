@@ -1620,6 +1620,7 @@ function H.makeUI()
       if b.tokens < 1 then error("Shroud.UI: elements are being created too fast", 2) end
       b.tokens = b.tokens - 1
       S.live = (S.live or 0) + 1
+      if S.live > (S.livePeak or 0) then S.livePeak = S.live end
       local e = setmetatable(copy(spec), Element)
       if type(e.style) == "table" then clampStyle(e.style) end
       e.kind = kind

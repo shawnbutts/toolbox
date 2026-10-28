@@ -321,10 +321,13 @@ into one if a new file is ever needed).
   and chat says so once (`noRoom`; `Hud.ORDER` decides, target last). A strip failing with "too fast" is retried after
   `Hud.RETRY_DELAY`; what it had built goes at once (review 66: a half-built buff block kept 90 elements alive, a
   consumables bar whose frame the cap refused 140, counted against the 2,000 for the session): Hud destroys a content
-  whose column or frame failed, and a pooled strip's `BuildContent` runs through `T.BuildOrDrop(fn)` (core.lua: `fn(keep)`
-  passes each piece to `keep`; on a raise they're destroyed and the error goes on; buffbar.lua's `buildKept` /
-  `keepPiece` for the buff bar, consumables and buff block; test_hud "leaves no elements alive"). The harness doesn't
-  count an element the cap refused, nor a frame or window refused for room. `Hud.TextStrip` is the HUD form of the XP and Today windows. `Hud.Tick` saves a strip's position only
+  whose column or frame failed, and runs every `BuildContent` through `T.BuildOrDrop(fn)` (core.lua): the files make
+  elements through `T.UI` (`local UI = T.UI`, never `Shroud.UI` straight: Shroud.UI's constructors, each element
+  noted while a build is under way), and a build that raises has them destroyed (test_hud "leaves no elements
+  alive"). The harness doesn't count an element the cap refused, nor a frame or window refused for room. Element
+  budget (review 66, `test_stress.lua`'s worst case at 25 frames with a 12-member party: 1,495 of the 1,500, 1,590 at
+  a page switch): the Loot Tracker shows `DD.MAX_ROWS` 30 item rows, Combat Detailed `CD.SKILL_ROWS` 6 skills,
+  `CD.HISTORY_ROWS` 6 fights and a timeline of `C.SLICE` 3 s columns (20). `Hud.TextStrip` is the HUD form of the XP and Today windows. `Hud.Tick` saves a strip's position only
   while it is on screen (`IsVisible`) and a character is in the world (`T.CharacterName`): a hidden or never-shown
   strip, or one at the login screen, can report the top-left corner (owner, 2026-10-05). A logout (`T.loggedOut`)
   makes the next login, the same character's too, read every module's settings again (`T.FollowCharacter`). `Hud.FitScreen()` (API 31, from

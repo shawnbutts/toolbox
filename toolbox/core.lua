@@ -188,20 +188,40 @@ function T.SetTooltip(element, text)
   end
 end
 
--- A strip's content built whole or not at all: `fn(keep)` passes each finished piece to `keep`; if it raises (the
--- creation cap at a login: Hud retries), the pieces kept are destroyed and the error goes on. Elements made and
--- never placed still count against the add-on's 2,000 until destroyed (review 66: a half-built buff block kept 90).
-local function dropBuilt(made)
+-- Shroud.UI for the add-on's files (`local UI = T.UI`): the same constructors, each element also noted while a strip's
+-- content is being built (T.BuildOrDrop), so a build that raises can destroy what it had made. Elements made and
+-- never placed still count against the add-on's 2,000 until destroyed (review 66: at a login's creation cap a
+-- half-built buff block kept 90, an equipment bar 41; Hud retries the strip, making them again).
+local building = nil                   -- the elements of the build under way, or nil
+local makers = {}
+T.UI = setmetatable({}, { __index = function(_, kind)
+  local real = Shroud.UI[kind]
+  if type(real) ~= "function" then return real end
+  local f = makers[kind]
+  if not f then
+    f = function(spec)
+      local e = Shroud.UI[kind](spec)
+      if building then building[#building + 1] = e end
+      return e
+    end
+    makers[kind] = f
+  end
+  return f
+end })
+
+-- Runs `fn(...)` (a module's BuildContent) and returns what it does; if it raises (the creation cap: Hud tries the
+-- strip again), every element made meanwhile is destroyed and the error goes on. A build inside another (the
+-- consumables row in the buff bar's) hands its elements on to the outer one when it succeeds.
+function T.BuildOrDrop(fn, ...)
+  local outer, made = building, {}
+  building = made
+  local ok, result = pcall(fn, ...)
+  building = outer
+  if ok then
+    if outer then for _, e in ipairs(made) do outer[#outer + 1] = e end end
+    return result
+  end
   for i = #made, 1, -1 do pcall(made[i].Destroy, made[i]) end
-end
-function T.BuildOrDrop(fn)
-  local made = {}
-  local ok, result = pcall(fn, function(e)
-    made[#made + 1] = e
-    return e
-  end)
-  if ok then return result end
-  dropBuilt(made)
   error(result, 0)
 end
 

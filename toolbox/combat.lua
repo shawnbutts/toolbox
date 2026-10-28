@@ -13,7 +13,7 @@ local T = Toolbox
 local C = {}
 Toolbox.Combat = C
 
-local UI = Shroud.UI
+local UI = T.UI
 local PERIODIC = "toolbox_combat"
 C.FRAME_ID = "toolbox_combat"
 C.HOME = { 40, 380 }
@@ -46,7 +46,7 @@ C.DARK_TEXT = "#1a1a1a"
 C.DAMAGE_KINDS = { hit = true, critical = true, glancing = true, ultraslay = true }
 C.HEAL_KINDS = { heal = true, criticalHeal = true }
 C.AVOID_KINDS = { dodge = true, parry = true, block = true }
-C.SLICE = 2                    -- seconds per column of the damage timeline
+C.SLICE = 3                    -- seconds per column of the damage timeline (2 before 1.10.0: 20 columns, not 30)
 C.TIMELINE = 60                -- seconds the timeline covers
 C.HISTORY = 10                 -- finished fights the session remembers
 
@@ -918,16 +918,16 @@ end
 local CD = {}
 C.Detail = CD
 CD.WINDOW_ID = "toolbox_combat_detail"
-CD.SKILL_ROWS = 8
+CD.SKILL_ROWS = 6                      -- 8 before 1.10.0, history 10 (review 66: the element budget with a party)
 CD.NAME_W, CD.BAR_W, CD.VALUE_W = 120, 110, 100
-CD.COL_W, CD.COL_GAP = 7, 2           -- timeline columns (pixels)
+CD.COL_W, CD.COL_GAP = 11, 2          -- timeline columns (pixels; 20 of them, about the old 30's width)
 CD.OUT_H, CD.IN_H = 44, 28            -- the two halves of the timeline chart
 CD.OUT_COLOR, CD.IN_COLOR, CD.BAR_COLOR = "@green", "@red", "@gold"
 CD.EMPTY = "#00000000"                -- an empty timeline column: transparent, still taking its room
 CD.SCOPES = { { "fight", "This fight" }, { "session", "Session" } }
 CD.OPEN_DELAY = 3                      -- seconds after start-up before a pinned window is rebuilt
 CD.TARGET_ROWS = 6
-CD.HISTORY_ROWS = 10
+CD.HISTORY_ROWS = 6
 CD.PARTY_ROWS = 12                     -- the game's party (Lua API 55: Toolbox.Party)
 CD.TYPE_W, CD.TYPE_H = 330, 10         -- the damage-type bars
 -- Damage types in the docs' order, and a colour for each: the theme has no colours for them, so

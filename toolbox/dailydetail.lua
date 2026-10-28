@@ -24,10 +24,11 @@ local T = Toolbox
 local DD = {}
 Toolbox.DailyDetail = DD
 
-local UI = Shroud.UI
+local UI = T.UI
 local WINDOW_ID = "toolbox_daily_detail"
 local GUTTER = 8
-DD.MAX_ROWS = 60       -- item rows shown; the rest are summarised in one line
+DD.MAX_ROWS = 30       -- item rows shown; the rest are summarised in one line (60 before 1.10.0: review 66, the
+                       -- worst case with a party past the element and text budgets; a row is about 150 characters)
 DD.RESORT_SECONDS = 10 -- minimum time between sorted rebuilds
 
 local win = nil

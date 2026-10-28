@@ -8,7 +8,7 @@ local T = Toolbox
 local W = {}
 Toolbox.Window = W
 
-local UI = Shroud.UI   -- reading Shroud.UI at top level is allowed; constructors are not
+local UI = T.UI   -- Shroud.UI (core.lua); reading it at top level is allowed, constructors are not
 local WINDOW_ID = "toolbox_xp"
 
 local win = nil        -- window handle, rebuilt in ShroudOnStart after every reload

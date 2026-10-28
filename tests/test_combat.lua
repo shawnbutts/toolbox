@@ -427,7 +427,7 @@ return function(t)
     t.eq(M.TopRunes(f2, 8)[1].dmg, 500)
   end)
 
-  t.test("the timeline: per-second damage done and taken in 2-second slices, last 60 s", function()
+  t.test("the timeline: per-second damage done and taken in 3-second slices, last 60 s", function()
     H.boot()
     local M = Toolbox.Combat
     local s = M.NewSession(0)
@@ -436,10 +436,10 @@ return function(t)
     M.AddTimeline(s, 40, 999, 0)                      -- over a minute before: dropped
     local tl = M.Timeline(s, 103)
     t.eq(#tl, M.TIMELINE / M.SLICE)
-    t.eq(tl[#tl - 1].out, 300, "slice 100-102: 600 over 2 s")
-    t.eq(tl[#tl - 1].taken, 30)
+    t.eq(tl[#tl - 1].out, 200, "slice 99-102: 600 over 3 s")
+    t.eq(tl[#tl - 1].taken, 20)
     t.eq(tl[#tl].out, 0, "the current slice")
-    for _, x in ipairs(tl) do t.ok(x.out ~= 999 / 2, "old slices dropped") end
+    for _, x in ipairs(tl) do t.ok(x.out ~= 999 / 3, "old slices dropped") end
   end)
 
   t.test("in game: fights end, and the session keeps skills, time and the timeline", function()
@@ -519,7 +519,7 @@ return function(t)
       end
     end
     for _, b in ipairs(down) do if b.style.backgroundColor ~= M.EMPTY then shownDown = shownDown + 1 end end
-    t.eq(#up, 30, "one element per column; empty ones keep their place")
+    t.eq(#up, Toolbox.Combat.TIMELINE / Toolbox.Combat.SLICE, "one element per column; empty ones keep their place")
     t.eq(shownUp, 1, "one slice with damage done")
     t.eq(tallest, M.OUT_H, "the peak fills the chart")
     t.eq(shownDown, 1, "one slice with damage taken")

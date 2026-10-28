@@ -53,7 +53,7 @@ local T = Toolbox
 local SK = {}
 Toolbox.SkillBar = SK
 
-local UI = Shroud.UI
+local UI = T.UI
 local PERIODIC = "toolbox_skills"
 
 SK.PAGE = "Skill activity"            -- the settings page, the Position row and the guide topic
@@ -518,7 +518,7 @@ local function fillMarks(slot, r, tip)
   T.SetTooltip(slot.open, tip)
 end
 
-local function skBuild(keep)
+function SK.BuildContent()
   local s = size()
   local slotS, frameS, barS = slotStyles(s)
   if (SK.ShowMarks() or SK.HasModes()) and markTex < 0 then
@@ -527,44 +527,43 @@ local function skBuild(keep)
   end
   slots = {}
   local children = {}
-  placeholder = keep(UI.Label{ id = "sk_placeholder", text = SK.PLACEHOLDER, class = "dim", visible = false,
-    style = placeholderStyle(s) })
+  placeholder = UI.Label{ id = "sk_placeholder", text = SK.PLACEHOLDER, class = "dim", visible = false,
+    style = placeholderStyle(s) }
   children[1] = placeholder
   pauseTile = nil
   if SK.HasModes() then                 -- Pause skills: first, so it stays put as skills come and go
     local iw, ih = SK.PausePicSize(s)
-    local pic = keep(UI.Image(picture(iw, ih, { tint = SK.PAUSE_PICS.run.color, uv = SK.PAUSE_PICS.run.uv,
-      onClick = function() SK.TogglePause() end })))
-    local frame = keep(UI.Row{ children = { pic }, style = pauseFrameStyle(s) })
-    local col = keep(UI.Column{ id = "sk_pause", visible = false, style = slotS, children = { frame } })
+    local pic = UI.Image(picture(iw, ih, { tint = SK.PAUSE_PICS.run.color, uv = SK.PAUSE_PICS.run.uv,
+      onClick = function() SK.TogglePause() end }))
+    local frame = UI.Row{ children = { pic }, style = pauseFrameStyle(s) }
+    local col = UI.Column{ id = "sk_pause", visible = false, style = slotS, children = { frame } }
     pauseTile = { col = col, frame = frame, pic = pic }
     children[#children + 1] = col
   end
   for i = 1, slotCount() do
-    local icon = keep(UI.Image{ width = s, height = s, onClick = openSkills })   -- a click handler: its tooltip shows
+    local icon = UI.Image{ width = s, height = s, onClick = openSkills }   -- a click handler: its tooltip shows
     local kids, numbers = { icon }, {}
     for j = 1, #T.BuffBar.COUNT_OUTLINE + 1 do                            -- the outline, then the bright one
-      numbers[j] = keep(UI.Label{ text = "", class = "bright", visible = numberShown(), style = numberStyle(s, j) })
+      numbers[j] = UI.Label{ text = "", class = "bright", visible = numberShown(), style = numberStyle(s, j) }
       kids[#kids + 1] = numbers[j]
     end
     local open, marks, overlay = nil, nil, nil
     if SK.ShowMarks() then        -- over the icon, after the labels: the left half opens Skills, the right sets modes
       local lw, rw, bands = markSizes(s)
-      open = keep(UI.Image(picture(lw, s, { tint = "#ffffff00", onClick = openSkills })))
+      open = UI.Image(picture(lw, s, { tint = "#ffffff00", onClick = openSkills }))
       marks = {}
       for j, m in ipairs(SK.MARKS) do
         local slotIndex = i
-        marks[j] = keep(UI.Image(picture(rw, bands[j], { tint = m.color, uv = m.uv, rotation = m.rotation,
-          onClick = function() SK.SetMode(slotIndex, m) end })))
+        marks[j] = UI.Image(picture(rw, bands[j], { tint = m.color, uv = m.uv, rotation = m.rotation,
+          onClick = function() SK.SetMode(slotIndex, m) end }))
       end
-      local column = keep(UI.Column{ children = marks })
-      overlay = keep(UI.Row{ style = { width = s, height = s, minHeight = s, marginLeft = -s, alignItems = "start" },
-        children = { open, column } })
+      overlay = UI.Row{ style = { width = s, height = s, minHeight = s, marginLeft = -s, alignItems = "start" },
+        children = { open, UI.Column{ children = marks } } }
       kids[#kids + 1] = overlay
     end
-    local frame = keep(UI.Row{ children = kids, style = frameS })
-    local bar = keep(UI.Bar{ value = 0, color = SK.BAR_COLOR, style = barS })
-    local col = keep(UI.Column{ id = "sk_" .. i, visible = false, style = slotS, children = { frame, bar } })
+    local frame = UI.Row{ children = kids, style = frameS }
+    local bar = UI.Bar{ value = 0, color = SK.BAR_COLOR, style = barS }
+    local col = UI.Column{ id = "sk_" .. i, visible = false, style = slotS, children = { frame, bar } }
     slots[i] = { col = col, icon = icon, frame = frame, bar = bar, numbers = numbers, label = numbers[#numbers],
                  barColor = SK.BAR_COLOR, open = open, marks = marks, overlay = overlay, at = i }
     children[#children + 1] = col
@@ -578,7 +577,6 @@ local function skBuild(keep)
   SK.Fill()
   return content
 end
-function SK.BuildContent() return T.BuildOrDrop(skBuild) end
 
 function SK.Unbuilt()
   content, placeholder, slots, shownCount = nil, nil, {}, nil

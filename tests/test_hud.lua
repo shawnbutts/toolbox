@@ -234,10 +234,10 @@ return function(t)
       for _, w in pairs(H.S.windows) do if not w.destroyed then walk(w) end end
       return n
     end
-    for _, tokens in ipairs({ 5, 30, 60, 100, 160, 230, 300 }) do
+    for _, tokens in ipairs({ 5, 30, 60, 100, 130, 160, 200, 230, 270, 300, 340 }) do
       H.boot()
       for _, c in ipairs({ "/tbx buffs", "/tbx vitals", "/tbx combat", "/tbx notify via hud", "/tbx buffs block on",
-                           "/tbx skills on" }) do
+                           "/tbx skills on", "/tbx target on", "/tbx gear bar on" }) do
         H.chat(c)
       end
       H.advance(2)

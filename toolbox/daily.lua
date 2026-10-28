@@ -41,7 +41,7 @@ local T = Toolbox
 local D = {}
 Toolbox.Daily = D
 
-local UI = Shroud.UI
+local UI = T.UI
 local WINDOW_ID = "toolbox_daily"
 local GUTTER = 8
 D.FORMAT = 1

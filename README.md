@@ -247,7 +247,7 @@ the day's gold and kills and a list of every item gained today with its count, h
   from your bank or a chest, so the list is "items gained", not strictly "looted".
 - The game reports at most 20 kinds of item per event; kinds past that are counted as
   "kinds the game didn't itemise".
-- The list shows up to 60 rows. Shroud.UI can't reorder rows and caps how fast elements are
+- The list shows up to 30 rows (60 before 1.10.0), the rest summed up in one line. Shroud.UI can't reorder rows and caps how fast elements are
   created, so new items are appended as they arrive and the list is re-sorted only when the window
   opens (at most every 10 seconds). Up to 250 item names are kept per day; the rest are counted
   under "(other items)".
