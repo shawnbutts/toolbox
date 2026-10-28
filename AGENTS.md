@@ -324,8 +324,9 @@ into one if a new file is ever needed).
   whose column or frame failed, and runs every `BuildContent` through `T.BuildOrDrop(fn)` (core.lua): the files make
   elements through `T.UI` (`local UI = T.UI`, never `Shroud.UI` straight: Shroud.UI's constructors, each element
   noted while a build is under way), and a build that raises has them destroyed (test_hud "leaves no elements
-  alive"). The harness doesn't count an element the cap refused, nor a frame or window refused for room. Element
-  budget (review 66, `test_stress.lua`'s worst case at 25 frames with a 12-member party: 1,495 of the 1,500, 1,590 at
+  alive"); a settings page too (config's `UI` and `T.TextField` make theirs through `T.UI`, `C.ShowCategory` builds
+  in `T.BuildOrDrop`, review 73; test_config "a settings page the creation cap stops"). The harness doesn't count an element the cap refused, nor a frame or window refused for room. Element
+  budget (review 66, `test_stress.lua`'s worst case at 25 frames with a 12-member party: 1,454 of the 1,500, 1,549 at
   a page switch): the Loot Tracker shows `DD.MAX_ROWS` 30 item rows, Combat Detailed `CD.SKILL_ROWS` 6 skills,
   `CD.HISTORY_ROWS` 6 fights and a timeline of `C.SLICE` 3 s columns (20). `Hud.TextStrip` is the HUD form of the XP and Today windows. `Hud.Tick` saves a strip's position only
   while it is on screen (`IsVisible`) and a character is in the world (`T.CharacterName`): a hidden or never-shown
@@ -423,7 +424,7 @@ into one if a new file is ever needed).
   `Toolbox.BuffBlock` (MB, end of the file; owner, 2026-10-03).
   - Buff block: its own strip (never in the Toolbelt), every effect sorted by expiry (`BB.Tick` collects them
     when `MB.Collecting()`, `MB.Fill`), no group slot, debuffs outlined (`fill`'s `outline`), a fixed pool of
-    `MB.SLOTS` (40; 60 in 1.2.0, lowered for the element budget) in rows of `MB.GetWidth()` (a width change rebuilds only its strip: `Hud.Rebuild`), its own
+    `MB.SLOTS` (30; 60 in 1.2.0, 40 to 1.9.1, lowered for the element budget) in rows of `MB.GetWidth()` (a width change rebuilds only its strip: `Hud.Rebuild`), its own
     size (in place) and combat-only. Short tooltips (`fill`'s `short`: name, debuff, `BB.CoarseLeft` to the
     minute), not the game's full ones: 60 full ones beside the buff bar's would break the text budget.
     No option for full ones either (owner, 2026-10-08, review 18 declined): 40 measured 55,068 characters at the

@@ -35,7 +35,8 @@ ones included).
   cast)", so a healer or a damage dealer sees just their own effects on the target.
 - **Fewer rows in two windows, to leave room for the Party Toolbelt:** the Loot Tracker lists the 30 kinds of item you
   have most of (60 before; the rest are summed up in one line), and Combat Detailed shows your top 6 skills and last 6
-  fights (8 and 10), its last-minute chart in 3-second columns (2). The game limits how many screen elements an
+  fights (8 and 10), its last-minute chart in 3-second columns (2), and the buff block shows up to 30 effects (40;
+  the soonest to run out first). The game limits how many screen elements an
   add-on has, and with every window open and a full party Toolbox came too close to it.
 - **Notification sounds have their own settings page** (Settings, Notification sounds, after Sounds): which sound each
   notification plays moved off the Sounds page, which had grown too big with the party's notifications.
@@ -47,6 +48,7 @@ ones included).
   fast, a strip built part way (or one whose frame was refused) was tried again a moment later, but what had been
   made the first time stayed alive, up to about 140 elements, counting against the add-on's limit until a reload.
   Now it goes at once.
+  The same for a settings page that couldn't be shown right now: picking it again no longer leaves more behind.
 - **Dropdowns too narrow for their choices:** a dropdown was only as wide as the choice shown, so its open list cut
   longer ones short (the Loot Tracker's Show list, for one). Every dropdown, in every window and on every settings
   page, is now as wide as its longest choice, and follows a text size change.

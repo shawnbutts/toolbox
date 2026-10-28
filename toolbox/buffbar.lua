@@ -3083,7 +3083,7 @@ end
 
 MB.FRAME_ID = "toolbox_buffblock"
 MB.HOME = { 40, 520 }
-MB.SLOTS = 40                  -- (60 in 1.2.0: lowered for the element budget, owner, 2026-10-03)
+MB.SLOTS = 30            -- (60 in 1.2.0, 40 to 1.9.1: lowered for the element budget; owner 2026-10-03, review 66)
 MB.WIDTH_MIN, MB.WIDTH_MAX, MB.WIDTH_DEFAULT = 1, 30, 10
 MB.PLACEHOLDER = "Buff block"
 

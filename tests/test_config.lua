@@ -340,6 +340,43 @@ return function(t)
     t.eq(#w.children[2].children[1].children, 1, "one category built at a time")
   end)
 
+  -- Review 73: a page the creation cap stopped part way kept what it had made alive (8 elements a try with 8 tokens),
+  -- and the chat line asks the player to pick it again.
+  t.test("a settings page the creation cap stops leaves no elements alive, and a later try shows it", function()
+    local function placed()
+      local n = 0
+      local function walk(e) n = n + 1 for _, c in ipairs(e.children or {}) do walk(c) end end
+      for _, f in pairs(H.S.frames) do if not f.destroyed then walk(f) end end
+      for _, w in pairs(H.S.windows) do if not w.destroyed then walk(w) end end
+      return n
+    end
+    for _, how in ipairs({ "page", "search" }) do
+      H.boot()
+      local C = Toolbox.Config
+      H.chat("/tbx config")
+      H.advance(2)
+      local gap = H.S.live - placed()                    -- (what the suite's earlier tests left in the count)
+      for _, tokens in ipairs({ 1, 8, 25, 60 }) do
+        H.call(function() C.ShowCategory("general") end)
+        H.S.createBucket.tokens, H.S.createBucket.at = tokens, ShroudTime   -- (no refill for time gone by)
+        H.clearLogs()
+        if how == "page" then
+          H.call(function() C.ShowCategory("sounds") end)
+        else
+          H.call(function() C.ShowCategory("sounds", "fx_goto") end)
+        end
+        t.ok(H.logged("can't be shown right now"), how .. ", " .. tokens .. " tokens: refused")
+        t.eq(H.S.live - placed(), gap, how .. ", " .. tokens .. " tokens: every live element placed")
+        H.advance(5)
+      end
+      H.clearLogs()
+      t.ok(H.call(function() return C.ShowCategory("sounds") end), how .. ": shown on a later try")
+      t.no(H.logged("can't be shown right now"))
+      t.ok(H.configRaw():Find("fx_goto"), how .. ": its controls are there")
+      t.eq(H.S.live - placed(), gap, how .. ": every live element placed")
+    end
+  end)
+
   t.test("every page visited with everything open and a full day's loot stays inside the 2,000 elements", function()
     H.boot()
     for _, c in ipairs({ "/tbx xp", "/tbx xpdetailed", "/tbx daily", "/tbx dd", "/tbx buffs", "/tbx vitals",

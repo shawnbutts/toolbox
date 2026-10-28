@@ -290,7 +290,8 @@ return function(t)
   -- 2026-10-28 (review 66): at the client's 25 HUD frames (the harness's documented 8 had left strips unbuilt) and
   -- API 55 with a 12-member party, 4 effects each (the Party Toolbelt's defaults): 1,659 elements and 48,719
   -- characters at first, so the Loot Tracker shows 30 item rows (60), Combat Detailed 6 skills and 6 fights (8, 10)
-  -- in 20 timeline columns (30): 1,495 and 44,099. A full 16-member party with 6 effects each is test_party's.
+  -- in 20 timeline columns (30): 1,495 and 44,099; with the buff block's 30 slots (40), 1,454. A full 16-member
+  -- party with 6 effects each is test_party's.
   LIMITS.text = 48000
   t.test("on-screen text at its worst stays well inside the game's 65,536 characters", function()
     local frames = H.MAX_HUD_FRAMES
@@ -396,7 +397,8 @@ return function(t)
     t.ok(H.S.live <= 1500, "at most 1,500 live elements with everything open: " .. H.S.live)
     t.ok(H.S.frames.toolbox_party ~= nil, "the party strip built")
     t.ok(next(Toolbox.Hud.errors) == nil, "no strip left out")
-    -- a page or topic switch builds the next before the last is gone: 1,590 measured 2026-10-28
+    -- a page or topic switch builds the next before the last is gone: 1,590 measured 2026-10-28, 1,549
+    -- with the buff block's 30 slots
     t.ok(H.S.livePeak <= 1650, "at most 1,650 elements at any moment: " .. H.S.livePeak)
     end)
     H.MAX_HUD_FRAMES, H.apiVersion = frames, nil

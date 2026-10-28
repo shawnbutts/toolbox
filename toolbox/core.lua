@@ -133,10 +133,11 @@ end
 -- A text field whose Enter works (owner, 2026-10-15: "when i type in chest in the top field and hit enter, nothing
 -- happens", the handler given only as the spec's onSubmit). The reference lists both the spec field and the
 -- OnSubmit method: the handler goes through both, and runs once for one press (a second call in the same frame with
--- the same text is the other way's). Constructors raise at file top level: call it from a builder.
+-- the same text is the other way's). Constructors raise at file top level: call it from a builder. Made through T.UI
+-- (below), so a build that fails drops it too.
 function T.TextField(spec)
   local fn = spec.onSubmit
-  if type(fn) ~= "function" then return Shroud.UI.TextField(spec) end
+  if type(fn) ~= "function" then return T.UI.TextField(spec) end
   local at, said = nil, nil
   local function once(el, text)
     if T.enterDebug then T.Print("[enter debug] Enter in " .. tostring(spec.id) .. ": '" .. tostring(text) .. "'") end
@@ -147,7 +148,7 @@ function T.TextField(spec)
   local copy = {}
   for k, v in pairs(spec) do copy[k] = v end
   copy.onSubmit = once
-  local field = Shroud.UI.TextField(copy)
+  local field = T.UI.TextField(copy)
   pcall(function() field:OnSubmit(once) end)
   return field
 end
@@ -191,7 +192,8 @@ end
 -- Shroud.UI for the add-on's files (`local UI = T.UI`): the same constructors, each element also noted while a strip's
 -- content is being built (T.BuildOrDrop), so a build that raises can destroy what it had made. Elements made and
 -- never placed still count against the add-on's 2,000 until destroyed (review 66: at a login's creation cap a
--- half-built buff block kept 90, an equipment bar 41; Hud retries the strip, making them again).
+-- half-built buff block kept 90, an equipment bar 41; Hud retries the strip, making them again; a settings page the
+-- same, review 73: config builds its pages through it too).
 local building = nil                   -- the elements of the build under way, or nil
 local makers = {}
 T.UI = setmetatable({}, { __index = function(_, kind)

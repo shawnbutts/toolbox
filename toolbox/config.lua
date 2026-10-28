@@ -15,7 +15,7 @@ Toolbox.Config = C
 -- Shroud.UI, through a stand-in: while `recording` (the settings search building its index, C.SearchIndex) the
 -- page builders' UI.X{...} calls return plain { kind, spec } records instead of creating elements, so the
 -- index is read from the pages themselves (it can't drift from them) and costs no elements.
-local REAL_UI = Shroud.UI
+local REAL_UI = T.UI                   -- Shroud.UI, each element noted for T.BuildOrDrop (core.lua)
 local recording = false
 local recorders = {}
 -- A real element of `kind`: a text field through T.TextField (Enter both ways, once).
@@ -1811,8 +1811,15 @@ local function dropCategory(key)
   el = { shortcut = keepShortcut, category = keepCategory }
 end
 
+-- Builds category `cat` (its part holding `focusId` first, as a search result) into the window's body.
+local function buildPage(cat, focusId)
+  if focusId then return body:Add(buildFocused(cat, focusId)) end
+  return body:Add(cat.build())
+end
+
 -- `focusId` (the settings search): build the page with that control's part at the top (built again even if
 -- shown: the UI can't scroll to it).
+
 function C.ShowCategory(which, focusId)
   T.Ran("settings page")
   local cat = category(which)
@@ -1822,11 +1829,9 @@ function C.ShowCategory(which, focusId)
   end
   if not built[cat.key] then
     -- the game limits how fast elements are created: a category that can't be built now can be
-    -- picked again in a moment
-    local ok, col = pcall(function()
-      if focusId then return body:Add(buildFocused(cat, focusId)) end
-      return body:Add(cat.build())
-    end)
+    -- picked again in a moment; what a refused build had made is destroyed (T.BuildOrDrop, review 73: else each
+    -- try left its elements alive, against the 2,000)
+    local ok, col = pcall(T.BuildOrDrop, buildPage, cat, focusId)
     if not ok then
       T.Print("The " .. cat.label .. " settings can't be shown right now; pick them again in a moment. ("
         .. tostring(col) .. ")")
