@@ -247,8 +247,9 @@ function Hud.Build(missingOnly)
         -- start past the drag grip; parts side by side, tops aligned
         children = glued })
       frames[Hud.GLUED_ID] = frame
-      if why == "room" then                    -- its content goes too (it would hold elements for nothing)
-        pcall(function() row:Destroy() end)
+      if not frame then                        -- its content goes too (it would hold elements for nothing)
+        pcall(row.Destroy, row)
+        for i = 2, #glued do pcall(glued[i].Destroy, glued[i]) end
         dropOverlay(Hud.GLUED_ID)
         for _, key in ipairs(Hud.ORDER) do
           if contents[key] and (Hud.GLUE[key] or below(key)) then
@@ -256,9 +257,18 @@ function Hud.Build(missingOnly)
             contents[key] = nil
           end
         end
-        noRoom("glued")
+        if why == "room" then noRoom("glued") end
       end
     else
+      for _, part in ipairs(parts) do pcall(part.Destroy, part) end   -- the parts, never placed
+      for _, c in ipairs(over) do pcall(c.Destroy, c) end
+      for _, c in ipairs(under) do pcall(c.Destroy, c) end
+      for _, key in ipairs(Hud.ORDER) do
+        if contents[key] and (Hud.GLUE[key] or below(key)) then
+          unbuilt(key)
+          contents[key] = nil
+        end
+      end
       failed("glued", row)
     end
   end
@@ -282,14 +292,18 @@ function Hud.Build(missingOnly)
         local frame, why = newFrame(key, { id = m.FRAME_ID, x = x or m.HOME[1], y = y or m.HOME[2],
           width = 100, height = 40, visible = false, children = { column } })
         frames[key] = frame
-        if why == "room" then
-          pcall(function() column:Destroy() end)
+        if not frame then              -- no room, or refused (the creation cap: retried): its elements go now
+          pcall(column.Destroy, column)
           dropOverlay(key)
           unbuilt(key)
           contents[key] = nil
-          noRoom(key)
+          if why == "room" then noRoom(key) end
         end
       else
+        for _, kid in ipairs(kids) do pcall(kid.Destroy, kid) end   -- built, never shown: not kept alive
+        dropOverlay(key)
+        unbuilt(key)
+        contents[key] = nil
         failed(key, column)
       end
     end

@@ -319,7 +319,12 @@ into one if a new file is ever needed).
   `Place()`. At most `Hud.FrameCap()` strips (`Hud.MAX_FRAMES` = 25, or the limit learned when the game
   refused a frame for room, `Hud.OutOfRoom`: that strip's content is destroyed): past that a strip isn't built
   and chat says so once (`noRoom`; `Hud.ORDER` decides, target last). A strip failing with "too fast" is retried after
-  `Hud.RETRY_DELAY`. `Hud.TextStrip` is the HUD form of the XP and Today windows. `Hud.Tick` saves a strip's position only
+  `Hud.RETRY_DELAY`; what it had built goes at once (review 66: a half-built buff block kept 90 elements alive, a
+  consumables bar whose frame the cap refused 140, counted against the 2,000 for the session): Hud destroys a content
+  whose column or frame failed, and a pooled strip's `BuildContent` runs through `T.BuildOrDrop(fn)` (core.lua: `fn(keep)`
+  passes each piece to `keep`; on a raise they're destroyed and the error goes on; buffbar.lua's `buildKept` /
+  `keepPiece` for the buff bar, consumables and buff block; test_hud "leaves no elements alive"). The harness doesn't
+  count an element the cap refused, nor a frame or window refused for room. `Hud.TextStrip` is the HUD form of the XP and Today windows. `Hud.Tick` saves a strip's position only
   while it is on screen (`IsVisible`) and a character is in the world (`T.CharacterName`): a hidden or never-shown
   strip, or one at the login screen, can report the top-left corner (owner, 2026-10-05). A logout (`T.loggedOut`)
   makes the next login, the same character's too, read every module's settings again (`T.FollowCharacter`). `Hud.FitScreen()` (API 31, from

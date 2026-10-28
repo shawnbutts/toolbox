@@ -905,6 +905,25 @@ function BB.SizeWedge(slot, s)
   slot.wedge:SetStyle(style)
 end
 
+-- The builder's `keep` (T.BuildOrDrop) while a strip's content is being built: every slot made is kept.
+local keepBuilt = nil
+local function keepPiece(e)
+  if keepBuilt then keepBuilt(e) end
+  return e
+end
+local function buildKept(fn, ...)
+  local outer = keepBuilt
+  local args = { n = select("#", ...), ... }
+  local ok, result = pcall(T.BuildOrDrop, function(keep)
+    keepBuilt = keep
+    return fn(args[1], args[2])
+  end)
+  keepBuilt = outer
+  if not ok then error(result, 0) end
+  if outer then outer(result) end       -- built inside another strip's content: that one drops it if it fails
+  return result
+end
+
 local function makeSlot(debuff, iconSize)
   local s = iconSize or size()                   -- the buff block has its own size
   -- The clock texture is a placeholder until a buff's icon is set. It's left out, not set to
@@ -913,14 +932,16 @@ local function makeSlot(debuff, iconSize)
   local iconSpec = { width = s, height = s,  -- an Image only takes the pointer (tooltip) with a click handler
     onClick = function() clickSlot(slotRef) end }
   if clockTex >= 0 then iconSpec.texture = clockTex end
-  local icon = UI.Image(iconSpec)
-  local wedge = BB.WedgeCarrier(s)
+  local icon = keepPiece(UI.Image(iconSpec))
+  local wedge = keepPiece(BB.WedgeCarrier(s))
   -- seconds left near the end (BB.GetCountdown), over the icon like the group slot's count
-  local countdown = UI.Label{ text = "", class = "bright", visible = false, style = countStyle(s, countFont(s), 0, 0) }
+  local countdown = keepPiece(UI.Label{ text = "", class = "bright", visible = false,
+    style = countStyle(s, countFont(s), 0, 0) })
   local slot = UI.Row{ visible = false, children = { icon, wedge, countdown },
     style = { width = s, height = s, marginRight = BB.GAP, backgroundColor = "#00000066",
               borderWidth = debuff and 2 or 0, borderColor = "@red" } }
   slotRef.row, slotRef.icon, slotRef.wedge, slotRef.countdown, slotRef.used = slot, icon, wedge, countdown, false
+  keepPiece(slot)
   return slotRef
 end
 
@@ -929,26 +950,27 @@ local function makeGroupSlot()
   local f = countFont(s)
   local iconSpec = { width = s, height = s, onClick = function() end }
   if clockTex >= 0 then iconSpec.texture = clockTex end
-  local icon = UI.Image(iconSpec)
+  local icon = keepPiece(UI.Image(iconSpec))
   local children, counts = { icon }, {}
   for _, d in ipairs(BB.COUNT_OUTLINE) do
     local style = countStyle(s, f, d[1], d[2])
     style.color = BB.OUTLINE_COLOR
-    counts[#counts + 1] = UI.Label{ text = "", style = style }
+    counts[#counts + 1] = keepPiece(UI.Label{ text = "", style = style })
     children[#children + 1] = counts[#counts]
   end
-  local count = UI.Label{ text = "", class = "bright", style = countStyle(s, f, 0, 0) }   -- on top
+  local count = keepPiece(UI.Label{ text = "", class = "bright", style = countStyle(s, f, 0, 0) })   -- on top
   counts[#counts + 1] = count
   children[#children + 1] = count
   local row = UI.Row{ visible = false, children = children,
     style = { width = s, height = s, marginRight = BB.GAP, backgroundColor = "#00000066" } }
+  keepPiece(row)
   return { row = row, icon = icon, count = count, counts = counts, used = false }
 end
 
 -- Builds the icon rows (a fixed slot pool) and returns them; Toolbox.Hud puts them in a strip.
-function BB.BuildContent()
+local function bbBuild()
   clockTex = ShroudLoadTexture(BB.CLOCK.path)
-  local buffRow, debuffRow = { makePlaceholder("buffs_placeholder", "Buff bar") }, {}
+  local buffRow, debuffRow = { keepPiece(makePlaceholder("buffs_placeholder", "Buff bar")) }, {}
   -- the consumables pool belongs to its own strip unless glued (then it is built here, below)
   slots = { buffs = {}, debuffs = {}, consumables = K.Glued() and {} or slots.consumables }
   placeholder, placeholderShown = buffRow[1], false
@@ -966,8 +988,8 @@ function BB.BuildContent()
   contentW, contentH = contentSize(1, 1)
   local extraRows = K.Glued() or T.Gear.Glued() or T.Target.InBuffColumn()
   local rows = {
-    UI.Row{ id = "buffs", style = { marginBottom = BB.GAP }, children = buffRow },
-    UI.Row{ id = "debuffs", style = { marginBottom = extraRows and BB.GAP or 0 }, children = debuffRow },
+    keepPiece(UI.Row{ id = "buffs", style = { marginBottom = BB.GAP }, children = buffRow }),
+    keepPiece(UI.Row{ id = "debuffs", style = { marginBottom = extraRows and BB.GAP or 0 }, children = debuffRow }),
   }
   -- which rows live in this strip (BB.Unbuilt drops them with it, whatever the settings are by then)
   K.inBuffBar, T.Gear.inBuffBar, T.Target.inBuffBar = K.Glued(), T.Gear.Glued(), T.Target.InBuffColumn()
@@ -975,10 +997,10 @@ function BB.BuildContent()
     rows[#rows + 1] = K.BuildRow(T.Gear.Glued() or T.Target.InBuffColumn())
   end
   if T.Gear.Glued() then                -- the equipment bar as the next row
-    rows[#rows + 1] = T.Gear.BuildRow()
+    rows[#rows + 1] = keepBuilt(T.Gear.BuildRow())
   end
   if T.Target.InBuffColumn() then              -- the target HUD: the first row (top) or the last
-    local row = T.Target.BuildRow()
+    local row = keepBuilt(T.Target.BuildRow())
     if T.Target.Place() == "bottom" then
       if T.Gear.Glued() then row:SetStyle{ marginTop = BB.GAP } end
       rows[#rows + 1] = row
@@ -990,6 +1012,7 @@ function BB.BuildContent()
   content = UI.Column{ id = "buffbar", children = rows }
   return content
 end
+function BB.BuildContent() return buildKept(bbBuild) end
 
 function BB.ContentSize() return contentW, contentH end
 function BB.GetSavedPosition() return prefs.x, prefs.y end
@@ -2849,9 +2872,9 @@ end
 
 -- The row of slots: its strip's content, or a row of the buff bar when glued (`gapBelow`: another row
 -- follows it).
-function K.BuildRow(gapBelow)
+local function kBuildRow(gapBelow)
   if clockTex < 0 then clockTex = ShroudLoadTexture(BB.CLOCK.path) end
-  local row = { makePlaceholder("consumables_placeholder", "Consumables") }
+  local row = { keepPiece(makePlaceholder("consumables_placeholder", "Consumables")) }
   kPlaceholder, kPlaceholderShown = row[1], false
   slots.consumables = {}
   for i = 1, K.SLOTS do
@@ -2864,6 +2887,7 @@ function K.BuildRow(gapBelow)
   kShown = nil
   return kContent
 end
+function K.BuildRow(gapBelow) return buildKept(kBuildRow, gapBelow) end
 function K.BuildContent()
   K.inBuffBar = false
   return K.BuildRow(false)
@@ -3113,11 +3137,11 @@ function MB.Collecting()
     or not mprefs.combatOnly or BB.InCombatWindow())
 end
 
-function MB.BuildContent()
+local function mbBuild()
   if clockTex < 0 then clockTex = ShroudLoadTexture(BB.CLOCK.path) end
   local s, width = mSize(), mWidth()
-  mbPlaceholder = UI.Label{ id = "buffblock_placeholder", text = MB.PLACEHOLDER, class = "dim", visible = false,
-    style = placeholderStyle(s) }
+  mbPlaceholder = keepBuilt(UI.Label{ id = "buffblock_placeholder", text = MB.PLACEHOLDER, class = "dim",
+    visible = false, style = placeholderStyle(s) })
   mbPlaceholderShown = false
   mbSlots, mbRows = {}, {}
   local rows = { mbPlaceholder }
@@ -3130,13 +3154,14 @@ function MB.BuildContent()
         kids[#kids + 1] = mbSlots[i].row
       end
     end
-    mbRows[r] = UI.Row{ visible = false, style = { marginBottom = BB.GAP }, children = kids }
+    mbRows[r] = keepBuilt(UI.Row{ visible = false, style = { marginBottom = BB.GAP }, children = kids })
     rows[#rows + 1] = mbRows[r]
   end
   mbContent = UI.Column{ id = "buffblock", children = rows }
   mbShown = nil
   return mbContent
 end
+function MB.BuildContent() return buildKept(mbBuild) end
 
 function MB.Unbuilt()
   mbContent, mbPlaceholder, mbPlaceholderShown, mbShown = nil, nil, false, nil

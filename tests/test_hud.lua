@@ -223,5 +223,29 @@ return function(t)
     t.ok(H.frame() and H.frame().visible, "the buff bar is back")
     t.eq(#H.slots("buffs"), 1, "with its buff")
   end)
+
+  -- Review 66: a strip whose build ran out part way, or whose frame the cap refused, kept its elements alive
+  -- (a half-built buff block 90, a whole consumables bar 140), counting against the 2,000 for the session.
+  t.test("the creation cap part way through a strip leaves no elements alive outside a window or strip", function()
+    local function placed()
+      local n = 0
+      local function walk(e) n = n + 1 for _, c in ipairs(e.children or {}) do walk(c) end end
+      for _, f in pairs(H.S.frames) do if not f.destroyed then walk(f) end end
+      for _, w in pairs(H.S.windows) do if not w.destroyed then walk(w) end end
+      return n
+    end
+    for _, tokens in ipairs({ 5, 30, 60, 100, 160, 230, 300 }) do
+      H.boot()
+      for _, c in ipairs({ "/tbx buffs", "/tbx vitals", "/tbx combat", "/tbx notify via hud", "/tbx buffs block on",
+                           "/tbx skills on" }) do
+        H.chat(c)
+      end
+      H.advance(2)
+      H.S.createBucket.tokens = tokens
+      H.call(function() Toolbox.Hud.Build() end)
+      H.advance(Toolbox.Hud.RETRY_DELAY * (Toolbox.Hud.RETRY_MAX + 1) + 2, 0.5)
+      t.eq(H.S.live, placed(), "every live element placed, the build starting with " .. tokens)
+    end
+  end)
 end
 

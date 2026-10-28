@@ -2013,36 +2013,37 @@ local function readEffects()
   end
 end
 
-function PT.BuildContent()
+local function ptBuild(keep)
   local m = PT.Metrics()
   builtRows = PT.RowsFor(shownCount)
   local rows, fxs = {}, {}
   for i = 1, builtRows do
     local kids = {
-      UI.Label{ id = "pt_name_" .. i, text = "", class = "text", style = T.Window.TextStyle({ width = m.nameW,
-        marginLeft = 0, marginRight = 0, whiteSpace = "nowrap", color = PT.NAME_COLOR }, m.font, 1) },
-      UI.Column{ id = "pt_bars_" .. i, style = { marginLeft = m.gap, justifyContent = "center" }, children = {
-        UI.Bar{ id = "pt_hp_" .. i, value = 0, color = "@red", style = { width = m.barW, height = m.hpH } },
-        UI.Bar{ id = "pt_fo_" .. i, value = 0, color = "@blue", style = { width = m.barW, height = m.foH,
-          marginTop = 1 } },
-      } },
-      UI.Label{ id = "pt_text_" .. i, text = "", class = "text", visible = m.textW > 0,
+      keep(UI.Label{ id = "pt_name_" .. i, text = "", class = "text", style = T.Window.TextStyle({ width = m.nameW,
+        marginLeft = 0, marginRight = 0, whiteSpace = "nowrap", color = PT.NAME_COLOR }, m.font, 1) }),
+      keep(UI.Column{ id = "pt_bars_" .. i, style = { marginLeft = m.gap, justifyContent = "center" }, children = {
+        keep(UI.Bar{ id = "pt_hp_" .. i, value = 0, color = "@red", style = { width = m.barW, height = m.hpH } }),
+        keep(UI.Bar{ id = "pt_fo_" .. i, value = 0, color = "@blue", style = { width = m.barW, height = m.foH,
+          marginTop = 1 } }),
+      } }),
+      keep(UI.Label{ id = "pt_text_" .. i, text = "", class = "text", visible = m.textW > 0,
         style = T.Window.TextStyle({ width = math.max(m.textW, 1), marginLeft = m.gap, marginRight = 0,
-          whiteSpace = "nowrap" }, m.font, 1) },
+          whiteSpace = "nowrap" }, m.font, 1) }),
     }
     local fx = {}
     for j = 1, m.icons do        -- an effect: its icon (a click handler, so its tooltip shows) and the game's wedge
-      local icon = UI.Image{ id = "pt_fxi_" .. i .. "_" .. j, width = m.icon, height = m.icon,
-        onClick = function() end }
-      local wedge = T.BuffBar.WedgeCarrier(m.icon)
+      local icon = keep(UI.Image{ id = "pt_fxi_" .. i .. "_" .. j, width = m.icon, height = m.icon,
+        onClick = function() end })
+      local wedge = keep(T.BuffBar.WedgeCarrier(m.icon))
       local row = UI.Row{ id = "pt_fx_" .. i .. "_" .. j, visible = false, style = { width = m.icon,
         height = m.icon, marginLeft = j == 1 and m.gap or PT.ICON_GAP, backgroundColor = "#00000066", borderWidth = 0,
         borderColor = "@red" }, children = { icon, wedge } }
+      keep(row)
       fx[j] = { row = row, icon = icon, wedge = wedge }
       kids[#kids + 1] = row
     end
     fxs[i] = fx
-    rows[i] = UI.Row{ id = "pt_row_" .. i, visible = false, style = rowStyle(m, i), children = kids }
+    rows[i] = keep(UI.Row{ id = "pt_row_" .. i, visible = false, style = rowStyle(m, i), children = kids })
   end
   pContent = UI.Column{ id = "party", style = { backgroundColor = T.ShadeColor(T.ShadeOf(pprefs.shade)),
     borderRadius = 3, padding = 3 }, children = rows }
@@ -2055,6 +2056,7 @@ function PT.BuildContent()
   PT.Fill()
   return pContent
 end
+function PT.BuildContent() return T.BuildOrDrop(ptBuild) end
 
 function PT.Unbuilt()
   pContent, rowEls, builtRows = nil, {}, 0

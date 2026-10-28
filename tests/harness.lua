@@ -1371,6 +1371,13 @@ local FIELDS = {
 
 -- As in game: destroying an element destroys everything inside it, and using a destroyed element
 -- raises "Shroud.UI: this <Kind> was destroyed" (reported 2026-09-29 after gluing a strip).
+-- A frame or window the game refused (no room) wasn't made: it leaves the counts (its children are the caller's).
+local function uncount(e)
+  e.destroyed = true
+  S.live = math.max(0, (S.live or 0) - 1)
+  S.text = math.max(0, (S.text or 0) - (e.textCharged or 0))
+end
+
 local function destroyTree(e)
   if type(e) ~= "table" or e.destroyed then return end
   e.destroyed = true
@@ -1602,16 +1609,17 @@ function H.makeUI()
       if (S.text or 0) + textCost(kind, spec) > H.MAX_TEXT then
         error("Shroud.UI: this add-on's text is over " .. H.MAX_TEXT .. " characters", 2)
       end
-      S.live = (S.live or 0) + 1
       -- The game's element-creation cap: a burst of CREATE_BURST, refilling CREATE_RATE a second
-      -- (AGENTS.md, "Limits"). Exceeding it raises, as in game (2026-09-28, Combat Detailed at start-up).
+      -- (AGENTS.md, "Limits"). Exceeding it raises, as in game (2026-09-28, Combat Detailed at start-up); the
+      -- element refused isn't made, so it isn't counted.
       local now = type(ShroudTime) == "number" and ShroudTime or 0
       local b = S.createBucket or { tokens = H.CREATE_BURST, at = now }
       b.tokens = math.min(H.CREATE_BURST, b.tokens + math.max(0, now - b.at) * H.CREATE_RATE)
       b.at = now
+      S.createBucket = b
       if b.tokens < 1 then error("Shroud.UI: elements are being created too fast", 2) end
       b.tokens = b.tokens - 1
-      S.createBucket = b
+      S.live = (S.live or 0) + 1
       local e = setmetatable(copy(spec), Element)
       if type(e.style) == "table" then clampStyle(e.style) end
       e.kind = kind
@@ -1631,6 +1639,7 @@ function H.makeUI()
           if id ~= spec.id and not f.destroyed then live = live + 1 end
         end
         if live >= H.MAX_HUD_FRAMES then
+          uncount(e)                             -- refused: not made, so not counted
           error("Shroud.UI: too many HUD frames (" .. H.MAX_HUD_FRAMES .. " per add-on)", 2)
         end
         S.frames[spec.id] = e
@@ -1643,7 +1652,10 @@ function H.makeUI()
           if id ~= spec.id and not w.destroyed then live = live + 1 end
         end
         local most = S.windowCap or (ShroudLuaApiVersion >= 41 and 30 or H.MAX_WINDOWS)   -- API 41: 30 an add-on
-        if live >= most then error("Shroud.UI: too many windows (" .. most .. " per add-on)", 2) end
+        if live >= most then
+          uncount(e)
+          error("Shroud.UI: too many windows (" .. most .. " per add-on)", 2)
+        end
         -- Docs (API 19): a compact window can't hold a TextField or a Dropdown.
         if spec.compact then
           local function scan(x)

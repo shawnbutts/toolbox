@@ -188,6 +188,23 @@ function T.SetTooltip(element, text)
   end
 end
 
+-- A strip's content built whole or not at all: `fn(keep)` passes each finished piece to `keep`; if it raises (the
+-- creation cap at a login: Hud retries), the pieces kept are destroyed and the error goes on. Elements made and
+-- never placed still count against the add-on's 2,000 until destroyed (review 66: a half-built buff block kept 90).
+local function dropBuilt(made)
+  for i = #made, 1, -1 do pcall(made[i].Destroy, made[i]) end
+end
+function T.BuildOrDrop(fn)
+  local made = {}
+  local ok, result = pcall(fn, function(e)
+    made[#made + 1] = e
+    return e
+  end)
+  if ok then return result end
+  dropBuilt(made)
+  error(result, 0)
+end
+
 function T.SetVisible(element, on)
   on = on == true
   local m = memo(element)
