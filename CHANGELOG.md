@@ -33,10 +33,16 @@ ones included).
   target's tooltip names the tier (easy, even, hard or deadly).
 - **Only your effects on the target** (Lua API 47): Settings, Toolbelt, Target effects has "Only mine (what you
   cast)", so a healer or a damage dealer sees just their own effects on the target.
+- **Notification sounds have their own settings page** (Settings, Notification sounds, after Sounds): which sound each
+  notification plays moved off the Sounds page, which had grown too big with the party's notifications.
 - `/toolbox api` lists the API 45 to 55 additions, and `/toolbox perf recipes` times the crafting planner's game calls
   for the plan set, to compare the old way with the new.
 
 ### Fixed
+- **Elements left over when the game slowed a login's strips:** when the game said elements were being made too
+  fast, a strip built part way (or one whose frame was refused) was tried again a moment later, but what had been
+  made the first time stayed alive, up to about 140 elements, counting against the add-on's limit until a reload.
+  Now it goes at once.
 - **Dropdowns too narrow for their choices:** a dropdown was only as wide as the choice shown, so its open list cut
   longer ones short (the Loot Tracker's Show list, for one). Every dropdown, in every window and on every settings
   page, is now as wide as its longest choice, and follows a text size change.

@@ -1221,7 +1221,7 @@ T.Sounds.DEFS[#T.Sounds.DEFS + 1] = { key = "skill_maintain", file = "skill_main
                                       label = "Skill set to maintain" }
 T.Sounds.DEFS[#T.Sounds.DEFS + 1] = { key = "skill_unlearn", file = "skill_unlearn.ogg",
                                       label = "Skill set to unlearn" }
--- ... and any notification can play them (Sounds page, Notification sounds)
+-- ... and any notification can play them (the Notification sounds page)
 T.Notify.SOUNDS[#T.Notify.SOUNDS + 1] = { "skill_up", "Celebration" }
 T.Notify.SOUNDS[#T.Notify.SOUNDS + 1] = { "skill_down", "Sad notes" }
 
@@ -1266,7 +1266,7 @@ do
       .. "the icon size and whether the level shows on it. Notifications has \"Skill level changes\" for the "
       .. "notification HUD (off by default): levels gained and lost.",
     "A short celebration plays when a skill gains a level, a sad one when it loses one (each can be switched "
-      .. "off on the Skill activity page). Any notification can use them too (Sounds page: Celebration, "
+      .. "off on the Skill activity page). Any notification can use them too (Notification sounds page: Celebration, "
       .. "Sad notes); Skill level changes uses Celebration (Sad notes for levels lost). Your own file: the "
       .. "Sounds page, or toolbox_skill_up.ogg / toolbox_skill_down.ogg (or .wav) in your Lua folder." }
   local at = #T.Docs.SECTIONS + 1

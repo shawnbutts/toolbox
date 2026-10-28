@@ -580,7 +580,8 @@ return function(t)
     local keys = {}
     for _, c in ipairs(Toolbox.Config.CATEGORIES) do keys[#keys + 1] = c.key end
     t.eq(table.concat(keys, " "), "general toolbelt xp crafting buffs gear vitals party combat skills map notify sounds"
-      .. " hud backup", "Party after Health bars, Skill activity right after Combat")
+      .. " notify_sounds hud backup", "Party after Health bars, Skill activity right after Combat")
+    t.eq(Toolbox.Config.PageOf("notify_party_snd"), "notify_sounds", "a notification's sound on its own page")
   end)
 
   -- Owner, 2026-10-27: the Loot Tracker's Show list was narrower than its choices. Every dropdown in every window is

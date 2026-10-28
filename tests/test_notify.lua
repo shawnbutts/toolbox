@@ -373,7 +373,7 @@ return function(t)
     H.boot()
     H.chat("/tbx config")
     local hint = H.config():Find("notify_sound_hint").text
-    t.ok(hint:find("on the Sounds page", 1, true), hint)
+    t.ok(hint:find("on the Notification sounds page", 1, true), hint)
     t.ok(hint:find("Chime, Ping, Tap, Doorbell, Bell, Low notes", 1, true), "the choices, from the list: " .. hint)
   end)
 

@@ -789,14 +789,14 @@ function C.NotifySection()
       T.Window.Dropdown(UI, { id = "notify_" .. key .. "_via", choices = vias,
         value = T.Notify.ChoiceLabel(key),
         tooltip = "Where it shows: the Notifications window, the notification HUD or a chat line; \"+ sound\""
-          .. " also plays the notification sound (Sounds)",
+          .. " also plays the notification sound (Notification sounds)",
         onChange = function(_, label) C.OnNotifyVia(key, label) end }),
     } }
   end
   -- The sound itself is picked on the Sounds page (this window is too narrow for a third column per row):
   -- say so here, where "+ sound" is chosen (review, 2026-09-30).
   children[#children + 1] = UI.Label{ id = "notify_sound_hint", text = "Pick which sound each one plays ("
-    .. table.concat(T.Notify.SoundLabels(), ", ") .. ") on the Sounds page.", class = "dim",
+    .. table.concat(T.Notify.SoundLabels(), ", ") .. ") on the Notification sounds page.", class = "dim",
     style = { whiteSpace = "wrap", marginTop = 4 } }
   local NH = T.Notify.Hud
   local hides = {}
@@ -834,6 +834,8 @@ function C.SoundsSection()
       style = { whiteSpace = "wrap", marginTop = 6 } },
   }
   for _, def in ipairs(S.DEFS) do children[#children + 1] = soundRows(def) end
+  children[#children + 1] = UI.Label{ text = "Which sound each notification plays is on the Notification sounds page.",
+    class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } }
   -- A sound for one effect is set where the effect is picked (the Buffs page); owner, 2026-10-08: looked for here.
   children[#children + 1] = heading("Sounds for one buff or debuff")
   children[#children + 1] = UI.Label{ text = "Any buff or debuff can play your own file (a recording of its name,"
@@ -843,10 +845,18 @@ function C.SoundsSection()
     UI.Button{ id = "fx_goto", text = "Go to effect sounds", tooltip = "Opens the Buffs page where they're set",
       onClick = function() C.GoToControl("fx_path") end },
   } }
-  -- Which sound each notification plays (when its delivery says "+ sound", on the Notifications page).
-  children[#children + 1] = heading("Notification sounds")
-  children[#children + 1] = UI.Label{ text = "Played when a notification set to \"+ sound\" arrives"
-    .. " (Notifications page).", class = "dim", style = { whiteSpace = "wrap" } }
+  return UI.Column{ children = children }
+end
+
+-- The "Notification sounds" category: which sound each notification plays (when its delivery says "+ sound", on the
+-- Notifications page). Its own page since 1.10.0 (review 66): on the Sounds page it made that page the add-on's
+-- biggest, past the text budget with the party's two sources.
+function C.NotifySoundsSection()
+  local children = {
+    heading("Notification sounds", true),
+    UI.Label{ text = "Played when a notification set to \"+ sound\" arrives (Notifications page). Their volume"
+      .. " and files are on the Sounds page.", class = "dim", style = { whiteSpace = "wrap" } },
+  }
   local labels = T.Notify.SoundLabels()
   for _, src in ipairs(T.Notify.Sources()) do
     local key = src.key
@@ -1688,6 +1698,7 @@ C.CATEGORIES = {
   { key = "map", label = "Map & location", build = function() return C.MapSection() end },
   { key = "notify", label = "Notifications", build = function() return C.NotifySection() end },
   { key = "sounds", label = "Sounds", build = function() return C.SoundsSection() end },
+  { key = "notify_sounds", label = "Notification sounds", build = function() return C.NotifySoundsSection() end },
   { key = "hud", label = "HUD layout", build = function() return C.HudSection() end },
   { key = "backup", label = "Menu, setups, backup & reset", build = function() return C.BackupSection() end },
 }

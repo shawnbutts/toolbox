@@ -38,9 +38,9 @@ D.SECTIONS = {
       .. "Menu). Its Settings button (or Ctrl+;) opens the settings window: tick what you want on screen. Its "
       .. "Settings dropdown picks a category: General (first: the text size and line spacing of every window "
       .. "and strip), Toolbelt (the quickest start: your buffs, health bars, consumables and gear in one "
-      .. "strip), XP & Loot, Crafting, Buffs, Consumables & gear, Health bars, Combat, Skill activity, Map & "
-      .. "location, Notifications, Sounds, HUD layout (the strips' positions; the location strip's is on Map & "
-      .. "location) and Menu, setups, backup & reset.",
+      .. "strip), XP & Loot, Crafting, Buffs, Consumables & gear, Health bars, Party, Combat, Skill activity, "
+      .. "Map & location, Notifications, Sounds, Notification sounds, HUD layout (the strips' positions; the "
+      .. "location strip's is on Map & location) and Menu, setups, backup & reset.",
     "Can't find a setting? Type in the Search box under it (sound, size, target...) and pick a result: "
       .. "its page opens with that part at the top (Show the whole page brings back the rest) and the setting "
       .. "blinks. Options that do nothing while their feature is off are greyed out. Everything is saved per "
@@ -396,7 +396,7 @@ D.SECTIONS = {
       .. "Cabalist Stronghold is open; the game's /calendar has every date and your reminders.",
     "Each can show in the Notifications window, on the notification HUD or as a chat line, with or "
       .. "without a sound (the dropdown next to it in settings, e.g. HUD + sound). The sound is a rising chime "
-      .. "by default, and a doorbell for mail; each source can have its own (Sounds page: Notification sounds: "
+      .. "by default, and a doorbell for mail; each source can have its own (the Notification sounds page: "
       .. "Chime, Ping, Tap, Doorbell, Bell or Low notes). Several together play each sound once. The window "
       .. "can be compact (Compact Notifications window): its title bar shows only on hover. Both have a text "
       .. "size slider in settings. The HUD lists the latest 20, newest on top, new ones bright and older ones "
