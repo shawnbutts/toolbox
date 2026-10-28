@@ -489,13 +489,13 @@ into one if a new file is ever needed).
   matching `watch` (`PT.Watched`, any case), with `mine` only API 47's FromYou and your copy's time; debuffs first,
   then soonest; at most `icons`, `PT.ICONS_MAX` 6): an icon in a red-outlined wrapper for a debuff and the game's
   wedge (`BB.WedgeCarrier` / `BB.SetTimer`), the time counted down between reads; `ShroudGetPartyMemberBuffs` read
-  for `PT.BUFF_READS` members a poll in turn (`readEffects`, `effBy` by plain name). One tooltip a row (the health
+  for `PT.BUFF_READS` members a poll in turn (`readEffects`, `effBy` by plain name; it, `lowNow` and `wasDead` swept by `afterRead` when the names change, a member replaced at the same count too, review 72; `PT.CacheNames()` in the debug line). One tooltip a row (the health
   bar) and the name alone on an icon: 16 members with 6 effects measured 387 elements and 4,048 characters
   (test_party's budget test; test_stress's worst case doesn't include it, at its margins already).
   Comings and goings: docs.lua's source "party" (transient, chat by default) over `PT.EventsCheck`; `PT.Changes`
   (pure: joins, leaves, scene moves unless quiet, offline / online only for a friend or guild member,
   `ShroudGetFriends` / `ShroudGetGuildMembers` read only then; your own joining / leaving a party in one line)
-  compares with `known` on `ShroudOnPartyChanged` only (`PT.OnPartyChanged`: every such change comes with it), the
+  compares with `known` on `ShroudOnPartyChanged` only (the queued lines of both sources dropped by `PT.Init`, running numbers kept: a switch's next character starts its `seen` afresh, review 71) (`PT.OnPartyChanged`: every such change comes with it), the
   first reading a baseline (`PT.Init`); `PT.SCENE_QUIET` s after `ShroudOnSceneLoaded` (`PT.OnSceneLoaded`).
   Harness `H.S.friends`, `H.S.guildMembers`.
   Watch alerts: docs.lua's source "party_alerts" (transient, the HUD with the ping by default: a source's `sound`

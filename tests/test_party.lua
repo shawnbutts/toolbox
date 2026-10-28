@@ -468,6 +468,57 @@ return function(t)
     done()
   end)
 
+  -- Review finding 71: the notices waiting were the last character's; the sources' `seen` starts afresh for the next.
+  t.test("a character switch: the last one's party notices, delivered or not, don't reach the next", function()
+    boot()
+    H.advance(30)
+    H.chat("/tbx notify party_alerts via chat")
+    H.chat("/tbx party on")
+    H.chat("/tbx party alert 40")
+    H.setParty(party())
+    H.advance(2)
+    t.ok(H.logged("You're in a party with Ann, Bob, Cy."), "Tester told")
+    t.ok(H.logged("Bob is at 25%% health."), "Tester told")
+    H.chat("/tbx notify party_alerts off")
+    local p = party()
+    p[2].hp = 100                                          -- Ann under 40%: queued, never delivered to Tester
+    H.setParty(p)
+    H.advance(2)
+    t.no(H.logged("Ann is at"), "Tester's alerts off")
+    H.clearLogs()
+    H.S.char.name = "Alt"
+    H.advance(3)
+    t.no(H.logged("in a party with"), "Tester's delivered line")
+    t.no(H.logged("is at %d+%% health"), "Tester's alerts, delivered or not")
+    local hist = H.saved("notify_history") or {}
+    for _, e in ipairs(hist.list or {}) do t.no(e.title:find("Party", 1, true), "Alt's history: " .. e.text) end
+    p[5] = { name = "Dee", hp = 100, maxHp = 100 }
+    H.setParty(p)
+    H.advance(1)
+    t.ok(H.logged("Dee joined the party."), "Alt's own notices still come")
+    done()
+  end)
+
+  -- Review finding 72: one member leaving as another joins keeps the count; what was kept for the one gone goes.
+  t.test("a member replaced at the same count: their effects and alert state go", function()
+    boot()
+    H.advance(30)
+    H.chat("/tbx party on")
+    H.chat("/tbx party alert 40")
+    local p = party()
+    p[3].buffs = { rune("Deadly Poison", true, 8, 10, 6) }
+    H.setParty(p)
+    H.advance(4)
+    for i = 1, 20 do
+      p[3] = { name = "Temp" .. i, hp = 100, maxHp = 1000, buffs = { rune("Deadly Poison", true, 8, 10, 6) } }
+      H.setParty(p)
+      H.advance(2)
+    end
+    local kept = PT().CacheNames()
+    t.ok(kept <= 4, "cached names " .. kept)
+    done()
+  end)
+
   t.test("combat model: the party's damage, healing and damage taken by name; the last hits at a death", function()
     boot()
     local C = Toolbox.Combat

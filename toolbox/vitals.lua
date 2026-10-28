@@ -1803,6 +1803,12 @@ local function afterRead()
       nameSet[m.plain:lower()] = m.plain
       if m.slot == 0 then selfKey = m.plain:lower() end
     end
+    -- Someone left (a join at the same time too): what was kept for them goes.
+    for _, by in ipairs({ effBy, lowNow, wasDead }) do
+      for name in pairs(by) do
+        if nameSet[name:lower()] ~= name then by[name] = nil end
+      end
+    end
   end
 end
 
@@ -2193,15 +2199,6 @@ function PT.Poll()
   readMembers()
   local before = shownCount
   shownCount = PT.Order(members, memberCount, pprefs.self == true, pSort(), order)
-  if shownCount ~= before then                 -- someone left: their effects and alert state go
-    for _, by in ipairs({ effBy, lowNow }) do
-      for name in pairs(by) do
-        local still = false
-        for i = 1, shownCount do if order[i].plain == name then still = true end end
-        if not still then by[name] = nil end
-      end
-    end
-  end
   local told = false
   for i = 1, shownCount do
     local _, new = PT.CheckLow(order[i])
@@ -2686,6 +2683,9 @@ function PT.Init()
   members, order, memberCount, shownCount = {}, {}, 0, 0
   effBy, effCursor, lowNow = {}, 0, {}
   known, quietUntil = nil, -math.huge
+  -- Notices waiting belonged to the character before (a switch runs this again; the sources' `seen` starts afresh):
+  -- drop them, keeping the running numbers, so a `seen` already past them still holds nothing back.
+  partyEvents.list, partyAlerts.list = {}, {}
   nameSet, selfKey, wasDead = {}, nil, {}
   if PT.Has() then
     readMembers()
@@ -2701,13 +2701,23 @@ function PT.Init()
   T.RegisterPeriodic(PPERIODIC, PT.Poll, PT.POLL, true)
 end
 
+-- How many names the per-member state keeps (effects, alert state, deaths): for the debug line and the tests.
+function PT.CacheNames()
+  local n = 0
+  for _, by in ipairs({ effBy, lowNow, wasDead }) do
+    for _ in pairs(by) do n = n + 1 end
+  end
+  return n
+end
+
 -- /toolbox party debug: what the game reports.
 function PT.DebugLines()
   local lines = {}
   local okC, count = pcall(ShroudGetPartyMemberCount)
-  lines[1] = string.format("Party: %s members (ShroudGetPartyMemberCount), read %s%s; setting %s; %s",
+  lines[1] = string.format("Party: %s members (ShroudGetPartyMemberCount), read %s%s; setting %s; %s; %d kept",
     okC and tostring(count) or "?", tostring(PT.ReadParty(members)),
-    PT.Has() and "" or (" (" .. PT.NEEDS .. ")"), pprefs.show and "on" or "off", T.Hud.Debug("party"))
+    PT.Has() and "" or (" (" .. PT.NEEDS .. ")"), pprefs.show and "on" or "off", T.Hud.Debug("party"),
+    PT.CacheNames())
   for i = 1, math.min(memberCount, PT.MAX) do
     local m = members[i]
     lines[#lines + 1] = string.format("  slot %s %s: %s, online %s, scene %s, health %s / %s, focus %s / %s, near"
