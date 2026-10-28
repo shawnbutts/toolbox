@@ -59,7 +59,17 @@ local function line(spec)
   } }
 end
 
+local makeWindow = nil           -- (below)
+-- The XP window, built through T.BuildOrDrop: a build the creation cap stops part way leaves nothing
+-- alive (review 74); the error goes on to the caller as before.
 local function build()
+  local ok, err = pcall(T.BuildOrDrop, makeWindow)
+  if not ok then
+    win = nil
+    error(err, 0)
+  end
+end
+makeWindow = function()
   local rows = { UI.Label{ id = "elapsed", text = "", class = "title", style = T.Window.TextStyle() } }
   for _, spec in ipairs(LINES) do rows[#rows + 1] = line(spec) end
 

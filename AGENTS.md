@@ -325,7 +325,11 @@ into one if a new file is ever needed).
   elements through `T.UI` (`local UI = T.UI`, never `Shroud.UI` straight: Shroud.UI's constructors, each element
   noted while a build is under way), and a build that raises has them destroyed (test_hud "leaves no elements
   alive"); a settings page too (config's `UI` and `T.TextField` make theirs through `T.UI`, `C.ShowCategory` builds
-  in `T.BuildOrDrop`, review 73; test_config "a settings page the creation cap stops"). The harness doesn't count an element the cap refused, nor a frame or window refused for room. Element
+  in `T.BuildOrDrop`, review 73; test_config "a settings page the creation cap stops"), and every window and view
+  (review 74: each window's builder is wrapped, `makeWindow` behind `build()`, the window left nil on a failure; the
+  Docs topic, version notes, planner rows, Loot Tracker rows and run chart are built in a function run by it; test_hud
+  "a window or a view the creation cap stops"). RULE: whatever makes elements and adds them (`:Add(`, a
+  `UI.Window{...}`) runs inside `T.BuildOrDrop`, never a bare `pcall`. The harness doesn't count an element the cap refused, nor a frame or window refused for room. Element
   budget (review 66, `test_stress.lua`'s worst case at 25 frames with a 12-member party: 1,454 of the 1,500, 1,549 at
   a page switch): the Loot Tracker shows `DD.MAX_ROWS` 30 item rows, Combat Detailed `CD.SKILL_ROWS` 6 skills,
   `CD.HISTORY_ROWS` 6 fights and a timeline of `C.SLICE` 3 s columns (20). `Hud.TextStrip` is the HUD form of the XP and Today windows. `Hud.Tick` saves a strip's position only

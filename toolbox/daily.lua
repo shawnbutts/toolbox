@@ -1006,7 +1006,17 @@ local function row(spec)
   } }
 end
 
+local makeWindow = nil           -- (below)
+-- The Today window, built through T.BuildOrDrop: a build the creation cap stops part way leaves nothing
+-- alive (review 74); the error goes on to the caller as before.
 local function build()
+  local ok, err = pcall(T.BuildOrDrop, makeWindow)
+  if not ok then
+    win = nil
+    error(err, 0)
+  end
+end
+makeWindow = function()
   local rows = { UI.Label{ id = "date", text = "", class = "title", style = T.Window.TextStyle() } }
   for _, spec in ipairs(LINES) do rows[#rows + 1] = row(spec) end
   win = UI.Window{
@@ -3147,6 +3157,15 @@ function PL.PerfStart(clock)
     .. " every " .. string.format("%.2f", PL.PERF_STEP) .. " s. The lines come in chat."
 end
 
+-- The rows of `view` for `plan`, in a column added to the body (PL.Refresh, through T.BuildOrDrop).
+local function plAddRows(view, plan)
+  local children = nil
+  if view == "Plan" then children = plPlanRows(plan)
+  elseif view == "Shopping list" then children = plShopRows(plan)
+  else children = plBuildRows(plan) end
+  return plBody:Add(UI.Column{ children = children })
+end
+
 -- Fills the window from a new plan. `now`: at once (a player's change), else only when something changed and at
 -- most every PL.REFRESH_GAP s (PL.Tick).
 function PL.Refresh(now)
@@ -3216,11 +3235,7 @@ function PL.Refresh(now)
   else
     if plCol then pcall(function() plCol:Destroy() end) end
     plCol, plRows = nil, {}
-    local children = nil
-    if view == "Plan" then children = plPlanRows(plan)
-    elseif view == "Shopping list" then children = plShopRows(plan)
-    else children = plBuildRows(plan) end
-    local ok, col = pcall(function() return plBody:Add(UI.Column{ children = children }) end)
+    local ok, col = pcall(T.BuildOrDrop, plAddRows, view, plan)   -- (a refused build's elements go, review 74)
     if ok then
       plCol, plBodySig, plLocked = col, sig, nil   -- new rows: greyed out again if the book is being read
     else
@@ -3390,7 +3405,7 @@ function PL.Open(text)
     D.TraceMark("the shared window taken")
     D.PrepareKnown()                    -- the known recipes, indexed in the background (under a second)
     D.TraceMark("the known recipes' indexing started")
-    local ok, err = pcall(plBuild)
+    local ok, err = pcall(T.BuildOrDrop, plBuild)     -- (what a refused build made goes, review 74)
     D.TraceMark("the window built")
     if not ok then
       plDrop()
@@ -3442,7 +3457,7 @@ local function plAskBuild(background, shared)
   local sw = T.Hud and T.Hud.screen
   local x = sw and math.max(0, math.floor((sw.w - PL.ASK_W) / 2)) or T.Window.DEFAULT_X + 60
   local y = sw and math.max(0, math.floor((sw.h - PL.ASK_H) / 3)) or T.Window.DEFAULT_Y + 60
-  local built, err = pcall(function()
+  local built, err = pcall(T.BuildOrDrop, function()   -- (what a refused build made goes, review 74)
     plAskWin = UI.Window{
       id = PL.ASK_ID, title = PL.ASK_TITLE, width = PL.ASK_W, height = PL.ASK_H, minWidth = 320, minHeight = 200,
       x = x, y = y, escCloses = true,

@@ -63,9 +63,9 @@ local function valueStyle()
   return T.Window.TextStyle{ textAlign = "right", marginLeft = 8, flexShrink = 0, whiteSpace = "nowrap" }
 end
 
--- `run` (the Runs view): that run's number, for its Beacon button.
-local function addRow(name, shownName, run)
-  if rowCount >= DD.MAX_ROWS then return false end
+-- `run` (the Runs view): that run's number, for its Beacon button. A row the game refuses part way leaves nothing
+-- alive (T.BuildOrDrop, review 74); the error goes on.
+local function makeRow(name, shownName, run)
   local nameLabel = UI.Label{ text = shownName or name, class = "text",
     style = T.Window.TextStyle{ flexGrow = 1, flexShrink = 1 } }
   local countLabel = UI.Label{ text = "", class = "text",
@@ -80,7 +80,11 @@ local function addRow(name, shownName, run)
     children[4] = mark
   end
   el.list:Add(UI.Row{ style = { alignItems = "center" }, children = children })
-  rows[name] = { name = nameLabel, count = countLabel, value = valueLabel, mark = mark }
+  return { name = nameLabel, count = countLabel, value = valueLabel, mark = mark }
+end
+local function addRow(name, shownName, run)
+  if rowCount >= DD.MAX_ROWS then return false end
+  rows[name] = T.BuildOrDrop(makeRow, name, shownName, run)
   rowCount = rowCount + 1
   order[rowCount] = name
   return true
@@ -343,14 +347,20 @@ local function runsChart()
     style = { marginTop = 4, height = DD.RUN_CHART_H, alignItems = "start" }, children = {} }
 end
 
--- The bars, the first time they're needed.
-local function ensureRunCols()
-  if #runCols > 0 or not el.runs_chart then return end
+-- The bars, the first time they're needed: all or none (a set the game refuses part way goes, and is made again
+-- the next time; review 74).
+local function makeRunCols()
+  local cols = {}
   for i = 1, T.Daily.RUNS_KEEP do
     local style = runColumnStyle(0)
     style.width, style.marginLeft = DD.RUN_COL_W, i > 1 and DD.RUN_COL_GAP or 0
-    runCols[i] = el.runs_chart:Add(UI.Column{ style = style, tooltip = "" })
+    cols[i] = el.runs_chart:Add(UI.Column{ style = style, tooltip = "" })
   end
+  return cols
+end
+local function ensureRunCols()
+  if #runCols > 0 or not el.runs_chart then return end
+  runCols = T.BuildOrDrop(makeRunCols)
 end
 
 -- Fills the chart from `list` (newest first). Returns the line under it.
@@ -476,7 +486,17 @@ local function rebuildList()
   end
 end
 
+local makeWindow = nil           -- (below)
+-- The Loot Tracker, built through T.BuildOrDrop: a build the creation cap stops part way leaves nothing
+-- alive (review 74); the error goes on to the caller as before.
 local function build()
+  local ok, err = pcall(T.BuildOrDrop, makeWindow)
+  if not ok then
+    win = nil
+    error(err, 0)
+  end
+end
+makeWindow = function()
   win = UI.Window{
     id = WINDOW_ID, title = "Loot Tracker",
     width = 240, height = 260, minWidth = 170, minHeight = 60,

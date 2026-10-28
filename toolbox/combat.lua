@@ -1106,7 +1106,7 @@ end
 -- Builds the window, reporting a failure instead of raising (about 230 elements: past the game's
 -- creation cap it raises "elements are being created too fast"; 2026-09-28 at start-up).
 local function tryBuild()
-  local ok, err = pcall(buildDetail)
+  local ok, err = pcall(T.BuildOrDrop, buildDetail)    -- (what a refused build made goes, review 74)
   if ok then return true end
   cdWin = nil
   T.Print("Couldn't build Combat Detailed yet (" .. tostring(err) .. "); try again in a moment.")

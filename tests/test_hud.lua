@@ -247,5 +247,67 @@ return function(t)
       t.eq(H.S.live, placed(), "every live element placed, the build starting with " .. tokens)
     end
   end)
+
+  -- Review 74: a Docs topic the creation cap stopped part way kept what it had made alive, and its chat line asks the
+  -- player to pick it again; so did every window's build and the pickers inside them. Each is tried with the cap
+  -- nearly reached, then again with room: nothing left over, and the second try shows it.
+  t.test("a window or a view the creation cap stops leaves no elements alive, and a later try shows it", function()
+    local function placed()
+      local n = 0
+      local function walk(e) n = n + 1 for _, c in ipairs(e.children or {}) do walk(c) end end
+      for _, f in pairs(H.S.frames) do if not f.destroyed then walk(f) end end
+      for _, w in pairs(H.S.windows) do if not w.destroyed then walk(w) end end
+      return n
+    end
+    local function open(id) return H.S.windows[id] ~= nil and not H.S.windows[id].destroyed end
+    local function topic(n) return function() Toolbox.Docs.ShowTopic(Toolbox.Docs.Topics()[n]) end end
+    local cases = {
+      -- (the functions behind the commands: a typed command refills the harness's creation budget; the XP, Today and
+      -- Loot Tracker windows are built at the start: their form switch builds them again)
+      { "XP window", function() Toolbox.Compact.SetCompact(true) end, "toolbox_compact", nil,
+        function() Toolbox.Compact.Toggle() end },
+      { "XP Detailed", function() Toolbox.Window.Toggle() end, "toolbox_xp" },
+      { "Today", function() Toolbox.Daily.SetCompact(true) end, "toolbox_daily", nil,
+        function() Toolbox.Daily.Toggle() end },
+      { "Loot Tracker rows", function()
+        local batch = {}
+        for i = 1, 12 do batch[i] = { "Loot Thing " .. i .. " " .. ShroudTime, 1 } end
+        H.items(batch)
+        Toolbox.DailyDetail.Refresh(true)
+      end, nil, function() H.chat("/tbx loot") end },
+      { "Combat Detailed", function() Toolbox.Combat.Detail.Toggle() end, "toolbox_combat_detail" },
+      { "Settings", function() Toolbox.Config.Toggle() end, "toolbox_config" },
+      { "Docs", function() Toolbox.Docs.Toggle() end, "toolbox_docs" },
+      { "a Docs topic", topic(3), nil, function() H.chat("/tbx docs") end },
+      { "the commands topic", topic(#Toolbox.Docs.Topics()), nil, function() H.chat("/tbx docs") end },
+      { "the version window", function() Toolbox.Docs.OpenVersion() end, "toolbox_version" },
+      { "Notifications", function()
+        local notice = { title = "Hi", text = "News" }
+        Toolbox.Notify.DELIVERY.window({ { source = Toolbox.Notify.SOURCES[1], notice = notice } })
+      end, "toolbox_notify" },
+      { "Map overlays", function() Toolbox.Overlays.ToggleWindow() end, "toolbox_marks" },
+      { "the planner", function() Toolbox.Planner.Open() end, "toolbox_planner" },
+      { "a warning", function() Toolbox.Docs.Warn("Test", "A warning") end, "toolbox_warning" },
+    }
+    for _, c in ipairs(cases) do
+      local name, fn, id, before, again = c[1], c[2], c[3], c[4], c[5] or c[2]   -- again: the retry
+      for _, tokens in ipairs({ 1, 6, 20 }) do
+        H.boot()
+        if before then before() end
+        H.advance(3)
+        local gap = H.S.live - placed()
+        H.S.createBucket.tokens, H.S.createBucket.at = tokens, ShroudTime   -- (no refill for time gone by)
+        pcall(H.call, fn)
+        t.eq(H.S.live - placed(), gap, name .. ", " .. tokens .. " tokens: every live element placed")
+        if id and tokens == 1 then t.no(open(id), name .. ": refused at 1 token") end   -- (20 can be enough)
+        H.advance(5)
+        H.clearLogs()
+        H.call(again)
+        t.eq(H.S.live - placed(), gap, name .. ": every live element placed after the retry")
+        if id then t.ok(open(id), name .. ": shown on a later try") end
+        t.no(H.logged("right now"), name .. ": " .. tostring(H.lastLog()))
+      end
+    end
+  end)
 end
 

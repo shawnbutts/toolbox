@@ -148,7 +148,17 @@ local function fillChart(s, k, now, net)
     .. T.FormatNumber(peak * 3600 / per) .. "/h")
 end
 
+local makeWindow = nil           -- (below)
+-- XP Detailed, built through T.BuildOrDrop: a build the creation cap stops part way leaves nothing
+-- alive (review 74); the error goes on to the caller as before.
 local function build()
+  local ok, err = pcall(T.BuildOrDrop, makeWindow)
+  if not ok then
+    win = nil
+    error(err, 0)
+  end
+end
+makeWindow = function()
   local f = fontSize()
   local rows = { UI.Label{ id = "session_extra", text = "", class = "dim",
     tooltip = "Skill levels gained (trained levels) and deaths this session",

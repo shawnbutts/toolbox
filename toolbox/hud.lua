@@ -3364,7 +3364,7 @@ function OV.ToggleWindow()
   end
   if not mw then
     T.TakeSharedWindow("marks", mwDrop)
-    local ok, err = pcall(mwBuild)
+    local ok, err = pcall(T.BuildOrDrop, mwBuild)     -- (what a refused build made goes, review 74)
     if not ok then
       mwDrop()
       T.Print("The Map overlays window can't open right now; try again in a moment. (" .. tostring(err) .. ")")

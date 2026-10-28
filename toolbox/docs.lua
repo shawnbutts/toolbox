@@ -528,6 +528,7 @@ local dshown, dcol = nil, nil -- the topic built (its title and column): only th
 -- Shows one topic (by title). Only that one is built: switching destroys the previous one first, as the
 -- settings window does with its pages, so the guide costs one topic of the add-on's 65,536 characters of
 -- text, not all of them (owner, 2026-10-02). Returns true when shown.
+local function addTopic(title) return dbody:Add(UI.Column{ children = topicLabels(title) }) end
 function D.ShowTopic(title)
   if not win then return false end
   local known = false
@@ -538,7 +539,7 @@ function D.ShowTopic(title)
   if dshown ~= title then
     if dcol then pcall(function() dcol:Destroy() end) end
     dcol, dshown = nil, nil
-    local ok, col = pcall(function() return dbody:Add(UI.Column{ children = topicLabels(title) }) end)
+    local ok, col = pcall(T.BuildOrDrop, addTopic, title)   -- (a refused build's elements go, review 74)
     if not ok then
       T.Print("That part of the guide can't be shown right now; pick it again in a moment.")
       return false
@@ -550,7 +551,17 @@ function D.ShowTopic(title)
   return true
 end
 
+local makeWindow = nil           -- (below)
+-- The Docs window, built through T.BuildOrDrop: a build the creation cap stops part way leaves nothing
+-- alive (review 74); the error goes on to the caller as before.
 local function build()
+  local ok, err = pcall(T.BuildOrDrop, makeWindow)
+  if not ok then
+    win = nil
+    error(err, 0)
+  end
+end
+makeWindow = function()
   local topics = D.Topics()
   dbody = UI.Column{ id = "docs_body", style = { paddingLeft = GUTTER, paddingRight = GUTTER } }
   dshown, dcol = nil, nil
@@ -684,6 +695,7 @@ local vbody = nil             -- the column the versions' notes are added to
 local vbuilt = {}             -- title -> its column
 
 -- Shows one version's notes (by title), building them the first time. Returns true when shown.
+local function addVersion(found) return vbody:Add(UI.Column{ children = versionLabels(found.entries) }) end
 function D.ShowChangelogVersion(title)
   if not vwin or not versions then return false end
   local found = nil
@@ -692,9 +704,7 @@ function D.ShowChangelogVersion(title)
   end
   if not found then return false end
   if not vbuilt[title] then
-    local ok, col = pcall(function()
-      return vbody:Add(UI.Column{ children = versionLabels(found.entries) })
-    end)
+    local ok, col = pcall(T.BuildOrDrop, addVersion, found)   -- (a refused build's elements go, review 74)
     if not ok then
       T.Print("Those notes can't be shown right now; pick them again in a moment.")
       return false
@@ -707,7 +717,17 @@ function D.ShowChangelogVersion(title)
   return true
 end
 
+local makeVersion = nil           -- (below)
+-- The version window, built through T.BuildOrDrop: a build the creation cap stops part way leaves nothing
+-- alive (review 74); the error goes on to the caller as before.
 local function buildVersion()
+  local ok, err = pcall(T.BuildOrDrop, makeVersion)
+  if not ok then
+    vwin = nil
+    error(err, 0)
+  end
+end
+makeVersion = function()
   versions = D.ChangelogVersions(T.CHANGELOG)
   local titles = {}
   for i, v in ipairs(versions) do titles[i] = v.title end
@@ -760,7 +780,7 @@ function D.Warn(title, text)
   T.Print(text)
   drop("warning")
   take("warning")
-  local ok = pcall(function()
+  local ok = pcall(T.BuildOrDrop, function()   -- (what a refused build made goes, review 74)
     wwin = UI.Window{
       id = WARN_ID, title = title, width = 440, height = 240, minWidth = 300, minHeight = 160,
       x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y,
@@ -1126,7 +1146,17 @@ local function bodyStyle()
   return style
 end
 
+local makeNotices = nil           -- (below)
+-- The Notifications window, built through T.BuildOrDrop: a build the creation cap stops part way leaves nothing
+-- alive (review 74); the error goes on to the caller as before.
 local function buildWindow()
+  local ok, err = pcall(T.BuildOrDrop, makeNotices)
+  if not ok then
+    nwin = nil
+    error(err, 0)
+  end
+end
+makeNotices = function()
   local sections = {}
   for _, src in ipairs(N.SOURCES) do       -- one fixed section per source, shown when it has news
     sections[#sections + 1] = UI.Column{ id = "n_" .. src.key, visible = false, style = { marginBottom = 8 },

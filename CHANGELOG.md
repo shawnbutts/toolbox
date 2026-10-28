@@ -48,7 +48,8 @@ ones included).
   fast, a strip built part way (or one whose frame was refused) was tried again a moment later, but what had been
   made the first time stayed alive, up to about 140 elements, counting against the add-on's limit until a reload.
   Now it goes at once.
-  The same for a settings page that couldn't be shown right now: picking it again no longer leaves more behind.
+  The same for every window and view that couldn't be shown right now (a settings page, a Docs topic, the version
+  notes, the crafting planner's rows, the Loot Tracker's rows, any window): trying again no longer leaves more behind.
 - **Dropdowns too narrow for their choices:** a dropdown was only as wide as the choice shown, so its open list cut
   longer ones short (the Loot Tracker's Show list, for one). Every dropdown, in every window and on every settings
   page, is now as wide as its longest choice, and follows a text size change.
