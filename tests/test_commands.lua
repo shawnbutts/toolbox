@@ -278,8 +278,9 @@ return function(t)
     H.advance(3, 0.05)
     H.clearLogs()
     H.chat("/tbx perf only known 10")
-    t.ok(H.logged("No timer matches known yet: Toolbox's others are paused, and one that starts meanwhile"),
-      H.logs()[1])
+    t.eq(H.logs()[1], "No timer matches known yet: Toolbox's others are paused, and one that starts meanwhile with"
+      .. " that in its name runs (the known recipes' indexing, once the planner opens).")
+    t.no(H.logged("recipe book"), "(review 76: the book's read is gone)")
     Toolbox.Daily.PrepareKnown()
     t.ok(H.S.periodics.toolbox_known_recipes, "the indexing's timer runs")
     H.advance(11, 0.05)

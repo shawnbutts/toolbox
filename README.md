@@ -104,7 +104,7 @@ there; the commands in this table do the same from chat, for those who'd rather 
 | `/toolbox reset` | start a new XP session |
 | `/toolbox daily` | show or hide today's stats (gold, kills, XP) |
 | `/toolbox loot` (or `dd`, `dailydetailed`) (`values on\|off\|test\|refresh`) | show or hide the Loot Tracker (every item gained today); estimated values |
-| `/toolbox recipe <name>` | a recipe you know as the game reports it, and what it takes from raw materials through your other known recipes |
+| `/toolbox recipe <name>` | a recipe you know as the game reports it and its ingredients, and (Lua API 55) what it takes from raw materials through your other known recipes |
 | `/toolbox buffs move [x y]` | place the buff bar (no numbers: say where it is) |
 | `/toolbox buffs` (`group` / `quiet` / `sound` / `repeat` / `combat` / `flash` / `replace` / `dismiss` / `debug` / `raw` / `trace [name]`) | show or hide the buff bar; its options (`sound <name> = <file>`: an effect's own sound); diagnostics (`debug`: each buff's timing; `trace light`: log buffs matching "light" once a second for 10 s) |
 | `/toolbox consumables` (`bar` / `glue` / `add\|remove <name>` / `move`) | list food and potions in effect; the consumables bar's options |

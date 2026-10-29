@@ -1103,7 +1103,8 @@ local function openView(view)
   if not T.DailyDetail.IsShown() then T.DailyDetail.SetOpen(true) end
 end
 
-add("recipe", "a known recipe as the game reports it, and what it takes from raw materials (recipe <name>)",
+add("recipe", "a known recipe as the game reports it and its ingredients, and what it takes from raw materials (Lua"
+  .. " API 55) (recipe <name>)",
     function(rest)
   for _, line in ipairs(T.Daily.RecipeLines(rest)) do T.Print(line) end
 end)
@@ -2938,7 +2939,7 @@ add("perf", "measure hitches for a minute (perf <seconds>; perf stop): slow fram
     .. " (Toolbox's other strips and windows stand still until then)") or nil
   if type(quiet) == "table" and not onlyText then
     T.Print("No timer matches " .. table.concat(quiet, ", ") .. " yet: Toolbox's others are paused, and one that"
-      .. " starts meanwhile with that in its name runs (the recipe book's, once the planner reads it).")
+      .. " starts meanwhile with that in its name runs (the known recipes' indexing, once the planner opens).")
   end
   local how = onlyText or (quiet and " with Toolbox's timers paused (its strips and windows stand still until then)")
     or ""

@@ -147,6 +147,15 @@ return function(t)
     t.eq(calls, 1, "the recipe itself, no book")
   end)
 
+  -- Review 77: the command's description promised raw materials on every client; they need API 55.
+  t.test("the command's description says the raw materials need Lua API 55", function()
+    H.boot()
+    local help = nil
+    for _, c in ipairs(Toolbox.CommandList()) do if c.name == "recipe" then help = c.help end end
+    t.ok(help and help:find("its ingredients", 1, true) and help:find("raw materials (Lua API 55)", 1, true),
+      tostring(help))
+  end)
+
   t.test("API 55: the makers asked once a session, again after learning a recipe", on55(function()
     H.boot()
     book()
