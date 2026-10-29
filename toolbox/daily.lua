@@ -1654,8 +1654,9 @@ end
 -- (`picks`, per recipe). (A "Use what I have" / "Stats I care about" mode with watched stats came and went the same
 -- day: owner, 2026-10-15, the counts and the line under each slot show it all.) Reset clears the plan (the recipe,
 -- crafts, ticks and this recipe's picks).
--- With From scratch on, an ingredient you're short of and a known recipe makes gets an "I'll craft" tick (a tick, not
--- a button: owner, 2026-10-15, "Make it" read as if it would craft): the shortfall is to be crafted, that recipe's
+-- An ingredient you're short of and a known recipe makes gets an "I'll craft" tick (a tick, not a button: owner,
+-- 2026-10-15, "Make it" read as if it would craft; always offered since 1.10.0, owner 2026-10-29: the From scratch
+-- switch that offered it is gone, a saved `scratch` dropped at start): the shortfall is to be crafted, that recipe's
 -- ingredients planned below it (`makes`, by the row's path; a recipe never inside itself;
 -- several recipes making one item: the one named like it, or the one picked). The plan's views: Plan (the slots),
 -- Shopping list (what to buy or gather) and Build order (the crafts by station, deepest first, ticked off as their
@@ -1667,7 +1668,7 @@ end
 -- Which recipes make an item: the game's answer (API 55, D.MakersOf); before it, the recipes named like it ("Iron
 -- Ingot", "Iron Ingot from ...", a few calls: `plQuickMakers`). (The recipe book read for it, with its confirmation,
 -- progress bar and settings, went in 1.10.0; owner, 2026-10-29. A saved `book` is dropped at start.)
--- Saved var "planner" (character scope; a reset keeps it): { v = 1, scratch = bool, crafts = n, recipe = id,
+-- Saved var "planner" (character scope; a reset keeps it): { v = 1, crafts = n, recipe = id,
 -- view = a PL.VIEWS name, makes = { [path] = true }, makers = { [item key] = recipe id },
 -- picks = { ["r" .. recipe id] = { at = n, ["s" .. slot] = item key } } (at most PL.PICKS_MAX recipes, the oldest
 -- picked dropped), pickAt = n } (`mode` and `watch`, saved for a few hours of development, are dropped at start).
@@ -1779,7 +1780,7 @@ function PL.PickMaker(makers, itemName, picked, nameOf)
 end
 
 -- Works a plan out: `crafts` crafts of recipe `rootId`. `ctx`: recipe(id) -> the recipe's table; makers(key, name) ->
--- { { id, yield } } (yield > 0); scratch, makes (set of row paths), pick(id,
+-- { { id, yield } } (yield > 0); makes (set of row paths), pick(id,
 -- slot) -> an item key or nil, maker(key) -> a recipe id or nil. Your bags are shared across the plan (an item used
 -- in one branch isn't counted again in another; a tool isn't used up, review 49; what a craft makes past its row's
 -- need is there for the next rows, review 50). Returns { rows, shop (list of { key, name, n, tool }), gather (every
@@ -1859,7 +1860,7 @@ function PL.Expand(rootId, crafts, ctx)
           if not seen[m.id] and m.yield > 0 then makers[#makers + 1] = m end
         end
         r.makers = makers
-        r.canMake = r.short > 0 and ctx.scratch == true and #makers > 0 and not r.tool and depth + 1 <= PL.DEPTH
+        r.canMake = r.short > 0 and #makers > 0 and not r.tool and depth + 1 <= PL.DEPTH
         r.making = r.canMake and ctx.makes[r.path] == true
         if r.making then
           local m = PL.PickMaker(makers, r.name, ctx.maker(r.key), function(mid)
@@ -2001,14 +2002,6 @@ function PL.SetMaker(key, id)
   PL.Refresh(true)
 end
 
-function PL.SetScratch(on)
-  plPrefs.scratch = on == true
-  plSave()
-  PL.Refresh(true)
-  T.Config.Sync()                      -- Settings > Crafting mirrors it
-end
-function PL.GetScratch() return plPrefs.scratch == true end
-
 function PL.SetCrafts(n)
   n = plNum(n)
   if not n or n < 1 then return end
@@ -2105,7 +2098,7 @@ function PL.Plan()
   local id = plRecipeId()
   if not id or type(ShroudGetRecipe) ~= "function" or not plRecipe(id) then return nil end
   return PL.Expand(id, PL.Remaining(), {
-    recipe = plRecipe, makers = plMakers, scratch = PL.GetScratch(),
+    recipe = plRecipe, makers = plMakers,
     makes = type(plPrefs.makes) == "table" and plPrefs.makes or {},
     pick = plPickOf,
     maker = function(key) return type(plPrefs.makers) == "table" and plNum(plPrefs.makers[key]) or nil end,
@@ -2823,7 +2816,7 @@ function PL.PerfStart(clock)
   if plPerf then return false, "Already timing the crafting planner's calls: the lines come in chat." end
   if not clock then return false, "This game client doesn't let add-ons time anything (no os.clock)." end
   if not plRecipeId() or type(ShroudGetRecipe) ~= "function" then
-    return false, "Plan a recipe in the crafting planner first (From scratch on, some I'll craft ticked): the timing"
+    return false, "Plan a recipe in the crafting planner first (some I'll craft ticked): the timing"
       .. " uses its recipes and ingredients."
   end
   local run = { clock = clock, at = 1, planSteps = 0, planTotal = 0, planLongest = 0, fresh = {} }
@@ -2873,7 +2866,6 @@ function PL.Refresh(now)
   end
   local view = PL.GetView()
   pcall(function()
-    plEl.scratch:SetValue(PL.GetScratch())
     plEl.crafts:SetValue(tostring(PL.GetCrafts()))
     plEl.view:SetValue(view)
   end)
@@ -2989,9 +2981,6 @@ local function plBuild()
       onChange = function(_, v) PL.SetCrafts(tonumber(v)) end }),
     title = UI.Label{ id = "pl_title", text = "", class = "text", style = { flexGrow = 1, flexShrink = 1,
       whiteSpace = "wrap", marginLeft = 6 } },
-    scratch = UI.Toggle{ id = "pl_scratch", text = "From scratch", value = PL.GetScratch(),
-      tooltip = "Offer I'll craft for what you're short of and one of your recipes makes",
-      onChange = function(_, on) PL.SetScratch(on == true) end },
     view = T.Window.Dropdown(UI, { id = "pl_view", choices = PL.VIEWS, value = PL.GetView(),
       tooltip = "The slots, what to buy or gather, or the crafts in order by station",
       onChange = function(_, v) PL.SetView(v) end }),
@@ -3017,8 +3006,7 @@ local function plBuild()
       line({ plEl.find, plEl.findGo, plEl.reset }, 0),
       line({ UI.Label{ text = "Recipe", class = "text", style = { marginRight = 6 } }, plEl.recipe }),
       line({ UI.Label{ text = "Crafts", class = "text", style = { marginRight = 6 } }, plEl.crafts, plEl.title }),
-      line({ UI.Label{ text = "Show", class = "text", style = { marginRight = 6 } }, plEl.view,
-        UI.Label{ text = "", style = { flexGrow = 1 } }, plEl.scratch }),
+      line({ UI.Label{ text = "Show", class = "text", style = { marginRight = 6 } }, plEl.view }),
       UI.Scroll{ style = { flexGrow = 1, marginTop = 4 }, children = { plBody } },
       plEl.result,
       plEl.msg,
@@ -3028,7 +3016,7 @@ local function plBuild()
 end
 
 -- Reset (owner, 2026-10-15): the plan's fields cleared: no recipe, 1 craft, no I'll craft
--- ticks or crafts made, and the recipe's own picks gone. From scratch and the view are how you plan: kept.
+-- ticks or crafts made, and the recipe's own picks gone. The view is how you plan: kept.
 function PL.Reset()
   local id = plRecipeId()
   if id and type(plPrefs.picks) == "table" then plPrefs.picks["r" .. id] = nil end
@@ -3127,7 +3115,8 @@ function PL.Init()
   if plPerf then perfStop() end       -- /toolbox perf recipes: the last character's plan
   local saved = T.ReadSaved(PL.KEY)
   plPrefs = type(saved) == "table" and saved or {}
-  plPrefs.v, plPrefs.mode, plPrefs.watch, plPrefs.book = 1, nil, nil, nil   -- (book: the recipe book's read, 1.9.x)
+  -- (book: the recipe book's read, scratch: the From scratch switch; both 1.9.x)
+  plPrefs.v, plPrefs.mode, plPrefs.watch, plPrefs.book, plPrefs.scratch = 1, nil, nil, nil, nil
   plFresh, plBuilt, plMade, plDone, plPlan, plQuick, plWaitKnown = {}, {}, {}, {}, nil, {}, false
   plDirty, plAt = PL.GetHud(), -math.huge   -- the strip's list, worked out at the first tick
   shEl, shState, shDoneAt = {}, shFresh(), nil

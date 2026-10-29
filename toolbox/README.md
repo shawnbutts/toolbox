@@ -197,7 +197,7 @@ of a recipe's name. Every ingredient shows what
 you need, have and are short of. A slot that takes a choice of material, like Metal Sheet, lists them with how many
 you have, starting on the first you have enough of; a line under it shows what the picked one adds to the item, for
 crafting a build. A material you pick yourself stays picked. The result line shows the item's stats with your picks.
-With From scratch on, tick I'll craft to plan the crafts for what you're short of, as deep as your recipes go. The Shopping list adds up what to buy or gather, and the Build order lists the crafts by
+Tick I'll craft to plan the crafts for what you're short of, as deep as your recipes go. The Shopping list adds up what to buy or gather, and the Build order lists the crafts by
 station, materials first, ticked off as you craft. The Crafting Planner HUD (the button at the bottom of the planner) follows the plan with the planner closed: the shopping list (what you have against what's needed) while you gather, then the build order, with a fanfare when every craft is done. Settings, Crafting holds its settings.
 
 ## Commands

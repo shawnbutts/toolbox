@@ -338,11 +338,6 @@ function C.CraftingSection()
           .. " or /" .. T.commands[1] .. " plan)") or needs,
         onClick = function() PL.Open() end },
     } },
-    UI.Toggle{ id = "pl_cfg_scratch", text = "From scratch", value = PL.GetScratch(), enabled = has,
-      tooltip = "On: an ingredient you're short of can be crafted (I'll craft), its own materials added to the plan"
-        .. " (a game client before Lua API 55 knows only the recipes named like the item). The same as the planner's"
-        .. " From scratch.",
-      onChange = function(_, on) PL.SetScratch(on == true) end },
     heading(PL.HUD_NAME),
     UI.Label{ text = "A small strip to follow the plan with the planner closed: the shopping list while you gather,"
       .. " then the build order as you craft.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
@@ -1704,7 +1699,7 @@ end
 local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "loc_overlay", "ov_window", "ov_death",
   "ov_auto_new",
   "pl_open", "pl_hud_close",
-  "pl_cfg_scratch", "pl_hud_show", "pl_hud_start",
+  "pl_hud_show", "pl_hud_start",
   "pl_hud_auto", "pl_hud_shade", "pl_hud_shade_value",
   "xp_shade", "xp_shade_value", "daily_shade", "daily_shade_value", "nhud_shade", "nhud_shade_value",
   "vitals_shade", "vitals_shade_value", "target_shade", "target_shade_value", "loc_shade", "loc_shade_value",
@@ -2535,7 +2530,6 @@ function C.Sync()
   sliderValue("ln_shade", L.GetShade())
   setValue("ln_color", L.ColorName(L.GetColor()))
   setValue("pl_hud_close", T.Planner.HudCloseName(T.Planner.GetHudClose()))
-  setValue("pl_cfg_scratch", T.Planner.GetScratch())
   setValue("pl_hud_show", T.Planner.GetHud())
   setValue("pl_hud_start", T.Planner.HudStartName(T.Planner.GetHudStart()))
   setValue("pl_hud_auto", T.Planner.GetHudAuto())

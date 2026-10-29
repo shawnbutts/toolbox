@@ -110,8 +110,8 @@ D.SECTIONS = {
       .. "keeps it, for this recipe, until you pick another. The Result line adds what your picks give to the "
       .. "item's base stats (an exceptional craft adds more). Reset starts over: no recipe, 1 craft, nothing "
       .. "ticked, and this recipe's materials back to the first you have enough of.",
-    "From scratch: tick it and anything you're short of that one of your recipes makes gets I'll craft "
-      .. "(in the Plan). Tick that to plan crafting the shortfall yourself: its own ingredients are planned "
+    "I'll craft: anything you're short of that one of your recipes makes gets an I'll craft tick (in the "
+      .. "Plan). Tick it to plan crafting the shortfall yourself: its own ingredients are planned "
       .. "under it, as deep as it goes, instead of it going on the shopping list. Toolbox never crafts "
       .. "anything. When two recipes make it (Iron Ingot, Iron Ingot from Metal Scraps), the one named like "
       .. "the item is used, and made by changes it. The game tells Toolbox which of your recipes make each "

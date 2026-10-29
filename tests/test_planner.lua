@@ -88,7 +88,7 @@ return function(t)
     local b = body()
     t.ok(b:find("4 x Leather Strap: have 0, 4 short", 1, true), b)
     t.ok(b:find("Tool: 1 x Smithing Hammer: have them", 1, true), b)
-    t.no(find("pl_make_3"), "no I'll craft without From scratch")
+    t.eq(find("pl_make_3").value, false, "I'll craft offered for the straps (always: no From scratch), not ticked")
     t.ok(text("pl_result"):find("Resistance 9, Durability 220, Weight 10, Armor Damage Resistance 0 +0.1, Focus 0 +10",
       1, true), text("pl_result"))
     H.change(W, "pl_view", "Shopping list")
@@ -127,7 +127,6 @@ return function(t)
     open()
     H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
     H.change(W, "pl_crafts", "5")
-    H.change(W, "pl_scratch", true)
     H.change(W, "pl_make_1", true)
     H.click(W, "pl_reset")
     t.eq(find("pl_recipe").value, "Find a recipe first")
@@ -135,7 +134,6 @@ return function(t)
     t.eq(find("pl_crafts").value, "1")
     t.ok(text("pl_title"):find("Find it", 1, true), text("pl_title"))
     t.eq(body(), "", "nothing planned")
-    t.eq(find("pl_scratch").value, true, "From scratch is how you plan: kept")
     H.chat("/tbx plan augmented plate chest")
     H.change(W, "pl_view", "Plan")
     t.ok(find("pl_pick_1").value:find("^Bronze Sheet"), "the pick went: " .. find("pl_pick_1").value)
@@ -156,11 +154,10 @@ return function(t)
     t.ok(body():find("7 x Copper Sheet", 1, true), "the pick is kept: " .. body())
   end)
 
-  t.test("from scratch: I'll craft plans the shortfall's recipe below it, the one named like the item first",
+  t.test("I'll craft plans the shortfall's recipe below it, the one named like the item first",
       function()
     open()
     H.change(W, "pl_pick_1", "Iron Sheet (have 3)")   -- iron sheets: 4 short
-    H.change(W, "pl_scratch", true)
     t.ok(find("pl_make_1"), "I'll craft for the sheets, at once (the recipes named like them)")
     t.eq(find("pl_make_1").kind, "Toggle", "a tick, not a button: nothing is crafted")
     t.ok(find("pl_make_3"), "and the straps")
@@ -189,7 +186,6 @@ return function(t)
   t.test("the build order ticks off as you craft: the game's counts, and the crafts made", function()
     open()
     H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
-    H.change(W, "pl_scratch", true)
     H.advance(5)
     H.change(W, "pl_make_1", true)
     H.change(W, "pl_view", "Build order")
@@ -289,7 +285,6 @@ return function(t)
     H.advance(Toolbox.BuffBar.COMBAT_LINGER + 1)
     t.eq(hudLine("sh_1").text, "[ ] 3 / 4 Leather Strap", "caught up after it")
     H.chat("/tbx plan")
-    H.change(W, "pl_scratch", true)
     for _, r in ipairs(PL.LastPlan().rows) do        -- I'll craft every shortfall: their recipes read too
       H.call(PL.SetMaking, r.path, true)
     end
@@ -303,7 +298,6 @@ return function(t)
       function()
     hudOpen()
     H.chat("/tbx plan")
-    H.change(W, "pl_scratch", true)
     H.advance(5)
     H.change(W, "pl_view", "Plan")
     H.change(W, "pl_make_3", true)                 -- the straps: crafted from leather
@@ -408,7 +402,6 @@ return function(t)
     H.chat("/tbx plan augmented plate chest")
     H.change(W, "pl_view", "Plan")
     H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
-    H.change(W, "pl_scratch", true)
     H.advance(1, 0.05)
     H.change(W, "pl_make_1", true)
     H.submit(W, "pl_find", "iron")
@@ -454,7 +447,7 @@ return function(t)
         if k == "kit" then return { { id = 1, yield = 1 } } end
         return {}
       end,
-      mode = "have", scratch = true, makes = { ["p.2"] = true }, pick = function() return nil end,
+      mode = "have", makes = { ["p.2"] = true }, pick = function() return nil end,
       maker = function() return nil end })
     t.eq(plan.rows[3].name, "Ore")
     t.eq(plan.rows[3].have, 2, "8 ore, 6 already used")
@@ -485,7 +478,7 @@ return function(t)
       return P.Expand(1, 1, {
         recipe = recipes,
         makers = function(k) if k == "part" then return { { id = 2, yield = 2 } } end return {} end,
-        scratch = true, makes = { ["p.1"] = true, ["p.3"] = true }, pick = function() return nil end,
+        makes = { ["p.1"] = true, ["p.3"] = true }, pick = function() return nil end,
         maker = function() return nil end })
     end
     local p = plan()
@@ -562,7 +555,7 @@ return function(t)
   t.test("settings: a Crafting page; the HUD's shade in place, what it opens on, the switch, its place", function()
     hudOpen()
     H.chat("/tbx config")
-    for _, id in ipairs({ "pl_open", "pl_cfg_scratch", "pl_hud_show",
+    for _, id in ipairs({ "pl_open", "pl_hud_show",
                           "pl_hud_start", "pl_hud_auto", "pl_hud_close", "pl_hud_sound", "pl_hud_shade",
                           "plhud_pos" }) do
       t.eq(Toolbox.Config.PageOf(id), "crafting", id)
@@ -572,11 +565,6 @@ return function(t)
     t.eq(H.config():Find("pl_hud_show").value, false, "follows the command")
     H.chat("/tbx plan hud on")
     t.eq(H.config():Find("pl_hud_show").value, true)
-    local scratch = Toolbox.Planner.GetScratch()
-    Toolbox.Planner.SetScratch(not scratch)          -- what the planner's own From scratch calls
-    t.eq(H.config():Find("pl_cfg_scratch").value, not scratch, "follows the planner's From scratch")
-    Toolbox.Planner.SetScratch(scratch)
-    t.eq(H.config():Find("pl_cfg_scratch").value, scratch)
     local column = hudLine("sh_strip")
     t.eq(column.style.backgroundColor, "#00000099", "60% at first, as every strip")
     H.change("toolbox_config", "pl_hud_shade", 30)
@@ -641,7 +629,6 @@ return function(t)
       onApi(54, function()
     open()
     H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
-    H.change(W, "pl_scratch", true)
     H.advance(5)
     t.no(Toolbox.Daily.HasMakers())
     t.eq(H.S.makingCalls or 0, 0, "never called")
@@ -654,7 +641,6 @@ return function(t)
     local D = Toolbox.Daily
     t.ok(D.HasMakers())
     H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
-    H.change(W, "pl_scratch", true)
     H.advance(2)
     t.ok(find("pl_make_1"):IsEnabled())
     H.change(W, "pl_make_1", true)

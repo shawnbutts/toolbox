@@ -26,10 +26,13 @@ ones included).
 
 ### Changed
 - **The crafting planner without the recipe book** (newer game clients, Lua API 55): the game now tells add-ons which
-  of your recipes make an item, so From scratch's I'll craft knows every recipe at once. No recipe book is read, no
+  of your recipes make an item, so I'll craft knows every recipe at once. No recipe book is read, no
   window asks first, and the game no longer stutters for it. The recipe book's read went with it: its window, its
   progress bar, Settings, Crafting's Recipe book settings and `/toolbox plan book`. On an older game client I'll craft
   knows only the recipes named like the item.
+- **I'll craft is always offered:** anything you're short of that one of your recipes makes gets its I'll craft tick
+  in the crafting planner, without first switching From scratch on; the switch is gone (the planner and Settings,
+  Crafting).
 - **The target's name in its difficulty color** (Lua API 48; a player's request): with Show the target's name on, a
   hostile creature's name takes the color the game gives its difficulty (your Options and theme included), and the
   target's tooltip names the tier (easy, even, hard or deadly).
