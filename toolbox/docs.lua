@@ -109,23 +109,14 @@ D.SECTIONS = {
       .. "bonus on: only its weight), so you can pick for your build. Pick a material yourself and that slot "
       .. "keeps it, for this recipe, until you pick another. The Result line adds what your picks give to the "
       .. "item's base stats (an exceptional craft adds more). Reset starts over: no recipe, 1 craft, nothing "
-      .. "ticked, and this recipe's materials back to the first you have enough of (your recipe book stays "
-      .. "read).",
+      .. "ticked, and this recipe's materials back to the first you have enough of.",
     "From scratch: tick it and anything you're short of that one of your recipes makes gets I'll craft "
       .. "(in the Plan). Tick that to plan crafting the shortfall yourself: its own ingredients are planned "
       .. "under it, as deep as it goes, instead of it going on the shopping list. Toolbox never crafts "
       .. "anything. When two recipes make it (Iron Ingot, Iron Ingot from Metal Scraps), the one named like "
-      .. "the item is used, and made by changes it. For that your recipe book is read, a recipe at a time, "
-      .. "and the game may stutter meanwhile: a window says so and asks first (OK or Cancel). It's read only while the "
-      .. "planner is open (about a minute and a half; it waits during a fight), the bar at the bottom shows "
-      .. "how far, and the planner's controls are greyed out until it's done. On a newer game client the "
-      .. "game tells Toolbox which recipes make each item, so no book is read and nothing is asked.",
-    "When the book is read is up to you (Settings, Crafting): only when you ask (the default: Read it "
-      .. "now there, or the planner's own button: each asks first; a recipe you "
-      .. "learn leaves the book you read in use until you read it again), when the planner needs it (after "
-      .. "the first time, read again on its own when you learn a recipe), or at login (in the background a "
-      .. "minute after you log in, and after you learn a recipe, even with the planner closed). Stop stops a "
-      .. "read, a fight coming say, and nothing starts another on its own until you read it.",
+      .. "the item is used, and made by changes it. The game tells Toolbox which of your recipes make each "
+      .. "item (Lua API 55), and a recipe you learn counts at once. An older game client knows only the "
+      .. "recipes named like the item.",
     "Show switches between the Shopping list (everything to buy or gather, added up; shown first), the "
       .. "Plan and the Build order: the crafts grouped by station, the ones that make materials first. Each is "
       .. "ticked off as you craft (what's on the crafting table counts), with how many you made. The planner "

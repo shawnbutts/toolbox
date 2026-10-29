@@ -319,15 +319,13 @@ function C.GeneralSection()
   } }
 end
 
--- The "Crafting" category (owner, 2026-10-17): the crafting planner, when its recipe book is read, and the Crafting
+-- The "Crafting" category (owner, 2026-10-17): the crafting planner and the Crafting
 -- Planner HUD.
 function C.CraftingSection()
   local PL = T.Planner
   local has = T.Daily.HasResults()
   local needs = "Needs a newer game client (Lua API 18)"
   local function names(list) local out = {} for i, c in ipairs(list) do out[i] = c[2] end return out end
-  local reading = T.Daily.ReadingRecipes()
-  local book = has and not T.Daily.HasMakers()   -- API 50: the game names the recipes making an item, nothing read
   return UI.Column{ children = {
     heading("Crafting planner", true),
     UI.Label{ text = "Plan a craft from your recipes: each ingredient you need, have and are short of, the"
@@ -341,32 +339,10 @@ function C.CraftingSection()
         onClick = function() PL.Open() end },
     } },
     UI.Toggle{ id = "pl_cfg_scratch", text = "From scratch", value = PL.GetScratch(), enabled = has,
-      tooltip = "On: an ingredient you're short of can be crafted (I'll craft), its own materials added to the plan;"
-        .. " it uses the recipe book (below). The same as the planner's From scratch.",
+      tooltip = "On: an ingredient you're short of can be crafted (I'll craft), its own materials added to the plan"
+        .. " (a game client before Lua API 55 knows only the recipes named like the item). The same as the planner's"
+        .. " From scratch.",
       onChange = function(_, on) PL.SetScratch(on == true) end },
-    heading("Recipe book"),
-    UI.Label{ text = "From scratch needs every recipe you know, read one at a time (about a minute and a half for a"
-      .. " big book), and the game may stutter meanwhile: it's read only while the crafting planner is open (At"
-      .. " login: in the background). Until it's read, I'll craft knows only the recipes named like the item. A"
-      .. " newer game client tells Toolbox which recipes make each item instead, and then nothing is read.",
-      class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
-    dropdownRow("Read it", { id = "pl_book_when", choices = names(PL.BOOK_WHEN),
-      value = PL.BookWhenName(PL.GetBookWhen()), enabled = book,
-      tooltip = "When the planner needs it: as From scratch asks. At login: in the background a minute after you log"
-        .. " in, and after learning a recipe. Only when I ask (the default): never on its own (Read it now); a"
-        .. " recipe learned leaves the book you read in use.",
-      onChange = function(_, v) PL.SetBookWhen(v) end }),
-    UI.Label{ id = "pl_book_status", text = PL.BookStatus(), class = "dim", style = { whiteSpace = "wrap" } },
-    UI.Row{ style = { marginTop = 4 }, children = {
-      UI.Button{ id = "pl_book_read", text = T.Daily.recipeIndex and "Read it again" or "Read it now",
-        enabled = book and not reading,
-        tooltip = has and ("Asks first (the game may stutter while it's read); OK opens the crafting planner and"
-          .. " reads your recipe book while it's open (or /" .. T.commands[1] .. " plan book read)") or needs,
-        onClick = function() PL.AskBook() end },
-      UI.Button{ id = "pl_book_stop", text = "Stop", enabled = reading, style = { marginLeft = 4 },
-        tooltip = "Stops the read (a fight coming, say); nothing starts another on its own until you read it",
-        onClick = function() PL.StopBook() end },
-    } },
     heading(PL.HUD_NAME),
     UI.Label{ text = "A small strip to follow the plan with the planner closed: the shopping list while you gather,"
       .. " then the build order as you craft.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
@@ -1728,7 +1704,7 @@ end
 local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "loc_overlay", "ov_window", "ov_death",
   "ov_auto_new",
   "pl_open", "pl_hud_close",
-  "pl_cfg_scratch", "pl_book_when", "pl_book_status", "pl_book_read", "pl_book_stop", "pl_hud_show", "pl_hud_start",
+  "pl_cfg_scratch", "pl_hud_show", "pl_hud_start",
   "pl_hud_auto", "pl_hud_shade", "pl_hud_shade_value",
   "xp_shade", "xp_shade_value", "daily_shade", "daily_shade_value", "nhud_shade", "nhud_shade_value",
   "vitals_shade", "vitals_shade_value", "target_shade", "target_shade_value", "loc_shade", "loc_shade_value",
@@ -2560,12 +2536,10 @@ function C.Sync()
   setValue("ln_color", L.ColorName(L.GetColor()))
   setValue("pl_hud_close", T.Planner.HudCloseName(T.Planner.GetHudClose()))
   setValue("pl_cfg_scratch", T.Planner.GetScratch())
-  setValue("pl_book_when", T.Planner.BookWhenName(T.Planner.GetBookWhen()))
   setValue("pl_hud_show", T.Planner.GetHud())
   setValue("pl_hud_start", T.Planner.HudStartName(T.Planner.GetHudStart()))
   setValue("pl_hud_auto", T.Planner.GetHudAuto())
   sliderValue("pl_hud_shade", T.Planner.GetHudShade())
-  C.SyncBook()
   for _, id in ipairs({ "ln_vertical", "ln_combat", "ln_size", "ln_color", "ln_shade" }) do
     setEnabled(id, L.GetShow())
   end
@@ -2598,15 +2572,6 @@ end
 -- by its grip); called once a tick from Toolbox.Tick, and from Sync (so opening the window brings
 -- them up to date). Only while the window is shown: once built, the window stays built while
 -- hidden, and refreshing it then cost ~9 UI calls a second for nothing (review, 2026-09-29).
--- The recipe book's line and buttons (Sync, and every second from SyncLive while it's read).
-function C.SyncBook()
-  local reading = T.Daily.ReadingRecipes()
-  setText("pl_book_status", T.Planner.BookStatus())
-  setText("pl_book_read", T.Daily.recipeIndex and "Read it again" or "Read it now")
-  setEnabled("pl_book_read", T.Daily.HasResults() and not T.Daily.HasMakers() and not reading)
-  setEnabled("pl_book_when", T.Daily.HasResults() and not T.Daily.HasMakers())
-  setEnabled("pl_book_stop", reading)
-end
 
 function C.SyncLive()
   if not C.IsShown() then return end
@@ -2616,7 +2581,6 @@ function C.SyncLive()
   syncQuiet()
   syncEffectSounds()
   C.SyncSounds()
-  C.SyncBook()
   if el.shortcut then T.SetText(el.shortcut, "Shortcut: " .. T.KeyStatus()) end
   for _, p in ipairs(POSITIONED) do
     local e = el[p[1] .. "_pos"]

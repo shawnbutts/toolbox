@@ -248,8 +248,8 @@ return function(t)
     t.ok(H.S.periodics.toolbox_location and H.S.periodics.toolbox_buffbar, "back after the report")
   end)
 
-  t.test("perf quiet: a timer stopped for good meanwhile (the book's read, dropped by a switch) isn't started again",
-    function()
+  t.test("perf quiet: a timer stopped for good meanwhile (the known recipes' indexing, dropped by a switch) isn't"
+    .. " started again", function()
     H.boot()
     H.S.recipes = {}
     for i = 1, 400 do
@@ -257,33 +257,34 @@ return function(t)
         quantity = 1 } } }
     end
     H.advance(3, 0.05)
-    Toolbox.Daily.ReadRecipeBook(function() end, false, true)   -- (read with the planner closed)
-    t.ok(H.S.periodics.toolbox_recipe_book and Toolbox.Daily.ReadingRecipes(), "reading")
+    Toolbox.Daily.PrepareKnown()
+    t.ok(H.S.periodics.toolbox_known_recipes and not Toolbox.Daily.KnownRecipes(), "indexing")
     H.chat("/tbx perf quiet 10")
-    t.no(H.S.periodics.toolbox_recipe_book, "paused")
-    H.S.char.name = "Alt"                              -- the planner's Init drops the read
+    t.no(H.S.periodics.toolbox_known_recipes, "paused")
+    H.S.char.name = "Alt"                              -- the planner's Init drops the indexing
     H.callback("ShroudOnSceneLoaded", H.S.scene)
-    t.no(Toolbox.Daily.ReadingRecipes(), "dropped")
     H.advance(11, 0.05)
     t.ok(H.S.periodics.toolbox_vitals, "the module timers are back")
-    t.no(H.S.periodics.toolbox_recipe_book, "the dropped read stays stopped (review 48)")
+    t.no(H.S.periodics.toolbox_known_recipes, "the dropped indexing stays stopped (review 48)")
   end)
 
-  t.test("perf only <a timer not started yet>: it runs once it starts (the planner's recipe book)", function()
+  t.test("perf only <a timer not started yet>: it runs once it starts (the known recipes' indexing)", function()
     H.boot()
-    H.S.recipes = { [1] = { id = 1, name = "Iron Ingot", ingredients = {}, results = { { name = "Iron Ingot",
-      quantity = 1 } } } }
+    H.S.recipes = {}
+    for i = 1, 400 do
+      H.S.recipes[i] = { id = i, name = "Filler " .. i, ingredients = {}, results = { { name = "Filler " .. i,
+        quantity = 1 } } }
+    end
     H.advance(3, 0.05)
     H.clearLogs()
-    H.chat("/tbx perf only recipe 10")
-    t.ok(H.logged("No timer matches recipe yet: Toolbox's others are paused, and one that starts meanwhile"),
+    H.chat("/tbx perf only known 10")
+    t.ok(H.logged("No timer matches known yet: Toolbox's others are paused, and one that starts meanwhile"),
       H.logs()[1])
-    Toolbox.Daily.ReadRecipeBook(function() end, false, true)
-    t.ok(H.S.periodics.toolbox_recipe_book, "the book's timer runs")
+    Toolbox.Daily.PrepareKnown()
+    t.ok(H.S.periodics.toolbox_known_recipes, "the indexing's timer runs")
     H.advance(11, 0.05)
-    t.ok(Toolbox.Daily.recipeIndex, "read")
-    t.ok(H.logged("recipe book [%d.]+ ms at most"), table.concat(H.logs(), "\n"))
-    t.ok(H.logged("^Only toolbox_recipe_book ran"), "named among the ones that ran")
+    t.ok(Toolbox.Daily.KnownRecipes(), "indexed")
+    t.ok(H.logged("^Only toolbox_known_recipes ran"), table.concat(H.logs(), "\n"))
   end)
 
   t.test("perf: the low frame rate line only below PERF_LOW_RATE, and not after a quiet run", function()

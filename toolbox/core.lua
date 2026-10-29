@@ -1105,28 +1105,13 @@ end
 
 add("recipe", "a known recipe as the game reports it, and what it takes from raw materials (recipe <name>)",
     function(rest)
-  local D = T.Daily
-  local lines = D.RecipeLines(rest)
-  if lines then                        -- answered without the whole book (a list of matches, none, ...)
-    for _, line in ipairs(lines) do T.Print(line) end
-    return
-  end
-  local function read()
-    local n = D.ReadRecipeBook(function(ok)
-      if not ok then return end
-      for _, line in ipairs(D.RecipeLines(rest) or {}) do T.Print(line) end
-    end, false, true)                  -- asked for in chat: read with the planner closed too
-    if n and n > 0 then
-      T.Print("Reading your recipe book (" .. n .. " recipes): the answer follows when it's read.")
-    end
-  end
-  if D.ReadingRecipes() then read() else T.Planner.Confirm(true, read) end   -- asked first (owner, 2026-10-23)
+  for _, line in ipairs(T.Daily.RecipeLines(rest)) do T.Print(line) end
 end)
 
--- You learned a recipe (or marked a favorite): /toolbox recipe reads the book again.
+-- You learned a recipe (or marked a favorite): which recipes make what is asked again.
 function ShroudOnRecipesChanged()
   T.Ran("recipes")
-  T.Daily.ForgetRecipes(T.Planner.KeepsBook())   -- read only on ask: the old book stays, marked stale
+  T.Daily.ForgetRecipes()
   T.Planner.RecipesChanged()
 end
 
@@ -1137,33 +1122,11 @@ function ShroudOnInventoryChanged()
 end
 
 add("plan", "the crafting planner: a recipe's materials, what to get and what to craft (plan [recipe]; plan hud"
-  .. " [close <seconds>|start shop|build|auto on|off|shade <0-90>]; plan book [read|stop|need|login|manual];"
-  .. " plan debug; plan trace)",
+  .. " [close <seconds>|start shop|build|auto on|off|shade <0-90>]; plan debug; plan trace)",
   function(rest)
     local word = T.Trim(rest or ""):lower()
     local PL = T.Planner
     local cmd = "/" .. T.commands[1] .. " plan "
-    local book = word == "book" and "" or word:match("^book%s+(.+)$")   -- not "bookcase"
-    if book then
-      if book == "read" then
-        if not PL.AskBook() then
-          T.Print("This game client has no recipe book for add-ons.")
-        end
-      elseif book == "stop" then
-        T.Print(PL.StopBook() and "Recipe book: stopped. Nothing reads it on its own until you do (" .. cmd
-          .. "book read)." or "The recipe book isn't being read.")
-      elseif book ~= "" then
-        if PL.SetBookWhen(book) then
-          T.Print("Recipe book: read " .. PL.BookWhenName(PL.GetBookWhen()):lower() .. ".")
-        else
-          T.Print("Use " .. cmd .. "book read|stop|need|login|manual.")
-        end
-      else
-        T.Print("Recipe book: " .. PL.BookStatus() .. ". Read " .. PL.BookWhenName(PL.GetBookWhen()):lower()
-          .. " (" .. cmd .. "book need|login|manual; read; stop).")
-      end
-      return
-    end
     local start = word:match("^hud start (.+)$")
     if start then
       if PL.SetHudStart(start) then

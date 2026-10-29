@@ -25,7 +25,7 @@ The settings window's "Settings" dropdown picks a part to set up. It opens on th
     strip, or In Toolbelt. The quickest way to get started.
   * XP & Loot: session time, pools, XP in the last hour; gold, kills and XP since midnight. Each
     can be hidden, a window or a HUD strip. Hover them for XP Detailed / Loot Tracker.
-  * Crafting: the crafting planner, when your recipe book is read, and the Crafting Planner HUD.
+  * Crafting: the crafting planner and the Crafting Planner HUD.
   * Buffs, Consumables & gear, Health bars, Combat, Skill activity: the HUD strips.
   * Map & location: the location strip, map overlays, the auto map, loot runs and your last death.
   * Notifications: what's new since you last looked (guild message, mail, rewards, gear to repair...).

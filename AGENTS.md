@@ -205,8 +205,12 @@ into one if a new file is ever needed).
   watchdog stopped Toolbox, `/toolbox plan trace`; bug report 37; fixed in a later 55 build with the API version
   unchanged, owner 2026-10-29: no pause, and the whole book read 0.4-0.8 ms a recipe with no stutter),
   with `ShroudGetRecipesMaking` (`D.HasMakers`) the makers come
-  from the game, `D.MakersOf(keyOrName)` (kept a session in `D.makers`, dropped by `D.ForgetRecipes`), and the book
-  below is never read (its confirmation, settings and buttons stand aside, `PL.NO_BOOK`). `ShroudGetOwnedCounts`
+  from the game, `D.MakersOf(keyOrName)` (kept a session in `D.makers`, dropped by `D.ForgetRecipes` on
+  `ShroudOnRecipesChanged` and by `PL.Init`); below API 55 the planner's makers are the recipes named like the item
+  (`plQuickMakers`) and `/toolbox recipe` stops at the ingredients. The recipe book read (1.9.0-1.9.1: every known
+  recipe read a step at a time, about 90 s of stutter, with a confirmation window, a progress bar and "when to read
+  it" settings) was REMOVED for 1.10.0 (owner, 2026-10-29: 1.10.0 ships only once the live client has API 55; a saved
+  `planner.book` is dropped at start; see git history before it to bring any of it back). `ShroudGetOwnedCounts`
   (`D.HasCounts`) is NOT used for the plan's counts: built, then taken out on the owner's QA timing (2026-10-27): 2.3 ms
   an item against 0.4 ms a recipe read again (12 counts 27 ms, 6 recipes 2.5 ms; a first read of a recipe as cheap),
   and a recipe's `have` counts the table and trunks too. 1.9.0's 260-519 ms recipe reads were the live API 44 client. `/toolbox perf recipes` (`PL.PerfStart`, `T.PerfClock`) times each kind of call for the plan set, ONE recipe call
@@ -217,44 +221,18 @@ into one if a new file is ever needed).
   documented: a refresh at a station still reads every plan recipe in one go).
   Harness: `H.apiVersion >= 50` / `55` installs them (`H.S.makingCalls`, `H.S.countCalls`, `H.S.recipeCalls`,
   `H.S.owned[key] = { carried, bank, bankKnown }`, for the timing).
-  The recipe book (`D.ReadRecipeBook`, for `/toolbox recipe` and the planner): `D.BOOK_STEP` (1) recipe by id a
-  `D.BOOK_PERIOD` (0.05 s) step, about 90 s for a big book (the whole book at once ran past the game's time limit,
-  2026-10-05; paused in a fight and `BB.COMBAT_LINGER` s after it, and while the planner is closed unless the read is
-  `anywhere` (`/toolbox recipe`, "login"), `D.BookPaused` ("combat" / "closed"; review 67, owner 2026-10-23: the reads
-  were 1.9.0's hitching); only what each recipe makes is kept (`indexRecipe`; `/toolbox recipe` reads its chain's
-  makers itself); EVERY read asks first in a confirmation window, OK / Cancel, nothing read without OK (owner,
-  2026-10-23: "a completely new popup window ... clear and obvious ... not do the load unless the user hits ok";
-  a panel in the planner went unseen): `PL.Confirm(background, ok)` (`PL.ASK_ID` "toolbox_book_confirm", `PL.ASK_*`
-  texts; its own window from API 41, `PL.OwnNoticeWindow`, Toolbox's 9th of the 30 allowed; before, the shared 8th,
-  `T.TakeSharedWindow`, the planner reopened on Cancel; also when the game refuses the own window: `plAskBuild`, Show
-  taken as shown unless it answers false, chat naming why when neither shows, `/toolbox plan debug` printing each try;
-  owner, 2026-10-23: in game the button did nothing), centred by `Hud.screen`; Cancel, Esc or a close (`onClose`) =
-  `plBookStopped` (nothing asks again on its own); the planner's buttons, Settings'
-  `pl_book_read` and `plan book read` go through `PL.AskBook` (OK opens the planner, where the book is read); "need"
-  asks from `PL.Tick` (`plNeedAsk`: not mid-refresh, the shared window would close the planner); "login" and
-  `/toolbox recipe` ask too, then read in the background (harness `H.apiVersion`, 30 windows from 41); API 37's `ShroudGetRecipeBook`, one station a step, hitched in game, owner 2026-10-15: not used;
-  `D.BookProgress` for the planner's bar, with a once-a-login note, `PL.BOOK_NOTE`; meanwhile the planner's
-  controls are greyed out, `plLock` from `PL.ShowProgress`: owner, 2026-10-16); kept for the session in
-  `D.recipeIndex` (`byResult` by name,
-  `count`; when it's read is the player's, owner 2026-10-17 (default `PL.BOOK_WHEN_DEFAULT` "manual", a player's
-  request 2026-10-23; "need" before 1.9.1; Only when I ask: From scratch asks nothing, the planner's button does): `PL.BOOK_WHEN` "need" (`PL.NeedBook`), "login"
-  (`PL.BOOK_LOGIN_DELAY` s after `PL.Init` and a recipe learned) or "manual" (`PL.ReadBook` only: Settings' `pl_book_read`,
-  the planner's `pl_book`, `/toolbox plan book read`; a recipe learned keeps the book, `D.ForgetRecipes(keep)`,
-  `D.bookStale`); `PL.StopBook` (`plBookStopped`: nothing auto until read); a read again keeps the old one in use,
-  the planner not greyed;
-  `byKey` by item key), dropped on `ShroudOnRecipesChanged` and by `PL.Init` (a login or another character). Not saved: 1,764 recipes'
-  makers would take a large share of a 256 KB file. At the end, `Toolbox.Planner` (PL; owner, 2026-10-15,
+  At the end, `Toolbox.Planner` (PL; owner, 2026-10-15,
   the 1.9.0 feature; header comment): the crafting planner, `/toolbox plan [recipe]`, the shared 8th window's fourth
   user (`T.TakeSharedWindow("planner")`). Pure model: `PL.Expand(rootId, crafts, ctx)` (rows, shopping list, build
   order; your bags shared across the plan, a tool not used up and a craft's surplus left for the next rows, reviews
   49-50; no recipe inside itself), `PL.PickChoice` (the player's pick, else the first you
   have enough of; the "Use what I have" / "Stats I care about" modes and watched stats were dropped the same day,
-  owner: the counts and the "Adds ..." line under each slot, `PL.AddsText`, show it; `PL.Reset` clears the plan, not
-  the book), `PL.PickMaker`, `PL.Preview` (base + the
+  owner: the counts and the "Adds ..." line under each slot, `PL.AddsText`, show it; `PL.Reset` clears the plan),
+  `PL.PickMaker`, `PL.Preview` (base + the
   root's picks, weight left out). Refreshed on `ShroudOnInventoryChanged` / craft results / the crafting state at most
   every `PL.Gap` s while shown (`PL.REFRESH_GAP`, or `PL.HUD_GAP` with only the HUD, plus `PL.GAP_PER_READ` for
-  each recipe the last refresh read, to `PL.GAP_MAX`; with only the HUD, not in a fight: review 67) (`PL.Tick` from `T.ViewsTick`), the plan's recipes read fresh; before the
-  book is read, the makers are the known recipes named like the item (`plQuickMakers`, a few calls, over
+  each recipe the last refresh read, to `PL.GAP_MAX`; with only the HUD, not in a fight: review 67) (`PL.Tick` from `T.ViewsTick`), the plan's recipes read fresh; before API
+  55, the makers are the known recipes named like the item (`plQuickMakers`, a few calls, over
   `D.KnownRecipes`: the game's list once a session, 4.5 ms, indexed by first word `D.KNOWN_STEP` a step from the
   planner opening, `D.PrepareKnown`, since one frame took 24 ms; a search finishes it at once); the shortfall's
   control is an "I'll craft" Toggle (owner: "Make it" read as if it would craft); the Shopping list is the first and
@@ -602,7 +580,7 @@ into one if a new file is ever needed).
   while building, and (3) give each control an id; `tests/test_config.lua` fails for a control the search can't
   find. Categories (`C.CATEGORIES`, the "Settings" dropdown;
   "General" first, owner 2026-10-17: the text size and line spacing everything uses, `C.GeneralSection`; then Toolbelt;
-  "Crafting", same day: the planner, its recipe book and its HUD; skills.lua's page goes after Combat, found by key):
+  "Crafting", same day: the planner and its HUD; skills.lua's page goes after Combat, found by key):
   only the one shown is built; switching destroys the previous one first (every page kept
   built took ~420 elements and hit the game's 2,000 cap in game, 2026-09-30). So `Sync` uses `setValue` /
   `setText` / `setEnabled`, which skip missing controls, every id it looks up must be in `ALL_IDS`, and state
@@ -750,7 +728,7 @@ owner 2026-10-19, a player's request), x, y }` (a saved place "left", from beta 
 | `map_scene:<n>` | `{ raw = scene id, scene = its name, shown = overlay id or 0, auto = bool (the auto map switched on / off there; absent: the scene kind's default), fights = bool (the same for fights), list = { { id, name (<= 24, unique in the scene), icon = an OV.ICONS shape, color = an OV.COLORS name (the next marks'), nextPlace, places = "id|name|x|y|z|shape n|color n;...", auto = a node kind, "*" for Gathering, "!" + a creature's name, or "!" for Fights (made by the auto map) } } }`. The index's ignore = { name parts the auto map skips }, death = { raw, scene, x, y, z, at = "HH:MM", date, clock = T.Clock() at death, away = true once you've left it } (your last death) (hud.lua; at most OV.MAX a scene, OV.SCENE_MAX places each, OV.BUDGET in all, every key together). v = 2 (1.8.0: every scene in `map_overlays`) and v = 1 (one list, places with raw / scene; development only) are converted at the first read: the index written over the old key first (both at once could pass 256 KB), the old value put back if a scene key is refused. A write (`ovWrite`) writes only the scenes whose form changed (`ovSaved`), deletes gone scenes' keys, then writes the index if it changed; refused at any step (a delete too, review 61), everything done is undone newest first, a conversion's new scene keys out before the old value goes back (review 60). `T.DeleteSaved` keeps a key measured until the game deletes it (harness `H.S.deleteRefuse`). The scene keys are measured at start through `B.KEY_LISTS`. Kept by a reset; NOT in the recovery copy (`B.OTHER_KEYS`: the account file's 256 KB) |
 | `party` | `{ show = bool (default false), combatOnly = bool, self = bool (your own row; default false), sort = "party" / "health", reach = a PT.REACH_CHOICES metres (0 off; default 30), debuffs = bool (default true), watch = { name parts, <= PT.WATCH_MAX }, mine = bool, icons = 0..PT.ICONS_MAX (default 4), iconSize = PT.ICON_MIN..PT.ICON_MAX (default 20), alertBelow = 0 (off) or PT.ALERT_MIN..PT.ALERT_MAX, alertDebuffs = { name parts, <= PT.WATCH_MAX }, width = PT.WIDTH_MIN..PT.WIDTH_MAX (bar length, default 120), numbers = bool (the percent, default true), shade = 0..90, x, y }` (vitals.lua's Party Toolbelt) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
-| `planner` | `{ v = 1, scratch = bool, crafts = n, recipe = id, view = a PL.VIEWS name, makes = { [row path "p.1.2"] = true }, makers = { [item key] = recipe id }, picks = { ["r" .. id] = { at = n, ["s" .. slot] = item key } } (<= PL.PICKS_MAX), pickAt = n, hud = bool (the Crafting Planner HUD), hudStage = "shop"/"build", hudStay = bool, hudClose = seconds (PL.HUD_CLOSE), hudStart = "shop"/"build", hudAuto = bool (default true), shade = 0..90, book = a PL.BOOK_WHEN key (default "manual" from 1.9.1, "need" before; absent reads as the default), hx, hy, got = { [item key] = true } (the strip's shopping lines) }` (daily.lua's crafting planner; kept by a reset, not in the recovery copy: `B.OTHER_KEYS`) |
+| `planner` | `{ v = 1, scratch = bool, crafts = n, recipe = id, view = a PL.VIEWS name, makes = { [row path "p.1.2"] = true }, makers = { [item key] = recipe id }, picks = { ["r" .. id] = { at = n, ["s" .. slot] = item key } } (<= PL.PICKS_MAX), pickAt = n, hud = bool (the Crafting Planner HUD), hudStage = "shop"/"build", hudStay = bool, hudClose = seconds (PL.HUD_CLOSE), hudStart = "shop"/"build", hudAuto = bool (default true), shade = 0..90, hx, hy, got = { [item key] = true } (the strip's shopping lines) }` (daily.lua's crafting planner; kept by a reset, not in the recovery copy: `B.OTHER_KEYS`) |
 | `skills_paused` | `{ v = 1, how = "off"/"maintain", when = "HH:MM", list = { { key = skill key or name, from = mode, to = mode } } }`: the pause's record (skills.lua; empty list = not paused); kept by a reset, copied for recovery |
 | `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`, events' `{ [occurrence] = start (UTC seconds, as text) }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ shade = 0..90 (% black behind the HUD strip; default T.SHADE_DEFAULT, 60, every strip alike), hideAfter = seconds (0 never, 5..60), font = 9..32, spacing = 0..12 (each unset: the XP windows'), x, y }` |
@@ -1143,7 +1121,7 @@ Rules learned the hard way; keep to them.
   it is always taken. The account file holds the prices, every setup and every character's recovery copy; a full one
   (600 prices, 20 setups, nine characters) measures about 98 KB estimated (`test_stress.lua`). The harness raises at a
   flush for a file past 256 KB (`H.JsonSize`).
-- **Limits** (per add-on): 8 windows, 30 from API 41 (Toolbox has 7 lasting ones; Docs, version and Map overlays share the 8th: `T.TakeSharedWindow`; the planner's book notice is a 9th from API 41), HUD
+- **Limits** (per add-on): 8 windows, 30 from API 41 (Toolbox has 7 lasting ones; Docs, version and Map overlays share the 8th: `T.TakeSharedWindow`), HUD
   frames covering <= 35% of the screen (8 by the reference; 25 by the work log of 2026-10-01, unconfirmed in
   game: `Hud.MAX_FRAMES` is 25 and `Hud.FrameCap()` learns the real limit from the game's refusal,
   `Hud.OutOfRoom`), 2,000 elements, 65,536 characters of text in all (one element's text is cut at 4,096, a

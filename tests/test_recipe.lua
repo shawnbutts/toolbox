@@ -1,13 +1,18 @@
 -- /toolbox recipe <name> (Toolbox.Daily.RecipeLines): a known recipe as the game reports it, and what it takes
--- from raw materials through the recipes you know. A probe for the crafting planner.
+-- from raw materials through the recipes you know (API 55: the game names the recipes making an item). A probe for
+-- the crafting planner.
 local H = require("harness")
 
 return function(t)
-  -- /toolbox recipe reads the book only after OK in the confirmation (owner, 2026-10-23).
-  local function ask(cmd)
-    H.chat(cmd)
-    local w = H.S.windows[Toolbox.Planner.ASK_ID]
-    if w and not w.destroyed and w:IsShown() then H.click(Toolbox.Planner.ASK_ID, "pl_confirm_ok") end
+  local function ask(cmd) H.chat(cmd) end
+  -- A test on an API 55 client (the recipes making an item, ShroudGetRecipesMaking).
+  local function on55(fn)
+    return function()
+      H.apiVersion = 55
+      local ok, err = pcall(fn)
+      H.apiVersion = nil
+      if not ok then error(err, 0) end
+    end
   end
   -- A plate piece made from plates, plates from ingots, ingots from ore; a strap from leather (not a known
   -- recipe: raw); a hammer (a tool) and an optional oil left out of the raw materials.
@@ -31,13 +36,11 @@ return function(t)
   local function all() return table.concat(H.logs(), "\n") end
 
   t.test("one recipe: its fields as given (undocumented ones too), then from scratch with crafts and raw totals",
-      function()
+      on55(function()
     H.boot()
     book()
     H.clearLogs()
     ask("/tbx recipe iron plate chest")
-    t.ok(all():find("Reading your recipe book %(4 recipes%)"), all())
-    H.advance(5)
     local out = all()
     t.ok(out:find("Recipe 'Iron Plate Chest' %(id 1, Blacksmithy"), out)
     t.ok(out:find("2 x Leather Strap %(have 1%)  {secret=<table of 2>}"), "an undocumented field shows: " .. out)
@@ -48,7 +51,7 @@ return function(t)
     local at = out:find("Raw materials in all", 1, true)
     t.ok(at and out:sub(at):find("\n  8 x Iron Ore\n  2 x Leather Strap", 1, true), out)
     t.no(out:find("x Hammer\n  ") or out:find("x Polish\n"), "tools and optional ones aren't raw materials")
-  end)
+  end))
 
   t.test("API 37: the station, carried counts, item keys, stats and a group slot's choices", function()
     H.boot()
@@ -80,7 +83,7 @@ return function(t)
     t.no(out:find("other fields"), "every API 37 field has its own line")
   end)
 
-  t.test("from scratch through a group slot: the picked material, else the game's first choice", function()
+  t.test("from scratch through a group slot: the picked material, else the game's first choice", on55(function()
     H.boot()
     book()
     local sheet = function(name, key) return { name = name, key = key, carried = 0, stats = {} } end
@@ -99,7 +102,7 @@ return function(t)
     out = all()
     t.ok(out:find("6 x Iron Plate  <- 2 x Iron Plate (Blacksmithy, makes 4)  (for Metal Sheet: picked)", 1, true), out)
     t.ok(out:find("8 x Iron Ore\n"), "down to the ore: " .. out)
-  end)
+  end))
 
   t.test("several matches are listed; none, or no recipe book, says so", function()
     H.boot()
@@ -125,38 +128,42 @@ return function(t)
     t.ok(all():find("0 known recipes") or all():find("No known recipes yet"), all())
   end)
 
-  -- In game, reading a big recipe book in one call ran past the game's time limit (owner, 2026-10-05).
-  t.test("a big recipe book is read a few recipes at a time, once; learning a recipe reads it again", function()
+  -- Before API 55 the whole recipe book was read for from scratch (about a minute and a half of stutter in game); it
+  -- went with API 55's lookup (owner, 2026-10-29): an older client gets the recipe and its ingredients.
+  t.test("before API 55: the recipe and its ingredients, from scratch needing a newer client; nothing read", function()
     H.boot()
     book()
-    for i = 10, 409 do
-      H.S.recipes[i] = { id = i, name = "Filler " .. i, ingredients = {}, results = { { name = "Filler " .. i,
-        quantity = 1 } } }
-    end
     local calls = 0
     local get = ShroudGetRecipe
     ShroudGetRecipe = function(id) calls = calls + 1 return get(id) end
     H.clearLogs()
     ask("/tbx recipe iron plate chest")
-    t.ok(calls <= Toolbox.Daily.BOOK_STEP, "not all at once: " .. calls)
-    H.advance(21, 0.05)                                  -- 404 recipes, one each 0.05 s
-    t.ok(all():find("Raw materials in all", 1, true), "answered once read")
-    local after = calls
-    H.clearLogs()
+    ShroudGetRecipe = get
+    local out = all()
+    t.ok(out:find("Recipe 'Iron Plate Chest'", 1, true), out)
+    t.ok(out:find("6 x Iron Plate (have 0)", 1, true), out)
+    t.ok(out:find("From scratch needs a newer game client (Lua API 55)", 1, true), out)
+    t.no(out:find("Raw materials in all", 1, true), out)
+    t.eq(calls, 1, "the recipe itself, no book")
+  end)
+
+  t.test("API 55: the makers asked once a session, again after learning a recipe", on55(function()
+    H.boot()
+    book()
     ask("/tbx recipe iron plate chest")
-    t.ok(all():find("Raw materials in all", 1, true), "at once the second time")
-    -- the recipe itself (current counts) and its chain's makers (the book keeps only what each makes): not 404
-    t.ok(calls - after <= 10, "the book isn't read again: " .. (calls - after))
-    H.chat("/tbx plan book need")                       -- (Only when I ask, the default, keeps the old book)
+    local calls = H.S.makingCalls
+    t.ok(calls > 0, "asked the game")
+    ask("/tbx recipe iron plate chest")
+    t.eq(H.S.makingCalls, calls, "kept for the session")
     H.callback("ShroudOnRecipesChanged")
     H.clearLogs()
     ask("/tbx recipe iron plate chest")
-    t.ok(all():find("Reading your recipe book", 1, true), "read again after learning a recipe")
-    ShroudGetRecipe = get
-  end)
+    t.ok(H.S.makingCalls > calls, "asked again after learning a recipe")
+    t.ok(all():find("Raw materials in all", 1, true), all())
+  end))
 
   -- In game (2026-10-05) "Iron Ingot from Metal Scraps" was read before "Iron Ingot" and taken for the ingots.
-  t.test("several recipes make an item: the one named like it is used, the others listed", function()
+  t.test("several recipes make an item: the one named like it is used, the others listed", on55(function()
     H.boot()
     book()
     H.S.recipes[5] = { id = 0, name = "Iron Ingot from Metal Scraps", category = "Smelting",
@@ -172,5 +179,5 @@ return function(t)
     t.ok(out:find("4 x Iron Ingot  <%- 4 x Iron Ingot %(Smelting, makes 1%)  %[also made by: Iron Ingot from Metal"),
       out)
     t.no(out:find("Metal Scrap\n"), "no scrap in the raw materials")
-  end)
+  end))
 end

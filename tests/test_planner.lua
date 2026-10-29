@@ -56,12 +56,6 @@ return function(t)
   local function win() return H.S.windows[W] end
   local function find(id) return win() and win():Find(id) end
   local function text(id) return find(id) and find(id).text or "" end
-  -- The confirmation before any read of the recipe book (owner, 2026-10-23), and its OK.
-  local function confirmWin()
-    local w = H.S.windows[Toolbox.Planner.ASK_ID]
-    return w and not w.destroyed and w:IsShown() and w or nil
-  end
-  local function okRead() H.click(Toolbox.Planner.ASK_ID, "pl_confirm_ok") end
   local function body()
     local out = {}
     local function walk(e)
@@ -129,24 +123,18 @@ return function(t)
     t.ok(crafts.style and crafts.style.minWidth, "the Crafts list too")
   end)
 
-  t.test("Reset: the plan's fields cleared, the recipe book kept", function()
+  t.test("Reset: the plan's fields cleared", function()
     open()
     H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
     H.change(W, "pl_crafts", "5")
     H.change(W, "pl_scratch", true)
-    H.click(W, "pl_book")                               -- Only when I ask (the default): the planner's button
-    okRead()                                            -- and OK in the confirmation
-    H.advance(8)
-    t.ok(Toolbox.Daily.recipeIndex, "the book is read")
     H.change(W, "pl_make_1", true)
-    local index = Toolbox.Daily.recipeIndex
     H.click(W, "pl_reset")
     t.eq(find("pl_recipe").value, "Find a recipe first")
     t.eq(find("pl_find").text, "")
     t.eq(find("pl_crafts").value, "1")
     t.ok(text("pl_title"):find("Find it", 1, true), text("pl_title"))
     t.eq(body(), "", "nothing planned")
-    t.eq(Toolbox.Daily.recipeIndex, index, "the book isn't read again")
     t.eq(find("pl_scratch").value, true, "From scratch is how you plan: kept")
     H.chat("/tbx plan augmented plate chest")
     H.change(W, "pl_view", "Plan")
@@ -177,11 +165,6 @@ return function(t)
     t.eq(find("pl_make_1").kind, "Toggle", "a tick, not a button: nothing is crafted")
     t.ok(find("pl_make_3"), "and the straps")
     t.no(find("pl_make_2"), "nothing short of the bindings")
-    t.ok(find("pl_make_1"):IsEnabled(), "usable: nothing is read yet")
-    H.click(W, "pl_book")
-    okRead()
-    t.no(find("pl_make_1"):IsEnabled(), "greyed out while the book is read")
-    H.advance(1, 0.05)                                  -- the book read (six recipes)
     H.change(W, "pl_make_1", true)
     local b = body()
     t.ok(b:find("4 short, craft 4", 1, true), b)
@@ -400,231 +383,6 @@ return function(t)
     H.submit(W, "pl_find", "no such thing")
   end)
 
-  t.test("the book: a recipe at a time, with a bar while it's read; I'll craft knows every maker once it's done",
-      function()
-    open()
-    H.chat("/tbx plan book need")                -- (read again on its own after learning a recipe)
-    H.S.recipes[15] = { id = 15, name = "Smelt Scrap Iron", category = "Smelting", categoryKey = "Crafting_Smelting",
-      station = "Smelter", ingredients = { { name = "Metal Scraps", key = key("k"), quantity = 3, have = 0 } },
-      results = { { name = "Iron Ingot", key = key("i"), quantity = 2 } } }   -- named unlike what it makes
-    H.callback("ShroudOnRecipesChanged")         -- learned
-    H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
-    H.change(W, "pl_scratch", true)
-    t.no(find("pl_make_1"), "the known recipes are indexed first, in the background")
-    H.advance(1)                                 -- When the planner needs it: the confirmation at the next tick
-    okRead()
-    H.advance(0.05, 0.05)                        -- one step: six recipes indexed, one of them read
-    t.ok(find("pl_progress").visible ~= false, "the bar shows while the book is read")
-    t.ok(text("pl_bar_text"):find("^Reading recipes: %d of 6"), text("pl_bar_text"))
-    t.ok(text("pl_bar_note"):find("Settings > Crafting", 1, true), text("pl_bar_note"))
-    for _, id in ipairs({ "pl_find", "pl_find_go", "pl_reset", "pl_recipe", "pl_crafts", "pl_scratch", "pl_view",
-                          "pl_pick_1", "pl_make_1" }) do
-      t.no(find(id):IsEnabled(), id .. " is greyed out while the book is read")
-    end
-    local rows = Toolbox.Planner.LastPlan().rows
-    H.call(Toolbox.Planner.SetMaking, rows[1].path, true)   -- (only a test can tick them meanwhile)
-    H.call(Toolbox.Planner.SetMaking, Toolbox.Planner.LastPlan().rows[2].path, true)
-    t.eq(#find("pl_via_2").choices, 2, "before the book: the two named like ingots")
-    t.no(find("pl_via_2"):IsEnabled(), "a row built during the read is greyed out too")
-    local before = find("pl_bar").value
-    H.advance(2)
-    t.ok(find("pl_bar").value > before, "the bar moves")
-    local held = H.S.periodics.toolbox_views
-    t.ok(held, "the views tick")
-    H.S.recipes[16] = nil
-    for i = 20, 80 do
-      H.S.recipes[i] = { id = i, name = "Filler " .. i, ingredients = {}, results = {} }
-    end
-    H.callback("ShroudOnRecipesChanged")
-    H.advance(1)
-    okRead()                                 -- read again: asked first
-    H.S.periodics.toolbox_views = nil        -- paused (/toolbox perf only): the reader moves the bar
-    before = find("pl_bar").value
-    H.advance(2, 0.05)
-    t.ok(find("pl_bar").value > before, "the bar moves without the views tick: " .. find("pl_bar").value)
-    H.S.periodics.toolbox_views = held
-    H.advance(8, 0.05)
-    H.advance(6)
-    t.eq(find("pl_progress").visible, false, "gone once read")
-    for _, id in ipairs({ "pl_find", "pl_recipe", "pl_scratch", "pl_pick_1", "pl_make_1", "pl_via_2" }) do
-      t.ok(find(id):IsEnabled(), id .. " usable again")
-    end
-    t.eq(#find("pl_via_2").choices, 3, "then every recipe making them")
-    t.eq(#Toolbox.Daily.recipeIndex.byKey[key("i")], 3, "by item key")
-    H.chat("/tbx plan")
-    H.chat("/tbx plan")
-    t.eq(find("pl_progress").visible, false, "kept: not read again while you play")
-    H.logout()
-    H.S.char.name = "Alt"
-    H.callback("ShroudOnSceneLoaded", "Novia")
-    H.advance(1)
-    t.eq(Toolbox.Daily.recipeIndex, nil, "another character: its own book, read again")
-  end)
-
-  -- Owner, 2026-10-23: the recipe reads were 1.9.0's hitching. "A completely new popup window ... clear and obvious
-  -- ... an ok and cancel button and not do the load unless the user hits ok": every read asks first, in a window of
-  -- its own; the book is read only while the planner is open and keeps only what each recipe makes.
-  t.test("the book: a confirmation window before any read; nothing read without OK", function()
-    open()
-    local D, PL = Toolbox.Daily, Toolbox.Planner
-    for i = 20, 80 do H.S.recipes[i] = { id = i, name = "Filler " .. i, ingredients = {}, results = {} } end
-    H.callback("ShroudOnRecipesChanged")
-    H.advance(1)
-    H.change(W, "pl_scratch", true)
-    H.advance(2)
-    t.no(confirmWin(), "Only when I ask: From scratch doesn't ask on its own")
-    t.ok(find("pl_book").visible ~= false, "the planner's button")
-    H.click(W, "pl_book")
-    local c = confirmWin()
-    t.ok(c, "a window of its own")
-    t.eq(c.title, PL.ASK_TITLE)
-    t.ok(c:Find("pl_confirm_heading").text:find("stutter", 1, true), c:Find("pl_confirm_heading").text)
-    t.ok(c:Find("pl_confirm_text").text:find("stutter", 1, true))
-    t.ok(c:Find("pl_confirm_ok") and c:Find("pl_confirm_cancel"), "OK and Cancel")
-    H.advance(5, 0.05)
-    t.no(D.ReadingRecipes(), "nothing read while it asks")
-    H.click(PL.ASK_ID, "pl_confirm_cancel")
-    t.no(confirmWin(), "Cancel: gone")
-    H.advance(5, 0.05)
-    t.no(D.ReadingRecipes(), "and nothing read")
-    t.no(D.recipeIndex)
-    H.chat("/tbx plan book need")                       -- When the planner needs it: asks on its own
-    H.chat("/tbx plan book read")
-    t.ok(confirmWin(), "a read asked for: the window again")
-    H.closeWindow(PL.ASK_ID)                            -- Esc: as Cancel
-    H.advance(3, 0.05)
-    t.no(confirmWin())
-    t.no(D.ReadingRecipes(), "closed: nothing read")
-    t.no(confirmWin(), "nor asked again on its own")
-    H.click(W, "pl_book")
-    okRead()
-    t.no(confirmWin(), "OK: gone")
-    t.ok(D.ReadingRecipes(), "OK: read")
-    H.advance(0.5, 0.05)
-    local done = D.BookProgress()
-    t.ok(done and done > 0, "reading with the planner open")
-    H.chat("/tbx plan")                                 -- closed
-    t.no(PL.IsShown())
-    H.advance(5, 0.05)
-    t.eq(D.BookProgress(), done, "nothing read with the planner closed")
-    t.eq(D.BookPaused(), "closed")
-    t.ok(PL.BookStatus():find("paused until you open the crafting planner", 1, true), PL.BookStatus())
-    H.chat("/tbx plan")
-    H.advance(10, 0.05)
-    t.ok(D.recipeIndex, "read once it's open again")
-    t.eq(D.recipeIndex.recipes, nil, "only what each recipe makes is kept, not the whole recipes")
-    t.ok(D.recipeIndex.byKey[key("i")], "by item key")
-    H.callback("ShroudOnRecipesChanged")              -- learned one (When the planner needs it)
-    H.advance(1)
-    t.ok(confirmWin(), "read again: asked again")
-    t.no(D.ReadingRecipes() and not D.recipeIndex, "the old book in use meanwhile")
-    okRead()
-    t.ok(D.ReadingRecipes(), "read again on OK")
-  end)
-
-  t.test("the book: Read it now in Settings asks, then opens the planner and reads", function()
-    H.boot()
-    book()
-    local D, PL = Toolbox.Daily, Toolbox.Planner
-    H.chat("/tbx config")
-    t.no(PL.IsShown(), "the planner closed")
-    H.click("toolbox_config", "pl_book_read")
-    t.ok(confirmWin(), "the confirmation first")
-    t.no(D.ReadingRecipes(), "nothing read yet")
-    H.clearLogs()
-    okRead()
-    t.ok(PL.IsShown(), "OK opens the planner: the book is read only while it's open")
-    t.ok(D.ReadingRecipes(), "and reads")
-    t.ok(H.logged("may stutter"), "chat says the stutter too: " .. tostring(H.lastLog()))
-    H.advance(2, 0.05)
-    t.ok(D.recipeIndex, "read")
-    H.chat("/tbx plan")
-    H.click("toolbox_config", "pl_book_read")           -- Read it again: asked every time
-    t.ok(confirmWin(), "asked again")
-    H.click(PL.ASK_ID, "pl_confirm_cancel")
-    t.no(D.ReadingRecipes())
-  end)
-
-  t.test("the book: from API 41 the confirmation is a window beside the planner (before, it takes the shared one)",
-      function()
-    H.apiVersion = 44
-    local ok, err = pcall(function()
-      open()
-      local PL = Toolbox.Planner
-      H.change(W, "pl_scratch", true)
-      H.click(W, "pl_book")
-      t.ok(confirmWin(), "the confirmation")
-      t.ok(PL.IsShown(), "the planner stays open beside it (30 windows)")
-      okRead()
-      t.ok(Toolbox.Daily.ReadingRecipes())
-    end)
-    H.apiVersion = nil
-    if not ok then error(err, 0) end
-    open()
-    local PL = Toolbox.Planner
-    H.change(W, "pl_scratch", true)
-    H.click(W, "pl_book")
-    t.ok(confirmWin(), "an older client: the confirmation in the shared window")
-    t.no(PL.IsShown(), "the planner closed meanwhile")
-    H.click(PL.ASK_ID, "pl_confirm_cancel")
-    t.ok(PL.IsShown(), "Cancel: the planner back")
-  end)
-
-  -- Owner, 2026-10-23: on the live client (API 44) the button did nothing. Whatever the game refuses, the shared
-  -- window is tried, and chat says why if nothing shows.
-  t.test("the book: the confirmation falls back to the shared window, and says why when nothing shows", function()
-    H.apiVersion = 44
-    local ok, err = pcall(function()
-      open()
-      local D, PL = Toolbox.Daily, Toolbox.Planner
-      local live = 0
-      for _, w in pairs(H.S.windows) do if not w.destroyed then live = live + 1 end end
-      H.S.windowCap = live                              -- the game refusing one more window
-      H.change(W, "pl_scratch", true)
-      H.click(W, "pl_book")
-      t.ok(confirmWin(), "in the shared window instead")
-      t.no(PL.IsShown(), "the planner closed meanwhile")
-      okRead()
-      t.ok(PL.IsShown(), "OK: the planner back")
-      t.ok(D.ReadingRecipes(), "and reading")
-      H.chat("/tbx plan book stop")
-      H.S.windowCap = nil
-      H.S.showRefused = true                            -- the game not showing any window
-      H.clearLogs()
-      H.click(W, "pl_book")
-      H.S.showRefused = nil
-      t.no(confirmWin())
-      t.ok(H.logged("couldn't open the window asking to read your recipe book, so nothing is read: the game didn't"
-        .. " show the window"), tostring(H.lastLog()))
-      t.no(D.ReadingRecipes(), "nothing read")
-    end)
-    H.apiVersion = nil
-    if not ok then error(err, 0) end
-  end)
-
-  -- Review 69: a confirmation shown with the planner closed ("At login", /toolbox recipe) stayed up for the next
-  -- character, its OK doing nothing.
-  t.test("the book: a confirmation doesn't cross a character switch (its own window, or the shared one)", function()
-    for _, api in ipairs({ 44, 25 }) do
-      H.apiVersion = api
-      local ok, err = pcall(function()
-        H.boot()
-        book()
-        H.chat("/tbx plan book login")
-        t.ok(confirmWin(), "API " .. api .. ": asked with the planner closed")
-        H.logout()
-        H.S.char.name = "Alt"
-        H.callback("ShroudOnSceneLoaded", "Novia")
-        H.advance(1)
-        t.no(confirmWin(), "API " .. api .. ": gone for the next character")
-        t.no(Toolbox.Planner.Confirming())
-        t.no(Toolbox.Daily.ReadingRecipes(), "no read crossed over")
-      end)
-      H.apiVersion = nil
-      if not ok then error(err, 0) end
-    end
-  end)
-
   -- Review 68: the dropdowns draw in the theme's font, not the General size; their width follows a change.
   t.test("the Show and Crafts widths: never under the theme font's, and set again when the General size changes",
       function()
@@ -642,50 +400,7 @@ return function(t)
     Wn.SetFont(Wn.FONT_DEFAULT)
   end)
 
-  t.test("the book: /toolbox recipe and the At login setting ask, then read with the planner closed", function()
-    H.boot()
-    book()
-    local D = Toolbox.Daily
-    H.chat("/tbx recipe augmented plate")
-    t.ok(confirmWin(), "/toolbox recipe asks first")
-    okRead()
-    H.advance(1, 0.05)
-    t.ok(D.recipeIndex, "/toolbox recipe: read without the planner")
-    D.ForgetRecipes()
-    H.chat("/tbx plan book login")
-    t.ok(confirmWin(), "At login: asks")
-    t.ok(confirmWin():Find("pl_confirm_where").text:find("background", 1, true))
-    okRead()
-    t.ok(D.ReadingRecipes(), "At login: started")
-    H.advance(1, 0.05)
-    t.ok(D.recipeIndex, "and read in the background, the planner closed")
-  end)
-
-  t.test("the book's read pauses in a fight and just after it, and goes on after (review 67)", function()
-    open()
-    for i = 20, 80 do H.S.recipes[i] = { id = i, name = "Filler " .. i, ingredients = {}, results = {} } end
-    H.callback("ShroudOnRecipesChanged")
-    H.advance(1)
-    H.chat("/tbx plan book read")
-    okRead()                                            -- the confirmation first
-    H.advance(0.5, 0.05)
-    local done = Toolbox.Daily.BookProgress()
-    t.ok(done and done > 0, "reading")
-    H.setCombat(true)
-    H.advance(0.1, 0.05)
-    done = Toolbox.Daily.BookProgress()
-    H.advance(3, 0.05)
-    t.eq(Toolbox.Daily.BookProgress(), done, "nothing read in the fight")
-    t.ok(text("pl_bar_text"):find("paused during combat", 1, true), text("pl_bar_text"))
-    H.setCombat(false)
-    H.advance(Toolbox.BuffBar.COMBAT_LINGER - 1, 0.05)
-    t.eq(Toolbox.Daily.BookProgress(), done, "nor just after it")
-    H.advance(10, 0.05)
-    t.ok(Toolbox.Daily.recipeIndex, "read once the fight is over")
-    t.eq(Toolbox.Daily.recipeIndex.count, 66)
-  end)
-
-  t.test("the known recipes are read once a session: search, the names, the book read share them", function()
+  t.test("the known recipes are read once a session: the search and the makers by name share them", function()
     H.boot()
     book()
     local calls, get = 0, ShroudGetKnownRecipes
@@ -694,7 +409,7 @@ return function(t)
     H.change(W, "pl_view", "Plan")
     H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
     H.change(W, "pl_scratch", true)
-    H.advance(1, 0.05)                                  -- the book read: the controls usable again
+    H.advance(1, 0.05)
     H.change(W, "pl_make_1", true)
     H.submit(W, "pl_find", "iron")
     H.advance(8)
@@ -705,7 +420,8 @@ return function(t)
     ShroudGetKnownRecipes = get
   end)
 
-  t.test("a big book is indexed a part at a time from the planner opening; a search finishes it at once", function()
+  t.test("many known recipes are indexed a part at a time from the planner opening; a search finishes it at once",
+      function()
     H.boot()
     book()
     for i = 100, 1299 do
@@ -846,7 +562,7 @@ return function(t)
   t.test("settings: a Crafting page; the HUD's shade in place, what it opens on, the switch, its place", function()
     hudOpen()
     H.chat("/tbx config")
-    for _, id in ipairs({ "pl_open", "pl_cfg_scratch", "pl_book_when", "pl_book_read", "pl_book_stop", "pl_hud_show",
+    for _, id in ipairs({ "pl_open", "pl_cfg_scratch", "pl_hud_show",
                           "pl_hud_start", "pl_hud_auto", "pl_hud_close", "pl_hud_sound", "pl_hud_shade",
                           "plhud_pos" }) do
       t.eq(Toolbox.Config.PageOf(id), "crafting", id)
@@ -899,86 +615,6 @@ return function(t)
     t.eq(Toolbox.Config.PageOf("pl_open"), "crafting", "not on XP & Loot any more")
   end)
 
-  t.test("the recipe book: only when I ask (read, stop, kept when a recipe is learned, read again); at login",
-      function()
-    H.boot()
-    book()
-    local D = Toolbox.Daily
-    local function status() return H.config():Find("pl_book_status").text end
-    H.chat("/tbx config")
-    t.eq(Toolbox.Planner.GetBookWhen(), "manual", "the default (a player's request, 2026-10-23)")
-    t.eq(H.config():Find("pl_book_when").value, "Only when I ask")
-    H.chat("/tbx plan augmented plate chest")
-    H.change(W, "pl_scratch", true)
-    H.advance(3)
-    t.no(D.ReadingRecipes(), "From scratch doesn't read it on its own")
-    t.eq(D.recipeIndex, nil)
-    t.ok(status():find("Not read yet: Read it now", 1, true), status())
-    t.no(confirmWin(), "nor asks")
-    t.ok(find("pl_book").visible ~= false, "the planner's own button")
-    t.eq(find("pl_book").text, "Read the recipe book")
-    H.click(W, "pl_book")
-    okRead()
-    t.ok(D.ReadingRecipes(), "read now")
-    H.advance(0.05, 0.05)
-    t.ok(status():find("^Reading: %d of 5 recipes"), status())
-    t.no(H.config():Find("pl_book_read"):IsEnabled(), "one read at a time")
-    H.click("toolbox_config", "pl_book_stop")
-    t.no(D.ReadingRecipes(), "stopped")
-    t.ok(status():find("^Stopped"), status())
-    H.chat("/tbx plan book need")
-    H.advance(3)
-    t.no(D.ReadingRecipes(), "stopped: nothing starts it again on its own")
-    H.chat("/tbx plan book manual")
-    H.clearLogs()
-    H.click("toolbox_config", "pl_book_read")
-    okRead()
-    t.ok(H.logged("^Reading your recipe book %(5 recipes%)"), H.lastLog())
-    H.advance(2, 0.05)
-    t.ok(D.recipeIndex, "read")
-    t.ok(H.logged("^Recipe book read: 5 recipes"), table.concat(H.logs(), "\n"))
-    t.eq(status(), "Read this session: 5 recipes")
-    t.eq(H.config():Find("pl_book_read").text, "Read it again")
-    t.eq(find("pl_book").visible, false, "nothing to read")
-    H.callback("ShroudOnRecipesChanged")             -- learned one
-    t.ok(D.recipeIndex, "the book read stays in use")
-    t.ok(status():find("before you learned a recipe", 1, true), status())
-    t.eq(find("pl_book").text, "Read the recipe book again")
-    H.chat("/tbx plan book read")
-    okRead()
-    t.ok(D.ReadingRecipes(), "read again")
-    t.ok(D.recipeIndex, "the old book meanwhile")
-    t.ok(find("pl_find"):IsEnabled(), "so the planner isn't greyed out")
-    t.ok(H.logged("^Reading your recipe book again"), H.lastLog())
-    H.advance(0.05, 0.05)
-    H.chat("/tbx plan book stop")
-    t.no(D.ReadingRecipes(), "the read again stopped")
-    t.ok(D.bookStale, "so the book in use is still stale")
-    t.ok(status():find("before you learned a recipe", 1, true), status())
-    t.eq(find("pl_book").text, "Read the recipe book again")
-    H.chat("/tbx plan book read")
-    okRead()
-    t.ok(D.ReadingRecipes(), "and it reads again")
-    H.advance(2, 0.05)
-    t.no(D.bookStale, "read whole: nothing missing")
-    t.eq(status(), "Read this session: 5 recipes")
-    H.chat("/tbx plan book login")
-    H.reload()
-    D = Toolbox.Daily
-    t.eq(D.recipeIndex, nil, "a login: read again")
-    H.advance(Toolbox.Planner.BOOK_LOGIN_DELAY - 5)
-    t.no(D.ReadingRecipes(), "not yet")
-    H.advance(10)
-    t.ok(confirmWin(), "a minute after the login: asked")
-    okRead()
-    t.ok(D.ReadingRecipes() or D.recipeIndex, "read once OK'd")
-    H.clearLogs()
-    H.chat("/tbx plan book")
-    t.ok(H.logged("^Recipe book: .*Read at login"), H.lastLog())
-    H.chat("/tbx plan book sometimes")
-    t.ok(H.logged("^Use /toolbox plan book read|stop|need|login|manual"), H.lastLog())
-  end)
-
   t.test("an older client: no recipe calls, so no planner", function()
     H.boot()
     H.S.noCrafting = true
@@ -1013,22 +649,18 @@ return function(t)
     t.eq(H.S.makingCalls or 0, 0, "nor by /toolbox recipe")
   end))
 
-  t.test("API 55: I'll craft knows every maker at once, from the game: no book, no confirmation", onApi(55, function()
+  t.test("API 55: I'll craft knows every maker at once, from the game", onApi(55, function()
     open()
-    local D, PL = Toolbox.Daily, Toolbox.Planner
+    local D = Toolbox.Daily
     t.ok(D.HasMakers())
     H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
     H.change(W, "pl_scratch", true)
     H.advance(2)
-    t.no(confirmWin(), "nothing to read, nothing asked")
-    t.no(find("pl_book"):IsVisible(), "no Read the recipe book button")
     t.ok(find("pl_make_1"):IsEnabled())
     H.change(W, "pl_make_1", true)
     H.change(W, "pl_make_2", true)
     t.eq(find("pl_via_2").value, "Iron Ingot", "both makers known, the one named like the item picked")
-    t.eq(#find("pl_via_2").choices, 2, "the scraps recipe too, with no book read")
-    t.no(D.recipeIndex or D.ReadingRecipes(), "the book never read")
-    t.ok(PL.BookStatus():find("^Not needed"), PL.BookStatus())
+    t.eq(#find("pl_via_2").choices, 2, "the scraps recipe too")
     local calls = H.S.makingCalls
     H.inventoryChanged()
     H.advance(5)
@@ -1036,26 +668,16 @@ return function(t)
     H.callback("ShroudOnRecipesChanged")
     H.advance(5)
     t.ok(H.S.makingCalls > calls, "asked again after learning a recipe")
-    H.clearLogs()
-    H.chat("/tbx plan book read")
-    t.ok(H.logged("^Recipe book: Not needed"), H.lastLog())
-    t.no(confirmWin())
-    H.chat("/tbx config")
-    t.no(H.config():Find("pl_book_read"):IsEnabled(), "Read it now greyed out")
-    t.no(H.config():Find("pl_book_when"):IsEnabled(), "and when to read it")
-    t.ok(H.config():Find("pl_book_status").text:find("^Not needed"))
   end))
 
-  t.test("API 55: /toolbox recipe answers from scratch at once, without the book", onApi(55, function()
+  t.test("API 55: /toolbox recipe answers from scratch at once", onApi(55, function()
     H.boot()
     book()
     H.clearLogs()
     H.chat("/tbx recipe iron sheet")
-    t.no(confirmWin(), "nothing asked")
     t.ok(H.logged("From scratch"), H.logs()[1])
     t.ok(H.logged("<%- 2 x Iron Ingot"), "the ingot's maker: " .. table.concat(H.logs(), " | "))
     t.ok(H.logged("also made by: Iron Ingot from Metal Scraps"), "both makers, from the game")
-    t.eq(H.S.bookCalls or 0, 0, "no book read")
   end))
 
   t.test("API 55: a change reads the recipes again, not ShroudGetOwnedCounts (slower in game)", onApi(55, function()
