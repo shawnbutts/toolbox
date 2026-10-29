@@ -942,7 +942,7 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   "Toolbox: Toolbelt, HUDs, Trackers, and mo: <text>", not "Toolbox: <text>"; a client bug, reported to the developers
   (nothing to change on our side). The location strip no longer asks `ShroudGetNearestWaterType` (owner, same day: the
   scene's kinds instead).
-- **API 41-44** (docs 2026-10-18; the live client reports API 44, owner 2026-10-23; `T.DOCS_API` = 44, `min_api_version` stays 25; `/toolbox api` tells each, by version
+- **API 41-44** (docs 2026-10-18; the live client reports API 44, owner 2026-10-23; `min_api_version` stays 25; `/toolbox api` tells each, by version
   where there's no function to look up): 41, **30 windows per add-on** (8 before; the owner asked for 12): the shared
   8th window's users (Docs, version, Map overlays, the crafting planner) can have their own, planned with 1.10.0, and
   `T.TakeSharedWindow` kept for older clients; `ShroudGetInventoryItems` / `ShroudGetEquipmentItems` `weight` and
@@ -954,9 +954,9 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   `[u]...[/u]` and color tags stripped; inventory and equipment names). Not in them: request 27's fix (client only),
   26 and 29.
 
-**API 45-55 on the QA server** (the QA docs preview, https://catnipgames.net/lua/qa/, read 2026-10-27: "can still change
-before it reaches the live game"; the live reference is still API 44). Build against the live client's `/toolbox api`,
-feature-detected; the shapes as previewed:
+**API 45-56** (first in the QA docs preview, https://catnipgames.net/lua/qa/, read 2026-10-27; in the release reference
+from 2026-10-29, which says API 56, with the shapes Toolbox uses unchanged; `T.DOCS_API` = 56, `min_api_version` stays 25
+until the live client's `/toolbox api` reports more). Build against the live client's `/toolbox api`, feature-detected:
 - 45 (request 30): `ShroudGetParty()` -> rows in slot order `{ slot, name, online, inScene, scene?, role
   "leader"/"member"/"invited", leader, dead?, health?, maxHealth?, focus?, maxFocus? }` (vitals and dead in your scene
   only; scene nil offline / unknown); `ShroudOnPartyChanged` also fires for a death / resurrection in your scene.
@@ -985,6 +985,11 @@ feature-detected; the shapes as previewed:
   `{ key, name, carried, bank, bankInContainers, bankKnown, total }` (part of request 29: counts without reading
   recipes; bank from the login preload); `ShroudSearchOwnedItems(keyOrName, cb)` (the "Search All My Stuff" count: one
   in flight, a 5 s cooldown).
+- 56: combat decks: `ShroudCurrentDeck([which])` takes "alternate" (the swap-deck key's deck), `ShroudGetDeckCode([name])`
+  (the share code, "SOTADECK1:..."; nil, reason) and `ShroudGetDeckLayout([nameOrCode])` (runes with skill ids and the
+  ten hand slots). Unused; `/toolbox api` tells them (harness: both answer "not_loaded" from `H.apiVersion` 56).
+  The reference's `ShroudGetRecipesMaking` note: the session's first call loads the item catalog, "a fraction of a
+  second on a large book", later ones a fraction of a millisecond.
 Plan: 50 for the planner from API 55 (report 37's index build fixed in a later 55 build, owner 2026-10-29; 55's
 counts timed slower than recipe reads on QA, 2026-10-27: not used), 45-49 for 1.10.0's party manager and pet strip, 51 for exports and
 caches, 52 for the consumables bar's and Loot Tracker's kinds on other-language clients. Still not in it: 34 (the Skills

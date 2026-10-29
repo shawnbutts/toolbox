@@ -735,6 +735,14 @@ local function install_api()
   else
     ShroudGetOwnedCounts = nil
   end
+  -- API 56 (H.apiVersion >= 56): combat decks' share codes and layouts. Toolbox doesn't use them; /toolbox api tells
+  -- them. Answered as the reference's "not loaded".
+  if (H.apiVersion or 25) >= 56 then
+    ShroudGetDeckCode = function() return nil, "not_loaded" end
+    ShroudGetDeckLayout = function() return nil, "not_loaded" end
+  else
+    ShroudGetDeckCode, ShroudGetDeckLayout = nil, nil
+  end
   -- Worn items (documented fields; empty slots skipped). Game objects when H.S.buffObjects is set.
   ShroudGetEquipmentItems = function()
     if not S.char.present then return {} end

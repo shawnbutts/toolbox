@@ -45,7 +45,7 @@ ones included).
   add-on has, and with every window open and a full party Toolbox came too close to it.
 - **Notification sounds have their own settings page** (Settings, Notification sounds, after Sounds): which sound each
   notification plays moved off the Sounds page, which had grown too big with the party's notifications.
-- `/toolbox api` lists the API 45 to 55 additions, and `/toolbox perf recipes` times the crafting planner's game calls
+- `/toolbox api` lists the API 45 to 56 additions, and `/toolbox perf recipes` times the crafting planner's game calls
   for the plan set, to compare the old way with the new.
 
 ### Fixed

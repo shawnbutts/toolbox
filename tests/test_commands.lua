@@ -709,8 +709,8 @@ return function(t)
     ShroudLuaApiVersion = 25
   end)
 
-  t.test("api tells the API 45-55 groups on a client that has them (the QA preview's)", function()
-    H.apiVersion = 55
+  t.test("api tells the API 45-56 groups on a client that has them", function()
+    H.apiVersion = 56
     local ok, err = pcall(function()
       H.boot()
       H.clearLogs()
@@ -718,6 +718,8 @@ return function(t)
       t.ok(H.logged("Recipes making an item %(API 50%): all 2 present"), table.concat(H.logs(), " | "))
       t.ok(H.logged("owned counts, item search %(API 55%): 1 of 3 present"), "the harness has the counts only")
       t.ok(H.logged("Item kinds %(API 52%): all 1 present"), "told by the version")
+      t.ok(H.logged("codes and layouts %(API 56%): all 2 present"), "the decks")
+      t.ok(H.logged("Lua API 56 %(the docs described 56 "), "the docs' API")
     end)
     H.apiVersion = nil
     if not ok then error(err, 0) end
