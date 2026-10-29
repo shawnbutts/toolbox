@@ -151,12 +151,18 @@ end
 -- bar's own strip), so it draws over the rows; it lays itself out with negative margins (no net size).
 local overlayIn = nil          -- the frame key holding it now
 function Hud.SetOverlay(provider) Hud.overlay = provider end
+-- overlayElement: true and the element (nil when the provider gives none), or false and the error when its build
+-- raised. Built through T.BuildOrDrop, so nothing of it stays alive, and the Toolbelt's frame counts as failed with
+-- it: the retry builds it again whole, the overlay included (review 75: it was left out until a full rebuild).
 local function overlayElement(frameKey)
-  if not Hud.overlay then return nil end
-  local ok, e = pcall(Hud.overlay.OverlayBuild)
-  if not ok or not e then return nil end
-  overlayIn = frameKey
-  return e
+  if not Hud.overlay then return true, nil end
+  local ok, e = pcall(T.BuildOrDrop, Hud.overlay.OverlayBuild)
+  if not ok then
+    pcall(Hud.overlay.OverlayUnbuilt)
+    return false, e
+  end
+  if e then overlayIn = frameKey end
+  return true, e
 end
 local function dropOverlay(frameKey)
   if overlayIn and (frameKey == nil or frameKey == overlayIn) then
@@ -240,7 +246,16 @@ function Hud.Build(missingOnly)
       ok, row = pcall(UI.Column, { children = column })
     end
     local glued = { row }
-    if ok then glued[2] = overlayElement(Hud.GLUED_ID) end      -- after the row: drawn over it
+    if ok then
+      local overlay = nil
+      ok, overlay = overlayElement(Hud.GLUED_ID)
+      if ok then
+        glued[2] = overlay                                         -- after the row: drawn over it
+      else
+        pcall(row.Destroy, row)                                    -- the parts in it go too (below)
+        row = overlay
+      end
+    end
     if ok then
       local frame, why = newFrame("glued", { id = Hud.GLUED_ID, x = prefs.x or Hud.GLUED_HOME[1],
         y = prefs.y or Hud.GLUED_HOME[2], width = 100, height = 40, visible = false,
@@ -286,8 +301,13 @@ function Hud.Build(missingOnly)
       local m = modules[key]
       local x, y = m.GetSavedPosition()
       local kids = { contents[key] }
-      if key == "buffs" then kids[2] = overlayElement(key) end   -- the Toolbelt on its own: over the buffs
-      local ok, column = pcall(UI.Column, { style = { paddingLeft = T.Window.GRIP }, children = kids })
+      local ok, column = true, nil
+      if key == "buffs" then                                       -- the Toolbelt on its own: over the buffs
+        local overlay = nil
+        ok, overlay = overlayElement(key)
+        if ok then kids[2] = overlay else column = overlay end
+      end
+      if ok then ok, column = pcall(UI.Column, { style = { paddingLeft = T.Window.GRIP }, children = kids }) end
       if ok then
         local frame, why = newFrame(key, { id = m.FRAME_ID, x = x or m.HOME[1], y = y or m.HOME[2],
           width = 100, height = 40, visible = false, children = { column } })

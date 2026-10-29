@@ -50,6 +50,8 @@ ones included).
   Now it goes at once.
   The same for every window and view that couldn't be shown right now (a settings page, a Docs topic, the version
   notes, the crafting planner's rows, the Loot Tracker's rows, any window): trying again no longer leaves more behind.
+  And the combat shout's word over the Toolbelt, if the game stopped it part way, now comes back with the Toolbelt a
+  moment later, instead of staying away until a setting changed.
 - **Dropdowns too narrow for their choices:** a dropdown was only as wide as the choice shown, so its open list cut
   longer ones short (the Loot Tracker's Show list, for one). Every dropdown, in every window and on every settings
   page, is now as wide as its longest choice, and follows a text size change.

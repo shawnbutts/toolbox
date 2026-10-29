@@ -341,7 +341,8 @@ into one if a new file is ever needed).
   size, a hidden one by its saved place and last set size); `Hud.Build` fits the strips it builds too, and `Hud.Refresh` one it first shows or resizes, by the cached `Hud.screen`
   (review 31: built hidden, it had no size yet) (harness `H.S.screen`, `H.screenChanged{...}`, `H.S.noScreen`).
   `Hud.SetOverlay(provider)`:
-  one overlay drawn over the Toolbelt (the combat shout). `Hud.Rebuild(key)` rebuilds one
+  one overlay drawn over the Toolbelt (the combat shout), built through `T.BuildOrDrop` as part of the Toolbelt's frame:
+  its failure fails the frame, so the retry builds both again (review 75; test_shout "the creation cap part way"). `Hud.Rebuild(key)` rebuilds one
   module's own strip (a setting that changes its elements); a full `Hud.Build()` makes every strip's elements
   again at once, past the creation cap with a big strip (the buff block's 40 slots). At the end of the file,
   `Toolbox.Location` (LOC; owner, 2026-10-08): the location strip (scene, position rounded, compass heading from
