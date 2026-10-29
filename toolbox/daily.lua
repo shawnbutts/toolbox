@@ -1395,11 +1395,11 @@ end
 -- confirmation and its settings stand aside). Each item's answer is kept for the session, dropped when the recipes
 -- change (D.ForgetRecipes). Returns { { id, yield, name } }, or nil (no character: ask again later).
 D.makers = {}
--- From API 56 (owner, 2026-10-27): on the QA client's API 55 the session's first call took 4,449 ms for 1,764 known
--- recipes, the game building its index on that call, and the watchdog stopped Toolbox (`/toolbox plan trace`; bug
--- report 37). The owner expects the fix in 56 or later, and no release until it's there; check it with the trace.
+-- From API 55: on the QA client's first API 55 build the session's first call took 4,449 ms for 1,764 known recipes,
+-- the game building its index on that call, and the watchdog stopped Toolbox (owner, 2026-10-27; `/toolbox plan
+-- trace`; bug report 37). Fixed in a later API 55 build, the API version unchanged (owner, 2026-10-29: no pause).
 -- Below it the planner finds makers as on API 44 (by name, the book when asked).
-D.MAKERS_API = 56
+D.MAKERS_API = 55
 function D.HasMakers()
   return type(ShroudGetRecipesMaking) == "function" and type(ShroudLuaApiVersion) == "number"
     and ShroudLuaApiVersion >= D.MAKERS_API

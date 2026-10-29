@@ -1001,8 +1001,8 @@ return function(t)
     end
   end
 
-  t.test("API 55: ShroudGetRecipesMaking isn't called (its first call stalled 4.4 s on QA): from API 56",
-      onApi(55, function()
+  t.test("API 50-54: ShroudGetRecipesMaking isn't called (its first call stalled 4.4 s on QA's first 55): from 55",
+      onApi(54, function()
     open()
     H.change(W, "pl_pick_1", "Iron Sheet (have 3)")
     H.change(W, "pl_scratch", true)
@@ -1013,7 +1013,7 @@ return function(t)
     t.eq(H.S.makingCalls or 0, 0, "nor by /toolbox recipe")
   end))
 
-  t.test("API 56: I'll craft knows every maker at once, from the game: no book, no confirmation", onApi(56, function()
+  t.test("API 55: I'll craft knows every maker at once, from the game: no book, no confirmation", onApi(55, function()
     open()
     local D, PL = Toolbox.Daily, Toolbox.Planner
     t.ok(D.HasMakers())
@@ -1046,7 +1046,7 @@ return function(t)
     t.ok(H.config():Find("pl_book_status").text:find("^Not needed"))
   end))
 
-  t.test("API 56: /toolbox recipe answers from scratch at once, without the book", onApi(56, function()
+  t.test("API 55: /toolbox recipe answers from scratch at once, without the book", onApi(55, function()
     H.boot()
     book()
     H.clearLogs()
@@ -1089,7 +1089,7 @@ return function(t)
   end))
 
   t.test("/toolbox perf recipes times the planner's calls, before and with API 50 and 55", function()
-    for _, api in ipairs({ 44, 55, 56 }) do
+    for _, api in ipairs({ 44, 50, 55 }) do
       onApi(api, function()
         H.boot()
         book()
@@ -1120,14 +1120,13 @@ return function(t)
         t.ok(H.logged("^Done timing the crafting planner's calls"), H.lastLog())
         local all = table.concat(H.logs(), "\n")
         t.ok(all:find("ShroudGetRecipe, each recipe", 1, true), all)
-        if api >= 56 then
-          t.ok(all:find("ShroudGetRecipesMaking, each ingredient", 1, true), all)
-        elseif api == 55 then
-          t.ok(all:find("ShroudGetRecipesMaking: not called before API 56", 1, true), all)
-          t.eq(H.S.makingCalls or 0, 0, "the stalling call isn't timed")
-        end
         if api >= 55 then
+          t.ok(all:find("ShroudGetRecipesMaking, each ingredient", 1, true), all)
           t.ok(all:find("ShroudGetOwnedCounts, each ingredient", 1, true), all)
+        elseif api >= 50 then
+          t.ok(all:find("ShroudGetRecipesMaking: not called before API 55", 1, true), all)
+          t.eq(H.S.makingCalls or 0, 0, "the stalling call isn't timed")
+          t.no(all:find("ShroudGetOwnedCounts", 1, true), all)
         else
           t.ok(all:find("ShroudGetRecipesMaking: not on this client", 1, true), all)
           t.no(all:find("ShroudGetOwnedCounts", 1, true), all)
