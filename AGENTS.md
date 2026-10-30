@@ -762,7 +762,7 @@ a later 1.9.x or 1.10.0, whichever comes once they reach the live client. The ma
 
 **After it: 1.10.0, the party manager** (owner, 2026-10-18; 1.9.x waits on client fixes meanwhile). BUILT 2026-10-27
 for API 55 clients only (owner, same day: no support below API 55), all four parts (vitals.lua's `Toolbox.Party`, the
-"party" and "party_alerts" notification sources, Combat Detailed's Party section; not tried in game yet); the "maybe"
+"party" and "party_alerts" notification sources, Combat Detailed's Party section; tried in game 2026-10-30, below); the "maybe"
 items (a party buff check, a "who's here" line) not built. In scope: (1) the
 Party Toolbelt, its own strip, never joined to the player's Toolbelt (the idea below): a row per member, health and
 focus bars, their debuffs, members elsewhere dimmed, the lowest flagged, sort by party order (default) or lowest health,
@@ -1264,6 +1264,8 @@ Rules learned the hard way; keep to them.
   creature name and Fights, the window row), the Crafting Planner HUD (the shopping list, the build order and its "(N
   made)", Start over, the fanfare and close), the General and Crafting settings pages, and `/toolbox perf` (no hitches
   in 60 s; it showed `buff_durations` saved on every recast, fixed by `BB.LEARN_SLACK`).
+- **1.10.0's party work** (confirmed 2026-10-30, the owner in game on an API 56 client, every `/toolbox api` group
+  present): "party features look good".
 - **Louder sounds** (confirmed 2026-10-07): the +7.5 dB .ogg files, the halved saved volume and the per-sound
   volume sliders work in game.
 - Confirmed working as built: replace / dismiss the game's buff bar, grouping, the Toolbelt, the mirrored

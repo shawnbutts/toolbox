@@ -4,7 +4,11 @@ Toolbox beta: testing guide
 Thanks for testing Toolbox! It's a Shroud of the Avatar add-on. Its headline is the Toolbelt: your
 buffs and debuffs, health, focus and Vigor, food and potions, gear needing repair and your target in one
 strip you can put anywhere. Around it: XP windows, today's loot, crafting and gathering, a combat stats HUD and
-notifications. This is a beta: please tell us what breaks.
+notifications. New in 1.10.0: the Party Toolbelt, your party on a strip of its own. This is a beta: please tell us
+what breaks.
+
+Most of 1.10.0's new parts need a newer game client (Lua API 55; /tbx api prints yours). On an older one the rest
+of Toolbox works as before, and Settings, Party says what it needs.
 
 To install it, follow INSTALL.txt (in the same zip): the "Installing by hand" part.
 
@@ -54,16 +58,31 @@ while its window is open. Change it or switch it off under Menu, setups, backup 
 --------------
 
 Anything you like, but especially what's new in this version (/tbx version lists it all):
+In 1.10.0 (Lua API 55):
+  * The Party Toolbelt (Settings, Party: Show the Party Toolbelt). Join a party: a row per member with
+    their health and focus bars and health in percent. Does the lowest's name turn red, a member in
+    another scene dim, and one out of reach (30 m by default) fade a little? Try the Order list, "Only
+    during combat" and "Include yourself", and a party member dying.
+  * Their effects: every debuff on a member, and the buffs you add to Watched buffs (with "Only the
+    watched buffs you cast", just yours). Do the sweeps count down with the game's?
+  * Party alerts (Settings, Party, Alerts): a member below the health you set, or a debuff you name
+    landing on one: a ping and a line on the notification HUD.
+  * Comings and goings (Settings, Notifications): who joins or leaves the party, leaves your scene or
+    comes back; a friend or guild member going offline or back online.
+  * Combat Detailed's Party section: each member's damage and healing, for the fight or the session;
+    hover one for the damage they took and the last hits before their last death.
+  * The crafting planner (the menu's Plan button): find a recipe you're short of materials for. Anything
+    one of your recipes makes has an I'll craft tick; tick it and the shopping list and build order
+    should go down to raw materials. No recipe book is read any more: does the game stay smooth?
+  * The target (Settings, Toolbelt): with Show the target's name on, is a hostile creature's name in the
+    color the game gives its difficulty? And Target effects' "Only mine (what you cast)".
+  * Dropdowns (the Loot Tracker's Show list, any settings page): wide enough for their longest choice?
 In 1.9.1:
   * Log out (Exit to Menu) and back in: nothing in chat at the login screen about "Could not save", and
     your XP session, Today's stats, buff timers and the auto map's newest marks are all still there.
     Type /lua reload at the login screen too: no "Could not save" lines and no "New: the menu" line.
   * Switch to another character without quitting: each keeps its own settings and places.
   * The crafting planner: open its Show and Crafts lists. Are they wide enough, with no stray "Vertical"?
-  * The planner's recipe book: now read only when you ask, by default. Tick From scratch, then the planner's
-    Read the recipe book (or Settings, Crafting: Read it now): a window explains the stutter and asks, OK or
-    Cancel. Nothing should be read unless you press OK. It reads only while the planner is open (close it: the read pauses), and waits
-    in a fight ("paused during combat"). Does the game stutter less than in 1.9.0?
   * Sounds: a new character starts with every sound at 0% (Settings, Sounds). Raise one and Test it; on a
     fresh install, does it play without a /lua reload? Your existing characters should sound as before.
   * /tbx perf at a busy spot: below 30 frames a second it adds a line saying what the numbers mean.
@@ -71,8 +90,7 @@ Earlier:
 In 1.9.0:
   * The crafting planner (/tbx plan, or the menu's Plan button): find a recipe, pick how many crafts,
     and check the shopping list against your bags. Try a recipe with a material choice (Metal Sheet...)
-    and From scratch's "I'll craft" ticks (Settings, Crafting). The first use reads your recipe book in
-    the background (about a minute and a half): does the game stutter meanwhile?
+    and its "I'll craft" ticks.
   * The Crafting Planner HUD (the planner's bottom button, or /tbx plan hud): gather what's listed, then
     craft through the build order. Does every line tick off, and does it play the fanfare at the end?
   * The location strip's overlay line (Map: ...): step through the overlays with its arrows.
@@ -196,8 +214,10 @@ From beta 3:
     toolbox_buff_expiring.ogg or toolbox_debuff_landed.ogg loose in your Lua folder: earlier betas put
     them there, and they override the sounds that now come with the add-on. Delete them.
   * The settings window is wider now; if the game remembered its old width, drag it wider once.
-  * Target HUD: the game doesn't say who applied an effect, so it lists every effect on your target,
-    not only yours.
+  * Target HUD: on a game client before Lua API 47 the game doesn't say who applied an effect, so it
+    lists every effect on your target, not only yours.
+  * The Party Toolbelt can't target a member when you click a row: the game doesn't let add-ons set
+    your target.
   * The game limits how many HUD strips an add-on can show (25 since the October 2026 update, 8 before).
     A strip past the limit says so in chat: put some bars in the Toolbelt.
   * Weapon poisons: unknown whether the game shows them to add-ons. If one shows as a buff,
@@ -230,4 +250,5 @@ Please include:
        /tbx buffs debug     /tbx vitals debug     /tbx combat debug     /tbx sounds debug
        /tbx xp debug        /tbx notify show      /tbx dd values test   /tbx combat events 5
        /tbx gear            /tbx consumables      /tbx buffs trace <name>
+       /tbx party debug     /tbx plan trace
   5. A screenshot if it's about how something looks.
