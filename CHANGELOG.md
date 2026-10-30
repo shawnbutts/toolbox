@@ -7,6 +7,8 @@ ones included).
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-30
+
 ### Added
 - **The Party Toolbelt** (newer game clients, Lua API 55): your party on a strip of its own, apart from your
   Toolbelt, so a healer keeps the Toolbelt for themselves. Each member has a row with their name, health and focus

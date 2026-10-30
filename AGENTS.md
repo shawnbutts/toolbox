@@ -754,13 +754,14 @@ you read back and fall back to defaults.
 
 ## Releasing
 
-**Last release: 1.9.1** (2026-10-24, the owner's go): API 43's `ShroudOnBeforeLogOut` (request 28), the recipe
-reads' hitching (paused in a fight and with the planner closed, every read asked first), the book read only when asked
-by default, new characters' sounds at 0%. Requests 26 and 29 (the recipe calls) aren't in the reference yet: they go to
-a later 1.9.x or 1.10.0, whichever comes once they reach the live client. The map title's long name is fixed in build
-323 (catnipgames.net, 2026-10-16), 27 (one Enter) in build 2da431775a (2026-10-18): check both when they're live.
+**Last release: 1.10.0** (2026-10-30, the owner's go once the live client reported API 56 with every group present):
+the party manager (the Party Toolbelt, party alerts, comings and goings, Combat Detailed's Party section; API 55), the
+crafting planner's makers from `ShroudGetRecipesMaking` (API 55) with the recipe book read removed and I'll craft always
+offered, the target's difficulty color (48) and Only mine (47), the element leaks at the creation cap, the dropdown
+widths. `min_api_version` stays 25 (every API 45+ use is feature-detected). The map title's long name (build 323) and
+27 (one Enter, build 2da431775a): check both in game.
 
-**After it: 1.10.0, the party manager** (owner, 2026-10-18; 1.9.x waits on client fixes meanwhile). BUILT 2026-10-27
+**1.10.0, the party manager** (owner, 2026-10-18; released above). BUILT 2026-10-27
 for API 55 clients only (owner, same day: no support below API 55), all four parts (vitals.lua's `Toolbox.Party`, the
 "party" and "party_alerts" notification sources, Combat Detailed's Party section; tried in game 2026-10-30, below); the "maybe"
 items (a party buff check, a "who's here" line) not built. In scope: (1) the
@@ -942,7 +943,7 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   "Toolbox: Toolbelt, HUDs, Trackers, and mo: <text>", not "Toolbox: <text>"; a client bug, reported to the developers
   (nothing to change on our side). The location strip no longer asks `ShroudGetNearestWaterType` (owner, same day: the
   scene's kinds instead).
-- **API 41-44** (docs 2026-10-18; the live client reports API 44, owner 2026-10-23; `min_api_version` stays 25; `/toolbox api` tells each, by version
+- **API 41-44** (docs 2026-10-18; the live client reported API 44, owner 2026-10-23, and API 56 on 2026-10-30; `min_api_version` stays 25; `/toolbox api` tells each, by version
   where there's no function to look up): 41, **30 windows per add-on** (8 before; the owner asked for 12): the shared
   8th window's users (Docs, version, Map overlays, the crafting planner) can have their own, planned with 1.10.0, and
   `T.TakeSharedWindow` kept for older clients; `ShroudGetInventoryItems` / `ShroudGetEquipmentItems` `weight` and

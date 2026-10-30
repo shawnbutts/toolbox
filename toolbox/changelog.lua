@@ -5,6 +5,7 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "version", "1.10.0 - 2026-10-30" },
   { "section", "Added" },
   { "item", "The Party Toolbelt (newer game clients, Lua API 55): your party on a strip of its own, apart from your Toolbelt, so a healer keeps the Toolbelt for themselves. Each member has a row with their name, health and focus bars and health in percent (or dead, away, offline). The lowest health's name is red, a member in another scene is dimmed, and one beyond your reach (30 m by default) a little. After the bars come each member's debuffs and the buffs you watch (only the ones you cast, if you like), with the time left as a sweep. Choose party order or lowest health first, only during combat, and whether your own row shows (Settings, Party)." },
   { "item", "Party alerts (Lua API 55): a ping and a line on the notification HUD when a party member drops below the health level you set (their health bar flashes meanwhile), or when a debuff you name lands on one (Settings, Party, Alerts)." },

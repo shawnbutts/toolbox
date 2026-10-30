@@ -4,8 +4,8 @@
 your buffs and debuffs (with clock sweeps and a warning before they run out), your health, focus and
 Vigor, your food and potions, any gear that needs repair, and your target's health and effects into one
 movable HUD strip that can appear only in combat. Around it: XP per hour and time to your next level, everything you looted,
-crafted and gathered today with its market value, a crafting planner, map overlays, DPS and combat stats, and
-notifications.
+crafted and gathered today with its market value, a Party Toolbelt for your group, a crafting planner, map overlays,
+DPS and combat stats, and notifications.
 
 **Highlights**
 
