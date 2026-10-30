@@ -48,8 +48,8 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
   (Lua API 37), with the result's stats; I'll craft plans the crafts for what you lack, with a shopping list and a build order
   (both on the Crafting Planner HUD while you gather and craft) by station, ticked off as you craft. Its settings
   have their own Crafting page. Which recipes make an item comes from the game (Lua API 55): no recipe book is read.
-  Market prices (Settings, Crafting) put the plan in gold at SotANET's average sale prices: what to buy, the
-  materials used, what it makes and the profit.
+  Market prices (Settings, Crafting) put the plan in gold at SotANET's average sale prices: Estimated Buy, the
+  materials used, Estimated Sell and the profit.
 - **Map overlays**: sets of places you mark in a scene, one set shown on its region map and
   minimap at a time (Lua API 30): one for loot, one for gathering... Each scene has its own (up to 10, 39 places each)
   and remembers the one it shows; each place in its own shape and color, with a Compass button; the window shows how

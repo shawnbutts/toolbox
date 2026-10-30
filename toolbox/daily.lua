@@ -1942,24 +1942,24 @@ end
 
 -- The planner's market line: two lines of text from PL.Value's answer. `shopN`: the shopping list's length.
 function PL.ValueText(v, shopN)
-  local buy = shopN == 0 and "To buy: nothing" or ("To buy: about " .. plGold(v.buy) .. plMissing(v.buyMissing))
-  local used = "materials used: about " .. plGold(v.used) .. plMissing(v.usedMissing)
+  local buy = shopN == 0 and "Estimated Buy: nothing" or ("Estimated Buy: " .. plGold(v.buy) .. plMissing(v.buyMissing))
+  local used = "materials used: " .. plGold(v.used) .. plMissing(v.usedMissing)
   local makes = nil
   if v.makesMissing > 0 and v.makes == 0 then
-    makes = "Makes: no recent sales on SotANET"
+    makes = "Estimated Sell: no recent sales on SotANET"
   else
-    makes = "Makes: about " .. plGold(v.makes) .. plMissing(v.makesMissing)
+    makes = "Estimated Sell: " .. plGold(v.makes) .. plMissing(v.makesMissing)
   end
-  local profit = v.profit and ("; profit about " .. plGold(v.profit, true)) or ""
+  local profit = v.profit and ("; profit " .. plGold(v.profit, true)) or ""
   local waiting = v.pending > 0 and ("\nLooking up " .. v.pending .. (v.pending == 1 and " price" or " prices")
     .. " on SotANET...") or ""
   return buy .. "; " .. used .. "\n" .. makes .. profit .. waiting
 end
 
 PL.VALUE_TIP = "Estimates at SotANET's 90-day average sale prices (shroudoftheavatar.net, player-uploaded receipts)."
-  .. " To buy: what you're short of. Materials used: everything the crafts use up, what you have included."
-  .. " Makes: the results at their average sale; crafted gear's price varies with its stats. Profit: makes less"
-  .. " the materials, once every one has a price."
+  .. " Estimated Buy: what you're short of. Materials used: everything the crafts use up, what you have included."
+  .. " Estimated Sell: the results at their average sale; crafted gear's price varies with its stats. Profit:"
+  .. " the sell less the materials, once every one has a price."
 
 -- The result line's stats: the result's base stats with what the recipe's own slots add (each row's item, weight
 -- left out: an ingredient's weight is its own). { { key, name, base, add } }.
@@ -2083,9 +2083,12 @@ function PL.SetCrafts(n)
 end
 function PL.GetCrafts() return plNum(plPrefs.crafts) or 1 end
 
--- Market prices in the planner (`prices`, default off: it sends item names to SotANET); the lookups run while
--- it or the Loot Tracker's estimated values are on (Toolbox.Prices).
-function PL.GetPrices() return plPrefs.prices == true end
+-- Market prices in the planner (`prices`; unset: as the Loot Tracker's estimated values, off at first, since both
+-- send item names to SotANET; owner, 2026-10-30); the lookups run while either is on (Toolbox.Prices).
+function PL.GetPrices()
+  if type(plPrefs.prices) == "boolean" then return plPrefs.prices end
+  return T.DailyDetail ~= nil and T.DailyDetail.GetValues()
+end
 function PL.SetPrices(on)
   plPrefs.prices = on == true
   plSave()

@@ -122,10 +122,11 @@ D.SECTIONS = {
       .. "ticked off as you craft (what's on the crafting table counts), with how many you made. The planner "
       .. "follows your bags as they change, every few seconds. It shares a window with the Docs and Map "
       .. "overlays: opening one closes the other. Your plan and picks are this character's own.",
-    "Market prices (Settings, Crafting: Market prices; off at first): a line under the plan puts it in gold "
-      .. "at SotANET's 90-day average sale prices, the ones the Loot Tracker's values use: what the shopping "
-      .. "list costs, the materials the crafts use up (what you have counts too: you could sell it), what the "
-      .. "crafts make, and the profit once every item has a price. The shopping list shows each item's price. "
+    "Market prices (Settings, Crafting: Market prices; on when the Loot Tracker's estimated values are, until "
+      .. "you set it): a line under the plan puts it in gold at SotANET's 90-day average sale prices, the ones "
+      .. "the Loot Tracker uses: Estimated Buy (what the shopping list costs), the materials the crafts use up "
+      .. "(what you have counts too: you could sell it), Estimated Sell (what the crafts make), and the profit "
+      .. "once every item has a price. The shopping list shows each item's price. "
       .. "It's a guide: crafted gear sells for more or less with its stats, and an item nobody sold lately has "
       .. "no price. It sends item names to shroudoftheavatar.net; switch Internet on for Toolbox in the add-on "
       .. "manager." },

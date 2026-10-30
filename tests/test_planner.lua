@@ -756,18 +756,18 @@ return function(t)
     t.eq(v.used, 70, "what you have counts too")
     t.eq(v.makes, 200, "the results x the crafts")
     t.eq(v.profit, 130)
-    t.eq(PL.ValueText(v, 1), "To buy: about 10g; materials used: about 70g\nMakes: about 200g; profit about +130g")
+    t.eq(PL.ValueText(v, 1), "Estimated Buy: 10g; materials used: 70g\nEstimated Sell: 200g; profit +130g")
     plan.used[3] = { name = "Gem", n = 1 }
     v = PL.Value(plan, { { name = "Sword", quantity = 1 } }, 1, price)
     t.eq(v.profit, nil, "no profit without every material's price")
     t.eq(v.pending, 1, "the gem isn't looked up yet")
-    t.eq(PL.ValueText(v, 1), "To buy: about 10g; materials used: about 70g (1 item without a price)\n"
-      .. "Makes: about 100g\nLooking up 1 price on SotANET...")
+    t.eq(PL.ValueText(v, 1), "Estimated Buy: 10g; materials used: 70g (1 item without a price)\n"
+      .. "Estimated Sell: 100g\nLooking up 1 price on SotANET...")
     v = PL.Value({ shop = {}, used = { { name = "Ingot", n = 30 } } }, { { name = "Sword", quantity = 1 } }, 1, price)
-    t.eq(PL.ValueText(v, 0), "To buy: nothing; materials used: about 300g\nMakes: about 100g; profit about -200g")
+    t.eq(PL.ValueText(v, 0), "Estimated Buy: nothing; materials used: 300g\nEstimated Sell: 100g; profit -200g")
     v = PL.Value({ shop = {}, used = {} }, { { name = "Nothing sold", quantity = 1 } }, 1,
       function() return nil, true end)
-    t.eq(PL.ValueText(v, 0), "To buy: nothing; materials used: about 0g\nMakes: no recent sales on SotANET")
+    t.eq(PL.ValueText(v, 0), "Estimated Buy: nothing; materials used: 0g\nEstimated Sell: no recent sales on SotANET")
   end)
 
   t.test("market prices in the planner: off by default, then looked up and shown, the shopping list priced",
@@ -795,13 +795,27 @@ return function(t)
       .. '{"item":"Augmented Plate Chest Armor","avg90d":300,"sold90d":2}],"missing":[]}')
     H.advance(5)
     -- 7 bronze sheets and 2 copper bindings you have, 4 straps to buy: 70 + 40 + 12
-    t.eq(text("pl_value"), "To buy: about 12g; materials used: about 122g\nMakes: about 300g; profit about +178g")
+    t.eq(text("pl_value"), "Estimated Buy: 12g; materials used: 122g\nEstimated Sell: 300g; profit +178g")
     t.ok(body():find("4 x Leather Strap (about 3g each)", 1, true), body())
     H.change("toolbox_config", "pl_prices", false)
     t.eq(find("pl_value").visible, false, "off again")
     t.ok(not body():find("each)", 1, true), "the shopping list without prices")
     H.reload()
     t.eq(Toolbox.Planner.GetPrices(), false, "saved")
+  end)
+
+  t.test("market prices: unset, they follow the Loot Tracker's estimated values; set, they're the planner's own",
+      function()
+    H.boot()
+    t.eq(Toolbox.Planner.GetPrices(), false, "off at first, like the Loot Tracker's")
+    Toolbox.DailyDetail.SetValues(true)
+    t.eq(Toolbox.Planner.GetPrices(), true, "on with the Loot Tracker's values")
+    H.chat("/tbx config")
+    H.change("toolbox_config", "pl_prices", false)
+    t.eq(Toolbox.Planner.GetPrices(), false, "switched off for the planner alone")
+    H.reload()
+    t.eq(Toolbox.Planner.GetPrices(), false, "kept")
+    t.eq(Toolbox.DailyDetail.GetValues(), true, "the Loot Tracker's untouched")
   end)
 
   t.test("market prices: what you had of an item you craft counts among the materials", function()

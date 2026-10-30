@@ -75,8 +75,8 @@ In 1.10.0 (Lua API 55):
     one of your recipes makes has an I'll craft tick; tick it and the shopping list and build order
     should go down to raw materials. No recipe book is read any more: does the game stay smooth?
   * Market prices in the planner (Settings, Crafting: Market prices; Internet on for Toolbox in the add-on
-    manager): a line under the plan with what to buy, the materials used, what it makes and the profit,
-    and a price on each shopping list item. Do the numbers look sensible next to SotANET's?
+    manager; on already if the Loot Tracker's estimated values are): a line under the plan with Estimated
+    Buy, the materials used, Estimated Sell and the profit, and a price on each shopping list item. Do the numbers look sensible next to SotANET's?
   * The target (Settings, Toolbelt): with Show the target's name on, is a hostile creature's name in the
     color the game gives its difficulty? And Target effects' "Only mine (what you cast)".
   * Dropdowns (the Loot Tracker's Show list, any settings page): wide enough for their longest choice?

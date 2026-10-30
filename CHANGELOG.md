@@ -26,10 +26,10 @@ ones included).
   joins or leaves your party, who leaves your scene (and for where) or comes back, and a friend or guild member
   going offline or back online.
 
-- **Market prices in the crafting planner** (Settings, Crafting: Market prices; off at first): a line under the plan
-  puts it in gold at SotANET's 90-day average sale prices, the Loot Tracker's: what the shopping list costs, the
-  materials the crafts use up (what you have included), what the crafts make and the profit, and the shopping list
-  shows each item's price. A guide: crafted gear sells for more or less with its stats. It sends item names to
+- **Market prices in the crafting planner** (Settings, Crafting: Market prices; on when the Loot Tracker's estimated
+  values are, until you set it): a line under the plan puts it in gold at SotANET's 90-day average sale prices, the
+  Loot Tracker's: Estimated Buy (what the shopping list costs), the materials the crafts use up (what you have
+  included), Estimated Sell (what the crafts make) and the profit, and the shopping list shows each item's price. A guide: crafted gear sells for more or less with its stats. It sends item names to
   shroudoftheavatar.net (Internet on for Toolbox in the add-on manager).
 
 ### Changed
