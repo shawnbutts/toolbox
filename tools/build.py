@@ -33,6 +33,7 @@ CLIENT_API_VERSION = 56  # newest API the docs describe (= Toolbox.DOCS_API); mi
 SLUG_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
 # The docs list these "among" the reserved slugs; the full list is not published.
 RESERVED_SLUGS = {"test", "addon", "addons", "lua", "shroud", "sota", "store", "system"}
+DESCRIPTION_MAX = 500  # characters the store's submit form takes for the description
 VERSION_RE = re.compile(r"^(0|[1-9]\d{0,3})\.(0|[1-9]\d{0,3})\.(0|[1-9]\d{0,3})$")
 LUA_NAME_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_-]{0,63}\.lua$")
 ART_NAME_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_-]{0,63}\.(png|jpg|jpeg)$")
@@ -180,6 +181,10 @@ def check_manifest(report: Report) -> dict | None:
         if not isinstance(value, str) or not value.strip():
             # Optional for loading, but the store needs a description; keep both filled in.
             report.error(f"manifest: {key} must be a non-empty string")
+    description = manifest.get("description")
+    if isinstance(description, str) and len(description) > DESCRIPTION_MAX:
+        # The store's submit form takes at most 500 characters in its description field (owner, 2026-10-30).
+        report.error(f"manifest: description is {len(description)} characters; the store takes {DESCRIPTION_MAX}")
 
     # support_url (optional, any API version): https:// + a lower-case public host, no user or port, the
     # URL characters the agent reference lists, <= 300. An invalid one gets the manifest refused.

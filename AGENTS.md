@@ -826,7 +826,8 @@ v0.5.0 (820df19), v0.6.0 (03fdeef), v0.6.1 (6322846), v0.7.0 (2d07df7), v0.8.0 (
   field we fill in, the manifest's `author` included, reads "shawn butts (shawn)": the real name and the player
   name; owner, 2026-10-03), and a description
   clamped to 3 lines (about 100-120 characters).
-- That description isn't ours: the store's reviewer writes it, apparently from the package. So
+- That description isn't ours: the store's reviewer writes it, apparently from the package. The submit form's description field takes at most
+  500 characters (owner, 2026-10-30; the manifest `description` was 514 in 1.10.0's package): `tools/build.py` refuses more. So
   `toolbox/README.md` opens with the pitch for it to echo, and the manifest `description` says the same.
 - The detail page shows that paragraph, the file list and our README. Package pictures are NOT shown.
 - The README renderer: a list item's wrapped line becomes a new paragraph, tables and `[links](...)` show as
