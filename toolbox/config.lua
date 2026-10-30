@@ -338,6 +338,11 @@ function C.CraftingSection()
           .. " or /" .. T.commands[1] .. " plan)") or needs,
         onClick = function() PL.Open() end },
     } },
+    UI.Toggle{ id = "pl_prices", text = "Market prices (SotANET)", value = PL.GetPrices(), enabled = has,
+      tooltip = "Under the plan: what the shopping list costs, the materials used and what the craft makes, with"
+        .. " the profit, at each item's 90-day average sale price from shroudoftheavatar.net (player-uploaded"
+        .. " receipts). Sends item names to that site. Also switch Internet on for Toolbox in the add-on manager.",
+      onChange = function(_, on) PL.SetPrices(on == true) end },
     heading(PL.HUD_NAME),
     UI.Label{ text = "A small strip to follow the plan with the planner closed: the shopping list while you gather,"
       .. " then the build order as you craft.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
@@ -1698,7 +1703,7 @@ end
 -- Every control id Sync and the handlers look up (found in whichever categories are built).
 local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "loc_overlay", "ov_window", "ov_death",
   "ov_auto_new",
-  "pl_open", "pl_hud_close",
+  "pl_open", "pl_prices", "pl_hud_close",
   "pl_hud_show", "pl_hud_start",
   "pl_hud_auto", "pl_hud_shade", "pl_hud_shade_value",
   "xp_shade", "xp_shade_value", "daily_shade", "daily_shade_value", "nhud_shade", "nhud_shade_value",
@@ -2531,6 +2536,7 @@ function C.Sync()
   setValue("ln_color", L.ColorName(L.GetColor()))
   setValue("pl_hud_close", T.Planner.HudCloseName(T.Planner.GetHudClose()))
   setValue("pl_hud_show", T.Planner.GetHud())
+  setValue("pl_prices", T.Planner.GetPrices())
   setValue("pl_hud_start", T.Planner.HudStartName(T.Planner.GetHudStart()))
   setValue("pl_hud_auto", T.Planner.GetHudAuto())
   sliderValue("pl_hud_shade", T.Planner.GetHudShade())

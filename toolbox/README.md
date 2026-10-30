@@ -19,7 +19,7 @@ DPS and combat stats, and notifications.
 - **XP tracking:** XP per hour, time to next level and a last-hour chart, for adventurer and producer XP.
 - **Today:** gold, kills, XP, and every item looted, crafted or gathered, with optional values from shroudoftheavatar.net.
 - **Combat stats:** DPS, damage taken, healing, crits, each skill's share, per-target damage and a fight timeline.
-- **Crafting planner:** a recipe's materials, what you're short of and what to craft from scratch, with a shopping list and a build order by station.
+- **Crafting planner:** a recipe's materials, what you're short of and what to craft from scratch, with a shopping list and a build order by station, and the cost and profit at SotANET's market prices if you like.
 - **Map overlays:** mark places on your map, or let the auto map mark every resource node you gather and every creature you kill; your last death shows there too.
 - **Notifications:** guild message, mail, rewards, gear needing repair and friends coming online, in a window, on the HUD or in chat, with an optional sound.
 - **A one-click menu:** a column of gold buttons that opens any Toolbox window, lit while it's open.

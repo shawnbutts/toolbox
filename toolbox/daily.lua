@@ -1714,6 +1714,7 @@ local plDone = {}                     -- recipe id -> true: a step below the rec
 local plMade = {}                     -- recipe id -> crafts made since the plan was set (ShroudOnCraftResults)
 local plQuick = {}                    -- item key -> the recipes named like it that make it ({ { id, yield } })
 local plWaitKnown = false             -- a refresh is due once the known recipes are indexed
+local plPriceSeen = nil               -- Prices.version the market line and shopping rows were set for
 
 local function plNum(v) if type(v) == "number" and v == v then return v end return nil end
 
@@ -1787,8 +1788,8 @@ end
 -- item the plan takes rather than crafts: { key, name, need, have, tool }, have = what your bags give it, by name),
 -- build (list of { id, name, station, crafts, depth }, deepest first, then by station), cut (rows past PL.ROWS_MAX) }.
 function PL.Expand(rootId, crafts, ctx)
-  local out = { rows = {}, shop = {}, gather = {}, build = {}, cut = false }
-  local pool, shopBy, buildBy, gatherBy = {}, {}, {}, {}
+  local out = { rows = {}, shop = {}, gather = {}, build = {}, used = {}, cut = false }
+  local pool, shopBy, buildBy, gatherBy, usedBy = {}, {}, {}, {}, {}
   local function avail(item)
     local key = PL.KeyOf(item)
     if pool[key] == nil then return PL.HaveOf(item) end
@@ -1822,6 +1823,16 @@ function PL.Expand(rootId, crafts, ctx)
     else
       g.need, g.have = g.need + r.need, g.have + r.have
     end
+  end
+  local function addSpent(r, n)          -- used up by the crafts (a tool isn't), from your bags or bought
+    if r.tool or n <= 0 then return end
+    local u = usedBy[r.key]
+    if not u then
+      u = { key = r.key, name = r.name, n = 0 }
+      usedBy[r.key] = u
+      out.used[#out.used + 1] = u
+    end
+    u.n = u.n + n
   end
   local function walk(id, n, depth, path, seen)
     local rec = ctx.recipe(id)
@@ -1870,7 +1881,9 @@ function PL.Expand(rootId, crafts, ctx)
           r.crafts = math.floor((r.short + m.yield - 1) / m.yield)
           walk(m.id, r.crafts, depth + 1, r.path, seen)
           pool[r.key] = (pool[r.key] or 0) + r.crafts * m.yield - r.short   -- the surplus, for the next rows
+          addSpent(r, r.need - r.short)      -- what you had of it (the rest is made from its own ingredients)
         else
+          addSpent(r, r.need)
           addGather(r)
           if r.short > 0 then addShop(r) end
         end
@@ -1886,8 +1899,67 @@ function PL.Expand(rootId, crafts, ctx)
   end)
   table.sort(out.shop, function(a, b) return a.name < b.name end)
   table.sort(out.gather, function(a, b) return a.name < b.name end)
+  table.sort(out.used, function(a, b) return a.name < b.name end)
   return out
 end
+
+-- Market prices (owner, 2026-10-30, for 1.10.0): the plan in gold at SotANET's 90-day average sale prices
+-- (Toolbox.Prices, the Loot Tracker's). Pure: `price(name)` -> the average or nil, and whether it was looked up.
+-- `results`: the recipe's results ({ name, quantity } each, one craft's). To buy = the shopping list (a tool
+-- too); materials = everything the crafts use up, what you have included (selling it is the other choice); makes =
+-- the results x crafts. Each with the count of items without a price (`...Missing`) and those not looked up yet
+-- (`pending`). Profit only when every material and result has a price.
+function PL.Value(plan, results, crafts, price)
+  local v = { buy = 0, buyMissing = 0, used = 0, usedMissing = 0, makes = 0, makesMissing = 0, pending = 0 }
+  local asked = {}
+  local function sum(list, count, total, missing)
+    for _, it in ipairs(list) do
+      local each, known = price(it.name)
+      if not known and not asked[it.name] then
+        asked[it.name] = true
+        v.pending = v.pending + 1
+      end
+      if each then v[total] = v[total] + each * count(it) else v[missing] = v[missing] + 1 end
+    end
+  end
+  sum(plan and plan.shop or {}, function(it) return it.n end, "buy", "buyMissing")
+  sum(plan and plan.used or {}, function(it) return it.n end, "used", "usedMissing")
+  sum(results or {}, function(it) return (it.quantity or 0) * (crafts or 1) end, "makes", "makesMissing")
+  if v.usedMissing == 0 and v.makesMissing == 0 and #(results or {}) > 0 then v.profit = v.makes - v.used end
+  return v
+end
+
+local function plGold(g, signed)
+  local P = T.Prices
+  if signed and g < 0 then return "-" .. P.Format(-g) end
+  return (signed and g >= 0.5 and "+" or "") .. (g < 0.5 and "0g" or P.Format(g))
+end
+
+local function plMissing(n)
+  if n <= 0 then return "" end
+  return " (" .. n .. (n == 1 and " item" or " items") .. " without a price)"
+end
+
+-- The planner's market line: two lines of text from PL.Value's answer. `shopN`: the shopping list's length.
+function PL.ValueText(v, shopN)
+  local buy = shopN == 0 and "To buy: nothing" or ("To buy: about " .. plGold(v.buy) .. plMissing(v.buyMissing))
+  local used = "materials used: about " .. plGold(v.used) .. plMissing(v.usedMissing)
+  local makes = nil
+  if v.makesMissing > 0 and v.makes == 0 then
+    makes = "Makes: no recent sales on SotANET"
+  else
+    makes = "Makes: about " .. plGold(v.makes) .. plMissing(v.makesMissing)
+  end
+  local profit = v.profit and ("; profit about " .. plGold(v.profit, true)) or ""
+  local waiting = v.pending > 0 and ("\nLooking up " .. v.pending .. (v.pending == 1 and " price" or " prices")
+    .. " on SotANET...") or ""
+  return buy .. "; " .. used .. "\n" .. makes .. profit .. waiting
+end
+
+PL.VALUE_TIP = "Estimates at SotANET's 90-day average sale prices (shroudoftheavatar.net, player-uploaded receipts)."
+  .. " To buy: what you're short of. Materials used: everything the crafts use up, what you have included."
+  .. " Makes: the results at their average sale; crafted gear's price varies with its stats. Profit: makes less"
+  .. " the materials, once every one has a price."
 
 -- The result line's stats: the result's base stats with what the recipe's own slots add (each row's item, weight
 -- left out: an ingredient's weight is its own). { { key, name, base, add } }.
@@ -2010,6 +2082,22 @@ function PL.SetCrafts(n)
   PL.Refresh(true)
 end
 function PL.GetCrafts() return plNum(plPrefs.crafts) or 1 end
+
+-- Market prices in the planner (`prices`, default off: it sends item names to SotANET); the lookups run while
+-- it or the Loot Tracker's estimated values are on (Toolbox.Prices).
+function PL.GetPrices() return plPrefs.prices == true end
+function PL.SetPrices(on)
+  plPrefs.prices = on == true
+  plSave()
+  if plPrefs.prices and T.Prices then
+    T.Prices.Wake()
+    local note = T.Prices.LanguageNote()
+    if note then T.Print("Market prices: " .. note) end
+  end
+  plPriceSeen, plBodySig = nil, nil
+  PL.Refresh(true)
+  if T.Config and T.Config.Sync then T.Config.Sync() end
+end
 
 function PL.SetView(view)
   for _, v in ipairs(PL.VIEWS) do
@@ -2643,9 +2731,11 @@ end
 
 local function plShopRows(plan)
   local children = {}
+  local P = PL.GetPrices() and T.Prices or nil
   for _, s in ipairs(plan.shop) do
+    local each = P and P.Average(s.name)
     children[#children + 1] = UI.Label{ text = T.FormatNumber(s.n) .. " x " .. s.name .. (s.tool and " (a tool)"
-      or ""), class = "text" }
+      or "") .. (each and (" (about " .. P.FormatEach(each) .. " each)") or ""), class = "text" }
   end
   if #children == 0 then
     children[1] = UI.Label{ text = "Nothing to get: you have everything the plan needs.", class = "dim" }
@@ -2837,6 +2927,33 @@ local function plAddRows(view, plan)
   return plBody:Add(UI.Column{ children = children })
 end
 
+-- The market line under the plan (with PL.GetPrices): the plan in gold, its items asked of SotANET when not known.
+local function plPriced(name)
+  local P = T.Prices
+  return P.Average(name), P.Known(name)
+end
+local function plShowValue(plan, rec)
+  if not plEl.value then return end
+  local P = T.Prices
+  local on = PL.GetPrices() and P ~= nil and plan ~= nil and rec ~= nil
+  T.SetVisible(plEl.value, on)
+  if not on then return end
+  plPriceSeen = P.version
+  local results = {}
+  for _, res in ipairs(T.List(T.Field(rec, "results"))) do
+    local name = T.Field(res, "name")
+    if type(name) == "string" then
+      results[#results + 1] = { name = name, quantity = plNum(T.Field(res, "quantity")) }
+    end
+  end
+  for _, list in ipairs({ plan.shop, plan.used, results }) do
+    for _, it in ipairs(list) do P.Want(it.name) end
+  end
+  local text = PL.ValueText(PL.Value(plan, results, PL.Remaining(), plPriced), #plan.shop)
+  local why = P.StatusLine() or P.LanguageNote()
+  T.SetText(plEl.value, why and (text .. "\n" .. why) or text)
+end
+
 -- Fills the window from a new plan. `now`: at once (a player's change), else only when something changed and at
 -- most every PL.REFRESH_GAP s (PL.Tick).
 function PL.Refresh(now)
@@ -2875,6 +2992,7 @@ function PL.Refresh(now)
     T.SetText(plEl.title, id and "That recipe isn't in your book any more: find another" or
       "Type part of a recipe's name and Find it")
     T.SetText(plEl.result, "")
+    plShowValue(nil, nil)
     if plCol then pcall(function() plCol:Destroy() end) end
     plCol, plBodySig, plRows = nil, nil, {}
     T.PerfAdd("planner", t0)
@@ -2885,12 +3003,14 @@ function PL.Refresh(now)
   T.SetText(plEl.title, tostring(T.Field(rec, "name")) .. " at " .. tostring(T.Field(rec, "station")
     or T.Field(rec, "category")) .. (yield > 0 and (": makes " .. T.FormatNumber(yield * PL.GetCrafts())) or ""))
   T.SetText(plEl.result, PL.PreviewText(PL.Preview(rec, plan.rows)))
+  plShowValue(plan, rec)
   D.TraceMark("the title and the preview set")
   local sigParts = { view, tostring(id) }
   if view == "Plan" then
     for _, r in ipairs(plan.rows) do sigParts[#sigParts + 1] = plRowSig(r) end
   elseif view == "Shopping list" then
     for _, s in ipairs(plan.shop) do sigParts[#sigParts + 1] = s.key .. "=" .. s.n end
+    if PL.GetPrices() and T.Prices then sigParts[#sigParts + 1] = "$" .. T.Prices.version end
   else
     for _, b in ipairs(plan.build) do sigParts[#sigParts + 1] = b.id .. "=" .. b.crafts end
     for k, n in pairs(plMade) do sigParts[#sigParts + 1] = "m" .. k .. "=" .. n end
@@ -2987,6 +3107,8 @@ local function plBuild()
     result = UI.Label{ id = "pl_result", text = "", class = "text", style = { whiteSpace = "wrap" },
       tooltip = "The result's base stats, plus what the picked materials add (an exceptional craft adds more)" },
     msg = UI.Label{ id = "pl_msg", text = "", class = "dim", style = { whiteSpace = "wrap" } },
+    value = UI.Label{ id = "pl_value", text = "", class = "text", visible = false, style = { whiteSpace = "wrap" },
+      tooltip = PL.VALUE_TIP },
     findGo = UI.Button{ id = "pl_find_go", text = "Find", style = { marginLeft = 4 },
       tooltip = "Plan the first recipe you know with this in its name", onClick = function() plFind(nil, true) end },
     hud = UI.Button{ id = "pl_hud", text = plHudButtonText(),
@@ -3009,6 +3131,7 @@ local function plBuild()
       line({ UI.Label{ text = "Show", class = "text", style = { marginRight = 6 } }, plEl.view }),
       UI.Scroll{ style = { flexGrow = 1, marginTop = 4 }, children = { plBody } },
       plEl.result,
+      plEl.value,
       plEl.msg,
       line({ plEl.hud }),
     },
@@ -3081,6 +3204,9 @@ end
 -- T.ViewsTick: a change since the last refresh shows (at most every PL.REFRESH_GAP s).
 function PL.Tick()
   if not (PL.IsShown() or PL.GetHud()) then return end
+  if not plDirty and PL.IsShown() and PL.GetPrices() and T.Prices and plPriceSeen ~= T.Prices.version then
+    plDirty = true                       -- prices came: the market line and the shopping list's
+  end
   if plDirty then PL.Refresh(false) end
   shTick()
 end
@@ -3118,6 +3244,7 @@ function PL.Init()
   -- (book: the recipe book's read, scratch: the From scratch switch; both 1.9.x)
   plPrefs.v, plPrefs.mode, plPrefs.watch, plPrefs.book, plPrefs.scratch = 1, nil, nil, nil, nil
   plFresh, plBuilt, plMade, plDone, plPlan, plQuick, plWaitKnown = {}, {}, {}, {}, nil, {}, false
+  plPriceSeen = nil
   plDirty, plAt = PL.GetHud(), -math.huge   -- the strip's list, worked out at the first tick
   shEl, shState, shDoneAt = {}, shFresh(), nil
   local order = T.Hud.ORDER

@@ -742,4 +742,86 @@ return function(t)
       end)()
     end
   end)
+
+
+  -- Market prices (1.10.0): the plan in gold at SotANET's prices, under the plan; off by default.
+  t.test("market prices: the plan's pure value, its text, and the items without a price", function()
+    H.boot()
+    local PL = Toolbox.Planner
+    local prices = { Ore = 2, Ingot = 10, Sword = 100 }
+    local function price(name) return prices[name], name ~= "Gem" end
+    local plan = { shop = { { name = "Ore", n = 5 } }, used = { { name = "Ore", n = 20 }, { name = "Ingot", n = 3 } } }
+    local v = PL.Value(plan, { { name = "Sword", quantity = 1 } }, 2, price)
+    t.eq(v.buy, 10)
+    t.eq(v.used, 70, "what you have counts too")
+    t.eq(v.makes, 200, "the results x the crafts")
+    t.eq(v.profit, 130)
+    t.eq(PL.ValueText(v, 1), "To buy: about 10g; materials used: about 70g\nMakes: about 200g; profit about +130g")
+    plan.used[3] = { name = "Gem", n = 1 }
+    v = PL.Value(plan, { { name = "Sword", quantity = 1 } }, 1, price)
+    t.eq(v.profit, nil, "no profit without every material's price")
+    t.eq(v.pending, 1, "the gem isn't looked up yet")
+    t.eq(PL.ValueText(v, 1), "To buy: about 10g; materials used: about 70g (1 item without a price)\n"
+      .. "Makes: about 100g\nLooking up 1 price on SotANET...")
+    v = PL.Value({ shop = {}, used = { { name = "Ingot", n = 30 } } }, { { name = "Sword", quantity = 1 } }, 1, price)
+    t.eq(PL.ValueText(v, 0), "To buy: nothing; materials used: about 300g\nMakes: about 100g; profit about -200g")
+    v = PL.Value({ shop = {}, used = {} }, { { name = "Nothing sold", quantity = 1 } }, 1,
+      function() return nil, true end)
+    t.eq(PL.ValueText(v, 0), "To buy: nothing; materials used: about 0g\nMakes: no recent sales on SotANET")
+  end)
+
+  t.test("market prices in the planner: off by default, then looked up and shown, the shopping list priced",
+      function()
+    H.boot()
+    book()
+    H.chat("/tbx plan augmented plate chest")
+    t.eq(find("pl_value").visible, false, "off by default")
+    H.advance(15)
+    t.eq(#(H.S.requests or {}), 0, "nothing sent with prices off")
+    H.chat("/tbx config")
+    H.change("toolbox_config", "pl_prices", true)
+    t.ok(Toolbox.Planner.GetPrices(), "Settings, Crafting switches it on")
+    t.ok(find("pl_value").visible, "the market line shows")
+    t.ok(text("pl_value"):find("Looking up 4 prices on SotANET...", 1, true), text("pl_value"))
+    H.advance(2)
+    t.eq(#H.S.requests, 1, "one request for the plan's items")
+    local url = H.S.requests[1].url
+    for _, name in ipairs({ "Bronze%20Sheet", "Copper%20Binding", "Leather%20Strap", "Augmented%20Plate" }) do
+      t.ok(url:find(name, 1, true), name .. " in " .. url)
+    end
+    t.ok(not url:find("Smithing", 1, true), "a tool you have isn't priced")
+    H.httpRespond(1, true, 200, '{"items":[{"item":"Bronze Sheet","avg90d":10,"sold90d":5},'
+      .. '{"item":"Copper Binding","avg90d":20,"sold90d":5},{"item":"Leather Strap","avg90d":3,"sold90d":50},'
+      .. '{"item":"Augmented Plate Chest Armor","avg90d":300,"sold90d":2}],"missing":[]}')
+    H.advance(5)
+    -- 7 bronze sheets and 2 copper bindings you have, 4 straps to buy: 70 + 40 + 12
+    t.eq(text("pl_value"), "To buy: about 12g; materials used: about 122g\nMakes: about 300g; profit about +178g")
+    t.ok(body():find("4 x Leather Strap (about 3g each)", 1, true), body())
+    H.change("toolbox_config", "pl_prices", false)
+    t.eq(find("pl_value").visible, false, "off again")
+    t.ok(not body():find("each)", 1, true), "the shopping list without prices")
+    H.reload()
+    t.eq(Toolbox.Planner.GetPrices(), false, "saved")
+  end)
+
+  t.test("market prices: what you had of an item you craft counts among the materials", function()
+    H.boot()
+    book()
+    H.S.recipes[10].ingredients[1].choices[2].have = 5           -- 5 Iron Sheets of the 7
+    H.S.recipes[10].ingredients[1].choices[2].carried = 5
+    H.S.recipes[10].ingredients[1].choices[3].have = 0          -- no bronze
+    H.S.recipes[10].ingredients[1].choices[3].carried = 0
+    H.chat("/tbx plan augmented plate chest")
+    local plan = Toolbox.Planner.LastPlan()
+    local used = {}
+    for _, u in ipairs(plan.used) do used[u.name] = u.n end
+    t.eq(used["Iron Sheet"], 7, "the 5 you have and 2 to buy")
+    t.eq(used["Smithing Hammer"], nil, "a tool isn't used up")
+    Toolbox.Planner.SetMaking("p.1", true)                       -- I'll craft the 2 sheets short
+    plan = Toolbox.Planner.LastPlan()
+    used = {}
+    for _, u in ipairs(plan.used) do used[u.name] = u.n end
+    t.eq(used["Iron Sheet"], 5, "the sheets you had")
+    t.eq(used["Iron Ingot"], 4, "and the ingots the 2 crafted take")
+  end)
 end

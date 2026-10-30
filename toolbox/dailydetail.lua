@@ -1203,7 +1203,7 @@ function P.Tick()
     end
     inflight = nil
   end
-  if not prefs.values then return end
+  if not (prefs.values or (T.Planner and T.Planner.GetPrices())) then return end   -- the planner's market line too
   if #queue == 0 or now < nextAt then return end
   if type(ShroudHttpGet) ~= "function" then
     status = "unavailable"
