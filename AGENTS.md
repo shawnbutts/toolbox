@@ -764,7 +764,7 @@ you read back and fall back to defaults.
 **Last release: 1.10.0** (2026-10-30, the owner's go once the live client reported API 56 with every group present):
 the party manager (the Party Toolbelt, party alerts, comings and goings, Combat Detailed's Party section; API 55), the
 crafting planner's makers from `ShroudGetRecipesMaking` (API 55) with the recipe book read removed and I'll craft always
-offered, the target's difficulty color (48) and Only mine (47), the element leaks at the creation cap, the dropdown
+offered, market prices in the planner (SotANET; added late, owner 2026-10-30), the target's difficulty color (48) and Only mine (47), the element leaks at the creation cap, the dropdown
 widths. `min_api_version` stays 25 (every API 45+ use is feature-detected). The map title's long name (build 323) and
 27 (one Enter, build 2da431775a): check both in game.
 
