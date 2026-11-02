@@ -159,6 +159,41 @@ return function(t)
     done()
   end)
 
+  t.test("the Party Toolbelt marks who your target is attacking, with the aggro part off too", function()
+    H.apiVersion = 55
+    H.boot()
+    H.chat("/tbx party on")
+    H.setParty{ { name = "Tester", hp = 900, maxHp = 1000 }, { name = "phil", hp = 500, maxHp = 1000 },
+                { name = "Ann[PVP]", hp = 800, maxHp = 1000 } }
+    H.advance(1)
+    local f = H.S.frames.toolbox_party
+    local function names()
+      local out = {}
+      for i = 1, 3 do
+        local r = f:Find("pt_row_" .. i)
+        if r and r.visible ~= false then out[#out + 1] = f:Find("pt_name_" .. i).text end
+      end
+      return table.concat(out, ",")
+    end
+    t.eq(names(), "phil,Ann")
+    t.no(AG().GetShow(), "the aggro part off")
+    target(onPhil())
+    H.advance(1)
+    t.eq(names(), "> phil,Ann", "phil's row marked")
+    H.S.target.aggro = { target = "Ann", entries = { { name = "Ann", share = 1 }, { name = "phil", share = 0.5 } } }
+    H.advance(1)
+    t.eq(names(), "phil,> Ann", "the mark follows")
+    H.chat("/tbx party aggro off")
+    H.advance(1)
+    t.eq(names(), "phil,Ann", "switched off")
+    t.eq(H.saved("party").aggro, false)
+    H.chat("/tbx party aggro on")
+    H.setTarget(nil)
+    H.advance(1)
+    t.eq(names(), "phil,Ann", "no target: no mark")
+    done()
+  end)
+
   t.test("settings: the place dropdown, the alerts and the shade; the meter's position row", function()
     boot()
     H.chat("/tbx config")

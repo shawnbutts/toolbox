@@ -257,7 +257,8 @@ D.SECTIONS = {
       .. "blue focus bar and their health in percent (dead, away or offline otherwise). The lowest health's name is "
       .. "red. A member in another scene is dimmed (the game only knows the health of members in your scene), and one "
       .. "farther than your reach a little (Dim members farther than: 30 m, or off). Hover a row for the numbers, or "
-      .. "where the member is.",
+      .. "where the member is. The member your target is attacking has \"> \" before their name (Mark who your "
+      .. "target is attacking, on by default; a newer game client, Lua API 54: its aggro list).",
     "Effects: after the bars, each member's debuffs (outlined red) and the buffs you watch, with the time left as "
       .. "a sweep, the soonest to end first. Settings, Party, Watched buffs: add a buff's name (or part of one), say "
       .. "a heal over time you keep up; Only the watched buffs you cast leaves out another healer's copy. Choose how "

@@ -16,6 +16,8 @@ ones included).
   red, one it can't reach dimmed. It shows only in a group fight (alone it is always you). Alerts when you pull
   aggro (on) or lose it (off; for tanks), on the notification HUD with a ping. Needs a newer game client (Lua API
   54). `/toolbox aggro`.
+- The Party Toolbelt marks the member your target is attacking: "> " before their name, from its aggro list, with
+  the Aggro part on or off (Settings, Party: Mark who your target is attacking, on by default; Lua API 54).
 
 ## [1.10.0] - 2026-10-30
 

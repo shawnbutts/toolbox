@@ -291,7 +291,8 @@ return function(t)
   -- API 55 with a 12-member party, 4 effects each (the Party Toolbelt's defaults): 1,659 elements and 48,719
   -- characters at first, so the Loot Tracker shows 30 item rows (60), Combat Detailed 6 skills and 6 fights (8, 10)
   -- in 20 timeline columns (30): 1,495 and 44,099; with the buff block's 30 slots (40), 1,454. A full 16-member
-  -- party with 6 effects each is test_party's.
+  -- party with 6 effects each is test_party's. 2026-11-01: with the aggro meter's six rows on its own strip (more than
+  -- its Toolbelt line), 1,475 and 43,871 (1,577 elements at the peak).
   LIMITS.text = 48000
   t.test("on-screen text at its worst stays well inside the game's 65,536 characters", function()
     local frames = H.MAX_HUD_FRAMES
@@ -327,8 +328,16 @@ return function(t)
       effects[i] = { name = "Effect " .. i, remaining = 20 + i, total = 60, icon = 80 + i, debuff = i % 2 == 0,
                      tooltip = string.rep("A long effect description. ", 18) }
     end
+    -- the aggro meter (its own strip: more than the Toolbelt's line), the game's six with long names
+    H.chat("/tbx aggro on")
+    H.chat("/tbx aggro toolbelt off")
+    local aggro = { target = "A Party Member 2", entries = {} }
+    for i = 1, 6 do
+      aggro.entries[i] = { name = i == 3 and "Tester" or ("A Party Member " .. (i + 1)), value = 1000 - i * 100,
+                           share = 1 - i * 0.1, unreachable = i == 6, you = i == 3 }
+    end
     H.setTarget{ id = 3, name = "An Ancient Elder Dragon of the Northern Wastes", hp = 900000, maxHp = 1000000,
-                 focus = 400, maxFocus = 500, effects = effects }
+                 focus = 400, maxFocus = 500, effects = effects, aggro = aggro }
     local list, tip = {}, string.rep("What this effect does, at length. ", 12)    -- ~400 characters
     for i = 1, 20 do list[#list + 1] = { name = "Buff" .. i, remaining = 90 + i * 60, icon = i, tooltip = tip } end
     for i = 1, 20 do                  -- a second effect each, its tooltip merged into the icon's, at the cap
@@ -396,6 +405,8 @@ return function(t)
     -- margin)
     t.ok(H.S.live <= 1500, "at most 1,500 live elements with everything open: " .. H.S.live)
     t.ok(H.S.frames.toolbox_party ~= nil, "the party strip built")
+    t.ok(H.S.frames.toolbox_aggro ~= nil and H.S.frames.toolbox_aggro:Find("ag_row_6").visible ~= false,
+      "the aggro meter built, its six rows shown")
     t.ok(next(Toolbox.Hud.errors) == nil, "no strip left out")
     -- a page or topic switch builds the next before the last is gone: 1,590 measured 2026-10-28, 1,549
     -- with the buff block's 30 slots

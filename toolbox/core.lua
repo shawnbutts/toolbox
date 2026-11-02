@@ -2074,7 +2074,8 @@ end)
 
 add("party", "the Party Toolbelt: your party's health and focus on a strip of its own (on|off; combat on|off: only"
     .. " during combat; self on|off; sort party|health; reach off|<m>; debuffs on|off; watch [add|remove <name>]; mine"
-    .. " on|off; alert [<%>|off|add|remove <debuff>]; move [x y]; debug)", function(rest)
+    .. " on|off; aggro on|off: mark who your target attacks; alert [<%>|off|add|remove <debuff>]; move [x y];"
+    .. " debug)", function(rest)
   local PT = T.Party
   local word, args = T.ParseArgs(rest)
   word = word:lower()
@@ -2094,8 +2095,10 @@ add("party", "the Party Toolbelt: your party's health and focus on a strip of it
     PT.SetSort(args)
   elseif word == "reach" and (args == "off" or PT.ReachLabel(tonumber(args))) then
     PT.SetReach(tonumber(args) or 0)
-  elseif (word == "debuffs" or word == "mine") and (args == "on" or args == "off") then
-    if word == "debuffs" then PT.SetDebuffs(args == "on") else PT.SetMine(args == "on") end
+  elseif (word == "debuffs" or word == "mine" or word == "aggro") and (args == "on" or args == "off") then
+    if word == "debuffs" then PT.SetDebuffs(args == "on")
+    elseif word == "mine" then PT.SetMine(args == "on")
+    else PT.SetAggro(args == "on") end
   elseif word == "alert" then
     local how, name = T.ParseArgs(typed)
     how = how:lower()
@@ -2136,8 +2139,8 @@ add("party", "the Party Toolbelt: your party's health and focus on a strip of it
     return
   else
     T.Print("Use /" .. T.commands[1] .. " party [on|off], combat on|off, self on|off, sort party|health, reach"
-      .. " off|20|25|30|40|50, debuffs on|off, watch [add|remove <name>], mine on|off, alert [<%>|off|add|remove"
-      .. " <debuff>], move [x y] or debug. Or Settings, Party.")
+      .. " off|20|25|30|40|50, debuffs on|off, watch [add|remove <name>], mine on|off, aggro on|off, alert"
+      .. " [<%>|off|add|remove <debuff>], move [x y] or debug. Or Settings, Party.")
     return
   end
   T.Print("Party Toolbelt: " .. (PT.GetShow() and "on" or "off") .. "; " .. PT.SORT_LABELS[PT.GetSort()]:lower()

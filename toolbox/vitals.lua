@@ -1918,6 +1918,11 @@ function PT.RowsFor(n)
   return math.min(PT.MAX, rows)
 end
 
+-- The member your target is attacking (owner, 2026-11-01, with the aggro list): their name led by PT.AGGRO_MARK, from
+-- Toolbox.Aggro's read (API 54) while `aggro` is on (default); no element of its own (the stress test's margin).
+PT.AGGRO_MARK = "> "
+local aggroOn = nil            -- the lower plain name your target is attacking, at the last poll
+
 local function rowStyle(m, i)
   return { alignItems = "center", height = m.rowH, minHeight = m.rowH, maxHeight = m.rowH,
            marginTop = i > 1 and m.rowGap or 0 }
@@ -2088,9 +2093,11 @@ local function setRow(i, mem, lowest)
   local share = PT.Share(mem)
   local color = PT.NAME_COLOR
   if mem.dead then color = PT.DEAD_COLOR elseif mem == lowest then color = PT.LOW_COLOR end
-  if last.plain ~= mem.plain then
-    last.plain = mem.plain
-    r.name:SetText(mem.plain)
+  local shownName = mem.plain
+  if aggroOn and mem.plain and mem.plain:lower() == aggroOn then shownName = PT.AGGRO_MARK .. mem.plain end
+  if last.nameText ~= shownName then
+    last.nameText = shownName
+    r.name:SetText(shownName)
   end
   if last.color ~= color then
     last.color = color
@@ -2215,6 +2222,8 @@ function PT.Poll()
   end
   if not wanted then return end
   readEffects()
+  aggroOn = nil
+  if pprefs.aggro ~= false and memberCount > 0 then aggroOn = T.Aggro.AttackingNow() end
   if pContent and PT.RowsFor(shownCount) > builtRows then
     T.Hud.Rebuild("party")
     return
@@ -2591,6 +2600,14 @@ function PT.RemoveAlertDebuff(text)
   return true, "No alert for \"" .. gone .. "\" any more."
 end
 
+function PT.GetAggro() return pprefs.aggro ~= false end
+function PT.SetAggro(on)
+  pprefs.aggro = on == true
+  pSave()
+  PT.Poll()
+  T.Config.Sync()
+end
+
 function PT.GetMine() return pprefs.mine == true end
 function PT.SetMine(on)
   pprefs.mine = on == true
@@ -2673,6 +2690,7 @@ function PT.Init()
       end
     end
     pprefs.mine = saved.mine == true
+    pprefs.aggro = saved.aggro ~= false
     local ic = saved.icons
     if type(ic) == "number" and ic >= 0 and ic <= PT.ICONS_MAX then pprefs.icons = math.floor(ic) end
     local sz = saved.iconSize
@@ -2740,7 +2758,7 @@ PT.CONFIG_IDS = { "pt_show", "pt_combat", "pt_self", "pt_sort", "pt_width", "pt_
                   "pt_watch_msg", "pt_watch_add", "pt_watch_remove", "pt_mine", "pt_icons", "pt_icons_value",
                   "pt_icon_size", "pt_icon_size_value", "pt_alert_below", "pt_alert_below_value", "pt_alert_debuffs",
                   "pt_alert_debuffs_field", "pt_alert_debuffs_msg", "pt_alert_debuffs_add",
-                  "pt_alert_debuffs_remove" }
+                  "pt_alert_debuffs_remove", "pt_aggro" }
 
 function PT.ConfigSection(h)
   local ui = h.UI
@@ -2770,6 +2788,10 @@ function PT.ConfigSection(h)
     ui.Toggle{ id = "pt_numbers", text = "Show the health percent", value = PT.GetNumbers(),
       tooltip = "\"73%\" after the bars (or dead, away, offline); hover a row for the numbers",
       onChange = function(_, v) PT.SetNumbers(v) end },
+    ui.Toggle{ id = "pt_aggro", text = "Mark who your target is attacking", value = PT.GetAggro(),
+      tooltip = T.Aggro.Has() and ("Their name led by \"" .. PT.AGGRO_MARK:gsub(" $", "") .. "\", from your"
+        .. " target's aggro list") or T.Aggro.NEEDS,
+      onChange = function(_, v) PT.SetAggro(v) end },
     h.dropdownRow("Dim members farther than", { id = "pt_reach", choices = reaches,
       value = PT.ReachLabel(PT.GetReach()),
       tooltip = "Members in your scene out of this reach (a heal's, say) are dimmed a little; those elsewhere more."
@@ -2825,6 +2847,8 @@ function PT.ConfigSync(h)
   h.setValue("pt_reach", PT.ReachLabel(PT.GetReach()))
   h.setValue("pt_debuffs", PT.GetDebuffs())
   h.setValue("pt_mine", PT.GetMine())
+  h.setValue("pt_aggro", PT.GetAggro())
+  h.setEnabled("pt_aggro", PT.GetShow() and PT.Has() and T.Aggro.Has())
   h.sliderValue("pt_icons", PT.GetIcons())
   h.sliderValue("pt_icon_size", PT.GetIconSize())
   h.sliderValue("pt_alert_below", PT.GetAlertBelow())
@@ -3263,17 +3287,35 @@ function AG.Alert(kind, creature, holder, now)
   return true
 end
 
-local function readList()
-  local had = aHas
-  aHas = false
-  if not ShroudHasTarget() then
+-- Reads the target's list into aRead, at most once an AG.POLL / 2 s (the aggro part's poll and the Party Toolbelt's
+-- marker share it). Returns whether there is one.
+local aGot, aReadAt = false, -math.huge
+local function fetch()
+  local now = T.Now()
+  if now - aReadAt < AG.POLL * 0.5 then return aGot end
+  aReadAt, aGot = now, false
+  if not AG.Has() or not ShroudHasTarget() then
     aFor, aOnYou = nil, nil
-    return had
+    return false
   end
   local id = ShroudGetTargetId()
   if id ~= aFor then aFor, aOnYou = id, nil end
   local ok, raw = pcall(ShroudGetTargetAggro)
-  if ok and AG.Read(raw, aRead, lowerPlain(T.PlayerName())) then
+  aGot = ok and AG.Read(raw, aRead, lowerPlain(T.PlayerName()))
+  return aGot
+end
+
+-- The lower plain name of whom your target is attacking (the Party Toolbelt marks their row), or nil.
+function AG.AttackingNow()
+  if not fetch() then return nil end
+  local holder = AG.Holder(aRead)
+  return holder and holder:lower() or nil
+end
+
+local function readList()
+  local had = aHas
+  aHas = false
+  if fetch() then
     aHas = AG.Worth(aRead)
     local holder, onYou = AG.Holder(aRead)
     local kind = AG.Change(aOnYou, onYou)
@@ -3383,6 +3425,7 @@ function AG.Init()
     if type(saved.x) == "number" and type(saved.y) == "number" then aprefs.x, aprefs.y = saved.x, saved.y end
   end
   aRead, aHas, aFor, aOnYou, aAlertAt, aWasShown = { n = 0, entries = {} }, false, nil, nil, {}, false
+  aGot, aReadAt = false, -math.huge
   aAlerts.list = {}            -- a switch's next character starts afresh (the running number kept)
   T.Hud.Register("aggro", AG)
   T.RegisterPeriodic(APERIODIC, AG.Poll, AG.POLL, true)
