@@ -2842,3 +2842,615 @@ function PT.ConfigSync(h)
     h.setEnabled(id, PT.GetShow() and PT.Has())
   end
 end
+
+-- ===========================================================================
+-- Toolbox.Aggro: your target's aggro list (/toolbox aggro)
+-- ===========================================================================
+-- Owner, 2026-11-01 (1.11.0): API 54's ShroudGetTargetAggro, the list /verbose aggro shows over a creature: who it is
+-- attacking and up to six it holds threat against, highest first, each with its share of the top one. A Toolbelt part
+-- like the others (Settings, Toolbelt: Off / Own strip / In Toolbelt):
+-- - In Toolbelt: one line as the buff column's last row (AG.BuildRow, built by the buff bar; last so its coming and
+--   going moves nothing above it): "On you; next phil 82%" or "On phil; you 2nd, 64%", with a bar: on you, the next
+--   one's share (how close they are to taking it), else yours (how close you are to pulling it); the whole list in its
+--   tooltip.
+-- - Own strip: the aggro meter, the creature's name and a row a name (share bar and percent; who it's attacking in
+--   AG.ON_COLOR, you in AG.YOU_COLOR, one it can't reach dimmed).
+-- Shown only when the list says something: there is one and it isn't just you (solo, it would always read 100%).
+-- Read every AG.POLL s and on a target change while switched on; the game asks for a copy at most once a second, and
+-- for most creatures the first read answers nil (another client runs them).
+-- Alerts (the "Aggro alerts" notification, docs.lua: the notification HUD with a ping by default): the creature turning
+-- to you (`pulled`, default on) or away from you (`lost`, default off), for the same target, at most once an
+-- AG.ALERT_GAP s each.
+-- Only from Lua API 54 (AG.API), feature-detected; the settings greyed out below it.
+-- Saved var "aggro": { show = bool (default false), glue = bool (default true), pulled = bool (default true),
+-- lost = bool (default false), shade = 0..90, x, y }.
+
+local AG = {}
+Toolbox.Aggro = AG
+
+AG.API = 54
+AG.FRAME_ID = "toolbox_aggro"
+AG.HOME = { 40, 640 }
+AG.POLL = 0.5
+AG.MAX = 6                     -- the game lists six at most
+AG.ROW_CELLS = 7               -- the Toolbelt line's width in icon cells
+AG.BAR_CELLS = 2               -- ... of which its bar
+AG.NAME_CHARS = 13             -- the meter's name column, in characters of the text size
+AG.BAR_W = 90                  -- the meter's bars
+AG.ALERT_GAP = 3
+AG.UNREACHABLE = 0.5           -- the opacity of a row the creature can't get to
+AG.NAME_COLOR, AG.YOU_COLOR, AG.ON_COLOR = "@text", "@text-bright", "@red"
+AG.BAR_COLOR, AG.YOURS_COLOR = "@gold", "@red"   -- the bar: a rival's share, yours
+AG.HINT = "Aggro"              -- shown while settings are open and there's no list
+AG.NEEDS = "Needs a newer game client (Lua API " .. AG.API .. ")"
+local APERIODIC = "toolbox_aggro"
+
+local aprefs = { show = false }
+local aRead = { n = 0, entries = {} }   -- the last list (AG.Read's shape), reused
+local aHas = false             -- whether it says something now (AG.Worth)
+local aFor = nil               -- the target id the alerts' state belongs to
+local aOnYou = nil             -- ... whether it was on you at the last read (nil: not known yet)
+local aAlertAt = {}            -- kind -> T.Now() of its last alert
+local aAlerts = { n = 0, list = {} }
+local aRow, aLine, aBar = nil, nil, nil      -- the Toolbelt line
+local aContent, aHead = nil, nil             -- the meter strip
+local aRows = {}               -- i -> { row, name, bar, pct, last = {} }
+local aLast = {}               -- the Toolbelt line's last values
+local aRowShown = nil          -- the Toolbelt line's visibility as last set
+local aWasShown = false        -- the meter's IsShown at the last poll
+
+local function aSave() T.Save("aggro", aprefs) end
+
+function AG.Has()
+  return type(ShroudGetTargetAggro) == "function" and type(ShroudLuaApiVersion) == "number"
+    and ShroudLuaApiVersion >= AG.API
+end
+
+local function lowerPlain(s)
+  if type(s) ~= "string" or s == "" then return nil end
+  return T.PlainName(s):lower()
+end
+
+-- Reads the game's answer into `out` (reused: { target, targetYou, n, entries = { { name, value, share, unreachable,
+-- you } } }); `me` is your plain name in lower case (an entry or the target named so is you). Returns whether there
+-- was a list. Pure.
+function AG.Read(raw, out, me)
+  out.n, out.target, out.targetYou = 0, nil, false
+  if raw == nil then return false end
+  local target = T.Field(raw, "target")
+  if type(target) == "string" and target ~= "" then
+    out.target = T.PlainName(target)
+    out.targetYou = me ~= nil and lowerPlain(target) == me
+  end
+  for _, e in ipairs(T.List(T.Field(raw, "entries"))) do
+    if out.n >= AG.MAX then break end
+    local name = T.Field(e, "name")
+    if type(name) == "string" and name ~= "" then
+      out.n = out.n + 1
+      local slot = out.entries[out.n]
+      if not slot then
+        slot = {}
+        out.entries[out.n] = slot
+      end
+      slot.name = T.PlainName(name)
+      local v, share = T.Field(e, "value"), T.Field(e, "share")
+      slot.value = (type(v) == "number" and v == v) and v or 0
+      slot.share = (type(share) == "number" and share == share) and math.max(0, math.min(1, share)) or 0
+      slot.unreachable = T.Field(e, "unreachable") == true
+      slot.you = T.Field(e, "you") == true or (me ~= nil and lowerPlain(name) == me)
+    end
+  end
+  return true
+end
+
+-- Whether the list says anything: someone besides you on it. Pure.
+function AG.Worth(a)
+  if a.n == 0 then return false end
+  return not (a.n == 1 and a.entries[1].you)
+end
+
+-- Your place on the list (nil off it) and your share. Pure.
+function AG.Rank(a)
+  for i = 1, a.n do
+    if a.entries[i].you then return i, a.entries[i].share end
+  end
+  return nil, 0
+end
+
+-- Who it's on: the name and whether that is you; the top of the list when the game doesn't say. Pure.
+function AG.Holder(a)
+  if a.target then return a.target, a.targetYou end
+  local top = a.entries[1]
+  if top then return top.name, top.you end
+  return nil, nil
+end
+
+function AG.Ordinal(n)
+  local last2 = n % 100
+  if last2 >= 11 and last2 <= 13 then return n .. "th" end
+  local last = n % 10
+  if last == 1 then return n .. "st" elseif last == 2 then return n .. "nd" elseif last == 3 then return n .. "rd" end
+  return n .. "th"
+end
+
+local function pct(share) return math.floor(share * 100 + 0.5) .. "%" end
+
+-- The first one on the list who isn't you (a rival), or nil. Pure.
+local function rival(a)
+  for i = 1, a.n do
+    if not a.entries[i].you then return a.entries[i] end
+  end
+  return nil
+end
+
+-- The Toolbelt line: its text, the bar's fill and color. Pure.
+function AG.Line(a)
+  local holder, onYou = AG.Holder(a)
+  local rank, share = AG.Rank(a)
+  if onYou then
+    local other = rival(a)
+    if other then return "On you; next " .. other.name .. " " .. pct(other.share), other.share, AG.BAR_COLOR end
+    return "On you", 0, AG.BAR_COLOR
+  end
+  local you = "you're not on it"
+  if rank then you = "you " .. AG.Ordinal(rank) .. ", " .. pct(share) end
+  if holder then return "On " .. holder .. "; " .. you, share, AG.YOURS_COLOR end
+  return "Aggro: " .. you, share, AG.YOURS_COLOR
+end
+
+-- The whole list, a line each (the Toolbelt line's tooltip). Pure.
+function AG.Tooltip(a, creature)
+  local lines = { "Aggro" .. (creature and (": " .. creature) or "") }
+  local holder = AG.Holder(a)
+  if holder then lines[2] = "Attacking " .. holder end
+  for i = 1, a.n do
+    local e = a.entries[i]
+    lines[#lines + 1] = i .. ". " .. e.name .. (e.you and " (you)" or "") .. " " .. pct(e.share)
+      .. (e.unreachable and ", can't reach" or "")
+  end
+  return table.concat(lines, "\n")
+end
+
+-- What a change of who it's on says: "pulled" (now on you), "lost" (no longer), or nil. Pure.
+function AG.Change(was, now)
+  if was == nil or now == nil or was == now then return nil end
+  return now and "pulled" or "lost"
+end
+
+function AG.GetShow() return aprefs.show == true end
+function AG.GetGlue() return aprefs.glue ~= false end
+-- In the Toolbelt right now (the setting, and the buff bar switched on).
+function AG.Glued() return aprefs.show == true and aprefs.glue ~= false and T.BuffBar.IsEnabled() end
+
+-- For Toolbox.Hud: the meter is its own strip while on and not in the Toolbelt.
+function AG.Wanted() return aprefs.show == true and AG.Has() and not AG.Glued() end
+function AG.IsShown() return AG.Wanted() and (aHas or T.Config.IsShown()) end
+
+-- The Toolbelt line shows (a list worth showing, or settings open to place it).
+local function lineWanted() return AG.Has() and (aHas or T.Config.IsShown()) end
+
+-- Cells the Toolbelt line takes (0 when hidden or not there).
+function AG.GluedCount()
+  if not AG.Glued() or not lineWanted() then return 0 end
+  return AG.ROW_CELLS
+end
+
+-- ---------------------------------------------------------------------------
+-- The Toolbelt line
+-- ---------------------------------------------------------------------------
+
+local function lineMetrics()
+  local s, gap = T.BuffBar.GetSize(), T.BuffBar.GAP
+  local cell = s + gap
+  local barW = AG.BAR_CELLS * cell - gap
+  return { s = s, gap = gap, w = AG.ROW_CELLS * cell - gap, barW = barW, barH = math.max(4, math.floor(s * 0.35)),
+           textW = (AG.ROW_CELLS - AG.BAR_CELLS) * cell - gap,
+           font = math.max(9, math.min(T.Window.GetFont(), math.floor(s * 0.55))) }
+end
+
+-- The buff bar's last row (BB.BuildContent).
+function AG.BuildRow()
+  local m = lineMetrics()
+  aLast, aRowShown = {}, nil
+  aRow = UI.Row{ id = "aggro", visible = false, style = { width = m.w, height = m.s, minHeight = m.s,
+    maxHeight = m.s, marginTop = m.gap, alignItems = "center" }, children = {
+      UI.Bar{ id = "aggro_bar", value = 0, color = AG.BAR_COLOR, tooltip = AG.HINT,
+        style = { width = m.barW, height = m.barH } },
+      UI.Label{ id = "aggro_line", text = AG.HINT, class = "text", tooltip = AG.HINT,
+        style = T.Window.TextStyle({ width = m.textW, marginLeft = m.gap, marginRight = 0, whiteSpace = "nowrap" },
+          m.font, 1) },
+    } }
+  aBar, aLine = aRow:Find("aggro_bar"), aRow:Find("aggro_line")
+  return aRow
+end
+
+-- A size changed (the buff bar's icon size, the General text size): in place.
+function AG.ApplySize()
+  if not aRow then return end
+  local m = lineMetrics()
+  aRow:SetStyle{ width = m.w, height = m.s, minHeight = m.s, maxHeight = m.s, marginTop = m.gap }
+  aBar:SetStyle{ width = m.barW, height = m.barH }
+  aLine:SetStyle(T.Window.TextStyle({ width = m.textW, marginLeft = m.gap, marginRight = 0, whiteSpace = "nowrap" },
+    m.font, 1))
+end
+
+local function setLast(store, element, key, value, method)
+  if store[key] == value then return end
+  store[key] = value
+  element[method](element, value)
+end
+
+local function creatureName()
+  if not ShroudHasTarget() then return nil end
+  return T.Target.Name(ShroudGetTargetName())
+end
+
+local function fillLine()
+  if not aRow then return end
+  local want = lineWanted()
+  if want ~= aRowShown then
+    aRowShown = want
+    aRow:SetVisible(want)
+  end
+  if not want then return end
+  local text, fill, color, tip = AG.HINT, 0, AG.BAR_COLOR, "Your target's aggro list shows here in a fight"
+  if aHas then
+    text, fill, color = AG.Line(aRead)
+    tip = AG.Tooltip(aRead, creatureName())
+  end
+  setLast(aLast, aLine, "text", text, "SetText")
+  setLast(aLast, aBar, "fill", fill, "SetValue")
+  setLast(aLast, aBar, "color", color, "SetColor")
+  if aLast.tip ~= tip then
+    aLast.tip = tip
+    aLine:SetTooltip(tip)
+    aBar:SetTooltip(tip)
+  end
+end
+
+-- ---------------------------------------------------------------------------
+-- The aggro meter (its own strip)
+-- ---------------------------------------------------------------------------
+
+function AG.Metrics()
+  local font = T.Window.GetFont()
+  local line = math.ceil(font * 1.15) + 1
+  local m = { font = font, line = line, gap = math.max(3, math.floor(font / 3)), barW = AG.BAR_W,
+              barH = math.max(4, math.floor(line * 0.5 + 0.5)), nameW = math.ceil(font * 0.6 * AG.NAME_CHARS),
+              pctW = math.ceil(font * 2.6), rowGap = 2 }
+  m.rowW = m.nameW + m.gap + m.barW + m.gap + m.pctW
+  return m
+end
+
+function AG.BuildContent()
+  local m = AG.Metrics()
+  local kids = {
+    UI.Label{ id = "ag_head", text = AG.HINT, class = "heading", style = T.Window.TextStyle({ width = m.rowW,
+      marginLeft = 0, marginRight = 0, whiteSpace = "nowrap" }, m.font, 1) },
+  }
+  for i = 1, AG.MAX do
+    kids[#kids + 1] = UI.Row{ id = "ag_row_" .. i, visible = false, style = { alignItems = "center",
+      height = m.line, minHeight = m.line, maxHeight = m.line, marginTop = m.rowGap }, children = {
+        UI.Label{ id = "ag_name_" .. i, text = "", class = "text", style = T.Window.TextStyle({ width = m.nameW,
+          marginLeft = 0, marginRight = 0, whiteSpace = "nowrap", color = AG.NAME_COLOR }, m.font, 1) },
+        UI.Bar{ id = "ag_bar_" .. i, value = 0, color = AG.BAR_COLOR, style = { width = m.barW, height = m.barH,
+          marginLeft = m.gap } },
+        UI.Label{ id = "ag_pct_" .. i, text = "", class = "text", style = T.Window.TextStyle({ width = m.pctW,
+          marginLeft = m.gap, marginRight = 0, whiteSpace = "nowrap", textAlign = "right" }, m.font, 1) },
+      } }
+  end
+  aContent = UI.Column{ id = "aggro_meter", style = { backgroundColor = T.ShadeColor(T.ShadeOf(aprefs.shade)),
+    borderRadius = 3, padding = 3 }, children = kids }
+  aHead = aContent:Find("ag_head")
+  aRows = {}
+  for i = 1, AG.MAX do
+    aRows[i] = { row = aContent:Find("ag_row_" .. i), name = aContent:Find("ag_name_" .. i),
+                 bar = aContent:Find("ag_bar_" .. i), pct = aContent:Find("ag_pct_" .. i), last = {} }
+  end
+  aLast.head = nil
+  AG.Fill()
+  return aContent
+end
+
+function AG.Unbuilt()
+  aContent, aHead, aRows = nil, nil, {}
+end
+
+-- The Toolbelt line went with the buff bar's strip (BB.Unbuilt).
+function AG.LineUnbuilt()
+  aRow, aLine, aBar, aRowShown, AG.inBuffBar = nil, nil, nil, nil, false
+  aLast = {}
+end
+
+local function meterRows() return aHas and aRead.n or 0 end
+
+function AG.ContentSize()
+  local m = AG.Metrics()
+  local n = meterRows()
+  return m.rowW + 6, m.line + n * (m.line + m.rowGap) + 6
+end
+
+function AG.Fill()
+  fillLine()
+  if not aContent then return end
+  local head = AG.HINT
+  if aHas then
+    local holder = AG.Holder(aRead)
+    local creature = creatureName()
+    head = (creature or AG.HINT) .. (holder and (": on " .. holder) or "")
+  end
+  if aLast.head ~= head then
+    aLast.head = head
+    aHead:SetText(head)
+  end
+  local holder, onYou = AG.Holder(aRead)
+  local holderKey = holder and holder:lower()
+  for i = 1, AG.MAX do
+    local r = aRows[i]
+    local e = aHas and i <= aRead.n and aRead.entries[i] or nil
+    local last = r.last
+    if (e ~= nil) ~= last.shown then
+      last.shown = e ~= nil
+      r.row:SetVisible(e ~= nil)
+    end
+    if e then
+      local color = AG.NAME_COLOR
+      if (e.you and onYou) or (not e.you and holderKey == e.name:lower() and not onYou) then
+        color = AG.ON_COLOR
+      elseif e.you then
+        color = AG.YOU_COLOR
+      end
+      setLast(last, r.name, "name", e.you and (e.name .. " (you)") or e.name, "SetText")
+      if last.color ~= color then
+        last.color = color
+        r.name:SetStyle{ color = color }
+      end
+      setLast(last, r.bar, "share", e.share, "SetValue")
+      setLast(last, r.bar, "barColor", e.you and AG.YOURS_COLOR or AG.BAR_COLOR, "SetColor")
+      setLast(last, r.pct, "pct", pct(e.share), "SetText")
+      local opacity = e.unreachable and AG.UNREACHABLE or 1
+      if last.opacity ~= opacity then
+        last.opacity = opacity
+        r.row:SetStyle{ opacity = opacity }
+      end
+      local tip = e.unreachable and (e.name .. ": it can't reach them") or ""
+      if last.tip ~= tip then
+        last.tip = tip
+        r.name:SetTooltip(tip)
+      end
+    end
+  end
+end
+
+-- ---------------------------------------------------------------------------
+-- Reading and alerts
+-- ---------------------------------------------------------------------------
+
+local function queueAggro(text)
+  aAlerts.n = aAlerts.n + 1
+  aAlerts.list[#aAlerts.list + 1] = { id = aAlerts.n, text = text }
+  if #aAlerts.list > PT.EVENTS_KEEP then table.remove(aAlerts.list, 1) end
+end
+
+-- Whether an alert can come: one switched on, and the aggro part (which reads the list) on.
+function AG.AlertsSet()
+  return AG.Has() and aprefs.show == true and (aprefs.pulled ~= false or aprefs.lost == true)
+end
+
+function AG.AlertsCheck(seen)
+  local last = type(seen) == "number" and seen or 0
+  if aAlerts.n <= last then return nil end
+  local lines = {}
+  for _, e in ipairs(aAlerts.list) do
+    if e.id > last then lines[#lines + 1] = e.text end
+  end
+  if #lines == 0 then return nil end
+  return { title = "Aggro", text = table.concat(lines, " "), seen = aAlerts.n }
+end
+
+-- Tells a change of who the target is on (pure but for the queue and the gap). Returns whether one was told.
+function AG.Alert(kind, creature, holder, now)
+  if kind == "pulled" and aprefs.pulled == false then return false end
+  if kind == "lost" and aprefs.lost ~= true then return false end
+  if now < (aAlertAt[kind] or -math.huge) + AG.ALERT_GAP then return false end
+  aAlertAt[kind] = now
+  local who = creature or "Your target"
+  if kind == "pulled" then
+    queueAggro("You pulled aggro: " .. who .. " is on you.")
+  else
+    queueAggro("Aggro lost: " .. who .. " is on " .. (holder or "someone else") .. ".")
+  end
+  return true
+end
+
+local function readList()
+  local had = aHas
+  aHas = false
+  if not ShroudHasTarget() then
+    aFor, aOnYou = nil, nil
+    return had
+  end
+  local id = ShroudGetTargetId()
+  if id ~= aFor then aFor, aOnYou = id, nil end
+  local ok, raw = pcall(ShroudGetTargetAggro)
+  if ok and AG.Read(raw, aRead, lowerPlain(T.PlayerName())) then
+    aHas = AG.Worth(aRead)
+    local holder, onYou = AG.Holder(aRead)
+    local kind = AG.Change(aOnYou, onYou)
+    if onYou ~= nil then aOnYou = onYou end
+    if kind and AG.Alert(kind, creatureName(), holder, T.Now()) then T.Notify.Check() end
+  end
+  return had ~= aHas
+end
+
+-- From the periodic and a target change.
+function AG.Poll()
+  if not (aprefs.show and AG.Has()) then
+    if aHas then
+      aHas = false
+      fillLine()
+    end
+    return
+  end
+  local changed = readList()
+  AG.Fill()
+  if changed and AG.Glued() then T.BuffBar.Tick() end     -- the Toolbelt refits to the line coming or going
+  local isShown = AG.IsShown()
+  if isShown ~= aWasShown or (changed and aContent) then
+    aWasShown = isShown
+    T.Hud.Refresh()
+  end
+end
+
+function AG.OnTargetChanged()
+  if aprefs.show then AG.Poll() end
+end
+
+-- ---------------------------------------------------------------------------
+-- Settings
+-- ---------------------------------------------------------------------------
+
+function AG.SetShow(on)
+  aprefs.show = on == true
+  aSave()
+  aHas = false
+  T.Hud.Build()
+  AG.Poll()
+  T.BuffBar.Tick()
+  T.Config.Sync()
+end
+
+-- In the Toolbelt (its last row), or its own strip.
+function AG.SetGlue(on)
+  aprefs.glue = on == true
+  aSave()
+  T.Hud.Build()
+  AG.Poll()
+  T.BuffBar.Tick()
+  T.Config.Sync()
+end
+
+function AG.GetPulled() return aprefs.pulled ~= false end
+function AG.SetPulled(on)
+  aprefs.pulled = on == true
+  aSave()
+  T.Config.Sync()
+end
+
+function AG.GetLost() return aprefs.lost == true end
+function AG.SetLost(on)
+  aprefs.lost = on == true
+  aSave()
+  T.Config.Sync()
+end
+
+function AG.GetShade() return T.ShadeOf(aprefs.shade) end
+function AG.SetShade(n)
+  aprefs.shade = T.ShadeOf(n)
+  aSave()
+  if aContent then aContent:SetStyle{ backgroundColor = T.ShadeColor(aprefs.shade) } end
+  T.Config.Sync()
+end
+
+-- The General text size changed (T.Window.ApplyText).
+function AG.ApplyText()
+  AG.ApplySize()
+  if aContent then T.Hud.Rebuild("aggro") end
+end
+
+function AG.GetSavedPosition() return aprefs.x, aprefs.y end
+function AG.SavePosition(x, y)
+  if x ~= aprefs.x or y ~= aprefs.y then
+    aprefs.x, aprefs.y = x, y
+    aSave()
+  end
+end
+
+local aggroMover = T.Hud.MoverFor("aggro", AG.HOME)
+AG.GetPosition, AG.MoveTo, AG.Nudge, AG.ResetPosition = aggroMover.Get, aggroMover.MoveTo, aggroMover.Nudge,
+  aggroMover.Reset
+AG.NUDGE = 10
+
+function AG.Init()
+  local saved = T.ReadSaved("aggro")
+  aprefs = { show = false }
+  if type(saved) == "table" then
+    aprefs.show = saved.show == true
+    aprefs.glue = saved.glue ~= false
+    aprefs.pulled = saved.pulled ~= false
+    aprefs.lost = saved.lost == true
+    if type(saved.shade) == "number" then aprefs.shade = T.ShadeOf(saved.shade) end
+    if type(saved.x) == "number" and type(saved.y) == "number" then aprefs.x, aprefs.y = saved.x, saved.y end
+  end
+  aRead, aHas, aFor, aOnYou, aAlertAt, aWasShown = { n = 0, entries = {} }, false, nil, nil, {}, false
+  aAlerts.list = {}            -- a switch's next character starts afresh (the running number kept)
+  T.Hud.Register("aggro", AG)
+  T.RegisterPeriodic(APERIODIC, AG.Poll, AG.POLL, true)
+end
+
+-- /toolbox aggro debug: what the game reports.
+function AG.DebugLines()
+  local lines = {}
+  lines[1] = string.format("Aggro: setting %s%s, %s; %s", aprefs.show and "on" or "off",
+    AG.Has() and "" or (" (" .. AG.NEEDS .. ")"), AG.Glued() and "in the Toolbelt" or "own strip",
+    T.Hud.Debug("aggro"))
+  if not AG.Has() then return lines end
+  if not ShroudHasTarget() then
+    lines[2] = "No target."
+    return lines
+  end
+  local ok, raw = pcall(ShroudGetTargetAggro)
+  if not ok then
+    lines[2] = "ShroudGetTargetAggro failed: " .. tostring(raw)
+    return lines
+  end
+  if raw == nil then
+    lines[2] = "No list yet (nil: a player, no threat list, or the copy not arrived; try again in a moment)."
+    return lines
+  end
+  lines[2] = "Attacking: " .. tostring(T.Field(raw, "target"))
+  for i, e in ipairs(T.List(T.Field(raw, "entries"))) do
+    lines[#lines + 1] = string.format("  %d %s: value %s, share %s%s%s", i, tostring(T.Field(e, "name")),
+      tostring(T.Field(e, "value")), tostring(T.Field(e, "share")), T.Field(e, "you") == true and ", you" or "",
+      T.Field(e, "unreachable") == true and ", unreachable" or "")
+  end
+  return lines
+end
+
+-- the meter's strip: built after the others, before the target (which goes last)
+table.insert(T.Hud.ORDER, #T.Hud.ORDER, "aggro")
+T.Hud.NAMES.aggro = "aggro meter"
+T.Backup.KEYS[#T.Backup.KEYS + 1] = "aggro"
+
+-- The Toolbelt page's Aggro section (config.lua builds it with its helpers `h`): the controls' ids in CONFIG_IDS.
+AG.CONFIG_IDS = { "ag_pulled", "ag_lost", "ag_shade", "ag_shade_value" }
+
+function AG.ConfigRows(h)
+  local ui = h.UI
+  return {
+    h.heading("Aggro"),
+    ui.Label{ text = "Your target's aggro list (the game's /verbose aggro), set to In Toolbelt or Own strip under What"
+      .. " goes where. In the Toolbelt, one line under everything: who it's on, and how close the next one is (or"
+      .. " you are) to taking it; hover it for the list. On its own strip, the whole list. It shows only in a"
+      .. " group fight (alone, it is always you).", class = "dim", style = { whiteSpace = "wrap" } },
+    ui.Toggle{ id = "ag_pulled", text = "Alert when you pull aggro", value = AG.GetPulled(),
+      tooltip = AG.Has() and "An Aggro alert (Settings, Notifications) when your target turns to you"
+        or AG.NEEDS,
+      onChange = function(_, v) AG.SetPulled(v) end },
+    ui.Toggle{ id = "ag_lost", text = "Alert when you lose aggro", value = AG.GetLost(),
+      tooltip = AG.Has() and "An Aggro alert when your target turns away from you (for tanks)" or AG.NEEDS,
+      onChange = function(_, v) AG.SetLost(v) end },
+    h.shadeSlider("ag_shade", AG.GetShade(), "the aggro meter (its own strip)", function(n) AG.SetShade(n) end),
+  }
+end
+
+function AG.ConfigSync(h)
+  h.setValue("ag_pulled", AG.GetPulled())
+  h.setValue("ag_lost", AG.GetLost())
+  h.sliderValue("ag_shade", AG.GetShade())
+  local on = AG.GetShow() and AG.Has()
+  h.setEnabled("ag_pulled", on)
+  h.setEnabled("ag_lost", on)
+  h.setEnabled("ag_shade", on and not AG.Glued())
+  h.setEnabled("toolbelt_aggro", AG.Has())
+end

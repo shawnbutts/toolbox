@@ -2145,6 +2145,45 @@ add("party", "the Party Toolbelt: your party's health and focus on a strip of it
     .. (PT.GetShow() and not PT.InParty() and " (it shows once you're in a party)" or "") .. ".")
 end)
 
+add("aggro", "your target's aggro list, a Toolbelt part (on|off; toolbelt on|off: in the Toolbelt or its own strip;"
+    .. " alert pulled|lost on|off; move [x y]; debug)", function(rest)
+  local AG = T.Aggro
+  local word, args = T.ParseArgs(rest)
+  word, args = word:lower(), args:lower()
+  if not AG.Has() and word ~= "debug" then
+    T.Print("Aggro: " .. AG.NEEDS .. ".")
+    return
+  end
+  if word == "" then
+    AG.SetShow(not AG.GetShow())
+  elseif word == "on" or word == "off" then
+    AG.SetShow(word == "on")
+  elseif word == "toolbelt" and (args == "on" or args == "off") then
+    AG.SetGlue(args == "on")
+    if args == "on" and not T.BuffBar.IsEnabled() then T.BuffBar.SetShown(true) end
+  elseif word == "alert" then
+    local kind, onOff = T.ParseArgs(args)
+    if (kind == "pulled" or kind == "lost") and (onOff == "on" or onOff == "off") then
+      if kind == "pulled" then AG.SetPulled(onOff == "on") else AG.SetLost(onOff == "on") end
+    end
+    T.Print("Aggro alerts: pulled " .. (AG.GetPulled() and "on" or "off") .. ", lost "
+      .. (AG.GetLost() and "on" or "off") .. ". Use /" .. T.commands[1] .. " aggro alert pulled|lost on|off.")
+    return
+  elseif word == "move" then
+    T.MoveCommand(AG, "aggro", "Aggro meter", args)
+    return
+  elseif word == "debug" then
+    for _, line in ipairs(AG.DebugLines()) do T.Print(line) end
+    return
+  else
+    T.Print("Use /" .. T.commands[1] .. " aggro [on|off], toolbelt on|off, alert pulled|lost on|off, move [x y] or"
+      .. " debug. Or Settings, Toolbelt.")
+    return
+  end
+  T.Print("Aggro: " .. (AG.GetShow() and (AG.Glued() and "on, in the Toolbelt" or "on, its own strip") or "off")
+    .. (AG.GetShow() and " (it shows in a group fight)" or "") .. ".")
+end)
+
 add("welcome", "show the first-run welcome again (reset: show it at the next /lua reload)", function(rest)
   if rest:lower() == "reset" then
     T.DeleteSaved("welcomed", "account")
@@ -4452,6 +4491,7 @@ local function startModules(places)
   step("the equipment bar", T.Gear.Init)
   step("the target HUD", T.Target.Init)
   step("the Party Toolbelt", T.Party.Init)
+  step("the aggro meter", T.Aggro.Init)
   step("the consumables bar", T.Consumables.Init)
   step("the notification HUD", T.Notify.Hud.Init)
   if T.SkillBar then step("the skill activity strip", T.SkillBar.Init) end   -- skills.lua, when present
@@ -4662,6 +4702,7 @@ end
 function ShroudOnTargetChanged()
   T.Ran("target")
   T.Target.OnTargetChanged()
+  T.Aggro.OnTargetChanged()
 end
 
 -- API 25 (the game looks four times a second while this is defined; a burst arrives as one call).

@@ -856,6 +856,7 @@ local POSITIONED = {
 }
 if T.SkillBar then POSITIONED[#POSITIONED + 1] = { "skills", T.SkillBar, T.SkillBar.PAGE } end
 POSITIONED[#POSITIONED + 1] = { "party", T.Party, "Party Toolbelt", "party" }
+POSITIONED[#POSITIONED + 1] = { "aggro", T.Aggro, "Aggro meter" }
 
 -- The "Toolbelt" category: the buff bar with the health bars, consumables and gear repair joined to it,
 -- one strip moved as one (owner, 2026-09-29: "this combined bar will be the main selling point").
@@ -876,6 +877,9 @@ C.TOOLBELT_PARTS = {
   { key = "target", label = "Target", tip = "Your target's health and effects: the last row",
     shown = function() return T.Target.GetShow() end, show = function(on) return T.Target.SetShow(on) end,
     glued = function() return T.Target.GetGlue() end, glue = function(on) return T.Target.SetGlue(on) end },
+  { key = "aggro", label = "Aggro", tip = "Your target's aggro list: a line under everything (newer game clients)",
+    shown = function() return T.Aggro.GetShow() end, show = function(on) return T.Aggro.SetShow(on) end,
+    glued = function() return T.Aggro.GetGlue() end, glue = function(on) return T.Aggro.SetGlue(on) end },
 }
 
 function C.PlaceOf(part)
@@ -979,6 +983,7 @@ function C.ToolbeltSection()
   } }
   children[#children + 1] = UI.Label{ text = "Their size follows your health bars' Size and Bar length (Health bars"
     .. " page).", class = "dim", style = { whiteSpace = "wrap", marginTop = 4 } }
+  for _, row in ipairs(T.Aggro.ConfigRows(C.Helpers)) do children[#children + 1] = row end
   children[#children + 1] = UI.Label{ id = "hud_summary", text = "", class = "dim",
     style = { whiteSpace = "wrap", marginTop = 6 } }
   children[#children + 1] = UI.Label{ text = "Place it under HUD layout (Buff bar), or drag its grip. Each bar's"
@@ -1729,7 +1734,8 @@ local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "loc_overlay
   "stat_find", "stat_results", "stat_add", "stat_shown", "stat_remove", "stat_msg",
   "nhud_hide", "notify_compact", "notify_font", "notify_font_value", "nhud_font", "nhud_font_value",
   "volume", "volume_value", "hud_summary", "toolbelt_show",
-  "toolbelt_vitals", "toolbelt_consumables", "toolbelt_gear", "toolbelt_target", "target_place", "target_mirror",
+  "toolbelt_vitals", "toolbelt_consumables", "toolbelt_gear", "toolbelt_target", "toolbelt_aggro", "target_place",
+  "target_mirror",
   "target_effects", "target_icons", "target_icons_value", "target_show_bars", "target_show_text", "target_show_name",
   "target_bg", "target_hide_pet", "target_flash_test", "nhud_spacing", "nhud_spacing_value",
   "target_flash", "target_flash_below", "target_flash_below_value",
@@ -1762,6 +1768,7 @@ if T.SkillBar then
   for _, id in ipairs(T.SkillBar.CONFIG_IDS) do ALL_IDS[#ALL_IDS + 1] = id end
 end
 for _, id in ipairs(T.Party.CONFIG_IDS) do ALL_IDS[#ALL_IDS + 1] = id end
+for _, id in ipairs(T.Aggro.CONFIG_IDS) do ALL_IDS[#ALL_IDS + 1] = id end
 for _, key in ipairs(T.Consumables.Categories()) do
   ALL_IDS[#ALL_IDS + 1] = "cons_cat_" .. key
   ALL_IDS[#ALL_IDS + 1] = "buff_cat_" .. key
@@ -2565,6 +2572,7 @@ function C.Sync()
   setEnabled("daily_shade", T.Daily.GetHud())
   if T.SkillBar then T.SkillBar.ConfigSync(C.Helpers) end   -- skills.lua, when present
   T.Party.ConfigSync(C.Helpers)
+  T.Aggro.ConfigSync(C.Helpers)
   C.SyncLive()
 end
 

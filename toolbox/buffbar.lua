@@ -820,20 +820,21 @@ local function fitFrame(buffsShown, debuffsShown)
   local gear = T.Gear.GluedCount()     -- the equipment bar's row under the debuffs, when glued
   local cons = K.GluedCount()          -- the consumables row (above the equipment), when glued
   local target = T.Target.GluedCount() -- the target row (the last), when in the Toolbelt
-  local used = math.max(buffsShown, debuffsShown, gear, cons, target)
+  local aggro = T.Aggro.GluedCount()   -- the aggro line (under everything), when in the Toolbelt
+  local used = math.max(buffsShown, debuffsShown, gear, cons, target, aggro)
   -- nothing on it while the settings window is open: its name, to place it by
   local empty = used == 0 and T.Config.IsShown()
   if placeholder and empty ~= placeholderShown then
     placeholderShown = empty
     placeholder:SetVisible(empty)
     if empty then
-      placeholder:SetText((T.Hud.IsGlued() or K.Glued() or T.Gear.Glued() or T.Target.Glued()) and "Toolbelt"
-        or "Buff bar")
+      local belt = T.Hud.IsGlued() or K.Glued() or T.Gear.Glued() or T.Target.Glued() or T.Aggro.Glued()
+      placeholder:SetText(belt and "Toolbelt" or "Buff bar")
     end
   end
   if empty then used = BB.PLACEHOLDER_CELLS end
   local rows = 1 + (debuffsShown > 0 and 1 or 0) + (gear > 0 and 1 or 0) + (cons > 0 and 1 or 0)
-    + (target > 0 and 1 or 0)
+    + (target > 0 and 1 or 0) + (aggro > 0 and 1 or 0)
   local extra = T.Target.ExtraHeight()   -- the target row taller than an icon (its numbers at a large Size)
   local key = used .. "," .. rows .. "," .. size() .. "," .. extra
   if key == sizedFor or not content then return end
@@ -987,6 +988,8 @@ function BB.BuildContent()
       table.insert(rows, 1, row)
     end
   end
+  T.Aggro.inBuffBar = T.Aggro.Glued()
+  if T.Aggro.inBuffBar then rows[#rows + 1] = T.Aggro.BuildRow() end   -- the aggro line: always the last row
   content = UI.Column{ id = "buffbar", children = rows }
   return content
 end
@@ -1134,6 +1137,7 @@ function BB.Unbuilt()
   if K.inBuffBar then K.Unbuilt() end
   if T.Gear.inBuffBar then T.Gear.Unbuilt() end
   if T.Target.inBuffBar then T.Target.Unbuilt() end
+  if T.Aggro.inBuffBar then T.Aggro.LineUnbuilt() end
 end
 
 local NO_RUNE = {}             -- runes[] has no entry yet (shared, not a new table per slot per tick)
@@ -1813,8 +1817,8 @@ end
 function BB.SetShown(on)
   prefs.show = on == true
   savePrefs()
-  if T.Gear.GetGlue() then
-    T.Hud.Build()                      -- the glued equipment bar moves to its own strip, or back
+  if T.Gear.GetGlue() or (T.Aggro.GetShow() and T.Aggro.GetGlue()) then
+    T.Hud.Build()                      -- the glued equipment bar or aggro line moves to its own strip, or back
   else
     T.Hud.Refresh()
   end
@@ -1848,6 +1852,7 @@ function BB.SetSize(n)
   end
   T.Gear.ApplySize(n)                          -- the equipment bar uses the same icon size
   T.Target.ApplySize()                         -- and the target HUD
+  T.Aggro.ApplySize()                          -- and the aggro line
   T.Config.Sync()
   return true
 end

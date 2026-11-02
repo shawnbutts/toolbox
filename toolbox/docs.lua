@@ -179,6 +179,21 @@ D.SECTIONS = {
       .. "that far to the right of it.",
     "On its own strip, with no target it hides, except while the settings window is open, so you can "
       .. "place it (or use HUD layout). /toolbox target debug (chat only) shows what the game reports." },
+  { "Aggro",
+    "Your target's aggro list, the one the game's /verbose aggro shows over a creature: who it's attacking and "
+      .. "the (up to six) it holds threat against, highest first. Settings, Toolbelt, What goes where: Aggro, "
+      .. "In Toolbelt or Own strip (a newer game client, Lua API 54).",
+    "In the Toolbelt it's one line under everything: \"On you; next phil 82%\" (its bar: how close the next "
+      .. "one is to taking it from you) or \"On phil; you 2nd, 64%\" (its bar, in red: how close you are to "
+      .. "pulling it). Hover it for the whole list. On its own strip it's the aggro meter: the creature, then a "
+      .. "row a name with a bar and a percent; who it's on in red, you named \"(you)\", one it can't reach "
+      .. "dimmed. Move the strip on HUD layout (Aggro meter), or by its grip.",
+    "It shows only when the list says something: in a group fight, or with your pet. Alone it would always "
+      .. "read 100% you, so it stays hidden. For most creatures the game needs a moment to fetch the list, so "
+      .. "it comes a second after you pick a target.",
+    "Alerts (Settings, Toolbelt, Aggro): Alert when you pull aggro (on) and Alert when you lose aggro (off; "
+      .. "for tanks) give an Aggro alert, on the notification HUD with a ping by default (Settings, "
+      .. "Notifications). /toolbox aggro debug (chat only) shows what the game reports." },
   { "Buff bar",
     "Settings, Buffs, Show buff bar: your buffs and debuffs (outlined red) as their skill icons, the one "
       .. "that runs out soonest on the left. A darkening sweep shows the time left; it turns red when a buff "
@@ -1104,6 +1119,12 @@ N.SOURCES = {
       .. " Party; the Party Toolbelt on; newer game clients, Lua API 55)",
     Active = function() return T.Party.AlertsSet() end,
     Check = function(seen) return T.Party.AlertsCheck(seen) end },
+  { key = "aggro", label = "Aggro alerts", default = true, via = "hud", sound = true, soundKey = "ping",
+    transient = true,
+    tip = "Your target turning to you, or away from you (Settings, Toolbelt: Aggro on; newer game clients, Lua API"
+      .. " 54)",
+    Active = function() return T.Aggro.AlertsSet() end,
+    Check = function(seen) return T.Aggro.AlertsCheck(seen) end },
   { key = "events", label = "World events starting", default = true, via = "chat",
     tip = "Calls to Arms and official events from the game's calendar, " .. N.EVENT_LEAD .. " minutes ahead",
     Check = function(seen) return N.EventsCheck(seen) end },

@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Added" },
+  { "item", "Aggro: your target's aggro list (the game's /verbose aggro) as a Toolbelt part (Settings, Toolbelt: Aggro Off, Own strip or In Toolbelt). In the Toolbelt, one line under everything: \"On you; next phil 82%\" or \"On phil; you 2nd, 64%\", with a bar for how close the next one is to taking it (or you are to pulling it) and the whole list when you hover it. On its own strip, the aggro meter: the creature, then a row a name with a bar, who it's on in red, one it can't reach dimmed. It shows only in a group fight (alone it is always you). Alerts when you pull aggro (on) or lose it (off; for tanks), on the notification HUD with a ping. Needs a newer game client (Lua API 54). /toolbox aggro." },
   { "version", "1.10.0 - 2026-10-30" },
   { "section", "Added" },
   { "item", "The Party Toolbelt (newer game clients, Lua API 55): your party on a strip of its own, apart from your Toolbelt, so a healer keeps the Toolbelt for themselves. Each member has a row with their name, health and focus bars and health in percent (or dead, away, offline). The lowest health's name is red, a member in another scene is dimmed, and one beyond your reach (30 m by default) a little. After the bars come each member's debuffs and the buffs you watch (only the ones you cast, if you like), with the time left as a sweep. Choose party order or lowest health first, only during combat, and whether your own row shows (Settings, Party)." },

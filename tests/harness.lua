@@ -851,6 +851,17 @@ local function install_api()
   else
     ShroudGetTargetDifficulty = nil
   end
+  -- API 54 (H.apiVersion >= 54): H.setTarget{ ..., aggro = { target = name, entries = { { name, value, share,
+  -- unreachable, you } } } } (nil: none yet, a player...). H.S.aggroCalls counts the calls.
+  if (H.apiVersion or 25) >= 54 then
+    ShroudGetTargetAggro = function()
+      S.aggroCalls = (S.aggroCalls or 0) + 1
+      local t = tg()
+      return t and t.aggro and copy(t.aggro) or nil
+    end
+  else
+    ShroudGetTargetAggro = nil
+  end
   ShroudIsTargetDead = function() local t = tg(); return t ~= nil and t.dead == true end
   ShroudIsTargetHealthHidden = function() local t = tg(); return t ~= nil and t.hidden == true end
   ShroudGetTargetCurrentHealth = function()

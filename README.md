@@ -22,6 +22,9 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
   categories, long-lasting ones grouped (on its own strip or in the Toolbelt).
 - **Target HUD**: your target's health and focus (bars, numbers or both, with the health bars' options), its name
   if you like, and its effects with the time left on each; its own strip or in the Toolbelt (Settings, Toolbelt).
+- **Aggro**: your target's aggro list (the game's /verbose aggro): in the Toolbelt, one line saying who it's on
+  and how close the next one is (or you are) to taking it; on its own strip, the whole list. Alerts when you pull
+  or lose aggro (Settings, Toolbelt; API 54).
 - **Party Toolbelt**: your party's health and focus on a strip of its own, apart from your Toolbelt, a row per
   member with their debuffs and the buffs you watch: the lowest health flagged, members in another scene or out of
   reach dimmed, party order or lowest health

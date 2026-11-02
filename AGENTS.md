@@ -512,6 +512,19 @@ into one if a new file is ever needed).
   while one runs). Deaths from API 45's dead flag (`afterRead` after every party read: `ShroudOnPartyChanged` now
   always reads, it fires on a death in your scene) -> `C.PartyDied` -> `C.PartyDeath` keeps the hits as
   `lastDeath` (`C.DeathText` in the tooltip).
+  Then `Toolbox.Aggro` (AG, end of the file; owner, 2026-11-01, for 1.11.0): API 54's `ShroudGetTargetAggro` (your
+  target's list, as `/verbose aggro`: who it's attacking, up to six, shares of the top) as a Toolbelt part
+  (`C.TOOLBELT_PARTS` "aggro", Off / Own strip / In Toolbelt; `AG.API`, `AG.Has()`, greyed out below 54). In the
+  Toolbelt: one line as the buff column's LAST row (`AG.BuildRow` from `BB.BuildContent`, `AG.LineUnbuilt` from
+  `BB.Unbuilt`, `AG.GluedCount` in `fitFrame`: last, so its coming and going moves nothing above it), `AG.Line`
+  ("On you; next phil 82%" / "On phil; you 2nd, 64%"; the bar the rival's share or yours), the list in its tooltip
+  (`AG.Tooltip`). Own strip: the aggro meter (Hud key `aggro`, `toolbox_aggro`, before target; `AG.MAX` rows, its
+  Position row on HUD layout). Shown only when `AG.Worth` (a list with someone besides you). Read every `AG.POLL` s
+  and on `ShroudOnTargetChanged` (core.lua). Alerts: docs.lua's source "aggro" (transient, the HUD with the ping) over
+  `AG.AlertsCheck`; `AG.Change` of who it's on for the same target (not a new target's first read), `pulled` default
+  on, `lost` off, `AG.ALERT_GAP` s apart. Settings on the Toolbelt page (`AG.ConfigRows` / `AG.CONFIG_IDS` /
+  `AG.ConfigSync`), `/toolbox aggro [debug]`. Harness: `H.setTarget{ ..., aggro = {...} }` from `H.apiVersion` 54,
+  `H.S.aggroCalls`.
 - `combat.lua`: `Toolbox.Combat`, the combat stats HUD (pure fight model: rates, crit, avoid, per skill,
   per target, per damage type, a timeline, fight history) and **Combat Detailed** (`C.Detail`, fixed pools).
   Fed by `ShroudOnCombatEvents` (through `T.ReadEvents`) and `ShroudOnCombatModeChanged`.
@@ -735,6 +748,7 @@ owner 2026-10-19, a player's request), x, y }` (a saved place "left", from beta 
 | `map_overlays` | the index: `{ v = 3, nextId, nextKey, scenes = { [scene id] = n }, ignore, death }` (below); each scene in its own key (owner, 2026-10-18) |
 | `map_scene:<n>` | `{ raw = scene id, scene = its name, shown = overlay id or 0, auto = bool (the auto map switched on / off there; absent: the scene kind's default), fights = bool (the same for fights), list = { { id, name (<= 24, unique in the scene), icon = an OV.ICONS shape, color = an OV.COLORS name (the next marks'), nextPlace, places = "id|name|x|y|z|shape n|color n;...", auto = a node kind, "*" for Gathering, "!" + a creature's name, or "!" for Fights (made by the auto map) } } }`. The index's ignore = { name parts the auto map skips }, death = { raw, scene, x, y, z, at = "HH:MM", date, clock = T.Clock() at death, away = true once you've left it } (your last death) (hud.lua; at most OV.MAX a scene, OV.SCENE_MAX places each, OV.BUDGET in all, every key together). v = 2 (1.8.0: every scene in `map_overlays`) and v = 1 (one list, places with raw / scene; development only) are converted at the first read: the index written over the old key first (both at once could pass 256 KB), the old value put back if a scene key is refused. A write (`ovWrite`) writes only the scenes whose form changed (`ovSaved`), deletes gone scenes' keys, then writes the index if it changed; refused at any step (a delete too, review 61), everything done is undone newest first, a conversion's new scene keys out before the old value goes back (review 60). `T.DeleteSaved` keeps a key measured until the game deletes it (harness `H.S.deleteRefuse`). The scene keys are measured at start through `B.KEY_LISTS`. Kept by a reset; NOT in the recovery copy (`B.OTHER_KEYS`: the account file's 256 KB) |
 | `party` | `{ show = bool (default false), combatOnly = bool, self = bool (your own row; default false), sort = "party" / "health", reach = a PT.REACH_CHOICES metres (0 off; default 30), debuffs = bool (default true), watch = { name parts, <= PT.WATCH_MAX }, mine = bool, icons = 0..PT.ICONS_MAX (default 4), iconSize = PT.ICON_MIN..PT.ICON_MAX (default 20), alertBelow = 0 (off) or PT.ALERT_MIN..PT.ALERT_MAX, alertDebuffs = { name parts, <= PT.WATCH_MAX }, width = PT.WIDTH_MIN..PT.WIDTH_MAX (bar length, default 120), numbers = bool (the percent, default true), shade = 0..90, x, y }` (vitals.lua's Party Toolbelt) |
+| `aggro` | `{ show = bool (default false), glue = bool (In Toolbelt, default true), pulled = bool (default true), lost = bool (default false), shade = 0..90, x, y }` (vitals.lua's aggro line / meter) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
 | `planner` | `{ v = 1, crafts = n, recipe = id, view = a PL.VIEWS name, makes = { [row path "p.1.2"] = true }, makers = { [item key] = recipe id }, picks = { ["r" .. id] = { at = n, ["s" .. slot] = item key } } (<= PL.PICKS_MAX), pickAt = n, hud = bool (the Crafting Planner HUD), hudStage = "shop"/"build", hudStay = bool, hudClose = seconds (PL.HUD_CLOSE), hudStart = "shop"/"build", hudAuto = bool (default true), shade = 0..90, hx, hy, got = { [item key] = true } (the strip's shopping lines), prices = bool (market prices; unset: as `daily_detail.values`) }` (daily.lua's crafting planner; kept by a reset, not in the recovery copy: `B.OTHER_KEYS`) |
 | `skills_paused` | `{ v = 1, how = "off"/"maintain", when = "HH:MM", list = { { key = skill key or name, from = mode, to = mode } } }`: the pause's record (skills.lua; empty list = not paused); kept by a reset, copied for recovery |
@@ -989,7 +1003,7 @@ until the live client's `/toolbox api` reports more). Build against the live cli
   consumable / ..., the same in every language), `itemClass`, `isQuest`, `isTool`, `isArtifact`, `isLocked`, `isEquipped`.
 - 53: `ShroudOnDecoPlacementStarted(info)` and `ShroudSetPlacingDecoPose(rotation, scale)` (decorating; unused).
 - 54: `ShroudGetTargetAggro()` -> `{ target?, entries = { name, value, share, unreachable, you } }` (the top 6, as
-  `/verbose aggro`; nil until the first snapshot, refreshed once a second).
+  `/verbose aggro`; nil until the first snapshot, refreshed once a second). Used from 1.11.0 (`Toolbox.Aggro`, above).
 - 55: `ShroudGetAllSkills()` (every skill, trained or not, with `xpMultiplier`); `ShroudGetOwnedCounts(keyOrName)` ->
   `{ key, name, carried, bank, bankInContainers, bankKnown, total }` (part of request 29: counts without reading
   recipes; bank from the login preload); `ShroudSearchOwnedItems(keyOrName, cb)` (the "Search All My Stuff" count: one

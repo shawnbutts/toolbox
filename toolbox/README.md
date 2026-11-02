@@ -88,6 +88,14 @@ after a fight. Above the buffs and on the left its space is always kept, so noth
 target; on the left that leaves a transparent blank area between the Toolbelt's grip and your bars
 (labelled "Target" while settings are open, to help you place it). Its own strip can be mirrored too.
 
+## Aggro
+
+Your target's aggro list, the one the game's /verbose aggro shows. Set it In Toolbelt for one line under everything
+that says who the creature is on and how close the next one is to taking it (or you are to pulling it), with the
+whole list when you hover it, or on its Own strip for the aggro meter: a row a name with a bar, who it's on in red.
+It shows in a group fight (alone it is always you). An alert when you pull aggro, and one for tanks when you lose it
+(Settings, Toolbelt). Needs a newer game client (Lua API 54).
+
 ## Gear repair
 
 An equipment bar shows worn items below the repair threshold (20% by default), with a sweep for the
@@ -209,6 +217,7 @@ Everything above is in the menu and the settings. If you'd rather type, these do
 - `/toolbox help`: open the Docs window, a guide to everything
 - `/toolbox toolbelt`: what's in your Toolbelt (`vitals|consumables|gear|target on|off`, `combat on|off`)
 - `/toolbox target`: the target HUD (`on|off`, `toolbelt on|off`)
+- `/toolbox aggro`: your target's aggro list (`on|off`, `toolbelt on|off`, `alert pulled|lost on|off`)
 - `/toolbox party`: the Party Toolbelt (`on|off`, `sort party|health`, `combat on|off`, `self on|off`)
 - `/toolbox buffs`: show or hide the buff bar
 - `/toolbox consumables`: the consumables bar and what goes on it
