@@ -515,13 +515,13 @@ function W.SessionExtra(s)
   return "Skill levels +" .. T.FormatNumber(skills) .. ", deaths " .. T.FormatNumber(deaths)
 end
 
--- "Spent 70,000  42,000/h  (pool -20,000)" for a track (pure but for the pool passed in), or why not.
+-- "Spent 70,000  42,000/h  (pool -20,000, -12,000/h)" for a track (pure but for the pool passed in), or why not.
 function W.SpentText(s, key, pool, now)
   local spent, span = T.XP.Spent(s, key, pool, now)
   if not spent then return "Spent: --" end
   local moved = pool - s.pool[key]
   return "Spent " .. T.FormatNumber(spent) .. "  " .. rateText(T.XP.PerHour(spent, span))
-    .. "  (pool " .. T.XP.Signed(moved) .. ")"
+    .. "  (pool " .. T.XP.Signed(moved) .. ", " .. T.XP.Signed(T.XP.PerHour(moved, span)) .. "/h)"
 end
 
 function W.Refresh()
@@ -542,7 +542,8 @@ function W.Refresh()
     local net = W.GetNet()
     fillChart(s, k, now, net)
     local sessionRate = T.XP.SessionRate(s, k, now, net)
-    T.SetText(el[k .. "_gain"], T.XP.Signed(T.XP.Gained(s, k, net)) .. "  " .. rateText(sessionRate)
+    T.SetText(el[k .. "_gain"], (net and "Net " or "Earned ") .. T.XP.Signed(T.XP.Gained(s, k, net)) .. "  "
+      .. rateText(sessionRate)
       .. "  (10m " .. rateText(T.XP.WindowRate(s, k, now, net)) .. ")")
     T.SetText(el[k .. "_spent"], W.SpentText(s, k, k == "a" and poolA or poolP, now))
 

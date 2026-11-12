@@ -145,10 +145,10 @@ command), the add-on says why in chat, e.g. `Could not register /tbx: taken`.
 The menu's **XP Detailed** button opens **XP Detailed**, which also pops up when you hover
 the XP window (below). It shows the session time, a Reset button and, for adventurer and producer:
 
-- XP gained this session
+- XP earned this session ("Earned +36,000", or "Net" with Settings, XP & Loot: Subtract XP lost on)
 - XP/hour over the whole session and over the last 10 minutes
 - XP spent: what your skills took from the pool this session, per hour, and how far the unspent pool
-  moved ("Spent 70,000  42,000/h  (pool -20,000)"). The game doesn't report it, so it is worked out:
+  moved, in all and per hour ("Spent 70,000  42,000/h  (pool -20,000, -12,000/h)"). The game doesn't report it, so it is worked out:
   XP earned less the pool's growth, from the first pool reading of the session; XP lost on a death is
   assumed to come out of the pool (`/toolbox xp debug` prints the numbers)
 - level and % through it (from `ShroudGetLevelProgress()`)
