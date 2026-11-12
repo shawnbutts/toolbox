@@ -120,7 +120,8 @@ local function trackRows(track)
       UI.Label{ id = k .. "_spent", text = "", class = "text", style = W.TextStyle(),
         tooltip = "Experience your skills took from the " .. track.name:lower() .. " pool this session, its rate, "
           .. "and how the unspent pool moved. Worked out from what you earned and the pool: the game doesn't report "
-          .. "it. Skills set to Off take nothing (Skill activity's Pause skills)." },
+          .. "it. A session already running when Toolbox gained this counts from the time shown (\"since 14:05\"). "
+          .. "Skills set to Off take nothing (Skill activity's Pause skills)." },
       UI.Label{ id = k .. "_eta", text = "", class = "text", style = W.TextStyle() },
       chart(track),
       UI.Label{ id = k .. "_chart_note", text = "", class = "dim", style = W.TextStyle() },
@@ -515,12 +516,16 @@ function W.SessionExtra(s)
   return "Skill levels +" .. T.FormatNumber(skills) .. ", deaths " .. T.FormatNumber(deaths)
 end
 
--- "Spent 70,000  42,000/h  (pool -20,000, -12,000/h)" for a track (pure but for the pool passed in), or why not.
+-- "Spent 70,000  42,000/h  (pool -20,000, -12,000/h)" for a track (pure but for the pool passed in), or why not;
+-- "Spent 800 since 14:05 ..." when it covers only part of the session (review 82).
 function W.SpentText(s, key, pool, now)
   local spent, span = T.XP.Spent(s, key, pool, now)
   if not spent then return "Spent: --" end
   local moved = pool - s.pool[key]
-  return "Spent " .. T.FormatNumber(spent) .. "  " .. rateText(T.XP.PerHour(spent, span))
+  local partial, at = T.XP.SpentPartial(s)
+  local since = ""
+  if partial then since = at ~= "" and (" since " .. at) or " (part of the session)" end
+  return "Spent " .. T.FormatNumber(spent) .. since .. "  " .. rateText(T.XP.PerHour(spent, span))
     .. "  (pool " .. T.XP.Signed(moved) .. ", " .. T.XP.Signed(T.XP.PerHour(moved, span)) .. "/h)"
 end
 

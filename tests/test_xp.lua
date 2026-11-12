@@ -338,4 +338,23 @@ return function(t)
     H.advance(1)
     t.eq(Toolbox.session.pool.a, 25000, "kept across a reload")
   end)
+
+  -- Review 82: a session saved before the pools were read showed the spending since as the session's.
+  t.test("XP Detailed: a session saved before spent was tracked says when it counts from", function()
+    H.boot()
+    H.chat("/tbx xpdetailed")
+    H.advance(1)
+    t.ok(not H.text("a_spent"):find("since", 1, true), "a new session counts from its start: " .. H.text("a_spent"))
+    H.advance(600)
+    Toolbox.session.pool = nil                       -- as saved by an older Toolbox
+    Toolbox.SaveSession(true)
+    H.reload()
+    H.advance(1)
+    t.ok(Toolbox.session.pool, "read at once")
+    t.ok(H.text("a_spent"):find("^Spent 0 since %d%d:%d%d  0/h"), H.text("a_spent"))
+    H.S.noClock = true
+    Toolbox.session.pool.at = ""
+    H.advance(1)
+    t.ok(H.text("a_spent"):find("^Spent 0 %(part of the session%)"), H.text("a_spent"))
+  end)
 end

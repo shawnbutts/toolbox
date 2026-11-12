@@ -3209,7 +3209,7 @@ function T.Sample(adv, prod)
   if T.XP.Record(T.session, T.Now(), adv, prod) then T.unsaved = true end
   if not T.session.pool then                       -- the pools' first reading, for what skills spent (XP.Spent)
     local pa, pp = T.ReadPools()
-    if T.XP.NotePool(T.session, T.Now(), pa, pp) then T.unsaved = true end
+    if T.XP.NotePool(T.session, T.Now(), pa, pp, T.ClockText()) then T.unsaved = true end
   end
   offset = T.session.offset
   if (offset and offset.a or 0) ~= la or (offset and offset.p or 0) ~= lp then

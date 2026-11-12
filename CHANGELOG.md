@@ -20,7 +20,8 @@ ones included).
   the Aggro part on or off (Settings, Party: Mark who your target is attacking, on by default; Lua API 54).
 - XP Detailed shows what your skills spent from each pool this session, per hour, and how far the unspent pool
   moved and how fast: "Spent 70,000  42,000/h  (pool -20,000, -12,000/h)"; the line above it now says what it
-  counts: "Earned +36,000  72,000/h" ("Net" with XP lost subtracted). `/toolbox xp debug` prints the pools behind it.
+  counts: "Earned +36,000  72,000/h" ("Net" with XP lost subtracted). A session already running when you update
+  counts from then and says so ("Spent 800 since 14:05"). `/toolbox xp debug` prints the pools behind it.
 
 ## [1.10.0] - 2026-10-30
 

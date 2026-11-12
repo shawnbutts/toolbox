@@ -150,7 +150,8 @@ the XP window (below). It shows the session time, a Reset button and, for advent
 - XP spent: what your skills took from the pool this session, per hour, and how far the unspent pool
   moved, in all and per hour ("Spent 70,000  42,000/h  (pool -20,000, -12,000/h)"). The game doesn't report it, so it is worked out:
   XP earned less the pool's growth, from the first pool reading of the session; XP lost on a death is
-  assumed to come out of the pool (`/toolbox xp debug` prints the numbers)
+  assumed to come out of the pool (`/toolbox xp debug` prints the numbers). A session already running when
+  you updated counts from its first pool reading, and says so: "Spent 800 since 14:05"
 - level and % through it (from `ShroudGetLevelProgress()`)
 - XP still needed for the next level, and the estimated time at the **session** rate (steadier
   than the 10-minute rate). With no XP gained yet on a track it says so instead of guessing;

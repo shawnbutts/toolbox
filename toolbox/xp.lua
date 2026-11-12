@@ -13,8 +13,9 @@
 --   ended    = true|nil,          -- set at logout
 --   offset   = { a = n, p = n }|nil,  -- XP lost so far (added to readings: a loss isn't negative gain)
 --   pending  = { a = t, p = t }|nil,  -- since when a track has read lower than recorded
---   pool     = { t, a, p, ea, ep, la, lp }|nil,  -- the unspent pools when first read this session (t), with what
---              was earned (ea / ep, XP.Gained) and lost (la / lp) by then: XP.Spent works from it
+--   pool     = { t, a, p, ea, ep, la, lp, at }|nil,  -- the unspent pools when first read this session (t; at = the
+--              local "HH:MM" then, "" without a clock), with what was earned (ea / ep, XP.Gained) and lost (la / lp) by
+--              then: XP.Spent works from it
 -- }
 -- Spent (owner, 2026-11-12): the game says nothing of what skills take from the pool, so it is worked out: earned
 -- since the pool's reading, less what the pool grew by, less XP lost meanwhile (assumed to come out of the pool:
@@ -31,6 +32,7 @@ XP.KEEP = XP.HOUR      -- sample history kept: the longest window in use
 XP.BUCKET = 10         -- samples closer together than this are merged
 XP.MIN_RATE_SPAN = 1   -- no rate is reported over less than this many seconds
 XP.DROP_CONFIRM = 5    -- seconds a lower total must hold before it is believed (XP lost, e.g. on death)
+XP.POOL_LATE = 60      -- a pool reading this long after the session's start: spent covers only part of it (review 82)
 XP.TRACKS = {
   { key = "a", name = "Adventurer", progress = "adventurer" },
   { key = "p", name = "Producer", progress = "producer" },
@@ -75,7 +77,7 @@ function XP.PoolValid(b)
   for _, k in ipairs({ "t", "a", "p", "ea", "ep", "la", "lp" }) do
     if not isNum(b[k]) then return false end
   end
-  return true
+  return b.at == nil or type(b.at) == "string"
 end
 
 function XP.Current(s)
@@ -169,11 +171,19 @@ end
 
 -- Notes the unspent pools at their first reading this session (a session from before 1.11.0 gets them late:
 -- spent counts from then). Returns true when it did.
-function XP.NotePool(s, now, poolA, poolP)
+function XP.NotePool(s, now, poolA, poolP, at)
   if s.pool ~= nil or not (isNum(poolA) and isNum(poolP)) or poolA < 0 or poolP < 0 then return false end
   s.pool = { t = now, a = poolA, p = poolP, ea = XP.Gained(s, "a"), ep = XP.Gained(s, "p"),
-             la = XP.Lost(s, "a"), lp = XP.Lost(s, "p") }
+             la = XP.Lost(s, "a"), lp = XP.Lost(s, "p"), at = type(at) == "string" and at or "" }
   return true
+end
+
+-- Whether spent covers only part of the session (its pools first read XP.POOL_LATE s or more after its start: a
+-- session from before 1.11.0), and the local time it counts from ("" unknown).
+function XP.SpentPartial(s)
+  local b = s.pool
+  if type(b) ~= "table" or b.t - s.start < XP.POOL_LATE then return false end
+  return true, type(b.at) == "string" and b.at or ""
 end
 
 -- XP your skills took from a track's pool since its reading (`pool` = the pool now), and the seconds that covers;
