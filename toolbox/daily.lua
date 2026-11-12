@@ -1715,6 +1715,7 @@ local plMade = {}                     -- recipe id -> crafts made since the plan
 local plQuick = {}                    -- item key -> the recipes named like it that make it ({ { id, yield } })
 local plWaitKnown = false             -- a refresh is due once the known recipes are indexed
 local plPriceSeen = nil               -- Prices.version the market line and shopping rows were set for
+local plPricesShown = nil             -- PL.GetPrices() as they were set (review 80: the Loot Tracker's can change it)
 
 local function plNum(v) if type(v) == "number" and v == v then return v end return nil end
 
@@ -2947,7 +2948,8 @@ end
 local function plShowValue(plan, rec)
   if not plEl.value then return end
   local P = T.Prices
-  local on = PL.GetPrices() and P ~= nil and plan ~= nil and rec ~= nil
+  plPricesShown = PL.GetPrices()
+  local on = plPricesShown and P ~= nil and plan ~= nil and rec ~= nil
   T.SetVisible(plEl.value, on)
   if not on then return end
   plPriceSeen = P.version
@@ -3219,6 +3221,9 @@ function PL.Tick()
   if not plDirty and PL.IsShown() and PL.GetPrices() and T.Prices and plPriceSeen ~= T.Prices.version then
     plDirty = true                       -- prices came: the market line and the shopping list's
   end
+  if not plDirty and PL.IsShown() and plPricesShown ~= nil and PL.GetPrices() ~= plPricesShown then
+    plDirty, plBodySig = true, nil        -- switched on or off another way (the Loot Tracker's values, inherited)
+  end
   if plDirty then PL.Refresh(false) end
   shTick()
 end
@@ -3256,7 +3261,7 @@ function PL.Init()
   -- (book: the recipe book's read, scratch: the From scratch switch; both 1.9.x)
   plPrefs.v, plPrefs.mode, plPrefs.watch, plPrefs.book, plPrefs.scratch = 1, nil, nil, nil, nil
   plFresh, plBuilt, plMade, plDone, plPlan, plQuick, plWaitKnown = {}, {}, {}, {}, nil, {}, false
-  plPriceSeen = nil
+  plPriceSeen, plPricesShown = nil, nil
   plDirty, plAt = PL.GetHud(), -math.huge   -- the strip's list, worked out at the first tick
   shEl, shState, shDoneAt = {}, shFresh(), nil
   local order = T.Hud.ORDER
