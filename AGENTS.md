@@ -186,7 +186,9 @@ into one if a new file is ever needed).
   `session.offset`, and the "net" views subtract them.
 - `ui.lua`: `Toolbox.Window`, the **XP Detailed** window (internal names `Toolbox.Window`, id `toolbox_xp`,
   saved var `window` predate the rename; keep them). Session line (`session_extra`: skill levels, deaths),
-  per track gain, rates, level, ETA and a last-hour chart (one element per column). Every text label's
+  per track gain, rates, what skills spent (`<k>_spent`, `W.SpentText`; owner, 2026-11-12: `XP.Spent` = earned
+  less the pool's growth less XP lost since the session's first pool reading, `session.pool` from `XP.NotePool` in
+  `T.Sample`, `T.ReadPools`; no API reports it), level, ETA and a last-hour chart (one element per column). Every text label's
   style comes from `Toolbox.Window.TextStyle{...}`; `ApplyText()` re-applies font and spacing.
   `Toolbox.Window.HudMover` is shared by every HUD strip's position commands.
 - `compact.lua`: `Toolbox.Compact`, the **XP** window (id `toolbox_compact`, saved var `compact`), and the
@@ -1311,6 +1313,8 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - `onHover` on containers and HUD strips (entering a child, the title bar): the pop-up delays absorb flicker.
 - Combat `death` lines: which side is the killer, and `fromYou` on your kills.
 - `os.date` in the sandbox (feature-detected; fallback: the date part of `ShroudServerTime`).
+- XP spent (`XP.Spent`): that XP lost on a death comes out of the pool too (else spent reads low by the loss), and
+  that skills take XP only from the pool (`/toolbox xp debug` prints the pools, readings and spent).
 - `ShroudOnItemsGained` names as stable keys (localized; same-named items merge); whether they match
   SotANET's names (English) for prices.
 - Which values the saved-variable loader refuses: "\/" and a negative number for certain; exponent forms ("1E-05"),

@@ -18,6 +18,8 @@ ones included).
   54). `/toolbox aggro`.
 - The Party Toolbelt marks the member your target is attacking: "> " before their name, from its aggro list, with
   the Aggro part on or off (Settings, Party: Mark who your target is attacking, on by default; Lua API 54).
+- XP Detailed shows what your skills spent from each pool this session, per hour, and how far the unspent pool
+  moved: "Spent 70,000  42,000/h  (pool -20,000)". `/toolbox xp debug` prints the pools behind it.
 
 ## [1.10.0] - 2026-10-30
 

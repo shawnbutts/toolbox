@@ -13,7 +13,12 @@
 --   ended    = true|nil,          -- set at logout
 --   offset   = { a = n, p = n }|nil,  -- XP lost so far (added to readings: a loss isn't negative gain)
 --   pending  = { a = t, p = t }|nil,  -- since when a track has read lower than recorded
+--   pool     = { t, a, p, ea, ep, la, lp }|nil,  -- the unspent pools when first read this session (t), with what
+--              was earned (ea / ep, XP.Gained) and lost (la / lp) by then: XP.Spent works from it
 -- }
+-- Spent (owner, 2026-11-12): the game says nothing of what skills take from the pool, so it is worked out: earned
+-- since the pool's reading, less what the pool grew by, less XP lost meanwhile (assumed to come out of the pool:
+-- unconfirmed, /toolbox xp debug prints the numbers).
 -- Samples are kept only for the longest rolling window, XP.KEEP (plus one anchor older than it).
 
 local XP = {}
@@ -60,6 +65,15 @@ function XP.IsValid(s)
     end
     if (x.la ~= nil and not isNum(x.la)) or (x.lp ~= nil and not isNum(x.lp)) then return false end
     prev = x.t
+  end
+  if s.pool ~= nil and not XP.PoolValid(s.pool) then s.pool = nil end   -- read again; the session stays
+  return true
+end
+
+function XP.PoolValid(b)
+  if type(b) ~= "table" then return false end
+  for _, k in ipairs({ "t", "a", "p", "ea", "ep", "la", "lp" }) do
+    if not isNum(b[k]) then return false end
   end
   return true
 end
@@ -151,6 +165,25 @@ function XP.Gained(s, key, net)
   local gained = math.max(0, XP.Current(s)[key] - s.base[key])
   if net then return gained - XP.Lost(s, key) end
   return gained
+end
+
+-- Notes the unspent pools at their first reading this session (a session from before 1.11.0 gets them late:
+-- spent counts from then). Returns true when it did.
+function XP.NotePool(s, now, poolA, poolP)
+  if s.pool ~= nil or not (isNum(poolA) and isNum(poolP)) or poolA < 0 or poolP < 0 then return false end
+  s.pool = { t = now, a = poolA, p = poolP, ea = XP.Gained(s, "a"), ep = XP.Gained(s, "p"),
+             la = XP.Lost(s, "a"), lp = XP.Lost(s, "p") }
+  return true
+end
+
+-- XP your skills took from a track's pool since its reading (`pool` = the pool now), and the seconds that covers;
+-- nil before a reading. Never below 0 (a pool that grew past what was earned: a refund, or a loss not from it).
+function XP.Spent(s, key, pool, now)
+  local b = s.pool
+  if type(b) ~= "table" or not isNum(pool) then return nil end
+  local earned = XP.Gained(s, key) - b["e" .. key]
+  local lost = XP.Lost(s, key) - b["l" .. key]
+  return math.max(0, earned - (pool - b[key]) - lost), math.max(0, now - b.t)
 end
 
 -- Amount over seconds, per hour. 0 for spans too short to mean anything.

@@ -295,4 +295,47 @@ return function(t)
     end
     t.eq(pshown, 1, "producer has its own chart")
   end)
+  t.test("spent: earned less the pool's growth, from the pool's first reading; losses out of the pool", function()
+    local X = Toolbox.XP
+    local s = X.NewSession(0, 1000, 500, "A")
+    t.eq(X.Spent(s, "a", 300, 0), nil, "no reading yet")
+    X.Record(s, 20, 1400, 500)                      -- 400 earned before the pools were read (an older session)
+    t.ok(X.NotePool(s, 20, 300, 50))
+    t.no(X.NotePool(s, 30, 999, 999), "kept: the first reading only")
+    X.Record(s, 3620, 2400, 600)                    -- 1,000 more earned, the pool only 200 up
+    local spent, span = X.Spent(s, "a", 500, 3620)
+    t.eq(spent, 800)
+    t.eq(span, 3600)
+    t.eq(X.Spent(s, "p", 150, 3620), 0, "paused: the pool kept it all")
+    t.eq(X.Spent(s, "a", 2000, 3620), 0, "a pool that grew past what was earned: never below 0")
+    -- a death: 600 lost, out of the pool
+    X.Record(s, 3700, 1800, 600)
+    X.Record(s, 3700 + X.DROP_CONFIRM, 1800, 600)
+    t.eq(X.Lost(s, "a"), 600)
+    t.eq(X.Spent(s, "a", 500 - 600, 3710), 800, "the loss isn't spending")
+    t.no(X.NotePool({ v = 1 }, 0, -1, 0), "a reading below 0 is no reading")
+    -- a saved session with a broken reading loses only the reading
+    local saved = X.NewSession(0, 10, 10, "A")
+    saved.pool = { t = 0, a = "x" }
+    t.ok(X.IsValid(saved))
+    t.eq(saved.pool, nil)
+  end)
+
+  t.test("XP Detailed: what skills spent, its rate and the pool's move; xp debug prints the pools", function()
+    H.boot()
+    H.chat("/tbx xpdetailed")
+    H.advance(1)
+    t.eq(H.text("a_spent"), "Spent 0  0/h  (pool +0)")
+    H.gain(4000, 0)
+    H.S.char.advPool = H.S.char.advPool - 3000      -- skills trained with 3,000 of it
+    H.advance(1799)                                 -- the reading came a second after the start
+    t.eq(H.text("a_spent"), "Spent 3,000  6,000/h  (pool +1,000)", H.text("a_spent"))
+    t.eq(H.text("p_spent"), "Spent 0  0/h  (pool +0)")
+    H.chat("/tbx xp debug")
+    t.ok(H.logged("Spent since: adventurer 3,000, producer 0"))
+    t.ok(Toolbox.session.pool, "the reading is part of the session")
+    H.reload()
+    H.advance(1)
+    t.eq(Toolbox.session.pool.a, 25000, "kept across a reload")
+  end)
 end

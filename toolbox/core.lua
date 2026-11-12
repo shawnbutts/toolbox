@@ -972,6 +972,18 @@ function T.XPDebugLines()
       .. "adventurer %s (recorded %s), producer %s (recorded %s).", low.count, T.FormatDuration(now - low.at),
       T.FormatNumber(low.a), T.FormatNumber(low.ca), T.FormatNumber(low.p), T.FormatNumber(low.cp))
     or "Readings lower than recorded, ignored: none."
+  local pa, pp = T.ReadPools()
+  local b = s.pool
+  if b and pa then
+    lines[#lines + 1] = string.format("Pools now: adventurer %s, producer %s; at their reading %s ago: %s, %s "
+        .. "(earned by then %s, %s; lost %s, %s).", T.FormatNumber(pa), T.FormatNumber(pp),
+      T.FormatDuration(now - b.t), T.FormatNumber(b.a), T.FormatNumber(b.p), T.FormatNumber(b.ea),
+      T.FormatNumber(b.ep), T.FormatNumber(b.la), T.FormatNumber(b.lp))
+    lines[#lines + 1] = "Spent since: adventurer " .. T.FormatNumber(T.XP.Spent(s, "a", pa, now)) .. ", producer "
+      .. T.FormatNumber(T.XP.Spent(s, "p", pp, now)) .. " (earned less the pool's growth less XP lost)."
+  else
+    lines[#lines + 1] = "Pools: " .. (pa and "not read into the session yet." or "not readable.")
+  end
   local off = type(s.offset) == "table" and s.offset or {}
   if (off.a or 0) > 0 or (off.p or 0) > 0 then
     lines[#lines + 1] = "XP lost this session (not counted against gains): adventurer "
@@ -3120,6 +3132,19 @@ function T.ReadTotals()
   return adv, prod
 end
 
+-- The unspent pools (adventurer, producer), or nil without a character (the getters then read 0).
+local function readPool(fn)
+  local n = type(fn) == "function" and fn() or nil
+  if type(n) ~= "number" or n ~= n or n < 0 then return nil end
+  return n
+end
+function T.ReadPools()
+  if not ShroudGetLevelProgress() then return nil end
+  local a, p = readPool(ShroudGetPooledAdventurerExperience), readPool(ShroudGetPooledProducerExperience)
+  if a == nil or p == nil then return nil end
+  return a, p
+end
+
 function T.SaveSession(flush)
   if not T.session then return end
   T.session.clock = T.Now()
@@ -3182,6 +3207,10 @@ function T.Sample(adv, prod)
   local offset = T.session.offset
   local la, lp = offset and offset.a or 0, offset and offset.p or 0
   if T.XP.Record(T.session, T.Now(), adv, prod) then T.unsaved = true end
+  if not T.session.pool then                       -- the pools' first reading, for what skills spent (XP.Spent)
+    local pa, pp = T.ReadPools()
+    if T.XP.NotePool(T.session, T.Now(), pa, pp) then T.unsaved = true end
+  end
   offset = T.session.offset
   if (offset and offset.a or 0) ~= la or (offset and offset.p or 0) ~= lp then
     T.SaveSession(false)               -- XP lost (a death): stored now, so a reload keeps it apart from gains

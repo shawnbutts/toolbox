@@ -53,9 +53,9 @@ D.SECTIONS = {
     "XP (the menu's XP button): session time, your adventurer and producer pools, and the XP you earned "
       .. "in the last hour. Rest the pointer on it and XP Detailed pops up.",
     "XP Detailed (its own menu button): skill levels gained and deaths this session, then per track, XP "
-      .. "gained, XP per hour (session and last 10 minutes), level, progress, XP needed and time to the next "
-      .. "level, and a Reset button. A session starts when you log in or press Reset, and survives /lua "
-      .. "reload.",
+      .. "gained, XP per hour (session and last 10 minutes), what your skills spent from the pool (and its rate, "
+      .. "with how far the pool moved), level, progress, XP needed and time to the next level, and a Reset "
+      .. "button. A session starts when you log in or press Reset, and survives /lua reload.",
     "Smaller: Settings, XP & Loot, XP window: HUD strip shows it as a HUD strip, with no title bar or "
       .. "frame. Move it by its grip or under HUD layout; hovering still pops up XP Detailed.",
     "Or Compact window there: a window whose title bar only shows while the pointer is on it, over the "

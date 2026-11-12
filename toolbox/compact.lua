@@ -282,13 +282,6 @@ function C.Track()
   if T.Window.TrackPosition(win, prefs) then C.SavePrefs() end
 end
 
--- Current pool; 0 without a character, per the docs.
-local function pool(fn)
-  local n = fn()
-  if type(n) ~= "number" or n < 0 then return nil end
-  return n
-end
-
 function C.Refresh()
   local e = active()
   if not C.IsShown() or not e.elapsed then return end
@@ -300,8 +293,7 @@ function C.Refresh()
   local now = T.Now()
   T.SetText(e.elapsed, "Session " .. T.FormatDuration(T.XP.Elapsed(s, now)))
 
-  local adv = pool(ShroudGetPooledAdventurerExperience)
-  local prod = pool(ShroudGetPooledProducerExperience)
+  local adv, prod = T.ReadPools()
   T.SetText(e.a_pool, adv and T.FormatNumber(adv) or "--")
   T.SetText(e.p_pool, prod and T.FormatNumber(prod) or "--")
   local net = T.Window.GetNet()

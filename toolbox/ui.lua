@@ -29,7 +29,7 @@ end
 -- button follows the font only).
 local TEXT_IDS = { "elapsed", "session_extra" }
 for _, track in ipairs(T.XP.TRACKS) do
-  for _, suffix in ipairs({ "_head", "_gain", "_eta", "_chart_note" }) do
+  for _, suffix in ipairs({ "_head", "_gain", "_spent", "_eta", "_chart_note" }) do
     TEXT_IDS[#TEXT_IDS + 1] = track.key .. suffix
   end
 end
@@ -117,6 +117,10 @@ local function trackRows(track)
       UI.Bar{ id = k .. "_bar", value = 0, color = "@gold",
         style = { height = barHeight(), marginTop = 1, marginBottom = 1 } },
       UI.Label{ id = k .. "_gain", text = "", class = "text", style = W.TextStyle() },
+      UI.Label{ id = k .. "_spent", text = "", class = "text", style = W.TextStyle(),
+        tooltip = "Experience your skills took from the " .. track.name:lower() .. " pool this session, its rate, "
+          .. "and how the unspent pool moved. Worked out from what you earned and the pool: the game doesn't report "
+          .. "it. Skills set to Off take nothing (Skill activity's Pause skills)." },
       UI.Label{ id = k .. "_eta", text = "", class = "text", style = W.TextStyle() },
       chart(track),
       UI.Label{ id = k .. "_chart_note", text = "", class = "dim", style = W.TextStyle() },
@@ -511,6 +515,15 @@ function W.SessionExtra(s)
   return "Skill levels +" .. T.FormatNumber(skills) .. ", deaths " .. T.FormatNumber(deaths)
 end
 
+-- "Spent 70,000  42,000/h  (pool -20,000)" for a track (pure but for the pool passed in), or why not.
+function W.SpentText(s, key, pool, now)
+  local spent, span = T.XP.Spent(s, key, pool, now)
+  if not spent then return "Spent: --" end
+  local moved = pool - s.pool[key]
+  return "Spent " .. T.FormatNumber(spent) .. "  " .. rateText(T.XP.PerHour(spent, span))
+    .. "  (pool " .. T.XP.Signed(moved) .. ")"
+end
+
 function W.Refresh()
   if not W.IsShown() then return end
   local s = T.session
@@ -523,6 +536,7 @@ function W.Refresh()
   T.SetText(el.session_extra, W.SessionExtra(s))
 
   local progress = ShroudGetLevelProgress()
+  local poolA, poolP = T.ReadPools()
   for _, track in ipairs(T.XP.TRACKS) do
     local k = track.key
     local net = W.GetNet()
@@ -530,6 +544,7 @@ function W.Refresh()
     local sessionRate = T.XP.SessionRate(s, k, now, net)
     T.SetText(el[k .. "_gain"], T.XP.Signed(T.XP.Gained(s, k, net)) .. "  " .. rateText(sessionRate)
       .. "  (10m " .. rateText(T.XP.WindowRate(s, k, now, net)) .. ")")
+    T.SetText(el[k .. "_spent"], W.SpentText(s, k, k == "a" and poolA or poolP, now))
 
     local p = progress and progress[track.progress]
     if type(p) == "table" and type(p.level) == "number" then
