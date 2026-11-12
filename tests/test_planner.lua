@@ -495,6 +495,28 @@ return function(t)
     t.eq(hammer.n, 1, "one hammer to buy, not one a recipe")
   end)
 
+  -- Review 79: a Part left over from a craft was counted as used beside the Raw it was made from.
+  t.test("the materials used: a craft's surplus taken by a later row isn't counted again", function()
+    local P = Toolbox.Planner
+    H.boot()
+    local function recipes(id)
+      if id == 1 then
+        return { name = "Gadget", ingredients = { { name = "Part", key = "part", quantity = 1, have = 0 },
+                                                  { name = "Part", key = "part", quantity = 1, have = 0 } } }
+      end
+      return { name = "Part", ingredients = { { name = "Raw", key = "raw", quantity = 3, have = 0 } } }
+    end
+    local p = P.Expand(1, 1, {
+      recipe = recipes,
+      makers = function(k) if k == "part" then return { { id = 2, yield = 2 } } end return {} end,
+      makes = { ["p.1"] = true }, pick = function() return nil end, maker = function() return nil end })
+    local used = {}
+    for _, u in ipairs(p.used) do used[u.name] = u.n end
+    t.eq(used.Raw, 3, "one craft's Raw")
+    t.eq(used.Part, nil, "the second Part came from that craft")
+    t.eq(p.rows[3].short, 0, "the second slot is covered")
+  end)
+
   t.test("Enter searches: through OnSubmit too (the live client ignored the spec's onSubmit), once a press",
       function()
     H.boot()

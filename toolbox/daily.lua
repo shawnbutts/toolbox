@@ -1790,6 +1790,7 @@ end
 function PL.Expand(rootId, crafts, ctx)
   local out = { rows = {}, shop = {}, gather = {}, build = {}, used = {}, cut = false }
   local pool, shopBy, buildBy, gatherBy, usedBy = {}, {}, {}, {}, {}
+  local made = {}                        -- of pool, what the plan's own crafts left over (review 79: not "used")
   local function avail(item)
     local key = PL.KeyOf(item)
     if pool[key] == nil then return PL.HaveOf(item) end
@@ -1799,8 +1800,13 @@ function PL.Expand(rootId, crafts, ctx)
     local key = PL.KeyOf(item)
     if pool[key] == nil then pool[key] = PL.HaveOf(item) end
     local use = math.min(pool[key], need)
-    if not keep then pool[key] = pool[key] - use end
-    return need - use, use
+    local fromMade = 0
+    if not keep then
+      pool[key] = pool[key] - use
+      fromMade = math.min(use, made[key] or 0)       -- a craft's surplus first: its materials are counted already
+      made[key] = (made[key] or 0) - fromMade
+    end
+    return need - use, use, fromMade
   end
   local function addShop(r)
     local s = shopBy[r.key]
@@ -1865,7 +1871,8 @@ function PL.Expand(rootId, crafts, ctx)
       r.item, r.name, r.key = item, tostring(T.Field(item, "name")), PL.KeyOf(item)
       if #out.rows < PL.ROWS_MAX then out.rows[#out.rows + 1] = r else out.cut = true end
       if not r.optional then
-        r.short, r.have = take(item, r.need, r.tool)
+        local fromMade = 0
+        r.short, r.have, fromMade = take(item, r.need, r.tool)
         local makers = {}
         for _, m in ipairs(ctx.makers(r.key, r.name)) do
           if not seen[m.id] and m.yield > 0 then makers[#makers + 1] = m end
@@ -1880,10 +1887,12 @@ function PL.Expand(rootId, crafts, ctx)
           r.maker = m.id
           r.crafts = math.floor((r.short + m.yield - 1) / m.yield)
           walk(m.id, r.crafts, depth + 1, r.path, seen)
-          pool[r.key] = (pool[r.key] or 0) + r.crafts * m.yield - r.short   -- the surplus, for the next rows
-          addSpent(r, r.need - r.short)      -- what you had of it (the rest is made from its own ingredients)
+          local surplus = r.crafts * m.yield - r.short
+          pool[r.key] = (pool[r.key] or 0) + surplus   -- the surplus, for the next rows
+          made[r.key] = (made[r.key] or 0) + surplus
+          addSpent(r, r.need - r.short - fromMade)   -- what you had of it (the rest is made from its own ingredients)
         else
-          addSpent(r, r.need)
+          addSpent(r, r.need - fromMade)
           addGather(r)
           if r.short > 0 then addShop(r) end
         end
