@@ -526,7 +526,7 @@ into one if a new file is ever needed).
   `AG.AlertsCheck`; `AG.Change` of who it's on for the same target (not a new target's first read), `pulled` default
   on, `lost` off, `AG.ALERT_GAP` s apart. Settings on the Toolbelt page (`AG.ConfigRows` / `AG.CONFIG_IDS` /
   `AG.ConfigSync`), `/toolbox aggro [debug]`. Harness: `H.setTarget{ ..., aggro = {...} }` from `H.apiVersion` 54,
-  `H.S.aggroCalls`. One read serves both it and the Party Toolbelt's marker (`fetch`, at most every `AG.POLL` / 2 s):
+  `H.S.aggroCalls`. One read serves both it and the Party Toolbelt's marker (`fetch`, at most every `AG.READ_EVERY` s, the game's copy changing once a second (review 81), and at once after a target change):
   `AG.AttackingNow()` names who the target is on, and `PT.Poll` leads that member's name with `PT.AGGRO_MARK` ("> ";
   the party's `aggro` setting, default on, `pt_aggro`; no element of its own: the stress test sits at 1,475 of 1,500).
 - `combat.lua`: `Toolbox.Combat`, the combat stats HUD (pure fight model: rates, crit, avoid, per skill,

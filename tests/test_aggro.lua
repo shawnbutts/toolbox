@@ -194,6 +194,34 @@ return function(t)
     done()
   end)
 
+  -- Review 81: the Party Toolbelt's 0.5 s poll asked the game for the list twice a second; it changes once a second.
+  t.test("the game's list read once a second: the party marker alone, and with the meter; fresh for a new target",
+      function()
+    H.apiVersion = 55
+    H.boot()
+    H.chat("/tbx party on")
+    H.setParty{ { name = "Tester", hp = 900, maxHp = 1000 }, { name = "phil", hp = 500, maxHp = 1000 } }
+    target(onPhil())
+    H.advance(2)
+    local function calls(seconds)
+      local from = H.S.aggroCalls or 0
+      H.advance(seconds)
+      return (H.S.aggroCalls or 0) - from
+    end
+    local n = calls(4)
+    t.ok(n >= 3 and n <= 4, "the marker alone: " .. n .. " in 4 s")
+    H.chat("/tbx aggro on")
+    H.chat("/tbx aggro toolbelt off")
+    H.advance(2)
+    n = calls(4)
+    t.ok(n >= 3 and n <= 4, "the marker and the meter together: " .. n .. " in 4 s")
+    local from = H.S.aggroCalls
+    H.setTarget{ id = 8, name = "Wolf", hp = 50, maxHp = 50, focus = 0, maxFocus = 0, aggro = onYou() }
+    t.eq(H.S.aggroCalls, from + 1, "a new target is read at once")
+    t.eq(AG().AttackingNow(), "tester", "the new target's list, not the last one's")
+    done()
+  end)
+
   t.test("settings: the place dropdown, the alerts and the shade; the meter's position row", function()
     boot()
     H.chat("/tbx config")

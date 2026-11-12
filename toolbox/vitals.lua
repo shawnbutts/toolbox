@@ -2896,6 +2896,7 @@ AG.API = 54
 AG.FRAME_ID = "toolbox_aggro"
 AG.HOME = { 40, 640 }
 AG.POLL = 0.5
+AG.READ_EVERY = 0.9            -- the game's copy changes once a second (review 81): one read serves the polls between
 AG.MAX = 6                     -- the game lists six at most
 AG.ROW_CELLS = 7               -- the Toolbelt line's width in icon cells
 AG.BAR_CELLS = 2               -- ... of which its bar
@@ -3287,12 +3288,12 @@ function AG.Alert(kind, creature, holder, now)
   return true
 end
 
--- Reads the target's list into aRead, at most once an AG.POLL / 2 s (the aggro part's poll and the Party Toolbelt's
--- marker share it). Returns whether there is one.
+-- Reads the target's list into aRead, at most once an AG.READ_EVERY s, at once after a target change (the aggro part's
+-- poll and the Party Toolbelt's marker share it). Returns whether there is one.
 local aGot, aReadAt = false, -math.huge
 local function fetch()
   local now = T.Now()
-  if now - aReadAt < AG.POLL * 0.5 then return aGot end
+  if now - aReadAt < AG.READ_EVERY then return aGot end
   aReadAt, aGot = now, false
   if not AG.Has() or not ShroudHasTarget() then
     aFor, aOnYou = nil, nil
@@ -3345,6 +3346,7 @@ function AG.Poll()
 end
 
 function AG.OnTargetChanged()
+  aReadAt = -math.huge                   -- the next read is the new target's, whoever asks (the party marker too)
   if aprefs.show then AG.Poll() end
 end
 
