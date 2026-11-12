@@ -743,6 +743,13 @@ local function install_api()
   else
     ShroudGetDeckCode, ShroudGetDeckLayout = nil, nil
   end
+  -- API 57: nameplates' places on screen. Unused; /toolbox api tells them. No plate drawn in the harness.
+  if (H.apiVersion or 25) >= 57 then
+    ShroudGetNameplateRect = function() return nil, "not_found" end
+    ShroudGetNameplateRects = function() return {} end
+  else
+    ShroudGetNameplateRect, ShroudGetNameplateRects = nil, nil
+  end
   -- Worn items (documented fields; empty slots skipped). Game objects when H.S.buffObjects is set.
   ShroudGetEquipmentItems = function()
     if not S.char.present then return {} end

@@ -983,8 +983,8 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   `[u]...[/u]` and color tags stripped; inventory and equipment names). Not in them: request 27's fix (client only),
   26 and 29.
 
-**API 45-56** (first in the QA docs preview, https://catnipgames.net/lua/qa/, read 2026-10-27; in the release reference
-from 2026-10-29, which says API 56, with the shapes Toolbox uses unchanged; `T.DOCS_API` = 56, `min_api_version` stays 25
+**API 45-57** (first in the QA docs preview, https://catnipgames.net/lua/qa/, read 2026-10-27; in the release reference
+from 2026-10-29, which says API 56, with the shapes Toolbox uses unchanged; `T.DOCS_API` = 57 since 2026-11-12, `min_api_version` stays 25
 until the live client's `/toolbox api` reports more). Build against the live client's `/toolbox api`, feature-detected:
 - 45 (request 30): `ShroudGetParty()` -> rows in slot order `{ slot, name, online, inScene, scene?, role
   "leader"/"member"/"invited", leader, dead?, health?, maxHealth?, focus?, maxFocus? }` (vitals and dead in your scene
@@ -1017,6 +1017,11 @@ until the live client's `/toolbox api` reports more). Build against the live cli
 - 56: combat decks: `ShroudCurrentDeck([which])` takes "alternate" (the swap-deck key's deck), `ShroudGetDeckCode([name])`
   (the share code, "SOTADECK1:..."; nil, reason) and `ShroudGetDeckLayout([nameOrCode])` (runes with skill ids and the
   ten hand slots). Unused; `/toolbox api` tells them (harness: both answer "not_loaded" from `H.apiVersion` 56).
+- 57 (docs 2026-11-05, QA and release alike; `T.DOCS_API` = 57, review 84): `ShroudGetNameplateRect(id | nil)` -> rect
+  or nil, reason (nil = the current target; only a plate drawn on screen; UI units plus `screen` pixels, anchored at its
+  top centre; no world position, distance or name) and `ShroudGetNameplateRects()` -> `{ id, isTarget, isParty, ...rect
+  }` for every drawn plate. Unused (it moves with the camera every frame: Toolbox does no per-frame work); `/toolbox
+  api` tells them (harness: none drawn from `H.apiVersion` 57).
   The reference's `ShroudGetRecipesMaking` note: the session's first call loads the item catalog, "a fraction of a
   second on a large book", later ones a fraction of a millisecond.
 Plan: 50 for the planner from API 55 (report 37's index build fixed in a later 55 build, owner 2026-10-29; 55's

@@ -116,6 +116,7 @@ local api_probed = {
   "ShroudGetTargetAggro",                                                                          -- API 54
   "ShroudGetAllSkills", "ShroudGetOwnedCounts", "ShroudSearchOwnedItems",                          -- API 55
   "ShroudGetDeckCode", "ShroudGetDeckLayout",                                                      -- API 56
+  "ShroudGetNameplateRect", "ShroudGetNameplateRects",                                             -- API 57
 }
 
 -- Callbacks an add-on may define. Listed as writable globals.
