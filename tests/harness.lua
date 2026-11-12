@@ -958,10 +958,19 @@ local function install_api()
     for _, x in ipairs(S.stats) do if x.name == name then return x.hidden and 0 or x.value end end
     return -999
   end
-  ShroudGetPooledAdventurerExperience = function() return S.char.present and S.char.advPool or 0 end
-  ShroudGetPooledProducerExperience = function() return S.char.present and S.char.prodPool or 0 end
+  -- H.S.xpCalls counts the level-progress and pool reads (review 83).
+  local function xpCall(k) S.xpCalls = S.xpCalls or {} S.xpCalls[k] = (S.xpCalls[k] or 0) + 1 end
+  ShroudGetPooledAdventurerExperience = function()
+    xpCall("advPool")
+    return S.char.present and S.char.advPool or 0
+  end
+  ShroudGetPooledProducerExperience = function()
+    xpCall("prodPool")
+    return S.char.present and S.char.prodPool or 0
+  end
   ShroudGetPlayerCombatMode = function() return S.combat == true end
   ShroudGetLevelProgress = function()
+    xpCall("progress")
     if not S.char.present then return nil end
     return copy(S.char.progress)
   end

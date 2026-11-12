@@ -3124,8 +3124,17 @@ T.unflushed = false   -- session stored but not yet written to disk
 -- Reads the character's totals, or nil when there is no character yet.
 -- ShroudGetLevelProgress returns nil without a character; the total getters
 -- return 0 in that case, which would look like a real reading.
+-- ShroudGetLevelProgress(), read once a game time (review 83: the tick, the pools and XP Detailed each asked for a
+-- fresh table every second); nil without a character. Read-only for callers.
+local progressAt, progress = nil, nil
+function T.LevelProgress()
+  local now = T.Now()
+  if progressAt ~= now then progressAt, progress = now, ShroudGetLevelProgress() end
+  return progress
+end
+
 function T.ReadTotals()
-  if not ShroudGetLevelProgress() then return nil end
+  if not T.LevelProgress() then return nil end
   local adv = ShroudGetTotalAdventurerExperience()
   local prod = ShroudGetTotalProducerExperience()
   if type(adv) ~= "number" or type(prod) ~= "number" or adv < 0 or prod < 0 then return nil end
@@ -3138,11 +3147,18 @@ local function readPool(fn)
   if type(n) ~= "number" or n ~= n or n < 0 then return nil end
   return n
 end
+-- Read once a game time too: XP and XP Detailed share the pair (review 83).
+local poolsAt, poolA, poolP = nil, nil, nil
 function T.ReadPools()
-  if not ShroudGetLevelProgress() then return nil end
-  local a, p = readPool(ShroudGetPooledAdventurerExperience), readPool(ShroudGetPooledProducerExperience)
-  if a == nil or p == nil then return nil end
-  return a, p
+  local now = T.Now()
+  if poolsAt ~= now then
+    poolsAt, poolA, poolP = now, nil, nil
+    if T.LevelProgress() then
+      local a, p = readPool(ShroudGetPooledAdventurerExperience), readPool(ShroudGetPooledProducerExperience)
+      if a ~= nil and p ~= nil then poolA, poolP = a, p end
+    end
+  end
+  return poolA, poolP
 end
 
 function T.SaveSession(flush)

@@ -357,4 +357,27 @@ return function(t)
     H.advance(1)
     t.ok(H.text("a_spent"):find("^Spent 0 %(part of the session%)"), H.text("a_spent"))
   end)
+  -- Review 83: the pools and level progress were read once a view a second, the progress again for the pools.
+  t.test("the pools and level progress are read once a game time, whichever XP views are open", function()
+    H.boot()
+    H.advance(2)
+    local function count(seconds)
+      H.S.xpCalls = {}
+      H.advance(seconds)
+      local c = H.S.xpCalls
+      return c.progress or 0, c.advPool or 0, c.prodPool or 0
+    end
+    local base, a = count(4)
+    t.eq(a, 0, "neither view: the pools aren't read")
+    t.ok(base <= 4, "the tick's progress: once a second, " .. base)
+    H.chat("/tbx xp")
+    local pr, pa, pp = count(4)
+    t.eq(pr, base, "XP: no progress read of its own")
+    t.ok(pa <= 4 and pp <= 4, "XP: each pool once a second, " .. pa .. "/" .. pp)
+    H.chat("/tbx xpdetailed")
+    pr, pa, pp = count(4)
+    t.eq(pr, base, "XP and XP Detailed: the tick's progress serves both")
+    t.ok(pa <= 4 and pp <= 4, "both views: each pool once a second, " .. pa .. "/" .. pp)
+    t.ok(H.window():Find("a_spent").visible ~= false)
+  end)
 end

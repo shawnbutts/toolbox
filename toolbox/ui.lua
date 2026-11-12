@@ -540,7 +540,7 @@ function W.Refresh()
   T.SetText(el.elapsed, "Session " .. T.FormatDuration(T.XP.Elapsed(s, now)))
   T.SetText(el.session_extra, W.SessionExtra(s))
 
-  local progress = ShroudGetLevelProgress()
+  local progress = T.LevelProgress()
   local poolA, poolP = T.ReadPools()
   for _, track in ipairs(T.XP.TRACKS) do
     local k = track.key

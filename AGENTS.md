@@ -188,7 +188,8 @@ into one if a new file is ever needed).
   saved var `window` predate the rename; keep them). Session line (`session_extra`: skill levels, deaths),
   per track gain, rates, what skills spent (`<k>_spent`, `W.SpentText`; owner, 2026-11-12: `XP.Spent` = earned
   less the pool's growth less XP lost since the session's first pool reading, `session.pool` from `XP.NotePool` in
-  `T.Sample`, `T.ReadPools`; no API reports it; "since HH:MM" when the reading came `XP.POOL_LATE` s or more after
+  `T.Sample`, `T.ReadPools`; no API reports it; the pools and `T.LevelProgress()` read once a game time, shared by
+  the tick, XP and XP Detailed, review 83, harness `H.S.xpCalls`; "since HH:MM" when the reading came `XP.POOL_LATE` s or more after
   the session's start, `XP.SpentPartial`, review 82), level, ETA and a last-hour chart (one element per column). Every text label's
   style comes from `Toolbox.Window.TextStyle{...}`; `ApplyText()` re-applies font and spacing.
   `Toolbox.Window.HudMover` is shared by every HUD strip's position commands.
