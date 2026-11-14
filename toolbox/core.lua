@@ -2630,6 +2630,10 @@ T.PERF_BAD = 0.1
 -- "near" says little (a player's run, 2026-10-22: 21 a second, 543 of 1,249 frames over 50 ms, Toolbox "near" 426):
 -- the report says so, with the timers' timed share, and points to perf quiet (not after a quiet / only run).
 T.PERF_LOW_RATE = 30
+-- A low rate with frames this even (their spread over their mean, the coefficient of variation) is a frame-rate
+-- limit (owner, 2026-11-14: a 30 a second cap in the game's settings, frames 33-45 ms): the report says so and doesn't
+-- point to perf quiet, which can't raise a capped rate.
+T.PERF_STEADY = 0.25
 T.PERF_DEFAULT, T.PERF_MIN, T.PERF_MAX = 60, 10, 600
 -- The sampler's period: the documented shortest first; the live client refused 0.01 (owner, 2026-10-14: "The game
 -- refused the measuring timer"), perhaps as a single-precision 0.01 just under its limit, so a little longer next.
@@ -2807,6 +2811,14 @@ function T.PerfHolds(name)
   return true
 end
 
+-- Whether a run's frames were even (a frame-rate limit): their spread under T.PERF_STEADY of their mean.
+function T.PerfSteady(p)
+  if not p or p.frames < 2 or p.dtSum <= 0 then return false end
+  local mean = p.dtSum / p.frames
+  local var = math.max(p.dtSq / p.frames - mean * mean, 0)
+  return math.sqrt(var) / mean <= T.PERF_STEADY
+end
+
 local function perfReport()
   local p = perf
   perf = nil
@@ -2847,13 +2859,19 @@ local function perfReport()
         if e.timer then spent = spent + e.sum end           -- whole timers only: a part is inside one (review 65)
       end
     end
-    lowRate = string.format("Your game ran at about %d frames a second on average, so its frames were long and"
-      .. " Toolbox's timers fell in most of them: \"near\" says little here.", math.floor(rate + 0.5))
-      .. (spent and string.format(" Its timers' own work took %d ms of the %d s (%s%%), but the game's drawing after"
-      .. " them isn't timed.", math.floor(spent * 1000 + 0.5), math.floor(secs + 0.5),
-      string.format("%.1f", spent * 100 / secs)) or "")
-      .. " Compare with /" .. T.commands[1] .. " perf quiet: if the frame rate rises with Toolbox's timers paused,"
-      .. " they're the cause."
+    local spentText = spent and string.format(" Its timers' own work took %d ms of the %d s (%s%%)",
+      math.floor(spent * 1000 + 0.5), math.floor(secs + 0.5), string.format("%.1f", spent * 100 / secs)) or nil
+    if T.PerfSteady(p) then
+      lowRate = string.format("Your game held a steady %d frames a second, as with a frame-rate limit in its settings:"
+        .. " every frame is long, so Toolbox's timers fell in most of them and \"near\" says little here.",
+        math.floor(rate + 0.5)) .. (spentText and (spentText .. ".") or "")
+    else
+      lowRate = string.format("Your game ran at about %d frames a second on average, so its frames were long and"
+        .. " Toolbox's timers fell in most of them: \"near\" says little here.", math.floor(rate + 0.5))
+        .. (spentText and (spentText .. ", but the game's drawing after them isn't timed.") or "")
+        .. " Compare with /" .. T.commands[1] .. " perf quiet: if the frame rate rises with Toolbox's timers paused,"
+        .. " they're the cause."
+    end
   end
   if p.slow == 0 then
     T.Print("No hitches while it measured.")
@@ -2878,6 +2896,7 @@ local function perfSample()
   p.last = now
   if type(dt) ~= "number" then return end
   p.frames = p.frames + 1
+  p.dtSum, p.dtSq = p.dtSum + dt, p.dtSq + dt * dt
   local slow = dt > T.PERF_SLOW
   local near = false
   for i = 1, T.PERF_RING do
@@ -2907,7 +2926,7 @@ end
 -- `quiet` = true pauses them all, or a list of name parts ({ "tick" }) pauses all but those (/toolbox perf only).
 function T.PerfStart(secs, quiet)
   perf = { from = ShroudTime, secs = secs, last = ShroudTime, frames = 0, ours = 0, slow = 0, bad = 0, slowOurs = 0,
-           worst = 0, whats = {}, named = {} }
+           worst = 0, whats = {}, named = {}, dtSum = 0, dtSq = 0 }
   for _, period in ipairs(T.PERF_PERIODS) do
     if ShroudRegisterPeriodic(T.PERF_ID, perfSample, period, true) then
       perf.period = period

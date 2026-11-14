@@ -97,6 +97,19 @@ return function(t)
     t.ok(H.S.windows.toolbox_version:IsShown(), "an upgrade from 1.7.0 too")
   end)
 
+  t.test("perf: a steady low frame rate reads as a frame-rate limit, without perf quiet's advice", function()
+    H.boot()
+    H.advance(3, 0.04)
+    H.chat("/tbx perf 10")
+    t.ok(H.logged("Measuring hitches for 10 s"), H.lastLog())
+    H.clearLogs()
+    H.advance(10.2, 0.04)                              -- 25 a second, every frame alike: a cap
+    t.ok(H.logged("^No hitches while it measured"), table.concat(H.logs(), " | "))
+    t.ok(H.logged("^Your game held a steady 25 frames a second, as with a frame%-rate limit"), H.lastLog())
+    t.ok(H.logged("Its timers' own work took %d+ ms of the 10 s"), H.lastLog())
+    t.no(H.logged("perf quiet"), "no quiet comparison: it can't raise a capped rate")
+  end)
+
   t.test("perf: slow frames counted, and whether Toolbox worked near them; stop ends it early", function()
     H.boot()
     H.advance(3, 0.05)                                 -- whole seconds: the tick and more ran in that frame
