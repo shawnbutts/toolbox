@@ -590,21 +590,26 @@ into one if a new file is ever needed).
   not read as levels lost; the tooltip names the cap). The change sequence and baseline are per character
   (the notification's `seen` is too), and its Check delivers nothing until a reading for the current character.
   Training markers (built 2026-10-03, API 27, `SK.HasModes`; setting `marks`): each icon's left half opens the
-  Skills window, its right half has three click areas (`SK.MARKS`: train @green arrow, maintain @gold square,
-  unlearn @red arrow turned 180; toolbox/skillmarks.png from art/marks.py, two 3:2 frames by `uv`), laid over
-  the icon after the level labels. A click calls `ShroudSetSkillMode` (the gesture) for that mode, plays its
-  sound (skill_train / skill_maintain / skill_unlearn) and says in chat when the game picks another
+  Skills window, its right half has two click areas, a band each (`SK.MARKS`: train @green arrow, unlearn @red
+  arrow turned 180; toolbox/skillmarks.png from art/marks.py, the arrow frame's middle by `SK.MARK_UV`), laid over
+  the icon after the level labels. Maintain (a @gold square, its skill_maintain sound and the pause's Maintain
+  choice) went 2026-11-14 (owner): the game retired the Maintaining mode (it worked as Not training; the reference:
+  skills stored as Maintaining are set to Not training as the character loads, the Maintaining words set Not
+  training); `SK.Mode` reads a lingering "Maintaining" as NotLearning. A click calls `ShroudSetSkillMode` (the
+  gesture) for that mode, plays its sound (skill_train / skill_unlearn) and says in chat when the game picks another
   (`SK.MODE_REASONS`); `ShroudCanSetSkillMode` (cached per skill and mode) fades one the game won't take
   (`SK.MARK_NO`). No click-to-cycle (Unlearn one click away) and no "off" marker (owner). The harness stubs both
   (skill fields `mastery`, `low`, `elixir`; `H.skillMarks`, `H.clickSkillPart`).
   Pause skills (owner, 2026-10-12, a player's request): a tile first on the strip (`sk_pause`, skillmarks.png frames 3
   and 4, cropped: a play triangle while skills run, gold pause bars while paused; a thin tile, `SK.PauseSize`; setting `pause`, shown always while paused; its own mode changes are `SK.Expect`ed, so they pop nothing up) and `/toolbox
   skills pause|resume` (a command is a gesture). `SK.Pause` sets EVERY skill (unlearning ones too; owner) to Off
-  or Maintain (`pauseHow`) in ONE list call; `SK.PauseRecord` keeps `{ key, from, to }` in `skills_paused` (saved as asked BEFORE the call, no pause if that
+  (`SK.PAUSE_MODE`; a saved `pauseHow` is dropped) in ONE list call; `SK.PauseRecord` keeps `{ key, from, to }` in `skills_paused` (saved as asked BEFORE the call, no pause if that
   save is refused, then the game's answer read by `T.Field`; reviews 28, 29);
   `SK.Resume` sets back, one call per mode (at most three: a click's limit; `SK.ResumeGroups`: only skills still in
-  `to`; a gone one would refuse the whole list), keeping every group the game didn't confirm (any reason, or an error; review 30). Harness: lists in `ShroudSetSkillMode`
-  (`H.S.modeLists`), three actions a gesture (`gestureSpent`), `H.S.modeRefuse`, `H.S.modeThrow`, `H.S.modeObjects`, `H.chat` is a gesture, `H.skillPause()`, `H.clickSkillPause()`.
+  `to`, a recorded "Maintaining" matching NotLearning, and one whose `from` is that too counted back with no call;
+  a gone one would refuse the whole list), keeping every group the game didn't confirm (any reason, or an error; review 30). Harness: lists in `ShroudSetSkillMode`
+  (`H.S.modeLists`), three actions a gesture (`gestureSpent`), the Maintaining words setting NotLearning and a
+  stored "Maintaining" read as NotLearning (`H.S.oldModes`: as stored), `H.S.modeRefuse`, `H.S.modeThrow`, `H.S.modeObjects`, `H.chat` is a gesture, `H.skillPause()`, `H.clickSkillPause()`.
   Pure model: `SK.Read` / `SK.Update` (baseline first, a level / mode change, or experience
   with trigger "xp", puts a skill on top; one slot per skill) / `SK.Expire` / `SK.ChangesText`. Reads are throttled
   (an event only marks them; `SK.QUIET_EVERY` / `SK.XP_EVERY`). Its sounds (skill_up / skill_down,
@@ -651,8 +656,8 @@ into one if a new file is ever needed).
   2026-10-07 (twice as loud as before): buff_expiring falls,
   debuff_landed steps down, notify rises; ping, tap and mail (a doorbell, D6 A5 D6) are the other notification sounds; craft_done (a
   fanfare, three G5s into a C chord) is the Crafting Planner HUD's; skill_up, a rising
-  arpeggio into a ringing chord, and skill_down, sinking "wah wah" notes, and skill_train / skill_maintain /
-  skill_unlearn, two quick notes up, even and down, belong to skills.lua; block, parry and
+  arpeggio into a ringing chord, and skill_down, sinking "wah wah" notes, and skill_train /
+  skill_unlearn, two quick notes up and down, belong to skills.lua; block, parry and
   dodge, a thud, a clash and a whoosh, to combat.lua's shout), `launcher.py` (-> `toolbox/launcher.png`: the
   menu's ten button pictures (in `LN.BUTTONS` order), white line art with a dark edge, tinted in game). Re-encoding changes the bytes even when the audio is the same:
   `git checkout` an .ogg you didn't mean to change. A player's own `Lua/toolbox_<name>` sounds win.
@@ -775,14 +780,14 @@ owner 2026-10-19, a player's request), x, y }` (a saved place "left", from beta 
 | `aggro` | `{ show = bool (default false), glue = bool (In Toolbelt, default true), pulled = bool (default true), lost = bool (default false), shade = 0..90, x, y }` (vitals.lua's aggro line / meter) |
 | `skill_levels` | `{ v = 1, high = { [skill key] = highest trainedLevel seen } }` |
 | `planner` | `{ v = 1, crafts = n, recipe = id, view = a PL.VIEWS name, makes = { [row path "p.1.2"] = true }, makers = { [item key] = recipe id }, picks = { ["r" .. id] = { at = n, ["s" .. slot] = item key } } (<= PL.PICKS_MAX), pickAt = n, hud = bool (the Crafting Planner HUD), hudStage = "shop"/"build", hudStay = bool, hudClose = seconds (PL.HUD_CLOSE), hudStart = "shop"/"build", hudAuto = bool (default true), shade = 0..90, hx, hy, got = { [item key] = true } (the strip's shopping lines), prices = bool (market prices; unset: as `daily_detail.values`) }` (daily.lua's crafting planner; kept by a reset, not in the recovery copy: `B.OTHER_KEYS`) |
-| `skills_paused` | `{ v = 1, how = "off"/"maintain", when = "HH:MM", list = { { key = skill key or name, from = mode, to = mode } } }`: the pause's record (skills.lua; empty list = not paused); kept by a reset, copied for recovery |
+| `skills_paused` | `{ v = 1, how = "off" (an old record's "maintain" read as "off"), when = "HH:MM", list = { { key = skill key or name, from = mode, to = mode } } }` (a recorded "Maintaining" read as NotLearning): the pause's record (skills.lua; empty list = not paused); kept by a reset, copied for recovery |
 | `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`, events' `{ [occurrence] = start (UTC seconds, as text) }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ shade = 0..90 (% black behind the HUD strip; default T.SHADE_DEFAULT, 60, every strip alike), hideAfter = seconds (0 never, 5..60), font = 9..32, spacing = 0..12 (each unset: the XP windows'), x, y }` |
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most 20 (which are new, `fresh`, is kept in memory only) |
 | `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last, day, at, quest = true (a quest item, API 52's `isQuest` on `ShroudOnItemsGained`: never looked up, kept by a refresh, cleared by a gain saying false) } } }`, at most `P.MAX_KEEP` (600, about 70 KB; 2,000 before 1.8.0, cut at start by `P.KeepSize`) |
 | `welcomed` (ACCOUNT scope) | set after the first-run welcome |
 | `version_seen` (ACCOUNT scope) | the last `T.version` started on this install: another one opens the version window once (`T.WhatsNew`, after the welcome's delay; a new install only notes it; absent = 1.7.0 or before) |
-| `skills` | `{ show = bool (default false), vertical = bool (default true), slots = 1..12, stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels"/"xp", size = 20..64, number = bool (the level on the icon, default true), marks = bool (the API 27 training controls, default true), soundUp = bool, soundDown = bool (both default true), pause = bool (the Pause skills tile, default true), pauseHow = "off"/"maintain" (default "off"), x, y }` (skills.lua) |
+| `skills` | `{ show = bool (default false), vertical = bool (default true), slots = 1..12, stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels"/"xp", size = 20..64, number = bool (the level on the icon, default true), marks = bool (the API 27 training controls, default true), soundUp = bool, soundDown = bool (both default true), pause = bool (the Pause skills tile, default true), x, y }` (skills.lua; a `pauseHow` from before 2026-11-14 is dropped) |
 | `ceiling_due` | `{ v = 1, ceiling, by }`: a learned account ceiling (`recovery_index`) not yet in the account file (core.lua, review 42); dropped once it is |
 | `save_mark` | the number of the recovery copy last written (core.lua, `B.KeepRecovery`); a file without it while its copy exists is put back at start (`B.Recover`) |
 | `recovery:<lower name>` (ACCOUNT scope) | `{ v = 1, n, when = "YYYY-MM-DD HH:MM", keys = { [a B.RecoverList() key] = its saved table } }`: settings (`B.KEYS`), `loot_runs`, `skill_levels`, `buff_durations`, written at the flush after one changed |
@@ -910,7 +915,10 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   window's "Run" checkbox is now "Enabled". The reference still doesn't mention `SetSweepTimer`'s one-day
   limit (dev report item 16).
 - **API 27**: skill training modes (`ShroudSetSkillMode`, `ShroudCanSetSkillMode`; used by skills.lua's markers),
-  skill tracking (`ShroudGetTrackedSkills`, `ShroudSetSkillTracked`; unused).
+  skill tracking (`ShroudGetTrackedSkills`, `ShroudSetSkillTracked`; unused). The reference (read 2026-11-14): modes
+  are "NotLearning", "Learning" or "Unlearning"; Maintaining is retired (as Not training since skill decay on death
+  went; stored ones set to Not training at load; its words still accepted, meaning Not training); `notSpecialized`
+  and `belowFloor` now stop training instead. Toolbox dropped Maintain the same day (owner).
 - **API 28** (the owner's client, 2026-10-04; `min_api_version` stays 25): the player frame's
   health, focus and Vigor bars hidden by `ShroudSetPlayerVitalBarsVisible(false)` (released on reload, so
   re-applied every vitals tick while wanted, as the buff bar's): "Replace the game's health bars" (`V.SetReplace`),
@@ -1369,8 +1377,8 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - API 30-35 details the owner's test (2026-10-13) didn't single out: the file picker's callback after a page switch;
   `os.time` being UTC seconds as the calendar's are (`N.EventsCheck`'s 15-minute lead).
 - Pause skills: `ShroudSetSkillMode`'s list answer keyed by the skill's `key` (a missing one is taken as asked, and
-  the resume's check leaves a skill that didn't move alone), skills set to Off decaying meanwhile (the
-  setting's tooltip says they may), and the game's per-skill menu matching a list call for mastery skills.
+  the resume's check leaves a skill that didn't move alone), and an old pause to Maintain resuming in game (its
+  skills read as NotLearning since the game retired Maintaining).
 - The skill strip's training markers: the click areas over the icon receiving clicks in game, the tinted
   and turned skillmarks.png, and the reasons ShroudSetSkillMode gives.
 - The skill activity strip (skills.lua): how often `ShroudOnSkillsChanged(false)` fires in combat, whether

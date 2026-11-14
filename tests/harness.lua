@@ -469,11 +469,13 @@ local function install_api()
       return e ~= nil and e ~= false and e.dismissable == true
     end
     -- Docs (API 27): a skill's training mode, as the skills window's menu sets it; Set needs a gesture. A skill
-    -- entry's `mastery` makes "train" maintain instead (notSpecialized), `low` makes maintain / unlearn stop
-    -- (belowFloor), `elixir` refuses (specialRule). S.modeCalls counts the Sets.
-    local MODE_WORDS = { learning = "Learning", train = "Learning", learn = "Learning", maintaining = "Maintaining",
-                         maintain = "Maintaining", unlearning = "Unlearning", unlearn = "Unlearning",
-                         notlearning = "NotLearning", off = "NotLearning" }
+    -- entry's `mastery` makes "train" stop instead (notSpecialized), `low` makes unlearn stop (belowFloor),
+    -- `elixir` refuses (specialRule). S.modeCalls counts the Sets. The retired Maintaining mode (the reference,
+    -- 2026-11-14): its words are still taken and mean Not training.
+    local MODE_WORDS = { learning = "Learning", train = "Learning", learn = "Learning", maintaining = "NotLearning",
+                         maintain = "NotLearning", hold = "NotLearning", lock = "NotLearning",
+                         unlearning = "Unlearning", unlearn = "Unlearning", notlearning = "NotLearning",
+                         off = "NotLearning" }
     local function findSkill(skill)
       local sk = nil
       for _, s in ipairs(S.skills or {}) do
@@ -488,8 +490,8 @@ local function install_api()
       local sk = findSkill(skill)
       if not sk then return false, "unknownSkill" end
       if sk.elixir then return false, "specialRule", sk.mode, sk end
-      if want == "Learning" and sk.mastery then return true, "notSpecialized", "Maintaining", sk end
-      if (want == "Maintaining" or want == "Unlearning") and sk.low then
+      if want == "Learning" and sk.mastery then return true, "notSpecialized", "NotLearning", sk end
+      if want == "Unlearning" and sk.low then
         return true, "belowFloor", "NotLearning", sk
       end
       return true, "ok", want, sk
@@ -917,9 +919,17 @@ local function install_api()
   local function tg() return S.char.present and S.target or nil end
   local function teff(i) local t = tg(); return t and t.effects and t.effects[i + 1] or nil end
   -- Skills (H.S.skills, set by H.setSkills): { { id, key, name, trainedLevel, level }, ... }; nil = not loaded.
+  -- A skill stored as the retired "Maintaining" (a test's S.skills entry) reads as NotLearning, as the game sets it
+  -- when the character loads (the reference, 2026-11-14); S.oldModes: a client from before, reading it as it is.
   ShroudGetSkills = function()
     if not S.char.present or not S.skills then return nil end
-    return copy(S.skills)
+    local list = copy(S.skills)
+    if not S.oldModes then
+      for _, sk in ipairs(list) do
+        if sk.mode == "Maintaining" then sk.mode = "NotLearning" end
+      end
+    end
+    return list
   end
   ShroudHasTarget = function() return tg() ~= nil end
   ShroudGetTargetName = function() local t = tg(); return t and t.name or "None" end
@@ -2259,8 +2269,8 @@ function H.skillSlots()
   end
   return out
 end
--- The n-th visible skill slot's training click areas: the left half (open), the markers (train, maintain,
--- unlearn); nil without them. Clicking one is a gesture.
+-- The n-th visible skill slot's training click areas: the left half (open), the markers (train, unlearn); nil
+-- without them. Clicking one is a gesture.
 function H.skillMarks(n)
   local slot = H.skillSlots()[n]
   local kids = slot and slot.children[1].children
@@ -2268,12 +2278,12 @@ function H.skillMarks(n)
   if not overlay or overlay.kind ~= "Row" then return nil end
   return overlay.children[1], overlay.children[2].children
 end
-function H.clickSkillPart(n, part)          -- part: "open", "train", "maintain" or "unlearn"
+function H.clickSkillPart(n, part)          -- part: "open", "train" or "unlearn"
   local open, marks = H.skillMarks(n)
   assert(open, "no training click areas on skill slot " .. n)
   local target = open
-  if part == "train" then target = marks[1] elseif part == "maintain" then target = marks[2]
-  elseif part == "unlearn" then target = marks[3] end
+  if part == "train" then target = marks[1] elseif part == "unlearn" then target = marks[2]
+  elseif part ~= "open" then error("no such skill marker: " .. tostring(part), 2) end
   S.gesture = true
   local ok, err = pcall(H.call, target.onClick, target)
   S.gesture, S.gestureUses = false, 0

@@ -4,12 +4,13 @@
     python3 art/marks.py
 
 Frame 0 (left half): an arrow pointing up (train; turned 180 degrees in game for unlearn).
-Frame 1: a square (maintain).
+Frame 1: a square (maintain; unused since the game retired the Maintaining mode, 2026-11-14).
 Frame 2: two bars (the Pause skills tile while paused).
 Frame 3: a triangle pointing right (the Pause skills tile while skills run).
-Each frame is 3:2 (the shape of a marker's click area: half the icon wide, a third of it high), white with a
-dark edge, so the game's tint (SetTint: @green, @gold, @red) colours it and it reads over any skill icon.
-skills.lua (SK.MARKS) picks a frame with SetUV. Writes art/skillmarks.svg and renders it with rsvg-convert, as
+Each frame is 3:2 (the shape of a marker's click area while there were three: half the icon wide, a third of it
+high; with two, half high, skills.lua's SK.MARK_UV takes the arrow frame's middle 40 x 40), white with a dark edge,
+so the game's tint (SetTint: @green, @gold, @red) colours it and it reads over any skill icon. skills.lua (SK.MARKS)
+picks a frame with its uv. Writes art/skillmarks.svg and renders it with rsvg-convert, as
 art/clock.py does.
 """
 

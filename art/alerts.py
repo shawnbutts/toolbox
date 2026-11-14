@@ -27,9 +27,8 @@ Alerts:
   dodge           a quick airy whoosh (band-passed noise sweeping up and away), 0.35 s
   (block / parry / dodge: the combat shout in combat.lua, short because they can come often)
   skill_train     two quick bright notes stepping up (G5 -> D6), 0.45 s: a skill set to train
-  skill_maintain  two quick even notes (A5, A5), 0.4 s: a skill set to maintain
   skill_unlearn   two quick notes stepping down (D5 -> G4), 0.45 s: a skill set to unlearn
-  (skill_train / skill_maintain / skill_unlearn: the skill strip's training markers in skills.lua)
+  (skill_train / skill_unlearn: the skill strip's training markers in skills.lua)
   craft_done      a little fanfare, three quick G5s into a ringing C major chord (C6 E6 G6 C7), 1.8 s: "ta-ta-ta
                   taaa", every craft of a plan done (the Crafting Planner HUD, daily.lua)
 Tweak the constants in each render_* function and re-run.
@@ -200,10 +199,6 @@ def render_skill_train() -> list[float]:
     return render_chimes(0.45, [(0.00, 783.99, 0.85), (0.09, 1174.66, 1.0)])       # G5 -> D6: up
 
 
-def render_skill_maintain() -> list[float]:
-    return render_chimes(0.4, [(0.00, 880.00, 0.9), (0.10, 880.00, 0.8)])          # A5, A5: level
-
-
 def render_skill_unlearn() -> list[float]:
     return render_chimes(0.45, [(0.00, 587.33, 1.0), (0.09, 392.00, 0.9)])         # D5 -> G4: down
 
@@ -295,7 +290,6 @@ ALERTS = {
     "parry": render_parry,
     "dodge": render_dodge,
     "skill_train": render_skill_train,
-    "skill_maintain": render_skill_maintain,
     "skill_unlearn": render_skill_unlearn,
     "craft_done": render_craft_done,
 }

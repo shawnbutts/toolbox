@@ -40,6 +40,9 @@ ones included).
   fewer lookups on SotANET.
 - `/toolbox perf` tells a frame-rate limit from a slow game: with the game held at a steady low rate (a limit in its
   settings), the report says so and no longer suggests perf quiet, which can't raise it.
+- The skill strip's training markers and Pause skills drop Maintain: the game retired it (it now works the same as
+  not training). Each icon's right half has two markers, train and unlearn, and Pause skills always sets skills to
+  Off. A pause made with Maintain still resumes.
 
 ## [1.10.0] - 2026-10-30
 

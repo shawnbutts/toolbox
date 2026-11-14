@@ -41,8 +41,8 @@ A Shroud of the Avatar Lua add-on. It needs Lua API 25 (`min_api_version` in the
 - **Notifications**: guild message of the day, new mail, expiring mail, ransoms, rewards, guild
   applications and gear needing repair, in a window or on a scrolling notification HUD.
 - **Skill activity**: your skills' icons pop up on a strip of their own as they level, with the level,
-  progress and training mode (Settings, Skill activity), and one-click train / maintain / unlearn markers on each
-  icon (Lua API 27), plus a Pause skills tile that sets every skill to Off (or Maintain) in one click and puts them
+  progress and training mode (Settings, Skill activity), and one-click train / unlearn markers on each
+  icon (Lua API 27), plus a Pause skills tile that sets every skill to Off in one click and puts them
   back in another; skill level changes (up or down) can go to the notification HUD too.
 - **Menu**: a column (or row) of gold buttons on a shaded panel, top left at first, opening Toolbox's windows (and
   the location strip) with one click, bright while a window is open (settings under Menu, setups, backup & reset).

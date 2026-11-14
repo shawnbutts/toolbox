@@ -389,6 +389,16 @@ return function(t)
     t.eq(played("toolbox_skill_up"), 1, "the player's file: " .. H.playedNames())
   end)
 
+  t.test("sounds: a saved level or file for the retired Maintain sound is harmless", function()
+    H.boot({ ["character:Tester"] = { sounds = { v = 3, volume = 70, base = 100,
+      paths = { skill_maintain = "my_maintain.ogg" }, levels = { skill_maintain = 40 } } } })
+    H.chat("/tbx config")
+    t.eq(H.config():Find("snd_skill_maintain_test"), nil, "not on the Sounds page")
+    t.ok(H.config():Find("snd_skill_train_test"), "the others are")
+    H.closeWindow("toolbox_config")
+    t.eq(Toolbox.Sounds.GetPath("skill_maintain"), "", "its old file not taken")
+  end)
+
   t.test("sounds: any notification can pick them; Skill level changes plays the celebration", function()
     onWithSounds()
     H.chat("/tbx config")
@@ -517,7 +527,7 @@ return function(t)
 
   local function marksOn(extra)
     H.boot()
-    for _, f in ipairs({ "skill_train", "skill_maintain", "skill_unlearn" }) do
+    for _, f in ipairs({ "skill_train", "skill_unlearn" }) do
       H.S.files["toolbox/" .. f .. ".ogg"] = true
     end
     H.setSkills(sheet(BASE, extra))
@@ -535,19 +545,29 @@ return function(t)
     return table.concat(out, ",")
   end
 
-  t.test("markers: left half opens Skills; right half train / maintain / unlearn, the mode lit", function()
+  t.test("markers: left half opens Skills; right half train / unlearn (no maintain), the mode lit", function()
     marksOn()
     local open, marks = H.skillMarks(1)
-    t.ok(open and #marks == 3, "the click areas over the icon")
+    t.ok(open and #marks == 2, "two click areas over the icon's right half")
+    t.eq(#SK().MARKS, 2)
     t.eq(marks[1].tint, "@green")
-    t.eq(marks[2].tint, "@gold")
-    t.eq(marks[3].tint, "@red")
-    t.eq(marks[3].rotation, 180, "the arrow turned down")
+    t.eq(marks[2].tint, "@red")
+    t.eq(marks[1].rotation, 0)
+    t.eq(marks[2].rotation, 180, "the arrow turned down")
+    for _, m in ipairs(SK().MARKS) do t.ok(m.mode ~= "Maintaining", "no Maintain marker") end
     local s = SK().GetSize()
     t.eq(open.width, math.floor(s / 2), "the left half")
     t.eq(marks[1].width, s - math.floor(s / 2), "the right half")
-    t.eq(opacities(1), "1,0.35,0.35", "training: train lit, the others faded")
-    t.ok(marks[2].tooltip:find("Click: maintain"), marks[2].tooltip)
+    t.eq(marks[1].height, math.floor(s / 2), "two bands: half the icon each")
+    t.eq(marks[1].height + marks[2].height, s, "the bands fill the icon's height")
+    t.eq(opacities(1), "1,0.35", "training: train lit, unlearn faded")
+    t.ok(marks[2].tooltip:find("Click: unlearn"), marks[2].tooltip)
+    t.eq(H.S.files["toolbox/skill_maintain.ogg"], nil)
+    for _, d in ipairs(Toolbox.Sounds.DEFS) do t.ok(d.key ~= "skill_maintain", "no Maintain sound") end
+    SK().SetSize(33)                             -- an odd size: the last band takes the extra pixel
+    H.advance(1)
+    local _, marks2 = H.skillMarks(1)
+    t.eq(marks2[1].height + marks2[2].height, 33)
     H.clickSkillPart(1, "open")
     t.eq(H.S.stockOpen.skills, true, "the left half opens the Skills window")
   end)
@@ -569,34 +589,48 @@ return function(t)
 
   t.test("markers: a click sets that mode, with its sound; clicking the lit one does nothing", function()
     marksOn()
-    H.clickSkillPart(1, "maintain")
-    t.eq(H.S.skills[1].mode, "Maintaining", "the game's mode set")
-    t.eq(opacities(1), "0.35,1,0.35", "maintain lit now")
-    t.ok(played("skill_maintain") == 1, H.playedNames())
-    local calls = H.S.modeCalls
-    H.clickSkillPart(1, "maintain")
-    t.eq(H.S.modeCalls, calls, "already maintaining: nothing")
     H.clickSkillPart(1, "unlearn")
-    t.eq(H.S.skills[1].mode, "Unlearning")
-    t.eq(played("skill_unlearn"), 1)
+    t.eq(H.S.skills[1].mode, "Unlearning", "the game's mode set")
+    t.eq(opacities(1), "0.35,1", "unlearn lit now")
+    t.eq(played("skill_unlearn"), 1, H.playedNames())
     t.eq(H.skillSlots()[1].children[1].style.borderColor, "@red", "the frame follows the mode")
+    local calls = H.S.modeCalls
+    H.clickSkillPart(1, "unlearn")
+    t.eq(H.S.modeCalls, calls, "already unlearning: nothing")
+    H.clickSkillPart(1, "train")
+    t.eq(H.S.skills[1].mode, "Learning")
+    t.eq(played("skill_train"), 1)
+    t.eq(H.skillSlots()[1].children[1].style.borderColor, "@green")
   end)
 
-  t.test("markers: the game's rules: maintains instead, stops instead, refused", function()
+  t.test("markers: a skill still read as Maintaining (an older client) shows as Not training", function()
+    H.S.oldModes = true
+    marksOn({ Fireball = { mode = "Maintaining" } })
+    t.eq(opacities(1), "0.35,0.35", "off: none lit")
+    t.eq(H.skillSlots()[1].children[1].style.borderColor, SK().MODES.NotLearning.color)
+    t.ok(H.skillSlots()[1].children[1].children[1].tooltip:find("Not training"),
+      H.skillSlots()[1].children[1].children[1].tooltip)
+    t.eq(SK().Mode("Maintaining"), "NotLearning")
+    t.eq(SK().Mode("Learning"), "Learning")
+    t.eq(SK().Mode("Bogus"), nil)
+    H.S.oldModes = nil
+  end)
+
+  t.test("markers: the game's rules: stops instead (not specialized, too low), refused", function()
     marksOn({ Fireball = { mastery = true } })
     H.clearLogs()
     H.clickSkillPart(1, "train")                 -- (it's training: unlearn first, then ask to train)
     H.clickSkillPart(1, "unlearn")
     H.clickSkillPart(1, "train")
-    t.ok(H.logged("Fireball: not one of your specializations, so it maintains instead%."), H.lastLog())
-    t.eq(opacities(1), "0.35,1,0.35", "it maintains")
+    t.ok(H.logged("Fireball: not one of your specializations, so it stops training instead%."), H.lastLog())
+    t.eq(opacities(1), "0.35,0.35", "it stopped: none lit")
     marksOn({ Fireball = { low = true } })
     H.clearLogs()
-    H.clickSkillPart(1, "maintain")
-    t.ok(H.logged("too low to maintain or unlearn, so it stops training instead"), H.lastLog())
-    t.eq(opacities(1), "0.35,0.35,0.35", "off: none lit")
+    H.clickSkillPart(1, "unlearn")
+    t.ok(H.logged("too low to unlearn, so it stops training instead"), H.lastLog())
+    t.eq(opacities(1), "0.35,0.35", "off: none lit")
     marksOn({ Fireball = { elixir = true } })
-    t.eq(opacities(1), "1,0.12,0.12", "an elixir skill: the others can't be set")
+    t.eq(opacities(1), "1,0.12", "an elixir skill: the other can't be set")
     local calls = H.S.modeCalls or 0
     H.clickSkillPart(1, "unlearn")
     t.eq(H.S.modeCalls or 0, calls, "nothing asked")
@@ -630,11 +664,11 @@ return function(t)
     H.setSkills(sheet(levels{ Fireball = 41, Healing = 31 }))
     H.advance(1)
     local slot = 1                                   -- Healing, on top
-    t.eq(opacities(slot), "1,0.35,0.35", "not now: faded as usual, not refused")
+    t.eq(opacities(slot), "1,0.35", "not now: faded as usual, not refused")
     ShroudCanSetSkillMode = real
     H.advance(10)
-    H.clickSkillPart(slot, "maintain")
-    t.eq(H.S.skills[2].mode, "Maintaining", "back in normal play: it works")
+    H.clickSkillPart(slot, "unlearn")
+    t.eq(H.S.skills[2].mode, "Unlearning", "back in normal play: it works")
     ShroudCanSetSkillMode = function() error("boom") end
     H.setSkills(sheet(levels{ Fireball = 41, Healing = 31, Dodge = 6 }))
     H.advance(1)
@@ -645,8 +679,8 @@ return function(t)
 
   -- Pause skills (API 27) ----------------------------------------------------------------
 
-  -- Fireball and Healing training, Blacksmithing maintaining, Archery unlearning, Dodge off; the strip on.
-  local MIXED = { Blacksmithing = { mode = "Maintaining" }, Archery = { mode = "Unlearning" },
+  -- Fireball, Healing and Blacksmithing training, Archery unlearning, Dodge off; the strip on.
+  local MIXED = { Blacksmithing = { mode = "Learning" }, Archery = { mode = "Unlearning" },
                   Dodge = { mode = "NotLearning" } }
   local function pauseOn()
     H.boot()
@@ -665,11 +699,11 @@ return function(t)
   t.test("Pause skills model: the targets, the record, and what a resume sets back", function()
     H.boot()
     local r = SK().Read(sheet(BASE, MIXED))
-    local off = SK().PauseTargets(r, "off")
+    local off = SK().PauseTargets(r)
     t.eq(#off, 4, "every skill not off already, unlearning ones too")
     t.eq(off[3].key, "Blacksmithing")
-    t.eq(off[3].from, "Maintaining")
-    t.eq(#SK().PauseTargets(r, "maintain"), 4, "Maintain: every skill not maintaining already")
+    t.eq(off[3].from, "Learning")
+    t.eq(off[4].from, "Unlearning")
     local rec = SK().PauseRecord(off, { Fireball = "NotLearning", Healing = "Learning" }, "NotLearning")
     t.eq(#rec, 3, "Healing didn't move: not recorded; Blacksmithing and Archery, missing, taken as asked")
     t.eq(rec[1].key .. rec[1].to, "FireballNotLearning")
@@ -703,9 +737,9 @@ return function(t)
     t.ok(pic().tooltip:find("Skills paused") and pic().tooltip:find("put them back"), pic().tooltip)
     H.advance(1)
     H.clickSkillPause()
-    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Maintaining Archery=Unlearning "
+    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Learning Archery=Unlearning "
       .. "Dodge=NotLearning", "each back as it was")
-    t.eq(#H.S.modeLists, 4, "one call per mode: training, maintaining, unlearning (a click's three)")
+    t.eq(#H.S.modeLists, 3, "one call per mode: training, unlearning")
     t.ok(H.logged("Skills back on: 4 skills back as they were."), H.lastLog())
     t.eq(SK().IsPaused(), false)
     t.eq(#H.saved("skills_paused").list, 0)
@@ -723,7 +757,7 @@ return function(t)
     H.callback("ShroudOnSkillsChanged", true)
     H.advance(2)
     t.eq(#H.skillSlots(), 0, "nor the resume")
-    H.S.skills[1].mode = "Maintaining"           -- the player, in the Skills window
+    H.S.skills[1].mode = "Unlearning"            -- the player, in the Skills window
     H.callback("ShroudOnSkillsChanged", true)
     H.advance(2)
     t.eq(#H.skillSlots(), 1, "the player's own change pops up as before")
@@ -734,22 +768,59 @@ return function(t)
     t.eq(H.skillSlots()[1].children[1].style.borderColor, "#00000000", "showing its new mode (off)")
   end)
 
-  t.test("Pause skills set to Maintain: every skill maintains; the setting is saved", function()
-    pauseOn()
+  t.test("Pause skills: a saved Maintain choice (before the game retired it) pauses to Off", function()
+    H.boot({ ["character:Tester"] = { skills = { show = true, pauseHow = "maintain" } } })
+    H.setSkills(sheet(BASE, MIXED))
+    H.advance(1)
+    H.S.modeLists = {}
     H.chat("/tbx config")
-    t.eq(H.config():Find("skills_pause_how").value, "Off (no experience spent)", "Off by default")
-    H.change("toolbox_config", "skills_pause_how", "Maintain (only what keeps their levels)")
-    t.eq(H.saved("skills").pauseHow, "maintain")
+    t.eq(H.config():Find("skills_pause_how"), nil, "no Maintain choice in Settings")
     H.closeWindow("toolbox_config")
     H.chat("/tbx skills pause")
-    t.eq(modes(), "Fireball=Maintaining Healing=Maintaining Blacksmithing=Maintaining Archery=Maintaining "
-      .. "Dodge=Maintaining")
-    t.ok(H.logged("4 skills set to maintain"), H.lastLog())
-    H.S.modeLists = {}
+    t.eq(modes(), "Fireball=NotLearning Healing=NotLearning Blacksmithing=NotLearning Archery=NotLearning "
+      .. "Dodge=NotLearning")
+    t.eq(H.S.modeLists[1].mode, "NotLearning", "asked for Off")
+    t.ok(H.logged("4 skills set to off"), H.lastLog())
+    t.eq(H.saved("skills_paused").how, "off")
+    SK().SetPauseTile(true)                      -- any save of the settings
+    t.eq(H.saved("skills").pauseHow, nil, "the old choice dropped")
     H.chat("/tbx skills resume")
-    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Maintaining Archery=Unlearning "
-      .. "Dodge=NotLearning", "Blacksmithing was maintaining already: untouched")
-    t.eq(#H.S.modeLists, 3, "training, unlearning, off: three calls")
+    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Learning Archery=Unlearning "
+      .. "Dodge=NotLearning")
+  end)
+
+  t.test("Pause skills: an old pause to Maintain resumes, the game reading its skills as Not training", function()
+    local record = { v = 1, how = "maintain", when = "10:00", list = {
+      { key = "Fireball", from = "Learning", to = "Maintaining" },
+      { key = "Healing", from = "Learning", to = "Maintaining" },
+      { key = "Archery", from = "Unlearning", to = "Maintaining" },
+      { key = "Dodge", from = "NotLearning", to = "Maintaining" },        -- was off: nothing to set back
+      { key = "Blacksmithing", from = "Maintaining", to = "NotLearning" },  -- an Off pause of a maintaining skill
+    } }
+    H.boot({ ["character:Tester"] = { skills = { show = true }, skills_paused = record } })
+    -- the character's skills as stored: Maintaining, which the game now reads as Not training
+    H.setSkills(sheet(BASE, { Fireball = { mode = "Maintaining" }, Healing = { mode = "Maintaining" },
+      Archery = { mode = "Maintaining" }, Dodge = { mode = "Maintaining" },
+      Blacksmithing = { mode = "NotLearning" } }))
+    H.advance(5)
+    H.S.modeLists = {}
+    t.eq(SK().IsPaused(), true, "the old record read")
+    t.ok(H.skillPause() and H.skillPause().visible ~= false, "the tile, to resume")
+    H.clickSkillPause()
+    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=NotLearning Archery=Unlearning "
+      .. "Dodge=Maintaining", "each back to the mode it had (Dodge left alone: it reads as off already)")
+    t.eq(#H.S.modeLists, 2, "training, unlearning: the ones already as they were need no call")
+    t.ok(H.logged("Skills back on: 5 skills back as they were%.$"), H.lastLog())
+    t.eq(SK().IsPaused(), false)
+    -- the model: a recorded "Maintaining" matches a NotLearning reading
+    local now = SK().Read(sheet(BASE, { Fireball = { mode = "NotLearning" } }))
+    local groups, order, skipped, same = SK().ResumeGroups(
+      { { key = "Fireball", from = "Learning", to = "Maintaining" },
+        { key = "Healing", from = "Maintaining", to = "Maintaining" } }, now)
+    t.eq(#order, 1)
+    t.eq(groups.Learning[1], "Fireball")
+    t.eq(skipped, 1, "Healing training now: changed since")
+    t.eq(same, 0)
   end)
 
   t.test("Pause skills: a skill changed by hand meanwhile, or gone, is left as it is", function()
@@ -758,7 +829,7 @@ return function(t)
     H.S.skills[1].mode = "Unlearning"            -- the player set Fireball to unlearn in the Skills window
     table.remove(H.S.skills, 2)                  -- and Healing is gone (it would refuse the whole list)
     H.clickSkillPause()
-    t.eq(modes(), "Fireball=Unlearning Blacksmithing=Maintaining Archery=Unlearning Dodge=NotLearning")
+    t.eq(modes(), "Fireball=Unlearning Blacksmithing=Learning Archery=Unlearning Dodge=NotLearning")
     t.ok(H.logged("2 skills back as they were. 2 skills changed since %(or gone%): left as they are."), H.lastLog())
     t.eq(SK().IsPaused(), false)
   end)
@@ -779,7 +850,7 @@ return function(t)
     t.eq(SK().GetPauseTile(), false)
     t.ok(H.skillPause() and H.skillPause().visible ~= false, "still there to resume")
     H.clickSkillPause()
-    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Maintaining Archery=Unlearning "
+    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Learning Archery=Unlearning "
       .. "Dodge=NotLearning")
     H.advance(1)
     t.eq(H.skillPause().visible, false, "not paused, switched off: gone")
@@ -824,7 +895,7 @@ return function(t)
     H.chat("/tbx skills pause")
     t.ok(H.logged("Couldn't pause your skills: the record to put them back couldn't be saved."), H.lastLog())
     t.eq(#H.S.modeLists, 0, "no call made")
-    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Maintaining Archery=Unlearning "
+    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Learning Archery=Unlearning "
       .. "Dodge=NotLearning")
     t.eq(SK().IsPaused(), false)
     H.S.refuseKeys = nil
@@ -833,22 +904,20 @@ return function(t)
     H.S.refuseKeys = { skills_paused = true }
     H.chat("/tbx skills resume")
     t.ok(H.logged("Could not save 'skills_paused'"), H.lastLog())
-    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Maintaining Archery=Unlearning "
+    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Learning Archery=Unlearning "
       .. "Dodge=NotLearning")
     H.S.refuseKeys = nil
   end)
 
-  t.test("Pause skills: the game's modes read from a game object; a skill too low to maintain goes off", function()
+  t.test("Pause skills: the game's modes read from a game object", function()
     pauseOn()
     H.S.modeObjects = true
-    H.S.skills[1].low = true                     -- Fireball: below the floor, the game stops it instead
-    SK().SetPauseHow("maintain")
     H.chat("/tbx skills pause")
     t.eq(H.S.skills[1].mode, "NotLearning")
-    t.eq(H.saved("skills_paused").list[1].to, "NotLearning", "recorded as the game left it, not as asked")
+    t.eq(H.saved("skills_paused").list[1].to, "NotLearning", "recorded as the game left it")
     H.chat("/tbx skills resume")
     t.ok(H.logged("Skills back on: 4 skills back as they were."), H.lastLog())
-    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Maintaining Archery=Unlearning "
+    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Learning Archery=Unlearning "
       .. "Dodge=NotLearning")
     H.S.modeObjects = nil
   end)
@@ -867,7 +936,7 @@ return function(t)
     H.S.modeRefuse = nil
     H.chat("/tbx skills resume")
     t.eq(SK().IsPaused(), false)
-    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Maintaining Archery=Unlearning "
+    t.eq(modes(), "Fireball=Learning Healing=Learning Blacksmithing=Learning Archery=Unlearning "
       .. "Dodge=NotLearning")
     -- a pause call that raises: the record saved first stays, and a resume puts back what moved
     H.S.modeThrow = "boom"
