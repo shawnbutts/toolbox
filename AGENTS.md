@@ -288,7 +288,9 @@ into one if a new file is ever needed).
   never rebuilt on a timer (element cap; no reorder API); a sorted rebuild at most every `RESORT_SECONDS`
   while shown. `Toolbox.Prices` (bottom): estimated values from SotANET's
   `GET /api/v1/receipts/prices?item=..` (<= 50 names) via `ShroudHttpGet`, one request `P.GAP` apart,
-  cached per account for `P.MAX_AGE`; `P.Test` backs the Test connection button. SotANET matches English names only;
+  cached per account for `P.MAX_AGE`; `P.Test` backs the Test connection button. Quest items (owner, 2026-11-13: fewer
+  SotANET calls) aren't looked up: `P.NoteItems` (from `D.OnItems`) marks a name gained with API 52's `isQuest`
+  (`P.IsQuest`; harness `H.items{ { name, n, { isQuest = true } } }`), the row shows `DD.QUEST`, out of the value line's kinds. SotANET matches English names only;
   `P.OtherLanguage` (`ShroudGetClientInfo().languageCode` not "en*", read once) adds `P.LanguageNote` where
   prices are missing (header, row tooltips, settings, switching on, the test).
 - `sounds.lua`: `Toolbox.Sounds`, six sounds (`S.DEFS`: buff_expiring, debuff_landed, and notify, ping, tap,
@@ -761,7 +763,7 @@ owner 2026-10-19, a player's request), x, y }` (a saved place "left", from beta 
 | `notify` | `{ v = 1, compact = bool (the window), font = 9..32 (the window; unset: the theme's), sources = { [key] = { on = bool, seen = last value delivered, via = "window"/"hud"/"chat", sound = bool, soundKey = one of N.SOUNDS (default "notify") } } }`; durability's `seen` is `{ [item key] = "low"/"broken" }`, events' `{ [occurrence] = start (UTC seconds, as text) }`; friends / guild don't keep `seen`; the older `guild_motd` `{ show, seen }` is read once to take over |
 | `notify_hud` | `{ shade = 0..90 (% black behind the HUD strip; default T.SHADE_DEFAULT, 60, every strip alike), hideAfter = seconds (0 never, 5..60), font = 9..32, spacing = 0..12 (each unset: the XP windows'), x, y }` |
 | `notify_history` | `{ v = 1, list = { { when = "HH:MM", title, text } } }`, newest first, at most 20 (which are new, `fresh`, is kept in memory only) |
-| `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last, day, at } } }`, at most `P.MAX_KEEP` (600, about 70 KB; 2,000 before 1.8.0, cut at start by `P.KeepSize`) |
+| `prices` (ACCOUNT scope) | `{ v = 1, items = { [lower item name] = { avg = n or false (no sales), sold, last, day, at, quest = true (a quest item, API 52's `isQuest` on `ShroudOnItemsGained`: never looked up, kept by a refresh, cleared by a gain saying false) } } }`, at most `P.MAX_KEEP` (600, about 70 KB; 2,000 before 1.8.0, cut at start by `P.KeepSize`) |
 | `welcomed` (ACCOUNT scope) | set after the first-run welcome |
 | `version_seen` (ACCOUNT scope) | the last `T.version` started on this install: another one opens the version window once (`T.WhatsNew`, after the welcome's delay; a new install only notes it; absent = 1.7.0 or before) |
 | `skills` | `{ show = bool (default false), vertical = bool (default true), slots = 1..12, stay = seconds (SK.STAY_CHOICES; 0 = always), trigger = "levels"/"xp", size = 20..64, number = bool (the level on the icon, default true), marks = bool (the API 27 training controls, default true), soundUp = bool, soundDown = bool (both default true), pause = bool (the Pause skills tile, default true), pauseHow = "off"/"maintain" (default "off"), x, y }` (skills.lua) |
@@ -1007,6 +1009,7 @@ until the live client's `/toolbox api` reports more). Build against the live cli
   game's loader has the saved vars' "/" and negative-number problems (Toolbox's escaping, `T.ForSaving`, would apply).
 - 52: item rows (inventory, equipment, `ShroudOnItemsGained`) gain `itemType` (weapon / armor / ... / food / potion /
   consumable / ..., the same in every language), `itemClass`, `isQuest`, `isTool`, `isArtifact`, `isLocked`, `isEquipped`.
+  `isQuest` is used: quest items aren't looked up on SotANET (`P.NoteItems`).
 - 53: `ShroudOnDecoPlacementStarted(info)` and `ShroudSetPlacingDecoPose(rotation, scale)` (decorating; unused).
 - 54: `ShroudGetTargetAggro()` -> `{ target?, entries = { name, value, share, unreachable, you } }` (the top 6, as
   `/verbose aggro`; nil until the first snapshot, refreshed once a second). Used from 1.11.0 (`Toolbox.Aggro`, above).

@@ -2041,7 +2041,11 @@ end
 -- Items arrive in the bags: H.items({ { "Iron Ore", 5 }, { "Wolf Pelt", 1 } }, dropped).
 function H.items(list, dropped)
   local items = {}
-  for _, it in ipairs(list) do items[#items + 1] = { name = it[1], quantity = it[2], icon = -1 } end
+  for _, it in ipairs(list) do
+    local row = { name = it[1], quantity = it[2], icon = -1 }
+    for k, v in pairs(it[3] or {}) do row[k] = v end     -- API 52's fields: { isQuest = true, ... }
+    items[#items + 1] = row
+  end
   return H.callback("ShroudOnItemsGained", items, dropped or 0)
 end
 

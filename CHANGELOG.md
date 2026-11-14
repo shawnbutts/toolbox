@@ -23,6 +23,12 @@ ones included).
   counts: "Earned +36,000  72,000/h" ("Net" with XP lost subtracted). A session already running when you update
   counts from then and says so ("Spent 800 since 14:05"). `/toolbox xp debug` prints the pools behind it.
 
+### Changed
+
+- Estimated values (Settings, XP & Loot) no longer look up quest items on SotANET: the Loot Tracker shows "quest"
+  for them and leaves them out of the kinds priced. Needs a newer game client (Lua API 52); a quest item is
+  remembered once looted.
+
 ## [1.10.0] - 2026-10-30
 
 ### Added

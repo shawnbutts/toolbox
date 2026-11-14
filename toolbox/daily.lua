@@ -926,6 +926,7 @@ end
 
 function D.OnItems(items, dropped)
   pcall(D.NoteItems, items, dropped)
+  if T.Prices then pcall(T.Prices.NoteItems, items) end
   if D.day and D.AddItems(D.day, items, dropped, D.stationOpen) then changed() end
 end
 

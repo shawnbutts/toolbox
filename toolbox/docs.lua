@@ -92,7 +92,8 @@ D.SECTIONS = {
       .. "switch Internet on for Toolbox in the add-on manager. The Loot Tracker then shows each item's count "
       .. "times its 90-day average sale price from shroudoftheavatar.net (player-uploaded receipts) and a "
       .. "total; hover a value for the price each (or switch on Show the price each: \"40 x 5g\"). Items with no "
-      .. "recent sales show --, and ... while their price is looked up. Only item names are sent, and each "
+      .. "recent sales show --, and ... while their price is looked up; quest items show quest and aren't "
+      .. "looked up (with a newer game client, Lua API 52). Only item names are sent, and each "
       .. "price is kept for 24 hours. Test connection, beside it, checks the connection. SotANET lists items "
       .. "by their English names: with the game in another language most items show --, and Toolbox says so.",
     "All price estimates come from receipt data retrieved from shroudoftheavatar.net. Submit your "

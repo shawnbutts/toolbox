@@ -58,7 +58,7 @@ end
 -- ("...336,608g") however wide the window. A row without a price shows DD.NO_PRICE (no sales on SotANET in 90
 -- days) or DD.LOOKING (not looked up yet); its tooltip says which. Plain ASCII: the game's font lacks some.
 -- The minimum is set only by DD.RefreshValues (T.SetStyle), never in valueStyle.
-DD.VALUE_CHAR, DD.NO_PRICE, DD.LOOKING = 0.7, "--", "..."
+DD.VALUE_CHAR, DD.NO_PRICE, DD.LOOKING, DD.QUEST = 0.7, "--", "...", "quest"
 local function valueStyle()
   return T.Window.TextStyle{ textAlign = "right", marginLeft = 8, flexShrink = 0, whiteSpace = "nowrap" }
 end
@@ -859,7 +859,7 @@ function DD.RefreshValues()
   if not prefs.values then return end
   local total, priced, kinds = 0, 0, 0
   for name, n in pairs(shown) do
-    if name ~= T.Daily.OTHER then
+    if name ~= T.Daily.OTHER and not P.IsQuest(name) then
       kinds = kinds + 1
       P.Want(name)
       local each = P.Average(name)
@@ -873,7 +873,13 @@ function DD.RefreshValues()
     local each = P.Average(name)
     local n = shown[name] or 0
     local shownValue = DD.LOOKING                          -- (no "~": the game's font has no tilde)
-    if each then shownValue = P.Format(n * each) elseif P.Known(name) then shownValue = DD.NO_PRICE end
+    if each then
+      shownValue = P.Format(n * each)
+    elseif P.IsQuest(name) then
+      shownValue = DD.QUEST
+    elseif P.Known(name) then
+      shownValue = DD.NO_PRICE
+    end
     texts[name] = shownValue
     if #shownValue > longest then longest = #shownValue end
   end
@@ -997,7 +1003,10 @@ end
 -- them all. Requests are spaced P.GAP apart (the client allows about 6 a minute), one at a
 -- time; one that never answers is given up after P.TIMEOUT.
 -- Saved var "prices" (account scope): { v = 1, items = { [lower name] = { avg = n|false,
--- sold = n, last = "ISO date"|"", day = Toolbox.Today() key, at = Toolbox.Clock() (if any) } } }.
+-- sold = n, last = "ISO date"|"", day = Toolbox.Today() key, at = Toolbox.Clock() (if any),
+-- quest = true (a quest item: never looked up) } } }.
+-- Quest items (API 52's isQuest on ShroudOnItemsGained's rows, P.NoteItems): not sold, so never sent to SotANET;
+-- kept in the cache as { avg = false, quest = true } until a gain says otherwise, out of the value line's kinds.
 
 Toolbox.Prices = P
 
@@ -1072,6 +1081,7 @@ local function readCache()
         cache[k] = { avg = e.avg, sold = type(e.sold) == "number" and e.sold or 0,
                      last = type(e.last) == "string" and e.last or "", day = e.day }
         if type(e.at) == "number" then cache[k].at = e.at end
+        if e.quest == true then cache[k].avg, cache[k].quest = false, true end
       end
     end
   end
@@ -1110,11 +1120,46 @@ function P.Known(name)
   return cache[key(name)] ~= nil
 end
 
+-- Whether `name` was gained as a quest item (API 52): it has no price and is never looked up.
+function P.IsQuest(name)
+  readCache()
+  local e = cache[key(name)]
+  return e ~= nil and e.quest == true
+end
+
+-- From ShroudOnItemsGained: notes the quest items (API 52's isQuest; absent before, so nothing changes) and
+-- forgets a name's quest mark when a gain says it isn't one. Saves only when a mark changes.
+function P.NoteItems(items)
+  if type(items) ~= "table" then return end
+  readCache()
+  local changed = false
+  for _, it in ipairs(items) do
+    local name, quest = T.Field(it, "name"), T.Field(it, "isQuest")
+    if type(name) == "string" and name ~= "" and type(quest) == "boolean" then
+      local k = key(name)
+      local e = cache[k]
+      if quest and not (e and e.quest) then
+        local clock = T.Clock()
+        cache[k] = { avg = false, sold = 0, last = "", day = T.Today(), at = clock, quest = true }
+        changed = true
+      elseif not quest and e and e.quest then
+        cache[k] = nil
+        changed = true
+      end
+    end
+  end
+  if changed then
+    P.version = P.version + 1
+    writeCache()
+  end
+end
+
 -- A row's tooltip: the unit price and sales, or why it has none.
 function P.Tooltip(name)
   readCache()
   local e = cache[key(name)]
   if not e then return "Looking up its price on SotANET..." end
+  if e.quest then return "A quest item: it isn't sold, so it isn't looked up on SotANET" end
   if type(e.avg) ~= "number" then
     local note = P.LanguageNote()
     return "No sales on SotANET in the last 90 days" .. (note and ("\n" .. note) or "")
@@ -1128,6 +1173,7 @@ end
 -- or saved without a time) from today.
 function P.Fresh(e)
   if type(e) ~= "table" then return false end
+  if e.quest then return true end
   local now = T.Clock()
   if now and type(e.at) == "number" then return now >= e.at and now - e.at < P.MAX_AGE end
   return e.day == T.Today()
@@ -1204,6 +1250,17 @@ function P.Tick()
     inflight = nil
   end
   if not (prefs.values or (T.Planner and T.Planner.GetPrices())) then return end   -- the planner's market line too
+  local quests = 0                                  -- names marked quest items since they were queued go
+  for _, name in ipairs(queue) do
+    if P.IsQuest(name) then quests = quests + 1 end
+  end
+  if quests > 0 then
+    local rest = {}
+    for _, name in ipairs(queue) do
+      if P.IsQuest(name) then queued[key(name)] = nil else rest[#rest + 1] = name end
+    end
+    queue = rest
+  end
   if #queue == 0 or now < nextAt then return end
   if type(ShroudHttpGet) ~= "function" then
     status = "unavailable"
@@ -1236,6 +1293,7 @@ end
 function P.Apply(names, data)
   local today, clock = T.Today(), T.Clock()
   local function put(k, e)
+    if cache[k] and cache[k].quest then return end      -- marked a quest item while its lookup was out
     e.day = today
     if clock then e.at = clock end
     cache[k] = e
@@ -1270,8 +1328,11 @@ end
 function P.Forget()
   readCache()
   local n = 0
-  for _ in pairs(cache) do n = n + 1 end
-  cache = {}
+  local kept = {}
+  for k, e in pairs(cache) do
+    if e.quest then kept[k] = e else n = n + 1 end    -- quest marks stay: they aren't prices
+  end
+  cache = kept
   writeCache()
   nextAt, status = 0, nil
   P.version = P.version + 1
