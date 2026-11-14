@@ -277,6 +277,8 @@ the day's gold and kills and a list of every item gained today with its count, h
   the `/beacon` marker; it replaces yours, so only on a click), while you're in that run's scene. On Lua
   API 30 each run is also a gold flag on the region map and minimap in its scene, its note what the run brought in
   (Settings, Map & location, **Show runs on the map**; on by default). The flags don't reach the compass: Compass does.
+  On Lua API 51, **Save runs to a file** (or `/toolbox loot export`) adds them to `loot-runs-<character>.json` in
+  Toolbox's data folder (`Lua/AddonData`), which keeps every run saved there (up to 500), for a spreadsheet.
 
 ## Buff bar
 

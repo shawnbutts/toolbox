@@ -1014,9 +1014,16 @@ add("loot", "show or hide the Loot Tracker (every item gained today, with counts
     .. " back to the whole day; view looted|crafted|"
     .. "gathered|runs; include on|off: crafted and gathered items in Looted; values on|off: estimated values from"
     .. " SotANET; values each on|off: the price each in the count; values test [item]: check the connection;"
-    .. " values refresh: look prices up again; log: the last item events as the game sent them)", function(rest)
+    .. " values refresh: look prices up again; log: the last item events as the game sent them; export: your runs"
+    .. " to a file)", function(rest)
   local word, arg = T.ParseArgs(rest)
   local DD = T.DailyDetail
+  if word == "export" then
+    local file, n, added = DD.ExportRuns()
+    T.Print(file and (T.Data.WrittenNote(file) .. ": " .. n .. (n == 1 and " run" or " runs") .. " in it, " .. added
+      .. " new.") or ("Couldn't save them: " .. n .. "."))
+    return
+  end
   if word == "log" then
     local lines = T.Daily.ItemLogLines()
     T.Print(#lines > 0 and ("The last " .. #lines .. " item events (each line is one call from the game):")

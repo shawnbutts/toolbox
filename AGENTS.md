@@ -185,7 +185,10 @@ into one if a new file is ever needed).
   a file's values (another player's data). Users: overlays (`OV.Export` / `OV.Import`), setups (`B.SaveFile`
   writes "setup-<name>.json" = { toolbox = "setup", v = 1, name, when, keys = currentSettings() }; `B.SetupFiles` lists
   the folder's among `B.Setups` with `file` set, "<name> (file, date)"; `B.Import` / `B.DeleteSetup` take them;
-  `B.ReadSetupFile` keeps only `B.KEYS`' keys, never `setup_share`; config's `setup_file` / `setup_folder`), loot runs. Harness:
+  `B.ReadSetupFile` keeps only `B.KEYS`' keys, never `setup_share`; config's `setup_file` / `setup_folder`), loot runs
+  (`DD.ExportRuns`, the Runs view's `dd_export` and `/toolbox loot export`: "loot-runs-<character>.json" = { toolbox =
+  "loot_runs", v = 1, character, exported, runs }, the kept runs merged into the file's by date, start, scene and
+  play time, newest first, at most `DD.EXPORT_MAX`). Harness:
   from `H.apiVersion` 51, `H.S.dataFiles[name] = { data, time }` (kept by `H.restart`), `H.S.dataRefuse`,
   `H.S.folderOpened`; the rate and file limits as documented. `T.DOCS_API` = the API the docs describe (equal to
   build.py's `CLIENT_API_VERSION`; the build checks). `/toolbox api` probes newer functions and the result

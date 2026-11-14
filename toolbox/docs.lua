@@ -80,7 +80,8 @@ D.SECTIONS = {
       .. "compass at that spot (it's the game's beacon, so it replaces yours) when you're in that run's scene. "
       .. "On a newer game client each run also shows as a gold flag on your map and minimap in its scene "
       .. "(hover it for what the run brought in); switch that off with Show runs on the map (Settings, Map & "
-      .. "location).",
+      .. "location). On the newest client, Save runs to a file (under the runs) adds them to a file in Toolbox's "
+      .. "data folder that keeps every run saved there (up to 500), for a spreadsheet.",
     "Loot Tracker's Show dropdown: Looted (what you picked up; what you crafted or gathered is left out "
       .. "unless you tick Include crafted and gathered items in settings), Crafted (the items you took off "
       .. "crafting stations, your crafts per recipe with exceptional and failed, and crafting XP) and Gathered "

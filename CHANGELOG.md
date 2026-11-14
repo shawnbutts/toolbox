@@ -30,6 +30,9 @@ ones included).
   settings and positions to a file in Toolbox's data folder; copied into that folder on another computer, it's listed
   under Setups there to import (and Delete removes the file). Needs a newer game client (Lua API 51).
   `/toolbox settings file <name>`, `folder`.
+- Loot runs to a file: Save runs to a file in the Loot Tracker's Runs view adds your runs to a file in Toolbox's
+  data folder, which keeps every run saved there (up to 500): a longer history than the last 10, and something a
+  spreadsheet can read. Needs a newer game client (Lua API 51). `/toolbox loot export`.
 
 ### Changed
 

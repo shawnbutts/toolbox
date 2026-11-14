@@ -45,7 +45,7 @@ local shown = {}       -- the counts the rows show (name -> n), for the current 
 DD.VIEWS = { { "looted", "Looted" }, { "crafted", "Crafted" }, { "gathered", "Gathered" }, { "runs", "Runs" } }
 
 local HEADER_IDS = { "date", "dd_reset", "dd_today", "summary", "items_summary", "view_note", "value_summary",
-                     "more", "runs_chart", "runs_chart_note" }
+                     "more", "runs_chart", "runs_chart_note", "dd_export" }
 local P = {}           -- Toolbox.Prices (defined below)
 
 local function text(id, class, extra)
@@ -398,6 +398,51 @@ local function fillRunsChart(list)
   return what .. ", oldest to newest. Best: " .. top .. "/h, " .. DD.RunLabel(list[best]) .. "."
 end
 
+-- Saving the runs to a file (API 51, T.Data; owner, 2026-11-14): loot-runs-<character>.json = { toolbox =
+-- "loot_runs", v = 1, character, exported = date, runs = { the loot_runs entries } }, newest first. Each save adds this
+-- character's kept runs to the ones the file has (the same date, start, scene and play time are one run), at most
+-- DD.EXPORT_MAX: a history longer than the D.RUNS_KEEP kept in the game, for a spreadsheet.
+DD.EXPORT_MAX = 500
+function DD.ExportRuns()
+  if not T.Data.Has() then return nil, T.Data.Why("missing") end
+  local who = T.PlayerName()
+  if not who then return nil, "no character is in the world" end
+  local file = T.Data.FileName("loot-runs", who)
+  local function id(r)
+    return tostring(r.date) .. "|" .. tostring(r.at) .. "|" .. tostring(r.scene) .. "|" .. tostring(r.played)
+  end
+  local list, seen, added = {}, {}, 0
+  for _, r in ipairs(T.Daily.Runs()) do
+    if not seen[id(r)] then
+      seen[id(r)] = true
+      list[#list + 1] = r
+    end
+  end
+  local old = T.Data.Read(file)                  -- (none yet: notFound)
+  local oldRuns = type(old) == "table" and old.toolbox == "loot_runs" and type(old.runs) == "table" and old.runs or {}
+  local had = {}
+  for _, r in ipairs(oldRuns) do
+    if T.Daily.IsRun(r) then had[id(r)] = true end
+  end
+  for _, r in ipairs(list) do
+    if not had[id(r)] then added = added + 1 end
+  end
+  for _, r in ipairs(oldRuns) do
+    if T.Daily.IsRun(r) and not seen[id(r)] then
+      seen[id(r)] = true
+      list[#list + 1] = r
+    end
+  end
+  local function key(r) return tostring(r.date) .. " " .. tostring(r.at) end
+  table.sort(list, function(a, b) return key(a) > key(b) end)
+  while #list > DD.EXPORT_MAX do list[#list] = nil end
+  local _, today = T.Today()
+  local ok, why = T.Data.Write(file, { toolbox = "loot_runs", v = 1, character = who,
+                                       exported = type(today) == "string" and today or "", runs = list })
+  if not ok then return nil, T.Data.Why(why) end
+  return file, #list, added
+end
+
 -- The rows of the Runs view (made by rebuildList; text set here).
 local function fillRuns()
   local list = T.Daily.Runs()
@@ -496,6 +541,20 @@ local function build()
     error(err, 0)
   end
 end
+-- The Runs view's "Save runs to a file" (API 51), or an empty label without data files (nothing nil in a spec).
+local function exportButton()
+  if not T.Data.Has() then return UI.Label{ id = "dd_export", text = "", visible = false } end
+  return UI.Button{ id = "dd_export", text = "Save runs to a file", visible = false, style = { marginTop = 2 },
+    tooltip = "Add these runs to a file in Toolbox's data folder (Lua/AddonData), which keeps every run saved there:"
+      .. " for a spreadsheet, or a longer history than the last " .. T.Daily.RUNS_KEEP,
+    onClick = function()
+      local file, n, added = DD.ExportRuns()
+      local said = file and (T.Data.WrittenNote(file) .. ": " .. n .. (n == 1 and " run" or " runs") .. " in it, "
+        .. added .. " new.") or ("Couldn't save them: " .. n .. ".")
+      T.Print(said)
+    end }
+end
+
 makeWindow = function()
   win = UI.Window{
     id = WINDOW_ID, title = "Loot Tracker",
@@ -539,6 +598,7 @@ makeWindow = function()
           text("items_summary", "heading", { marginTop = 3 }),
           text("view_note", "text", { whiteSpace = "wrap" }),
           text("value_summary", "text"),                  -- (dim was too light: owner, 2026-10-04)
+          exportButton(),
         } },
       UI.Scroll{ id = "body", style = { flexGrow = 1 },
         onHover = function(_, over) T.Daily.PopupHover("body", over) end,
@@ -814,6 +874,7 @@ function DD.Refresh(force)
   setHeader()
   local view = DD.View()
   shown = DD.Counts(day, view, prefs.include)
+  T.SetVisible(el.dd_export, view == "runs" and T.Data.Has() and #T.Daily.Runs() > 0)
   if view == "runs" then
     fillRuns()
     return

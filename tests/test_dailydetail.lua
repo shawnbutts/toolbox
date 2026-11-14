@@ -641,4 +641,38 @@ return function(t)
     H.chat("/tbx loot view looted")
     t.eq(chart.visible, false, "only in the Runs view")
   end)
+  t.test("runs to a file (API 51): Save runs to a file adds them to the file's history; once each", function()
+    H.apiVersion = 51
+    local ok, err = pcall(function()
+      H.boot()
+      H.chat("/tbx dd")
+      H.chat("/tbx dd view runs")
+      local w = H.detail()
+      t.eq(w:Find("dd_export").visible, false, "no runs yet")
+      H.chat("/tbx loot reset")
+      H.items({ { "Iron Ore", 4 } })
+      H.goldChange(25)
+      H.advance(90)
+      H.chat("/tbx loot reset")                     -- the run is filed
+      H.advance(2)
+      t.eq(w:Find("dd_export").visible, true)
+      H.click("toolbox_daily_detail", "dd_export")
+      t.ok(H.logged("^Saved as loot%-runs%-tester%.json in Toolbox's data folder.*: 1 run in it, 1 new%."), H.lastLog())
+      local f = H.S.dataFiles["loot-runs-tester.json"].data
+      t.eq(f.toolbox, "loot_runs")
+      t.eq(#f.runs, 1)
+      t.eq(f.runs[1].gold, 25)
+      H.advance(11)
+      H.chat("/tbx loot export")
+      t.ok(H.logged(": 1 run in it, 0 new%."), "the same run isn't added twice: " .. H.lastLog())
+      local old = { date = "2026-01-02", at = "10:00", scene = "Old place", played = 600, gold = 5, kills = 1 }
+      H.S.dataFiles["loot-runs-tester.json"].data.runs[2] = old
+      H.advance(11)
+      H.chat("/tbx loot export")
+      t.ok(H.logged(": 2 runs in it, 0 new%."), "runs no longer kept in the game stay in the file: " .. H.lastLog())
+      t.eq(H.S.dataFiles["loot-runs-tester.json"].data.runs[2].scene, "Old place", "newest first")
+    end)
+    H.apiVersion = nil
+    if not ok then error(err, 0) end
+  end)
 end

@@ -482,6 +482,7 @@ local runs, runsFor = nil, nil
 local function isRun(r)
   return type(r) == "table" and isCount(r.played) and isCount(r.gold) and isCount(r.kills)
 end
+D.IsRun = isRun
 
 -- This character's filed runs, newest first (read once per character).
 function D.Runs()
