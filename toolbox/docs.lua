@@ -355,6 +355,10 @@ D.SECTIONS = {
       .. "2); marks made before keep their look. The list holds the shown overlay's places: Compass points the "
       .. "game's compass at one (it's the game's beacon, so it replaces any you set), Set look gives it the "
       .. "shape and color above, Remove takes it out.",
+    "Share one (a newer game client, Lua API 51): Export saves the shown overlay as a file in Toolbox's data "
+      .. "folder (Lua/AddonData, beside SavedVariables; Folder opens it). Give the file to a friend, who puts it in "
+      .. "their own Toolbox data folder, picks it in the list beside Export and presses Import. It goes to its "
+      .. "own scene from wherever you are, under a free name.",
     "Room: the game keeps at most 256 KB in each of an add-on's saved files, so the overlays of all your "
       .. "scenes share a part of this character's file (thousands of places). The window shows how full it is. "
       .. "A mark that won't fit is refused and named, and nothing is saved. To make room, delete overlays you "

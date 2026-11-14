@@ -1455,4 +1455,121 @@ return function(t)
     t.eq(Toolbox.fileUse.character.keys[key], nil)
     t.eq(H.saved("map_overlays").scenes.Novia, nil)
   end)
+  -- API 51's data files: share an overlay. `fn` runs on such a client; the version goes back however it ends.
+  local function withFiles(fn)
+    H.apiVersion = 51
+    local ok, err = pcall(fn)
+    H.apiVersion = nil
+    if not ok then error(err, 0) end
+  end
+
+  t.test("share: Export writes the shown overlay to a file; Import adds it back under a free name", function()
+    withFiles(function()
+      H.boot()
+      H.S.pos = { 120.4, 30, -45.5 }
+      H.advance(1)
+      H.chat("/tbx mark Bank")
+      H.S.pos = { -10, 0, 7 }
+      H.advance(1)
+      H.chat("/tbx mark Iron vein")
+      H.chat("/tbx overlay window")
+      local win = H.S.windows.toolbox_marks
+      t.ok(win:Find("mw_export"), "the Share row")
+      t.eq(win:Find("mw_files").value, "No overlay files yet")
+      t.eq(win:Find("mw_import").enabled, false)
+      H.click("toolbox_marks", "mw_export")
+      local file = H.S.dataFiles["overlay-novia-places.json"]
+      t.ok(file, "written: " .. tostring(next(H.S.dataFiles)))
+      t.ok(win:Find("mw_msg").text:find("^Saved as overlay%-novia%-places%.json in Toolbox's data folder"),
+        win:Find("mw_msg").text)
+      t.eq(file.data.toolbox, "overlay")
+      t.eq(file.data.raw, "Novia")
+      t.eq(file.data.name, "Places")
+      t.eq(#file.data.places, 2)
+      t.eq(file.data.places[2].name, "Iron vein")
+      t.eq(file.data.places[2].x, -10, "plain numbers, negative too")
+      t.eq(win:Find("mw_files").value, "Places (Novia, 2 places)", "listed at once")
+      H.click("toolbox_marks", "mw_import")
+      t.ok(win:Find("mw_msg").text:find("^Imported Places %(2%) %(2 places%) into Novia, shown now"),
+        win:Find("mw_msg").text)
+      local ov = OV().Shown()
+      t.eq(ov.name, "Places (2)")
+      local m = marks()["ov" .. ov.id .. "-2"]
+      t.ok(m, "its places are markers")
+      t.eq(m.label, "Iron vein")
+      t.eq(m.x, -10)
+      H.restart(nil, true)
+      t.ok(H.S.dataFiles["overlay-novia-places.json"], "the file stays across a restart")
+      t.eq(#Toolbox.Overlays.List("Novia"), 2, "the import was saved")
+    end)
+  end)
+
+  t.test("share: a file goes to its own scene from anywhere; the scene's limit applies", function()
+    withFiles(function()
+      H.boot()
+      H.advance(1)
+      H.chat("/tbx overlay new Ore")
+      H.chat("/tbx mark Spot")
+      H.chat("/tbx overlay export")
+      t.ok(H.logged("^Saved as overlay%-novia%-ore%.json"), H.lastLog())
+      goTo("Ardoris", { 1, 1, 1 })
+      H.chat("/tbx overlay import")
+      t.ok(H.logged("^Overlay files: overlay%-novia%-ore%.json %(Ore, Novia%)"), H.lastLog())
+      H.chat("/tbx overlay import overlay-novia-ore")
+      t.ok(H.logged("^Imported Ore %(2%) %(1 place%) into Novia%."), H.lastLog())
+      t.eq(#Toolbox.Overlays.List(), 0, "nothing in Ardoris")
+      t.eq(#Toolbox.Overlays.List("Novia"), 2)
+      goTo("Novia")
+      for i = 3, Toolbox.Overlays.MAX do H.chat("/tbx overlay new Extra " .. i) end
+      H.chat("/tbx overlay import ore")
+      t.ok(H.logged("^Couldn't import it: Novia has 10 overlays: delete one there first%."), H.lastLog())
+    end)
+  end)
+
+  t.test("share: another player's file is checked value by value", function()
+    withFiles(function()
+      H.boot()
+      H.advance(1)
+      local R = Toolbox.Overlays.ReadFile
+      t.eq(select(2, R({ v = 1, raw = "Novia" })), "it isn't a Toolbox overlay file")
+      t.eq(select(2, R({ toolbox = "overlay", v = 2, raw = "Novia" })),
+        "it's from a newer Toolbox: update Toolbox first")
+      t.eq(select(2, R({ toolbox = "overlay", v = 1, places = {} })), "it doesn't say which scene it's for")
+      t.eq(select(2, R({ toolbox = "overlay", v = 1, raw = "Novia", places = { { name = "x", x = "1", z = 2 } } })),
+        "it has no places")
+      local many = {}
+      for i = 1, 60 do many[i] = { name = "P" .. i, x = i, z = -i, y = 0 } end
+      many[61] = { name = "P1", x = 1, z = 1 }                          -- a name twice
+      many[62] = { name = "Far", x = 1e9, z = 1 }                      -- not a place on any map
+      local o = R({ toolbox = "overlay", v = 1, raw = "Novia", scene = "Novia", name = "Lots|of;stuff",
+                    icon = "rocket", color = "Plaid", places = many })
+      t.eq(#o.places, Toolbox.Overlays.SCENE_MAX, "at most a scene's places")
+      t.eq(o.icon, "pin", "an unknown shape: the first")
+      t.eq(o.color, "Green", "an unknown color: the first")
+      t.no(o.name:find("[|;]"), "no packing separators: " .. o.name)
+      H.S.dataFiles["overlay-bad.json"] = { data = { toolbox = "setup" }, time = 1 }
+      H.S.dataFiles["overlay-good.json"] = { data = { toolbox = "overlay", v = 1, raw = "Novia", name = "Good",
+        places = { { name = "A", x = 1, y = 2, z = 3 } } }, time = 1 }
+      local files = Toolbox.Overlays.Files()
+      t.eq(#files, 1, "a file that isn't an overlay isn't listed")
+      t.eq(files[1].label, "Good (Novia, 1 place)")
+    end)
+  end)
+
+  t.test("share: Folder opens the data folder; an older client has no Share row", function()
+    withFiles(function()
+      H.boot()
+      H.advance(1)
+      H.chat("/tbx overlay window")
+      H.click("toolbox_marks", "mw_folder")
+      t.eq(H.S.folderOpened, 1)
+      t.ok(H.S.windows.toolbox_marks:Find("mw_msg").text:find("^Opened Toolbox's data folder"))
+    end)
+    H.boot()
+    H.advance(1)
+    H.chat("/tbx overlay window")
+    t.eq(H.S.windows.toolbox_marks:Find("mw_export"), nil, "no Share row before API 51")
+    H.chat("/tbx overlay export")
+    t.ok(H.logged("^Couldn't export: this game client can't use files %(it needs Lua API 51%)%."), H.lastLog())
+  end)
 end

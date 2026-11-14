@@ -3399,6 +3399,124 @@ function T.WhatsNew(welcomed)
 end
 
 -- ---------------------------------------------------------------------------
+-- Data files (API 51; owner, 2026-11-14): Toolbox's own JSON files in Lua/AddonData/<add-on>/, one folder for the
+-- install (every character's), kept through updates and uninstall, for what a player takes out of the game or
+-- passes on: a map overlay (hud.lua's OV.Export), a setup (B.SaveFile), the loot runs (DD.ExportRuns). Names
+-- `<kind>-<words>.json` (T.Data.FileName); at most T.Data.MAX files, each written whole or not at all, at most once
+-- in 10 s; a write is done before the call returns. Written as plain values, not T.ForSaving's escapes: every client
+-- with API 51 has the loader fixed for "/" and negative numbers (chaos build 318, 2026-10-12), and an export should
+-- read as it is. A file read is someone else's data: every reader checks each value (T.Data.Read only reads it).
+-- Harness: H.S.dataFiles[name] = { data, time }, H.S.dataRefuse = a reason, H.S.folderOpened.
+-- ---------------------------------------------------------------------------
+local DF = {}
+T.Data = DF
+DF.MAX = 16                           -- files an add-on can have (the docs)
+DF.NAME_MAX = 64                      -- characters before ".json"
+DF.REASONS = {
+  tooMany = "Toolbox's data folder holds its " .. DF.MAX .. " files already: delete one there first",
+  tooOften = "that file was written moments ago: try again in 10 seconds",
+  tooBig = "it's too big for a file (1 MB)",
+  badValue = "it can't be written as a file",
+  badName = "that file name isn't allowed",
+  notFound = "the file isn't there any more",
+  unreadable = "the file can't be read (it was set aside as .unreadable)",
+  diskError = "the game couldn't write to the disk",
+  noAddon = "files can't be used right now",
+  missing = "this game client can't use files (it needs Lua API 51)",
+}
+
+function DF.Has()
+  return type(ShroudWriteDataFile) == "function" and type(ShroudReadDataFile) == "function"
+    and type(ShroudListDataFiles) == "function" and type(ShroudDeleteDataFile) == "function"
+end
+
+-- A reason as player text.
+function DF.Why(reason) return DF.REASONS[reason] or ("the game said " .. tostring(reason)) end
+
+-- `text` as file-name words: lower case letters and digits, joined by "-" ("Iron Ore (west)" -> "iron-ore-west").
+function DF.Slug(text)
+  local s = tostring(text or ""):lower():gsub("[^a-z0-9]+", "-"):gsub("^%-+", ""):gsub("%-+$", "")
+  return s
+end
+
+-- `<kind>-<words>.json` from the parts given, cut to DF.NAME_MAX; "unnamed" when no letters are left.
+function DF.FileName(kind, ...)
+  local words = {}
+  for _, part in ipairs({ ... }) do
+    local s = DF.Slug(part)
+    if s ~= "" then words[#words + 1] = s end
+  end
+  local body = #words > 0 and table.concat(words, "-") or "unnamed"
+  body = (kind .. "-" .. body):sub(1, DF.NAME_MAX):gsub("%-+$", "")
+  return body .. ".json"
+end
+
+-- Writes `value` (a table) as file `name`. Returns true, or false and a reason (DF.REASONS' keys).
+function DF.Write(name, value)
+  if not DF.Has() then return false, "missing" end
+  local ok, done, why = pcall(ShroudWriteDataFile, name, value)
+  if not ok then return false, "diskError" end
+  if done then return true end
+  return false, why or "diskError"
+end
+
+-- File `name` as a table, or nil and a reason.
+function DF.Read(name)
+  if not DF.Has() then return nil, "missing" end
+  local ok, v, why = pcall(ShroudReadDataFile, name)
+  if not ok then return nil, "unreadable" end
+  if type(v) ~= "table" then return nil, why or "unreadable" end
+  return v
+end
+
+function DF.Delete(name)
+  if not DF.Has() then return false, "missing" end
+  local ok, done, why = pcall(ShroudDeleteDataFile, name)
+  if not ok then return false, "diskError" end
+  if done then return true end
+  return false, why or "diskError"
+end
+
+-- Toolbox's files whose names start with `kind` and "-", by name: { { name, size, time } }; empty without files.
+function DF.List(kind)
+  local out = {}
+  if not DF.Has() then return out end
+  local ok, list = pcall(ShroudListDataFiles)
+  if not ok then return out end
+  local prefix = kind and (kind .. "-") or ""
+  for _, f in ipairs(T.List(list)) do
+    local name = T.Field(f, "name")
+    if type(name) == "string" and name:sub(1, #prefix) == prefix then
+      out[#out + 1] = { name = name, size = T.Field(f, "size"), time = T.Field(f, "time") }
+    end
+  end
+  table.sort(out, function(a, b) return a.name < b.name end)
+  return out
+end
+
+-- Whether a file of that name exists.
+function DF.Exists(name)
+  for _, f in ipairs(DF.List()) do
+    if f.name == name then return true end
+  end
+  return false
+end
+
+-- Shows the folder in the system's file browser (a click or a command). Returns true, or false and a reason.
+function DF.OpenFolder()
+  if type(ShroudOpenDataFolder) ~= "function" then return false, "missing" end
+  local ok, done, why = pcall(ShroudOpenDataFolder)
+  if not ok then return false, "diskError" end
+  if done then return true end
+  return false, why or "diskError"
+end
+
+-- The line a player reads after a write: where the file is.
+function DF.WrittenNote(name)
+  return "Saved as " .. name .. " in Toolbox's data folder (Lua/AddonData, beside SavedVariables)"
+end
+
+-- ---------------------------------------------------------------------------
 -- Settings files and reset (/toolbox settings, settings window: Backup & reset)
 -- ---------------------------------------------------------------------------
 -- Backups are the player's own copies of the game's saved-variable files (add-ons can't write files, and a

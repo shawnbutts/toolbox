@@ -2021,6 +2021,114 @@ function OV.Mark(text)
 end
 
 -- ---------------------------------------------------------------------------
+-- Sharing an overlay as a file (API 51, T.Data; owner, 2026-11-14): Export writes the shown overlay to
+-- overlay-<scene>-<name>.json in Toolbox's data folder; a friend puts the file in theirs and imports it, from any
+-- scene (it goes to its own scene, under a free name). The file: { toolbox = "overlay", v = 1, raw, scene, name,
+-- icon, color, places = { { name, x, y, z, icon, color } } }. Another player's file: every value is checked, at most
+-- OV.SCENE_MAX places, and the scene's limits and the map storage apply as to a new overlay.
+-- ---------------------------------------------------------------------------
+OV.FILE_KIND = "overlay"
+
+local function placesText(n) return n .. (n == 1 and " place" or " places") end
+
+-- Overlay `ov` (the shown one) as the file's table.
+function OV.ExportData(ov)
+  local sc = ovData.scenes[ov.raw]
+  local places = {}
+  for _, p in ipairs(OV.Places(ov)) do
+    places[#places + 1] = { name = p.name, x = p.x, y = p.y, z = p.z, icon = p.icon, color = p.color }
+  end
+  return { toolbox = OV.FILE_KIND, v = 1, raw = ov.raw, scene = sc and sc.scene or ov.raw, name = ov.name,
+           icon = ov.icon, color = ov.color, places = places }
+end
+
+-- Writes overlay `ov` (default: the shown one) to its file. Returns the file's name, or nil and why.
+function OV.Export(ov)
+  if not T.Data.Has() then return nil, T.Data.Why("missing") end
+  ov = ov or OV.Shown()
+  if not ov then return nil, "show the overlay to export first" end
+  local data = OV.ExportData(ov)
+  local name = T.Data.FileName(OV.FILE_KIND, data.scene, ov.name)
+  local ok, why = T.Data.Write(name, data)
+  if not ok then return nil, T.Data.Why(why) end
+  return name
+end
+
+-- An overlay file's table checked and cleaned: { raw, scene, name, icon, color, places }, or nil and why.
+function OV.ReadFile(data)
+  if type(data) ~= "table" or data.toolbox ~= OV.FILE_KIND then return nil, "it isn't a Toolbox overlay file" end
+  if data.v ~= 1 then return nil, "it's from a newer Toolbox: update Toolbox first" end
+  local raw = type(data.raw) == "string" and T.Trim(data.raw) or ""
+  if raw == "" or #raw > 128 or raw:find("[%c]") then return nil, "it doesn't say which scene it's for" end
+  local scene = type(data.scene) == "string" and OV.CleanName(data.scene) or nil
+  local name = OV.CleanName(data.name) or "Shared"
+  local icon, color = ovIcon(data.icon), knownColor(data.color) and data.color or OV.COLORS[1][1]
+  local places, names = {}, {}
+  for _, p in ipairs(type(data.places) == "table" and data.places or {}) do
+    local pname = type(p) == "table" and OV.CleanName(p.name)
+    if pname and not names[pname:lower()] and ovNumber(p.x) and ovNumber(p.z) and #places < OV.SCENE_MAX then
+      names[pname:lower()] = true
+      places[#places + 1] = { name = pname, x = p.x, y = ovNumber(p.y) and p.y or 0, z = p.z,
+                              icon = type(p.icon) == "string" and ovIcon(p.icon) or icon,
+                              color = knownColor(p.color) and p.color or color }
+    end
+  end
+  if #places == 0 then return nil, "it has no places" end
+  return { raw = raw, scene = scene or raw, name = name, icon = icon, color = color, places = places }
+end
+
+-- The overlay files in Toolbox's data folder: { { file, name, scene, raw, count, label } } (read once a change).
+local ovFiles = { sig = nil, list = {} }
+function OV.Files()
+  local found = T.Data.List(OV.FILE_KIND)
+  local parts = {}
+  for _, f in ipairs(found) do parts[#parts + 1] = f.name .. "@" .. tostring(f.time) end
+  local sig = table.concat(parts, "|")
+  if sig == ovFiles.sig then return ovFiles.list end
+  local list = {}
+  for _, f in ipairs(found) do
+    local o = OV.ReadFile(T.Data.Read(f.name))
+    if o then
+      list[#list + 1] = { file = f.name, name = o.name, scene = o.scene, raw = o.raw, count = #o.places,
+                          label = o.name .. " (" .. o.scene .. ", " .. placesText(#o.places) .. ")" }
+    end
+  end
+  ovFiles.sig, ovFiles.list = sig, list
+  return list
+end
+
+-- Adds the overlay in file `file` to its scene, under a free name, and shows it there. Returns it, or nil and why.
+function OV.Import(file)
+  ovFollow()
+  local data, why = T.Data.Read(file)
+  if not data then return nil, T.Data.Why(why) end
+  local o, bad = OV.ReadFile(data)
+  if not o then return nil, bad end
+  if OV.OwnCount(o.raw) >= OV.MAX then
+    return nil, o.scene .. " has " .. OV.MAX .. " overlays: delete one there first"
+  end
+  local taken = {}
+  for _, other in ipairs(OV.List(o.raw)) do taken[other.name:lower()] = true end
+  local name, n = o.name, 2
+  while taken[name:lower()] do                  -- "Iron (2)", "Iron (3)"...
+    local suffix = " (" .. n .. ")"
+    name = T.Trim(o.name:sub(1, OV.NAME_MAX - #suffix)) .. suffix
+    n = n + 1
+  end
+  local snap = ovSnapshot()
+  local ov = addOverlay({ raw = o.raw, scene = o.scene }, name)
+  ov.icon, ov.color = o.icon, o.color
+  for i, p in ipairs(o.places) do
+    ov.places[i] = { id = i, name = p.name, raw = o.raw, scene = o.scene, x = p.x, y = p.y, z = p.z, icon = p.icon,
+                     color = p.color }
+  end
+  ov.nextPlace = #o.places + 1
+  local ok, saveWhy = ovSave(snap)
+  if not ok then return nil, saveWhy end
+  return ov, o.scene
+end
+
+-- ---------------------------------------------------------------------------
 -- Auto map (owner, 2026-10-14): resource nodes don't move (though not all are up at once), so while it's on in a
 -- scene, each node you finish (ShroudOnGatherResults: its name) is marked where you stand: in an overlay of its
 -- kind ("Iron Ore", made the first time, the next look in turn) and in the scene's "Gathering" overlay (every kind,
@@ -2862,7 +2970,8 @@ T.AddCommand("overlay", "map overlays, sets of places you mark in a scene, one s
   .. " window (the Map overlays window); auto [on|off] (mark the nodes you gather here); auto fights [on|off]"
   .. " (mark the creatures you kill here); auto ignore [kind],"
   .. " auto unignore <kind> (kinds it skips); scenes (every scene's, and the room they take);"
-  .. " forget <scene> (alone: this scene's)",
+  .. " forget <scene> (alone: this scene's); export (the shown one to a file, to share), import [file] (a"
+  .. " friend's), folder (open the data folder)",
   function(rest)
     local word, args = T.ParseArgs(rest)
     local c = "/" .. T.commands[1] .. " "
@@ -2924,6 +3033,32 @@ T.AddCommand("overlay", "map overlays, sets of places you mark in a scene, one s
       T.Print(ok and ("Auto map " .. want .. " in this scene." .. (want == "on" and (" Each node you gather is"
         .. " marked in an overlay of its kind and in " .. OV.GATHERING .. ".") or ""))
         or ("Couldn't change it: " .. why .. "."))
+    elseif word == "export" then
+      local file, why = OV.Export()
+      T.Print(file and (T.Data.WrittenNote(file) .. ": give it to a friend, who puts it in theirs and imports it"
+        .. " (Map overlays window, Import).") or ("Couldn't export: " .. why .. "."))
+    elseif word == "import" then
+      local files = OV.Files()
+      local want, pick = args:lower(), nil
+      for _, f in ipairs(files) do
+        if want ~= "" and (f.file:lower() == want or f.file:lower() == want .. ".json" or f.name:lower() == want) then
+          pick = f
+        end
+      end
+      if not pick then
+        local names = {}
+        for _, f in ipairs(files) do names[#names + 1] = f.file .. " (" .. f.name .. ", " .. f.scene .. ")" end
+        T.Print(#names > 0 and ("Overlay files: " .. table.concat(names, "; ") .. ". " .. c
+          .. "overlay import <file> adds one.") or (T.Data.Has() and ("No overlay files in Toolbox's data folder ("
+          .. c .. "overlay folder opens it).") or ("Couldn't import: " .. T.Data.Why("missing") .. ".")))
+        return
+      end
+      local made, where = OV.Import(pick.file)
+      T.Print(made and ("Imported " .. made.name .. " (" .. placesText(#OV.Places(made)) .. ") into " .. where .. ".")
+        or ("Couldn't import it: " .. where .. "."))
+    elseif word == "folder" then
+      local ok, why = T.Data.OpenFolder()
+      T.Print(ok and "Opened Toolbox's data folder." or ("Couldn't open it: " .. T.Data.Why(why) .. "."))
     elseif word == "off" then
       local ok, why = OV.Show(nil)
       T.Print(ok and "No overlay shown." or ("Couldn't hide it: " .. why .. "."))
@@ -3237,6 +3372,62 @@ local function mwMark(text)
   T.Print(refused)                      -- in chat too: the window's last line can be cut off (owner, 2026-10-14)
 end
 
+-- The Share row (API 51): the overlay files in Toolbox's data folder, read when the window opens, after a share
+-- action and every OV.FILES_EVERY s while it shows (a friend's file dropped in meanwhile).
+OV.MW_NO_FILES = "No overlay files yet"
+OV.FILES_EVERY = 5
+local mwFiles, mwFilesAt = {}, -math.huge
+function OV.SyncFiles()
+  if not (mw and mwEl.files) then return end
+  mwFilesAt = T.Now()
+  local labels = {}
+  mwFiles = {}
+  for _, f in ipairs(OV.Files()) do
+    if not mwFiles[f.label] then
+      labels[#labels + 1] = f.label
+      mwFiles[f.label] = f
+    end
+  end
+  local any = #labels > 0
+  if not any then labels[1] = OV.MW_NO_FILES end
+  pcall(function()
+    local keep = mwEl.files:GetValue()
+    T.Window.SetChoices(mwEl.files, labels)
+    mwEl.files:SetValue(mwFiles[keep] and keep or labels[1])
+    mwEl.import:SetEnabled(any)
+  end)
+end
+
+local function mwExport()
+  local file, why = OV.Export()
+  mwMsg(file and (T.Data.WrittenNote(file) .. ": give it to a friend to import.")
+    or ("Couldn't export: " .. why .. "."))
+  OV.SyncFiles()
+end
+
+local function mwImport()
+  local f = mwEl.files and mwFiles[mwEl.files:GetValue()]
+  if not f then
+    mwMsg("Put an overlay file in Toolbox's data folder (Folder) first.")
+    return
+  end
+  local ov, where = OV.Import(f.file)
+  if not ov then
+    mwMsg("Couldn't import it: " .. where .. ".")
+    return
+  end
+  local here = hereRaw() == ov.raw
+  mwMsg("Imported " .. ov.name .. " (" .. placesText(#OV.Places(ov)) .. ") into " .. where
+    .. (here and ", shown now." or ": it shows when you're there."))
+end
+
+local function mwFolder()
+  local ok, why = T.Data.OpenFolder()
+  mwMsg(ok and "Opened Toolbox's data folder: overlay files go here."
+    or ("Couldn't open it: " .. T.Data.Why(why) .. "."))
+  OV.SyncFiles()
+end
+
 local function mwBuild()
   local colors = {}
   for i, c in ipairs(OV.COLORS) do colors[i] = c[1] end
@@ -3353,24 +3544,41 @@ local function mwBuild()
       tooltip = "Your map overlays' share of this character's saved file (the game keeps at most 256 KB a file):"
         .. " /" .. T.commands[1] .. " overlay scenes shows what each scene takes" },
   }
+  local share = T.Data.Has()
+  local children = {
+    row({ UI.Label{ text = "Shown", class = "text", style = { marginRight = 6 } }, mwEl.pick }, 0),
+    row({ mwEl.ovname, UI.Button{ id = "mw_new", text = "New", style = { marginLeft = 4 },
+      tooltip = "Make an overlay with this name and show it", onClick = function() mwNew() end },
+      mwEl.rename, mwEl.delete }),
+    row({ UI.Label{ text = "New marks", class = "text", style = { flexGrow = 1 } }, mwEl.icon, mwEl.color }),
+    row({ mwEl.name, UI.Button{ id = "mw_mark", text = "Mark here", style = { marginLeft = 4 },
+      tooltip = "Add where you stand to the shown overlay, in the shape and color above (or to a new overlay,"
+        .. " Places, if you have none)", onClick = function() mwMark() end } }),
+    row({ mwEl.places, mwEl.beacon, mwEl.look, mwEl.remove }),
+    row({ mwEl.autoLine }),
+    row({ mwEl.auto, mwEl.fights, UI.Label{ text = "", style = { flexGrow = 1 } }, mwEl.ignore, mwEl.death }, 2),
+  }
+  if share then                          -- API 51: share the shown overlay as a file, import a friend's
+    mwEl.files = T.Window.Dropdown(UI, { id = "mw_files", choices = { OV.MW_NO_FILES }, value = OV.MW_NO_FILES,
+      style = { flexGrow = 1, flexShrink = 1, marginLeft = 4 },
+      tooltip = "Overlay files in Toolbox's data folder (Lua/AddonData): yours, or ones friends gave you",
+      onChange = function() mwMsg("") end })
+    mwEl.import = UI.Button{ id = "mw_import", text = "Import", style = { marginLeft = 2 },
+      tooltip = "Add this file's overlay to its scene (from anywhere), under a free name",
+      onClick = function() mwImport() end }
+    children[#children + 1] = row({ UI.Button{ id = "mw_export", text = "Export",
+      tooltip = "Save the shown overlay as a file in Toolbox's data folder, to give to a friend",
+      onClick = function() mwExport() end }, mwEl.files, mwEl.import,
+      UI.Button{ id = "mw_folder", text = "Folder", style = { marginLeft = 2 },
+        tooltip = "Open Toolbox's data folder: put a friend's overlay file here, then Import it",
+        onClick = function() mwFolder() end } })
+  end
+  children[#children + 1] = row({ mwEl.msg, mwEl.storage })
   mw = UI.Window{
-    id = MW_ID, title = "Map overlays", width = 420, height = 335, minWidth = 340, minHeight = 295,
-    x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y, escCloses = true,
+    id = MW_ID, title = "Map overlays", width = 420, height = share and 365 or 335, minWidth = 340,
+    minHeight = share and 325 or 295, x = T.Window.DEFAULT_X, y = T.Window.DEFAULT_Y, escCloses = true,
     style = { paddingLeft = 8, paddingRight = 8, paddingTop = 4, paddingBottom = 6 },
-    children = {
-      row({ UI.Label{ text = "Shown", class = "text", style = { marginRight = 6 } }, mwEl.pick }, 0),
-      row({ mwEl.ovname, UI.Button{ id = "mw_new", text = "New", style = { marginLeft = 4 },
-        tooltip = "Make an overlay with this name and show it", onClick = function() mwNew() end },
-        mwEl.rename, mwEl.delete }),
-      row({ UI.Label{ text = "New marks", class = "text", style = { flexGrow = 1 } }, mwEl.icon, mwEl.color }),
-      row({ mwEl.name, UI.Button{ id = "mw_mark", text = "Mark here", style = { marginLeft = 4 },
-        tooltip = "Add where you stand to the shown overlay, in the shape and color above (or to a new overlay,"
-          .. " Places, if you have none)", onClick = function() mwMark() end } }),
-      row({ mwEl.places, mwEl.beacon, mwEl.look, mwEl.remove }),
-      row({ mwEl.autoLine }),
-      row({ mwEl.auto, mwEl.fights, UI.Label{ text = "", style = { flexGrow = 1 } }, mwEl.ignore, mwEl.death }, 2),
-      row({ mwEl.msg, mwEl.storage }),
-    },
+    children = children,
   }
 end
 
@@ -3397,6 +3605,7 @@ function OV.ToggleWindow()
   end
   mwKey = nil
   OV.SyncWindow()
+  OV.SyncFiles()
   return true
 end
 
@@ -3406,6 +3615,7 @@ function OV.Tick()
   if not mw then return end
   if mwArmed and T.Now() - mwArmed.at > OV.CONFIRM then mwDisarm() end
   OV.SyncWindow()
+  if mwEl.files and T.Now() - mwFilesAt >= OV.FILES_EVERY and OV.IsWindowShown() then OV.SyncFiles() end
 end
 
 -- ---------------------------------------------------------------------------

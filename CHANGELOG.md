@@ -22,6 +22,10 @@ ones included).
   moved and how fast: "Spent 70,000  42,000/h  (pool -20,000, -12,000/h)"; the line above it now says what it
   counts: "Earned +36,000  72,000/h" ("Net" with XP lost subtracted). A session already running when you update
   counts from then and says so ("Spent 800 since 14:05"). `/toolbox xp debug` prints the pools behind it.
+- Share a map overlay: Export in the Map overlays window saves the shown overlay as a file in Toolbox's data folder
+  (Lua/AddonData, beside SavedVariables; Folder opens it). Give it to a friend, who puts it in their own data folder,
+  picks it in the list and presses Import: it goes to its own scene from wherever you are, under a free name. Needs a
+  newer game client (Lua API 51). `/toolbox overlay export`, `import`, `folder`.
 
 ### Changed
 

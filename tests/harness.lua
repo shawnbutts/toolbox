@@ -750,6 +750,83 @@ local function install_api()
   else
     ShroudGetNameplateRect, ShroudGetNameplateRects = nil, nil
   end
+  -- API 51: the add-on's data files (docs, "Add-on data files"), kept in H.S.dataFiles[name] = { data, time }
+  -- across reloads and restarts. Names 1-64 of [A-Za-z0-9_-] and ".json"; 16 files; 1 MB (H.JsonSize); one write a
+  -- file in 10 s and 4 an add-on in 10 s (ShroudTime); no function / cycle / nesting past 64. H.S.dataRefuse = a
+  -- reason refuses every write; H.S.folderOpened counts ShroudOpenDataFolder (a gesture).
+  if (H.apiVersion or 25) >= 51 then
+    S.dataFiles = S.dataFiles or {}
+    S.dataWrites = S.dataWrites or {}
+    local function goodName(name)
+      return type(name) == "string" and #name <= 69 and name:match("^[A-Za-z0-9_%-]+%.json$") ~= nil
+        and #name - 5 >= 1 and #name - 5 <= 64
+    end
+    local function plain(v, depth, seen)
+      local kind = type(v)
+      if kind == "string" or kind == "boolean" then return true end
+      if kind == "number" then return v == v and v ~= math.huge and v ~= -math.huge end
+      if kind ~= "table" or depth > 64 or seen[v] then return false end
+      seen[v] = true
+      for k, x in pairs(v) do
+        if (type(k) ~= "string" and type(k) ~= "number") or not plain(x, depth + 1, seen) then return false end
+      end
+      seen[v] = nil
+      return true
+    end
+    ShroudWriteDataFile = function(name, value)
+      if not goodName(name) then return false, "badName" end
+      if type(value) ~= "table" or not plain(value, 1, {}) then return false, "badValue" end
+      if S.dataRefuse then return false, S.dataRefuse end
+      local now = ShroudTime
+      local recent = {}
+      for _, w in ipairs(S.dataWrites) do
+        if now - w.at < 10 then recent[#recent + 1] = w end
+      end
+      S.dataWrites = recent
+      if #recent >= 4 then return false, "tooOften" end
+      for _, w in ipairs(recent) do
+        if w.name == name then return false, "tooOften" end
+      end
+      if not S.dataFiles[name] then
+        local n = 0
+        for _ in pairs(S.dataFiles) do n = n + 1 end
+        if n >= 16 then return false, "tooMany" end
+      end
+      if H.JsonSize(value) > 1024 * 1024 then return false, "tooBig" end
+      S.dataFiles[name] = { data = copy(value), time = math.floor(S.clock or 1700000000) }
+      recent[#recent + 1] = { name = name, at = now }
+      return true, "ok"
+    end
+    ShroudReadDataFile = function(name)
+      if not goodName(name) then return nil, "badName" end
+      local f = S.dataFiles[name]
+      if not f then return nil, "notFound" end
+      if f.unreadable then return nil, "unreadable" end
+      return copy(f.data), "ok"
+    end
+    ShroudDeleteDataFile = function(name)
+      if not goodName(name) then return false, "badName" end
+      if not S.dataFiles[name] then return false, "notFound" end
+      S.dataFiles[name] = nil
+      return true, "ok"
+    end
+    ShroudListDataFiles = function()
+      local out = {}
+      for name, f in pairs(S.dataFiles) do
+        out[#out + 1] = { name = name, size = H.JsonSize(f.data), time = f.time }
+      end
+      table.sort(out, function(a, b) return a.name < b.name end)
+      return out
+    end
+    ShroudOpenDataFolder = function()
+      if not S.gesture then return false, "needsGesture" end
+      S.folderOpened = (S.folderOpened or 0) + 1
+      return true, "ok"
+    end
+  else
+    ShroudWriteDataFile, ShroudReadDataFile, ShroudDeleteDataFile = nil, nil, nil
+    ShroudListDataFiles, ShroudOpenDataFolder = nil, nil
+  end
   -- Worn items (documented fields; empty slots skipped). Game objects when H.S.buffObjects is set.
   ShroudGetEquipmentItems = function()
     if not S.char.present then return {} end
@@ -1936,8 +2013,9 @@ end
 function H.restart(time, flushFirst)
   if flushFirst then ShroudFlushSavedVars() end
   local disk, char, date, serverTime, buffs, mode = S.disk, S.char, S.date, S.serverTime, S.buffs, S.durationMode
-  local social, notes, gear, vigor = S.social, S.notes, S.gear, S.vigor
+  local social, notes, gear, vigor, dataFiles = S.social, S.notes, S.gear, S.vigor, S.dataFiles
   fresh(disk)
+  S.dataFiles = dataFiles                 -- the add-on's data folder, on disk
   -- the character's buffs and guild live on the server: they survive a client restart
   S.char, S.date, S.serverTime, S.buffs, S.durationMode = char, date, serverTime, buffs, mode
   S.social, S.notes, S.gear, S.vigor = social, notes, gear, vigor

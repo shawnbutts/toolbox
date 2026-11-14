@@ -190,6 +190,8 @@ newest client the full map's corner names what Toolbox shows there ("Toolbox: Ga
 overlays a scene, with room for thousands of places in all. Mark as you go in the
 small **Map overlays** window, where you also make, rename and delete them, and **Mark here** marks where you stand:
 the pin on the location strip opens it (or the button under **Map & location** in the settings).
+Share one with a friend: **Export** saves the shown overlay as a file in Toolbox's data folder, and your friend puts
+it in theirs and presses **Import** (a newer game client, Lua API 51).
 The location strip names the overlay the map shows, and its arrows step through them.
 Auto map, on by default in adventure areas and off in towns (a switch per scene), marks every resource node you
 gather there: in an overlay of its kind and in

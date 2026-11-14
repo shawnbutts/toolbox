@@ -178,7 +178,13 @@ into one if a new file is ever needed).
   `Hud.Init(places)` keeps a strip the new character never placed where it was (`Hud.Places`). Setups
   (owner, 2026-10-04: settings stay per character, "managed individually, but easily copied"): the ACCOUNT
   file is per computer ("on this install"), so it is the exchange: every character's settings are copied there
-  as it plays, named ones on Export, and `B.Import` copies one in and restarts the modules (`T.Restart`). `T.DOCS_API` = the API the docs describe (equal to
+  as it plays, named ones on Export, and `B.Import` copies one in and restarts the modules (`T.Restart`).
+  Data files (API 51; owner, 2026-11-14): `T.Data` (DF) wraps `ShroudWriteDataFile` and friends
+  (`DF.Has`, `Write`, `Read`, `List(kind)`, `Delete`, `OpenFolder`, `DF.FileName(kind, ...)` = "<kind>-<words>.json",
+  `DF.Why(reason)`), plain values (no `T.ForSaving`: every API 51 client has the loader fixed), and every reader checks
+  a file's values (another player's data). Users: overlays (`OV.Export` / `OV.Import`), setups, loot runs. Harness:
+  from `H.apiVersion` 51, `H.S.dataFiles[name] = { data, time }` (kept by `H.restart`), `H.S.dataRefuse`,
+  `H.S.folderOpened`; the rate and file limits as documented. `T.DOCS_API` = the API the docs describe (equal to
   build.py's `CLIENT_API_VERSION`; the build checks). `/toolbox api` probes newer functions and the result
   events (`T.ProbeEvent`, `T.ProbeLines`).
 - `xp.lua`: `Toolbox.XP`, a pure model over a plain-data session (header comment). Time is passed in. A
@@ -348,6 +354,13 @@ into one if a new file is ever needed).
   ms a call in game, 2026-10-14; harness `H.S.water`, `H.S.sceneWater`, `H.S.noWater`); controls (and its Position rows: `POSITIONED`'s
   page field) on the "Map & location" page (`C.MapSection`, key "map", with the run markers' toggle; owner, 2026-10-13:
   the home for map features to come).
+  Sharing (owner, 2026-11-14; API 51, `T.Data`): the window's Share row (`mw_export`, `mw_files`, `mw_import`,
+  `mw_folder`; only when `T.Data.Has()`, the window 30 px taller), `/toolbox overlay export|import [file]|folder`:
+  `OV.Export` writes the shown overlay to "overlay-<scene>-<name>.json" ({ toolbox = "overlay", v = 1, raw, scene,
+  name, icon, color, places = { { name, x, y, z, icon, color } } }); `OV.Files` lists the folder's (read once a
+  change, `OV.SyncFiles` at open, after a share action and every `OV.FILES_EVERY` s); `OV.ReadFile` checks a file
+  (another player's) and `OV.Import` adds it to ITS scene from anywhere, under a free name (" (2)"), within `OV.MAX`
+  and the map storage (`ovSave`).
   The shown overlay's line (owner, 2026-10-18; setting `overlay`, `LOC.UpdateOverlay` on an `OV.version` / scene /
   character change; "Map: no overlays here" without the arrows in a scene with none, owner 2026-10-18: hidden, it
   looked missing): `<` / `>` buttons (`loc_ov_prev`, `loc_ov_next`, before the text so
@@ -1325,6 +1338,9 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - `os.date` in the sandbox (feature-detected; fallback: the date part of `ShroudServerTime`).
 - XP spent (`XP.Spent`): that XP lost on a death comes out of the pool too (else spent reads low by the loss), and
   that skills take XP only from the pool (`/toolbox xp debug` prints the pools, readings and spent).
+- Data files (API 51): that the game's file reader takes "/", negative numbers and non-ASCII text in what Toolbox
+  writes plainly (the saved-variable loader's fixes, chaos build 318, assumed to cover it), and what a write of a big
+  table costs in MoonSharp (time `/toolbox perf` around an export).
 - `ShroudOnItemsGained` names as stable keys (localized; same-named items merge); whether they match
   SotANET's names (English) for prices.
 - Which values the saved-variable loader refuses: "\/" and a negative number for certain; exponent forms ("1E-05"),

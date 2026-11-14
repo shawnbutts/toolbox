@@ -7,7 +7,7 @@
 
 std = "lua52"
 max_line_length = 120
-exclude_files = { "dist/", "tmp/" }   -- build output and the local working area; toolbox/ is checked
+exclude_files = { "dist/", "tmp/", ".claude/" }   -- build output, the local working area and agents' worktrees
 -- 311 "value assigned to a local is unused": every local starts with an explicit `= nil`
 -- (in game a bare `local x` seemed to keep an old value; tools/build.py enforces it), and those
 -- defaults are often overwritten before use on purpose.
