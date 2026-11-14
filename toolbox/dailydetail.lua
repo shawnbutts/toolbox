@@ -997,10 +997,10 @@ end
 -- days), sold90d, lastPrice, lastSoldAt } }, missing = { names with no sales } }.
 -- Through ShroudHttpGet: the manifest declares "network" and the host, and the player must
 -- switch Internet on for Toolbox in the add-on manager. Only item names are sent. Prices are
--- kept per account, across reloads and restarts, for P.MAX_AGE (24 hours) after they were
--- fetched (by the local clock; without one, until local midnight): they barely move (90-day
--- averages), so each name is looked up at most once a day. /toolbox dd values refresh forgets
--- them all. Requests are spaced P.GAP apart (the client allows about 6 a minute), one at a
+-- kept per account, across reloads and restarts, for P.MAX_AGE (3 days; 24 hours until 2026-11-14) after they
+-- were fetched (by the local clock; without one, until local midnight): they barely move (90-day averages; owner,
+-- 2026-11-14: fewer SotANET calls), so each name is looked up at most every 3 days. /toolbox dd values refresh
+-- forgets them all. Requests are spaced P.GAP apart (the client allows about 6 a minute), one at a
 -- time; one that never answers is given up after P.TIMEOUT.
 -- Saved var "prices" (account scope): { v = 1, items = { [lower name] = { avg = n|false,
 -- sold = n, last = "ISO date"|"", day = Toolbox.Today() key, at = Toolbox.Clock() (if any),
@@ -1017,7 +1017,7 @@ P.GAP = 12            -- seconds between requests
 P.RETRY = 60          -- seconds after a failed or refused request
 P.TIMEOUT = 40        -- seconds before a request with no answer is given up (a reload drops it)
 P.MAX_KEEP = 600      -- prices kept: about 70 KB of the account file's 256 KB (2,000 were most of it)
-P.MAX_AGE = 86400     -- seconds a price is used before it is looked up again
+P.MAX_AGE = 3 * 86400 -- seconds a price is used before it is looked up again
 
 -- A connection test's steps go to chat and to the settings window's line under its button
 -- (P.testStatus, shown by Toolbox.Config.Sync).

@@ -28,6 +28,8 @@ ones included).
 - Estimated values (Settings, XP & Loot) no longer look up quest items on SotANET: the Loot Tracker shows "quest"
   for them and leaves them out of the kinds priced. Needs a newer game client (Lua API 52); a quest item is
   remembered once looted.
+- Estimated values keep each price for 3 days instead of 24 hours (they're 90-day averages, so they barely move):
+  fewer lookups on SotANET.
 - `/toolbox perf` tells a frame-rate limit from a slow game: with the game held at a steady low rate (a limit in its
   settings), the report says so and no longer suggests perf quiet, which can't raise it.
 

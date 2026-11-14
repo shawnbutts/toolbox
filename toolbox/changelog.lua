@@ -11,6 +11,7 @@ Toolbox.CHANGELOG = {
   { "item", "XP Detailed shows what your skills spent from each pool this session, per hour, and how far the unspent pool moved and how fast: \"Spent 70,000  42,000/h  (pool -20,000, -12,000/h)\"; the line above it now says what it counts: \"Earned +36,000  72,000/h\" (\"Net\" with XP lost subtracted). A session already running when you update counts from then and says so (\"Spent 800 since 14:05\"). /toolbox xp debug prints the pools behind it." },
   { "section", "Changed" },
   { "item", "Estimated values (Settings, XP & Loot) no longer look up quest items on SotANET: the Loot Tracker shows \"quest\" for them and leaves them out of the kinds priced. Needs a newer game client (Lua API 52); a quest item is remembered once looted." },
+  { "item", "Estimated values keep each price for 3 days instead of 24 hours (they're 90-day averages, so they barely move): fewer lookups on SotANET." },
   { "item", "/toolbox perf tells a frame-rate limit from a slow game: with the game held at a steady low rate (a limit in its settings), the report says so and no longer suggests perf quiet, which can't raise it." },
   { "version", "1.10.0 - 2026-10-30" },
   { "section", "Added" },

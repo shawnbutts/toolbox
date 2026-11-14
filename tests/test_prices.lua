@@ -190,7 +190,7 @@ return function(t)
     t.eq(row("Iron Ore")[3], "200g", "shown at once from the cache")
   end)
 
-  t.test("a price is kept 24 hours after it was fetched, across midnight", function()
+  t.test("a price is kept 3 days after it was fetched, across midnight", function()
     withValues()
     H.S.clock = 1000000
     H.items({ { "Iron Ore", 40 } })
@@ -204,9 +204,12 @@ return function(t)
     H.advance(Toolbox.Prices.GAP)
     t.eq(#H.S.requests, 1, "still fresh: no lookup")
     t.eq(row("Iron Ore")[3], "10g", "shown at once from the cache")
-    H.S.clock = 1000000 + 86400 + 1
+    H.S.clock = 1000000 + 2 * 86400
+    H.advance(Toolbox.DailyDetail.FULL_EVERY + 3)
+    t.eq(#H.S.requests, 1, "two days old: still fresh")
+    H.S.clock = 1000000 + 3 * 86400 + 1
     H.advance(Toolbox.DailyDetail.FULL_EVERY + 3)            -- noticed at the next full refresh
-    t.eq(#H.S.requests, 2, "a day old: looked up again")
+    t.eq(#H.S.requests, 2, "3 days old: looked up again")
   end)
 
   t.test("without a local clock, prices last until midnight", function()
