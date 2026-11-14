@@ -240,7 +240,9 @@ Everything above is in the menu and the settings. If you'd rather type, these do
 Settings are saved per character. To copy another character's setup, yours or someone else's on the same
 computer, pick it under **Setups** in the settings window and press **Import**. A character's setup is listed
 once its player ticks **List this character's setup for other characters** (off at first); **Export** saves
-yours under a name. An import is a copy, so later changes stay each character's own.
+yours under a name. An import is a copy, so later changes stay each character's own. To take a setup to another
+computer (a newer game client, Lua API 51), type a name and press **Save to a file**, then copy the file from
+Toolbox's data folder (**Open folder**) into that folder on the other computer: it's listed under **Setups** there.
 
 The files are the game's saved-variable files in `Lua/SavedVariables`: `toolbox.<character>.character.json`
 for each character, and `toolbox.account.json` shared by all (it holds the setups). To back up, press

@@ -26,6 +26,10 @@ ones included).
   (Lua/AddonData, beside SavedVariables; Folder opens it). Give it to a friend, who puts it in their own data folder,
   picks it in the list and presses Import: it goes to its own scene from wherever you are, under a free name. Needs a
   newer game client (Lua API 51). `/toolbox overlay export`, `import`, `folder`.
+- Take a setup to another computer: Save to a file (Settings, Menu, setups, backup & reset) writes this character's
+  settings and positions to a file in Toolbox's data folder; copied into that folder on another computer, it's listed
+  under Setups there to import (and Delete removes the file). Needs a newer game client (Lua API 51).
+  `/toolbox settings file <name>`, `folder`.
 
 ### Changed
 

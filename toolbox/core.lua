@@ -1217,7 +1217,7 @@ add("reset", "start a new XP session", function()
 end)
 
 add("settings", "settings files and setups (save, reset, cancel, backup, backups, restore <n>; setups, export,"
-    .. " import, delete <name>; share on|off)",
+    .. " import, delete <name>; share on|off; file <name> (save a setup to a file), folder)",
     function(rest)
   local B2 = T.Backup
   local word, name = T.ParseArgs(rest)
@@ -1283,6 +1283,14 @@ add("settings", "settings files and setups (save, reset, cancel, backup, backups
     local ok, saved = B2.Export(name)
     T.Print(ok and ("Exported your settings and positions as '" .. saved .. "'. Any character can import it.")
       or ("Couldn't export: " .. saved .. ". Use " .. cmd .. " export <name>."))
+  elseif word == "file" then
+    local ok, saved = B2.SaveFile(name)
+    T.Print(ok and (T.Data.WrittenNote(saved) .. ". Copy it to that folder on another computer, then import it there"
+      .. " (Settings, Menu, setups, backup & reset).") or ("Couldn't save it: " .. saved .. ". Use " .. cmd
+      .. " file <name>."))
+  elseif word == "folder" then
+    local ok, why = T.Data.OpenFolder()
+    T.Print(ok and "Opened Toolbox's data folder." or ("Couldn't open it: " .. T.Data.Why(why) .. "."))
   elseif word == "import" then
     local s = B2.FindSetup(name)
     if not s then
@@ -1308,7 +1316,7 @@ add("settings", "settings files and setups (save, reset, cancel, backup, backups
     if B2.Pending() then T.Print("A reset is waiting: type /lua reload to apply it (" .. cmd .. " cancel).") end
   else
     T.Print("Use " .. cmd .. " (where the files are), " .. cmd .. " save, reset or cancel, or " .. cmd
-      .. " setups, export <name>, import <name>, delete <name> or share on|off.")
+      .. " setups, export <name>, import <name>, delete <name>, share on|off, file <name> or folder.")
   end
   T.Config.Sync()
 end)
@@ -3882,6 +3890,7 @@ function B.Setups()
     if a.character ~= b.character then return not a.character end
     return a.name:lower() < b.name:lower()
   end)
+  for _, f in ipairs(B.SetupFiles()) do list[#list + 1] = f end      -- files last, as the folder sorts them
   return list
 end
 
@@ -3954,6 +3963,68 @@ local function store(name, character)
   local old = (character and "setup_character:" or "setup:") .. name:lower()
   if old ~= key then T.DeleteSaved(old, ACCOUNT) end   -- 1.6.0's copy under the plain name
   return true
+end
+
+-- Setup files (API 51, T.Data; owner, 2026-11-14): a setup carried to another computer. "Save to a file" writes this
+-- character's settings and positions to setup-<name>.json ({ toolbox = "setup", v = 1, name, when, keys = { [a B.KEYS
+-- key] = its saved table } }, the saved form as a named setup holds it); the files in the folder are listed among the
+-- setups ("<name> (file, date)"), and Import / Delete work on them as on the others. A file can come from anyone: its
+-- keys are only B.KEYS', each value goes through T.SetSavedVar's checks, and the modules check what they read.
+B.FILE_KIND = "setup"
+local setupFileCache = { sig = nil, list = {} }
+
+-- A setup file's table checked: { name, when, keys }, or nil and why.
+function B.ReadSetupFile(data)
+  if type(data) ~= "table" or data.toolbox ~= B.FILE_KIND then return nil, "it isn't a Toolbox setup file" end
+  if data.v ~= 1 then return nil, "it's from a newer Toolbox: update Toolbox first" end
+  local name = B.CleanName(data.name)
+  if not name or type(data.keys) ~= "table" then return nil, "it has no settings in it" end
+  local keys, any = {}, false
+  for _, key in ipairs(B.KEYS) do
+    local v = data.keys[key]
+    if key ~= B.SHARE and (type(v) == "table" or type(v) == "boolean" or type(v) == "number"
+        or type(v) == "string") then
+      keys[key], any = v, true
+    end
+  end
+  if not any then return nil, "it has no settings in it" end
+  return { name = name, when = type(data.when) == "string" and data.when:sub(1, 10) or "", keys = keys }
+end
+
+-- The setup files in Toolbox's data folder, as B.Setups lists them (read once a change).
+function B.SetupFiles()
+  local found = T.Data.List(B.FILE_KIND)
+  local parts = {}
+  for _, f in ipairs(found) do parts[#parts + 1] = f.name .. "@" .. tostring(f.time) end
+  local sig = table.concat(parts, "|")
+  if sig == setupFileCache.sig then return setupFileCache.list end
+  local list = {}
+  for _, f in ipairs(found) do
+    local data = B.ReadSetupFile(T.Data.Read(f.name))
+    if data then
+      list[#list + 1] = { name = data.name, file = f.name, character = false, when = data.when,
+        label = data.name .. " (file" .. (data.when ~= "" and (", " .. data.when) or "") .. ")" }
+    end
+  end
+  setupFileCache.sig, setupFileCache.list = sig, list
+  return list
+end
+
+-- Saves this character's settings and positions to a file named after `text`. Returns true and the file's name, or
+-- false and why.
+function B.SaveFile(text)
+  if not T.Data.Has() then return false, T.Data.Why("missing") end
+  local name = B.CleanName(text)
+  if not name then return false, "give it a name" end
+  T.SavePrefs()                          -- where the windows and strips are now
+  local keys = currentSettings()
+  if not keys then return false, "this character has no settings of its own yet" end
+  local _, when = T.Today()
+  local file = T.Data.FileName(B.FILE_KIND, name)
+  local ok, why = T.Data.Write(file, { toolbox = B.FILE_KIND, v = 1, name = name,
+                                       when = type(when) == "string" and when or "", keys = keys })
+  if not ok then return false, T.Data.Why(why) end
+  return true, file
 end
 
 -- Keeps this character's own copy up to date (from T.Flush, after a setting changed). Never at the login
@@ -4469,8 +4540,9 @@ function B.FindSetup(text)
   local want = B.CleanName(text)
   if not want then return nil end
   want = want:lower()
+  local label = T.Trim(tostring(text)):lower()     -- a label is longer than a name can be
   for _, s in ipairs(B.Setups()) do
-    if s.name:lower() == want or s.label:lower() == want then return s end
+    if s.name:lower() == want or s.label:lower() == want or s.label:lower() == label then return s end
   end
   return nil
 end
@@ -4520,7 +4592,16 @@ end
 -- old values back and changes nothing (review, 2026-10-04). Returns true, or false and why.
 function B.Import(s)
   if type(s) ~= "table" then return false, "pick a setup" end
-  local saved = ShroudGetSavedVar(foundSetupKey(s.name, s.character), ACCOUNT)
+  local saved = nil
+  if s.file then
+    local data, why = T.Data.Read(s.file)
+    if not data then return false, T.Data.Why(why) end
+    local bad = nil
+    saved, bad = B.ReadSetupFile(data)
+    if not saved then return false, bad end
+  else
+    saved = ShroudGetSavedVar(foundSetupKey(s.name, s.character), ACCOUNT)
+  end
   if type(saved) ~= "table" or type(saved.keys) ~= "table" then return false, "that setup is gone" end
   local values = importValues(saved.keys)
   B.lastBackup = nil
@@ -4557,6 +4638,11 @@ end
 -- lists its setup). Returns true when it was there and is gone; false and why otherwise.
 function B.DeleteSetup(s)
   if type(s) ~= "table" then return false, "pick a setup" end
+  if s.file then
+    local ok, why = T.Data.Delete(s.file)
+    if not ok then return false, why == "notFound" and "it wasn't there" or T.Data.Why(why) end
+    return true
+  end
   local list, kept = allSetups(), {}
   for _, e in ipairs(list) do
     if not (e.name:lower() == s.name:lower() and (e.character == true) == s.character) then kept[#kept + 1] = e end

@@ -438,7 +438,9 @@ D.SECTIONS = {
       .. "else's on this computer, pick it under Setups (Settings, Menu, setups, backup & reset) and press "
       .. "Import twice. A character's setup is listed once its player ticks List this character's setup (off "
       .. "at first); Export saves yours under a name (Raid layout). An import is a copy: later changes stay "
-      .. "each character's own.",
+      .. "each character's own. To take a setup to another computer (a newer game client, Lua API 51): type a "
+      .. "name and press Save to a file, then copy the file from Toolbox's data folder (Open folder) to that "
+      .. "folder on the other computer: it's listed there under Setups, to import.",
     "Your settings are in the game's files in Lua/SavedVariables: toolbox.<character>.character.json for "
       .. "each character, and toolbox.account.json (the setups). To back up, press Save now and copy them. To "
       .. "restore or move computers, quit the game and copy them back.",

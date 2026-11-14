@@ -344,4 +344,73 @@ return function(t)
     switchTo("Dad")
     t.eq(names(), "", "Mom's old copy is gone")
   end)
+  -- API 51's data files: a setup carried to another computer as a file.
+  local function withFiles(fn)
+    H.apiVersion = 51
+    local ok, err = pcall(fn)
+    H.apiVersion = nil
+    if not ok then error(err, 0) end
+  end
+
+  t.test("files: Save to a file, then on another computer it's listed and imported", function()
+    withFiles(function()
+      momPlays()
+      H.chat("/tbx config")
+      local w = H.config()
+      t.ok(w:Find("setup_file"), "the Files row")
+      w:Find("setup_name"):SetText("Raid layout")        -- typed, not submitted (Enter exports)
+      H.click("toolbox_config", "setup_file")
+      local file = H.S.dataFiles["setup-raid-layout.json"]
+      t.ok(file, "written")
+      t.ok(w:Find("setup_msg").text:find("^Saved as setup%-raid%-layout%.json in Toolbox's data folder"),
+        w:Find("setup_msg").text)
+      t.eq(file.data.toolbox, "setup")
+      t.eq(file.data.name, "Raid layout")
+      t.ok(file.data.keys.buffbar, "her settings")
+      t.eq(file.data.keys.setup_share, nil, "not the sharing choice")
+      local carried = H.copy(H.S.dataFiles)
+      H.boot()                                        -- another computer: nothing in its account file
+      H.S.dataFiles = carried
+      H.S.char.name = "Pat"
+      H.reload()
+      t.ok(names():find("^Raid layout %(file, "), names())
+      t.no(Toolbox.BuffBar.IsEnabled())
+      H.chat("/tbx settings import Raid layout")
+      t.ok(H.logged("Imported 'Raid layout'"), H.lastLog())
+      t.ok(Toolbox.BuffBar.IsEnabled(), "her buff bar")
+      t.eq(Toolbox.BuffBar.GetSize(), 30)
+      t.eq(H.S.frames.toolbox_buffs.x, 640, "where she keeps it")
+      H.chat("/tbx settings delete Raid layout")
+      t.eq(H.S.dataFiles["setup-raid-layout.json"], nil, "Delete takes the file away")
+      t.eq(names(), "")
+    end)
+  end)
+
+  t.test("files: only Toolbox's settings keys are taken from a file; others aren't listed", function()
+    withFiles(function()
+      H.boot()
+      H.advance(1)
+      H.S.dataFiles["setup-odd.json"] = { data = { toolbox = "setup", v = 1, name = "Odd/one", when = "2026-11-14",
+        keys = { buffbar = { show = true, size = 40 }, setup_share = true, map_overlays = { v = 3 },
+                 session = { v = 1 } } }, time = 5 }
+      H.S.dataFiles["setup-empty.json"] = { data = { toolbox = "setup", v = 1, name = "Empty", keys = {} }, time = 5 }
+      H.S.dataFiles["setup-overlay.json"] = { data = { toolbox = "overlay", v = 1 }, time = 5 }
+      H.S.dataFiles["setup-new.json"] = { data = { toolbox = "setup", v = 2, name = "New", keys = {} }, time = 5 }
+      t.eq(names(), "Odd one (file, 2026-11-14)")
+      H.chat("/tbx settings import Odd one (file, 2026-11-14)")
+      t.ok(H.logged("Imported 'Odd one'"), H.lastLog())
+      t.eq(Toolbox.BuffBar.GetSize(), 40)
+      t.eq(H.saved("setup_share"), nil, "the sharing choice stays this character's")
+      t.eq(H.saved("session") and H.saved("session").v == 1 and H.saved("session").xp, nil, "not a stat key")
+      t.no(H.saved("map_overlays"), "nor the overlays")
+    end)
+  end)
+
+  t.test("files: an older client has no Files row; the command says why", function()
+    H.boot()
+    H.chat("/tbx config")
+    t.eq(H.config():Find("setup_file"), nil)
+    H.chat("/tbx settings file Raid")
+    t.ok(H.logged("^Couldn't save it: this game client can't use files %(it needs Lua API 51%)"), H.lastLog())
+  end)
 end

@@ -1429,7 +1429,10 @@ local function pickedSetup()
 end
 
 -- Who armed it is part of it (review, 2026-10-07, 12): a click after a character switch only asks again.
-local function setupId(s) return tostring(T.settingsFor) .. ">" .. (s.character and "c:" or "n:") .. s.name:lower() end
+local function setupId(s)
+  return tostring(T.settingsFor) .. ">" .. (s.file and ("f:" .. s.file) or ((s.character and "c:" or "n:")
+    .. s.name:lower()))
+end
 
 -- Puts both buttons back (another pick, another list, an action done, or their time up when `stale` only).
 local function disarmSetups(staleOnly)
@@ -1525,14 +1528,43 @@ function C.ExportSetup(text)
   C.Sync()
 end
 
+-- Setup files (API 51): this character's settings and positions saved to a file, for another computer.
+function C.SaveSetupFile()
+  local field = el.setup_name
+  local ok, saved = T.Backup.SaveFile(field and field:GetText() or "")
+  setText("setup_msg", ok and (T.Data.WrittenNote(saved) .. ". Copy it to that folder on another computer: it's"
+    .. " listed here to import.") or ("Couldn't save it: " .. saved .. "."))
+  C.setupSig = nil
+  C.Sync()
+end
+
+function C.OpenDataFolder()
+  local ok, why = T.Data.OpenFolder()
+  setText("setup_msg", ok and "Opened Toolbox's data folder: put a setup file from another computer here."
+    or ("Couldn't open it: " .. T.Data.Why(why) .. "."))
+  C.setupSig = nil
+  C.Sync()
+end
+
 function C.SetupSection()
   C.setupSig = nil                     -- new controls: filled by the next Sync
   setupArmed.import, setupArmed.delete = nil, nil
+  local fileRow = T.Data.Has() and UI.Row{ style = { alignItems = "center", marginTop = 2 }, children = {
+    UI.Label{ text = "Files", class = "text", style = { flexGrow = 1 } },
+    UI.Button{ id = "setup_file", text = "Save to a file",
+      tooltip = "Save this character's settings and positions under the name above as a file in Toolbox's data"
+        .. " folder (Lua/AddonData), to copy to another computer",
+      onClick = function() C.SaveSetupFile() end },
+    UI.Button{ id = "setup_folder", text = "Open folder", style = { marginLeft = 4 },
+      tooltip = "Open Toolbox's data folder: setup files put here are listed above to import",
+      onClick = function() C.OpenDataFolder() end },
+  } } or UI.Label{ text = "", style = { height = 0 } }
   return UI.Column{ children = {
     heading("Setups"),
     UI.Label{ text = "Copy the settings and positions of another character on this computer, yours or"
       .. " someone else's. A character's setup is listed once its player ticks the box below; Export saves"
-      .. " yours under a name. An import is a copy: later changes stay each character's own.", class = "dim",
+      .. " yours under a name. An import is a copy: later changes stay each character's own. Save to a file (a newer"
+      .. " game client) carries a setup to another computer.", class = "dim",
       style = { whiteSpace = "wrap", marginTop = 6 } },
     UI.Toggle{ id = "setup_share", text = "List this character's setup for other characters",
       value = T.Backup.GetShare(), style = { marginTop = 4 },
@@ -1564,6 +1596,7 @@ function C.SetupSection()
         tooltip = "Save this character's settings and positions under the name, for any character to import",
         onClick = function() C.ExportSetup() end },
     } },
+    fileRow,
     UI.Label{ id = "setup_msg", text = "", class = "dim", style = { whiteSpace = "wrap", marginTop = 4 } },
   } }
 end
@@ -1744,7 +1777,7 @@ local ALL_IDS = { "loc_show", "loc_facing", "loc_water", "loc_pin", "loc_overlay
   "backup_pending",
   "backup_cancel", "backup_msg", "quiet_pick", "quiet_mute", "quiet_list", "quiet_unmute", "quiet_msg",
   "fx_when", "fx_path", "fx_set", "fx_choose", "fx_list", "fx_test", "fx_remove", "fx_msg",
-  "setup_share", "setup_pick", "setup_import", "setup_delete", "setup_name",
+  "setup_share", "setup_pick", "setup_import", "setup_delete", "setup_name", "setup_file", "setup_folder",
   "setup_export", "setup_msg" }
 for _, def in ipairs(T.Sounds.DEFS) do
   ALL_IDS[#ALL_IDS + 1] = "snd_" .. def.key .. "_status"

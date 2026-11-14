@@ -182,7 +182,10 @@ into one if a new file is ever needed).
   Data files (API 51; owner, 2026-11-14): `T.Data` (DF) wraps `ShroudWriteDataFile` and friends
   (`DF.Has`, `Write`, `Read`, `List(kind)`, `Delete`, `OpenFolder`, `DF.FileName(kind, ...)` = "<kind>-<words>.json",
   `DF.Why(reason)`), plain values (no `T.ForSaving`: every API 51 client has the loader fixed), and every reader checks
-  a file's values (another player's data). Users: overlays (`OV.Export` / `OV.Import`), setups, loot runs. Harness:
+  a file's values (another player's data). Users: overlays (`OV.Export` / `OV.Import`), setups (`B.SaveFile`
+  writes "setup-<name>.json" = { toolbox = "setup", v = 1, name, when, keys = currentSettings() }; `B.SetupFiles` lists
+  the folder's among `B.Setups` with `file` set, "<name> (file, date)"; `B.Import` / `B.DeleteSetup` take them;
+  `B.ReadSetupFile` keeps only `B.KEYS`' keys, never `setup_share`; config's `setup_file` / `setup_folder`), loot runs. Harness:
   from `H.apiVersion` 51, `H.S.dataFiles[name] = { data, time }` (kept by `H.restart`), `H.S.dataRefuse`,
   `H.S.folderOpened`; the rate and file limits as documented. `T.DOCS_API` = the API the docs describe (equal to
   build.py's `CLIENT_API_VERSION`; the build checks). `/toolbox api` probes newer functions and the result
