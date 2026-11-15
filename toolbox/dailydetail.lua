@@ -1191,10 +1191,9 @@ end
 -- From ShroudOnItemsGained: notes the quest items (API 52's isQuest; absent before, so nothing changes) and
 -- forgets a name's quest mark when a gain says it isn't one. Saves only when a mark changes.
 function P.NoteItems(items)
-  if type(items) ~= "table" then return end
   readCache()
   local changed = false
-  for _, it in ipairs(items) do
+  for _, it in ipairs(T.List(items)) do
     local name, quest = T.Field(it, "name"), T.Field(it, "isQuest")
     if type(name) == "string" and name ~= "" and type(quest) == "boolean" then
       local k = key(name)

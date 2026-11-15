@@ -2134,6 +2134,31 @@ function H.items(list, dropped)
     for k, v in pairs(it[3] or {}) do row[k] = v end     -- API 52's fields: { isQuest = true, ... }
     items[#items + 1] = row
   end
+  -- H.S.itemObjects: the list and its rows as game objects (a C# list: Count and 0-based indexes; real userdata on
+  -- LuaJIT via newproxy, else tables read through __index).
+  if S.itemObjects then
+    local proxy = rawget(_G, "newproxy")
+    for i, r in ipairs(items) do
+      if proxy then
+        local u = proxy(true)
+        getmetatable(u).__index = r
+        items[i] = u
+      else
+        items[i] = setmetatable({}, { __index = r })
+      end
+    end
+    if proxy then
+      local shown, rows = proxy(true), items
+      getmetatable(shown).__index = function(_, k)
+        if k == "Count" then return #rows end
+        if type(k) == "number" then return rows[k + 1] end
+        return nil
+      end
+      items = shown
+    else
+      items = setmetatable({}, { __index = items })
+    end
+  end
   return H.callback("ShroudOnItemsGained", items, dropped or 0)
 end
 

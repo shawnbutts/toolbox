@@ -925,10 +925,24 @@ function D.ItemLogLines()
   return lines
 end
 
+-- ShroudOnItemsGained's list as plain rows { name, quantity, isQuest } (review 85: the list and its rows may be game
+-- objects, read through T.List / T.Field once here for the log, the prices and the day's model).
+D.ITEM_FIELDS = { "name", "quantity", "isQuest" }
+function D.ReadItems(items)
+  local rows = {}
+  for _, it in ipairs(T.List(items)) do
+    local row = {}
+    for _, f in ipairs(D.ITEM_FIELDS) do row[f] = T.Field(it, f) end
+    rows[#rows + 1] = row
+  end
+  return rows
+end
+
 function D.OnItems(items, dropped)
-  pcall(D.NoteItems, items, dropped)
-  if T.Prices then pcall(T.Prices.NoteItems, items) end
-  if D.day and D.AddItems(D.day, items, dropped, D.stationOpen) then changed() end
+  local rows = D.ReadItems(items)
+  pcall(D.NoteItems, rows, dropped)
+  if T.Prices then pcall(T.Prices.NoteItems, rows) end
+  if D.day and D.AddItems(D.day, rows, dropped, D.stationOpen) then changed() end
 end
 
 function D.OnCraftResults(results, dropped)

@@ -448,6 +448,17 @@ return function(t)
     t.ok(found, "a gain that says it isn't a quest item looks it up")
   end)
 
+  t.test("quest items from a game-object item list (review 85)", function()
+    withValues()
+    H.S.itemObjects = true
+    H.items({ { "Iron Ore", 40 }, { "Sealed Letter", 1, { isQuest = true } } })
+    H.S.itemObjects = nil
+    t.eq(Toolbox.Prices.IsQuest("Sealed Letter"), true)
+    H.advance(2)
+    t.ok(row("Iron Ore") and row("Iron Ore")[2]:find("40"), "counted too")
+    t.eq(table.concat(H.requestedItems(1), ","), "Iron Ore", "the quest item isn't sent")
+  end)
+
   t.test("a name marked a quest item while queued or in flight isn't sent or priced", function()
     withValues()
     H.items({ { "Iron Ore", 1 } })

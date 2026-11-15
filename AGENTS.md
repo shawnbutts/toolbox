@@ -302,7 +302,8 @@ into one if a new file is ever needed).
   `GET /api/v1/receipts/prices?item=..` (<= 50 names) via `ShroudHttpGet`, one request `P.GAP` apart,
   cached per account for `P.MAX_AGE`; `P.Test` backs the Test connection button. Quest items (owner, 2026-11-13: fewer
   SotANET calls) aren't looked up: `P.NoteItems` (from `D.OnItems`) marks a name gained with API 52's `isQuest`
-  (`P.IsQuest`; harness `H.items{ { name, n, { isQuest = true } } }`), the row shows `DD.QUEST`, out of the value line's kinds. SotANET matches English names only;
+  (`P.IsQuest`; harness `H.items{ { name, n, { isQuest = true } } }`; `D.OnItems` reads the list once into plain rows,
+  `D.ReadItems`, for the log, the prices and the day: a game-object list too, review 85, harness `H.S.itemObjects`), the row shows `DD.QUEST`, out of the value line's kinds. SotANET matches English names only;
   `P.OtherLanguage` (`ShroudGetClientInfo().languageCode` not "en*", read once) adds `P.LanguageNote` where
   prices are missing (header, row tooltips, settings, switching on, the test).
 - `sounds.lua`: `Toolbox.Sounds`, six sounds (`S.DEFS`: buff_expiring, debuff_landed, and notify, ping, tap,
