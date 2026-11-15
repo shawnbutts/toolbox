@@ -814,7 +814,8 @@ the party manager (the Party Toolbelt, party alerts, comings and goings, Combat 
 crafting planner's makers from `ShroudGetRecipesMaking` (API 55) with the recipe book read removed and I'll craft always
 offered, market prices in the planner (SotANET; added late, owner 2026-10-30), the target's difficulty color (48) and Only mine (47), the element leaks at the creation cap, the dropdown
 widths. `min_api_version` stays 25 (every API 45+ use is feature-detected). The map title's long name (build 323) and
-27 (one Enter, build 2da431775a): check both in game.
+27 (one Enter, build 2da431775a): check both in game. The `v1.10.0` tag keeps its 514-character manifest description
+(review 78, closed by the owner 2026-11-14: a pushed tag isn't moved; `tools/build.py` refuses over 500 since).
 
 **1.10.0, the party manager** (owner, 2026-10-18; released above). BUILT 2026-10-27
 for API 55 clients only (owner, same day: no support below API 55), all four parts (vitals.lua's `Toolbox.Party`, the
