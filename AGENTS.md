@@ -33,11 +33,11 @@ This file holds current facts and rules; the history behind them is in git (`git
   `OnSubmit` method, run once a press (harness `H.S.specSubmitIgnored`; two presses in one test frame are one). Even
   so one Enter did nothing there (owner, same day: only a quick second Enter reaches the field's submit, request 27
   submitted 2026-10-16): the planner's search fills as you type (`onChange`, which works in game,
-  as the settings search's does); `/toolbox plan debug` says in chat what the box gets. Don't rely on Enter alone.
-  Request 27 is fixed (the developers, 2026-10-18: build 2da431775a, not on chaos or live yet): one Enter calls the
-  handler, the spec field's and `OnSubmit`'s alike, with the typed text; the box keeps the keyboard and chat doesn't
-  open. `T.TextField` needs no change (if both ways fire for one press, `once` runs it once); check a single Enter in
-  the planner's search once the build is out, then the "Don't rely on Enter alone" note can go.
+  as the settings search's does); `/toolbox plan debug` says in chat what the box gets.
+  Request 27 is fixed (the developers, 2026-10-18: build 2da431775a; confirmed on the live client by the owner,
+  2026-11-15): one Enter calls the handler, the spec field's and `OnSubmit`'s alike, with the typed text; the box keeps
+  the keyboard and chat doesn't open. `T.TextField` needs no change (if both ways fire for one press, `once` runs it
+  once). Keep the type-to-fill searches and the Set buttons: `min_api_version` 25 clients may still have the bug.
 - **Make dropdowns with `T.Window.Dropdown(UI, spec[, cap])` and refill them with `T.Window.SetChoices`** (ui.lua): a
   dropdown left to size itself is as wide as its value, and its open list cut a longer choice off (the planner's Show
   list, owner 2026-10-23; the Loot Tracker's, 2026-10-27). They set `minWidth` from the longest choice
@@ -814,7 +814,7 @@ the party manager (the Party Toolbelt, party alerts, comings and goings, Combat 
 crafting planner's makers from `ShroudGetRecipesMaking` (API 55) with the recipe book read removed and I'll craft always
 offered, market prices in the planner (SotANET; added late, owner 2026-10-30), the target's difficulty color (48) and Only mine (47), the element leaks at the creation cap, the dropdown
 widths. `min_api_version` stays 25 (every API 45+ use is feature-detected). The map title's long name (build 323) and
-27 (one Enter, build 2da431775a): check both in game. The `v1.10.0` tag keeps its 514-character manifest description
+27 (one Enter, build 2da431775a): both confirmed in game (owner, 2026-11-15). The `v1.10.0` tag keeps its 514-character manifest description
 (review 78, closed by the owner 2026-11-14: a pushed tag isn't moved; `tools/build.py` refuses over 500 since).
 
 **1.10.0, the party manager** (owner, 2026-10-18; released above). BUILT 2026-10-27
@@ -1331,6 +1331,12 @@ Rules learned the hard way; keep to them.
   creature name and Fights, the window row), the Crafting Planner HUD (the shopping list, the build order and its "(N
   made)", Start over, the fanfare and close), the General and Crafting settings pages, and `/toolbox perf` (no hitches
   in 60 s; it showed `buff_durations` saved on every recast, fixed by `BB.LEARN_SLACK`).
+- **The work after 1.10.0** (confirmed 2026-11-15, the owner in game on the live client: "everything seems to be
+  working well"): the aggro line, meter, alerts and the Party Toolbelt's marker; XP Detailed's Spent (training, Pause /
+  Resume, a death: `/toolbox xp debug`, so XP lost on a death comes out of the pool as `XP.Spent` assumes); quest items
+  ("quest", not priced); the data files (an overlay exported and imported, a setup file imported on an alt, loot runs
+  saved twice, "0 new"; values with "/" and negative numbers read back; a write's cost in `/toolbox perf`); the two
+  skill markers and an old Maintain pause resuming; `/toolbox perf`'s steady-rate line at a 30 fps cap.
 - **1.10.0's party work** (confirmed 2026-10-30, the owner in game on an API 56 client, every `/toolbox api` group
   present): "party features look good".
 - **Louder sounds** (confirmed 2026-10-07): the +7.5 dB .ogg files, the halved saved volume and the per-sound
@@ -1353,11 +1359,6 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - `onHover` on containers and HUD strips (entering a child, the title bar): the pop-up delays absorb flicker.
 - Combat `death` lines: which side is the killer, and `fromYou` on your kills.
 - `os.date` in the sandbox (feature-detected; fallback: the date part of `ShroudServerTime`).
-- XP spent (`XP.Spent`): that XP lost on a death comes out of the pool too (else spent reads low by the loss), and
-  that skills take XP only from the pool (`/toolbox xp debug` prints the pools, readings and spent).
-- Data files (API 51): that the game's file reader takes "/", negative numbers and non-ASCII text in what Toolbox
-  writes plainly (the saved-variable loader's fixes, chaos build 318, assumed to cover it), and what a write of a big
-  table costs in MoonSharp (time `/toolbox perf` around an export).
 - `ShroudOnItemsGained` names as stable keys (localized; same-named items merge); whether they match
   SotANET's names (English) for prices.
 - Which values the saved-variable loader refuses: "\/" and a negative number for certain; exponent forms ("1E-05"),
@@ -1383,8 +1384,7 @@ Things the docs don't settle and the game hasn't shown yet. Check before dependi
 - API 30-35 details the owner's test (2026-10-13) didn't single out: the file picker's callback after a page switch;
   `os.time` being UTC seconds as the calendar's are (`N.EventsCheck`'s 15-minute lead).
 - Pause skills: `ShroudSetSkillMode`'s list answer keyed by the skill's `key` (a missing one is taken as asked, and
-  the resume's check leaves a skill that didn't move alone), and an old pause to Maintain resuming in game (its
-  skills read as NotLearning since the game retired Maintaining).
+  the resume's check leaves a skill that didn't move alone).
 - The skill strip's training markers: the click areas over the icon receiving clicks in game, the tinted
   and turned skillmarks.png, and the reasons ShroudSetSkillMode gives.
 - The skill activity strip (skills.lua): how often `ShroudOnSkillsChanged(false)` fires in combat, whether

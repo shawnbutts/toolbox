@@ -121,7 +121,7 @@ local function soundRows(def)
       placeholder = "custom file in your Lua folder", maxLength = 200, style = { flexGrow = 1, flexShrink = 1 },
       tooltip = "A .ogg/.wav/.mp3 path inside your Lua folder: Set uses it; empty, the default",
       onSubmit = function(_, text) S.SetPath(def.key, text) end },
-    -- Enter alone doesn't reach a field on the live client (owner, 2026-10-15): a button sets it
+    -- Enter alone didn't reach a field before request 27's fix (owner, 2026-10-15; older clients): a button sets it
     UI.Button{ id = "snd_" .. def.key .. "_set", text = "Set", style = { marginLeft = 4 },
       tooltip = "Use the path typed here (empty: the default sound)",
       onClick = function()

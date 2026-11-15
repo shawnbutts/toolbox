@@ -18,8 +18,8 @@
 --              then: XP.Spent works from it
 -- }
 -- Spent (owner, 2026-11-12): the game says nothing of what skills take from the pool, so it is worked out: earned
--- since the pool's reading, less what the pool grew by, less XP lost meanwhile (assumed to come out of the pool:
--- unconfirmed, /toolbox xp debug prints the numbers).
+-- since the pool's reading, less what the pool grew by, less XP lost meanwhile (which comes out of the pool: confirmed
+-- in game, owner 2026-11-15; /toolbox xp debug prints the numbers).
 -- Samples are kept only for the longest rolling window, XP.KEEP (plus one anchor older than it).
 
 local XP = {}
