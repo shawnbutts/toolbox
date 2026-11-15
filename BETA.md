@@ -4,11 +4,12 @@ Toolbox beta: testing guide
 Thanks for testing Toolbox! It's a Shroud of the Avatar add-on. Its headline is the Toolbelt: your
 buffs and debuffs, health, focus and Vigor, food and potions, gear needing repair and your target in one
 strip you can put anywhere. Around it: XP windows, today's loot, crafting and gathering, a combat stats HUD and
-notifications. New in 1.10.0: the Party Toolbelt, your party on a strip of its own. This is a beta: please tell us
-what breaks.
+notifications. New in 1.11.0: your target's aggro in the Toolbelt, what your skills spent in XP Detailed, and map
+overlays, setups and loot runs saved as files to share. This is a beta: please tell us what breaks.
 
-Most of 1.10.0's new parts need a newer game client (Lua API 55; /tbx api prints yours). On an older one the rest
-of Toolbox works as before, and Settings, Party says what it needs.
+1.11.0's new parts need a newer game client (Lua API 51 to 54; /tbx api prints yours), as 1.10.0's party features
+need Lua API 55. On an older one the rest of Toolbox works as before: the parts it can't use are grayed out or
+left out.
 
 To install it, follow INSTALL.txt (in the same zip): the "Installing by hand" part.
 
@@ -58,6 +59,23 @@ while its window is open. Change it or switch it off under Menu, setups, backup 
 --------------
 
 Anything you like, but especially what's new in this version (/tbx version lists it all):
+In 1.11.0 (Lua API 51 to 54):
+  * Aggro (Settings, Toolbelt: Aggro, In Toolbelt or Own strip). In a group fight: does the line say who
+    the target is on and who is next ("On you; next phil 82%")? Hover it for the whole list. Pull aggro
+    off someone: a ping and a line on the notification HUD. In a party, the Party Toolbelt puts "> "
+    before the name of the member your target is attacking.
+  * XP Detailed: train a skill a while. Does the Spent line grow as your pool goes down? Pause and Resume
+    skills, and die once: /tbx xp debug prints the numbers behind it.
+  * Share a map overlay (the Map overlays window, Share row): Export, then give the file to a friend, or
+    try it yourself on another character: put it in Toolbox's data folder (Folder opens it), pick it in
+    the list and Import. It goes to its own scene from wherever you are.
+  * Take a setup to another computer (Settings, Menu, setups, backup & reset: Save to a file). Copy the
+    file into the data folder there: is it listed under Setups to import?
+  * Loot runs to a file (the Loot Tracker's Runs view: Save runs to a file). Save twice: the second time
+    should say no new runs were added.
+  * Quest items in the Loot Tracker read "quest" and get no price from SotANET.
+  * The skill strip has two markers now, train and unlearn (the game retired Maintain). A pause made with
+    Maintain should still resume.
 In 1.10.0 (Lua API 55):
   * The Party Toolbelt (Settings, Party: Show the Party Toolbelt). Join a party: a row per member with
     their health and focus bars and health in percent. Does the lowest's name turn red, a member in
@@ -80,6 +98,7 @@ In 1.10.0 (Lua API 55):
   * The target (Settings, Toolbelt): with Show the target's name on, is a hostile creature's name in the
     color the game gives its difficulty? And Target effects' "Only mine (what you cast)".
   * Dropdowns (the Loot Tracker's Show list, any settings page): wide enough for their longest choice?
+Earlier:
 In 1.9.1:
   * Log out (Exit to Menu) and back in: nothing in chat at the login screen about "Could not save", and
     your XP session, Today's stats, buff timers and the auto map's newest marks are all still there.
@@ -89,7 +108,6 @@ In 1.9.1:
   * Sounds: a new character starts with every sound at 0% (Settings, Sounds). Raise one and Test it; on a
     fresh install, does it play without a /lua reload? Your existing characters should sound as before.
   * /tbx perf at a busy spot: below 30 frames a second it adds a line saying what the numbers mean.
-Earlier:
 In 1.9.0:
   * The crafting planner (/tbx plan, or the menu's Plan button): find a recipe, pick how many crafts,
     and check the shopping list against your bags. Try a recipe with a material choice (Metal Sheet...)
@@ -235,8 +253,8 @@ From beta 3:
     and it doesn't turn red at the end (the red flashing border and the sound still do).
   * Reset all settings and restoring copied files both need a restart of Toolbox (/lua reload, or for
     copied files, quit the game first): the game writes the settings files as it closes.
-  * Map title: the game puts Toolbox's full store name, cut short, before its text ("Toolbox: Toolbelt,
-    HUDs, Trackers, and mo: ..."); a game bug, fixed in a coming game update.
+  * Toolbox's data folder (Lua/AddonData, beside SavedVariables) keeps its files when you uninstall
+    Toolbox: delete them there yourself if you want them gone.
   * "Gold picked up" counts every gold increase, including vendor sales and trades.
   * Kills come from your combat chat lines; if Kills stays at 0 while you're clearly killing
     things, please report it.
