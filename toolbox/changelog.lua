@@ -5,6 +5,7 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "version", "1.11.0 - 2026-11-15" },
   { "section", "Added" },
   { "item", "Aggro: your target's aggro list (the game's /verbose aggro) as a Toolbelt part (Settings, Toolbelt: Aggro Off, Own strip or In Toolbelt). In the Toolbelt, one line under everything: \"On you; next phil 82%\" or \"On phil; you 2nd, 64%\", with a bar for how close the next one is to taking it (or you are to pulling it) and the whole list when you hover it. On its own strip, the aggro meter: the creature, then a row a name with a bar, who it's on in red, one it can't reach dimmed. It shows only in a group fight (alone it is always you). Alerts when you pull aggro (on) or lose it (off; for tanks), on the notification HUD with a ping. Needs a newer game client (Lua API 54). /toolbox aggro." },
   { "item", "The Party Toolbelt marks the member your target is attacking: \"> \" before their name, from its aggro list, with the Aggro part on or off (Settings, Party: Mark who your target is attacking, on by default; Lua API 54)." },

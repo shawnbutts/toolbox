@@ -7,6 +7,8 @@ ones included).
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-11-15
+
 ### Added
 
 - Aggro: your target's aggro list (the game's /verbose aggro) as a Toolbelt part (Settings, Toolbelt: Aggro Off,

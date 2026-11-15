@@ -809,7 +809,13 @@ you read back and fall back to defaults.
 
 ## Releasing
 
-**Last release: 1.10.0** (2026-10-30, the owner's go once the live client reported API 56 with every group present):
+**Last release: 1.11.0** (2026-11-15, the owner's go after checking every new part in game): aggro (API 54: the
+Toolbelt line, the meter, alerts, the Party Toolbelt's marker), XP Detailed's Spent, files in Toolbox's data folder
+(API 51: overlays to share, setups to another computer, loot runs), quest items not priced (API 52), prices kept 3
+days, `/toolbox perf`'s steady-rate line, Maintain dropped (the game retired it; a minor release all the same, owner:
+it already worked as Off). `min_api_version` stays 25 (every API 51+ use is feature-detected).
+
+**1.10.0** (2026-10-30, the owner's go once the live client reported API 56 with every group present):
 the party manager (the Party Toolbelt, party alerts, comings and goings, Combat Detailed's Party section; API 55), the
 crafting planner's makers from `ShroudGetRecipesMaking` (API 55) with the recipe book read removed and I'll craft always
 offered, market prices in the planner (SotANET; added late, owner 2026-10-30), the target's difficulty color (48) and Only mine (47), the element leaks at the creation cap, the dropdown
