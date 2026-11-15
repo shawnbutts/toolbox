@@ -2093,6 +2093,7 @@ function OV.Files()
                           label = o.name .. " (" .. o.scene .. ", " .. placesText(#o.places) .. ")" }
     end
   end
+  T.Data.UniqueLabels(list)
   ovFiles.sig, ovFiles.list = sig, list
   return list
 end
@@ -3040,10 +3041,11 @@ T.AddCommand("overlay", "map overlays, sets of places you mark in a scene, one s
     elseif word == "import" then
       local files = OV.Files()
       local want, pick = args:lower(), nil
+      for _, f in ipairs(files) do                -- a file's own name first, then the overlay's
+        if not pick and T.Data.Names(want, f.file) then pick = f end
+      end
       for _, f in ipairs(files) do
-        if want ~= "" and (f.file:lower() == want or f.file:lower() == want .. ".json" or f.name:lower() == want) then
-          pick = f
-        end
+        if not pick and want ~= "" and f.name:lower() == want then pick = f end
       end
       if not pick then
         local names = {}
@@ -3382,11 +3384,9 @@ function OV.SyncFiles()
   mwFilesAt = T.Now()
   local labels = {}
   mwFiles = {}
-  for _, f in ipairs(OV.Files()) do
-    if not mwFiles[f.label] then
-      labels[#labels + 1] = f.label
-      mwFiles[f.label] = f
-    end
+  for _, f in ipairs(OV.Files()) do              -- unique labels (T.Data.UniqueLabels)
+    labels[#labels + 1] = f.label
+    mwFiles[f.label] = f
   end
   local any = #labels > 0
   if not any then labels[1] = OV.MW_NO_FILES end

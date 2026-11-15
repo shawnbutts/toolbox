@@ -181,7 +181,8 @@ into one if a new file is ever needed).
   as it plays, named ones on Export, and `B.Import` copies one in and restarts the modules (`T.Restart`).
   Data files (API 51; owner, 2026-11-14): `T.Data` (DF) wraps `ShroudWriteDataFile` and friends
   (`DF.Has`, `Write`, `Read`, `List(kind)`, `Delete`, `OpenFolder`, `DF.FileName(kind, ...)` = "<kind>-<words>.json",
-  `DF.Why(reason)`), plain values (no `T.ForSaving`: every API 51 client has the loader fixed), and every reader checks
+  `DF.Why(reason)`; `DF.UniqueLabels` adds the file's name to a label two files share and `DF.Names` matches a file
+  by its name, review 86), plain values (no `T.ForSaving`: every API 51 client has the loader fixed), and every reader checks
   a file's values (another player's data). Users: overlays (`OV.Export` / `OV.Import`), setups (`B.SaveFile`
   writes "setup-<name>.json" = { toolbox = "setup", v = 1, name, when, keys = currentSettings() }; `B.SetupFiles` lists
   the folder's among `B.Setups` with `file` set, "<name> (file, date)"; `B.Import` / `B.DeleteSetup` take them;

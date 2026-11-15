@@ -3526,6 +3526,29 @@ function DF.OpenFolder()
   return false, why or "diskError"
 end
 
+-- Makes the labels of a file list (entries { file, label = "... (...)" }) unique: two files whose contents read alike
+-- (a renamed copy) get the file's name inside the brackets, "Mom (file, 2026-11-14, setup-mom-2.json)" (review 86).
+function DF.UniqueLabels(list)
+  local same = {}
+  for _, f in ipairs(list) do
+    local k = f.label:lower()
+    same[k] = (same[k] or 0) + 1
+  end
+  for _, f in ipairs(list) do
+    if same[f.label:lower()] > 1 then
+      local base = f.label:sub(-1) == ")" and f.label:sub(1, -2) .. ", " or (f.label .. " (")
+      f.label = base .. f.file .. ")"
+    end
+  end
+  return list
+end
+
+-- Whether `text` names the file `name`, with or without ".json", in any case.
+function DF.Names(text, name)
+  local want = T.Trim(tostring(text or "")):lower()
+  return want ~= "" and (name:lower() == want or name:lower() == want .. ".json")
+end
+
 -- The line a player reads after a write: where the file is.
 function DF.WrittenNote(name)
   return "Saved as " .. name .. " in Toolbox's data folder (Lua/AddonData, beside SavedVariables)"
@@ -4013,6 +4036,7 @@ function B.SetupFiles()
         label = data.name .. " (file" .. (data.when ~= "" and (", " .. data.when) or "") .. ")" }
     end
   end
+  DF.UniqueLabels(list)
   setupFileCache.sig, setupFileCache.list = sig, list
   return list
 end
@@ -4548,7 +4572,11 @@ function B.FindSetup(text)
   if not want then return nil end
   want = want:lower()
   local label = T.Trim(tostring(text)):lower()     -- a label is longer than a name can be
-  for _, s in ipairs(B.Setups()) do
+  local all = B.Setups()
+  for _, s in ipairs(all) do                      -- a file by its own name first: two files can hold one setup name
+    if s.file and DF.Names(text, s.file) then return s end
+  end
+  for _, s in ipairs(all) do
     if s.name:lower() == want or s.label:lower() == want or s.label:lower() == label then return s end
   end
   return nil
