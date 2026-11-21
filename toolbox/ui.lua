@@ -428,8 +428,8 @@ end
 
 -- Room left of a HUD strip's contents for the drag grip at its top-left corner, which
 -- otherwise covers the first number / icon. The docs don't give the grip's size; 14 px is an
--- estimate. Add-ons can't tell whether the grip is showing (Lock Status Movement), so the
--- room is always kept.
+-- estimate. Before API 58 add-ons can't tell whether the grip is showing (Lock Status Movement), so the
+-- room is always kept; from API 58 only while the HUD is unlocked (Hud.Grip).
 W.GRIP = 14
 
 -- A window's position before the player has moved it (the documented Window defaults).

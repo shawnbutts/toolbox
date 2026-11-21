@@ -37,6 +37,75 @@ return function(t)
     t.eq(parts[2].style.marginLeft, Hud().GAP)
   end)
 
+  -- API 58: the grip's room only while the HUD is unlocked (Hud.Grip), set in place on a change.
+  local function withApi58(fn)
+    H.apiVersion = 58
+    local ok, err = pcall(fn)
+    H.apiVersion = nil
+    if not ok then error(err, 0) end
+  end
+
+  t.test("HUD locked (API 58): no room for the grip, on the Toolbelt and an own strip", function()
+    withApi58(function()
+      gluedWithBoth()
+      H.chat("/tbx combat")                            -- an own strip too
+      local hud = H.hud()
+      t.eq(hud.children[1].style.paddingLeft, 0, "the Toolbelt starts at its edge")
+      local vw = Toolbox.Vitals.ContentSize()
+      local bw = Toolbox.BuffBar.ContentSize()
+      t.eq(hud.width, vw + Hud().GAP + bw + Hud().PAD, "no grip in the width")
+      t.eq(H.combatHud().children[1].style.paddingLeft, 0, "the combat strip too")
+    end)
+  end)
+
+  t.test("HUD unlocked and locked again (API 58): the grip's room comes and goes in place", function()
+    withApi58(function()
+      gluedWithBoth()
+      H.chat("/tbx combat")
+      local w0, cw0 = H.hud().width, H.combatHud().width
+      local made, frame = H.S.created, H.hud()
+      H.hudLock(false)
+      t.eq(H.hud(), frame, "the same strip")
+      t.eq(H.S.created, made, "nothing rebuilt")
+      t.eq(H.hud().children[1].style.paddingLeft, Toolbox.Window.GRIP, "room for the grip")
+      t.eq(H.hud().width, w0 + Toolbox.Window.GRIP, "wider by the grip")
+      t.eq(H.combatHud().children[1].style.paddingLeft, Toolbox.Window.GRIP)
+      t.eq(H.combatHud().width, cw0 + Toolbox.Window.GRIP)
+      H.hudLock(true)
+      t.eq(H.hud().children[1].style.paddingLeft, 0)
+      t.eq(H.hud().width, w0, "back as it was")
+      t.eq(H.combatHud().width, cw0)
+    end)
+  end)
+
+  t.test("HUD unlocked at start (API 58), and a rebuild keeps what the lock says", function()
+    withApi58(function()
+      gluedWithBoth()
+      H.S.hudUnlocked = true                           -- unlocked while Toolbox wasn't running
+      H.reload()
+      t.eq(H.hud().children[1].style.paddingLeft, Toolbox.Window.GRIP, "read at start")
+      H.hudLock(true)
+      H.chat("/tbx vitals glue off")                   -- a full rebuild
+      H.advance(1)
+      t.eq(H.frame().children[1].style.paddingLeft, 0, "built without the room")
+      t.eq(H.vitals().children[1].style.paddingLeft, 0)
+    end)
+  end)
+
+  t.test("the Toolbelt's target row above the columns follows the lock (API 58)", function()
+    withApi58(function()
+      gluedWithBoth()
+      H.chat("/tbx target on")
+      H.setTarget{ id = 7, name = "Wolf", hp = 50, maxHp = 100 }
+      local content = H.hud().children[1].children[1]
+      t.eq(content.id, "target", "the target's part, above the columns")
+      t.eq(content.style.marginLeft, 0, "locked: at the edge")
+      H.hudLock(false)
+      t.eq(content.style.marginLeft, Toolbox.Window.GRIP, "unlocked: clear of the grip")
+      t.eq(content.style.marginBottom, Hud().GAP, "its gap kept")
+    end)
+  end)
+
   t.test("glued strip grows with buffs and fits whichever parts are shown", function()
     gluedWithBoth()
     local w0 = H.hud().width

@@ -5,6 +5,8 @@
 
 Toolbox.CHANGELOG = {
   { "version", "Unreleased" },
+  { "section", "Changed" },
+  { "item", "HUD strips sit closer to their left edge while the HUD is locked: the room kept for the game's drag grip is there only while the HUD is unlocked, and comes and goes as you lock or unlock it, with nothing rebuilt. Needs a newer game client (Lua API 58); older ones keep the room always. /toolbox api tells the HUD lock." },
   { "version", "1.11.0 - 2026-11-15" },
   { "section", "Added" },
   { "item", "Aggro: your target's aggro list (the game's /verbose aggro) as a Toolbelt part (Settings, Toolbelt: Aggro Off, Own strip or In Toolbelt). In the Toolbelt, one line under everything: \"On you; next phil 82%\" or \"On phil; you 2nd, 64%\", with a bar for how close the next one is to taking it (or you are to pulling it) and the whole list when you hover it. On its own strip, the aggro meter: the creature, then a row a name with a bar, who it's on in red, one it can't reach dimmed. It shows only in a group fight (alone it is always you). Alerts when you pull aggro (on) or lose it (off; for tanks), on the notification HUD with a ping. Needs a newer game client (Lua API 54). /toolbox aggro." },

@@ -1021,8 +1021,8 @@ What each newer API added and what Toolbox does with it (all feature-detected):
   `[u]...[/u]` and color tags stripped; inventory and equipment names). Not in them: request 27's fix (client only),
   26 and 29.
 
-**API 45-57** (first in the QA docs preview, https://catnipgames.net/lua/qa/, read 2026-10-27; in the release reference
-from 2026-10-29, which says API 56, with the shapes Toolbox uses unchanged; `T.DOCS_API` = 57 since 2026-11-12, `min_api_version` stays 25
+**API 45-58** (first in the QA docs preview, https://catnipgames.net/lua/qa/, read 2026-10-27; in the release reference
+from 2026-10-29, which says API 56, with the shapes Toolbox uses unchanged; `T.DOCS_API` = 58 since 2026-11-21, `min_api_version` stays 25
 until the live client's `/toolbox api` reports more). Build against the live client's `/toolbox api`, feature-detected:
 - 45 (request 30): `ShroudGetParty()` -> rows in slot order `{ slot, name, online, inScene, scene?, role
   "leader"/"member"/"invited", leader, dead?, health?, maxHealth?, focus?, maxFocus? }` (vitals and dead in your scene
@@ -1061,6 +1061,15 @@ until the live client's `/toolbox api` reports more). Build against the live cli
   top centre; no world position, distance or name) and `ShroudGetNameplateRects()` -> `{ id, isTarget, isParty, ...rect
   }` for every drawn plate. Unused (it moves with the camera every frame: Toolbox does no per-frame work); `/toolbox
   api` tells them (harness: none drawn from `H.apiVersion` 57).
+- 58 (docs 2026-11-21, QA and release alike): `ShroudIsHudLocked()` (true while Lock HUD Positions is ticked, the
+  default: the grip hidden) and `ShroudOnHudLockChanged(locked)` (the frame after a change; not on the first frame).
+  Used: `Hud.Grip()` = `T.Window.GRIP` only while unlocked (0 locked; always the grip before 58), read by `Hud.ReadLock`
+  in `Hud.Init`; `Hud.OnLockChanged` (core's callback) sets every built strip's room in place (`gripped`, the padded
+  column / row and the Toolbelt's over / under parts' `marginLeft`) and refreshes the sizes, nothing rebuilt; the
+  frame stays put, its contents move by the grip. Harness: `ShroudIsHudLocked` from `H.apiVersion` 58,
+  `H.S.hudUnlocked`, `H.hudLock(locked)`. The same day `ShroudGetNearestWaterType` was fixed (open water only, the
+  surface's distance; no version of its own): still not asked (its cost). The reference names the lock "Lock HUD
+  Positions" (Options, Interface, or the portrait's menu); player texts still say Lock Status Movement.
   The reference's `ShroudGetRecipesMaking` note: the session's first call loads the item catalog, "a fraction of a
   second on a large book", later ones a fraction of a millisecond.
 Plan: 50 for the planner from API 55 (report 37's index build fixed in a later 55 build, owner 2026-10-29; 55's

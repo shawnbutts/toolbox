@@ -212,7 +212,7 @@ end
 function V.Metrics()
   local m = metrics(showBars(), showText(), background())
   m.contentH = rowCount() * (m.line + m.rowGap)
-  m.frameW = T.Window.GRIP + m.contentW + 8        -- when in its own strip
+  m.frameW = T.Hud.Grip() + m.contentW + 8        -- when in its own strip
   m.frameH = m.contentH + 8
   return m
 end

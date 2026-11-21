@@ -174,10 +174,35 @@ local function fitOverlay(frameKey, w, h, left)
   if overlayIn == frameKey and Hud.overlay then pcall(Hud.overlay.OverlayFit, w, h, left) end
 end
 
+-- The room left of a strip's contents for the game's drag grip (T.Window.GRIP). From API 58 the game says whether the
+-- player has the HUD locked (ShroudIsHudLocked, Lock HUD Positions), which hides the grip: the room is kept only while
+-- it is unlocked, and comes and goes in place (Hud.OnLockChanged, from core's ShroudOnHudLockChanged; the frame stays
+-- where it is, its contents move by the grip's width). Before API 58 it is always kept.
+Hud.locked = false
+function Hud.ReadLock()
+  local locked = false
+  if type(ShroudIsHudLocked) == "function" then
+    local ok, v = pcall(ShroudIsHudLocked)
+    locked = ok and v == true
+  end
+  Hud.locked = locked
+end
+function Hud.Grip()
+  if Hud.locked then return 0 end
+  return T.Window.GRIP
+end
+-- Per frame key, the elements holding that room: { el, prop = "paddingLeft" / "marginLeft" }.
+local gripped = {}
+local function noteGrip(frameKey, el, prop)
+  local list = gripped[frameKey] or {}
+  gripped[frameKey] = list
+  list[#list + 1] = { el = el, prop = prop }
+end
+
 local function destroyAll()
   for _, frame in pairs(frames) do pcall(function() frame:Destroy() end) end
   for key in pairs(contents) do unbuilt(key) end
-  frames, contents, sized, wasShown = {}, {}, {}, {}
+  frames, contents, sized, wasShown, gripped = {}, {}, {}, {}, {}
   dropOverlay(nil)
 end
 
@@ -206,7 +231,7 @@ function Hud.Build(missingOnly)
       pcall(function() frame:Destroy() end)
       dropOverlay(key)
       unbuilt(key)
-      frames[key], contents[key], sized[frame] = nil, nil, nil
+      frames[key], contents[key], sized[frame], gripped[key] = nil, nil, nil, nil
     end
   end
   Hud.errors = {}
@@ -228,16 +253,19 @@ function Hud.Build(missingOnly)
             contents[key]:SetStyle{ marginRight = Hud.GAP }
             table.insert(parts, 1, contents[key])
           elseif placeOf(key) == "bottom" then
-            contents[key]:SetStyle{ marginLeft = T.Window.GRIP, marginTop = Hud.GAP }
+            contents[key]:SetStyle{ marginLeft = Hud.Grip(), marginTop = Hud.GAP }
             under[#under + 1] = contents[key]
           else
-            contents[key]:SetStyle{ marginLeft = T.Window.GRIP, marginBottom = Hud.GAP }
+            contents[key]:SetStyle{ marginLeft = Hud.Grip(), marginBottom = Hud.GAP }
             over[#over + 1] = contents[key]
           end
         end
       end
     end
-    local ok, row = pcall(UI.Row, { style = { paddingLeft = T.Window.GRIP, alignItems = "start" }, children = parts })
+    local ok, row = pcall(UI.Row, { style = { paddingLeft = Hud.Grip(), alignItems = "start" }, children = parts })
+    if ok then noteGrip(Hud.GLUED_ID, row, "paddingLeft") end
+    for _, c in ipairs(over) do noteGrip(Hud.GLUED_ID, c, "marginLeft") end
+    for _, c in ipairs(under) do noteGrip(Hud.GLUED_ID, c, "marginLeft") end
     if ok and #over + #under > 0 then
       local column = {}
       for _, c in ipairs(over) do column[#column + 1] = c end
@@ -263,6 +291,7 @@ function Hud.Build(missingOnly)
         children = glued })
       frames[Hud.GLUED_ID] = frame
       if not frame then                        -- its content goes too (it would hold elements for nothing)
+        gripped[Hud.GLUED_ID] = nil
         pcall(row.Destroy, row)
         for i = 2, #glued do pcall(glued[i].Destroy, glued[i]) end
         dropOverlay(Hud.GLUED_ID)
@@ -284,6 +313,7 @@ function Hud.Build(missingOnly)
           contents[key] = nil
         end
       end
+      gripped[Hud.GLUED_ID] = nil
       failed("glued", row)
     end
   end
@@ -307,11 +337,12 @@ function Hud.Build(missingOnly)
         ok, overlay = overlayElement(key)
         if ok then kids[2] = overlay else column = overlay end
       end
-      if ok then ok, column = pcall(UI.Column, { style = { paddingLeft = T.Window.GRIP }, children = kids }) end
+      if ok then ok, column = pcall(UI.Column, { style = { paddingLeft = Hud.Grip() }, children = kids }) end
       if ok then
         local frame, why = newFrame(key, { id = m.FRAME_ID, x = x or m.HOME[1], y = y or m.HOME[2],
           width = 100, height = 40, visible = false, children = { column } })
         frames[key] = frame
+        if frame then noteGrip(key, column, "paddingLeft") end
         if not frame then              -- no room, or refused (the creation cap: retried): its elements go now
           pcall(column.Destroy, column)
           dropOverlay(key)
@@ -369,9 +400,22 @@ function Hud.Rebuild(key)
     pcall(function() frame:Destroy() end)
     dropOverlay(key)
     unbuilt(key)
-    frames[key], contents[key], sized[frame] = nil, nil, nil
+    frames[key], contents[key], sized[frame], gripped[key] = nil, nil, nil, nil
   end
   Hud.Build(true)
+end
+
+-- The player locked or unlocked the HUD (API 58; `locked` as the game passed it, else read again): every built strip's
+-- grip room is set in place and the strips resized. Nothing is rebuilt.
+function Hud.OnLockChanged(locked)
+  local was = Hud.Grip()
+  if type(locked) == "boolean" then Hud.locked = locked else Hud.ReadLock() end
+  local grip = Hud.Grip()
+  if grip == was then return end
+  for _, list in pairs(gripped) do
+    for _, g in ipairs(list) do pcall(g.el.SetStyle, g.el, { [g.prop] = grip }) end
+  end
+  Hud.Refresh()
 end
 
 -- Sizes and shows/hides the strips (call when a module's content size or shown state changes).
@@ -418,8 +462,8 @@ function Hud.Refresh()
     if hideAll then any = false end
     T.SetVisible(frame, any)
     if any then
-      fitShown(Hud.GLUED_ID, frame, setSize(frame, T.Window.GRIP + w + Hud.PAD, h + Hud.PAD))
-      fitOverlay(Hud.GLUED_ID, w, h, T.Window.GRIP)
+      fitShown(Hud.GLUED_ID, frame, setSize(frame, Hud.Grip() + w + Hud.PAD, h + Hud.PAD))
+      fitOverlay(Hud.GLUED_ID, w, h, Hud.Grip())
     else
       wasShown[frame] = nil
     end
@@ -430,7 +474,7 @@ function Hud.Refresh()
       T.SetVisible(own, shown)
       if shown then
         local cw, ch = modules[key].ContentSize()
-        fitShown(key, own, setSize(own, T.Window.GRIP + cw + Hud.PAD, ch + Hud.PAD))
+        fitShown(key, own, setSize(own, Hud.Grip() + cw + Hud.PAD, ch + Hud.PAD))
         fitOverlay(key, cw, ch, 0)
       else
         wasShown[own] = nil
@@ -617,6 +661,7 @@ function Hud.Init(places)
       m.SavePosition(p[1], p[2])
     end
   end
+  Hud.ReadLock()
   Hud.Build()
 end
 

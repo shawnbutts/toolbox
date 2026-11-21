@@ -19,7 +19,7 @@ local CALLBACKS = {
   "ShroudOnLogOut", "ShroudOnBeforeLogOut", "ShroudOnDisableScript", "ShroudOnSceneLoaded", "ShroudOnSceneUnloaded",
   "ShroudOnSocialChanged", "ShroudOnHttpResponse", "ShroudOnGuildMotdChanged", "ShroudOnTargetChanged",
   "ShroudOnSkillsChanged", "ShroudOnDeathChanged", "ShroudOnFriendStatusChanged", "ShroudOnGuildMemberStatusChanged",
-  "ShroudOnPartyChanged",
+  "ShroudOnPartyChanged", "ShroudOnHudLockChanged",
 }
 
 -- About the JSON the game writes for `v` (its text is escaped ASCII: no escapes in the JSON).
@@ -751,6 +751,12 @@ local function install_api()
     ShroudGetNameplateRects = function() return {} end
   else
     ShroudGetNameplateRect, ShroudGetNameplateRects = nil, nil
+  end
+  -- API 58: the HUD lock (Lock HUD Positions; locked by default). H.S.hudUnlocked = true: unlocked; H.hudLock(on).
+  if (H.apiVersion or 25) >= 58 then
+    ShroudIsHudLocked = function() return S.hudUnlocked ~= true end
+  else
+    ShroudIsHudLocked = nil
   end
   -- API 51: the add-on's data files (docs, "Add-on data files"), kept in H.S.dataFiles[name] = { data, time }
   -- across reloads and restarts. Names 1-64 of [A-Za-z0-9_-] and ".json"; 16 files; 1 MB (H.JsonSize); one write a
@@ -1879,6 +1885,12 @@ function H.call(fn, ...)
   S.inCallback = was
   if not r[1] then error(r[2], 2) end
   return select(2, (table.unpack or unpack)(r))
+end
+
+-- The player locks or unlocks the HUD (API 58): H.S.hudUnlocked follows, then ShroudOnHudLockChanged fires.
+function H.hudLock(locked)
+  S.hudUnlocked = not locked
+  return H.callback("ShroudOnHudLockChanged", locked)
 end
 
 -- The game window changes (API 31): `fields` replace H.S.screen's, then ShroudOnScreenChanged fires.

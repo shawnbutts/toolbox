@@ -2359,7 +2359,7 @@ end)
 -- 2026-09-27) lag the client (API 20), and a documented crafting/social group was withdrawn,
 -- so ask the game. Names are referenced directly: no lookup by a built name.
 -- The Lua API version the official docs described when this build was made (update with each docs check).
-T.DOCS_API = 57
+T.DOCS_API = 58
 
 function T.ApiLines()
   local function has(f) return type(f) == "function" end
@@ -2462,6 +2462,7 @@ function T.ApiLines()
     { "Nameplates on screen (API 57)", {
       { "ShroudGetNameplateRect", has(ShroudGetNameplateRect) },
       { "ShroudGetNameplateRects", has(ShroudGetNameplateRects) } } },
+    { "HUD lock (API 58)", { { "ShroudIsHudLocked", has(ShroudIsHudLocked) } } },
   }
   local lines = { "Lua API " .. tostring(ShroudLuaApiVersion) .. " (the docs described " .. T.DOCS_API
     .. " when this build was made)." }
@@ -5000,6 +5001,12 @@ end
 function ShroudOnCalendarNowChanged()
   T.Ran("calendar")
   T.Notify.CalendarChanged()
+end
+
+-- The player locked or unlocked the HUD (API 58): the strips keep room for the drag grip only while it's unlocked.
+function ShroudOnHudLockChanged(locked)
+  T.Ran("HUD lock")
+  T.Hud.OnLockChanged(locked)
 end
 
 -- The game window's size, UI scale or mode changed (API 31): strips past an edge come back.

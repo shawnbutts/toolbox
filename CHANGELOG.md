@@ -7,6 +7,12 @@ ones included).
 
 ## [Unreleased]
 
+### Changed
+
+- HUD strips sit closer to their left edge while the HUD is locked: the room kept for the game's drag grip is there
+  only while the HUD is unlocked, and comes and goes as you lock or unlock it, with nothing rebuilt. Needs a newer
+  game client (Lua API 58); older ones keep the room always. `/toolbox api` tells the HUD lock.
+
 ## [1.11.0] - 2026-11-15
 
 ### Added

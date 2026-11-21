@@ -117,6 +117,7 @@ local api_probed = {
   "ShroudGetAllSkills", "ShroudGetOwnedCounts", "ShroudSearchOwnedItems",                          -- API 55
   "ShroudGetDeckCode", "ShroudGetDeckLayout",                                                      -- API 56
   "ShroudGetNameplateRect", "ShroudGetNameplateRects",                                             -- API 57
+  "ShroudIsHudLocked",                                                                             -- API 58
 }
 
 -- Callbacks an add-on may define. Listed as writable globals.
@@ -137,6 +138,7 @@ local api_callbacks = {
   "ShroudOnCalendarChanged",                                -- API 35
   "ShroudOnCalendarNowChanged",                             -- API 38
   "ShroudOnBeforeLogOut",                                   -- API 43
+  "ShroudOnHudLockChanged",                                 -- API 58
 }
 
 -- The early global `Shroud` (read-only userdata) and its documented fields.
