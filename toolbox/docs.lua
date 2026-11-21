@@ -399,8 +399,8 @@ D.SECTIONS = {
       .. "own 10 automatic overlays a scene, and the same ignore list." },
   { "Moving the HUD strips",
     "The buff bar, health & focus bars, combat stats, the consumables bar and the equipment bar are HUD "
-      .. "strips. Drag the grip at a strip's top-left corner (untick Options > Interface > Nameplates & Chat "
-      .. "Bubbles > Lock Status Movement to see it), or use the Position buttons in settings (HUD layout). On "
+      .. "strips. Drag the grip at a strip's top-left corner (untick Lock HUD Positions, in Options > Interface "
+      .. "or your portrait's menu, to see it), or use the Position buttons in settings (HUD layout). On "
       .. "newer game clients (Lua API 58) a strip keeps room for the grip only while the HUD is unlocked, so "
       .. "locked, it sits closer to its left edge." },
   { "Notifications",

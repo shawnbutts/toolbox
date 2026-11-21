@@ -186,8 +186,8 @@ function C.PositionRows(prefix, m, label)
   return UI.Column{ children = {
     UI.Row{ style = { alignItems = "center", marginTop = 4 }, children = {
       UI.Label{ text = label or "Position", class = "text", style = { flexGrow = 1 },
-        tooltip = "Or drag the grip at its top-left corner. To see the grip, untick Lock Status Movement"
-          .. " (Options > Interface > Nameplates & Chat Bubbles)." },
+        tooltip = "Or drag the grip at its top-left corner. To see the grip, untick Lock HUD Positions"
+          .. " (Options > Interface, or your portrait's menu)." },
       UI.Label{ id = prefix .. "_pos", text = "", class = "dim" },
     } },
     UI.Row{ style = { marginTop = 2 }, children = {
@@ -1067,7 +1067,7 @@ function C.HudSection()
   local children = {
     heading("HUD layout", true),
     UI.Label{ text = "Strips show while this window is open, so you can place them. Drag a strip's grip"
-      .. " (untick Options > Interface > Nameplates & Chat Bubbles > Lock Status Movement to see it) or"
+      .. " (untick Lock HUD Positions, in Options > Interface or your portrait's menu, to see it) or"
       .. " use the buttons.", class = "dim", style = { whiteSpace = "wrap", marginTop = 6 } },
     UI.Label{ text = "The location strip is placed on the Map & location page, the " .. T.Planner.HUD_NAME
       .. " on the Crafting page, the Party Toolbelt on the Party page.", class = "dim",

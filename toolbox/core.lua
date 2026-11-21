@@ -1376,7 +1376,7 @@ function T.MoveCommand(m, cmd, what, args)
   local px, py = m.GetPosition()
   T.Print(what .. " at " .. (px and (px .. ", " .. py) or "(not laid out yet)")
     .. ". Move it with /" .. T.commands[1] .. " " .. cmd .. " move <x> <y>, the buttons in settings, or its grip"
-    .. " (to see the grip, untick Options > Interface > Nameplates & Chat Bubbles > Lock Status Movement).")
+    .. " (to see the grip, untick Lock HUD Positions in Options > Interface or your portrait's menu).")
 end
 
 add("buffs", "show or hide the buff bar (move [x y]; group [after <minutes>|off; add|remove <name>|reset]; "

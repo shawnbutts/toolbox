@@ -43,7 +43,7 @@ The search box at the top finds any setting by a word in it.
 Options that do nothing while their part is off are greyed out.
 
 Moving the HUD strips: drag the small grip at a strip's top-left corner. If you can't see the grip,
-untick Options > Interface > Nameplates & Chat Bubbles > "Lock Status Movement". Or use the
+untick "Lock HUD Positions" (Options > Interface, or your portrait's menu). Or use the
 Position buttons in settings (HUD layout), or e.g.  /tbx buffs move 600 40
 
 Shortcut: Ctrl+; opens the settings. You can change it in the add-on manager, on Toolbox's

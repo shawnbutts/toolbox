@@ -12,6 +12,8 @@ ones included).
 - HUD strips sit closer to their left edge while the HUD is locked: the room kept for the game's drag grip is there
   only while the HUD is unlocked, and comes and goes as you lock or unlock it, with nothing rebuilt. Needs a newer
   game client (Lua API 58); older ones keep the room always. `/toolbox api` tells the HUD lock.
+- Where to unlock the HUD to see a strip's grip now gives the game's current name for it: Lock HUD Positions, in
+  Options, Interface, or on your portrait's menu.
 
 ## [1.11.0] - 2026-11-15
 

@@ -1069,7 +1069,8 @@ until the live client's `/toolbox api` reports more). Build against the live cli
   frame stays put, its contents move by the grip. Harness: `ShroudIsHudLocked` from `H.apiVersion` 58,
   `H.S.hudUnlocked`, `H.hudLock(locked)`. The same day `ShroudGetNearestWaterType` was fixed (open water only, the
   surface's distance; no version of its own): still not asked (its cost). The reference names the lock "Lock HUD
-  Positions" (Options, Interface, or the portrait's menu); player texts still say Lock Status Movement.
+  Positions" (Options, Interface, or the portrait's menu); player texts use that name (owner, 2026-11-21; Lock Status
+  Movement under Nameplates & Chat Bubbles before).
   The reference's `ShroudGetRecipesMaking` note: the session's first call loads the item catalog, "a fraction of a
   second on a large book", later ones a fraction of a millisecond.
 Plan: 50 for the planner from API 55 (report 37's index build fixed in a later 55 build, owner 2026-10-29; 55's
@@ -1230,7 +1231,7 @@ Rules learned the hard way; keep to them.
   strip's panel is black at its own `shade` %, `T.ShadeColor` / `T.ShadeOf`, all `T.SHADE_DEFAULT` (60) at first, owner
   2026-10-15; the game has no opacity for HUD frames);
   `card` draws only on some skins (Air, Crucible; nothing before API 25): don't rely on it; `@text` is the light panel colour; there is no dark text token (`V.DARK_TEXT`).
-- **HUD frames:** moved by a grip at the top left (hidden while "Lock Status Movement" is on; strips keep
+- **HUD frames:** moved by a grip at the top left (hidden while "Lock HUD Positions" is on; strips keep
   `Toolbox.Window.GRIP` px of room for it), kept on screen by their FULL size (size strips to what shows),
   anchored at the top left (anything appearing above or left of content pushes it: keep that space).
   Destroying and rebuilding frames (gluing) works.

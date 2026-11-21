@@ -429,7 +429,7 @@ return function(t)
       t.ok(all:find("/toolbox " .. cmd.name, 1, true), "command " .. cmd.name .. " is listed")
     end
     t.ok(all:find("/toolbox xpdetailed (or xpd) - ", 1, true), "aliases shown")
-    t.ok(all:find("Lock Status Movement", 1, true), "the HUD lock tip")
+    t.ok(all:find("Lock HUD Positions", 1, true), "the HUD lock tip")
     for _, label in ipairs(labels) do
       t.ok(label.class == "text" or label.class == "heading", "one text colour: " .. label.text)
     end
