@@ -178,15 +178,17 @@ end
 -- player has the HUD locked (ShroudIsHudLocked, Lock HUD Positions), which hides the grip: the room is kept only while
 -- it is unlocked, and comes and goes in place (Hud.OnLockChanged, from core's ShroudOnHudLockChanged; the frame stays
 -- where it is, its contents move by the grip's width). Before API 58 it is always kept.
-Hud.locked = false
+Hud.locked, Hud.unlocked = false, false    -- unlocked: the game said so (API 58); neither before it
 function Hud.ReadLock()
-  local locked = false
+  local locked, unlocked = false, false
   if type(ShroudIsHudLocked) == "function" then
     local ok, v = pcall(ShroudIsHudLocked)
-    locked = ok and v == true
+    locked, unlocked = ok and v == true, ok and v == false
   end
-  Hud.locked = locked
+  Hud.locked, Hud.unlocked = locked, unlocked
 end
+-- The HUD unlocked (API 58): strips show to be placed, as with the settings window open (T.Placing).
+function Hud.Unlocked() return Hud.unlocked end
 function Hud.Grip()
   if Hud.locked then return 0 end
   return T.Window.GRIP
@@ -409,7 +411,7 @@ end
 -- grip room is set in place and the strips resized. Nothing is rebuilt.
 function Hud.OnLockChanged(locked)
   local was = Hud.Grip()
-  if type(locked) == "boolean" then Hud.locked = locked else Hud.ReadLock() end
+  if type(locked) == "boolean" then Hud.locked, Hud.unlocked = locked, not locked else Hud.ReadLock() end
   local grip = Hud.Grip()
   if grip == was then return end
   for _, list in pairs(gripped) do

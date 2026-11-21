@@ -823,7 +823,7 @@ local function fitFrame(buffsShown, debuffsShown)
   local aggro = T.Aggro.GluedCount()   -- the aggro line (under everything), when in the Toolbelt
   local used = math.max(buffsShown, debuffsShown, gear, cons, target, aggro)
   -- nothing on it while the settings window is open: its name, to place it by
-  local empty = used == 0 and T.Config.IsShown()
+  local empty = used == 0 and T.Placing()
   if placeholder and empty ~= placeholderShown then
     placeholderShown = empty
     placeholder:SetVisible(empty)
@@ -1784,7 +1784,7 @@ function BB.IsEnabled() return prefs.show == true end
 function BB.IsShown()
   if prefs.show ~= true then return false end
   if not prefs.combatOnly then return true end
-  return BB.InCombatWindow() or T.Config.IsShown()
+  return BB.InCombatWindow() or T.Placing()
 end
 
 -- In combat, or within BB.COMBAT_LINGER seconds after it (also used by the consumables bar).
@@ -2481,7 +2481,7 @@ end
 
 -- What the strip lists: items below the threshold, or every worn item while settings are open.
 local function shownList()
-  local out, all = {}, T.Config.IsShown()
+  local out, all = {}, T.Placing()
   if gprefs.show ~= true then return out end
   for _, it in ipairs(gItems) do
     if all or G.Stage(it, gprefs.threshold) then out[#out + 1] = it end
@@ -2593,7 +2593,7 @@ end
 -- Reads the equipment (every G.POLL seconds, or `force`), and shows or hides the strip.
 function G.Poll(force)
   local now = T.Now()
-  local settings = T.Config.IsShown()
+  local settings = T.Placing()
   if not force and settings == lastSettingsOpen and now - lastPoll < G.POLL then return end
   lastPoll, lastSettingsOpen = now, settings
   gItems = G.Items()
@@ -2819,7 +2819,7 @@ function K.Exclude() return kprefs.exclude end
 
 function K.IsShown()
   if kprefs.show ~= true or K.Glued() then return false end
-  if T.Config.IsShown() then return true end     -- (empty or not) shown while settings are open, to place it
+  if T.Placing() then return true end     -- (empty or not) shown while placing strips (T.Placing)
   if kprefs.combatOnly and not BB.InCombatWindow() then return false end
   return kCount > 0
 end
@@ -2935,7 +2935,7 @@ function K.Fill(list)
     fillGroup(kGroup, grouped)
   end
   -- empty on its own strip while settings are open: its name, to place it by
-  local empty = count == 0 and not K.Glued() and T.Config.IsShown()
+  local empty = count == 0 and not K.Glued() and T.Placing()
   if kPlaceholder and empty ~= kPlaceholderShown then
     kPlaceholderShown = empty
     kPlaceholder:SetVisible(empty)
@@ -3107,14 +3107,14 @@ function MB.Wanted() return mprefs.show == true end
 
 function MB.IsShown()
   if mprefs.show ~= true then return false end
-  if T.Config.IsShown() then return true end      -- (empty or not) to place it
+  if T.Placing() then return true end      -- (empty or not) to place it
   if mprefs.combatOnly and not BB.InCombatWindow() then return false end
   return mbCount > 0
 end
 
 -- Built and showing (with an effect, or settings open): BB.Tick fills it.
 function MB.Collecting()
-  return mbContent ~= nil and mprefs.show == true and (T.Config.IsShown()
+  return mbContent ~= nil and mprefs.show == true and (T.Placing()
     or not mprefs.combatOnly or BB.InCombatWindow())
 end
 
@@ -3169,7 +3169,7 @@ function MB.Fill(list)
   end
   local width = mWidth()
   for r, row in ipairs(mbRows) do T.SetVisible(row, (r - 1) * width < n) end
-  local empty = n == 0 and T.Config.IsShown()
+  local empty = n == 0 and T.Placing()
   if empty ~= mbPlaceholderShown then
     mbPlaceholderShown = empty
     mbPlaceholder:SetVisible(empty)

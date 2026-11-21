@@ -34,6 +34,12 @@ end
 
 -- Engine time in seconds (Unity Time.time). Continuous across /lua reload,
 -- restarts from 0 when the client restarts.
+-- Whether the player is placing the HUD strips: the settings window is open, or (API 58) the HUD is unlocked (owner,
+-- 2026-11-21). While placing, a strip shows even empty or out of combat, with its name when it has nothing on it.
+function T.Placing()
+  return T.Config.IsShown() or T.Hud.Unlocked()
+end
+
 function T.Now()
   return ShroudTime or 0
 end
