@@ -1066,10 +1066,8 @@ until the live client's `/toolbox api` reports more). Build against the live cli
   Used: `Hud.Grip()` = `T.Window.GRIP` only while unlocked (0 locked; always the grip before 58), read by `Hud.ReadLock`
   in `Hud.Init`; `Hud.OnLockChanged` (core's callback) sets every built strip's room in place (`gripped`, the padded
   column / row and the Toolbelt's over / under parts' `marginLeft`) and refreshes the sizes, nothing rebuilt; the
-  frame stays put, its contents move by the grip. Unlocked counts as placing the strips (owner, 2026-11-21):
-  `T.Placing()` (core) = the settings window shown or `Hud.Unlocked()` (only an API 58 answer of false), used
-  wherever a strip showed for placing while settings were open (empty strips and their names, combat-only strips, the
-  gear bar's every worn item, the target's hint); the menu's combat hiding and button state stay on settings. Harness: `ShroudIsHudLocked` from `H.apiVersion` 58,
+  frame stays put, its contents move by the grip. Strips show for placing only while the settings window is open,
+  not while the HUD is unlocked (owner, 2026-11-22: built as `T.Placing()` in 19bbab7 and reverted). Harness: `ShroudIsHudLocked` from `H.apiVersion` 58,
   `H.S.hudUnlocked`, `H.hudLock(locked)`. The same day `ShroudGetNearestWaterType` was fixed (open water only, the
   surface's distance; no version of its own): still not asked (its cost). The reference names the lock "Lock HUD
   Positions" (Options, Interface, or the portrait's menu); player texts use that name (owner, 2026-11-21; Lock Status

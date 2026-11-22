@@ -915,13 +915,13 @@ function TG.Mirrored() return tprefs.mirror == true and TG.Below() end
 local function reserved() return (tprefs.place ~= "bottom" or TG.Mirrored()) and TG.Glued() end
 
 -- Whether the row shows: a target, the settings window open (to place it), or its space kept.
-local function wantRow() return tHas == true or T.Placing() or reserved() end
+local function wantRow() return tHas == true or T.Config.IsShown() or reserved() end
 
 -- On its own strip with neither bars nor numbers, a target with no effects shows nothing: no strip (it would
 -- be an empty grip). In the Toolbelt the row's kept space is the Toolbelt's business (reserved).
 function TG.IsShown()
   if not (TG.Wanted() and wantRow()) then return false end
-  if not TG.Glued() and not TG.InfoShown() and #tList == 0 and not T.Placing() then return false end
+  if not TG.Glued() and not TG.InfoShown() and #tList == 0 and not T.Config.IsShown() then return false end
   return true
 end
 
@@ -1353,11 +1353,11 @@ function TG.Poll(force)
       if syncRows(s) then tShownCount = nil end      -- re-fit the strip below
     end
   end
-  local show = has or T.Placing() or reserved()
+  local show = has or T.Config.IsShown() or reserved()
   T.SetVisible(tContent, show)
   -- kept space only: empty, not a bar at 0; with neither bars nor numbers, only as the blank under the columns
-  T.SetVisible(tInfo, (has or T.Placing()) and (TG.InfoShown() or tBelow))
-  if tHint then T.SetVisible(tHint, not has and T.Placing()) end   -- names the blank area while placing
+  T.SetVisible(tInfo, (has or T.Config.IsShown()) and (TG.InfoShown() or tBelow))
+  if tHint then T.SetVisible(tHint, not has and T.Config.IsShown()) end   -- names the blank area while placing
   local cells = show and (tInfoCells + #tList) or 0
   if has ~= tHas or cells ~= tShownCount then
     tHas, tShownCount = has, cells
@@ -1905,10 +1905,10 @@ function PT.InParty() return memberCount > 0 end
 function PT.GetShow() return pprefs.show == true end
 
 -- For Toolbox.Hud: a strip while switched on and in a party (or the settings window open, to place it).
-function PT.Wanted() return pprefs.show == true and PT.Has() and (memberCount > 0 or T.Placing()) end
+function PT.Wanted() return pprefs.show == true and PT.Has() and (memberCount > 0 or T.Config.IsShown()) end
 function PT.IsShown()
   if not PT.Wanted() then return false end
-  if pprefs.combatOnly and not T.BuffBar.InCombatWindow() and not T.Placing() then return false end
+  if pprefs.combatOnly and not T.BuffBar.InCombatWindow() and not T.Config.IsShown() then return false end
   return true
 end
 
@@ -3049,10 +3049,10 @@ function AG.Glued() return aprefs.show == true and aprefs.glue ~= false and T.Bu
 
 -- For Toolbox.Hud: the meter is its own strip while on and not in the Toolbelt.
 function AG.Wanted() return aprefs.show == true and AG.Has() and not AG.Glued() end
-function AG.IsShown() return AG.Wanted() and (aHas or T.Placing()) end
+function AG.IsShown() return AG.Wanted() and (aHas or T.Config.IsShown()) end
 
 -- The Toolbelt line shows (a list worth showing, or settings open to place it).
-local function lineWanted() return AG.Has() and (aHas or T.Placing()) end
+local function lineWanted() return AG.Has() and (aHas or T.Config.IsShown()) end
 
 -- Cells the Toolbelt line takes (0 when hidden or not there).
 function AG.GluedCount()

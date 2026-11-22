@@ -434,28 +434,6 @@ return function(t)
 
   -- empty strips, to place them --------------------------------------------------------
 
-  t.test("empty strips show their name while the HUD is unlocked (API 58), as with settings open", function()
-    H.apiVersion = 58
-    local ok, err = pcall(function()
-      H.boot()
-      H.chat("/tbx buffs")
-      H.advance(1)
-      t.eq(H.frame():Find("buffs_placeholder").visible, false, "locked: no name")
-      t.eq(strip().visible, false, "an empty consumables bar is hidden")
-      H.hudLock(false)
-      H.advance(1)
-      t.eq(H.frame():Find("buffs_placeholder").visible, true, "unlocked: its name, to place it")
-      t.ok(strip().visible ~= false, "the empty consumables bar shows")
-      t.eq(strip():Find("consumables_placeholder").visible, true)
-      H.hudLock(true)
-      H.advance(1)
-      t.eq(H.frame():Find("buffs_placeholder").visible, false, "locked again")
-      t.eq(strip().visible, false)
-    end)
-    H.apiVersion = nil
-    if not ok then error(err, 0) end
-  end)
-
   t.test("empty strips show their name while settings are open, and are sized for it", function()
     H.boot()
     H.chat("/tbx buffs")

@@ -402,7 +402,7 @@ function SK.PauseShown() return SK.HasModes() and (prefs.pause ~= false or SK.Is
 function SK.IsShown()
   if prefs.show ~= true then return false end
   -- empty while settings are open: its name, to place it
-  return showing() > 0 or SK.PauseShown() or T.Placing()
+  return showing() > 0 or SK.PauseShown() or T.Config.IsShown()
 end
 
 local function slotStyles(s)

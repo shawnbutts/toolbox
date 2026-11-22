@@ -402,8 +402,7 @@ D.SECTIONS = {
       .. "strips. Drag the grip at a strip's top-left corner (untick Lock HUD Positions, in Options > Interface "
       .. "or your portrait's menu, to see it), or use the Position buttons in settings (HUD layout). On "
       .. "newer game clients (Lua API 58) a strip keeps room for the grip only while the HUD is unlocked, so "
-      .. "locked, it sits closer to its left edge; and while it's unlocked, every strip you have on shows, empty "
-      .. "or out of combat, with its name when nothing is on it, as while the settings window is open." },
+      .. "locked, it sits closer to its left edge." },
   { "Notifications",
     "A Notifications window tells you what's new since you last saw it: your guild's message of the day, "
       .. "new mail, mail about to expire, ransoms, new rewards, guild applications and gear needing repair. It "
@@ -1341,7 +1340,7 @@ end
 
 function NH.IsShown()
   if not inUse() and #history == 0 then return false end
-  if T.Placing() then return true end           -- to place it
+  if T.Config.IsShown() then return true end           -- to place it
   if #history == 0 then return false end
   if next(hovered) then return true end
   return hprefs.hideAfter == 0 or T.Now() < visibleUntil

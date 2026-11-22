@@ -1466,33 +1466,6 @@ return function(t)
     t.eq(H.frame().visible, false)
   end)
 
-  t.test("only during combat: shown while the HUD is unlocked (API 58), to place it", function()
-    H.apiVersion = 58
-    local ok, err = pcall(function()
-      H.boot()
-      H.chat("/tbx buffs")
-      H.chat("/tbx buffs combat on")
-      H.advance(1)
-      t.eq(H.frame().visible, false, "locked, out of combat")
-      H.hudLock(false)
-      H.advance(1)
-      t.ok(H.frame().visible ~= false, "unlocked")
-      H.hudLock(true)
-      H.advance(1)
-      t.eq(H.frame().visible, false)
-    end)
-    H.apiVersion = nil
-    if not ok then error(err, 0) end
-  end)
-
-  t.test("an older client (before API 58) never counts as unlocked", function()
-    H.boot()
-    t.eq(Toolbox.Hud.Unlocked(), false)
-    t.eq(Toolbox.Placing(), false)
-    H.chat("/tbx config")
-    t.eq(Toolbox.Placing(), true, "settings open")
-  end)
-
   t.test("only during combat: alerts still run while hidden, and it starts in combat after a reload", function()
     bootWithSounds()
     H.chat("/tbx buffs")
