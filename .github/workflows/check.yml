@@ -47,10 +47,10 @@ jobs:
           $env:PATH = "$shims;$env:PATH"
           # LuaJIT pinned to the last mingw64 build (2.1.1791988261-1): Scoop's ucrt64 one (2.1.1793275035-1, from
           # 2026-10-31) dies part way through the tests with no output; macOS and Linux run a newer LuaJIT fine.
-          # Unpin ("scoop install lua luajit") once a later Scoop build passes.
-          $luajit = "https://raw.githubusercontent.com/ScoopInstaller/Main/" +
-            "1977d59494179f4427d62de18888420691ed8658/bucket/luajit.json"
-          scoop install lua $luajit
+          # .github/scoop/luajit.json is Scoop's manifest of 2026-10-17 with the package fetched from repo.msys2.org:
+          # the mirror.msys2.org redirect timed out and gave 502 from the runners (2026-11-22). Unpin ("scoop install
+          # lua luajit") once a later Scoop build passes.
+          scoop install lua (Join-Path $env:GITHUB_WORKSPACE ".github\scoop\luajit.json")
           $bin = Join-Path $env:RUNNER_TEMP "bin"
           New-Item -ItemType Directory -Force -Path $bin | Out-Null
           Invoke-WebRequest -Uri https://github.com/lunarmodules/luacheck/releases/download/v1.2.0/luacheck.exe `
