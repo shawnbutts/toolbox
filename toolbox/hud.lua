@@ -176,8 +176,13 @@ end
 
 -- The room left of a strip's contents for the game's drag grip (T.Window.GRIP). From API 58 the game says whether the
 -- player has the HUD locked (ShroudIsHudLocked, Lock HUD Positions), which hides the grip: the room is kept only while
--- it is unlocked, and comes and goes in place (Hud.OnLockChanged, from core's ShroudOnHudLockChanged; the frame stays
--- where it is, its contents move by the grip's width). Before API 58 it is always kept.
+-- it is unlocked, and comes and goes in place (Hud.OnLockChanged, from core's ShroudOnHudLockChanged). Before API 58 it
+-- is always kept.
+-- The contents stay still (owner, 2026-11-22: they slid left into the room on a lock, and the width change pushed a
+-- strip at the right edge off screen): a locked strip's frame stands the grip's width right of where it stands
+-- unlocked, so its right edge doesn't move either. Positions everywhere else (saved, the Position rows, the move
+-- commands) are the strip's PLACE, its frame as it stands unlocked, as before API 58 (Hud.ToFrame / Hud.ToPlace). One
+-- exception: a strip placed against the screen's left edge (place x 0) sits flush against it while locked.
 Hud.locked = false
 function Hud.ReadLock()
   local locked = false
@@ -191,6 +196,35 @@ function Hud.Grip()
   if Hud.locked then return 0 end
   return T.Window.GRIP
 end
+-- A place's x as the frame's, and back (the lock as it is now, or `locked` when given).
+function Hud.ToFrame(x, locked)
+  if locked == nil then locked = Hud.locked end
+  if not locked or type(x) ~= "number" or x <= 0 then return x end
+  return x + T.Window.GRIP
+end
+function Hud.ToPlace(x, locked)
+  if locked == nil then locked = Hud.locked end
+  if not locked or type(x) ~= "number" then return x end
+  return math.max(0, x - T.Window.GRIP)
+end
+
+-- Whether a strip is on screen now. Only those are measured: a hidden strip can't be dragged, and one never
+-- shown may not be laid out yet (the notification HUD, hidden until a notice comes, was sent back to the top-left
+-- corner after client restarts and account switches; owner, 2026-10-05).
+local function onScreen(frame)
+  if not frame then return false end
+  local ok, v = pcall(frame.IsVisible, frame)
+  return ok and v == true
+end
+
+-- A strip's saved place (the Toolbelt's for Hud.GLUED_ID).
+local function savedPlace(key)
+  local m = modules[key]
+  if m then return m.GetSavedPosition() end
+  if key == Hud.GLUED_ID then return prefs.x, prefs.y end
+  return nil
+end
+
 -- Per frame key, the elements holding that room: { el, prop = "paddingLeft" / "marginLeft" }.
 local gripped = {}
 local function noteGrip(frameKey, el, prop)
@@ -285,7 +319,7 @@ function Hud.Build(missingOnly)
       end
     end
     if ok then
-      local frame, why = newFrame("glued", { id = Hud.GLUED_ID, x = prefs.x or Hud.GLUED_HOME[1],
+      local frame, why = newFrame("glued", { id = Hud.GLUED_ID, x = Hud.ToFrame(prefs.x or Hud.GLUED_HOME[1]),
         y = prefs.y or Hud.GLUED_HOME[2], width = 100, height = 40, visible = false,
         -- start past the drag grip; parts side by side, tops aligned
         children = glued })
@@ -339,7 +373,7 @@ function Hud.Build(missingOnly)
       end
       if ok then ok, column = pcall(UI.Column, { style = { paddingLeft = Hud.Grip() }, children = kids }) end
       if ok then
-        local frame, why = newFrame(key, { id = m.FRAME_ID, x = x or m.HOME[1], y = y or m.HOME[2],
+        local frame, why = newFrame(key, { id = m.FRAME_ID, x = Hud.ToFrame(x or m.HOME[1]), y = y or m.HOME[2],
           width = 100, height = 40, visible = false, children = { column } })
         frames[key] = frame
         if frame then noteGrip(key, column, "paddingLeft") end
@@ -409,11 +443,21 @@ end
 -- grip room is set in place and the strips resized. Nothing is rebuilt.
 function Hud.OnLockChanged(locked)
   local was = Hud.Grip()
+  local places = {}                    -- each built strip's place, read with the lock as it was
+  for key, frame in pairs(frames) do
+    local x, y = Hud.Position(frame)
+    if not onScreen(frame) then x, y = savedPlace(key) end
+    if x then places[key] = { x, y } end
+  end
   if type(locked) == "boolean" then Hud.locked = locked else Hud.ReadLock() end
   local grip = Hud.Grip()
   if grip == was then return end
   for _, list in pairs(gripped) do
     for _, g in ipairs(list) do pcall(g.el.SetStyle, g.el, { [g.prop] = grip }) end
+  end
+  for key, p in pairs(places) do        -- the contents stay where they are (Hud.ToFrame)
+    local frame = frames[key]
+    pcall(frame.SetPosition, frame, Hud.ToFrame(p[1]), p[2])
   end
   Hud.Refresh()
 end
@@ -483,16 +527,6 @@ function Hud.Refresh()
   end
 end
 
--- Remembers where the player put the strips (grip drags included); from Toolbox.Tick.
--- Whether a strip is on screen now. Only those are measured: a hidden strip can't be dragged, and one never
--- shown may not be laid out yet (the notification HUD, hidden until a notice comes, was sent back to the top-left
--- corner after client restarts and account switches; owner, 2026-10-05).
-local function onScreen(frame)
-  if not frame then return false end
-  local ok, v = pcall(frame.IsVisible, frame)
-  return ok and v == true
-end
-
 -- Whether a module's part is on screen now: built, shown, and its strip (its own, or the Toolbelt's) showing. A
 -- combat-only Toolbelt hides the whole strip with the parts still built and shown (review, 2026-10-07, 17).
 function Hud.PartOnScreen(key)
@@ -541,21 +575,23 @@ fitFrame = function(key, frame, sw, sh)
   local x, y, w, h = nil, nil, 0, 0
   if sized[frame] then w, h = sized[frame].w, sized[frame].h end
   if onScreen(frame) then
-    x, y = Hud.Position(frame)
+    x, y = Hud.FramePosition(frame)
     local ok, gw, gh = pcall(frame.GetSize, frame)   -- laid out, perhaps larger than asked (or not yet laid out)
     if ok and type(gw) == "number" and type(gh) == "number" then w, h = math.max(w, gw), math.max(h, gh) end
   else
     if m then x, y = m.GetSavedPosition() else x, y = prefs.x, prefs.y end
+    x = Hud.ToFrame(x)
   end
   if type(x) ~= "number" or type(y) ~= "number" then return false end
-  local nx = math.floor(math.max(0, math.min(x, sw - w)))
+  local nx = math.floor(math.max(0, math.min(x, sw - w)))       -- the frame's, in frame terms
   local ny = math.floor(math.max(0, math.min(y, sh - h)))
   if nx == math.floor(x) and ny == math.floor(y) then return false end
   if not pcall(frame.SetPosition, frame, nx, ny) then return false end
+  local px = Hud.ToPlace(nx)
   if m then
-    m.SavePosition(nx, ny)
+    m.SavePosition(px, ny)
   elseif key == Hud.GLUED_ID then
-    prefs.x, prefs.y = nx, ny
+    prefs.x, prefs.y = px, ny
     T.Save("hud", prefs)
   end
   return true
@@ -585,7 +621,14 @@ function Hud.FitScreen()
   return moved
 end
 
+-- A strip's place (Hud.ToPlace: its frame as it stands unlocked), or nil before it is laid out.
 function Hud.Position(frame)
+  local x, y = Hud.FramePosition(frame)
+  if not x then return nil end
+  return Hud.ToPlace(x), y
+end
+-- Where its frame stands now.
+function Hud.FramePosition(frame)
   if not frame then return nil end
   local ok, x, y = pcall(frame.GetPosition, frame)
   if not ok or type(x) ~= "number" or type(y) ~= "number" then return nil end
@@ -596,7 +639,7 @@ end
 function Hud.MoverFor(key, home)
   return T.Window.HudMover(function() return Hud.FrameFor(key) end, home, function()
     return gluedHere(key) and Hud.GLUED_HOME or home
-  end)
+  end, { toFrame = Hud.ToFrame, toPlace = Hud.ToPlace })
 end
 
 -- One chat line about module `key`'s strip, for /toolbox <module> debug.

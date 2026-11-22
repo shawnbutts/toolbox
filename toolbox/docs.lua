@@ -401,8 +401,9 @@ D.SECTIONS = {
     "The buff bar, health & focus bars, combat stats, the consumables bar and the equipment bar are HUD "
       .. "strips. Drag the grip at a strip's top-left corner (untick Lock HUD Positions, in Options > Interface "
       .. "or your portrait's menu, to see it), or use the Position buttons in settings (HUD layout). On "
-      .. "newer game clients (Lua API 58) a strip keeps room for the grip only while the HUD is unlocked, so "
-      .. "locked, it sits closer to its left edge." },
+      .. "newer game clients (Lua API 58) a strip keeps room for the grip only while the HUD is unlocked, on "
+      .. "its left: locking or unlocking doesn't move what's on it, and a strip against the screen's left edge "
+      .. "sits flush against it while locked." },
   { "Notifications",
     "A Notifications window tells you what's new since you last saw it: your guild's message of the day, "
       .. "new mail, mail about to expire, ransoms, new rewards, guild applications and gear needing repair. It "

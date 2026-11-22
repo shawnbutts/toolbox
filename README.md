@@ -292,7 +292,8 @@ permanent effects have no sweep.
 is locked: untick **Lock HUD Positions** on the game's **Interface** options page, or on your
 portrait's menu, to see it. Or use the Position buttons on the settings' **HUD layout** page
 (10 px nudges and Reset). The bar remembers where it is. On newer game clients (Lua API 58) every strip
-keeps room for the grip only while the HUD is unlocked; locked, its contents sit closer to its left edge.
+keeps room for the grip only while the HUD is unlocked, on its left: locking or unlocking doesn't move what's on
+it, and a strip against the screen's left edge sits flush against it while locked.
 
 The strip is sized to the icons showing and grows to the right as buffs arrive; the game keeps
 it on screen, so a bar parked at the far right is pushed left as it grows.

@@ -1065,8 +1065,13 @@ until the live client's `/toolbox api` reports more). Build against the live cli
   default: the grip hidden) and `ShroudOnHudLockChanged(locked)` (the frame after a change; not on the first frame).
   Used: `Hud.Grip()` = `T.Window.GRIP` only while unlocked (0 locked; always the grip before 58), read by `Hud.ReadLock`
   in `Hud.Init`; `Hud.OnLockChanged` (core's callback) sets every built strip's room in place (`gripped`, the padded
-  column / row and the Toolbelt's over / under parts' `marginLeft`) and refreshes the sizes, nothing rebuilt; the
-  frame stays put, its contents move by the grip. Strips show for placing only while the settings window is open,
+  column / row and the Toolbelt's over / under parts' `marginLeft`) and refreshes the sizes, nothing rebuilt. The
+  contents stay still (owner, 2026-11-22: first built with the frame still, the contents slid left on a lock and the
+  width change pushed a right-edge strip off screen): a strip's PLACE is its frame as it stands unlocked (as before
+  API 58, so older saves read the same); locked, the frame stands `GRIP` right of it (`Hud.ToFrame` / `Hud.ToPlace`),
+  except a place at x 0, flush with the screen's edge either way. Saved positions, `Hud.Position`, the Position rows
+  and move commands (`W.HudMover`'s `conv`) are places; `Hud.FramePosition` and `fitFrame` work on the frame;
+  `Hud.OnLockChanged` reads each strip's place with the old lock and sets its frame for the new one. Strips show for placing only while the settings window is open,
   not while the HUD is unlocked (owner, 2026-11-22: built as `T.Placing()` in 19bbab7 and reverted). Harness: `ShroudIsHudLocked` from `H.apiVersion` 58,
   `H.S.hudUnlocked`, `H.hudLock(locked)`. The same day `ShroudGetNearestWaterType` was fixed (open water only, the
   surface's distance; no version of its own): still not asked (its cost). The reference names the lock "Lock HUD

@@ -440,8 +440,9 @@ W.DEFAULT_X, W.DEFAULT_Y = 200, 120
 -- Status Movement" is on). getFrame() returns the frame or nil; home = { x, y } for Reset
 -- (or homeFn() returning one, when it depends on the layout).
 -- Returns { Get, MoveTo, Nudge, Reset }. The game keeps HUD frames on screen, and
--- SetPosition "remembers the new spot as the player's".
-function W.HudMover(getFrame, home, homeFn)
+-- SetPosition "remembers the new spot as the player's". `conv` = { toFrame(x), toPlace(x) } (Hud's): positions given
+-- and told are the strip's place, not its frame's (they differ while the HUD is locked, API 58).
+function W.HudMover(getFrame, home, homeFn, conv)
   local m = {}
   local function finite(n) return type(n) == "number" and n == n and n > -math.huge and n < math.huge end
 
@@ -451,13 +452,17 @@ function W.HudMover(getFrame, home, homeFn)
     if not frame then return nil end
     local ok, x, y = pcall(frame.GetPosition, frame)
     if not ok or type(x) ~= "number" or type(y) ~= "number" then return nil end
-    return math.floor(x + 0.5), math.floor(y + 0.5)
+    x = math.floor(x + 0.5)
+    if conv then x = conv.toPlace(x) end
+    return x, math.floor(y + 0.5)
   end
 
   function m.MoveTo(x, y)
     local frame = getFrame()
     if not frame or not finite(x) or not finite(y) then return false end
-    local ok = pcall(frame.SetPosition, frame, math.floor(x + 0.5), math.floor(y + 0.5))
+    x = math.floor(x + 0.5)
+    if conv then x = conv.toFrame(x) end
+    local ok = pcall(frame.SetPosition, frame, x, math.floor(y + 0.5))
     T.Config.SyncLive()
     return ok
   end
