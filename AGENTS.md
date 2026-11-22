@@ -1072,7 +1072,7 @@ until the live client's `/toolbox api` reports more). Build against the live cli
   except a place at x 0, flush with the screen's edge either way. Saved positions, `Hud.Position`, the Position rows
   and move commands (`W.HudMover`'s `conv`) are places; `Hud.FramePosition` and `fitFrame` work on the frame;
   `Hud.OnLockChanged` reads each strip's place with the old lock and sets its frame for the new one. Strips show for placing only while the settings window is open,
-  not while the HUD is unlocked (owner, 2026-11-22: built as `T.Placing()` in 19bbab7 and reverted). Harness: `ShroudIsHudLocked` from `H.apiVersion` 58,
+  not while the HUD is unlocked (owner, 2026-11-22: built as `T.Placing()` in 561e3af and reverted). Harness: `ShroudIsHudLocked` from `H.apiVersion` 58,
   `H.S.hudUnlocked`, `H.hudLock(locked)`. The same day `ShroudGetNearestWaterType` was fixed (open water only, the
   surface's distance; no version of its own): still not asked (its cost). The reference names the lock "Lock HUD
   Positions" (Options, Interface, or the portrait's menu); player texts use that name (owner, 2026-11-21; Lock Status
