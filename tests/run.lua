@@ -1,6 +1,10 @@
 -- Headless test runner. From the repo root:  lua tests/run.lua   (or luajit tests/run.lua)
 -- Optional filter:  lua tests/run.lua rolling
 
+-- Each line out as it's printed: through a pipe (CI) the output is block-buffered, and an interpreter that crashed lost
+-- it all, so nothing told which test it died in (Windows' LuaJIT, 2026-11-15 to 22).
+io.stdout:setvbuf("no")
+
 local ROOT = (arg and arg[0] and arg[0]:match("^(.*)[/\\]tests[/\\]")) or "."
 package.path = ROOT .. "/tests/?.lua;" .. package.path
 

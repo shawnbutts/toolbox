@@ -45,7 +45,12 @@ jobs:
           .\install-scoop.ps1 -RunAsAdmin
           $shims = Join-Path $env:USERPROFILE "scoop\shims"
           $env:PATH = "$shims;$env:PATH"
-          scoop install lua luajit
+          # LuaJIT pinned to the last mingw64 build (2.1.1791988261-1): Scoop's ucrt64 one (2.1.1793275035-1, from
+          # 2026-10-31) dies part way through the tests with no output; macOS and Linux run a newer LuaJIT fine.
+          # Unpin ("scoop install lua luajit") once a later Scoop build passes.
+          $luajit = "https://raw.githubusercontent.com/ScoopInstaller/Main/" +
+            "1977d59494179f4427d62de18888420691ed8658/bucket/luajit.json"
+          scoop install lua $luajit
           $bin = Join-Path $env:RUNNER_TEMP "bin"
           New-Item -ItemType Directory -Force -Path $bin | Out-Null
           Invoke-WebRequest -Uri https://github.com/lunarmodules/luacheck/releases/download/v1.2.0/luacheck.exe `
